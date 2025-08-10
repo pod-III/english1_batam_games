@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Picture Reveal Game - Manual Keywords</title>
+    <title>Picture Reveal Game - Local Storage</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
@@ -143,7 +143,7 @@
             width: 100%;
             height: 100%;
             display: grid;
-            z-index: 2; /* Corrected z-index to be on top of the image */
+            z-index: 2;
         }
         
         #gameImage {
@@ -173,7 +173,7 @@
         .tile.revealed {
             transform: scale(0) rotateY(180deg);
             opacity: 0;
-            pointer-events: none; /* Disable clicks on revealed tiles */
+            pointer-events: none;
         }
         
         .controls {
@@ -393,6 +393,7 @@
     </style>
 </head>
 <body>
+
     <h1>🖼️ Picture Reveal Game</h1>
 
     <!-- Setup Panel -->
@@ -420,12 +421,14 @@
                     <option value="1">1 tile</option>
                     <option value="2" selected>2 tiles</option>
                     <option value="3">3 tiles</option>
-                </option>
                 </select>
             </div>
         </div>
-
-        <button id="startGameBtn">🚀 Start Game</button>
+        
+        <div class="controls-row">
+            <button id="startGameBtn">🚀 Start Game</button>
+            <button id="loadGameBtn">📂 Load Game</button>
+        </div>
         <div id="setupError" class="error-message hidden"></div>
     </div>
 
@@ -481,40 +484,7 @@
         </div>
     </div>
 
-
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        // --- Firebase Setup (REQUIRED) ---
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : null);
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-        let userId = '';
-
-        async function signIn() {
-            try {
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    await signInAnonymously(auth);
-                }
-                userId = auth.currentUser?.uid || 'anonymous';
-            } catch (error) {
-                console.error("Firebase authentication error:", error);
-            }
-        }
-
-        // Wait for auth to be ready
-        signIn().then(() => {
-            console.log("Firebase auth is ready. User ID:", userId);
-        });
-
+    <script>
         // --- Game State Variables ---
         let gameSettings = {
             difficulty: 'medium',
@@ -552,6 +522,7 @@
         const difficultySelect = document.getElementById("difficulty");
         const tilesPerGuessSelect = document.getElementById("tilesPerGuess");
         const startGameBtn = document.getElementById("startGameBtn");
+        const loadGameBtn = document.getElementById("loadGameBtn");
         const setupError = document.getElementById("setupError");
 
         const gameImage = document.getElementById("gameImage");
@@ -638,7 +609,7 @@
             return unrevealed[randomIndex];
         }
 
-        function addImageInputGroup() {
+        function addImageInputGroup(imageUrl = '', keyword = '') {
             const div = document.createElement('div');
             div.className = 'image-input-group';
             div.innerHTML = `
@@ -646,9 +617,9 @@
                 <label>📁 Upload Image:</label>
                 <input type="file" class="image-upload-input" accept="image/*">
                 <label>🔗 Or Paste Image URL:</label>
-                <input type="text" class="image-url-input" placeholder="https://example.com/pic.jpg">
+                <input type="text" class="image-url-input" placeholder="https://example.com/pic.jpg" value="${imageUrl}">
                 <label>🔑 Keyword (e.g., 'cat'):</label>
-                <input type="text" class="keyword-input" placeholder="Enter keyword to guess...">
+                <input type="text" class="keyword-input" placeholder="Enter keyword to guess..." value="${keyword}">
             `;
             imageInputsContainer.appendChild(div);
             div.querySelector('.remove-btn').addEventListener('click', () => {
@@ -659,6 +630,43 @@
                 }
             });
         }
+
+        function saveGameToLocalStorage() {
+            const savedGame = {
+                settings: gameSettings,
+                rounds: rounds,
+                stats: gameStats,
+            };
+            localStorage.setItem('pictureRevealGame', JSON.stringify(savedGame));
+            showMessage('Game saved to local storage!', 'success');
+        }
+
+        function loadGameFromLocalStorage() {
+            const savedGame = JSON.parse(localStorage.getItem('pictureRevealGame'));
+            if (!savedGame) {
+                showMessage('No saved game found.', 'error');
+                return;
+            }
+
+            // Restore settings and rounds
+            gameSettings = savedGame.settings;
+            rounds = savedGame.rounds;
+            gameStats = savedGame.stats;
+            
+            // Populate the setup panel with loaded data
+            difficultySelect.value = gameSettings.difficulty;
+            tilesPerGuessSelect.value = gameSettings.tilesPerGuess;
+            imageInputsContainer.innerHTML = '';
+            rounds.forEach(round => {
+                addImageInputGroup(round.imageUrl, round.keyword);
+            });
+            if (rounds.length === 0) {
+                 addImageInputGroup();
+            }
+
+            showMessage('Game loaded from local storage!', 'success');
+        }
+
 
         // --- Game Logic Functions ---
         function loadImagesAndStart() {
@@ -679,35 +687,49 @@
 
                 let imageUrl = '';
                 if (fileInput.files.length > 0) {
-                    imageUrl = URL.createObjectURL(fileInput.files[0]);
+                    // Use FileReader for local files to get base64 data
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        imageUrl = e.target.result;
+                        if (!imageUrl || !keywordInput.value.trim()) {
+                            hasError = true;
+                        } else {
+                            rounds.push({
+                                imageUrl: imageUrl,
+                                keyword: keywordInput.value.trim().toLowerCase()
+                            });
+                        }
+                    };
+                    reader.readAsDataURL(fileInput.files[0]);
                 } else if (urlInput.value.trim()) {
                     imageUrl = urlInput.value.trim();
-                }
-
-                if (!imageUrl || !keywordInput.value.trim()) {
-                    hasError = true;
-                } else {
-                    rounds.push({
-                        imageUrl: imageUrl,
-                        keyword: keywordInput.value.trim().toLowerCase()
-                    });
+                    if (!imageUrl || !keywordInput.value.trim()) {
+                        hasError = true;
+                    } else {
+                        rounds.push({
+                            imageUrl: imageUrl,
+                            keyword: keywordInput.value.trim().toLowerCase()
+                        });
+                    }
                 }
             });
 
-            if (hasError) {
-                setupError.textContent = "Please provide both an image and a keyword for all entries.";
-                setupError.classList.remove('hidden');
-                return;
-            }
-
-            if (rounds.length === 0) {
-                 setupError.textContent = "Please add at least one image/keyword pair.";
-                 setupError.classList.remove('hidden');
-                 return;
-            }
-
-            setupError.classList.add('hidden');
-            startGame();
+            setTimeout(() => { // Small delay to allow file readers to finish
+                if (hasError) {
+                    setupError.textContent = "Please provide both an image and a keyword for all entries.";
+                    setupError.classList.remove('hidden');
+                    return;
+                }
+    
+                if (rounds.length === 0) {
+                     setupError.textContent = "Please add at least one image/keyword pair.";
+                     setupError.classList.remove('hidden');
+                     return;
+                }
+    
+                setupError.classList.add('hidden');
+                startGame();
+            }, 100);
         }
 
         function generateHint(keyword) {
@@ -729,6 +751,7 @@
         }
 
         function startRound() {
+            saveGameToLocalStorage(); // Save current game state
             showPanel('gameSection');
             wordHint.classList.add('hidden');
             guessInput.value = '';
@@ -838,6 +861,7 @@
         }
 
         function endGame(isComplete) {
+            saveGameToLocalStorage(); // Save final stats
             showPanel('gameOverPanel');
             
             finalStatsDiv.innerHTML = `
@@ -869,6 +893,7 @@
 
         // --- Event Listeners ---
         startGameBtn.addEventListener("click", loadImagesAndStart);
+        loadGameBtn.addEventListener("click", loadGameFromLocalStorage);
         guessBtn.addEventListener("click", checkGuess);
         hintBtn.addEventListener("click", giveHint);
         nextRoundBtn.addEventListener("click", nextRound);
@@ -888,6 +913,7 @@
             imageInputsContainer.innerHTML = '';
             addImageInputGroup(); // Add a default input group
             setupError.classList.add('hidden');
+            localStorage.removeItem('pictureRevealGame');
         });
 
         confirmNoBtn.addEventListener('click', () => {
@@ -895,11 +921,11 @@
         });
 
         playAgainBtn.addEventListener("click", () => showPanel('setupPanel'));
+        
+        addImageBtn.addEventListener("click", () => addImageInputGroup());
 
-        addImageBtn.addEventListener("click", addImageInputGroup);
-
+        // Initial setup
         window.onload = () => {
-             // Initial check for firebase to ensure all components are ready
              addImageInputGroup(); // Add the first input group on load
         }
     </script>
