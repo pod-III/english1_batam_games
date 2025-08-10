@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spin the Wheel</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <h1>Spin the Wheel</h1>
+
+        <!-- Flex container for wheel and controls -->
+        <div class="main-content">
+            <div class="wheel-container">
+                <canvas id="wheelCanvas" width="500" height="500"></canvas>
+                <div class="pointer"></div>
+            </div>
+
+            <div class="controls">
+                <div class="input-group">
+                    <input type="text" id="optionInput" placeholder="Enter an option...">
+                    <button id="addOptionBtn">Add Option</button>
+                </div>
+                <ul id="optionsList"></ul>
+                <button id="spinBtn">Spin the Wheel!</button>
+            </div>
+        </div>
+
+        <div id="resultDisplay"></div>
+    </div>
+
+    <div id="winnerModal" class="modal">
+        <div class="modal-content">
+            <h2>The Winner Is...</h2>
+            <div id="winnerName"></div>
+            <button id="playAgainBtn">Play Again</button>
+            <button id="removeWinnerBtn">Remove Winner</button>
+        </div>
+    </div>
+
+    <audio id="spinSound" src="path/to/spinning-sound.mp3" loop></audio>
+    <audio id="winSound" src="path/to/win-sound.mp3"></audio>
+
+    <script>
+ // --- Get DOM Elements ---
+const canvas = document.getElementById('wheelCanvas');
+const ctx = canvas.getContext('2d');
+const optionInput = document.getElementById('optionInput');
+const addOptionBtn = document.getElementById('addOptionBtn');
+const spinBtn = document.getElementById('spinBtn');
+const optionsList = document.getElementById('optionsList');
+const resultDisplay = document.getElementById('resultDisplay');
+
+// ++ New Elements for Modal and Sound ++
+const winnerModal = document.getElementById('winnerModal');
+const winnerName = document.getElementById('winnerName');
+const playAgainBtn = document.getElementById('playAgainBtn');
+const removeWinnerBtn = document.getElementById('removeWinnerBtn');
+const spinSound = document.getElementById('spinSound');
+const winSound = document.getElementById('winSound');
+
+// --- State ---
+let options = [];
+let startAngle = 0;
+let arc = Math.PI * 2;
+const colors = ['#FF6F61', '#6B5B95', '#88B04B', '#F7CAC9', '#92A8D1', '#9400D3'];
+
+// --- Wheel Drawing ---
+function drawWheel() {
+    // 1. Clear the canvas and handle the case where there are no options
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (options.length === 0) {
+        ctx.beginPath();
+        ctx.arc(250, 250, 245, 0, 2 * Math.PI);
+        ctx.fillStyle = '#666';
+        ctx.fill();
+        ctx.fillStyle = '#fff';
+        ctx.font = '24px Poppins';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Add Options', 250, 250);
+        return;
+    }
+
+    // 2. Loop through each option to draw the segment and text
+    arc = 2 * Math.PI / options.length;
+    for (let i = 0; i < options.length; i++) {
+        const angle = startAngle + i * arc;
+
+        // Draw the colored segment
+        ctx.beginPath();
+        ctx.fillStyle = colors[i % colors.length];
+        ctx.moveTo(250, 250);
+        ctx.arc(250, 250, 245, angle, angle + arc);
+        ctx.lineTo(250, 250);
+        ctx.fill();
+
+        // --- NEW LOGIC FOR READABLE TEXT ---
+        ctx.save(); // Isolate state for each text label
+
+        // Set text style
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 16px Poppins';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        // Move the canvas origin to the center of the wheel
+        ctx.translate(250, 250);
+
+        // Calculate the angle for the text (middle of the segment)
+        const textAngle = angle + arc / 2;
+
+        // Normalize angle to determine if it's on the "upside-down" side
+        const normalizedAngle = (textAngle % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+        const isUpsideDown = (normalizedAngle > Math.PI / 2 && normalizedAngle < 3 * Math.PI / 2);
+
+        // Rotate the canvas to the text's angle
+        // If it's upside down, add a 180-degree flip (Math.PI)
+        ctx.rotate(textAngle + (isUpsideDown ? Math.PI : 0));
+
+        const text = options[i];
+        const textRadius = 150; // Distance from the center
+
+        // Draw the text
+        // If it was flipped, draw it at a negative radius to keep it in its segment
+        ctx.fillText(text, isUpsideDown ? -textRadius : textRadius, 0);
+
+        ctx.restore(); // Reset canvas for the next segment
+    }
+}
+
+// --- Animation & Sound ---
+function spinWheel() {
+    spinBtn.disabled = true;
+    resultDisplay.textContent = 'Spinning...';
+    spinSound.play(); // Play spinning sound
+
+    const winningSegmentIndex = Math.floor(Math.random() * options.length);
+    const segmentAngle = winningSegmentIndex * arc;
+    const pointerPosition = 3 * Math.PI / 2;
+    const randomOffset = (Math.random() - 0.5) * arc * 0.8;
+    const targetAngle = pointerPosition - segmentAngle - (arc / 2) + randomOffset;
+    const extraRotations = 5 + Math.floor(Math.random() * 5);
+    const totalRotation = targetAngle + (extraRotations * 2 * Math.PI);
+
+    let currentRotation = startAngle;
+    const spinDuration = 5000;
+    let startTime = null;
+
+    function animate(currentTime) {
+        if (startTime === null) startTime = currentTime;
+        const elapsedTime = currentTime - startTime;
+
+        if (elapsedTime >= spinDuration) {
+            // Stop animation and sound
+            spinSound.pause();
+            spinSound.currentTime = 0;
+            startAngle = totalRotation % (2 * Math.PI);
+            drawWheel();
+            displayResult();
+            spinBtn.disabled = false;
+            return;
+        }
+
+        const t = elapsedTime / spinDuration;
+        const progress = 1 - Math.pow(1 - t, 5); // Ease-out quint
+        startAngle = currentRotation + (totalRotation - currentRotation) * progress;
+        drawWheel();
+        requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
+}
+
+// --- Display Winner & Modal ---
+function displayResult() {
+    const pointerPosition = 3 * Math.PI / 2;
+    let effectiveAngle = ((2 * Math.PI) - (startAngle % (2 * Math.PI)) + pointerPosition) % (2 * Math.PI);
+    const winningIndex = Math.floor(effectiveAngle / arc);
+    const winner = options[winningIndex];
+
+    resultDisplay.textContent = `Winner: ${winner}!`;
+
+    // Show modal and play winning sound
+    winnerName.textContent = winner;
+    winnerModal.style.display = 'flex';
+    winSound.play();
+}
+
+function hideWinnerModal() {
+    winnerModal.style.display = 'none';
+}
+
+function removeWinner() {
+    const winnerText = winnerName.textContent;
+    options = options.filter(option => option !== winnerText);
+    hideWinnerModal();
+    updateOptionsList();
+    drawWheel();
+    resultDisplay.textContent = ''; // Clear result display
+}
+
+// --- UI Updates & Event Listeners ---
+function addOption() {
+    const newOption = optionInput.value.trim();
+    if (newOption) {
+        options.push(newOption);
+        optionInput.value = '';
+        updateOptionsList();
+        drawWheel();
+    }
+}
+
+function updateOptionsList() {
+    optionsList.innerHTML = '';
+    options.forEach((option, index) => {
+        const li = document.createElement('li');
+        li.className = 'option-item';
+        li.innerHTML = `<span>${option}</span><button class="remove-btn" data-index="${index}">&times;</button>`;
+        optionsList.appendChild(li);
+    });
+}
+
+optionsList.addEventListener('click', (e) => {
+    if (e.target.classList.contains('remove-btn')) {
+        options.splice(e.target.dataset.index, 1);
+        updateOptionsList();
+        drawWheel();
+    }
+});
+
+addOptionBtn.addEventListener('click', addOption);
+removeWinnerBtn.addEventListener('click', removeWinner);
+optionInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') addOption();
+});
+spinBtn.addEventListener('click', spinWheel);
+playAgainBtn.addEventListener('click', hideWinnerModal);
+
+// --- Initial Call ---
+drawWheel();
+    </script>
+</body>
+
+<style>
+/* --- Root Variables --- */
+:root {
+    --bg-color: #121212;
+    --surface-color: #1e1e1e;
+    --text-color: #f5f5f5;
+    --accent-color: #4CAF50;
+    --accent-color-dark: #388E3C;
+    --button-color: #6200EE;
+    --button-color-hover: #9047ff;
+    --border-color: #333;
+    --shadow-color: rgba(0, 0, 0, 0.4);
+}
+
+/* --- Global & General Layout --- */
+*, *::before, *::after {
+    box-sizing: border-box; /* ✨ More predictable sizing */
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    padding: 20px;
+    overflow: hidden;
+
+    font-family: 'Poppins', sans-serif;
+    color: var(--text-color);
+    /* ✨ Subtle gradient for more depth */
+    background: radial-gradient(ellipse at bottom, #212121 0%, #121212 100%);
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    width: 100%;
+    max-width: 900px;
+
+    padding: 25px;
+    background-color: var(--surface-color);
+    border: 1px solid rgba(255, 255, 255, 0.05); /* ✨ Subtle border highlight */
+    border-radius: 15px;
+    box-shadow: 0 10px 30px var(--shadow-color); /* ✨ Softer, larger shadow */
+}
+
+h1 {
+    margin-bottom: 10px;
+    font-size: 2.5rem;
+    color: var(--text-color);
+    text-align: center;
+    text-shadow: 0 0 15px rgba(76, 175, 80, 0.4); /* ✨ Accent color glow */
+}
+
+/* --- New Flexbox for main content layout --- */
+.main-content {
+    display: flex;
+    gap: 30px;
+    width: 100%;
+}
+/* --- Wheel & Pointer --- */
+.wheel-container {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    flex-basis: 50%;
+    margin: 20px auto;
+}
+
+canvas {
+    width: 100%;
+    height: auto;
+
+    border: 5px solid var(--border-color);
+    border-radius: 50%;
+    /* ✨ Inner shadow for a 3D effect */
+    box-shadow: 0 0 20px rgba(0,0,0,0.5), inset 0 0 25px rgba(0,0,0,0.5);
+    transition: transform 0.2s ease-out;
+}
+
+.pointer {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    z-index: 10;
+
+    width: 0;
+    height: 0;
+    border-left: 15px solid transparent;
+    border-right: 15px solid transparent;
+    border-bottom: 30px solid var(--accent-color-dark);
+
+    transform: translateX(-50%);
+    filter: drop-shadow(0 4px 3px rgba(0,0,0,0.5)); /* ✨ More realistic shadow */
+    transition: transform 0.3s ease; /* ✨ */
+}
+
+/* --- Controls & Inputs --- */
+.controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    width: 100%;
+    max-width: 400px;
+
+    padding: 20px;
+    background-color: var(--bg-color);
+    border-radius: 10px;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+    flex-basis: 50%;
+}
+
+.input-group {
+    display: flex;
+    gap: 10px;
+}
+
+input[type="text"] {
+    flex-grow: 1;
+    padding: 10px 15px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+
+    font-size: 1rem;
+    background-color: var(--surface-color);
+    color: var(--text-color);
+    transition: all 0.3s ease; /* ✨ Smooth transition for focus */
+}
+
+input[type="text"]:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    /* ✨ Glow effect on focus */
+    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.3);
+}
+
+/* --- Buttons --- */
+button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 6px var(--shadow-color);
+    transition: all 0.2s ease; /* ✨ Faster transition for buttons */
+}
+
+button:active:not(:disabled) {
+    transform: translateY(2px); /* ✨ Press down effect */
+    box-shadow: 0 2px 4px var(--shadow-color);
+}
+
+#addOptionBtn {
+    background-color: var(--accent-color);
+    color: var(--text-color);
+}
+#addOptionBtn:hover {
+    background-color: var(--accent-color-dark);
+}
+
+#spinBtn {
+    padding: 12px 24px;
+    font-size: 1.2rem;
+    background-color: var(--button-color);
+    color: white;
+    box-shadow: 0 6px 12px var(--shadow-color);
+}
+#spinBtn:hover:not(:disabled) {
+    background-color: var(--button-color-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px var(--shadow-color);
+}
+#spinBtn:disabled {
+    color: #999;
+    background-color: #333;
+    cursor: not-allowed;
+    transform: translateY(0); /* ✨ Reset transform when disabled */
+    box-shadow: none;
+}
+
+.remove-btn {
+    padding: 0;
+    font-size: 1.2rem;
+    background: none;
+    border: none;
+    color: var(--accent-color);
+    cursor: pointer;
+    box-shadow: none;
+    transition: all 0.2s ease;
+}
+.remove-btn:hover {
+    color: var(--accent-color-dark);
+    transform: scale(1.2); /* ✨ */
+}
+
+/* --- Options List --- */
+#optionsList {
+    max-height: 200px;
+    margin: 0;
+    padding: 0;
+
+    list-style: none;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+/* ✨ Custom Scrollbar for Webkit browsers */
+#optionsList::-webkit-scrollbar {
+  width: 8px;
+}
+#optionsList::-webkit-scrollbar-track {
+  background: var(--bg-color);
+  border-radius: 4px;
+}
+#optionsList::-webkit-scrollbar-thumb {
+  background: #555;
+  border-radius: 4px;
+}
+#optionsList::-webkit-scrollbar-thumb:hover {
+  background: #777;
+}
+
+.option-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    border-bottom: 1px solid var(--border-color);
+    transition: all 0.2s ease; /* ✨ */
+}
+.option-item:hover {
+    background-color: rgba(255, 255, 255, 0.05); /* ✨ */
+    transform: translateX(5px); /* ✨ */
+}
+.option-item:last-child {
+    border-bottom: none;
+}
+
+/* --- Result & Winner Modal --- */
+#resultDisplay {
+    min-height: 2.2rem;
+    margin-top: 20px;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--accent-color);
+    text-align: center;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 100;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    padding: 40px;
+    background: var(--surface-color);
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 10px 30px var(--shadow-color);
+    animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* ✨ New animation */
+}
+
+.modal-content h2 {
+    margin-top: 0;
+    font-size: 2rem;
+    color: var(--text-color);
+}
+
+#winnerName {
+    font-size: 3rem;
+    font-weight: 700;
+    color: var(--accent-color);
+    margin: 20px 0;
+    text-shadow: 0 0 20px rgba(76, 175, 80, 0.5); /* ✨ */
+}
+
+#playAgainBtn {
+    margin-top: 20px;
+    background-color: var(--button-color);
+    color: white;
+    font-size: 1.1rem;
+}
+#playAgainBtn:hover {
+    background-color: var(--button-color-hover);
+}
+
+#removeWinnerBtn {
+    margin-top: 10px;
+    background-color: #FF6347; /* Tomato Red */
+    color: white;
+}
+
+#removeWinnerBtn:hover {
+    background-color: #DC143C; /* Crimson */
+}
+
+
+/* ✨ New bounce-in animation for the modal */
+@keyframes popIn {
+    from { opacity: 0; transform: scale(0.8) translateY(20px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ✨ Media Query for smaller screens */
+@media (max-width: 600px) {
+    body {
+        padding: 10px;
+    }
+    .container {
+        padding: 15px;
+    }
+    h1 {
+        font-size: 2rem;
+    }
+    .modal-content {
+        width: 90%;
+        padding: 25px;
+    }
+    #winnerName {
+        font-size: 2.5rem;
+    }
+}
+/* --- New Media Query for side-by-side layout --- */
+@media (max-width: 900px) {
+    .main-content {
+        flex-direction: column;
+    }
+}
+</style>
+
+<script>
+
+</script>
+</html>

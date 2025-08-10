@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Picture Reveal Game - Enhanced</title>
+<style>
+    * {
+        box-sizing: border-box;
+    }
+    
+    body {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        color: #f1f5f9;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+        min-height: 100vh;
+        margin: 0;
+    }
+    
+    h1 { 
+        margin-bottom: 20px;
+        text-align: center;
+        background: linear-gradient(45deg, #38bdf8, #06b6d4);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-size: 2.5rem;
+    }
+    
+    .hidden { display: none !important; }
+    
+    .panel, .game-section {
+        background: rgba(30, 41, 59, 0.9);
+        backdrop-filter: blur(10px);
+        padding: 30px;
+        border-radius: 15px;
+        max-width: 600px;
+        width: 100%;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(56, 189, 248, 0.1);
+    }
+    
+    label {
+        display: block;
+        margin: 15px 0 5px 0;
+        font-weight: 600;
+        color: #cbd5e1;
+    }
+    
+    input, textarea, button, select {
+        width: 100%;
+        padding: 12px;
+        margin-top: 6px;
+        border-radius: 8px;
+        border: 1px solid #475569;
+        outline: none;
+        background: #334155;
+        color: #f1f5f9;
+        font-size: 14px;
+    }
+    
+    input:focus, textarea:focus, select:focus {
+        border-color: #38bdf8;
+        box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.1);
+    }
+    
+    button {
+        background: linear-gradient(45deg, #38bdf8, #06b6d4);
+        color: #0f172a;
+        font-weight: bold;
+        cursor: pointer;
+        margin-top: 15px;
+        transition: all 0.3s;
+        border: none;
+    }
+    
+    button:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(56, 189, 248, 0.3);
+    }
+    
+    button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
+    .game-board {
+        position: relative;
+        width: 400px;
+        height: 400px;
+        margin: 20px auto;
+        border: 4px solid #38bdf8;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+    
+    @media (max-width: 480px) {
+        .game-board {
+            width: 300px;
+            height: 300px;
+        }
+    }
+    
+    .game-board img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+    
+    .tile {
+        position: absolute;
+        background: linear-gradient(45deg, #1e293b, #334155);
+        border: 1px solid #475569;
+        transition: all 0.4s ease;
+        cursor: pointer;
+    }
+    
+    .tile:hover {
+        background: linear-gradient(45deg, #334155, #475569);
+    }
+    
+    .tile.removing {
+        transform: scale(0) rotate(180deg);
+        opacity: 0;
+    }
+    
+    .controls {
+        margin-top: 20px;
+        display: flex;
+        gap: 10px;
+        align-items: stretch;
+    }
+    
+    .controls input {
+        flex: 1;
+        margin-top: 0;
+    }
+    
+    .controls button {
+        margin-top: 0;
+        min-width: 100px;
+    }
+    
+    .game-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 15px 0;
+        padding: 15px;
+        background: rgba(15, 23, 42, 0.5);
+        border-radius: 8px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: #334155;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 10px;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(45deg, #38bdf8, #06b6d4);
+        transition: width 0.5s ease;
+        border-radius: 4px;
+    }
+    
+    #message { 
+        margin-top: 15px; 
+        height: auto;
+        min-height: 25px;
+        text-align: center;
+        font-weight: 600;
+        padding: 10px;
+        border-radius: 8px;
+        transition: all 0.3s;
+    }
+    
+    .message-success {
+        background: rgba(34, 197, 94, 0.2);
+        border: 1px solid #22c55e;
+        color: #4ade80;
+    }
+    
+    .message-error {
+        background: rgba(239, 68, 68, 0.2);
+        border: 1px solid #ef4444;
+        color: #f87171;
+    }
+    
+    .message-info {
+        background: rgba(56, 189, 248, 0.2);
+        border: 1px solid #38bdf8;
+        color: #7dd3fc;
+    }
+    
+    .difficulty-settings {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin: 15px 0;
+    }
+    
+    .word-hint {
+        margin-top: 10px;
+        padding: 10px;
+        background: rgba(56, 189, 248, 0.1);
+        border-radius: 8px;
+        text-align: center;
+        font-style: italic;
+    }
+    
+    .loading {
+        text-align: center;
+        padding: 20px;
+    }
+    
+    .loading::after {
+        content: '';
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid #334155;
+        border-top: 3px solid #38bdf8;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-left: 10px;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
+    .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 15px;
+        margin-top: 20px;
+    }
+    
+    .stat-item {
+        text-align: center;
+        padding: 15px;
+        background: rgba(15, 23, 42, 0.5);
+        border-radius: 8px;
+    }
+    
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #38bdf8;
+        display: block;
+    }
+    
+    .error-message {
+        background: rgba(239, 68, 68, 0.2);
+        border: 1px solid #ef4444;
+        color: #f87171;
+        padding: 10px;
+        border-radius: 8px;
+        margin-top: 10px;
+    }
+</style>
+</head>
+<body>
+
+<h1>🖼️ Picture Reveal Game</h1>
+
+<!-- Setup Panel -->
+<div id="setupPanel" class="panel">
+    <label>📁 Upload Images (multiple allowed):</label>
+    <input type="file" id="imageUpload" accept="image/*" multiple>
+    <div id="uploadError" class="error-message hidden"></div>
+
+    <label>🔗 Or Paste Image URLs (one per line):</label>
+    <textarea id="imageURLs" rows="3" placeholder="https://example.com/pic1.jpg&#10;https://example.com/pic2.jpg"></textarea>
+
+
+
+    <div class="difficulty-settings">
+        <div>
+            <label>🎯 Difficulty:</label>
+            <select id="difficulty">
+                <option value="easy">Easy (4x4)</option>
+                <option value="medium" selected>Medium (6x6)</option>
+                <option value="hard">Hard (8x8)</option>
+            </select>
+        </div>
+        <div>
+            <label>⚡ Tiles per guess:</label>
+            <select id="tilesPerGuess">
+                <option value="1" selected>1 tile</option>
+                <option value="2">2 tiles</option>
+                <option value="3">3 tiles</option>
+            </select>
+        </div>
+    </div>
+
+    <button id="startGameBtn">🚀 Start Game</button>
+    <div id="setupError" class="error-message hidden"></div>
+</div>
+
+<!-- Game Section -->
+<div id="gameSection" class="game-section hidden">
+    <div class="game-info">
+        <div>Round <span id="currentRoundDisplay">1</span> of <span id="totalRoundsDisplay">1</span></div>
+        <div>Tiles revealed: <span id="tilesRevealed">0</span>/<span id="totalTiles">36</span></div>
+    </div>
+    
+    <div class="progress-bar">
+        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+    </div>
+
+    <div class="game-board" id="gameBoard">
+        <img id="gameImage" src="" alt="Hidden Picture">
+    </div>
+
+    <div class="controls">
+        <button id="revealBtn">🎯 Reveal Tile</button>
+        <button id="autoRevealBtn">⚡ Auto Reveal</button>
+    </div>
+
+    <div id="message"></div>
+    
+    <div class="controls">
+        <button id="nextRoundBtn">➡️ Next Round</button>
+        <button id="restartBtn">🔄 Restart</button>
+    </div>
+</div>
+
+<!-- Game Over -->
+<div id="gameOverPanel" class="panel hidden">
+    <h2>🎉 Congratulations! 🎉</h2>
+    <p>You've completed all rounds!</p>
+    
+    <div class="stats" id="finalStats">
+        <!-- Stats will be populated by JavaScript -->
+    </div>
+    
+    <button id="playAgainBtn">🎮 Play Again</button>
+</div>
+
+<!-- Loading Panel -->
+<div id="loadingPanel" class="panel hidden">
+    <div class="loading">Loading images...</div>
+</div>
+
+<script>
+    const setupPanel = document.getElementById("setupPanel");
+    const gameSection = document.getElementById("gameSection");
+    const gameOverPanel = document.getElementById("gameOverPanel");
+    const loadingPanel = document.getElementById("loadingPanel");
+    const gameImage = document.getElementById("gameImage");
+    const gameBoard = document.getElementById("gameBoard");
+    const guessInput = document.getElementById("guessInput");
+    const guessBtn = document.getElementById("guessBtn");
+    const hintBtn = document.getElementById("hintBtn");
+    const message = document.getElementById("message");
+    const restartBtn = document.getElementById("restartBtn");
+    const playAgainBtn = document.getElementById("playAgainBtn");
+    const skipRoundBtn = document.getElementById("skipRoundBtn");
+
+    // Game state
+    let rounds = [];
+    let currentRound = 0;
+    let tiles = [];
+    let gameStats = { tilesRevealed: 0, roundsCompleted: 0, autoRevealsUsed: 0 };
+    let tileRows = 6;
+    let tileCols = 6;
+    let tilesPerReveal = 1;
+    let autoRevealInterval = null;
+
+    // Utility functions
+    function showMessage(text, type = 'info', duration = 3000) {
+        message.textContent = text;
+        message.className = `message-${type}`;
+        if (duration > 0) {
+            setTimeout(() => {
+                message.textContent = '';
+                message.className = '';
+            }, duration);
+        }
+    }
+
+    function updateGameInfo() {
+        document.getElementById('currentRoundDisplay').textContent = currentRound + 1;
+        document.getElementById('totalRoundsDisplay').textContent = rounds.length;
+        
+        const revealedTiles = tiles.filter(t => t.style.opacity === "0").length;
+        document.getElementById('tilesRevealed').textContent = revealedTiles;
+        document.getElementById('totalTiles').textContent = tiles.length;
+        
+        const progress = (revealedTiles / tiles.length) * 100;
+        document.getElementById('progressFill').style.width = progress + '%';
+        
+        if (revealedTiles === tiles.length) {
+            completeRound();
+        }
+    }
+
+    function createTiles() {
+        gameBoard.querySelectorAll(".tile").forEach(tile => tile.remove());
+        tiles = [];
+        
+        const boardRect = gameBoard.getBoundingClientRect();
+        const tileWidth = gameBoard.clientWidth / tileCols;
+        const tileHeight = gameBoard.clientHeight / tileRows;
+
+        for (let r = 0; r < tileRows; r++) {
+            for (let c = 0; c < tileCols; c++) {
+                const tile = document.createElement("div");
+                tile.classList.add("tile");
+                tile.style.width = `${tileWidth}px`;
+                tile.style.height = `${tileHeight}px`;
+                tile.style.left = `${c * tileWidth}px`;
+                tile.style.top = `${r * tileHeight}px`;
+                
+                // Add click handler for tile removal
+                tile.addEventListener('click', () => {
+                    if (tile.style.opacity !== "0") {
+                        removeTile(tile);
+                        gameStats.tilesRevealed++;
+                        showMessage("Tile revealed!", 'info', 1000);
+                    }
+                });
+                
+                gameBoard.appendChild(tile);
+                tiles.push(tile);
+            }
+        }
+        updateGameInfo();
+    }
+
+    function removeTile(tile) {
+        tile.classList.add('removing');
+        setTimeout(() => {
+            tile.style.opacity = "0";
+            tile.classList.remove('removing');
+            updateGameInfo();
+        }, 200);
+    }
+
+    function removeRandomTiles(count = 1) {
+        const coveredTiles = tiles.filter(t => t.style.opacity !== "0");
+        if (coveredTiles.length === 0) {
+            return;
+        }
+        
+        const tilesToRemove = Math.min(count, coveredTiles.length);
+        for (let i = 0; i < tilesToRemove; i++) {
+            const availableTiles = tiles.filter(t => t.style.opacity !== "0");
+            if (availableTiles.length === 0) break;
+            
+            const randomIndex = Math.floor(Math.random() * availableTiles.length);
+            const randomTile = availableTiles[randomIndex];
+            
+            setTimeout(() => {
+                removeTile(randomTile);
+                gameStats.tilesRevealed++;
+            }, i * 100);
+        }
+    }
+
+    function completeRound() {
+        gameStats.roundsCompleted++;
+        showMessage("🎉 Round complete!", 'success', 2000);
+        
+        setTimeout(() => {
+            if (currentRound + 1 >= rounds.length) {
+                endGame();
+            } else {
+                startRound(currentRound + 1);
+            }
+        }, 2000);
+    }
+
+    function validateImage(url) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(url);
+            img.onerror = () => reject(new Error(`Failed to load image: ${url}`));
+            img.src = url;
+        });
+    }
+
+    async function processImageInputs() {
+        const imageFiles = document.getElementById("imageUpload").files;
+        const imageURLs = document.getElementById("imageURLs").value.trim()
+            .split("\n")
+            .map(u => u.trim())
+            .filter(u => u);
+
+        if (imageFiles.length === 0 && imageURLs.length === 0) {
+            throw new Error("Please upload images or paste image URLs.");
+        }
+
+        rounds = [];
+        
+        // Process uploaded files
+        for (let i = 0; i < imageFiles.length; i++) {
+            try {
+                const dataUrl = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = e => resolve(e.target.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(imageFiles[i]);
+                });
+                
+                await validateImage(dataUrl);
+                rounds.push({ 
+                    image: dataUrl,
+                    source: imageFiles[i].name
+                });
+            } catch (error) {
+                throw new Error(`Error processing file "${imageFiles[i].name}": ${error.message}`);
+            }
+        }
+
+        // Process URLs
+        for (let i = 0; i < imageURLs.length; i++) {
+            try {
+                await validateImage(imageURLs[i]);
+                rounds.push({ 
+                    image: imageURLs[i],
+                    source: imageURLs[i]
+                });
+            } catch (error) {
+                throw new Error(`Error loading URL "${imageURLs[i]}": ${error.message}`);
+            }
+        }
+
+        return rounds;
+    }
+
+    function startRound(index) {
+        if (index >= rounds.length) {
+            endGame();
+            return;
+        }
+        
+        // Clear any active auto-reveal
+        if (autoRevealInterval) {
+            clearInterval(autoRevealInterval);
+            autoRevealInterval = null;
+            autoRevealBtn.textContent = "⚡ Auto Reveal";
+        }
+        
+        currentRound = index;
+        const round = rounds[index];
+        
+        gameImage.src = round.image;
+        gameImage.onload = () => {
+            setupPanel.classList.add("hidden");
+            gameOverPanel.classList.add("hidden");
+            loadingPanel.classList.add("hidden");
+            gameSection.classList.remove("hidden");
+            
+            createTiles();
+            showMessage(`Round ${index + 1}: Click tiles or use buttons to reveal the picture!`, 'info', 3000);
+        };
+    }
+
+    function endGame() {
+        // Clear any active auto-reveal
+        if (autoRevealInterval) {
+            clearInterval(autoRevealInterval);
+            autoRevealInterval = null;
+        }
+        
+        gameSection.classList.add("hidden");
+        gameOverPanel.classList.remove("hidden");
+        
+        // Update final stats
+        const finalStats = document.getElementById('finalStats');
+        
+        finalStats.innerHTML = `
+            <div class="stat-item">
+                <span class="stat-value">${gameStats.roundsCompleted}</span>
+                <span>Rounds Completed</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value">${gameStats.tilesRevealed}</span>
+                <span>Tiles Revealed</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value">${gameStats.autoRevealsUsed}</span>
+                <span>Auto Reveals Used</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value">${rounds.length}</span>
+                <span>Total Images</span>
+            </div>
+        `;
+    }
+
+    // Event listeners
+    document.getElementById("startGameBtn").addEventListener("click", async () => {
+        const setupError = document.getElementById('setupError');
+        const startBtn = document.getElementById('startGameBtn');
+        
+        setupError.classList.add('hidden');
+        startBtn.disabled = true;
+        startBtn.textContent = "🔄 Loading...";
+        
+        try {
+            // Get difficulty settings
+            const difficulty = document.getElementById('difficulty').value;
+            tilesPerReveal = parseInt(document.getElementById('tilesPerGuess').value);
+            
+            switch (difficulty) {
+                case 'easy': tileRows = tileCols = 4; break;
+                case 'medium': tileRows = tileCols = 6; break;
+                case 'hard': tileRows = tileCols = 8; break;
+            }
+            
+            setupPanel.classList.add("hidden");
+            loadingPanel.classList.remove("hidden");
+            
+            await processImageInputs();
+            
+            // Reset game stats
+            gameStats = { tilesRevealed: 0, roundsCompleted: 0, autoRevealsUsed: 0 };
+            
+            startRound(0);
+        } catch (error) {
+            setupError.textContent = error.message;
+            setupError.classList.remove('hidden');
+            setupPanel.classList.remove("hidden");
+            loadingPanel.classList.add("hidden");
+        } finally {
+            startBtn.disabled = false;
+            startBtn.textContent = "🚀 Start Game";
+        }
+    });
+
+    // New event listeners for reveal functionality
+    revealBtn.addEventListener("click", () => {
+        removeRandomTiles(tilesPerReveal);
+        showMessage(`${tilesPerReveal} tile(s) revealed!`, 'success', 1500);
+        updateGameInfo();
+    });
+
+    let autoRevealActive = false;
+    autoRevealBtn.addEventListener("click", () => {
+        if (autoRevealActive) {
+            // Stop auto reveal
+            clearInterval(autoRevealInterval);
+            autoRevealInterval = null;
+            autoRevealActive = false;
+            autoRevealBtn.textContent = "⚡ Auto Reveal";
+            showMessage("Auto reveal stopped", 'info', 1500);
+        } else {
+            // Start auto reveal
+            autoRevealActive = true;
+            autoRevealBtn.textContent = "⏸️ Stop Auto";
+            gameStats.autoRevealsUsed++;
+            showMessage("Auto reveal started! (1 tile every 2 seconds)", 'success', 2000);
+            
+            autoRevealInterval = setInterval(() => {
+                const coveredTiles = tiles.filter(t => t.style.opacity !== "0");
+                if (coveredTiles.length === 0) {
+                    clearInterval(autoRevealInterval);
+                    autoRevealInterval = null;
+                    autoRevealActive = false;
+                    autoRevealBtn.textContent = "⚡ Auto Reveal";
+                    return;
+                }
+                removeRandomTiles(1);
+                updateGameInfo();
+            }, 2000);
+        }
+    });
+
+    nextRoundBtn.addEventListener("click", () => {
+        if (currentRound + 1 >= rounds.length) {
+            endGame();
+        } else {
+            startRound(currentRound + 1);
+        }
+    });
+
+    restartBtn.addEventListener("click", () => {
+        if (confirm("Are you sure you want to restart? All progress will be lost.")) {
+            gameSection.classList.add("hidden");
+            setupPanel.classList.remove("hidden");
+            
+            // Reset form
+            document.getElementById("imageUpload").value = "";
+            document.getElementById("imageURLs").value = "";
+            document.getElementById('setupError').classList.add('hidden');
+        }
+    });
+
+    playAgainBtn.addEventListener("click", () => {
+        setupPanel.classList.remove("hidden");
+        gameOverPanel.classList.add("hidden");
+    });
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+        if (!gameSection.classList.contains('hidden')) {
+            createTiles();
+        }
+    });
+
+    // Focus management - no longer needed since we removed input field
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                if (!gameSection.classList.contains('hidden')) {
+                    // Game section is now visible, focus can be managed differently if needed
+                }
+            }
+        });
+    });
+    observer.observe(gameSection, { attributes: true });
+</script>
+
+</body>
+</html>
