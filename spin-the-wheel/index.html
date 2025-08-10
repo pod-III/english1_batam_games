@@ -4,595 +4,709 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spin the Wheel</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-</head>
-<body>
-    <div class="container">
-        <h1>Spin the Wheel</h1>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <style>
+        /*
+         * ======================================
+         * Global & Theme-Specific CSS Variables
+         * ======================================
+         */
 
-        <!-- Flex container for wheel and controls -->
+        /* Default Dark Mode Theme */
+        :root, [data-theme="dark"] {
+            --bg-color: #0f172a;
+            --surface-color: #1e293b;
+            --text-color: #f1f5f9;
+            --accent-color: #38bdf8;
+            --secondary-accent: #06b6d4;
+            --shadow-color: rgba(0, 0, 0, 0.4);
+            --border-color: #475569;
+            --button-bg-color: linear-gradient(45deg, #38bdf8, #06b6d4);
+            --button-text-color: var(--bg-color);
+            --wheel-color-1: #FF6F61;
+            --wheel-color-2: #6B5B95;
+            --wheel-color-3: #88B04B;
+            --wheel-color-4: #F7CAC9;
+            --wheel-color-5: #92A8D1;
+            --wheel-color-6: #9400D3;
+            --wheel-color-7: #FFB6C1;
+            --wheel-color-8: #F08080;
+            --wheel-color-9: #DDA0DD;
+            --wheel-color-10: #98FB98;
+            --wheel-color-11: #B0C4DE;
+            --wheel-color-12: #A52A2A;
+            --font-family-header: 'Poppins', sans-serif;
+            --font-family-body: 'Poppins', sans-serif;
+        }
+
+        /* Kid-Friendly Theme */
+        [data-theme="kid-friendly"] {
+            --bg-color: #fce4ec; /* Light Pink */
+            --surface-color: #fff9c4; /* Light Yellow */
+            --text-color: #424242; /* Dark Gray */
+            --accent-color: #ff8a80; /* Coral */
+            --secondary-accent: #80d8ff; /* Light Blue */
+            --shadow-color: rgba(0, 0, 0, 0.2);
+            --border-color: #ffccbc; /* Peach */
+            --button-bg-color: linear-gradient(45deg, #ff8a80, #ff80ab);
+            --button-text-color: white;
+            --wheel-color-1: #ff80ab;
+            --wheel-color-2: #80d8ff;
+            --wheel-color-3: #b2ff59;
+            --wheel-color-4: #ffea00;
+            --wheel-color-5: #e040fb;
+            --wheel-color-6: #ff9e80;
+            --wheel-color-7: #a7ffeb;
+            --wheel-color-8: #c8e6c9;
+            --wheel-color-9: #ffee58;
+            --wheel-color-10: #4db6ac;
+            --wheel-color-11: #f06292;
+            --wheel-color-12: #8c9eff;
+            --font-family-header: 'Fredoka One', cursive;
+            --font-family-body: 'Open Sans', sans-serif;
+        }
+
+        /*
+         * ======================================
+         * Base Styles (Independent of Theme)
+         * ======================================
+         */
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Open+Sans:wght@400;600;700&family=Poppins:wght@400;600;700&display=swap');
+
+        body {
+            font-family: var(--font-family-body);
+            background: linear-gradient(135deg, var(--bg-color) 0%, var(--surface-color) 100%);
+            color: var(--text-color);
+            transition: background 0.5s ease;
+        }
+
+        .container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            gap: 2rem;
+        }
+        
+        h1 {
+            font-family: var(--font-family-header);
+            background: linear-gradient(45deg, var(--accent-color), var(--secondary-accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            /* Changed to a larger clamp value to make the text much bigger on large screens */
+            font-size: clamp(3rem, 15vw, 6rem); 
+            font-weight: 700;
+            text-shadow: 2px 2px 5px var(--shadow-color);
+            letter-spacing: 2px;
+            text-align: center;
+            transition: all 0.5s ease;
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            align-items: center;
+            width: 100%;
+            max-width: 1000px;
+        }
+
+        @media (min-width: 1024px) {
+            .main-content {
+                flex-direction: row;
+                justify-content: center;
+                align-items: flex-start;
+            }
+        }
+
+        .wheel-container {
+            position: relative;
+            width: clamp(250px, 60vw, 500px);
+            height: clamp(250px, 60vw, 500px);
+            border-radius: 50%;
+            box-shadow: 0 10px 30px var(--shadow-color);
+        }
+
+        #wheelCanvas {
+            border: 8px solid var(--surface-color);
+            border-radius: 50%;
+            background-color: var(--surface-color);
+        }
+
+        .pointer {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-top: 25px solid #FF5722;
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5));
+            z-index: 10;
+        }
+
+        .controls {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px var(--shadow-color);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            width: 100%;
+            transition: all 0.5s ease;
+        }
+        
+        .controls h2 {
+            font-family: var(--font-family-header);
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--accent-color);
+        }
+
+        .input-group {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .input-group input {
+            flex-grow: 1;
+            background-color: var(--surface-color);
+            border: 2px solid var(--border-color);
+            padding: 0.75rem;
+            border-radius: 12px;
+            color: var(--text-color);
+            transition: all 0.3s;
+        }
+        
+        .input-group input:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 5px var(--accent-color);
+        }
+
+        .btn {
+            background: var(--button-bg-color);
+            color: var(--button-text-color);
+            font-weight: bold;
+            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 10px var(--shadow-color);
+            font-family: var(--font-family-body);
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 6px 20px var(--shadow-color);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        #optionsList {
+            list-style: none;
+            padding: 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .option-item {
+            background-color: var(--border-color);
+            color: var(--text-color);
+            padding: 0.5rem 0.75rem;
+            border-radius: 9999px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        
+        .remove-btn {
+            background: none;
+            border: none;
+            color: #f44336;
+            font-size: 1.2rem;
+            cursor: pointer;
+            line-height: 1;
+        }
+        
+        #resultDisplay {
+            height: 2.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--secondary-accent);
+            text-shadow: 0 0 5px var(--secondary-accent);
+            margin-top: 1rem;
+            font-family: var(--font-family-header);
+        }
+
+        /* Modal styling */
+        .modal {
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            padding: 40px;
+            background: var(--surface-color);
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 10px 30px var(--shadow-color);
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 3px solid var(--accent-color);
+            transition: all 0.5s ease;
+        }
+
+        .modal-content h2 {
+            font-family: var(--font-family-header);
+            margin-top: 0;
+            font-size: 2rem;
+            color: var(--text-color);
+        }
+
+        #winnerName {
+            font-family: var(--font-family-header);
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--accent-color);
+            margin: 20px 0;
+            text-shadow: 2px 2px 5px var(--shadow-color);
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 1rem;
+        }
+        
+        @keyframes popIn {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+        
+        #batchImportContainer {
+            margin-top: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        #batchImportTextarea {
+            width: 100%;
+            min-height: 100px;
+            background-color: var(--surface-color);
+            border: 2px solid var(--border-color);
+            padding: 0.75rem;
+            border-radius: 12px;
+            color: var(--text-color);
+            resize: vertical;
+        }
+    </style>
+</head>
+<body data-theme="kid-friendly" class="flex flex-col items-center justify-center min-h-screen p-4">
+    <div class="container">
+        <h1>Spin the Wheel!</h1>
+        
         <div class="main-content">
             <div class="wheel-container">
                 <canvas id="wheelCanvas" width="500" height="500"></canvas>
                 <div class="pointer"></div>
             </div>
-
+            
             <div class="controls">
-                <div class="input-group">
-                    <input type="text" id="optionInput" placeholder="Enter an option...">
-                    <button id="addOptionBtn">Add Option</button>
+                <div class="flex flex-col sm:flex-row justify-between items-center gap-2 mb-4">
+                    <h2 class="text-lg sm:text-2xl font-bold">Options</h2>
+                    <div class="flex gap-2">
+                        <button id="themeToggleKids" data-theme="kid-friendly" class="btn text-sm !py-2 !px-4">Kid-Friendly</button>
+                        <button id="themeToggleDark" data-theme="dark" class="btn text-sm !py-2 !px-4">Dark Mode</button>
+                    </div>
                 </div>
+
+                <div class="input-group">
+                    <input type="text" id="optionInput" placeholder="Enter an option..." class="rounded-lg p-3">
+                    <button id="addOptionBtn" class="btn">Add</button>
+                </div>
+                
+                <div class="flex justify-between mt-2 mb-4">
+                    <button id="toggleBatchImportBtn" class="btn !p-2 !px-4">Batch Import</button>
+                    <button id="clearAllBtn" class="btn bg-red-500 hover:bg-red-600 !p-2 !px-4">Clear All</button>
+                </div>
+                
+                <div id="batchImportContainer" class="hidden">
+                    <textarea id="batchImportTextarea" placeholder="Paste your options here, one per line..."></textarea>
+                    <button id="importBtn" class="btn">Import List</button>
+                </div>
+                
                 <ul id="optionsList"></ul>
-                <button id="spinBtn">Spin the Wheel!</button>
+                
+                <button id="spinBtn" class="btn w-full mt-4">Spin the Wheel!</button>
+                <div id="resultDisplay" class="text-center font-bold mt-4"></div>
             </div>
         </div>
-
-        <div id="resultDisplay"></div>
+        
     </div>
 
-    <div id="winnerModal" class="modal">
+    <!-- Winner Modal -->
+    <div id="winnerModal" class="modal hidden">
         <div class="modal-content">
             <h2>The Winner Is...</h2>
             <div id="winnerName"></div>
-            <button id="playAgainBtn">Play Again</button>
-            <button id="removeWinnerBtn">Remove Winner</button>
+            <div class="modal-buttons">
+                <button id="playAgainBtn" class="btn">Play Again</button>
+                <button id="removeWinnerBtn" class="btn bg-red-500 hover:bg-red-600">Remove Winner</button>
+            </div>
         </div>
     </div>
 
-    <audio id="spinSound" src="path/to/spinning-sound.mp3" loop></audio>
-    <audio id="winSound" src="path/to/win-sound.mp3"></audio>
-
     <script>
- // --- Get DOM Elements ---
-const canvas = document.getElementById('wheelCanvas');
-const ctx = canvas.getContext('2d');
-const optionInput = document.getElementById('optionInput');
-const addOptionBtn = document.getElementById('addOptionBtn');
-const spinBtn = document.getElementById('spinBtn');
-const optionsList = document.getElementById('optionsList');
-const resultDisplay = document.getElementById('resultDisplay');
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM Elements ---
+            const canvas = document.getElementById('wheelCanvas');
+            const ctx = canvas.getContext('2d');
+            const optionInput = document.getElementById('optionInput');
+            const addOptionBtn = document.getElementById('addOptionBtn');
+            const spinBtn = document.getElementById('spinBtn');
+            const optionsList = document.getElementById('optionsList');
+            const resultDisplay = document.getElementById('resultDisplay');
+            const winnerModal = document.getElementById('winnerModal');
+            const winnerName = document.getElementById('winnerName');
+            const playAgainBtn = document.getElementById('playAgainBtn');
+            const removeWinnerBtn = document.getElementById('removeWinnerBtn');
+            const toggleBatchImportBtn = document.getElementById('toggleBatchImportBtn');
+            const batchImportContainer = document.getElementById('batchImportContainer');
+            const batchImportTextarea = document.getElementById('batchImportTextarea');
+            const importBtn = document.getElementById('importBtn');
+            const clearAllBtn = document.getElementById('clearAllBtn');
+            const body = document.body;
+            const themeToggleKids = document.getElementById('themeToggleKids');
+            const themeToggleDark = document.getElementById('themeToggleDark');
 
-// ++ New Elements for Modal and Sound ++
-const winnerModal = document.getElementById('winnerModal');
-const winnerName = document.getElementById('winnerName');
-const playAgainBtn = document.getElementById('playAgainBtn');
-const removeWinnerBtn = document.getElementById('removeWinnerBtn');
-const spinSound = document.getElementById('spinSound');
-const winSound = document.getElementById('winSound');
+            // --- State ---
+            let options = [];
+            let startAngle = 0;
+            
+            // Define color palettes for each theme
+            const themeColors = {
+                'dark': [
+                    '#FF6F61', '#6B5B95', '#88B04B', '#F7CAC9', '#92A8D1', '#9400D3',
+                    '#FFB6C1', '#F08080', '#DDA0DD', '#98FB98', '#B0C4DE', '#A52A2A'
+                ],
+                'kid-friendly': [
+                    '#ff80ab', '#80d8ff', '#b2ff59', '#ffea00', '#e040fb', '#ff9e80',
+                    '#a7ffeb', '#c8e6c9', '#ffee58', '#4db6ac', '#f06292', '#8c9eff'
+                ]
+            };
 
-// --- State ---
-let options = [];
-let startAngle = 0;
-let arc = Math.PI * 2;
-const colors = ['#FF6F61', '#6B5B95', '#88B04B', '#F7CAC9', '#92A8D1', '#9400D3'];
+            // --- Tone.js Sound Setup ---
+            const spinSound = new Tone.NoiseSynth({
+                noise: { type: 'pink' },
+                envelope: {
+                    attack: 0.005,
+                    decay: 0.1,
+                    sustain: 0.01,
+                    release: 0.1
+                }
+            }).toDestination();
+            
+            const winSound = new Tone.Synth({
+                oscillator: { type: 'sine' },
+                envelope: {
+                    attack: 0.05,
+                    decay: 0.2,
+                    sustain: 0.5,
+                    release: 0.8
+                }
+            }).toDestination();
+            
+            const winNotes = ['C5', 'E5', 'G5', 'C6'];
+            
+            // --- Wheel Drawing Logic ---
+            function drawWheel() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                const radius = centerX - 10;
+                
+                const currentTheme = body.getAttribute('data-theme');
+                const colors = themeColors[currentTheme] || themeColors['dark'];
 
-// --- Wheel Drawing ---
-function drawWheel() {
-    // 1. Clear the canvas and handle the case where there are no options
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (options.length === 0) {
-        ctx.beginPath();
-        ctx.arc(250, 250, 245, 0, 2 * Math.PI);
-        ctx.fillStyle = '#666';
-        ctx.fill();
-        ctx.fillStyle = '#fff';
-        ctx.font = '24px Poppins';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('Add Options', 250, 250);
-        return;
-    }
+                if (options.length === 0) {
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+                    ctx.fillStyle = '#fff';
+                    ctx.fill();
+                    ctx.fillStyle = '#424242';
+                    ctx.font = 'bold 24px Open Sans';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('Add Options', centerX, centerY);
+                    return;
+                }
 
-    // 2. Loop through each option to draw the segment and text
-    arc = 2 * Math.PI / options.length;
-    for (let i = 0; i < options.length; i++) {
-        const angle = startAngle + i * arc;
+                const arc = (2 * Math.PI) / options.length;
 
-        // Draw the colored segment
-        ctx.beginPath();
-        ctx.fillStyle = colors[i % colors.length];
-        ctx.moveTo(250, 250);
-        ctx.arc(250, 250, 245, angle, angle + arc);
-        ctx.lineTo(250, 250);
-        ctx.fill();
+                for (let i = 0; i < options.length; i++) {
+                    const angle = startAngle + i * arc;
 
-        // --- NEW LOGIC FOR READABLE TEXT ---
-        ctx.save(); // Isolate state for each text label
+                    ctx.beginPath();
+                    ctx.fillStyle = colors[i % colors.length];
+                    ctx.moveTo(centerX, centerY);
+                    ctx.arc(centerX, centerY, radius, angle, angle + arc);
+                    ctx.lineTo(centerX, centerY);
+                    ctx.fill();
 
-        // Set text style
-        ctx.fillStyle = 'white';
-        ctx.font = 'bold 16px Poppins';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
+                    ctx.save();
+                    ctx.fillStyle = 'white';
+                    
+                    const text = options[i];
+                    const textRadius = radius * 0.75; 
+                    
+                    ctx.translate(centerX, centerY);
+                    const textAngle = angle + arc / 2;
+                    ctx.rotate(textAngle);
+                    
+                    ctx.rotate(-textAngle);
+                    ctx.translate(textRadius * Math.cos(textAngle), textRadius * Math.sin(textAngle));
+                    ctx.rotate(textAngle);
 
-        // Move the canvas origin to the center of the wheel
-        ctx.translate(250, 250);
+                    const maxTextWidth = (radius * 0.8) - 10;
+                    // Resetting the initial font size to a smaller value for better readability with more options
+                    let fontSize = 24; 
+                    const fontFamily = body.getAttribute('data-theme') === 'kid-friendly' ? 'Fredoka One' : 'Poppins';
+                    ctx.font = `bold ${fontSize}px ${fontFamily}`;
 
-        // Calculate the angle for the text (middle of the segment)
-        const textAngle = angle + arc / 2;
+                    let textMetrics = ctx.measureText(text);
+                    while (textMetrics.width > maxTextWidth && fontSize > 10) {
+                        fontSize -= 1;
+                        ctx.font = `bold ${fontSize}px ${fontFamily}`;
+                        textMetrics = ctx.measureText(text);
+                    }
 
-        // Normalize angle to determine if it's on the "upside-down" side
-        const normalizedAngle = (textAngle % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
-        const isUpsideDown = (normalizedAngle > Math.PI / 2 && normalizedAngle < 3 * Math.PI / 2);
+                    ctx.fillText(text, 0, 0);
+                    ctx.restore();
+                }
+            }
+            
+            // --- Animation & Sound ---
+            function spinWheel() {
+                if (options.length === 0) {
+                    resultDisplay.textContent = 'Please add some options first!';
+                    return;
+                }
+                
+                spinBtn.disabled = true;
+                resultDisplay.textContent = 'Spinning...';
+                
+                const synth = new Tone.Synth({
+                    oscillator: { type: 'square' },
+                    envelope: {
+                        attack: 0.05,
+                        decay: 0.5,
+                        sustain: 0,
+                        release: 0.5
+                    }
+                }).toDestination();
+                
+                const notes = ['C4', 'E4', 'G4', 'B4', 'C5'];
+                let noteIndex = 0;
+                const spinLoop = new Tone.Loop(time => {
+                    synth.triggerAttackRelease(notes[noteIndex % notes.length], '8n', time);
+                    noteIndex++;
+                }, '8n').start(0);
 
-        // Rotate the canvas to the text's angle
-        // If it's upside down, add a 180-degree flip (Math.PI)
-        ctx.rotate(textAngle + (isUpsideDown ? Math.PI : 0));
+                const winningSegmentIndex = Math.floor(Math.random() * options.length);
+                const arc = (2 * Math.PI) / options.length;
+                const winningAngle = winningSegmentIndex * arc;
+                const randomOffset = (Math.random() - 0.5) * arc * 0.8;
+                const totalRotation = 6 * Math.PI + (2 * Math.PI - winningAngle) + randomOffset;
 
-        const text = options[i];
-        const textRadius = 150; // Distance from the center
+                let currentRotation = startAngle;
+                const spinDuration = 5000;
+                let startTime = null;
 
-        // Draw the text
-        // If it was flipped, draw it at a negative radius to keep it in its segment
-        ctx.fillText(text, isUpsideDown ? -textRadius : textRadius, 0);
+                function animate(currentTime) {
+                    if (startTime === null) startTime = currentTime;
+                    const elapsedTime = currentTime - startTime;
 
-        ctx.restore(); // Reset canvas for the next segment
-    }
-}
+                    if (elapsedTime >= spinDuration) {
+                        spinLoop.stop();
+                        startAngle = totalRotation % (2 * Math.PI);
+                        drawWheel();
+                        displayResult();
+                        spinBtn.disabled = false;
+                        return;
+                    }
 
-// --- Animation & Sound ---
-function spinWheel() {
-    spinBtn.disabled = true;
-    resultDisplay.textContent = 'Spinning...';
-    spinSound.play(); // Play spinning sound
+                    const t = elapsedTime / spinDuration;
+                    const progress = 1 - Math.pow(1 - t, 5);
+                    startAngle = currentRotation + (totalRotation - currentRotation) * progress;
+                    drawWheel();
+                    requestAnimationFrame(animate);
+                }
+                requestAnimationFrame(animate);
+            }
+            
+            // --- Display Winner & Modal ---
+            function displayResult() {
+                const arc = (2 * Math.PI) / options.length;
+                let normalizedStartAngle = (startAngle + 2 * Math.PI) % (2 * Math.PI);
+                let winningIndex = Math.floor(normalizedStartAngle / arc);
+                const winner = options[options.length - 1 - winningIndex];
 
-    const winningSegmentIndex = Math.floor(Math.random() * options.length);
-    const segmentAngle = winningSegmentIndex * arc;
-    const pointerPosition = 3 * Math.PI / 2;
-    const randomOffset = (Math.random() - 0.5) * arc * 0.8;
-    const targetAngle = pointerPosition - segmentAngle - (arc / 2) + randomOffset;
-    const extraRotations = 5 + Math.floor(Math.random() * 5);
-    const totalRotation = targetAngle + (extraRotations * 2 * Math.PI);
+                resultDisplay.textContent = `Winner: ${winner}!`;
 
-    let currentRotation = startAngle;
-    const spinDuration = 5000;
-    let startTime = null;
+                winnerName.textContent = winner;
+                winnerModal.classList.remove('hidden');
+                
+                const winSynth = new Tone.Synth({
+                    oscillator: { type: 'sine' },
+                    envelope: {
+                        attack: 0.05,
+                        decay: 0.2,
+                        sustain: 0,
+                        release: 0.5
+                    }
+                }).toDestination();
+                const winNotes = ['C5', 'E5', 'G5', 'C6'];
+                let noteIndex = 0;
+                const winLoop = new Tone.Loop(time => {
+                    if (noteIndex < winNotes.length) {
+                        winSynth.triggerAttackRelease(winNotes[noteIndex], '8n', time);
+                        noteIndex++;
+                    } else {
+                        winLoop.stop();
+                    }
+                }, '4n').start(Tone.now());
+            }
 
-    function animate(currentTime) {
-        if (startTime === null) startTime = currentTime;
-        const elapsedTime = currentTime - startTime;
+            // --- UI Updates & Event Listeners ---
+            function addOption() {
+                const newOption = optionInput.value.trim();
+                if (newOption) {
+                    options.push(newOption);
+                    optionInput.value = '';
+                    updateOptionsList();
+                    drawWheel();
+                    resultDisplay.textContent = '';
+                }
+            }
+            
+            function importOptions() {
+                const text = batchImportTextarea.value;
+                const newOptions = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+                if (newOptions.length > 0) {
+                    options.push(...newOptions);
+                    batchImportTextarea.value = '';
+                    batchImportContainer.classList.add('hidden');
+                    updateOptionsList();
+                    drawWheel();
+                    resultDisplay.textContent = '';
+                }
+            }
+            
+            function clearAllOptions() {
+                options = [];
+                updateOptionsList();
+                drawWheel();
+                resultDisplay.textContent = '';
+            }
 
-        if (elapsedTime >= spinDuration) {
-            // Stop animation and sound
-            spinSound.pause();
-            spinSound.currentTime = 0;
-            startAngle = totalRotation % (2 * Math.PI);
+            function updateOptionsList() {
+                optionsList.innerHTML = '';
+                options.forEach((option, index) => {
+                    const li = document.createElement('li');
+                    li.className = 'option-item';
+                    li.innerHTML = `<span>${option}</span><button class="remove-btn" data-index="${index}">&times;</button>`;
+                    optionsList.appendChild(li);
+                });
+            }
+
+            function removeOption(index) {
+                options.splice(index, 1);
+                updateOptionsList();
+                drawWheel();
+            }
+            
+            function setTheme(themeName) {
+                body.setAttribute('data-theme', themeName);
+                drawWheel(); // Redraw the wheel to get new colors
+            }
+            
+            // --- Event Listeners ---
+            optionsList.addEventListener('click', (e) => {
+                if (e.target.classList.contains('remove-btn')) {
+                    removeOption(e.target.dataset.index);
+                }
+            });
+
+            addOptionBtn.addEventListener('click', addOption);
+            optionInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') addOption();
+            });
+            spinBtn.addEventListener('click', spinWheel);
+            
+            toggleBatchImportBtn.addEventListener('click', () => {
+                batchImportContainer.classList.toggle('hidden');
+            });
+            
+            importBtn.addEventListener('click', importOptions);
+            clearAllBtn.addEventListener('click', clearAllOptions);
+
+            playAgainBtn.addEventListener('click', () => {
+                winnerModal.classList.add('hidden');
+                resultDisplay.textContent = '';
+            });
+            
+            removeWinnerBtn.addEventListener('click', () => {
+                const winnerText = winnerName.textContent;
+                options = options.filter(option => option !== winnerText);
+                winnerModal.classList.add('hidden');
+                updateOptionsList();
+                drawWheel();
+                resultDisplay.textContent = '';
+            });
+
+            themeToggleKids.addEventListener('click', () => setTheme('kid-friendly'));
+            themeToggleDark.addEventListener('click', () => setTheme('dark'));
+
+            // Initial call
             drawWheel();
-            displayResult();
-            spinBtn.disabled = false;
-            return;
-        }
-
-        const t = elapsedTime / spinDuration;
-        const progress = 1 - Math.pow(1 - t, 5); // Ease-out quint
-        startAngle = currentRotation + (totalRotation - currentRotation) * progress;
-        drawWheel();
-        requestAnimationFrame(animate);
-    }
-    requestAnimationFrame(animate);
-}
-
-// --- Display Winner & Modal ---
-function displayResult() {
-    const pointerPosition = 3 * Math.PI / 2;
-    let effectiveAngle = ((2 * Math.PI) - (startAngle % (2 * Math.PI)) + pointerPosition) % (2 * Math.PI);
-    const winningIndex = Math.floor(effectiveAngle / arc);
-    const winner = options[winningIndex];
-
-    resultDisplay.textContent = `Winner: ${winner}!`;
-
-    // Show modal and play winning sound
-    winnerName.textContent = winner;
-    winnerModal.style.display = 'flex';
-    winSound.play();
-}
-
-function hideWinnerModal() {
-    winnerModal.style.display = 'none';
-}
-
-function removeWinner() {
-    const winnerText = winnerName.textContent;
-    options = options.filter(option => option !== winnerText);
-    hideWinnerModal();
-    updateOptionsList();
-    drawWheel();
-    resultDisplay.textContent = ''; // Clear result display
-}
-
-// --- UI Updates & Event Listeners ---
-function addOption() {
-    const newOption = optionInput.value.trim();
-    if (newOption) {
-        options.push(newOption);
-        optionInput.value = '';
-        updateOptionsList();
-        drawWheel();
-    }
-}
-
-function updateOptionsList() {
-    optionsList.innerHTML = '';
-    options.forEach((option, index) => {
-        const li = document.createElement('li');
-        li.className = 'option-item';
-        li.innerHTML = `<span>${option}</span><button class="remove-btn" data-index="${index}">&times;</button>`;
-        optionsList.appendChild(li);
-    });
-}
-
-optionsList.addEventListener('click', (e) => {
-    if (e.target.classList.contains('remove-btn')) {
-        options.splice(e.target.dataset.index, 1);
-        updateOptionsList();
-        drawWheel();
-    }
-});
-
-addOptionBtn.addEventListener('click', addOption);
-removeWinnerBtn.addEventListener('click', removeWinner);
-optionInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') addOption();
-});
-spinBtn.addEventListener('click', spinWheel);
-playAgainBtn.addEventListener('click', hideWinnerModal);
-
-// --- Initial Call ---
-drawWheel();
+        });
     </script>
 </body>
-
-<style>
-/* --- Root Variables --- */
-:root {
-    --bg-color: #121212;
-    --surface-color: #1e1e1e;
-    --text-color: #f5f5f5;
-    --accent-color: #4CAF50;
-    --accent-color-dark: #388E3C;
-    --button-color: #6200EE;
-    --button-color-hover: #9047ff;
-    --border-color: #333;
-    --shadow-color: rgba(0, 0, 0, 0.4);
-}
-
-/* --- Global & General Layout --- */
-*, *::before, *::after {
-    box-sizing: border-box; /* ✨ More predictable sizing */
-}
-
-body {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    margin: 0;
-    padding: 20px;
-    overflow: hidden;
-
-    font-family: 'Poppins', sans-serif;
-    color: var(--text-color);
-    /* ✨ Subtle gradient for more depth */
-    background: radial-gradient(ellipse at bottom, #212121 0%, #121212 100%);
-}
-
-.container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 20px;
-    width: 100%;
-    max-width: 900px;
-
-    padding: 25px;
-    background-color: var(--surface-color);
-    border: 1px solid rgba(255, 255, 255, 0.05); /* ✨ Subtle border highlight */
-    border-radius: 15px;
-    box-shadow: 0 10px 30px var(--shadow-color); /* ✨ Softer, larger shadow */
-}
-
-h1 {
-    margin-bottom: 10px;
-    font-size: 2.5rem;
-    color: var(--text-color);
-    text-align: center;
-    text-shadow: 0 0 15px rgba(76, 175, 80, 0.4); /* ✨ Accent color glow */
-}
-
-/* --- New Flexbox for main content layout --- */
-.main-content {
-    display: flex;
-    gap: 30px;
-    width: 100%;
-}
-/* --- Wheel & Pointer --- */
-.wheel-container {
-    position: relative;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    width: 100%;
-    flex-basis: 50%;
-    margin: 20px auto;
-}
-
-canvas {
-    width: 100%;
-    height: auto;
-
-    border: 5px solid var(--border-color);
-    border-radius: 50%;
-    /* ✨ Inner shadow for a 3D effect */
-    box-shadow: 0 0 20px rgba(0,0,0,0.5), inset 0 0 25px rgba(0,0,0,0.5);
-    transition: transform 0.2s ease-out;
-}
-
-.pointer {
-    position: absolute;
-    top: 0;
-    left: 50%;
-    z-index: 10;
-
-    width: 0;
-    height: 0;
-    border-left: 15px solid transparent;
-    border-right: 15px solid transparent;
-    border-bottom: 30px solid var(--accent-color-dark);
-
-    transform: translateX(-50%);
-    filter: drop-shadow(0 4px 3px rgba(0,0,0,0.5)); /* ✨ More realistic shadow */
-    transition: transform 0.3s ease; /* ✨ */
-}
-
-/* --- Controls & Inputs --- */
-.controls {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    width: 100%;
-    max-width: 400px;
-
-    padding: 20px;
-    background-color: var(--bg-color);
-    border-radius: 10px;
-    box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
-    flex-basis: 50%;
-}
-
-.input-group {
-    display: flex;
-    gap: 10px;
-}
-
-input[type="text"] {
-    flex-grow: 1;
-    padding: 10px 15px;
-    border: 2px solid var(--border-color);
-    border-radius: 8px;
-
-    font-size: 1rem;
-    background-color: var(--surface-color);
-    color: var(--text-color);
-    transition: all 0.3s ease; /* ✨ Smooth transition for focus */
-}
-
-input[type="text"]:focus {
-    outline: none;
-    border-color: var(--accent-color);
-    /* ✨ Glow effect on focus */
-    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.3);
-}
-
-/* --- Buttons --- */
-button {
-    padding: 10px 20px;
-    border: none;
-    border-radius: 8px;
-
-    font-size: 1rem;
-    font-weight: 600;
-    cursor: pointer;
-    box-shadow: 0 4px 6px var(--shadow-color);
-    transition: all 0.2s ease; /* ✨ Faster transition for buttons */
-}
-
-button:active:not(:disabled) {
-    transform: translateY(2px); /* ✨ Press down effect */
-    box-shadow: 0 2px 4px var(--shadow-color);
-}
-
-#addOptionBtn {
-    background-color: var(--accent-color);
-    color: var(--text-color);
-}
-#addOptionBtn:hover {
-    background-color: var(--accent-color-dark);
-}
-
-#spinBtn {
-    padding: 12px 24px;
-    font-size: 1.2rem;
-    background-color: var(--button-color);
-    color: white;
-    box-shadow: 0 6px 12px var(--shadow-color);
-}
-#spinBtn:hover:not(:disabled) {
-    background-color: var(--button-color-hover);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 16px var(--shadow-color);
-}
-#spinBtn:disabled {
-    color: #999;
-    background-color: #333;
-    cursor: not-allowed;
-    transform: translateY(0); /* ✨ Reset transform when disabled */
-    box-shadow: none;
-}
-
-.remove-btn {
-    padding: 0;
-    font-size: 1.2rem;
-    background: none;
-    border: none;
-    color: var(--accent-color);
-    cursor: pointer;
-    box-shadow: none;
-    transition: all 0.2s ease;
-}
-.remove-btn:hover {
-    color: var(--accent-color-dark);
-    transform: scale(1.2); /* ✨ */
-}
-
-/* --- Options List --- */
-#optionsList {
-    max-height: 200px;
-    margin: 0;
-    padding: 0;
-
-    list-style: none;
-    overflow-y: auto;
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-}
-/* ✨ Custom Scrollbar for Webkit browsers */
-#optionsList::-webkit-scrollbar {
-  width: 8px;
-}
-#optionsList::-webkit-scrollbar-track {
-  background: var(--bg-color);
-  border-radius: 4px;
-}
-#optionsList::-webkit-scrollbar-thumb {
-  background: #555;
-  border-radius: 4px;
-}
-#optionsList::-webkit-scrollbar-thumb:hover {
-  background: #777;
-}
-
-.option-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 15px;
-    border-bottom: 1px solid var(--border-color);
-    transition: all 0.2s ease; /* ✨ */
-}
-.option-item:hover {
-    background-color: rgba(255, 255, 255, 0.05); /* ✨ */
-    transform: translateX(5px); /* ✨ */
-}
-.option-item:last-child {
-    border-bottom: none;
-}
-
-/* --- Result & Winner Modal --- */
-#resultDisplay {
-    min-height: 2.2rem;
-    margin-top: 20px;
-    font-size: 1.8rem;
-    font-weight: 700;
-    color: var(--accent-color);
-    text-align: center;
-}
-
-.modal {
-    display: none;
-    position: fixed;
-    z-index: 100;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-
-    justify-content: center;
-    align-items: center;
-    background-color: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(5px);
-}
-
-.modal-content {
-    padding: 40px;
-    background: var(--surface-color);
-    border-radius: 15px;
-    text-align: center;
-    box-shadow: 0 10px 30px var(--shadow-color);
-    animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* ✨ New animation */
-}
-
-.modal-content h2 {
-    margin-top: 0;
-    font-size: 2rem;
-    color: var(--text-color);
-}
-
-#winnerName {
-    font-size: 3rem;
-    font-weight: 700;
-    color: var(--accent-color);
-    margin: 20px 0;
-    text-shadow: 0 0 20px rgba(76, 175, 80, 0.5); /* ✨ */
-}
-
-#playAgainBtn {
-    margin-top: 20px;
-    background-color: var(--button-color);
-    color: white;
-    font-size: 1.1rem;
-}
-#playAgainBtn:hover {
-    background-color: var(--button-color-hover);
-}
-
-#removeWinnerBtn {
-    margin-top: 10px;
-    background-color: #FF6347; /* Tomato Red */
-    color: white;
-}
-
-#removeWinnerBtn:hover {
-    background-color: #DC143C; /* Crimson */
-}
-
-
-/* ✨ New bounce-in animation for the modal */
-@keyframes popIn {
-    from { opacity: 0; transform: scale(0.8) translateY(20px); }
-    to { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-/* ✨ Media Query for smaller screens */
-@media (max-width: 600px) {
-    body {
-        padding: 10px;
-    }
-    .container {
-        padding: 15px;
-    }
-    h1 {
-        font-size: 2rem;
-    }
-    .modal-content {
-        width: 90%;
-        padding: 25px;
-    }
-    #winnerName {
-        font-size: 2.5rem;
-    }
-}
-/* --- New Media Query for side-by-side layout --- */
-@media (max-width: 900px) {
-    .main-content {
-        flex-direction: column;
-    }
-}
-</style>
-
-<script>
-
-</script>
 </html>
