@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplayer Word Game</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Montserrat:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #4a69bd;
+            --secondary-color: #6a89cc;
+            --background-color: #f0f4f8;
+            --text-color: #2c3e50;
+            --success-color: #2ecc71;
+            --error-color: #e74c3c;
+            --shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            --border-radius: 16px;
+            --gradient-start: #4a69bd;
+            --gradient-end: #6a89cc;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            color: var(--text-color);
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+
+        .game-container {
+            background-color: white;
+            padding: 2.5rem;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            text-align: center;
+            width: 100%;
+            max-width: 550px;
+            box-sizing: border-box;
+            border: 1px solid #e0e6ed;
+            transition: all 0.3s ease;
+        }
+
+        @media (max-width: 600px) {
+            .game-container {
+                padding: 1.5rem;
+            }
+        }
+
+        h1 {
+            font-family: 'Montserrat', sans-serif;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+
+        p {
+            color: #7f8c8d;
+        }
+
+        /* Teacher Console Styles */
+        .teacher-console {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            padding: 2rem 0;
+        }
+        
+        .teacher-console textarea {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid var(--secondary-color);
+            border-radius: var(--border-radius);
+            resize: vertical;
+            min-height: 150px;
+            font-size: 1rem;
+            box-sizing: border-box;
+            transition: border-color 0.3s ease;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            align-items: flex-start;
+        }
+
+        .input-group label {
+            font-weight: bold;
+            color: var(--text-color);
+        }
+
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid var(--secondary-color);
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        
+        .teacher-console textarea:focus, .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .teacher-console-message {
+            min-height: 1rem;
+            color: var(--error-color);
+            font-size: 0.9rem;
+        }
+        
+        /* Game Section Styles */
+        .game-section {
+            display: none; /* Hidden by default */
+        }
+
+        .health-bar-container {
+            display: flex;
+            justify-content: space-around;
+            gap: 1rem;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+        }
+
+        .player-health {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            min-width: 80px;
+        }
+
+        .player-health .player-name {
+            font-weight: bold;
+            font-size: 1rem;
+            white-space: nowrap;
+        }
+        
+        .player-health.current-turn .player-name {
+            color: var(--primary-color);
+        }
+
+        .health-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #ddd;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid #ccc;
+        }
+
+        .health-bar-fill {
+            height: 100%;
+            background-color: var(--success-color);
+            transition: width 0.5s ease;
+        }
+        
+        .health-bar-fill.warning {
+            background-color: orange;
+        }
+        
+        .health-bar-fill.critical {
+            background-color: var(--error-color);
+        }
+        
+        .word-display {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 2.5rem;
+            letter-spacing: 0.1em; /* Reduced spacing */
+            margin-bottom: 2rem;
+            min-height: 2.5rem;
+            text-transform: uppercase;
+        }
+
+        .letter-buttons {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .btn-letter {
+            width: 100%;
+            height: 40px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            border: 2px solid var(--secondary-color);
+            background-color: transparent;
+            color: var(--text-color);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-letter:hover:not(:disabled) {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+        
+        .btn-letter:disabled {
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .btn-letter.correct {
+            background-color: var(--success-color);
+            color: white;
+            border-color: var(--success-color);
+        }
+
+        .btn-letter.incorrect {
+            background-color: var(--error-color);
+            color: white;
+            border-color: var(--error-color);
+        }
+
+        .message-box {
+            min-height: 2.5rem;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .message-box.win {
+            color: var(--success-color);
+        }
+
+        .message-box.lose {
+            color: var(--error-color);
+        }
+        .message-box.info {
+            color: var(--primary-color);
+        }
+
+        .button-group {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 1rem;
+            font-size: 1rem;
+            font-weight: bold;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-transform: uppercase;
+        }
+
+        .btn-start, .btn-reset {
+            background-color: var(--primary-color);
+            color: white;
+            background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
+        }
+
+        .btn-start:hover, .btn-reset:hover {
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .btn-start:active, .btn-reset:active {
+            transform: scale(0.98);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <!-- Teacher Console Section -->
+        <div id="teacher-console" class="teacher-console">
+            <h1>Teacher Console</h1>
+            <p>Enter a list of words, separated by commas.</p>
+            <textarea id="word-list-input" placeholder="e.g., apple,banana,orange,new york"></textarea>
+            <div class="input-group">
+                <label for="player-count">Number of players (2-4):</label>
+                <input type="number" id="player-count" value="2" min="2" max="4">
+            </div>
+            <div id="console-message" class="teacher-console-message"></div>
+            <button id="start-game-btn" class="btn btn-start">Start Game</button>
+        </div>
+
+        <!-- Game Section -->
+        <div id="game-section" class="game-section">
+            <h1>Multiplayer Word Game</h1>
+            <div id="health-bar-container" class="health-bar-container"></div>
+            
+            <div id="word-display" class="word-display"></div>
+            <div id="message-box" class="message-box"></div>
+            
+            <div id="letter-buttons-container" class="letter-buttons"></div>
+
+            <div class="button-group">
+                <button id="reset-game-btn" class="btn btn-reset" style="display:none;">Reset Round</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM elements for teacher console
+        const teacherConsoleEl = document.getElementById('teacher-console');
+        const wordListInputEl = document.getElementById('word-list-input');
+        const playerCountInput = document.getElementById('player-count');
+        const startGameBtn = document.getElementById('start-game-btn');
+        const consoleMessageEl = document.getElementById('console-message');
+
+        // DOM elements for game section
+        const gameSectionEl = document.getElementById('game-section');
+        const healthBarContainer = document.getElementById('health-bar-container');
+        const wordDisplayEl = document.getElementById('word-display');
+        const messageBoxEl = document.getElementById('message-box');
+        const letterButtonsContainer = document.getElementById('letter-buttons-container');
+        const resetGameBtn = document.getElementById('reset-game-btn');
+
+        // Game state variables
+        let words = [];
+        let wordToGuess = '';
+        let guessedLetters = new Set();
+        let gameActive = false;
+        let players = [];
+        let currentPlayerIndex = 0;
+        const initialHealth = 100;
+        const healthLossPerGuess = 20;
+
+        // Function to start the game after the word list is submitted
+        function startGame() {
+            // Updated word parsing to allow for spaces within words
+            const rawWords = wordListInputEl.value.split(',').map(word => word.trim().toLowerCase()).filter(word => word.length >= 3);
+            const numPlayers = parseInt(playerCountInput.value);
+            
+            if (rawWords.length === 0) {
+                consoleMessageEl.textContent = 'Please enter at least one valid word.';
+                consoleMessageEl.style.color = getComputedStyle(document.documentElement).getPropertyValue('--error-color');
+                return;
+            }
+
+            if (numPlayers < 2 || numPlayers > 4 || isNaN(numPlayers)) {
+                consoleMessageEl.textContent = 'Please select a number of players between 2 and 4.';
+                consoleMessageEl.style.color = getComputedStyle(document.documentElement).getPropertyValue('--error-color');
+                return;
+            }
+            
+            words = rawWords;
+            // Initialize players with a health and elimination status
+            players = Array.from({ length: numPlayers }, (_, i) => ({
+                name: `Player ${i + 1}`,
+                health: initialHealth,
+                isEliminated: false,
+            }));
+            
+            // Hide the console and show the game section
+            teacherConsoleEl.style.display = 'none';
+            gameSectionEl.style.display = 'block';
+            
+            // Reset game state for the first round
+            resetGame();
+        }
+
+        // Function to reset all game variables for a new round
+        function resetGame() {
+            // Pick a new word
+            wordToGuess = words[Math.floor(Math.random() * words.length)].toUpperCase();
+            guessedLetters = new Set();
+            gameActive = true;
+            currentPlayerIndex = 0;
+
+            // Reset player health and elimination status
+            players.forEach(player => {
+                player.health = initialHealth;
+                player.isEliminated = false;
+            });
+
+            // Update UI
+            messageBoxEl.textContent = '';
+            messageBoxEl.className = 'message-box';
+            resetGameBtn.style.display = 'none';
+
+            // Create and render alphabet buttons
+            renderAlphabetButtons();
+
+            // Render the initial word display
+            renderWordDisplay();
+
+            // Render health bars
+            renderHealthBars();
+        }
+
+        // Function to render the word with underscores
+        function renderWordDisplay() {
+            let displayWord = '';
+            for (const char of wordToGuess) {
+                // If the character is a space, display a space. Otherwise, check for a guess.
+                if (char === ' ') {
+                    displayWord += ' ';
+                } else if (guessedLetters.has(char)) {
+                    displayWord += char;
+                } else {
+                    displayWord += '_';
+                }
+            }
+            wordDisplayEl.textContent = displayWord;
+        }
+
+        // Function to create alphabet buttons
+        function renderAlphabetButtons() {
+            letterButtonsContainer.innerHTML = '';
+            for (let i = 0; i < 26; i++) {
+                const letter = String.fromCharCode(65 + i);
+                const button = document.createElement('button');
+                button.textContent = letter;
+                button.classList.add('btn-letter');
+                button.addEventListener('click', () => handleGuess(letter));
+                letterButtonsContainer.appendChild(button);
+            }
+        }
+
+        // Function to render the player health bars
+        function renderHealthBars() {
+            healthBarContainer.innerHTML = '';
+            players.forEach((player, index) => {
+                const playerEl = document.createElement('div');
+                playerEl.className = 'player-health';
+                if (index === currentPlayerIndex) {
+                    playerEl.classList.add('current-turn');
+                }
+                
+                const playerName = document.createElement('div');
+                playerName.className = 'player-name';
+                playerName.textContent = player.name;
+
+                const healthBar = document.createElement('div');
+                healthBar.className = 'health-bar';
+
+                const healthBarFill = document.createElement('div');
+                healthBarFill.className = 'health-bar-fill';
+                healthBarFill.style.width = `${player.health}%`;
+                
+                if (player.health <= 40 && player.health > 20) {
+                    healthBarFill.classList.add('warning');
+                } else if (player.health <= 20) {
+                    healthBarFill.classList.add('critical');
+                }
+                
+                healthBar.appendChild(healthBarFill);
+                playerEl.appendChild(playerName);
+                playerEl.appendChild(healthBar);
+                healthBarContainer.appendChild(playerEl);
+            });
+        }
+
+        // Function to handle a letter guess
+        function handleGuess(letter) {
+            if (!gameActive || guessedLetters.has(letter)) {
+                return;
+            }
+
+            guessedLetters.add(letter);
+            const letterButton = [...letterButtonsContainer.children].find(btn => btn.textContent === letter);
+            if (letterButton) {
+                letterButton.disabled = true;
+            }
+
+            const currentPlayer = players[currentPlayerIndex];
+
+            if (wordToGuess.includes(letter)) {
+                if (letterButton) {
+                    letterButton.classList.add('correct');
+                }
+                renderWordDisplay();
+                checkWin();
+            } else {
+                if (letterButton) {
+                    letterButton.classList.add('incorrect');
+                }
+                currentPlayer.health -= healthLossPerGuess;
+                renderHealthBars();
+                
+                if (currentPlayer.health <= 0) {
+                    currentPlayer.isEliminated = true;
+                    messageBoxEl.textContent = `${currentPlayer.name} has been eliminated!`;
+                    messageBoxEl.classList.add('lose');
+                    setTimeout(() => messageBoxEl.textContent = '', 2000);
+                }
+                checkLose();
+            }
+
+            // Move to the next player who is not eliminated
+            do {
+                currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+            } while (players[currentPlayerIndex].isEliminated && players.filter(p => !p.isEliminated).length > 0);
+
+            renderHealthBars();
+        }
+
+        // Function to check for a win
+        function checkWin() {
+            const currentDisplay = wordDisplayEl.textContent.replace(/ /g, '').replace(/_/g, '').length;
+            const originalWordLength = wordToGuess.replace(/ /g, '').length;
+
+            if (currentDisplay === originalWordLength) {
+                const activePlayers = players.filter(p => !p.isEliminated);
+                
+                const winnerName = activePlayers.length > 1 ? 'all remaining players' : activePlayers[0].name;
+                messageBoxEl.textContent = `Congratulations! The word was guessed! ${winnerName} won!`;
+                messageBoxEl.classList.add('win');
+                endGame();
+            }
+        }
+
+        // Function to check for a loss
+        function checkLose() {
+            const activePlayers = players.filter(p => !p.isEliminated);
+            if (activePlayers.length === 0) {
+                messageBoxEl.textContent = `Game Over! All players have been eliminated. The word was "${wordToGuess}".`;
+                messageBoxEl.classList.add('lose');
+                endGame();
+            }
+        }
+
+        // Function to end the game
+        function endGame() {
+            gameActive = false;
+            // Disable all letter buttons
+            document.querySelectorAll('.btn-letter').forEach(btn => btn.disabled = true);
+            resetGameBtn.style.display = 'block';
+        }
+
+        // Event listeners
+        startGameBtn.addEventListener('click', startGame);
+        resetGameBtn.addEventListener('click', resetGame);
+        
+        // Key binding functionality
+        document.addEventListener('keydown', (event) => {
+            if (!gameActive) {
+                return;
+            }
+
+            const key = event.key.toUpperCase();
+            if (key.length === 1 && key.match(/[A-Z]/)) {
+                handleGuess(key);
+            }
+        });
+    </script>
+
+</body>
+</html>
