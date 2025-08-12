@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Picker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .container {
+            max-width: 900px;
+        }
+        .gradient-button {
+            background-image: linear-gradient(to right, #4F46E5 0%, #6366F1 51%, #4F46E5 100%);
+            transition: 0.5s;
+            background-size: 200% auto;
+        }
+        .gradient-button:hover {
+            background-position: right center;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+    <div class="container bg-white p-6 md:p-10 rounded-3xl shadow-xl w-full">
+        <h1 class="text-3xl font-bold text-center text-indigo-700 mb-6">Team Picker</h1>
+        <p class="text-center text-gray-500 mb-8">Enter names (one per line), specify the number of teams, and set a max size to get a random distribution.</p>
+        
+        <!-- Input Section -->
+        <div class="flex flex-col md:flex-row gap-6 mb-8">
+            <!-- Names Input -->
+            <div class="flex-1">
+                <label for="namesInput" class="block text-gray-700 font-semibold mb-2">Enter names:</label>
+                <textarea id="namesInput" rows="10" placeholder="John Doe&#10;Jane Smith&#10;Alice Johnson&#10;Bob Williams"
+                    class="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-200 resize-y"></textarea>
+            </div>
+            
+            <!-- Number of Teams and Button -->
+            <div class="md:w-1/3 flex flex-col gap-4">
+                <div class="flex-1">
+                    <label for="numTeamsInput" class="block text-gray-700 font-semibold mb-2">Number of teams:</label>
+                    <input type="number" id="numTeamsInput" value="2" min="2"
+                        class="w-full p-4 border border-gray-300 rounded-xl text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-200">
+                </div>
+                <div class="flex-1">
+                    <label for="maxPerTeamInput" class="block text-gray-700 font-semibold mb-2">Max members per team:</label>
+                    <input type="number" id="maxPerTeamInput" value="" min="1" placeholder="Optional"
+                        class="w-full p-4 border border-gray-300 rounded-xl text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-200">
+                </div>
+                <button id="generateButton"
+                    class="gradient-button w-full text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition duration-300">
+                    Generate Teams
+                </button>
+            </div>
+        </div>
+
+        <!-- Error Message -->
+        <div id="errorMessage" class="text-red-500 text-center font-bold mb-4" style="display: none;"></div>
+
+        <!-- Results Section -->
+        <div id="resultsContainer" class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" style="display: none;">
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const namesInput = document.getElementById('namesInput');
+            const numTeamsInput = document.getElementById('numTeamsInput');
+            const maxPerTeamInput = document.getElementById('maxPerTeamInput');
+            const generateButton = document.getElementById('generateButton');
+            const resultsContainer = document.getElementById('resultsContainer');
+            const errorMessage = document.getElementById('errorMessage');
+
+            // Pre-fill names for demonstration
+            namesInput.value = "John Doe\nJane Smith\nAlice Johnson\nBob Williams\nCharlie Brown\nDiana Prince\nEthan Hunt\nFiona Gallagher\nGeorge Costanza\nHannah Montana";
+
+            // Add event listeners to trigger dynamic team count
+            namesInput.addEventListener('input', updateNumTeams);
+            maxPerTeamInput.addEventListener('input', updateNumTeams);
+
+            generateButton.addEventListener('click', generateTeams);
+
+            function updateNumTeams() {
+                const names = namesInput.value.split('\n').map(name => name.trim()).filter(name => name !== '');
+                const maxPerTeam = parseInt(maxPerTeamInput.value, 10);
+
+                // Only update if maxPerTeam is a valid number and there are names
+                if (!isNaN(maxPerTeam) && maxPerTeam > 0 && names.length > 0) {
+                    let maxPossibleTeams = Math.floor(names.length / maxPerTeam);
+                    // Ensure a minimum of 2 teams if possible
+                    if (maxPossibleTeams < 2) {
+                        maxPossibleTeams = 2;
+                    }
+                    numTeamsInput.value = maxPossibleTeams;
+                }
+            }
+
+            function generateTeams() {
+                // Clear previous results and errors
+                resultsContainer.innerHTML = '';
+                resultsContainer.style.display = 'none';
+                errorMessage.style.display = 'none';
+
+                const names = namesInput.value.split('\n').map(name => name.trim()).filter(name => name !== '');
+                const numTeams = parseInt(numTeamsInput.value, 10);
+                const maxPerTeam = parseInt(maxPerTeamInput.value, 10);
+
+                if (names.length === 0) {
+                    showError('Please enter at least one name.');
+                    return;
+                }
+
+                if (numTeams < 2 || isNaN(numTeams)) {
+                    showError('Please enter a valid number of teams (2 or more).');
+                    return;
+                }
+                
+                // New validation for maxPerTeam and team creation
+                if (!isNaN(maxPerTeam) && names.length / numTeams > maxPerTeam) {
+                    showError(`Cannot create ${numTeams} teams with a max of ${maxPerTeam} members. You need to reduce the number of teams or increase the max members per team.`);
+                    return;
+                }
+                
+                if (names.length < numTeams) {
+                    showError(`You have fewer names (${names.length}) than teams (${numTeams}). Please add more names or reduce the number of teams.`);
+                    return;
+                }
+
+                // Shuffle the names array using Fisher-Yates algorithm
+                shuffleArray(names);
+
+                // Create team arrays
+                const teams = Array.from({ length: numTeams }, () => []);
+
+                // Distribute names to teams in a round-robin fashion
+                names.forEach((name, index) => {
+                    teams[index % numTeams].push(name);
+                });
+
+                // Render the results
+                teams.forEach((team, index) => {
+                    const teamCard = document.createElement('div');
+                    teamCard.className = 'bg-gray-50 p-6 rounded-2xl shadow-md border border-gray-200';
+                    teamCard.innerHTML = `
+                        <h2 class="text-xl font-bold text-indigo-600 mb-4 border-b-2 border-indigo-200 pb-2">Team ${index + 1}</h2>
+                        <ul class="space-y-2">
+                            ${team.map(member => `<li class="text-gray-700">${member}</li>`).join('')}
+                        </ul>
+                    `;
+                    resultsContainer.appendChild(teamCard);
+                });
+                
+                resultsContainer.style.display = 'grid';
+            }
+
+            function shuffleArray(array) {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+            }
+
+            function showError(message) {
+                errorMessage.textContent = message;
+                errorMessage.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

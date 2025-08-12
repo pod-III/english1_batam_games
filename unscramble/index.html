@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Unscramble Game</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Montserrat:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #4a69bd;
+            --secondary-color: #6a89cc;
+            --background-color: #f0f4f8;
+            --text-color: #2c3e50;
+            --success-color: #2ecc71;
+            --error-color: #e74c3c;
+            --shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            --border-radius: 16px;
+            --gradient-start: #4a69bd;
+            --gradient-end: #6a89cc;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            color: var(--text-color);
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+
+        .game-container {
+            background-color: white;
+            padding: 2.5rem;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            text-align: center;
+            width: 100%;
+            max-width: 550px;
+            box-sizing: border-box;
+            border: 1px solid #e0e6ed;
+            transition: all 0.3s ease;
+        }
+
+        @media (max-width: 600px) {
+            .game-container {
+                padding: 1.5rem;
+            }
+        }
+
+        h1 {
+            font-family: 'Montserrat', sans-serif;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+
+        p {
+            color: #7f8c8d;
+        }
+
+        /* Styles for the teacher console */
+        .teacher-console {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            padding: 2rem 0;
+        }
+        
+        .teacher-console textarea {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid var(--secondary-color);
+            border-radius: var(--border-radius);
+            resize: vertical;
+            min-height: 150px;
+            font-size: 1rem;
+            box-sizing: border-box;
+            transition: border-color 0.3s ease;
+        }
+        
+        .teacher-console textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        .teacher-console-message {
+            min-height: 1rem;
+            color: var(--error-color);
+            font-size: 0.9rem;
+        }
+        
+        /* Styles for the game section */
+        .game-section {
+            display: none; /* Hidden by default */
+        }
+
+        .scrambled-word {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 3rem;
+            font-weight: bold;
+            letter-spacing: 0.5rem;
+            color: #fff;
+            background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
+            padding: 2rem;
+            border-radius: var(--border-radius);
+            margin: 2rem 0;
+            user-select: none;
+            text-transform: uppercase;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .scrambled-word:hover {
+            transform: translateY(-5px);
+        }
+
+        .guess-input {
+            width: 100%;
+            padding: 1rem;
+            font-size: 1.25rem;
+            border: 2px solid var(--secondary-color);
+            border-radius: var(--border-radius);
+            margin-bottom: 1rem;
+            box-sizing: border-box;
+            text-align: center;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            text-transform: lowercase;
+        }
+
+        .guess-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px rgba(74, 105, 189, 0.2);
+        }
+
+        .message-box {
+            min-height: 2.5rem;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .message-box.win {
+            color: var(--success-color);
+        }
+
+        .message-box.lose {
+            color: var(--error-color);
+        }
+
+        .guesses-left {
+            margin-bottom: 1.5rem;
+            font-size: 1rem;
+            color: #7f8c8d;
+        }
+
+        .button-group {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 1rem;
+            font-size: 1rem;
+            font-weight: bold;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-transform: uppercase;
+        }
+
+        .btn-submit {
+            background-color: var(--primary-color);
+            color: white;
+            background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
+        }
+
+        .btn-submit:hover {
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .btn-submit:active {
+            transform: scale(0.98);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-next {
+            background-color: var(--secondary-color);
+            color: white;
+            background: linear-gradient(135deg, #aeb6bf 0%, #bdc3c7 100%);
+        }
+
+        .btn-next:hover {
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .btn-next:active {
+            transform: scale(0.98);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-start {
+            background-color: #3498db;
+            color: white;
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+        }
+
+        .btn-start:hover {
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .btn-start:active {
+            transform: scale(0.98);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <!-- Teacher Console Section -->
+        <div id="teacher-console" class="teacher-console">
+            <h1>Teacher Console</h1>
+            <p>Enter a list of words, separated by commas.</p>
+            <textarea id="word-list-input" placeholder="e.g., apple,banana,orange,grape"></textarea>
+            <div id="console-message" class="teacher-console-message"></div>
+            <button id="start-game-btn" class="btn btn-start">Start Game</button>
+        </div>
+
+        <!-- Game Section -->
+        <div id="game-section" class="game-section">
+            <h1>Word Unscramble</h1>
+            <p class="guesses-left">Guesses Left: <span id="guesses-left">3</span></p>
+
+            <div class="scrambled-word" id="scrambled-word"></div>
+
+            <div class="message-box" id="message-box"></div>
+
+            <input type="text" id="guess-input" class="guess-input" placeholder="Type your guess here" maxlength="20" autofocus>
+
+            <div class="button-group">
+                <button id="submit-btn" class="btn btn-submit">Submit Guess</button>
+                <button id="next-btn" class="btn btn-next" disabled>Next Word</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM elements for teacher console
+        const teacherConsoleEl = document.getElementById('teacher-console');
+        const wordListInputEl = document.getElementById('word-list-input');
+        const startGameBtn = document.getElementById('start-game-btn');
+        const consoleMessageEl = document.getElementById('console-message');
+
+        // DOM elements for game section
+        const gameSectionEl = document.getElementById('game-section');
+        const scrambledWordEl = document.getElementById('scrambled-word');
+        const guessInputEl = document.getElementById('guess-input');
+        const submitBtn = document.getElementById('submit-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const guessesLeftEl = document.getElementById('guesses-left');
+        const messageBoxEl = document.getElementById('message-box');
+
+        // Game state variables
+        let words = [];
+        let currentWord = '';
+        let scrambledWord = '';
+        let guessesLeft = 3;
+        let wordIndex = 0;
+        let gameActive = false;
+
+        // Function to scramble a word
+        function scrambleWord(word) {
+            let charArray = word.split('');
+            let originalWord = word;
+            do {
+                for (let i = charArray.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [charArray[i], charArray[j]] = [charArray[j], charArray[i]];
+                }
+            } while (charArray.join('') === originalWord);
+            return charArray.join('');
+        }
+
+        // Function to start a new round
+        function startRound() {
+            if (wordIndex >= words.length) {
+                messageBoxEl.textContent = 'Game Over! You have unscrambled all the words.';
+                messageBoxEl.className = 'message-box win';
+                submitBtn.disabled = true;
+                nextBtn.disabled = true;
+                guessInputEl.disabled = true;
+                return;
+            }
+
+            currentWord = words[wordIndex];
+            scrambledWord = scrambleWord(currentWord);
+
+            guessesLeft = 3;
+            gameActive = true;
+
+            scrambledWordEl.textContent = scrambledWord;
+            guessesLeftEl.textContent = guessesLeft;
+            messageBoxEl.textContent = '';
+            messageBoxEl.className = 'message-box';
+            guessInputEl.value = '';
+            guessInputEl.disabled = false;
+            submitBtn.disabled = false;
+            nextBtn.disabled = true;
+            guessInputEl.focus();
+        }
+
+        // Function to check the user's guess
+        function checkGuess() {
+            if (!gameActive) return;
+
+            const guess = guessInputEl.value.trim().toLowerCase();
+
+            if (guess === currentWord) {
+                messageBoxEl.textContent = 'Correct! You unscrambled the word.';
+                messageBoxEl.className = 'message-box win';
+                submitBtn.disabled = true;
+                nextBtn.disabled = false;
+                guessInputEl.disabled = true;
+                gameActive = false;
+            } else {
+                guessesLeft--;
+                guessesLeftEl.textContent = guessesLeft;
+
+                if (guessesLeft > 0) {
+                    messageBoxEl.textContent = `Incorrect guess. Try again! You have ${guessesLeft} guesses left.`;
+                    messageBoxEl.className = 'message-box lose';
+                } else {
+                    messageBoxEl.textContent = `Game over! The correct word was "${currentWord}".`;
+                    messageBoxEl.className = 'message-box lose';
+                    submitBtn.disabled = true;
+                    nextBtn.disabled = false;
+                    guessInputEl.disabled = true;
+                    gameActive = false;
+                }
+            }
+        }
+
+        // Event listeners for the game
+        submitBtn.addEventListener('click', checkGuess);
+        guessInputEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                checkGuess();
+            }
+        });
+        nextBtn.addEventListener('click', () => {
+            wordIndex++;
+            startRound();
+        });
+
+        // Event listener for the teacher console
+        startGameBtn.addEventListener('click', () => {
+            const rawWords = wordListInputEl.value.split(',').map(word => word.trim().toLowerCase()).filter(word => word.length >= 3);
+            
+            if (rawWords.length === 0) {
+                consoleMessageEl.textContent = 'Please enter at least one valid word.';
+                consoleMessageEl.style.color = getComputedStyle(document.documentElement).getPropertyValue('--error-color');
+                return;
+            }
+
+            words = rawWords;
+            // Hide the console and show the game
+            teacherConsoleEl.style.display = 'none';
+            gameSectionEl.style.display = 'block';
+
+            startRound();
+        });
+
+    </script>
+
+</body>
+</html>

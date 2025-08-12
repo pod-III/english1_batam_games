@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Flashcards</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Montserrat:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #4a69bd;
+            --secondary-color: #6a89cc;
+            --background-color: #f0f4f8;
+            --text-color: #2c3e50;
+            --success-color: #2ecc71;
+            --error-color: #e74c3c;
+            --shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            --border-radius: 16px;
+            --gradient-start: #4a69bd;
+            --gradient-end: #6a89cc;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--background-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            color: var(--text-color);
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+
+        .game-container {
+            background-color: white;
+            padding: 2.5rem;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            text-align: center;
+            width: 100%;
+            max-width: 900px;
+            box-sizing: border-box;
+            border: 1px solid #e0e6ed;
+            transition: all 0.3s ease;
+        }
+
+        @media (max-width: 600px) {
+            .game-container {
+                padding: 1.5rem;
+            }
+        }
+
+        h1 {
+            font-family: 'Montserrat', sans-serif;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+
+        p {
+            color: #7f8c8d;
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            font-weight: bold;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-transform: uppercase;
+            background-color: var(--primary-color);
+            color: white;
+            background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
+        }
+
+        .btn:hover {
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .btn:active {
+            transform: scale(0.98);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .teacher-console {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            align-items: flex-start;
+        }
+
+        .input-group label {
+            font-weight: bold;
+            color: var(--text-color);
+        }
+        
+        .input-group textarea, .input-group input {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid var(--secondary-color);
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            box-sizing: border-box;
+            transition: border-color 0.3s ease;
+        }
+
+        .game-screen {
+            display: none;
+            text-align: center;
+        }
+
+        .game-word {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+        }
+
+        .timer-display {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--error-color);
+            margin-bottom: 2rem;
+        }
+        
+        .timer-display.warning {
+            color: orange;
+        }
+
+        .synonym-reveal {
+            min-height: 2.5rem;
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-top: 1rem;
+            color: var(--success-color);
+        }
+        
+        .results-screen {
+            display: none;
+        }
+
+        .results-screen h2 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+
+        .results-screen ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: grid;
+            gap: 0.5rem;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            margin-bottom: 2rem;
+        }
+        
+        .results-screen ul li {
+            background-color: #e9ecef;
+            padding: 0.5rem;
+            border-radius: 8px;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <!-- Teacher Console -->
+        <div id="teacher-console" class="teacher-console">
+            <h1>Word Flashcards</h1>
+            <p>Input your word list to begin a practice session.</p>
+            <div class="input-group">
+                <label for="word-list-input">Word List (comma-separated):</label>
+                <textarea id="word-list-input" rows="5" class="resize-y" placeholder="happy, sad, brave, smart"></textarea>
+            </div>
+            <div class="input-group">
+                <label for="round-duration-input">Time per word (seconds):</label>
+                <input type="number" id="round-duration-input" value="30" min="10">
+            </div>
+            <button id="start-game-btn" class="btn">Start Flashcards</button>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="game-screen" class="game-screen">
+            <div id="game-content">
+                <p>Your word:</p>
+                <div id="game-word" class="game-word"></div>
+                <div id="timer-display" class="timer-display"></div>
+            </div>
+        </div>
+
+        <!-- Final Results Screen -->
+        <div id="results-screen" class="results-screen">
+            <h2>Flashcard Session Complete!</h2>
+            <div id="final-scores-title" class="message-box win">All words have been covered.</div>
+            <h3>Words from your session:</h3>
+            <ul id="final-synonym-list" class="flex flex-wrap gap-2 justify-center"></ul>
+            <button id="restart-game-btn" class="btn">Restart Session</button>
+        </div>
+    </div>
+
+    <script>
+        // DOM elements
+        const teacherConsoleEl = document.getElementById('teacher-console');
+        const wordListInput = document.getElementById('word-list-input');
+        const roundDurationInput = document.getElementById('round-duration-input');
+        const startGameBtn = document.getElementById('start-game-btn');
+        
+        const gameScreenEl = document.getElementById('game-screen');
+        const gameWordEl = document.getElementById('game-word');
+        const timerDisplayEl = document.getElementById('timer-display');
+        
+        const resultsScreenEl = document.getElementById('results-screen');
+        const finalSynonymListEl = document.getElementById('final-synonym-list');
+        const restartGameBtn = document.getElementById('restart-game-btn');
+
+        // Game state variables
+        let teacherWords = [];
+        let currentWordIndex = 0;
+        let timerId;
+        let timeLeft;
+        
+        // Start a new session
+        startGameBtn.addEventListener('click', () => {
+            const words = wordListInput.value.split(',').map(word => word.trim().toLowerCase()).filter(word => word !== '');
+
+            if (words.length < 1) {
+                const dialog = document.createElement('div');
+                dialog.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center';
+                dialog.innerHTML = `
+                    <div class="bg-white p-6 rounded-lg shadow-lg">
+                        <h3 class="text-xl font-bold mb-4">Input Error</h3>
+                        <p class="mb-4">Please enter at least one word in the word list.</p>
+                        <button class="btn" onclick="this.closest('.fixed').remove()">OK</button>
+                    </div>
+                `;
+                document.body.appendChild(dialog);
+                return;
+            }
+
+            teacherWords = words;
+            currentWordIndex = 0;
+            
+            teacherConsoleEl.style.display = 'none';
+            gameScreenEl.style.display = 'block';
+
+            nextWord();
+        });
+
+        // Move to the next word
+        function nextWord() {
+            if (currentWordIndex >= teacherWords.length) {
+                endGame();
+                return;
+            }
+
+            const currentWord = teacherWords[currentWordIndex].toUpperCase();
+
+            // Reset state for the new word
+            timeLeft = parseInt(roundDurationInput.value, 10);
+
+            // Set up UI
+            gameWordEl.textContent = currentWord;
+            
+            // Start the timer
+            timerDisplayEl.textContent = `${timeLeft}s`;
+            timerId = setInterval(() => {
+                timeLeft--;
+                timerDisplayEl.textContent = `${timeLeft}s`;
+                if (timeLeft <= 10) {
+                    timerDisplayEl.classList.add('warning');
+                } else {
+                    timerDisplayEl.classList.remove('warning');
+                }
+                if (timeLeft <= 0) {
+                    clearInterval(timerId);
+                    
+                    // Proceed to the next word immediately
+                    currentWordIndex++;
+                    nextWord();
+                }
+            }, 1000);
+        }
+
+        // End the entire session
+        function endGame() {
+            // Show all words from the session
+            finalSynonymListEl.innerHTML = '';
+            teacherWords.forEach(word => {
+                const li = document.createElement('li');
+                li.textContent = word.toUpperCase();
+                li.className = "text-left p-2 bg-gray-100 rounded-lg";
+                finalSynonymListEl.appendChild(li);
+            });
+
+            // Hide game screen and show results screen
+            gameScreenEl.style.display = 'none';
+            resultsScreenEl.style.display = 'block';
+        }
+
+        // Event listener for restart button
+        restartGameBtn.addEventListener('click', () => {
+            resultsScreenEl.style.display = 'none';
+            teacherConsoleEl.style.display = 'flex';
+        });
+    </script>
+</body>
+</html>
