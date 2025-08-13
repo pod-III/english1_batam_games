@@ -226,7 +226,6 @@
             transform: scale(0.98);
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
-
     </style>
 </head>
 <body>
@@ -280,25 +279,31 @@
         let currentWord = '';
         let scrambledWord = '';
         let guessesLeft = 3;
-        let wordIndex = 0;
         let gameActive = false;
+
+        // Fisher-Yates shuffle algorithm
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
 
         // Function to scramble a word
         function scrambleWord(word) {
             let charArray = word.split('');
             let originalWord = word;
+            let scrambled = '';
             do {
-                for (let i = charArray.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [charArray[i], charArray[j]] = [charArray[j], charArray[i]];
-                }
-            } while (charArray.join('') === originalWord);
-            return charArray.join('');
+                shuffleArray(charArray);
+                scrambled = charArray.join('');
+            } while (scrambled === originalWord);
+            return scrambled;
         }
 
         // Function to start a new round
         function startRound() {
-            if (wordIndex >= words.length) {
+            if (words.length === 0) {
                 messageBoxEl.textContent = 'Game Over! You have unscrambled all the words.';
                 messageBoxEl.className = 'message-box win';
                 submitBtn.disabled = true;
@@ -307,7 +312,7 @@
                 return;
             }
 
-            currentWord = words[wordIndex];
+            currentWord = words.pop(); // Take a word from the end of the shuffled array
             scrambledWord = scrambleWord(currentWord);
 
             guessesLeft = 3;
@@ -363,7 +368,6 @@
             }
         });
         nextBtn.addEventListener('click', () => {
-            wordIndex++;
             startRound();
         });
 
@@ -378,6 +382,8 @@
             }
 
             words = rawWords;
+            shuffleArray(words); // Shuffle the words array
+            
             // Hide the console and show the game
             teacherConsoleEl.style.display = 'none';
             gameSectionEl.style.display = 'block';
