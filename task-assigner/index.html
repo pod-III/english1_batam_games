@@ -1,0 +1,434 @@
+<!DOCTYPE html><html><body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Magic Task Assignment Spinner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Chewy&display=swap');
+        
+        body {
+            font-family: 'Fredoka', sans-serif;
+            /* Vibrant background gradient */
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            background-attachment: fixed;
+        }
+
+        /* Floating animation for decorative stars */
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(180deg); }
+        }
+
+        .floating-star {
+            position: absolute;
+            animation: float 3s ease-in-out infinite;
+            font-size: 2rem;
+            opacity: 0.6;
+            z-index: 0; /* Ensure stars are behind the main app container */
+        }
+
+        /* Card pop animation for assignment results */
+        @keyframes cardPop {
+            0% { transform: scale(0) rotate(-180deg); opacity: 0; }
+            70% { transform: scale(1.1) rotate(10deg); }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+
+        .assignment-card {
+            /* Apply the pop animation when the card is created */
+            animation: cardPop 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        /* Wiggle animation for message box on show */
+        .wiggle {
+            animation: wiggle 0.5s ease-in-out;
+        }
+
+        @keyframes wiggle {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-3deg); }
+            75% { transform: rotate(3deg); }
+        }
+
+        /* Button bounce effect on hover */
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        .bounce-button:hover {
+            animation: bounce 0.6s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center p-4 relative">
+
+    <!-- Floating decorative elements -->
+    <div class="floating-star" style="top: 10%; left: 10%; animation-delay: 0s;">⭐</div>
+    <div class="floating-star" style="top: 20%; right: 15%; animation-delay: 0.5s;">🌟</div>
+    <div class="floating-star" style="bottom: 15%; left: 20%; animation-delay: 1s;">✨</div>
+    <div class="floating-star" style="bottom: 25%; right: 10%; animation-delay: 1.5s;">💫</div>
+    <div class="floating-star" style="top: 50%; left: 5%; animation-delay: 2s;">🎨</div>
+    <div class="floating-star" style="top: 60%; right: 5%; animation-delay: 2.5s;">🎪</div>
+
+    <div id="app" class="w-full max-w-4xl bg-white shadow-2xl rounded-3xl p-6 md:p-10 border-8 border-yellow-400 relative z-10">
+        
+        <!-- Header (Visible in both views) -->
+        <header class="text-center mb-8">
+            <h1 class="text-5xl md:text-6xl font-extrabold mb-2" style="font-family: 'Chewy', cursive; color: #ec4899; text-shadow: 3px 3px 0px #fbbf24, 6px 6px 0px #a855f7;">
+                🎪 Magic Assignment Wheel 🎪
+            </h1>
+            <p class="text-2xl font-bold" style="color: #8b5cf6;">Spin and discover your special task! 🎉</p>
+        </header>
+
+        <!-- Message Box (Visible in both views for feedback) -->
+        <div id="message-box" class="hidden text-center p-4 mb-6 rounded-2xl font-bold text-xl shadow-lg" role="alert">
+        </div>
+
+        <!-- CONSOLE VIEW (Input & Generator) -->
+        <div id="console-view" class="hidden">
+            <!-- Input Section -->
+            <section class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <!-- Names Input -->
+                <div class="bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 p-5 rounded-2xl shadow-lg border-4 border-blue-400 transform transition hover:scale-105">
+                    <label for="names-input" class="block text-xl font-black mb-3 flex items-center gap-2" style="color: #3b82f6;">
+                        👥 Student Names (Comma Separated)
+                    </label>
+                    <textarea id="names-input" rows="3" 
+                        class="w-full p-4 border-4 border-blue-300 rounded-xl focus:ring-4 focus:ring-blue-500 focus:border-blue-500 transition duration-150 ease-in-out text-gray-800 text-lg font-semibold"
+                        placeholder="Alex, Ben, Charlie, Dana"></textarea>
+                </div>
+                
+                <!-- Tasks Input -->
+                <div class="bg-gradient-to-br from-green-100 via-teal-100 to-emerald-100 p-5 rounded-2xl shadow-lg border-4 border-green-400 transform transition hover:scale-105">
+                    <label for="tasks-input" class="block text-xl font-black mb-3 flex items-center gap-2" style="color: #10b981;">
+                        📝 Tasks & Activities (Comma Separated)
+                    </label>
+                    <textarea id="tasks-input" rows="3" 
+                        class="w-full p-4 border-4 border-green-300 rounded-xl focus:ring-4 focus:ring-green-500 focus:border-green-500 transition duration-150 ease-in-out text-gray-800 text-lg font-semibold"
+                        placeholder="Water plants, Clean board, Pass papers"></textarea>
+                </div>
+            </section>
+
+            <!-- Action Button -->
+            <div class="text-center mb-8">
+                <button id="assign-button" onclick="assignTasks()" 
+                    class="bounce-button bg-gradient-to-r from-pink-500 via-red-500 to-orange-500 hover:from-pink-600 hover:via-red-600 hover:to-orange-600 active:scale-95 text-white font-black text-2xl py-5 px-10 rounded-full shadow-2xl transform transition duration-200 ease-in-out focus:outline-none focus:ring-8 focus:ring-yellow-300 border-4 border-white"
+                    style="font-family: 'Chewy', cursive;">
+                    🎲 SPIN THE WHEEL! 🎲
+                </button>
+            </div>
+
+            <!-- Task Description Generator Section (Gemini Feature) -->
+            <div class="text-center bg-purple-50 p-6 rounded-2xl shadow-inner border-4 border-purple-300">
+                <h3 class="text-2xl font-black mb-4 text-purple-700">Need creative mission descriptions? ✨</h3>
+                <button id="generate-details-button" onclick="generateTaskDetails()" 
+                    class="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 active:scale-95 text-white font-black text-xl py-3 px-6 rounded-full shadow-lg transform transition duration-200 ease-in-out focus:outline-none focus:ring-4 focus:ring-purple-300">
+                    ✨ Describe Tasks Magically!
+                </button>
+                <div id="gemini-output" class="mt-4 hidden text-left p-4 bg-white rounded-xl border-2 border-purple-500">
+                    <!-- Generated content goes here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- RESULTS VIEW -->
+        <div id="results-view" class="hidden">
+            <h2 id="results-title" class="text-4xl font-black text-center mb-6" style="font-family: 'Chewy', cursive; color: #10b981; text-shadow: 2px 2px 0px #fbbf24;">
+                🏆 Your Magical Assignments! 🏆
+            </h2>
+            
+            <div id="results-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+                <!-- Assignment cards will be inserted here -->
+            </div>
+
+            <!-- Controls -->
+            <div class="flex flex-col sm:flex-row justify-center gap-4">
+                <button onclick="assignTasks()" 
+                        class="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 active:scale-95 text-white font-black text-xl py-3 px-6 rounded-full shadow-lg transform transition duration-200 ease-in-out focus:outline-none focus:ring-4 focus:ring-red-300">
+                    🔄 Re-Spin Tasks
+                </button>
+                <button onclick="goBackToConsole()" 
+                        class="bg-gradient-to-r from-gray-500 to-gray-700 hover:from-gray-600 hover:to-gray-800 active:scale-95 text-white font-black text-xl py-3 px-6 rounded-full shadow-lg transform transition duration-200 ease-in-out focus:outline-none focus:ring-4 focus:ring-gray-300">
+                    ⬅️ Back to Input
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- VIEW MANAGEMENT ---
+        function showView(viewName) {
+            document.getElementById('console-view').classList.add('hidden');
+            document.getElementById('results-view').classList.add('hidden');
+            // Hide message box on view switch unless we explicitly show a message next
+            document.getElementById('message-box').classList.add('hidden'); 
+
+            if (viewName === 'console') {
+                document.getElementById('console-view').classList.remove('hidden');
+            } else if (viewName === 'results') {
+                document.getElementById('results-view').classList.remove('hidden');
+            }
+        }
+
+        function goBackToConsole() {
+            showView('console');
+            showMessage('📝 Ready for new names or tasks!', false);
+        }
+
+        // --- GEMINI API Configuration and Helpers ---
+        const MODEL_NAME = "gemini-2.5-flash-preview-05-20";
+        const apiKey = ""; // Provided by the Canvas environment
+
+        /**
+         * Handles the Gemini API call with exponential backoff.
+         */
+        async function callGeminiAPI(userQuery, systemPrompt, maxRetries = 5) {
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`;
+            
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
+            };
+
+            for (let attempt = 0; attempt < maxRetries; attempt++) {
+                const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+                if (attempt > 0) await new Promise(resolve => setTimeout(resolve, delay));
+
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.ok) {
+                        const result = await response.json();
+                        const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                        if (text) return text;
+                        throw new Error("Invalid API response structure.");
+                    } else if (response.status === 429 && attempt < maxRetries - 1) {
+                        // Rate limit exceeded, use exponential backoff
+                        console.warn(`Rate limit exceeded, retrying in ${delay / 1000}s...`);
+                        continue;
+                    } else {
+                        throw new Error(`API call failed with status: ${response.status}`);
+                    }
+                } catch (error) {
+                    console.error(`Attempt ${attempt + 1} failed:`, error);
+                    if (attempt === maxRetries - 1) throw error;
+                }
+            }
+        }
+
+        /**
+         * Function to generate detailed and fun descriptions for all tasks using Gemini API.
+         */
+        async function generateTaskDetails() {
+            const taskInput = document.getElementById('tasks-input').value;
+            const geminiOutput = document.getElementById('gemini-output');
+            const generateButton = document.getElementById('generate-details-button');
+            
+            let tasks = taskInput.split(',')
+                .map(s => s.trim())
+                .filter(s => s.length > 0);
+
+            if (tasks.length === 0) {
+                showMessage('🚨 Enter tasks first before generating descriptions!', true);
+                return;
+            }
+
+            const taskListString = tasks.join(', ');
+            // The prompt guides the model to be a creative storyteller and use markdown for bolding.
+            const userQuery = `For the following list of classroom chores: "${taskListString}", rewrite each chore as a fun, imaginative, and highly detailed quest or mission description suitable for elementary school children. Use simple list formatting. The total output should be a single, fun text block.`;
+            const systemPrompt = "You are a highly creative Fantasy Storyteller and Teacher. Your goal is to transform mundane classroom tasks into epic, magical, or exciting adventures for kids. Respond only with the creative text.";
+
+            // Show loading state
+            geminiOutput.innerHTML = '<p class="text-center text-purple-600 font-bold animate-pulse">🪄 The Magic Quill is writing... Please wait! 🪄</p>';
+            geminiOutput.classList.remove('hidden');
+            generateButton.disabled = true;
+            generateButton.textContent = "Writing...";
+
+            try {
+                const resultText = await callGeminiAPI(userQuery, systemPrompt);
+                
+                // Simple markdown conversion for display (bold titles and newlines)
+                const formattedText = resultText
+                    .replace(/\*\*(.*?)\*\*/g, '<strong class="text-xl text-purple-800 block mt-3 mb-1">$1</strong>')
+                    .replace(/\n/g, '<br>');
+
+                geminiOutput.innerHTML = `
+                    <h4 class="text-2xl font-bold text-center mb-3 text-pink-500" style="font-family: 'Chewy', cursive;">✨ Generated Missions ✨</h4>
+                    <p class="text-sm font-medium text-gray-500 mb-2">Copy and paste these fun descriptions back into the Tasks input to use them!</p>
+                    <div class="p-3 bg-gray-50 rounded-lg border border-gray-200 text-gray-800 text-base leading-relaxed">
+                        ${formattedText}
+                    </div>
+                `;
+                showMessage('✅ Magical descriptions are ready!', false);
+
+            } catch (error) {
+                console.error("Gemini API call failed:", error);
+                geminiOutput.innerHTML = '<p class="text-red-600 font-bold">❌ Error: Could not summon the Magic Quill. Check the console for details!</p>';
+                showMessage('❌ Failed to generate task details.', true);
+            } finally {
+                generateButton.disabled = false;
+                generateButton.textContent = "✨ Describe Tasks Magically!";
+            }
+        }
+
+
+        // --- ORIGINAL APP LOGIC ---
+
+        /**
+         * Standard Fisher-Yates shuffle algorithm.
+         * @param {Array} array - The array to shuffle.
+         * @returns {Array} The shuffled array.
+         */
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        /**
+         * Displays a temporary message or error in the dedicated message box.
+         * @param {string} message - The message content.
+         * @param {boolean} isError - If true, styles the box as an error.
+         */
+        function showMessage(message, isError = false) {
+            const box = document.getElementById('message-box');
+            box.textContent = message;
+            box.classList.remove('hidden', 'bg-red-200', 'text-red-800', 'bg-green-200', 'text-green-800', 'border-4', 'border-red-400', 'border-green-400');
+
+            if (isError) {
+                box.classList.add('bg-red-200', 'text-red-800', 'border-4', 'border-red-400');
+            } else {
+                box.classList.add('bg-green-200', 'text-green-800', 'border-4', 'border-green-400');
+            }
+            
+            // Add and remove wiggle class to trigger the animation
+            box.classList.add('wiggle');
+            setTimeout(() => box.classList.remove('wiggle'), 500);
+        }
+        
+        /**
+         * Main function to process inputs, shuffle, and display assignments.
+         */
+        function assignTasks() {
+            const nameInput = document.getElementById('names-input').value;
+            const taskInput = document.getElementById('tasks-input').value;
+            const resultsContainer = document.getElementById('results-container');
+            
+            // Clear previous results
+            resultsContainer.innerHTML = '';
+            document.getElementById('message-box').classList.add('hidden');
+
+            // Process and filter names
+            let names = nameInput.split(',')
+                .map(s => s.trim())
+                .filter(s => s.length > 0);
+            
+            // Process and filter tasks
+            let tasks = taskInput.split(',')
+                .map(s => s.trim())
+                .filter(s => s.length > 0);
+
+            // Input Validation
+            if (names.length === 0) {
+                showMessage('🚨 Oops! Please enter at least one Student Name! 🚨', true);
+                return;
+            }
+            if (tasks.length === 0) {
+                showMessage('🚨 Oops! Please enter at least one Task! 🚨', true);
+                return;
+            }
+            
+            // Shuffle both lists independently
+            names = shuffleArray(names);
+            let shuffledTasks = shuffleArray(tasks.slice());
+
+            const assignments = [];
+            
+            for (let i = 0; i < names.length; i++) {
+                const studentName = names[i];
+                const taskIndex = i % shuffledTasks.length; 
+                const assignedTask = shuffledTasks[taskIndex];
+                
+                assignments.push({ name: studentName, task: assignedTask });
+            }
+            
+            // Decorative elements for the result cards
+            const emojis = ['🌟', '⭐', '✨', '💫', '🎯', '🎨', '🎭', '🎪', '🌈', '🦄', '🎉', '🎁'];
+            const gradients = [
+                'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)', // Yellow
+                'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)', // Blue
+                'linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%)', // Green
+                'linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%)', // Pink
+                'linear-gradient(135deg, #e9d5ff 0%, #ddd6fe 100%)', // Purple
+                'linear-gradient(135deg, #fed7aa 0%, #fdba74 100%)' // Orange
+            ];
+            
+            // Create and display assignment cards with staggered animation
+            assignments.forEach((assignment, index) => {
+                setTimeout(() => {
+                    const card = document.createElement('div');
+                    card.className = 'assignment-card p-6 rounded-2xl shadow-xl border-4 transform transition duration-300 hover:scale-105 hover:shadow-2xl hover:rotate-2';
+
+                    const randomGradient = gradients[Math.floor(Math.random() * gradients.length)];
+                    const randomEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+                    const borderColors = ['#f59e0b', '#ec4899', '#8b5cf6', '#10b981', '#3b82f6', '#ef4444'];
+                    const randomBorderColor = borderColors[Math.floor(Math.random() * borderColors.length)];
+                    
+                    card.style.background = randomGradient;
+                    card.style.borderColor = randomBorderColor;
+
+                    card.innerHTML = `
+                        <div class="text-center mb-3">
+                            <span class="text-6xl">${randomEmoji}</span>
+                        </div>
+                        <div class="bg-white bg-opacity-60 rounded-xl p-3 mb-2 shadow-inner">
+                            <p class="text-sm font-bold text-gray-600 mb-1">Student:</p>
+                            <p class="text-2xl font-black text-gray-900">${assignment.name}</p>
+                        </div>
+                        <div class="bg-white bg-opacity-60 rounded-xl p-3 shadow-inner">
+                            <p class="text-sm font-bold text-gray-600 mb-1">Assigned Task:</p>
+                            <p class="text-xl font-black text-purple-700">${assignment.task}</p>
+                        </div>
+                    `;
+                    resultsContainer.appendChild(card);
+                }, index * 150);
+            });
+            
+            showView('results');
+            showMessage(`🎉 Awesome! ${assignments.length} assignments were created magically! 🎉`, false);
+        }
+
+        // --- Initialization ---
+        window.onload = function() {
+            // Set initial mock data
+            document.getElementById('names-input').value = "Alex, Ben, Charlie, Dana";
+            document.getElementById('tasks-input').value = "Water the plants, Eraser Monitor, Clean the board, Hand out papers";
+            // Start on the console view
+            showView('console');
+        };
+    </script>
+</body>
+</html>
+
+</body>
+
+<style>
+
+</style>
+
+<script>
+
+</script></html>
