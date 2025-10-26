@@ -3,27 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Word Unscramble Game</title>
+    <title>Word Unscramble (Reveal Mode)</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Montserrat:wght@700&display=swap" rel="stylesheet">
     <style>
+        /*
+        Custom color palette based on English 1 theme:
+        Pink (#EC4899), Orange (#F97316), Green (#10B981), Blue (#3B82F6)
+        */
         :root {
-            --primary-color: #4a69bd;
-            --secondary-color: #6a89cc;
+            --primary-color: #3B82F6; /* Blue */
+            --secondary-color: #60a5fa; /* Light Blue */
             --background-color: #f0f4f8;
             --text-color: #2c3e50;
-            --success-color: #2ecc71;
-            --error-color: #e74c3c;
+            --success-color: #10B981; /* Green */
+            --error-color: #EC4899; /* Pink */
+            --warning-color: #F97316; /* Orange */
             --shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
             --border-radius: 16px;
-            --gradient-start: #4a69bd;
-            --gradient-end: #6a89cc;
+            --gradient-start: #3B82F6;
+            --gradient-end: #60a5fa;
         }
 
         body {
             font-family: 'Inter', sans-serif;
-            background-color: var(--background-color);
+            /* Subtly incorporating the theme colors in the background */
+            background: linear-gradient(135deg, #fbcfe8 0%, #bfdbfe 100%); /* Light Pink to Light Blue */
             display: flex;
             justify-content: center;
             align-items: center;
@@ -41,9 +47,9 @@
             box-shadow: var(--shadow);
             text-align: center;
             width: 100%;
-            max-width: 550px;
+            max-width: 750px; /* Increased from 650px to accommodate longer words/phrases */
             box-sizing: border-box;
-            border: 1px solid #e0e6ed;
+            border: 2px solid #93c5fd; /* Subtle blue border */
             transition: all 0.3s ease;
         }
 
@@ -75,18 +81,19 @@
         .teacher-console textarea {
             width: 100%;
             padding: 1rem;
-            border: 2px solid var(--secondary-color);
+            border: 2px solid #f9a8d4; /* Pink border for console input */
             border-radius: var(--border-radius);
             resize: vertical;
             min-height: 150px;
             font-size: 1rem;
             box-sizing: border-box;
-            transition: border-color 0.3s ease;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
         }
         
         .teacher-console textarea:focus {
             outline: none;
-            border-color: var(--primary-color);
+            border-color: #EC4899; /* Hot Pink on focus */
+            box-shadow: 0 0 0 4px rgba(236, 72, 153, 0.2);
         }
 
         .teacher-console-message {
@@ -94,6 +101,15 @@
             color: var(--error-color);
             font-size: 0.9rem;
         }
+
+        /* --- START GAME BUTTON CENTERING FIX --- */
+        #start-game-btn {
+            /* Override flex: 1 that may be inherited from .btn and prevent stretching */
+            flex: none; 
+            max-width: 250px; /* Constrain button width */
+            margin: 0 auto; /* Center it horizontally */
+        }
+        /* -------------------------------------- */
         
         /* Styles for the game section */
         .game-section {
@@ -102,11 +118,13 @@
 
         .scrambled-word {
             font-family: 'Montserrat', sans-serif;
-            font-size: 3rem;
+            /* Using clamp for fluid typography: min 1.5rem, fluid 5vw, max 3rem */
+            font-size: clamp(1.5rem, 5vw, 3rem); 
             font-weight: bold;
-            letter-spacing: 0.5rem;
+            letter-spacing: 0.2rem; /* Further reduced spacing for long words */
             color: #fff;
-            background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
+            /* Blue/Orange Gradient */
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--warning-color) 100%);
             padding: 2rem;
             border-radius: var(--border-radius);
             margin: 2rem 0;
@@ -119,25 +137,9 @@
         .scrambled-word:hover {
             transform: translateY(-5px);
         }
-
-        .guess-input {
-            width: 100%;
-            padding: 1rem;
-            font-size: 1.25rem;
-            border: 2px solid var(--secondary-color);
-            border-radius: var(--border-radius);
-            margin-bottom: 1rem;
-            box-sizing: border-box;
-            text-align: center;
-            transition: border-color 0.3s ease, box-shadow 0.3s ease;
-            text-transform: lowercase;
-        }
-
-        .guess-input:focus {
-            outline: none;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 4px rgba(74, 105, 189, 0.2);
-        }
+        
+        /* Removed previous explicit media queries for .scrambled-word, 
+           as clamp() handles the responsive scaling automatically. */
 
         .message-box {
             min-height: 2.5rem;
@@ -153,78 +155,90 @@
         .message-box.lose {
             color: var(--error-color);
         }
+        
+        .message-box.warning {
+            color: var(--warning-color);
+        }
 
         .guesses-left {
             margin-bottom: 1.5rem;
-            font-size: 1rem;
-            color: #7f8c8d;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            display: none; /* Hide the guesses left display */
         }
-
+        
+        /* Button Styles */
         .button-group {
             display: flex;
-            justify-content: space-between;
+            justify-content: center; /* Center buttons horizontally */
             gap: 1rem;
+            margin-top: 2rem;
+        }
+        
+        /* Only buttons inside the button-group should flex */
+        .button-group .btn {
+            flex: 1; 
+            max-width: 200px; /* Constrain button size */
         }
 
         .btn {
-            flex: 1;
+            /* Removed global flex: 1 */
             padding: 1rem;
             font-size: 1rem;
             font-weight: bold;
             border: none;
             border-radius: var(--border-radius);
             cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease;
             text-transform: uppercase;
+            box-shadow: 0 4px 0 0 rgba(0, 0, 0, 0.2); /* 3D effect */
         }
 
-        .btn-submit {
-            background-color: var(--primary-color);
-            color: white;
-            background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 0 0 rgba(0, 0, 0, 0.2);
         }
 
-        .btn-submit:hover {
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
-            transform: translateY(-2px);
+        .btn:active {
+            transform: translateY(4px);
+            box-shadow: none;
         }
 
-        .btn-submit:active {
-            transform: scale(0.98);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .btn-next {
-            background-color: var(--secondary-color);
-            color: white;
-            background: linear-gradient(135deg, #aeb6bf 0%, #bdc3c7 100%);
-        }
-
-        .btn-next:hover {
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
-            transform: translateY(-2px);
-        }
-
-        .btn-next:active {
-            transform: scale(0.98);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
+        /* Start Button - Primary Blue/Green */
         .btn-start {
-            background-color: #3498db;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--success-color) 100%);
             color: white;
-            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            box-shadow: 0 4px 0 0 #1e40af; /* Darker blue for shadow */
         }
-
         .btn-start:hover {
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
-            transform: translateY(-2px);
+            box-shadow: 0 5px 0 0 #1e40af;
         }
 
-        .btn-start:active {
-            transform: scale(0.98);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        /* Reveal Button - Orange/Pink (Using submit style) */
+        .btn-reveal {
+            background: linear-gradient(135deg, var(--warning-color) 0%, var(--error-color) 100%);
+            color: white;
+            box-shadow: 0 4px 0 0 #9a3412; /* Darker orange for shadow */
+        }
+        .btn-reveal:hover {
+            box-shadow: 0 5px 0 0 #9a3412;
+        }
+
+        /* Next Button - Gray/Subtle */
+        .btn-next {
+            background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+            color: var(--text-color);
+            box-shadow: 0 4px 0 0 #6b7280; /* Darker gray for shadow */
+        }
+        .btn-next:hover {
+            box-shadow: 0 5px 0 0 #6b7280;
+        }
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
     </style>
 </head>
@@ -234,25 +248,23 @@
         <!-- Teacher Console Section -->
         <div id="teacher-console" class="teacher-console">
             <h1>Teacher Console</h1>
-            <p>Enter a list of words, separated by commas.</p>
-            <textarea id="word-list-input" placeholder="e.g., apple,banana,orange,grape"></textarea>
+            <p>Enter a list of words, separated by commas. Use words appropriate for your students (3-18 years old).</p>
+            <textarea id="word-list-input" placeholder="e.g., antidisestablishmentarianism, curriculum, education, vocabulary"></textarea>
             <div id="console-message" class="teacher-console-message"></div>
             <button id="start-game-btn" class="btn btn-start">Start Game</button>
         </div>
 
         <!-- Game Section -->
         <div id="game-section" class="game-section">
-            <h1>Word Unscramble</h1>
+            <h1>Word Unscramble (Reveal)</h1>
             <p class="guesses-left">Guesses Left: <span id="guesses-left">3</span></p>
 
             <div class="scrambled-word" id="scrambled-word"></div>
 
             <div class="message-box" id="message-box"></div>
 
-            <input type="text" id="guess-input" class="guess-input" placeholder="Type your guess here" maxlength="20" autofocus>
-
             <div class="button-group">
-                <button id="submit-btn" class="btn btn-submit">Submit Guess</button>
+                <button id="reveal-btn" class="btn btn-reveal">Reveal Answer</button>
                 <button id="next-btn" class="btn btn-next" disabled>Next Word</button>
             </div>
         </div>
@@ -268,18 +280,15 @@
         // DOM elements for game section
         const gameSectionEl = document.getElementById('game-section');
         const scrambledWordEl = document.getElementById('scrambled-word');
-        const guessInputEl = document.getElementById('guess-input');
-        const submitBtn = document.getElementById('submit-btn');
+        const revealBtn = document.getElementById('reveal-btn'); // New reveal button element
         const nextBtn = document.getElementById('next-btn');
-        const guessesLeftEl = document.getElementById('guesses-left');
         const messageBoxEl = document.getElementById('message-box');
-
+        
         // Game state variables
         let words = [];
         let currentWord = '';
         let scrambledWord = '';
-        let guessesLeft = 3;
-        let gameActive = false;
+        let gameActive = false; // Tracks if a word is currently waiting to be revealed
 
         // Fisher-Yates shuffle algorithm
         function shuffleArray(array) {
@@ -291,92 +300,88 @@
 
         // Function to scramble a word
         function scrambleWord(word) {
-            let charArray = word.split('');
-            let originalWord = word;
+            // Remove spaces if the input is a phrase, but the prompt implies single words
+            const cleanWord = word.replace(/\s/g, ''); 
+            
+            let charArray = cleanWord.split('');
+            let originalWord = cleanWord.toUpperCase();
             let scrambled = '';
+            
+            // Ensure the scrambled word is not the same as the original
+            let attempts = 0;
             do {
                 shuffleArray(charArray);
                 scrambled = charArray.join('');
-            } while (scrambled === originalWord);
+                attempts++;
+                // Break if it's a very short word and can't be scrambled differently
+                if (attempts > 10 && cleanWord.length <= 3) break;
+            } while (scrambled.toUpperCase() === originalWord);
+            
             return scrambled;
         }
 
         // Function to start a new round
         function startRound() {
             if (words.length === 0) {
-                messageBoxEl.textContent = 'Game Over! You have unscrambled all the words.';
+                // Return to console when all words are done
+                messageBoxEl.textContent = 'Game Over! All words have been reviewed.';
                 messageBoxEl.className = 'message-box win';
-                submitBtn.disabled = true;
-                nextBtn.disabled = true;
-                guessInputEl.disabled = true;
+                
+                // Use a short delay before returning to the console
+                setTimeout(() => {
+                    teacherConsoleEl.style.display = 'flex';
+                    gameSectionEl.style.display = 'none';
+                    consoleMessageEl.textContent = 'All words completed. Enter new words to start a new game.';
+                    consoleMessageEl.style.color = getComputedStyle(document.documentElement).getPropertyValue('--primary-color');
+                }, 3000); 
                 return;
             }
 
-            currentWord = words.pop(); // Take a word from the end of the shuffled array
+            // Get the next word
+            currentWord = words.pop(); 
             scrambledWord = scrambleWord(currentWord);
 
-            guessesLeft = 3;
             gameActive = true;
 
             scrambledWordEl.textContent = scrambledWord;
-            guessesLeftEl.textContent = guessesLeft;
-            messageBoxEl.textContent = '';
-            messageBoxEl.className = 'message-box';
-            guessInputEl.value = '';
-            guessInputEl.disabled = false;
-            submitBtn.disabled = false;
+            
+            messageBoxEl.textContent = `Unscramble this ${currentWord.length}-letter word in your head or on paper!`;
+            messageBoxEl.className = 'message-box warning';
+
+            revealBtn.disabled = false;
             nextBtn.disabled = true;
-            guessInputEl.focus();
         }
 
-        // Function to check the user's guess
-        function checkGuess() {
+        // Function to reveal the correct word
+        function revealAnswer() {
             if (!gameActive) return;
 
-            const guess = guessInputEl.value.trim().toLowerCase();
+            // Display the correct word
+            scrambledWordEl.textContent = currentWord.toUpperCase(); 
 
-            if (guess === currentWord) {
-                messageBoxEl.textContent = 'Correct! You unscrambled the word.';
-                messageBoxEl.className = 'message-box win';
-                submitBtn.disabled = true;
-                nextBtn.disabled = false;
-                guessInputEl.disabled = true;
-                gameActive = false;
-            } else {
-                guessesLeft--;
-                guessesLeftEl.textContent = guessesLeft;
+            // Update messages and button states
+            messageBoxEl.textContent = `The correct word is revealed!`;
+            messageBoxEl.className = 'message-box win';
 
-                if (guessesLeft > 0) {
-                    messageBoxEl.textContent = `Incorrect guess. Try again! You have ${guessesLeft} guesses left.`;
-                    messageBoxEl.className = 'message-box lose';
-                } else {
-                    messageBoxEl.textContent = `Game over! The correct word was "${currentWord}".`;
-                    messageBoxEl.className = 'message-box lose';
-                    submitBtn.disabled = true;
-                    nextBtn.disabled = false;
-                    guessInputEl.disabled = true;
-                    gameActive = false;
-                }
-            }
+            revealBtn.disabled = true;
+            nextBtn.disabled = false;
+            gameActive = false;
         }
 
         // Event listeners for the game
-        submitBtn.addEventListener('click', checkGuess);
-        guessInputEl.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                checkGuess();
-            }
-        });
+        revealBtn.addEventListener('click', revealAnswer);
+        
         nextBtn.addEventListener('click', () => {
             startRound();
         });
 
         // Event listener for the teacher console
         startGameBtn.addEventListener('click', () => {
+            // Filter out empty strings and words shorter than 3 letters
             const rawWords = wordListInputEl.value.split(',').map(word => word.trim().toLowerCase()).filter(word => word.length >= 3);
             
             if (rawWords.length === 0) {
-                consoleMessageEl.textContent = 'Please enter at least one valid word.';
+                consoleMessageEl.textContent = 'Please enter at least one word with 3 or more letters.';
                 consoleMessageEl.style.color = getComputedStyle(document.documentElement).getPropertyValue('--error-color');
                 return;
             }
