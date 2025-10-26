@@ -1,0 +1,630 @@
+<!DOCTYPE html><html><body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Match: Custom Vocabulary Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+        :root {
+            --color-pink: #ec4899;
+            --color-orange: #f97316;
+            --color-green: #10b981;
+            --color-blue: #3b82f6;
+            --color-console-bg: #1f2937;
+            --color-purple: #8b5cf6;
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .card {
+            perspective: 1000px;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            transition: transform 0.2s ease;
+        }
+        
+        .card:hover:not(.matched) {
+            transform: translateY(-4px);
+        }
+        
+        .card.matched {
+            cursor: default;
+            animation: matchPulse 0.6s ease;
+        }
+
+        @keyframes matchPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .card-inner {
+            width: 100%;
+            height: 100%;
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            transform-style: preserve-3d;
+            position: relative;
+        }
+
+        .card.flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+            padding: 0.5rem;
+            text-align: center;
+        }
+
+        .card-back {
+            background: linear-gradient(135deg, var(--color-pink) 0%, var(--color-purple) 100%);
+            color: white;
+            font-size: 2rem;
+            line-height: 1;
+        }
+
+        .card-front {
+            background: white;
+            color: #1f2937;
+            transform: rotateY(180deg);
+            border: 3px solid var(--color-blue);
+            font-size: 1.125rem;
+            font-weight: 600;
+            overflow: hidden;
+            word-wrap: break-word;
+            hyphens: auto;
+        }
+
+        .card.matched .card-front {
+            background: linear-gradient(135deg, var(--color-green) 0%, #059669 100%) !important;
+            color: white !important;
+            border-color: var(--color-green) !important;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--color-blue) 0%, #2563eb 100%);
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-pink {
+            background: linear-gradient(135deg, var(--color-pink) 0%, #db2777 100%);
+            transition: all 0.3s ease;
+        }
+
+        .btn-pink:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(236, 72, 153, 0.3);
+        }
+
+        .modal-backdrop {
+            backdrop-filter: blur(4px);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-content {
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 640px) {
+            #game-container {
+                gap: 8px;
+                padding: 1rem;
+                max-width: 100% !important;
+                min-height: 400px !important;
+                /* Crucial mobile fix: Cards must use fluid size, not fixed pixels */
+                grid-template-columns: repeat(auto-fit, minmax(75px, 1fr)) !important;
+            }
+            
+            .card, .card-face {
+                width: 100% !important; 
+                height: 100% !important;
+                min-width: 75px; 
+                min-height: 75px;
+            }
+            .card-back {
+                font-size: 1rem;
+            }
+            .card-front {
+                font-size: 0.7rem;
+                padding: 0.25rem;
+            }
+        }
+
+        @media (min-width: 641px) and (max-width: 1024px) {
+            #game-container {
+                max-width: 900px !important;
+                min-height: 500px !important;
+            }
+        }
+
+        @media (min-width: 1025px) {
+            #game-container {
+                min-height: 650px !important;
+            }
+        }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: var(--color-blue) !important;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center p-4 min-h-screen">
+
+    <header class="text-center mb-6 w-full max-w-2xl">
+        <h1 class="text-4xl sm:text-5xl font-extrabold mb-3 text-white drop-shadow-lg">
+            🎮 Word Match
+        </h1>
+        <p id="round-tracker" class="text-white text-sm sm:text-base font-medium drop-shadow">
+            Click "Setup New Word List" to begin!
+        </p>
+    </header>
+    
+    <button id="open-setup-btn" 
+            class="btn-pink text-white font-bold py-3 px-6 rounded-xl shadow-lg mb-6">
+        ✨ Setup New Word List
+    </button>
+
+    <div id="game-container" class="glass-effect grid gap-6 p-10 rounded-2xl shadow-2xl mb-8 w-full items-center justify-items-center" style="max-width: 1400px; min-height: 600px;">
+        <div class="p-12 text-center text-gray-500 col-span-4">
+            <div class="text-6xl mb-4">🎯</div>
+            <p class="font-semibold text-lg">Click "Setup New Word List" to begin!</p>
+        </div>
+    </div>
+
+    <!-- WORD SETUP MODAL -->
+    <div id="word-setup-modal" class="modal-backdrop fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center p-4 z-50">
+        <div class="modal-content glass-effect rounded-2xl shadow-2xl w-full max-w-lg p-8 relative">
+            
+            <button id="close-setup-btn" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 focus:outline-none transition">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+
+            <h2 class="text-3xl font-bold mb-2 text-gray-800">📚 Define Vocabulary Rounds</h2>
+            <p class="text-sm text-gray-600 mb-5">
+                Enter <strong>3-12 unique words per round</strong>, separated by commas.<br>
+                Use a **new line** to define a new round.
+            </p>
+
+            <textarea id="word-list-input" 
+                      rows="6"
+                      placeholder="Round 1: Noun, Verb, Adjective
+Round 2: Cat, Dog, Tree" 
+                      class="w-full p-4 border-2 border-gray-300 rounded-xl font-medium">Noun, Verb, Adjective, Sentence, Question, Exclamatory
+Cat, Dog, Bird, Fish, Lion, Tiger</textarea>
+            
+            <div id="setup-error-message" class="text-red-500 text-sm mt-3 hidden font-medium"></div>
+
+            <button id="submit-words-btn" 
+                    class="btn-primary mt-5 w-full py-4 px-4 text-white font-bold rounded-xl shadow-lg">
+                🚀 Start New Game
+            </button>
+        </div>
+    </div>
+
+    <!-- WIN MODAL -->
+    <div id="win-modal" class="modal-backdrop fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center p-4 z-50">
+        <div class="modal-content glass-effect rounded-2xl shadow-2xl w-full max-w-lg p-8 relative text-center">
+            
+            <h2 class="text-5xl font-extrabold mb-4 text-green-600">🎉 CONGRATULATIONS! 🎉</h2>
+            <p class="text-xl font-semibold mb-6 text-gray-800">You successfully completed all <span id="total-rounds-display" class="font-bold text-blue-600"></span> rounds!</p>
+            
+            <p class="text-lg text-gray-700 mb-8">
+                That was an excellent vocabulary review. Great job!
+            </p>
+
+            <button id="close-win-btn" 
+                    class="btn-pink py-3 px-8 text-white font-bold rounded-xl shadow-lg">
+                Start a New Lesson
+            </button>
+        </div>
+    </div>
+
+    <footer class="mt-8 text-sm text-white drop-shadow font-medium">
+        Teaching Tool for English Practice & Coordinate Logic
+    </footer>
+
+    <script>
+        const MAX_UNIQUE_WORDS = 12;
+        const MIN_UNIQUE_WORDS = 3;
+        
+        let allRounds = [];        // Stores all parsed word lists (multi-dimensional array)
+        let currentRoundIndex = 0; // Tracks the current round being played
+
+        let GRID_COLS = 4;
+        let GRID_ROWS = 3;
+        let REQUIRED_UNIQUE_WORDS = 6;
+        let TOTAL_CARDS = 12;
+
+        let gameWords = []; // Current round's words
+        let gameBoard = [];
+        let cardsFlipped = [];
+        let lockBoard = false;
+        let matchesFound = 0;
+
+        // UI Elements
+        const setupModal = document.getElementById('word-setup-modal');
+        const openSetupBtn = document.getElementById('open-setup-btn');
+        const closeSetupBtn = document.getElementById('close-setup-btn');
+        const submitWordsBtn = document.getElementById('submit-words-btn');
+        const wordListInput = document.getElementById('word-list-input');
+        const setupError = document.getElementById('setup-error-message');
+        
+        const gameContainer = document.getElementById('game-container');
+        const roundTracker = document.getElementById('round-tracker');
+        
+        const winModal = document.getElementById('win-modal');
+        const closeWinBtn = document.getElementById('close-win-btn');
+        const totalRoundsDisplay = document.getElementById('total-rounds-display');
+        // ---
+
+        function openSetupConsole() {
+            setupModal.classList.remove('hidden');
+            winModal.classList.add('hidden'); // Close win modal if open
+            wordListInput.focus();
+        }
+        
+        function closeSetupConsole() {
+            setupModal.classList.add('hidden');
+        }
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        /**
+         * Calculates the optimal grid dimensions for a given number of cards.
+         */
+        function calculateGridDimensions(totalCards) {
+            if (totalCards === 6) return { cols: 3, rows: 2 };
+            if (totalCards === 8) return { cols: 4, rows: 2 };
+            if (totalCards <= 12) return { cols: 4, rows: Math.ceil(totalCards / 4) }; // e.g. 10 cards -> 4x3
+            if (totalCards <= 16) return { cols: 4, rows: 4 };
+            if (totalCards <= 20) return { cols: 5, rows: 4 };
+            if (totalCards <= 24) return { cols: 6, rows: 4 };
+            
+            const cols = Math.min(6, Math.ceil(Math.sqrt(totalCards)));
+            const rows = Math.ceil(totalCards / cols);
+            return { cols, rows };
+        }
+
+        function initializeGame(wordsList) {
+            cardsFlipped = [];
+            lockBoard = false;
+            matchesFound = 0;
+
+            const uniqueWords = wordsList.map(w => w.trim()).filter(w => w.length > 0);
+            REQUIRED_UNIQUE_WORDS = uniqueWords.length;
+            TOTAL_CARDS = uniqueWords.length * 2;
+            
+            // Calculate optimal grid dimensions
+            const { cols, rows } = calculateGridDimensions(TOTAL_CARDS);
+            GRID_COLS = cols;
+            GRID_ROWS = rows;
+            
+            gameWords = [...uniqueWords, ...uniqueWords];
+            shuffle(gameWords);
+            gameBoard = [];
+            
+            // Build the game board structure
+            for (let r = 0; r < GRID_ROWS; r++) {
+                const row = [];
+                for (let c = 0; c < GRID_COLS; c++) {
+                    const index = r * GRID_COLS + c;
+                    if (index < TOTAL_CARDS) {
+                        row.push({
+                            word: gameWords[index],
+                            isFlipped: false,
+                            isMatched: false,
+                            row: r + 1,
+                            col: c + 1
+                        });
+                    }
+                }
+                if (row.length > 0) gameBoard.push(row);
+            }
+
+            updateRoundTracker();
+            renderBoard();
+        }
+
+        function updateRoundTracker() {
+            if (allRounds.length > 0) {
+                roundTracker.textContent = `Round ${currentRoundIndex + 1} of ${allRounds.length}`;
+            } else {
+                roundTracker.textContent = 'Click "Setup New Word List" to begin!';
+            }
+        }
+
+        function handleWordSubmission() {
+            const input = wordListInput.value.trim();
+            // Split input by new line to get individual rounds
+            const roundStrings = input.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+            
+            allRounds = [];
+            setupError.classList.add('hidden');
+
+            if (roundStrings.length === 0) {
+                setupError.textContent = "Error: Please enter at least one round of words.";
+                setupError.classList.remove('hidden');
+                return;
+            }
+
+            // Process each round string
+            for (let i = 0; i < roundStrings.length; i++) {
+                const words = roundStrings[i].split(',').map(w => w.trim()).filter(w => w.length > 0);
+                const uniqueWords = [...new Set(words)];
+
+                if (uniqueWords.length < MIN_UNIQUE_WORDS || uniqueWords.length > MAX_UNIQUE_WORDS) {
+                    setupError.textContent = `Error: Round ${i + 1} must have between ${MIN_UNIQUE_WORDS} and ${MAX_UNIQUE_WORDS} unique words (found ${uniqueWords.length}).`;
+                    setupError.classList.remove('hidden');
+                    return;
+                }
+                allRounds.push(uniqueWords);
+            }
+            
+            currentRoundIndex = 0;
+            initializeGame(allRounds[currentRoundIndex]);
+            console.log(`SUCCESS! Game started with ${allRounds.length} rounds. Starting Round 1.`);
+            closeSetupConsole();
+        }
+        
+        function startNextRound() {
+            currentRoundIndex++;
+            if (currentRoundIndex < allRounds.length) {
+                console.log(`--- STARTING ROUND ${currentRoundIndex + 1} of ${allRounds.length} ---`);
+                initializeGame(allRounds[currentRoundIndex]);
+            } else {
+                // Game Over - All rounds complete
+                showWinModal();
+            }
+        }
+
+        function showWinModal() {
+            totalRoundsDisplay.textContent = allRounds.length;
+            winModal.classList.remove('hidden');
+            console.log("FULL LESSON COMPLETE!");
+        }
+
+
+        function renderBoard() {
+            gameContainer.innerHTML = '';
+            
+            // Set grid columns dynamically based on calculated GRID_COLS
+            gameContainer.style.gridTemplateColumns = `repeat(${GRID_COLS}, minmax(0, 1fr))`;
+            
+            // --- CARD SIZING LOGIC (optimized for large screens) ---
+            const containerMaxWidth = 1400; 
+            const containerMinHeight = 600;
+            const totalPadding = 80; 
+            const gapSize = 24; 
+            
+            const availableWidth = containerMaxWidth - totalPadding - (gapSize * (GRID_COLS - 1));
+            const availableHeight = containerMinHeight - totalPadding - (gapSize * (GRID_ROWS - 1));
+            
+            let cardWidth = Math.floor(availableWidth / GRID_COLS);
+            let cardHeight = Math.floor(availableHeight / GRID_ROWS);
+            let cardSize = Math.min(cardWidth, cardHeight);
+            
+            if (TOTAL_CARDS <= 6) {
+                cardSize = Math.min(cardSize, 220); cardSize = Math.max(cardSize, 160);
+            } else if (TOTAL_CARDS <= 8) {
+                cardSize = Math.min(cardSize, 200); cardSize = Math.max(cardSize, 140);
+            } else if (TOTAL_CARDS <= 12) {
+                cardSize = Math.min(cardSize, 180); cardSize = Math.max(cardSize, 130);
+            } else if (TOTAL_CARDS <= 16) {
+                cardSize = Math.min(cardSize, 160); cardSize = Math.max(cardSize, 110);
+            } else if (TOTAL_CARDS <= 20) {
+                cardSize = Math.min(cardSize, 140); cardSize = Math.max(cardSize, 100);
+            } else { // 22 or 24 cards
+                cardSize = Math.min(cardSize, 120); cardSize = Math.max(cardSize, 90);
+            }
+            // --- END CARD SIZING LOGIC ---
+
+            gameBoard.flat().forEach(cardData => {
+                const cardEl = document.createElement('div');
+                cardEl.classList.add('card');
+                
+                if (window.innerWidth > 640) {
+                    cardEl.style.width = `${cardSize}px`;
+                    cardEl.style.height = `${cardSize}px`;
+                }
+
+                cardEl.style.flexShrink = '0';
+                cardEl.setAttribute('data-row', cardData.row);
+                cardEl.setAttribute('data-col', cardData.col);
+                
+                if (!cardData.isMatched) {
+                    cardEl.addEventListener('click', handleCardClick);
+                }
+
+                if (cardData.isFlipped || cardData.isMatched) {
+                    cardEl.classList.add('flipped');
+                }
+                if (cardData.isMatched) {
+                    cardEl.classList.add('matched');
+                }
+
+                // Calculate responsive font sizes
+                const wordLength = cardData.word.length;
+                let fontSizeRatio = 0.13;
+                
+                if (wordLength > 18) {
+                    fontSizeRatio = 0.08;
+                } else if (wordLength > 15) {
+                    fontSizeRatio = 0.09;
+                } else if (wordLength > 12) {
+                    fontSizeRatio = 0.10;
+                } else if (wordLength > 8) {
+                    fontSizeRatio = 0.115;
+                }
+                
+                const currentCardSize = window.innerWidth > 640 ? cardSize : 80; 
+                const fontSize = Math.max(12, currentCardSize * fontSizeRatio);
+                const backFontSize = Math.max(24, currentCardSize * 0.22);
+                const coordFontSize = Math.max(10, currentCardSize * 0.09);
+                const paddingSize = Math.max(8, currentCardSize * 0.10);
+
+                cardEl.innerHTML = `
+                    <div class="card-inner w-full h-full">
+                        <div class="card-face card-back flex flex-col justify-center items-center font-bold text-white" style="font-size: ${backFontSize}px;">
+                            <span class="font-normal opacity-80" style="font-size: ${coordFontSize}px;">(${cardData.row},${cardData.col})</span>
+                            <span class="mt-1">?</span>
+                        </div>
+                        <div class="card-face card-front flex items-center justify-center text-center" style="font-size: ${fontSize}px; padding: ${paddingSize}px; line-height: 1.2;">
+                            ${cardData.word}
+                        </div>
+                    </div>
+                `;
+                gameContainer.appendChild(cardEl);
+            });
+        }
+
+        function handleCardClick(event) {
+            if (gameWords.length === 0) {
+                console.warn("Error: Please start a game first using 'Setup New Word List'.");
+                openSetupConsole();
+                return;
+            }
+            
+            const cardEl = event.currentTarget;
+            const row = parseInt(cardEl.getAttribute('data-row'));
+            const col = parseInt(cardEl.getAttribute('data-col'));
+            
+            const r = row - 1;
+            const c = col - 1;
+
+            if (lockBoard) {
+                console.log("Board is locked. Please wait...");
+                return;
+            }
+
+            const card = gameBoard[r][c];
+
+            if (card.isFlipped || card.isMatched) {
+                console.log(`Card (${row},${col}) is already flipped or matched.`);
+                return;
+            }
+
+            if (cardsFlipped.length === 1 && cardsFlipped[0] === card) {
+                console.log(`Choose a different card!`);
+                return;
+            }
+
+            card.isFlipped = true;
+            cardsFlipped.push(card);
+            renderBoard();
+            
+            console.log(`Flipped card at (${row},${col}) → "${card.word}"`);
+
+            if (cardsFlipped.length === 2) {
+                lockBoard = true;
+                setTimeout(checkForMatch, 800); // 800ms delay for match check
+            }
+        }
+
+
+        function checkForMatch() {
+            const [card1, card2] = cardsFlipped;
+
+            if (card1.word === card2.word) {
+                card1.isMatched = true;
+                card2.isMatched = true;
+                matchesFound++;
+                console.log(`MATCH! Found pair: "${card1.word}" (${matchesFound}/${REQUIRED_UNIQUE_WORDS})`);
+            } else {
+                card1.isFlipped = false;
+                card2.isFlipped = false;
+                console.log(`No match. Cards flipping back...`);
+            }
+
+            cardsFlipped = [];
+            
+            if (matchesFound !== REQUIRED_UNIQUE_WORDS) {
+                lockBoard = false;
+            }
+            
+            renderBoard();
+
+            if (matchesFound === REQUIRED_UNIQUE_WORDS) {
+                console.log("ROUND COMPLETE!");
+                // Check if there are more rounds or if the game is completely finished
+                if (currentRoundIndex < allRounds.length - 1) {
+                    console.log("Starting next round in 3 seconds...");
+                    setTimeout(startNextRound, 3000);
+                } else {
+                    showWinModal();
+                }
+            }
+        }
+
+        // --- Event Listeners ---
+        openSetupBtn.addEventListener('click', openSetupConsole);
+        closeSetupBtn.addEventListener('click', closeSetupConsole);
+        submitWordsBtn.addEventListener('click', handleWordSubmission);
+        
+        closeWinBtn.addEventListener('click', openSetupConsole); // Opens setup for a new lesson after winning
+
+        // Initialize/Setup Default View
+        window.onload = openSetupConsole;
+        window.addEventListener('resize', renderBoard); 
+    </script>
+</body>
+</html>
+
+</body>
+
+<style>
+
+</style>
+
+<script>
+
+</script></html>
