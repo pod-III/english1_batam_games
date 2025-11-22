@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Random Card Shuffle Game</title>
+    
+    <!-- Fonts: Bebas Neue (Headings), Nunito (Body), JetBrains Mono (Tech) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Custom Tailwind config from English 1 Hub
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        pink: '#FF6B95',
+                        orange: '#FF8C42',
+                        green: '#00E676',
+                        blue: '#2979FF',
+                        dark: '#0f172a',
+                        panel: '#1e293b',
+                        surface: '#334155'
+                    },
+                    fontFamily: {
+                        heading: ['Bebas Neue', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* --- Enhanced Backgrounds (Dark Mode Preferred) --- */
+        body {
+            font-family: 'Nunito', sans-serif;
+            /* Default Light Mode */
+            background-color: #f8fafc;
+            background-image: radial-gradient(at 0% 0%, rgba(41, 121, 255, 0.08) 0px, transparent 50%), 
+                              radial-gradient(at 100% 100%, rgba(255, 107, 149, 0.08) 0px, transparent 50%);
+            background-attachment: fixed;
+            transition: background-color 0.5s, color 0.3s;
+        }
+        
+        /* Dark Mode Styling - FIXED to ensure custom dark background is used */
+        html.dark body { 
+            background-color: #0f172a; /* Custom Dark */
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(41, 121, 255, 0.15) 0px, transparent 50%), 
+                radial-gradient(at 100% 0%, rgba(0, 230, 118, 0.1) 0px, transparent 40%),
+                radial-gradient(at 100% 100%, rgba(255, 107, 149, 0.1) 0px, transparent 50%);
+            color: #f8fafc;
+        }
+
+        /* --- Animations --- */
+        .card-enter {
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            opacity: 0;
+            transform: scale(0.8);
+        }
+
+        @keyframes popIn {
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+        
+        /* --- Custom Scrollbar (Dark mode friendly) --- */
+        .dark ::-webkit-scrollbar-track { background: #0f172a; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        .dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        
+        /* Light mode scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* Game Card Hover Effect for images */
+        .card-thumb-container { overflow: hidden; }
+        .game-card:hover img { transform: scale(1.1); }
+        .game-card img { transition: transform 0.8s ease-out; }
+
+    </style>
+</head>
+<body class="font-body min-h-screen flex flex-col dark">
+    <!-- The 'dark' class is now on the body for initial appearance, but the CSS targets html.dark body for robustness -->
+
+    <!-- Header Section (Themed for the Hub) -->
+    <header class="bg-white/90 dark:bg-dark/90 backdrop-blur-md shadow-md border-b-4 border-pink/50">
+        <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <div class="flex space-x-1">
+                    <div class="w-3 h-3 rounded-full bg-pink"></div>
+                    <div class="w-3 h-3 rounded-full bg-orange"></div>
+                    <div class="w-3 h-3 rounded-full bg-green"></div>
+                    <div class="w-3 h-3 rounded-full bg-blue"></div>
+                </div>
+                <!-- Updated Title and Gradient for Game Theme (Pink) -->
+                <h1 class="text-3xl font-heading tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-pink to-orange">RANDOM CARD SHUFFLE GAME</h1>
+            </div>
+            <!-- Updated label to GAME -->
+            <div class="text-sm text-pink font-mono hidden sm:block">
+                CLASSROOM GAME
+            </div>
+        </div>
+    </header>
+
+    <!-- Controls Section -->
+    <div class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 w-full">
+        <div class="bg-white/10 dark:bg-panel rounded-xl shadow-2xl p-6 mb-6 border border-white/5 backdrop-blur-sm">
+            
+            <div class="flex flex-col md:flex-row gap-4 items-center justify-between">
+                
+                <!-- File Input -->
+                <div class="w-full md:w-2/3">
+                    <!-- Updated border color to pink for game theme -->
+                    <label for="imageInput" class="flex flex-col items-center justify-center w-full h-32 border-2 border-pink/50 border-dashed rounded-xl cursor-pointer bg-dark/50 hover:bg-dark/70 transition-colors shadow-inner">
+                        <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                            <!-- Updated SVG color to pink for game theme -->
+                            <svg class="w-8 h-8 mb-4 text-pink" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                                <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
+                            </svg>
+                            <p class="text-sm text-white/70"><span class="font-semibold text-pink">Click to upload</span> or drag and drop images</p>
+                            <p class="text-xs text-gray-400 mt-1">Select your word/object flashcards (Max 10 for unique display)</p>
+                        </div>
+                        <input id="imageInput" type="file" class="hidden" multiple accept="image/*" />
+                    </label>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="w-full md:w-1/3 flex flex-col gap-3">
+                    <button id="shuffleBtn" class="w-full group relative flex justify-center py-3 px-4 text-sm font-bold rounded-xl text-dark bg-orange hover:bg-orange/80 focus:outline-none transition-all shadow-lg shadow-orange/40 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        <span class="flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Shuffle & Display
+                        </span>
+                    </button>
+                    
+                    <button id="clearBtn" class="w-full py-2 px-4 border border-white/20 text-sm font-medium rounded-xl text-white/80 bg-panel hover:bg-surface focus:outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                        Clear All
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Stats Bar -->
+            <div class="mt-4 flex items-center justify-between text-sm text-gray-400 border-t border-white/10 pt-4">
+                <span id="countDisplay" class="font-mono">0 images loaded</span>
+                <span class="italic text-xs">Always displays 10 items (repeats if needed for 2x5 grid)</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Grid Area -->
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full pb-12">
+        
+        <!-- Empty State -->
+        <div id="emptyState" class="text-center py-20">
+            <!-- Updated Icon color to pink -->
+            <div class="inline-block p-4 rounded-full bg-pink/10 text-pink mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+            </div>
+            <h3 class="text-lg font-heading text-white tracking-widest">NO IMAGES LOADED</h3>
+            <p class="mt-1 text-gray-400">Upload your flashcards above to generate your random teaching grid.</p>
+        </div>
+
+        <!-- The Grid -->
+        <div id="gridContainer" class="hidden grid grid-cols-2 md:grid-cols-5 gap-4 md:gap-6">
+            <!-- Cards will be injected here -->
+        </div>
+
+    </main>
+
+    <script>
+        // State management
+        let currentImages = []; // Stores object URLs
+
+        // DOM Elements
+        const imageInput = document.getElementById('imageInput');
+        const gridContainer = document.getElementById('gridContainer');
+        const emptyState = document.getElementById('emptyState');
+        const shuffleBtn = document.getElementById('shuffleBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const countDisplay = document.getElementById('countDisplay');
+
+        // Theme colors for cycling borders (using the new custom colors)
+        const accentColors = [
+            'pink',
+            'orange', 
+            'green', 
+            'blue'
+        ];
+        
+        // Event Listeners
+        imageInput.addEventListener('change', handleFiles);
+        shuffleBtn.addEventListener('click', shuffleAndRender);
+        clearBtn.addEventListener('click', clearAll);
+
+        // Handle File Upload
+        function handleFiles(e) {
+            const files = Array.from(e.target.files);
+            
+            if (files.length === 0) return;
+
+            // Process files
+            const newImages = files.map(file => {
+                return {
+                    url: URL.createObjectURL(file),
+                    name: file.name
+                };
+            });
+
+            currentImages = [...currentImages, ...newImages];
+            updateUI();
+            shuffleAndRender();
+            
+            // Reset input so same files can be selected again if needed
+            imageInput.value = ''; 
+        }
+
+        // Fisher-Yates Shuffle Algorithm
+        function shuffleArray(array) {
+            const newArray = [...array];
+            for (let i = newArray.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+            }
+            return newArray;
+        }
+
+        // Main Render Function
+        function shuffleAndRender() {
+            if (currentImages.length === 0) return;
+
+            let pool = [...currentImages];
+
+            // If we have fewer than 10 images, fill the pool by repeating existing images
+            if (pool.length < 10) {
+                while (pool.length < 10) {
+                    const randomImg = currentImages[Math.floor(Math.random() * currentImages.length)];
+                    pool.push(randomImg);
+                }
+            }
+
+            // 1. Shuffle the pool (whether it has unique items or duplicates)
+            const shuffled = shuffleArray(pool);
+
+            // 2. Slice to fit grid (Always 10 items for 2x5 grid)
+            const displaySet = shuffled.slice(0, 10);
+
+            // 3. Clear Container
+            gridContainer.innerHTML = '';
+
+            // 4. Generate Cards
+            displaySet.forEach((imgData, index) => {
+                const card = document.createElement('div');
+                
+                // Cycle through theme colors
+                const colorName = accentColors[index % 4];
+                const cardColorClass = `border-${colorName}`;
+
+                // Styling
+                card.className = `
+                    card-enter 
+                    group 
+                    relative 
+                    aspect-[4/5] md:aspect-square 
+                    bg-panel hover:bg-surface/50
+                    rounded-xl 
+                    border border-white/10
+                    shadow-xl shadow-black/20 hover:shadow-2xl
+                    transition-all duration-300
+                    overflow-hidden
+                    flex flex-col
+                `;
+                card.style.animationDelay = `${index * 0.05}s`;
+
+                card.innerHTML = `
+                    <div class="card-thumb-container flex-grow relative overflow-hidden bg-surface">
+                        <img src="${imgData.url}" 
+                             alt="${imgData.name}" 
+                             class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
+                        >
+                        <!-- Image Overlay for Dark Mode Contrast -->
+                        <div class="absolute inset-0 bg-dark/20 group-hover:bg-dark/5 transition-colors"></div>
+                    </div>
+                    
+                    <div class="p-3 bg-panel/70 backdrop-blur-sm border-t border-white/10 flex justify-between items-center">
+                        <span class="text-xl font-heading text-white tracking-widest">${index + 1}</span>
+                        <span class="text-xs font-mono text-${colorName} uppercase font-bold px-2 py-1 bg-${colorName}/10 rounded-full">
+                            ${colorName}
+                        </span>
+                    </div>
+                `;
+
+                gridContainer.appendChild(card);
+            });
+
+            // 5. Toggle Views
+            emptyState.classList.add('hidden');
+            gridContainer.classList.remove('hidden');
+        }
+
+        function updateUI() {
+            const count = currentImages.length;
+            countDisplay.textContent = `${count} image${count !== 1 ? 's' : ''} loaded`;
+            
+            if (count > 0) {
+                shuffleBtn.disabled = false;
+                clearBtn.disabled = false;
+                shuffleBtn.classList.remove('opacity-50');
+            } else {
+                shuffleBtn.disabled = true;
+                clearBtn.disabled = true;
+                emptyState.classList.remove('hidden');
+                gridContainer.classList.add('hidden');
+            }
+        }
+
+        function clearAll() {
+            // Revoke URLs to free memory
+            currentImages.forEach(img => URL.revokeObjectURL(img.url));
+            currentImages = [];
+            gridContainer.innerHTML = '';
+            updateUI();
+        }
+        
+        // Ensure the HTML body gets the dark background when in dark mode
+        document.documentElement.classList.add('dark');
+    </script>
+</body>
+</html>
