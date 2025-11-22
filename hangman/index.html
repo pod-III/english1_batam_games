@@ -3,439 +3,479 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multiplayer Word Game</title>
+    <title>Hangman: Classroom Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Montserrat:wght@700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        pink: '#FF6B95',
+                        orange: '#FF8C42',
+                        green: '#00E676',
+                        blue: '#2979FF',
+                        dark: '#0f172a',
+                        panel: '#1e293b'
+                    },
+                    fontFamily: {
+                        sans: ['Nunito', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
     <style>
         body {
-            font-family: 'Inter', sans-serif;
-            /* Integrating the English 1 color palette (Pink, Orange, Green, Blue) with a subtle gradient background */
-            background: linear-gradient(135deg, #fbcfe8 0%, #bfdbfe 100%); /* Light Pink to Light Blue */
-        }
-        .message-box.win {
-            color: #16a34a; /* Tailwind Green 700 */
-        }
-        .message-box.lose {
-            color: #dc2626; /* Tailwind Red 700 */
-        }
-        .health-bar-fill.warning {
-            background-color: #f97316; /* Tailwind Orange 500 */
-        }
-        .health-bar-fill.critical {
-            background-color: #dc2626; /* Tailwind Red 700 */
-        }
-        /* Custom style for the expanded game container */
-        .game-container {
-            max-width: 800px;
-        }
-        /* Style for the word display to handle long words */
-        #word-display {
-            font-size: 3rem;
-            letter-spacing: 0.5rem;
-            word-wrap: break-word;
-            line-height: 1.5;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.1); /* Subtle shadow on word */
-        }
-        /* New custom style for interactive button polish - gives a 3D pressable look */
-        .btn-interactive {
-            box-shadow: 0 4px 0 0 rgb(30, 64, 175); /* Dark blue border-bottom for 3D effect */
-            transition: all 0.1s ease-in-out;
-            border: none;
-        }
-        .btn-interactive:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 6px 0 0 rgb(30, 64, 175);
-        }
-        .btn-interactive:active {
-            transform: translateY(4px);
-            box-shadow: none;
+            background-color: #0f172a; /* Dark background like Detective OS */
+            color: #f8fafc;
         }
 
-        /* Polishing the letter buttons */
-        .btn-letter {
-            box-shadow: 0 2px 0 0 rgb(96, 165, 250); /* Blue 400 for a gentle shadow */
-            transition: all 0.1s ease-in-out;
+        /* --- Animations --- */
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+        @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+        
+        .animate-pop { animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .animate-shake { animation: shake 0.3s ease-in-out; }
+
+        /* --- Custom Button Styles --- */
+        .btn-3d {
+            transition: all 0.1s;
+            transform: translateY(0);
+            box-shadow: 0 4px 0 rgba(0,0,0,0.2);
         }
-        .btn-letter:hover:not(:disabled) {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 0 0 rgb(96, 165, 250);
+        .btn-3d:active:not(:disabled) {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 rgba(0,0,0,0.2);
         }
-        .btn-letter:active:not(:disabled) {
+        .btn-3d:disabled {
+            opacity: 0.5;
             transform: translateY(2px);
             box-shadow: none;
+            cursor: not-allowed;
         }
+
+        /* --- Letter Tile --- */
+        .letter-tile {
+            perspective: 1000px;
+            transform-style: preserve-3d;
+            transition: transform 0.6s;
+        }
+        .letter-tile.revealed { transform: rotateY(360deg); }
+        
     </style>
 </head>
-<body class="flex justify-center items-center min-h-screen p-4 text-slate-800">
+<body class="min-h-screen flex flex-col items-center justify-center p-4">
 
-    <!-- The main container now uses the game-container class for a wider layout -->
-    <div class="bg-white p-8 rounded-3xl shadow-2xl border border-slate-200 w-full game-container text-center transition-all duration-300">
-        
-        <!-- Teacher Console Section -->
-        <div id="teacher-console" class="flex flex-col gap-6">
-            <h1 class="font-['Montserrat'] text-5xl font-extrabold text-blue-700 mb-2">Teacher Console</h1>
-            <p class="text-slate-600 text-lg mb-4">Enter a list of words or phrases, separated by commas, for the game to use.</p>
-            
-            <textarea id="word-list-input" placeholder="e.g., happy birthday,red wagon,pneumonoultramicroscopicsilicovolcanoconiosis" 
-                      class="w-full p-4 border-2 border-pink-400 rounded-2xl resize-y min-h-[150px] text-lg transition-colors duration-200 focus:outline-none focus:border-pink-600 focus:ring-4 focus:ring-pink-200/50"></textarea>
-            
-            <div class="flex flex-col items-start gap-2">
-                <label for="player-count" class="font-bold text-slate-700 text-lg">Number of players (2-4):</label>
-                <input type="number" id="player-count" value="2" min="2" max="4" 
-                       class="w-full p-4 border-2 border-blue-400 rounded-2xl text-center text-xl transition-colors duration-200 focus:outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-200/50">
+    <!-- HEADER -->
+    <header class="w-full max-w-4xl flex justify-between items-center mb-6 p-4 bg-panel rounded-2xl border border-white/10 shadow-xl">
+        <div class="flex items-center gap-3">
+            <div class="bg-blue/20 p-2 rounded-lg text-2xl">🎓</div>
+            <div>
+                <h1 class="font-black text-2xl tracking-tight text-white">HANGMAN</h1>
+                <p class="text-xs text-slate-400 font-mono">CLASSROOM EDITION v2.2</p>
             </div>
+        </div>
+        <button onclick="toggleSound()" id="soundBtn" class="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center hover:bg-slate-600 transition">
+            🔊
+        </button>
+    </header>
 
-            <div id="console-message" class="min-h-[1rem] text-sm text-red-600 font-semibold"></div>
-
-            <button id="start-game-btn" 
-                    class="btn-interactive bg-gradient-to-r from-pink-500 to-blue-600 text-white font-extrabold py-4 px-8 rounded-2xl uppercase border-blue-800 text-xl">
-                Start Game
-            </button>
+    <!-- TEACHER CONSOLE (Setup) -->
+    <div id="teacher-console" class="w-full max-w-4xl bg-panel p-8 rounded-3xl border border-blue/30 shadow-2xl animate-pop">
+        <div class="border-b border-white/10 pb-4 mb-6">
+            <h2 class="text-2xl font-bold text-blue mb-1">Teacher Control Panel</h2>
+            <p class="text-slate-400">Configure the lesson for today.</p>
         </div>
 
-        <!-- Game Section -->
-        <div id="game-section" class="hidden flex-col gap-6">
-            <h1 class="font-['Montserrat'] text-5xl font-extrabold text-blue-700 mb-2">Word Challenge</h1>
-            
-            <!-- Health Bars -->
-            <div id="health-bar-container" class="flex flex-wrap justify-center gap-4 my-4"></div>
-            
-            <!-- Word Display - Note: Font size adjusted via CSS for better responsiveness with long words -->
-            <div id="word-display" class="font-['Montserrat'] my-4 min-h-[2.5rem] uppercase text-blue-900 font-extrabold"></div>
-            
-            <!-- Message Box -->
-            <div id="message-box" class="min-h-[2.5rem] text-2xl font-extrabold"></div>
-            
-            <!-- Letter Buttons -->
-            <div id="letter-buttons-container" class="grid grid-cols-7 gap-2 my-4"></div>
+        <div class="grid md:grid-cols-2 gap-8">
+            <!-- Word Input -->
+            <div class="space-y-4">
+                <label class="block font-bold text-slate-200">1. Secret Words</label>
+                <div class="relative">
+                    <textarea id="word-list-input" 
+                        placeholder="e.g., PHOTOSYNTHESIS, GRAVITY, ECOSYSTEM" 
+                        class="w-full h-40 bg-dark border-2 border-slate-600 rounded-xl p-4 text-lg focus:border-pink focus:ring-2 focus:ring-pink/20 outline-none transition font-mono resize-none"
+                    ></textarea>
+                    <div class="absolute bottom-4 right-4 text-xs text-slate-500 bg-dark/80 px-2 py-1 rounded">
+                        Separate with commas
+                    </div>
+                </div>
+            </div>
 
-            <!-- End Game Buttons -->
-            <div class="flex justify-center gap-4 mt-4">
-                <button id="next-round-btn" 
-                        class="btn-interactive bg-gradient-to-r from-pink-500 to-blue-600 text-white font-extrabold py-4 px-8 rounded-2xl uppercase border-blue-800 text-xl hidden">
-                    Next Word
+            <!-- Settings -->
+            <div class="space-y-6">
+                <div>
+                    <label class="block font-bold text-slate-200 mb-2">2. Number of Players/Teams</label>
+                    <div class="grid grid-cols-3 gap-3">
+                        <button onclick="selectPlayers(2)" class="player-select-btn btn-3d bg-slate-700 p-3 rounded-xl font-bold hover:bg-blue hover:text-white transition" data-count="2">2</button>
+                        <button onclick="selectPlayers(3)" class="player-select-btn btn-3d bg-slate-700 p-3 rounded-xl font-bold hover:bg-blue hover:text-white transition" data-count="3">3</button>
+                        <button onclick="selectPlayers(4)" class="player-select-btn btn-3d bg-slate-700 p-3 rounded-xl font-bold hover:bg-blue hover:text-white transition" data-count="4">4</button>
+                    </div>
+                    <input type="hidden" id="player-count" value="2">
+                </div>
+
+                <div class="bg-orange/10 p-4 rounded-xl border border-orange/30">
+                    <h3 class="text-orange font-bold text-sm mb-1">💡 How to play:</h3>
+                    <ul class="text-slate-300 text-sm space-y-1 list-disc pl-4">
+                        <li>Teams take turns guessing letters.</li>
+                        <li>Correct guess = <span class="text-green font-bold">Safe (Pass Turn)</span>.</li>
+                        <li>Wrong guess = <span class="text-pink font-bold">-20 Health (Pass Turn)</span>.</li>
+                        <li><strong>NEW:</strong> Click <span class="bg-slate-700 px-1 rounded border border-slate-500 text-xs">🏆 0</span> to award points & reveal word!</li>
+                    </ul>
+                </div>
+
+                <button onclick="startGame()" class="w-full btn-3d bg-gradient-to-r from-blue to-green py-4 rounded-xl font-black text-xl shadow-lg hover:brightness-110 transition">
+                    START LESSON
                 </button>
-                <button id="end-game-btn" 
-                        class="btn-interactive bg-gradient-to-r from-gray-500 to-gray-700 text-white font-extrabold py-4 px-8 rounded-2xl uppercase border-gray-900 text-xl hidden">
-                    End Game
-                </button>
+                <p id="error-msg" class="text-pink text-center text-sm font-bold hidden animate-shake">⚠️ Please enter at least one word!</p>
             </div>
         </div>
     </div>
 
+    <!-- GAME AREA (Hidden by default) -->
+    <div id="game-section" class="hidden w-full max-w-4xl flex-col items-center">
+        
+        <!-- Health Bars Area -->
+        <div id="health-container" class="w-full grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <!-- Injected via JS -->
+        </div>
+
+        <!-- The Word Display -->
+        <div class="bg-panel w-full p-8 rounded-3xl border border-white/5 shadow-2xl mb-6 text-center relative overflow-hidden">
+            <!-- Background decoration -->
+            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-pink via-orange to-blue"></div>
+            
+            <div id="message-box" class="min-h-[2rem] text-orange font-bold mb-4"></div>
+            
+            <div id="word-display" class="flex flex-wrap justify-center gap-2 md:gap-4 min-h-[4rem]">
+                <!-- Letters injected here -->
+            </div>
+        </div>
+
+        <!-- Keyboard -->
+        <div id="keyboard" class="w-full max-w-2xl grid grid-cols-7 gap-2 sm:gap-3">
+            <!-- Injected via JS -->
+        </div>
+
+        <!-- Controls -->
+        <div class="flex gap-4 mt-8">
+            <button id="next-round-btn" onclick="nextRound()" class="hidden btn-3d bg-blue px-8 py-3 rounded-xl font-bold shadow-lg">
+                Next Word ➡️
+            </button>
+            <button onclick="returnToConsole()" class="btn-3d bg-slate-700 px-6 py-3 rounded-xl font-bold text-slate-300 hover:bg-slate-600">
+                Exit Lesson
+            </button>
+        </div>
+    </div>
+
     <script>
-        // DOM elements for teacher console
-        const teacherConsoleEl = document.getElementById('teacher-console');
-        const wordListInputEl = document.getElementById('word-list-input');
-        const playerCountInput = document.getElementById('player-count');
-        const startGameBtn = document.getElementById('start-game-btn');
-        const consoleMessageEl = document.getElementById('console-message');
+        /* --- AUDIO SYSTEM (From Detective OS) --- */
+        const AudioEngine = {
+            ctx: new (window.AudioContext || window.webkitAudioContext)(),
+            enabled: true,
+            playTone: function(freq, type, duration, vol=0.1) {
+                if (!this.enabled) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.value = freq;
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                gain.gain.exponentialRampToValueAtTime(0.00001, this.ctx.currentTime + duration);
+                osc.stop(this.ctx.currentTime + duration);
+            },
+            click: function() { this.playTone(600, 'sine', 0.05, 0.05); },
+            correct: function() { 
+                this.playTone(600, 'sine', 0.1);
+                setTimeout(() => this.playTone(900, 'sine', 0.2), 100);
+            },
+            wrong: function() { 
+                this.playTone(200, 'sawtooth', 0.2);
+                setTimeout(() => this.playTone(150, 'sawtooth', 0.2), 100);
+            },
+            win: function() {
+                [440, 554, 659, 880].forEach((f, i) => setTimeout(() => this.playTone(f, 'triangle', 0.3), i * 100));
+            },
+            lose: function() {
+                [400, 300, 200, 100].forEach((f, i) => setTimeout(() => this.playTone(f, 'sawtooth', 0.4), i * 150));
+            }
+        };
 
-        // DOM elements for game section
-        const gameSectionEl = document.getElementById('game-section');
-        const healthBarContainer = document.getElementById('health-bar-container');
-        const wordDisplayEl = document.getElementById('word-display');
-        const messageBoxEl = document.getElementById('message-box');
-        const letterButtonsContainer = document.getElementById('letter-buttons-container');
-        const nextRoundBtn = document.getElementById('next-round-btn');
-        const endGameBtn = document.getElementById('end-game-btn');
+        function toggleSound() {
+            AudioEngine.enabled = !AudioEngine.enabled;
+            document.getElementById('soundBtn').innerText = AudioEngine.enabled ? '🔊' : '🔇';
+        }
 
-        // Game state variables
+        /* --- GAME STATE --- */
         let words = [];
-        let wordToGuess = '';
+        let currentWordIndex = 0;
+        let wordToGuess = "";
         let guessedLetters = new Set();
-        let gameActive = false;
         let players = [];
         let currentPlayerIndex = 0;
-        let currentWordIndex = 0;
-        const initialHealth = 100;
-        const healthLossPerGuess = 20;
+        let gameActive = false;
 
-        // Function to start the game after the word list is submitted
+        /* --- SETUP FUNCTIONS --- */
+        
+        // Player Selection UI
+        function selectPlayers(count) {
+            document.getElementById('player-count').value = count;
+            document.querySelectorAll('.player-select-btn').forEach(btn => {
+                if(parseInt(btn.dataset.count) === count) {
+                    btn.classList.add('bg-blue', 'text-white', 'ring-2', 'ring-blue/50');
+                    btn.classList.remove('bg-slate-700');
+                } else {
+                    btn.classList.remove('bg-blue', 'text-white', 'ring-2', 'ring-blue/50');
+                    btn.classList.add('bg-slate-700');
+                }
+            });
+            AudioEngine.click();
+        }
+        // Init default selection
+        selectPlayers(2);
+
         function startGame() {
-            // Updated word parsing to allow for spaces within words
-            const rawWords = wordListInputEl.value.split(',').map(word => word.trim().toLowerCase()).filter(word => word.length >= 3);
-            const numPlayers = parseInt(playerCountInput.value);
+            const rawInput = document.getElementById('word-list-input').value;
+            words = rawInput.split(',').map(w => w.trim().toUpperCase()).filter(w => w.length > 0);
             
-            if (rawWords.length === 0) {
-                consoleMessageEl.textContent = 'Please enter at least one valid word or phrase.';
-                consoleMessageEl.classList.remove('text-green-600');
-                consoleMessageEl.classList.add('text-red-600');
+            if (words.length === 0) {
+                const err = document.getElementById('error-msg');
+                err.classList.remove('hidden');
+                AudioEngine.wrong();
                 return;
             }
 
-            if (numPlayers < 2 || numPlayers > 4 || isNaN(numPlayers)) {
-                consoleMessageEl.textContent = 'Please select a number of players between 2 and 4.';
-                consoleMessageEl.classList.remove('text-green-600');
-                consoleMessageEl.classList.add('text-red-600');
-                return;
-            }
-            
-            words = rawWords;
-            // Initialize players with a health and elimination status
-            players = Array.from({ length: numPlayers }, (_, i) => ({
-                name: `Player ${i + 1}`,
-                health: initialHealth,
-                isEliminated: false,
+            const playerCount = parseInt(document.getElementById('player-count').value);
+            players = Array.from({ length: playerCount }, (_, i) => ({
+                id: i,
+                name: `Team ${i + 1}`,
+                health: 100,
+                score: 0,
+                eliminated: false
             }));
-            
-            // Hide the console and show the game section
-            teacherConsoleEl.classList.add('hidden');
-            gameSectionEl.classList.remove('hidden');
-            gameSectionEl.classList.add('flex');
-            
-            // Reset game state for the first round
+
+            document.getElementById('teacher-console').classList.add('hidden');
+            document.getElementById('game-section').classList.remove('hidden');
+            document.getElementById('game-section').classList.add('flex');
+
             currentWordIndex = 0;
-            resetGame();
+            initRound();
         }
 
-        // Function to reset all game variables for a new round
-        function resetGame() {
+        function initRound() {
             if (currentWordIndex >= words.length) {
-                messageBoxEl.textContent = 'All words have been played! Starting over from the beginning.';
-                messageBoxEl.className = 'message-box min-h-[2.5rem] text-2xl font-extrabold';
-                setTimeout(() => {
-                    currentWordIndex = 0;
-                    resetGame();
-                }, 3000);
+                // All words done
+                document.getElementById('message-box').innerHTML = "<span class='text-green text-2xl'>🎉 LESSON COMPLETE! 🎉</span>";
+                document.getElementById('word-display').innerHTML = "";
+                AudioEngine.win();
                 return;
             }
 
-            wordToGuess = words[currentWordIndex].toUpperCase();
-            guessedLetters = new Set();
+            wordToGuess = words[currentWordIndex];
+            guessedLetters.clear();
             gameActive = true;
+            
+            // Revive everyone for the new round
+            players.forEach(p => {
+                p.health = 100;
+                p.eliminated = false;
+            });
             currentPlayerIndex = 0;
 
-            // Reset player health and elimination status
-            players.forEach(player => {
-                player.health = initialHealth;
-                player.isEliminated = false;
-            });
-
-            // Update UI
-            messageBoxEl.textContent = '';
-            messageBoxEl.className = 'message-box min-h-[2.5rem] text-2xl font-extrabold';
-            nextRoundBtn.classList.add('hidden');
-            endGameBtn.classList.add('hidden');
-
-            renderAlphabetButtons();
-            renderWordDisplay();
-            renderHealthBars();
+            renderUI();
+            renderKeyboard();
+            updateMessage(`Round ${currentWordIndex + 1}: Start!`);
+            document.getElementById('next-round-btn').classList.add('hidden');
         }
 
-        // Function to render the word with underscores
-        function renderWordDisplay() {
-            let displayWord = '';
-            // Define characters that are automatically revealed and do not need guessing
-            const autoRevealedChars = ["'", "-", "&"];
+        /* --- RENDERING --- */
+
+        function renderUI() {
+            // Render Health Bars
+            const container = document.getElementById('health-container');
+            container.innerHTML = '';
+
+            players.forEach((p, idx) => {
+                const isCurrent = idx === currentPlayerIndex && !p.eliminated;
+                const card = document.createElement('div');
+                card.className = `bg-panel p-4 rounded-2xl border-2 transition-all duration-300 relative overflow-hidden ${isCurrent ? 'border-orange scale-105 shadow-lg shadow-orange/20' : 'border-slate-700 opacity-80'}`;
+                if(p.eliminated) card.classList.add('opacity-40', 'grayscale');
+
+                let barColor = 'bg-green';
+                if(p.health <= 50) barColor = 'bg-orange';
+                if(p.health <= 20) barColor = 'bg-pink';
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-center mb-3">
+                        <div class="font-bold ${isCurrent ? 'text-orange' : 'text-slate-400'}">${p.name}</div>
+                        <button onclick="claimWin(${idx})" title="Click to award win & reveal word" 
+                                class="btn-3d bg-slate-700 hover:bg-green hover:text-white text-slate-300 text-xs font-bold py-1 px-2 rounded border border-slate-500 transition-colors z-10">
+                            🏆 ${p.score}
+                        </button>
+                    </div>
+                    <div class="w-full h-3 bg-slate-700 rounded-full overflow-hidden">
+                        <div class="h-full ${barColor} transition-all duration-500" style="width: ${p.health}%"></div>
+                    </div>
+                    ${isCurrent ? '<div class="mt-2 text-center text-xs font-bold text-orange uppercase tracking-widest">Your Turn</div>' : ''}
+                `;
+                container.appendChild(card);
+            });
+
+            // Render Word
+            const wordDisplay = document.getElementById('word-display');
+            wordDisplay.innerHTML = '';
             
-            for (const char of wordToGuess) {
+            [...wordToGuess].forEach(char => {
                 if (char === ' ') {
-                    // Display a normal space for better readability
-                    displayWord += ' ';
-                } else if (autoRevealedChars.includes(char)) {
-                    // Display common punctuation directly (e.g., apostrophe)
-                    displayWord += char;
-                } else if (guessedLetters.has(char)) {
-                    displayWord += char;
+                    const space = document.createElement('div');
+                    space.className = 'w-4 md:w-8';
+                    wordDisplay.appendChild(space);
                 } else {
-                    displayWord += '_';
+                    const isRevealed = guessedLetters.has(char) || !char.match(/[A-Z]/);
+                    const box = document.createElement('div');
+                    box.className = `w-10 h-12 md:w-14 md:h-16 flex items-center justify-center text-2xl md:text-3xl font-bold rounded-lg border-b-4 transition-all duration-500 letter-tile ${isRevealed ? 'bg-white text-dark border-slate-300 revealed' : 'bg-slate-700 text-transparent border-slate-900'}`;
+                    box.textContent = char;
+                    wordDisplay.appendChild(box);
                 }
-            }
-            wordDisplayEl.textContent = displayWord;
-        }
-
-        // Function to create alphabet buttons
-        function renderAlphabetButtons() {
-            letterButtonsContainer.innerHTML = '';
-            for (let i = 0; i < 26; i++) {
-                const letter = String.fromCharCode(65 + i);
-                const button = document.createElement('button');
-                button.textContent = letter;
-                // Polished button style using custom class for 3D effect
-                button.className = 'btn-letter w-full h-12 font-bold text-xl uppercase bg-blue-100 border-2 border-blue-300 text-blue-800 rounded-xl cursor-pointer shadow-md disabled:opacity-50 disabled:cursor-not-allowed';
-                button.addEventListener('click', () => handleGuess(letter));
-                letterButtonsContainer.appendChild(button);
-            }
-        }
-
-        // Function to render the player health bars
-        function renderHealthBars() {
-            healthBarContainer.innerHTML = '';
-            players.forEach((player, index) => {
-                const playerEl = document.createElement('div');
-                playerEl.className = 'player-health flex flex-col items-center gap-2 min-w-[80px] p-2 rounded-xl transition-all duration-300';
-                
-                // Highlight current player turn with Pink accent
-                if (index === currentPlayerIndex) {
-                    playerEl.classList.add('current-turn', 'bg-pink-100', 'border', 'border-pink-400', 'shadow-inner');
-                } else {
-                    playerEl.classList.remove('current-turn', 'bg-pink-100', 'border', 'border-pink-400', 'shadow-inner');
-                }
-                
-                // Add elimination style
-                if (player.isEliminated) {
-                    playerEl.classList.add('opacity-50', 'line-through');
-                }
-
-                const playerName = document.createElement('div');
-                playerName.className = 'player-name font-extrabold text-lg whitespace-nowrap';
-                playerName.textContent = player.name;
-
-                const healthBar = document.createElement('div');
-                healthBar.className = 'health-bar w-full h-5 bg-slate-300 rounded-lg overflow-hidden border border-slate-400 shadow-inner';
-
-                const healthBarFill = document.createElement('div');
-                healthBarFill.className = 'health-bar-fill h-full bg-green-500 transition-all duration-500';
-                healthBarFill.style.width = `${player.health}%`;
-                
-                if (player.health <= 40 && player.health > 20) {
-                    healthBarFill.classList.remove('bg-green-500');
-                    healthBarFill.classList.add('warning');
-                } else if (player.health <= 20) {
-                    healthBarFill.classList.remove('bg-green-500');
-                    healthBarFill.classList.add('critical');
-                } else {
-                    healthBarFill.classList.add('bg-green-500');
-                    healthBarFill.classList.remove('warning', 'critical');
-                }
-                
-                healthBar.appendChild(healthBarFill);
-                playerEl.appendChild(playerName);
-                playerEl.appendChild(healthBar);
-                healthBarContainer.appendChild(playerEl);
             });
         }
 
-        // Function to handle a letter guess
+        function renderKeyboard() {
+            const kb = document.getElementById('keyboard');
+            kb.innerHTML = '';
+            const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+            [...alphabet].forEach(letter => {
+                const btn = document.createElement('button');
+                btn.textContent = letter;
+                btn.className = `btn-3d h-12 rounded-lg font-bold text-lg transition-colors ${
+                    guessedLetters.has(letter) 
+                        ? 'bg-slate-800 text-slate-600 cursor-not-allowed shadow-none translate-y-1 border-none' 
+                        : 'bg-blue text-white border-blue-800 hover:bg-blue/90'
+                }`;
+                if(guessedLetters.has(letter)) btn.disabled = true;
+                
+                btn.onclick = () => handleGuess(letter);
+                kb.appendChild(btn);
+            });
+        }
+
+        /* --- GAME LOGIC --- */
+
         function handleGuess(letter) {
-            if (!gameActive || guessedLetters.has(letter)) {
-                return;
-            }
+            if (!gameActive || guessedLetters.has(letter)) return;
 
             guessedLetters.add(letter);
-            const letterButton = [...letterButtonsContainer.children].find(btn => btn.textContent === letter);
-            if (letterButton) {
-                letterButton.disabled = true;
-            }
-
-            const currentPlayer = players[currentPlayerIndex];
-
-            if (wordToGuess.includes(letter)) {
-                if (letterButton) {
-                    letterButton.classList.add('bg-green-500', 'text-white', 'border-green-500', 'shadow-none');
-                }
-                renderWordDisplay();
+            
+            const isCorrect = wordToGuess.includes(letter);
+            
+            if (isCorrect) {
+                AudioEngine.correct();
+                updateMessage("Correct! Next team's turn.", "text-green");
                 checkWin();
             } else {
-                if (letterButton) {
-                    letterButton.classList.add('bg-red-500', 'text-white', 'border-red-500', 'shadow-none');
-                }
-                currentPlayer.health -= healthLossPerGuess;
-                renderHealthBars();
-                
-                if (currentPlayer.health <= 0) {
-                    currentPlayer.isEliminated = true;
-                    // Provide feedback only if the player was just eliminated
-                    if (currentPlayer.health + healthLossPerGuess > 0) {
-                        messageBoxEl.textContent = `${currentPlayer.name} has been eliminated!`;
-                        messageBoxEl.classList.remove('win');
-                        messageBoxEl.classList.add('lose');
-                        // Clear message box after a short delay
-                        setTimeout(() => {
-                            messageBoxEl.textContent = '';
-                            messageBoxEl.className = 'message-box min-h-[2.5rem] text-2xl font-extrabold';
-                        }, 3000);
-                    }
-                }
-                
-                // Move to the next player only on incorrect guess
-                moveToNextPlayer();
-                
-                // Check loss after moving to next player
-                checkLose();
+                AudioEngine.wrong();
+                updateMessage("Oops! Not in the word.", "text-pink");
+                damageCurrentPlayer();
             }
 
-            renderHealthBars();
+            // ALWAYS PASS TURN (if game is still active)
+            if (gameActive) {
+                advanceTurn();
+            }
+
+            renderUI();
+            renderKeyboard();
         }
-        
-        // Function to move to the next active player
-        function moveToNextPlayer() {
-            const activePlayers = players.filter(p => !p.isEliminated);
-            if (activePlayers.length > 0) {
-                let nextPlayerFound = false;
-                let originalIndex = currentPlayerIndex;
-                do {
-                    currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
-                    if (!players[currentPlayerIndex].isEliminated) {
-                        nextPlayerFound = true;
-                    }
-                } while (!nextPlayerFound && currentPlayerIndex !== originalIndex);
+
+        function damageCurrentPlayer() {
+            const p = players[currentPlayerIndex];
+            p.health -= 20;
+            if (p.health <= 0) {
+                p.health = 0;
+                p.eliminated = true;
+                updateMessage(`${p.name} is eliminated!`, "text-pink");
             }
         }
 
-        // Function to check for a win
-        function checkWin() {
-            // Check if the word display still contains underscores
-            if (!wordDisplayEl.textContent.includes('_')) {
-                const activePlayers = players.filter(p => !p.isEliminated);
-                
-                const winnerName = activePlayers.length > 1 ? 'all remaining players' : activePlayers[0]?.name || 'A player';
-                messageBoxEl.textContent = `Excellent! The word was guessed! The remaining player(s) win this round.`;
-                messageBoxEl.classList.add('win');
-                messageBoxEl.classList.remove('lose');
-                currentWordIndex++;
-                endGame();
-            }
-        }
-
-        // Function to check for a loss
-        function checkLose() {
-            const activePlayers = players.filter(p => !p.isEliminated);
-            if (activePlayers.length === 0) {
-                messageBoxEl.textContent = `Game Over! All players have been eliminated. The word was "${wordToGuess}".`;
-                messageBoxEl.classList.add('lose');
-                messageBoxEl.classList.remove('win');
-                currentWordIndex++;
-                endGame();
-            }
-        }
-
-        // Function to end the game round
-        function endGame() {
+        function claimWin(playerIndex) {
+            if (!gameActive) return;
+            
+            // Award Point
+            players[playerIndex].score++;
+            
+            // Reveal Word
+            [...wordToGuess].forEach(l => guessedLetters.add(l));
+            
+            // End Game State
             gameActive = false;
-            // Disable all letter buttons
-            document.querySelectorAll('.btn-letter').forEach(btn => btn.disabled = true);
-            nextRoundBtn.classList.remove('hidden');
-            endGameBtn.classList.remove('hidden');
+            AudioEngine.win();
+            updateMessage(`🎉 ${players[playerIndex].name} wins the round!`, "text-green");
+            
+            // Show Next Button
+            document.getElementById('next-round-btn').classList.remove('hidden');
+            
+            // Re-render to show updated score and revealed word
+            renderUI();
         }
 
-        // Function to return to the teacher console
+        function advanceTurn() {
+            let attempts = 0;
+            do {
+                currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+                attempts++;
+            } while (players[currentPlayerIndex].eliminated && attempts < players.length);
+
+            // Check if everyone is dead
+            if (players.every(p => p.eliminated)) {
+                gameActive = false;
+                updateMessage(`GAME OVER! The word was ${wordToGuess}`, "text-pink");
+                document.getElementById('next-round-btn').classList.remove('hidden');
+                AudioEngine.lose();
+                
+                // Reveal word
+                [...wordToGuess].forEach(l => guessedLetters.add(l));
+                renderUI();
+            }
+        }
+
+        function checkWin() {
+            const remainingLetters = [...wordToGuess].filter(char => char.match(/[A-Z]/) && !guessedLetters.has(char));
+            if (remainingLetters.length === 0) {
+                gameActive = false;
+                updateMessage("🎉 VICTORY! Well done!", "text-green");
+                document.getElementById('next-round-btn').classList.remove('hidden');
+                AudioEngine.win();
+            }
+        }
+
+        function updateMessage(msg, colorClass = "text-orange") {
+            const box = document.getElementById('message-box');
+            box.textContent = msg;
+            box.className = `min-h-[2rem] font-bold mb-4 text-xl animate-pop ${colorClass}`;
+        }
+
+        function nextRound() {
+            currentWordIndex++;
+            initRound();
+        }
+
         function returnToConsole() {
-            gameSectionEl.classList.add('hidden');
-            gameSectionEl.classList.remove('flex');
-            teacherConsoleEl.classList.remove('hidden');
+            document.getElementById('game-section').classList.add('hidden');
+            document.getElementById('teacher-console').classList.remove('hidden');
         }
 
-        // Event listeners
-        startGameBtn.addEventListener('click', startGame);
-        nextRoundBtn.addEventListener('click', resetGame);
-        endGameBtn.addEventListener('click', returnToConsole);
-        
-        // Key binding functionality
-        document.addEventListener('keydown', (event) => {
-            if (!gameActive) {
-                return;
-            }
-
-            const key = event.key.toUpperCase();
-            if (key.length === 1 && key.match(/[A-Z]/)) {
-                handleGuess(key);
-            }
+        // Keyboard Listener
+        document.addEventListener('keydown', (e) => {
+            if(!gameActive) return;
+            const key = e.key.toUpperCase();
+            if (key.match(/^[A-Z]$/)) handleGuess(key);
         });
-    </script>
 
+    </script>
 </body>
 </html>

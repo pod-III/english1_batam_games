@@ -4,16 +4,101 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Word and Sentence Scrambler</title>
+    
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Inter and Montserrat Fonts -->
+    
+    <!-- Fonts: Bebas Neue (Headings), Inter (Body) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Montserrat:wght@700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        pink: '#FF6B95',
+                        orange: '#FF8C42',
+                        green: '#00E676',
+                        blue: '#2979FF',
+                        dark: '#0f172a',
+                        panel: '#1e293b',
+                        surface: '#334155'
+                    },
+                    fontFamily: {
+                        heading: ['Bebas Neue', 'sans-serif'],
+                        body: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    
     <style>
+        /* Base Styling */
         body {
             font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--color-dark) 0%, var(--color-panel) 100%);
+            min-height: 100vh;
+            color: white;
+            transition: background 0.5s, color 0.5s;
         }
+
+        /* Dark Mode Background */
+        html.dark body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        }
+        /* Light Mode Background */
+        html:not(.dark) body {
+            background: linear-gradient(135deg, #2979FF 0%, #FF6B95 100%);
+        }
+
+        /* Card Styles (Glass Effect for Light/Dark Consistency) */
+        .scrambler-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            color: #1f2937;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+        
+        html.dark .scrambler-card {
+            background: rgba(30, 41, 59, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            color: white;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+        }
+
+        /* Input Styles */
+        #text-input {
+            border-color: #2979FF; /* Blue border in light mode */
+            background-color: white;
+            color: #1f2937;
+        }
+        html.dark #text-input {
+            border-color: #00E676; /* Green accent in dark mode */
+            background-color: #111827;
+            color: white;
+        }
+        #text-input::placeholder {
+            color: #9ca3af;
+        }
+
+        /* Output Box Styles */
+        .output-box {
+            background-color: #f3f4f6;
+            border-color: #e5e7eb;
+        }
+        html.dark .output-box {
+            background-color: #0f172a;
+            border-color: #334155;
+        }
+
         .scrambled-text {
             word-wrap: break-word;
             white-space: pre-wrap;
@@ -21,27 +106,40 @@
         }
     </style>
 </head>
-<body class="bg-slate-100 flex justify-center items-center min-h-screen p-4 text-slate-800">
+<body class="flex justify-center items-center min-h-screen p-4">
     
-    <div class="bg-white p-8 rounded-3xl shadow-xl border border-slate-200 w-full max-w-2xl text-center transition-all duration-300">
-        <h1 class="font-['Montserrat'] text-4xl font-bold text-blue-700 mb-2">Word & Sentence Scrambler</h1>
-        <p class="text-slate-500 mb-6">Enter a word or a sentence below to scramble its letters.</p>
+    <!-- Theme Toggle Button -->
+    <button id="theme-toggle" aria-label="Toggle theme" class="absolute top-4 right-4 z-10 p-2 rounded-full transition-colors text-white hover:bg-white/20 dark:text-yellow-400">
+        <i data-lucide="sun" id="sun-icon" class="w-6 h-6 hidden"></i>
+        <i data-lucide="moon" id="moon-icon" class="w-6 h-6"></i>
+    </button>
+
+    <div class="scrambler-card p-8 rounded-3xl w-full max-w-2xl text-center transition-all duration-300">
+        <h1 class="font-heading text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue to-pink mb-2 tracking-widest">
+            WORD & SENTENCE SCRAMBLER
+        </h1>
+        <p class="text-gray-500 dark:text-gray-400 mb-6 font-body">
+            Enter words or sentences, separated by commas, to scramble their letters.
+        </p>
         
         <!-- Input Textarea -->
         <textarea id="text-input" 
-                  class="w-full p-4 border-2 border-blue-400 rounded-2xl resize-y min-h-[150px] text-lg transition-colors duration-200 focus:outline-none focus:border-blue-600 mb-4"
+                  class="w-full p-4 border-2 rounded-2xl resize-y min-h-[150px] text-lg transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-blue/30 mb-4"
                   placeholder="Type a word or sentence, separated by commas..."></textarea>
 
         <!-- Scramble Button -->
         <button id="scramble-btn" 
-                class="bg-gradient-to-r from-blue-600 to-blue-800 text-white font-bold py-4 px-8 rounded-2xl shadow-lg transition-all duration-300 uppercase hover:shadow-xl hover:-translate-y-1">
+                class="bg-gradient-to-r from-green to-blue text-white font-bold py-4 px-8 rounded-2xl shadow-lg shadow-green/30 transition-all duration-300 uppercase hover:shadow-xl hover:-translate-y-1">
+            <i data-lucide="shuffle" class="w-5 h-5 inline mr-2 -translate-y-[1px]"></i>
             Scramble Text
         </button>
         
         <!-- Scrambled Output -->
-        <div class="mt-8 p-4 bg-slate-50 border border-slate-200 rounded-2xl text-left">
-            <h2 class="font-['Montserrat'] text-2xl font-bold text-blue-700 mb-2">Scrambled Result:</h2>
-            <pre id="scrambled-output" class="scrambled-text text-lg text-slate-700 p-2"></pre>
+        <div class="mt-8 p-4 rounded-2xl text-left output-box">
+            <h2 class="font-heading text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink to-orange mb-2 tracking-wide">
+                SCRAMBLED RESULT:
+            </h2>
+            <pre id="scrambled-output" class="scrambled-text text-lg text-gray-700 dark:text-gray-200 p-2"></pre>
         </div>
     </div>
 
@@ -50,6 +148,35 @@
         const textInput = document.getElementById('text-input');
         const scrambleBtn = document.getElementById('scramble-btn');
         const scrambledOutput = document.getElementById('scrambled-output');
+        const html = document.documentElement;
+        
+        // Theme Elements
+        const toggleBtn = document.getElementById('theme-toggle');
+        const sun = document.getElementById('sun-icon');
+        const moon = document.getElementById('moon-icon');
+
+        /* --- THEME LOGIC --- */
+
+        function updateThemeIcon() {
+            const isDark = html.classList.contains('dark');
+            sun.classList.toggle('hidden', !isDark);
+            moon.classList.toggle('hidden', isDark);
+        }
+
+        function initializeTheme() {
+            // Default to dark mode
+            html.classList.add('dark');
+            updateThemeIcon();
+        }
+
+        function toggleTheme() {
+            html.classList.toggle('dark');
+            updateThemeIcon();
+        }
+
+        toggleBtn.addEventListener('click', toggleTheme);
+        
+        /* --- SCRAMBLER LOGIC --- */
 
         // Function to scramble the letters of a single word
         function scrambleWord(word) {
@@ -67,6 +194,7 @@
         // Main function to handle the scrambling of the entire text
         function scrambleText() {
             const inputText = textInput.value;
+            
             // Handle empty input
             if (inputText.trim() === '') {
                 scrambledOutput.textContent = 'Please enter some text to scramble.';
@@ -84,6 +212,7 @@
                 }
 
                 // Split the item into words, preserving spaces and punctuation.
+                // Regex matches one or more whitespace characters (\s+) and keeps them as separate elements
                 const words = trimmedItem.split(/(\s+)/);
                 
                 // Scramble each word in the array
@@ -100,6 +229,7 @@
                     
                     if (trailingPunctuationMatch) {
                         punctuation = trailingPunctuationMatch[0];
+                        // Remove punctuation from the end before scrambling
                         wordWithoutPunctuation = word.slice(0, -punctuation.length);
                     }
                     
@@ -126,6 +256,12 @@
                 scrambleText();
             }
         });
+
+        // Initialize theme and icons on load
+        window.onload = () => {
+            initializeTheme();
+            lucide.createIcons();
+        }
     </script>
 </body>
 </html>

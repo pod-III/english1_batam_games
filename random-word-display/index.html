@@ -1,226 +1,382 @@
-<!DOCTYPE html><html><body>
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Word Animator - Rounds</title>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Animator: Classroom Edition</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;700&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap"
-      rel="stylesheet"
-    />
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        pink: '#FF6B95',
+                        orange: '#FF8C42',
+                        green: '#00E676',
+                        blue: '#2979FF',
+                        dark: '#0f172a',
+                        panel: '#1e293b',
+                        surface: '#334155'
+                    },
+                    fontFamily: {
+                        heading: ['Bebas Neue', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+
     <style>
-      body {
-        font-family: "Inter", sans-serif;
-        background: radial-gradient(circle at top left, #1e1b4b, #0f172a);
-        transition: background-color 0.5s ease;
-        overflow: hidden;
-      }
-      .moving-word {
-        position: absolute;
-        cursor: default;
-        user-select: none;
-        transition: transform 7s ease-in-out, opacity 1s, font-size 0.5s;
-        text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.5);
-      }
-      @keyframes glow {
-        0%,
-        100% {
-          box-shadow: 0 0 10px rgba(139, 92, 246, 0.3);
+        body {
+            background-color: #0f172a;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(41, 121, 255, 0.15) 0px, transparent 50%), 
+                radial-gradient(at 100% 100%, rgba(255, 107, 149, 0.1) 0px, transparent 50%);
+            background-attachment: fixed;
+            overflow: hidden; /* Crucial for full screen app */
         }
-        50% {
-          box-shadow: 0 0 25px rgba(139, 92, 246, 0.8);
+
+        /* --- Word Animation --- */
+        .moving-word {
+            position: absolute;
+            cursor: default;
+            user-select: none;
+            transition: opacity 1s, font-size 0.5s; 
+            text-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            white-space: nowrap;
+            will-change: transform;
+            top: 0;
+            left: 0;
         }
-      }
-      #controls {
-        animation: glow 4s infinite;
-      }
+
+        /* --- UI Animations --- */
+        @keyframes slideIn { from { transform: translateX(-20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .animate-slide { animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        
+        /* Custom Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none; 
+            background: transparent; 
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #00E676;
+            margin-top: -6px;
+            box-shadow: 0 0 10px rgba(0, 230, 118, 0.5);
+            cursor: pointer;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #334155;
+            border-radius: 2px;
+        }
+
+        /* Scrollbar for textarea */
+        textarea::-webkit-scrollbar { width: 8px; }
+        textarea::-webkit-scrollbar-track { background: #0f172a; }
+        textarea::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
     </style>
-  </head>
-  <body
-    class="text-white min-h-screen flex flex-col md:flex-row p-6 gap-6 backdrop-blur-sm"
-  >
-    <div
-      id="controls"
-      class="md:w-1/3 w-full bg-gray-800/80 p-6 rounded-2xl shadow-xl space-y-4 border border-purple-600/30"
-    >
-      <h1 class="text-3xl font-extrabold text-purple-400 mb-2">
-        Word Animator (Rounds)
-      </h1>
-      <p class="text-gray-400 text-sm leading-relaxed">
-        Type your rounds below — each line represents one round, and words in a
-        round should be comma-separated.
-      </p>
-      <textarea
-        id="word-input"
-        class="w-full h-40 p-3 bg-gray-900/70 text-gray-200 border border-purple-600/50 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 resize-none"
-      >Primary Set, Core Idea, Key Concept
-Second Round Words, Transition, Next Step
-Final Words, Conclusion, Wrap Up, Thank You</textarea
-      >
-      <button
-        onclick="parseAndLoadRounds()"
-        class="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold py-3 px-4 rounded-xl transition duration-300 ease-in-out transform hover:scale-105 shadow-lg"
-      >
-        ▶ Load & Start Rounds
-      </button>
-      <button
-        id="hide-controls-button"
-        onclick="toggleControls()"
-        class="w-full bg-gray-700 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-xl transition duration-300 ease-in-out"
-      >
-        Hide Controls
-      </button>
-      <div id="round-counter" class="text-lg font-bold text-center text-sky-400">
-        No Rounds Loaded
-      </div>
-      <div id="status-message" class="text-sm text-center text-red-400"></div>
-    </div>
+</head>
+<body class="text-white h-screen w-screen flex overflow-hidden font-body">
 
-    <div
-      id="display-area-container"
-      class="flex-1 relative bg-gray-900/60 rounded-2xl border border-gray-700 overflow-hidden"
-    >
-      <div id="word-display" class="w-full h-full relative">
-        <div
-          id="initial-message"
-          class="absolute inset-0 flex items-center justify-center text-2xl text-gray-500 animate-pulse"
-        >
-          Click 'Load & Start Rounds' to begin.
+    <!-- LEFT PANEL: CONTROLS -->
+    <aside id="controls" class="w-full md:w-96 bg-panel/90 backdrop-blur-xl border-r border-white/10 h-full flex flex-col shadow-2xl z-50 transition-transform duration-300 absolute md:relative transform md:translate-x-0">
+        
+        <!-- Header -->
+        <div class="p-6 border-b border-white/10 bg-black/20">
+            <h1 class="text-3xl font-heading tracking-wider text-white flex items-center gap-2">
+                <span class="text-blue">///</span> WORD ANIMATOR
+            </h1>
+            <p class="text-xs text-gray-400 font-mono mt-1">VISUAL VOCABULARY TOOL v2.2</p>
         </div>
-      </div>
-    </div>
 
-    <button
-      id="next-round-fixed-button"
-      onclick="loadNextRound()"
-      class="fixed bottom-6 left-6 bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 px-6 rounded-full shadow-xl z-50 transition duration-300 ease-in-out transform hover:scale-110"
-    >
-      ⏭ Next Round
-    </button>
+        <!-- Controls Body -->
+        <div class="flex-1 p-6 overflow-y-auto space-y-6">
+            
+            <!-- Instructions -->
+            <div class="bg-blue/10 border border-blue/20 p-4 rounded-lg">
+                <p class="text-sm text-blue-200 leading-relaxed">
+                    <strong class="text-blue">DVD Bounce Mode:</strong><br>
+                    Words bounce off screen edges. Use the slider in the top-right to adjust difficulty.
+                </p>
+            </div>
 
-    <button
-      id="show-controls-fixed-button"
-      onclick="toggleControls()"
-      class="fixed bottom-6 right-6 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-full shadow-xl z-50 hidden transition duration-300 ease-in-out transform hover:scale-110"
-    >
-      ⚙ Show Controls
-    </button>
+            <!-- Input -->
+            <div class="space-y-2">
+                <label class="text-xs font-bold text-gray-400 uppercase tracking-widest">Word Data Source</label>
+                <textarea id="word-input" spellcheck="false"
+                    class="w-full h-64 p-4 bg-dark text-gray-200 font-mono text-sm border border-white/10 rounded-xl focus:border-blue focus:ring-1 focus:ring-blue outline-none resize-none shadow-inner"
+                    placeholder="Example:
+Apple, Banana, Cherry
+Dog, Cat, Elephant
+Red, Blue, Green"
+                >Primary Set, Core Idea, Key Concept
+Second Round Words, Transition, Next Step
+Final Words, Conclusion, Wrap Up, Thank You</textarea>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="space-y-3">
+                <button onclick="parseAndLoadRounds()" 
+                    class="w-full bg-gradient-to-r from-blue to-green hover:brightness-110 text-black font-bold py-3 px-4 rounded-xl shadow-lg transform active:scale-95 transition-all flex items-center justify-center gap-2 font-heading text-xl tracking-wide">
+                    <span>▶</span> LOAD & START
+                </button>
+                
+                <button onclick="toggleControls()" 
+                    class="w-full bg-surface hover:bg-white/20 text-white font-semibold py-3 px-4 rounded-xl border border-white/5 transition-all text-sm">
+                    Hide Panel (Fullscreen)
+                </button>
+            </div>
+
+        </div>
+
+        <!-- Status Footer -->
+        <div class="p-4 border-t border-white/10 bg-black/20">
+            <div id="round-counter" class="text-center font-mono text-orange font-bold text-lg">
+                STATUS: READY
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN DISPLAY AREA -->
+    <main id="display-area" class="flex-1 relative h-full w-full bg-transparent overflow-hidden">
+        
+        <!-- SPEED CONTROLLER (Top Right) -->
+        <div class="absolute top-6 right-6 z-50 flex items-center gap-4 bg-panel/80 backdrop-blur-md px-5 py-3 rounded-full border border-white/10 shadow-2xl animate-slide">
+            <div class="flex flex-col">
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Speed</span>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-blue">🐢</span>
+                    <input type="range" id="speed-slider" min="0.5" max="5" step="0.1" value="1.5" oninput="updateSpeed(this.value)" class="w-32">
+                    <span class="text-xs text-pink">🐇</span>
+                </div>
+            </div>
+            <div class="border-l border-white/10 pl-4">
+                <span id="speed-display" class="font-mono text-green font-bold text-lg">1.5x</span>
+            </div>
+        </div>
+
+        <!-- Canvas for words -->
+        <div id="word-display" class="w-full h-full relative overflow-hidden">
+            <div id="initial-message" class="absolute inset-0 flex flex-col items-center justify-center text-gray-500 animate-pulse space-y-4">
+                <div class="w-16 h-16 rounded-full border-4 border-gray-700 flex items-center justify-center text-3xl">✨</div>
+                <p class="font-heading text-2xl tracking-widest opacity-50">WAITING FOR DATA...</p>
+            </div>
+        </div>
+
+        <!-- Floating Controls (Bottom Right) -->
+        <div class="absolute bottom-8 right-8 flex gap-4 z-40">
+             <!-- Show Controls Button (Hidden by default) -->
+            <button id="show-controls-btn" onclick="toggleControls()" 
+                class="hidden bg-surface hover:bg-white/20 text-white p-4 rounded-full shadow-xl border border-white/10 transition-all hover:scale-110 group">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><line x1="9" x2="9" y1="3" y2="21"/></svg>
+            </button>
+
+            <!-- Next Round Button -->
+            <button id="next-round-btn" onclick="loadNextRound()" 
+                class="bg-pink hover:bg-pink/90 text-white px-8 py-4 rounded-full shadow-xl shadow-pink/20 font-heading text-xl tracking-wide transition-all hover:scale-105 hover:-translate-y-1 flex items-center gap-2 border border-white/10">
+                NEXT ROUND <span class="text-2xl">→</span>
+            </button>
+        </div>
+
+    </main>
 
     <script>
-      let animationInterval;
-      let roundsData = [];
-      let currentRoundIndex = -1;
+        let roundsData = [];
+        let currentRoundIndex = -1;
+        let activeBouncingWords = [];
+        let animationFrameId;
+        let globalSpeedMultiplier = 1.5; // Default speed
 
-      const textColors = [
-        "text-purple-400",
-        "text-sky-400",
-        "text-emerald-400",
-        "text-amber-400",
-        "text-pink-400",
-        "text-indigo-400",
-        "text-teal-400",
-      ];
-      const fontSizes = ["text-2xl", "text-3xl", "text-4xl", "text-5xl"];
+        // Palette colors from Tailwind config
+        const textClasses = [
+            "text-pink",
+            "text-orange",
+            "text-green",
+            "text-blue",
+            "text-white"
+        ];
+        
+        const fontSizes = ["text-4xl", "text-5xl", "text-6xl", "text-7xl"];
 
-      function getRandomElement(arr) {
-        return arr[Math.floor(Math.random() * arr.length)];
-      }
-      function calculateNewPosition(container) {
-        const rect = container.getBoundingClientRect();
-        const padding = 100;
-        return {
-          x: Math.random() * (rect.width + padding) - padding / 2,
-          y: Math.random() * (rect.height + padding) - padding / 2,
-          rot: Math.random() * 60 - 30,
-        };
-      }
-      function animateWords() {
-        document.querySelectorAll(".moving-word").forEach((word) => {
-          const display = document.getElementById("word-display");
-          const { x, y, rot } = calculateNewPosition(display);
-          word.style.transform = `translate(${x}px, ${y}px) rotate(${rot}deg)`;
-        });
-      }
-      function loadRound(index) {
-        clearInterval(animationInterval);
-        if (!roundsData.length) return;
-        if (index >= roundsData.length) index = 0;
-        currentRoundIndex = index;
-
-        const words = roundsData[currentRoundIndex];
-        const display = document.getElementById("word-display");
-        display.innerHTML = "";
-        document.getElementById("round-counter").textContent = `Round ${
-          index + 1
-        } / ${roundsData.length}`;
-
-        words.forEach((text) => {
-          const span = document.createElement("span");
-          span.textContent = text;
-          span.className = `moving-word font-bold opacity-75 hover:opacity-100 ${getRandomElement(
-            textColors
-          )} ${getRandomElement(fontSizes)}`;
-          span.style.transform = `translate(${Math.random() * 50}px, ${
-            Math.random() * 50
-          }px)`;
-          display.appendChild(span);
-        });
-
-        setTimeout(() => {
-          animateWords();
-          animationInterval = setInterval(animateWords, 7000);
-        }, 100);
-      }
-      function parseAndLoadRounds() {
-        const input = document.getElementById("word-input").value;
-        const lines = input
-          .split("\n")
-          .map((l) => l.trim())
-          .filter((l) => l.length > 0);
-        roundsData = lines
-          .map((line) =>
-            line
-              .split(",")
-              .map((w) => w.trim())
-              .filter((w) => w.length > 0)
-          )
-          .filter((r) => r.length > 0);
-        if (!roundsData.length) return;
-        currentRoundIndex = -1;
-        loadNextRound();
-      }
-      function loadNextRound() {
-        if (!roundsData.length) return;
-        loadRound(currentRoundIndex + 1);
-      }
-      function toggleControls() {
-        const controls = document.getElementById("controls");
-        const display = document.getElementById("display-area-container");
-        const showBtn = document.getElementById("show-controls-fixed-button");
-        const hidden = controls.classList.contains("hidden");
-        if (hidden) {
-          controls.classList.remove("hidden");
-          display.classList.remove("md:w-full");
-          showBtn.classList.add("hidden");
-        } else {
-          controls.classList.add("hidden");
-          display.classList.add("md:w-full");
-          showBtn.classList.remove("hidden");
+        // Update speed from slider
+        function updateSpeed(val) {
+            globalSpeedMultiplier = parseFloat(val);
+            document.getElementById('speed-display').innerText = globalSpeedMultiplier.toFixed(1) + 'x';
         }
-      }
-      window.onload = parseAndLoadRounds;
+
+        // Class to manage individual word physics
+        class BouncingWord {
+            constructor(text, containerWidth, containerHeight) {
+                this.element = document.createElement("div");
+                this.element.textContent = text;
+                
+                // Styling
+                const colorClass = textClasses[Math.floor(Math.random() * textClasses.length)];
+                const sizeClass = fontSizes[Math.floor(Math.random() * fontSizes.length)];
+                this.element.className = `moving-word font-heading font-bold opacity-90 hover:opacity-100 ${colorClass} ${sizeClass}`;
+                
+                // Initial hidden state for measurement
+                this.element.style.opacity = '0';
+                document.getElementById("word-display").appendChild(this.element);
+                
+                // Measurements
+                this.width = this.element.offsetWidth;
+                this.height = this.element.offsetHeight;
+                
+                // Random Position (Safe within bounds)
+                this.x = Math.random() * (containerWidth - this.width);
+                this.y = Math.random() * (containerHeight - this.height);
+                
+                // Base Velocity Vector (Normalized direction roughly)
+                // We store base vector and apply globalSpeedMultiplier during update
+                const angle = Math.random() * Math.PI * 2;
+                this.vx = Math.cos(angle);
+                this.vy = Math.sin(angle);
+
+                // Set initial pos
+                this.updatePosition();
+                
+                // Reveal
+                requestAnimationFrame(() => { this.element.style.opacity = '1'; });
+            }
+
+            update(containerWidth, containerHeight) {
+                // Move based on Global Speed Multiplier
+                this.x += this.vx * globalSpeedMultiplier;
+                this.y += this.vy * globalSpeedMultiplier;
+
+                // Bounce X
+                if (this.x <= 0) {
+                    this.x = 0;
+                    this.vx *= -1;
+                } else if (this.x + this.width >= containerWidth) {
+                    this.x = containerWidth - this.width;
+                    this.vx *= -1;
+                }
+
+                // Bounce Y
+                if (this.y <= 0) {
+                    this.y = 0;
+                    this.vy *= -1;
+                } else if (this.y + this.height >= containerHeight) {
+                    this.y = containerHeight - this.height;
+                    this.vy *= -1;
+                }
+
+                this.updatePosition();
+            }
+
+            updatePosition() {
+                this.element.style.transform = `translate(${this.x}px, ${this.y}px)`;
+            }
+        }
+
+        function gameLoop() {
+            const container = document.getElementById("word-display");
+            if (!container) return; 
+            
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+
+            activeBouncingWords.forEach(word => word.update(w, h));
+            
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        function loadRound(index) {
+            // Cleanup previous
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            document.getElementById("word-display").innerHTML = "";
+            activeBouncingWords = [];
+            
+            if (!roundsData.length) return;
+            
+            // Loop back to start if finished
+            if (index >= roundsData.length) index = 0;
+            currentRoundIndex = index;
+
+            const words = roundsData[currentRoundIndex];
+            const display = document.getElementById("word-display");
+            const w = display.clientWidth;
+            const h = display.clientHeight;
+            
+            // Update Status
+            const status = document.getElementById("round-counter");
+            status.innerHTML = `ROUND <span class="text-white text-2xl">${index + 1}</span> / ${roundsData.length}`;
+            status.className = "text-center font-mono text-green font-bold text-lg animate-pulse";
+
+            // Create Words
+            words.forEach((text) => {
+                activeBouncingWords.push(new BouncingWord(text, w, h));
+            });
+
+            // Start Loop
+            gameLoop();
+        }
+
+        function parseAndLoadRounds() {
+            const input = document.getElementById("word-input").value;
+            const lines = input.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
+            
+            roundsData = lines.map((line) =>
+                line.split(",").map((w) => w.trim()).filter((w) => w.length > 0)
+            ).filter((r) => r.length > 0);
+
+            if (!roundsData.length) {
+                alert("Please enter some words first!");
+                return;
+            }
+
+            // Switch UI state
+            if(window.innerWidth < 768) {
+                 toggleControls(); // Auto hide on mobile
+            }
+            
+            currentRoundIndex = -1;
+            loadNextRound();
+        }
+
+        function loadNextRound() {
+            if (!roundsData.length) return;
+            loadRound(currentRoundIndex + 1);
+        }
+
+        function toggleControls() {
+            const controls = document.getElementById("controls");
+            const showBtn = document.getElementById("show-controls-btn");
+            
+            const isHidden = controls.classList.contains("-translate-x-full") || controls.classList.contains("hidden");
+
+            if (isHidden) {
+                controls.classList.remove("hidden", "-translate-x-full");
+                showBtn.classList.add("hidden");
+            } else {
+                controls.classList.add("hidden", "-translate-x-full");
+                showBtn.classList.remove("hidden");
+            }
+        }
+
+        // Handle window resize to keep physics accurate
+        window.addEventListener('resize', () => {
+            // The loop handles boundaries dynamically, no reset needed
+        });
+
     </script>
-  </body>
-</html>
-
 </body>
-
-<style>
-
-</style>
-
-<script>
-
-</script></html>
+</html>

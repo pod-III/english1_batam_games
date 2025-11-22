@@ -1,33 +1,61 @@
-<!DOCTYPE html><html><body>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Word Match: Custom Vocabulary Game</title>
+    
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        /* Using Bebas Neue for headings, Inter for body */
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap');
 
         :root {
-            --color-pink: #ec4899;
-            --color-orange: #f97316;
-            --color-green: #10b981;
-            --color-blue: #3b82f6;
-            --color-console-bg: #1f2937;
-            --color-purple: #8b5cf6;
+            /* English 1 Hub Colors */
+            --color-pink: #FF6B95;   
+            --color-orange: #FF8C42; 
+            --color-green: #00E676;  
+            --color-blue: #2979FF;  
+            --color-dark: #0f172a;   
+            --color-panel: #1e293b;  
         }
+
+        h1 { font-family: 'Bebas Neue', sans-serif; }
 
         body { 
             font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            /* Use a gradient of the hub's main colors for the background */
+            background: linear-gradient(135deg, var(--color-blue) 0%, var(--color-pink) 100%);
             min-height: 100vh;
+            color: #1f2937; /* Default text color in light mode */
+            transition: background 0.5s, color 0.5s;
+        }
+
+        /* --- Dark Mode Styles --- */
+        html.dark body {
+            /* Dark Mode background for consistency */
+            background: linear-gradient(135deg, var(--color-dark) 0%, var(--color-panel) 100%);
+            color: white;
         }
 
         .glass-effect {
-            background: rgba(255, 255, 255, 0.95);
+            /* Light Mode Glass */
+            background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        html.dark .glass-effect {
+            /* Dark Mode Glass - using panel color */
+            background: rgba(30, 41, 59, 0.95); 
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
         }
 
         .card {
@@ -78,49 +106,62 @@
             text-align: center;
         }
 
+        /* LIGHT MODE CARD BACK: Pink Gradient */
         .card-back {
-            background: linear-gradient(135deg, var(--color-pink) 0%, var(--color-purple) 100%);
+            background: linear-gradient(135deg, var(--color-pink) 0%, #d84570 100%);
             color: white;
             font-size: 2rem;
             line-height: 1;
         }
+        /* DARK MODE CARD BACK: Blue Gradient */
+        html.dark .card-back {
+             background: linear-gradient(135deg, var(--color-blue) 0%, #1e59c7 100%);
+        }
 
+        /* LIGHT MODE CARD FRONT */
         .card-front {
             background: white;
             color: #1f2937;
             transform: rotateY(180deg);
             border: 3px solid var(--color-blue);
-            font-size: 1.125rem;
             font-weight: 600;
             overflow: hidden;
             word-wrap: break-word;
             hyphens: auto;
         }
+        /* DARK MODE CARD FRONT */
+        html.dark .card-front {
+            background: var(--color-dark);
+            color: white;
+            border: 3px solid var(--color-green);
+        }
 
         .card.matched .card-front {
-            background: linear-gradient(135deg, var(--color-green) 0%, #059669 100%) !important;
+            /* Matched card turns green - consistent across themes */
+            background: linear-gradient(135deg, var(--color-green) 0%, #00b35c 100%) !important;
             color: white !important;
             border-color: var(--color-green) !important;
         }
 
+        /* Button styles using Hub colors */
         .btn-primary {
-            background: linear-gradient(135deg, var(--color-blue) 0%, #2563eb 100%);
+            background: linear-gradient(135deg, var(--color-blue) 0%, #1e59c7 100%);
             transition: all 0.3s ease;
         }
 
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
+            box-shadow: 0 10px 20px rgba(41, 121, 255, 0.3);
         }
 
         .btn-pink {
-            background: linear-gradient(135deg, var(--color-pink) 0%, #db2777 100%);
+            background: linear-gradient(135deg, var(--color-pink) 0%, #d84570 100%);
             transition: all 0.3s ease;
         }
 
         .btn-pink:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(236, 72, 153, 0.3);
+            box-shadow: 0 10px 20px rgba(255, 107, 149, 0.3);
         }
 
         .modal-backdrop {
@@ -148,6 +189,7 @@
             }
         }
 
+        /* --- Mobile Responsiveness --- */
         @media (max-width: 640px) {
             #game-container {
                 gap: 8px;
@@ -189,17 +231,23 @@
         input:focus, textarea:focus {
             outline: none;
             border-color: var(--color-blue) !important;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            box-shadow: 0 0 0 3px rgba(41, 121, 255, 0.2);
         }
     </style>
 </head>
 <body class="flex flex-col items-center p-4 min-h-screen">
+    
+    <!-- Theme Toggle Button -->
+    <button id="theme-toggle" aria-label="Toggle theme" class="absolute top-4 right-4 z-10 p-2 rounded-full transition-colors text-white hover:bg-white/20 dark:text-yellow-400">
+        <i data-lucide="sun" id="sun-icon" class="w-6 h-6 hidden"></i>
+        <i data-lucide="moon" id="moon-icon" class="w-6 h-6"></i>
+    </button>
 
     <header class="text-center mb-6 w-full max-w-2xl">
-        <h1 class="text-4xl sm:text-5xl font-extrabold mb-3 text-white drop-shadow-lg">
+        <h1 class="text-4xl sm:text-5xl font-extrabold mb-3 drop-shadow-lg text-white dark:text-gray-100">
             🎮 Word Match
         </h1>
-        <p id="round-tracker" class="text-white text-sm sm:text-base font-medium drop-shadow">
+        <p id="round-tracker" class="text-white dark:text-gray-300 text-sm sm:text-base font-medium drop-shadow">
             Click "Setup New Word List" to begin!
         </p>
     </header>
@@ -212,7 +260,7 @@
     <div id="game-container" class="glass-effect grid gap-6 p-10 rounded-2xl shadow-2xl mb-8 w-full items-center justify-items-center" style="max-width: 1400px; min-height: 600px;">
         <div class="p-12 text-center text-gray-500 col-span-4">
             <div class="text-6xl mb-4">🎯</div>
-            <p class="font-semibold text-lg">Click "Setup New Word List" to begin!</p>
+            <p class="font-semibold text-lg text-gray-500 dark:text-gray-400">Click "Setup New Word List" to begin!</p>
         </div>
     </div>
 
@@ -220,12 +268,12 @@
     <div id="word-setup-modal" class="modal-backdrop fixed inset-0 bg-gray-900 bg-opacity-50 hidden flex items-center justify-center p-4 z-50">
         <div class="modal-content glass-effect rounded-2xl shadow-2xl w-full max-w-lg p-8 relative">
             
-            <button id="close-setup-btn" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 focus:outline-none transition">
+            <button id="close-setup-btn" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 focus:outline-none transition">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
 
-            <h2 class="text-3xl font-bold mb-2 text-gray-800">📚 Define Vocabulary Rounds</h2>
-            <p class="text-sm text-gray-600 mb-5">
+            <h2 class="text-3xl font-bold mb-2 text-gray-800 dark:text-white">📚 Define Vocabulary Rounds</h2>
+            <p class="text-sm mb-5 text-gray-600 dark:text-gray-400">
                 Enter <strong>3-12 unique words per round</strong>, separated by commas.<br>
                 Use a **new line** to define a new round.
             </p>
@@ -234,7 +282,7 @@
                       rows="6"
                       placeholder="Round 1: Noun, Verb, Adjective
 Round 2: Cat, Dog, Tree" 
-                      class="w-full p-4 border-2 border-gray-300 rounded-xl font-medium">Noun, Verb, Adjective, Sentence, Question, Exclamatory
+                      class="w-full p-4 border-2 border-gray-300 rounded-xl font-medium bg-white dark:bg-gray-800 dark:text-white dark:border-gray-700 transition">Noun, Verb, Adjective, Sentence, Question, Exclamatory
 Cat, Dog, Bird, Fish, Lion, Tiger</textarea>
             
             <div id="setup-error-message" class="text-red-500 text-sm mt-3 hidden font-medium"></div>
@@ -251,9 +299,9 @@ Cat, Dog, Bird, Fish, Lion, Tiger</textarea>
         <div class="modal-content glass-effect rounded-2xl shadow-2xl w-full max-w-lg p-8 relative text-center">
             
             <h2 class="text-5xl font-extrabold mb-4 text-green-600">🎉 CONGRATULATIONS! 🎉</h2>
-            <p class="text-xl font-semibold mb-6 text-gray-800">You successfully completed all <span id="total-rounds-display" class="font-bold text-blue-600"></span> rounds!</p>
+            <p class="text-xl font-semibold mb-6 text-gray-800 dark:text-gray-200">You successfully completed all <span id="total-rounds-display" class="font-bold text-blue-600"></span> rounds!</p>
             
-            <p class="text-lg text-gray-700 mb-8">
+            <p class="text-lg mb-8 text-gray-700 dark:text-gray-300">
                 That was an excellent vocabulary review. Great job!
             </p>
 
@@ -264,7 +312,7 @@ Cat, Dog, Bird, Fish, Lion, Tiger</textarea>
         </div>
     </div>
 
-    <footer class="mt-8 text-sm text-white drop-shadow font-medium">
+    <footer class="mt-8 text-sm text-white drop-shadow font-medium dark:text-gray-400">
         Teaching Tool for English Practice & Coordinate Logic
     </footer>
 
@@ -300,7 +348,36 @@ Cat, Dog, Bird, Fish, Lion, Tiger</textarea>
         const winModal = document.getElementById('win-modal');
         const closeWinBtn = document.getElementById('close-win-btn');
         const totalRoundsDisplay = document.getElementById('total-rounds-display');
+        
+        // Theme Elements
+        const toggleBtn = document.getElementById('theme-toggle');
+        const sun = document.getElementById('sun-icon');
+        const moon = document.getElementById('moon-icon');
+        const html = document.documentElement;
         // ---
+
+        /* --- THEME LOGIC --- */
+
+        function updateThemeIcon() {
+            // Adjusts the visibility of sun/moon icons
+            const isDark = html.classList.contains('dark');
+            sun.classList.toggle('hidden', !isDark);
+            moon.classList.toggle('hidden', isDark);
+        }
+
+        function toggleTheme() {
+            const isDark = html.classList.toggle('dark');
+            updateThemeIcon();
+            // Re-render the board to pick up theme-specific colors on card fronts
+            if (gameWords.length > 0) {
+                renderBoard(); 
+            }
+        }
+
+        // Set the click listener for the toggle button
+        toggleBtn.addEventListener('click', toggleTheme);
+
+        /* --- GAME LOGIC --- */
 
         function openSetupConsole() {
             setupModal.classList.remove('hidden');
@@ -312,6 +389,9 @@ Cat, Dog, Bird, Fish, Lion, Tiger</textarea>
             setupModal.classList.add('hidden');
         }
 
+        /**
+         * Standard Fisher-Yates shuffle algorithm.
+         */
         function shuffle(array) {
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -320,21 +400,26 @@ Cat, Dog, Bird, Fish, Lion, Tiger</textarea>
         }
 
         /**
-         * Calculates the optimal grid dimensions for a given number of cards.
+         * Calculates the optimal grid dimensions for a given number of cards (totalCards).
          */
         function calculateGridDimensions(totalCards) {
             if (totalCards === 6) return { cols: 3, rows: 2 };
             if (totalCards === 8) return { cols: 4, rows: 2 };
-            if (totalCards <= 12) return { cols: 4, rows: Math.ceil(totalCards / 4) }; // e.g. 10 cards -> 4x3
+            if (totalCards <= 12) return { cols: 4, rows: Math.ceil(totalCards / 4) }; 
             if (totalCards <= 16) return { cols: 4, rows: 4 };
             if (totalCards <= 20) return { cols: 5, rows: 4 };
             if (totalCards <= 24) return { cols: 6, rows: 4 };
             
+            // Default calculation for other sizes
             const cols = Math.min(6, Math.ceil(Math.sqrt(totalCards)));
             const rows = Math.ceil(totalCards / cols);
             return { cols, rows };
         }
 
+        /**
+         * Sets up the data structure for the current round and updates grid dimensions.
+         * @param {string[]} wordsList - Array of unique words for the current round.
+         */
         function initializeGame(wordsList) {
             cardsFlipped = [];
             lockBoard = false;
@@ -349,23 +434,25 @@ Cat, Dog, Bird, Fish, Lion, Tiger</textarea>
             GRID_COLS = cols;
             GRID_ROWS = rows;
             
+            // Create pairs of words for the game
             gameWords = [...uniqueWords, ...uniqueWords];
             shuffle(gameWords);
             gameBoard = [];
             
-            // Build the game board structure
+            // Build the game board structure (2D array for easier coordinate logic)
+            let wordIndex = 0;
             for (let r = 0; r < GRID_ROWS; r++) {
                 const row = [];
                 for (let c = 0; c < GRID_COLS; c++) {
-                    const index = r * GRID_COLS + c;
-                    if (index < TOTAL_CARDS) {
+                    if (wordIndex < TOTAL_CARDS) {
                         row.push({
-                            word: gameWords[index],
+                            word: gameWords[wordIndex],
                             isFlipped: false,
                             isMatched: false,
-                            row: r + 1,
-                            col: c + 1
+                            row: r + 1, // 1-indexed row for display
+                            col: c + 1  // 1-indexed column for display
                         });
+                        wordIndex++;
                     }
                 }
                 if (row.length > 0) gameBoard.push(row);
@@ -383,6 +470,9 @@ Cat, Dog, Bird, Fish, Lion, Tiger</textarea>
             }
         }
 
+        /**
+         * Parses the text input from the modal, validates the rounds, and starts the game.
+         */
         function handleWordSubmission() {
             const input = wordListInput.value.trim();
             // Split input by new line to get individual rounds
@@ -397,10 +487,10 @@ Cat, Dog, Bird, Fish, Lion, Tiger</textarea>
                 return;
             }
 
-            // Process each round string
+            // Process and validate each round string
             for (let i = 0; i < roundStrings.length; i++) {
                 const words = roundStrings[i].split(',').map(w => w.trim()).filter(w => w.length > 0);
-                const uniqueWords = [...new Set(words)];
+                const uniqueWords = [...new Set(words)]; // Ensure words are unique within the round
 
                 if (uniqueWords.length < MIN_UNIQUE_WORDS || uniqueWords.length > MAX_UNIQUE_WORDS) {
                     setupError.textContent = `Error: Round ${i + 1} must have between ${MIN_UNIQUE_WORDS} and ${MAX_UNIQUE_WORDS} unique words (found ${uniqueWords.length}).`;
@@ -434,39 +524,35 @@ Cat, Dog, Bird, Fish, Lion, Tiger</textarea>
         }
 
 
+        /**
+         * Clears the board and renders all cards based on the current gameBoard state.
+         * Includes logic for dynamic card sizing and responsive font size.
+         */
         function renderBoard() {
             gameContainer.innerHTML = '';
             
-            // Set grid columns dynamically based on calculated GRID_COLS
+            // 1. Set grid columns dynamically
             gameContainer.style.gridTemplateColumns = `repeat(${GRID_COLS}, minmax(0, 1fr))`;
             
-            // --- CARD SIZING LOGIC (optimized for large screens) ---
-            const containerMaxWidth = 1400; 
-            const containerMinHeight = 600;
-            const totalPadding = 80; 
-            const gapSize = 24; 
-            
-            const availableWidth = containerMaxWidth - totalPadding - (gapSize * (GRID_COLS - 1));
-            const availableHeight = containerMinHeight - totalPadding - (gapSize * (GRID_ROWS - 1));
-            
-            let cardWidth = Math.floor(availableWidth / GRID_COLS);
-            let cardHeight = Math.floor(availableHeight / GRID_ROWS);
-            let cardSize = Math.min(cardWidth, cardHeight);
-            
-            if (TOTAL_CARDS <= 6) {
-                cardSize = Math.min(cardSize, 220); cardSize = Math.max(cardSize, 160);
-            } else if (TOTAL_CARDS <= 8) {
-                cardSize = Math.min(cardSize, 200); cardSize = Math.max(cardSize, 140);
-            } else if (TOTAL_CARDS <= 12) {
-                cardSize = Math.min(cardSize, 180); cardSize = Math.max(cardSize, 130);
-            } else if (TOTAL_CARDS <= 16) {
-                cardSize = Math.min(cardSize, 160); cardSize = Math.max(cardSize, 110);
-            } else if (TOTAL_CARDS <= 20) {
-                cardSize = Math.min(cardSize, 140); cardSize = Math.max(cardSize, 100);
-            } else { // 22 or 24 cards
-                cardSize = Math.min(cardSize, 120); cardSize = Math.max(cardSize, 90);
+            // 2. Card Sizing Logic (for desktop/tablet views)
+            let cardSize = 150; // Default sensible size
+            if (window.innerWidth > 640) {
+                const containerWidth = gameContainer.clientWidth;
+                const containerHeight = gameContainer.clientHeight;
+                const gapSize = 24; 
+                
+                // Calculate size based on available space
+                const availableWidth = containerWidth - (gapSize * (GRID_COLS - 1));
+                const availableHeight = containerHeight - (gapSize * (GRID_ROWS - 1));
+                
+                const calculatedWidth = Math.floor(availableWidth / GRID_COLS);
+                const calculatedHeight = Math.floor(availableHeight / GRID_ROWS);
+                
+                cardSize = Math.min(calculatedWidth, calculatedHeight);
+                cardSize = Math.min(cardSize, 180); // Cap max size
+                cardSize = Math.max(cardSize, 100); // Set min size
             }
-            // --- END CARD SIZING LOGIC ---
+            // --- End Card Sizing Logic ---
 
             gameBoard.flat().forEach(cardData => {
                 const cardEl = document.createElement('div');
@@ -494,17 +580,13 @@ Cat, Dog, Bird, Fish, Lion, Tiger</textarea>
 
                 // Calculate responsive font sizes
                 const wordLength = cardData.word.length;
-                let fontSizeRatio = 0.13;
                 
-                if (wordLength > 18) {
-                    fontSizeRatio = 0.08;
-                } else if (wordLength > 15) {
-                    fontSizeRatio = 0.09;
-                } else if (wordLength > 12) {
-                    fontSizeRatio = 0.10;
-                } else if (wordLength > 8) {
-                    fontSizeRatio = 0.115;
-                }
+                // Adjust font ratio based on word length to prevent overflow
+                let fontSizeRatio = 0.13;
+                if (wordLength > 18) fontSizeRatio = 0.08;
+                else if (wordLength > 15) fontSizeRatio = 0.09;
+                else if (wordLength > 12) fontSizeRatio = 0.10;
+                else if (wordLength > 8) fontSizeRatio = 0.115;
                 
                 const currentCardSize = window.innerWidth > 640 ? cardSize : 80; 
                 const fontSize = Math.max(12, currentCardSize * fontSizeRatio);
@@ -525,6 +607,8 @@ Cat, Dog, Bird, Fish, Lion, Tiger</textarea>
                 `;
                 gameContainer.appendChild(cardEl);
             });
+            // Re-initialize Lucide icons after rendering new content
+            lucide.createIcons();
         }
 
         function handleCardClick(event) {
@@ -613,18 +697,14 @@ Cat, Dog, Bird, Fish, Lion, Tiger</textarea>
         closeWinBtn.addEventListener('click', openSetupConsole); // Opens setup for a new lesson after winning
 
         // Initialize/Setup Default View
-        window.onload = openSetupConsole;
+        window.onload = () => {
+            // Default to dark mode immediately upon load
+            html.classList.add('dark'); 
+            openSetupConsole();
+            updateThemeIcon(); // Initialize icons correctly
+        };
+        // Re-render the board on resize to recalculate card sizes and grid layout
         window.addEventListener('resize', renderBoard); 
     </script>
 </body>
 </html>
-
-</body>
-
-<style>
-
-</style>
-
-<script>
-
-</script></html>
