@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hot Seat - English 1</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;700;900&display=swap" rel="stylesheet">
+    
+    <!-- Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        pink: '#FF6B95',
+                        orange: '#FF8C42',
+                        green: '#00E676',
+                        blue: '#2979FF',
+                        dark: '#0f172a',
+                        panel: '#1e293b',
+                        surface: '#334155'
+                    },
+                    fontFamily: {
+                        heading: ['Bebas Neue', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                    },
+                    animation: {
+                        'pulse-fast': 'pulse 0.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'slide-up': 'slideUp 0.3s ease-out forwards',
+                        'zoom-in': 'zoomIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards'
+                    },
+                    keyframes: {
+                        slideUp: {
+                            '0%': { transform: 'translateY(20px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' }
+                        },
+                        zoomIn: {
+                            '0%': { transform: 'scale(0.8)', opacity: '0' },
+                            '100%': { transform: 'scale(1)', opacity: '1' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #0f172a;
+            background-image: 
+                linear-gradient(rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.9)),
+                url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23334155' fill-opacity='0.2'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            font-family: 'Nunito', sans-serif;
+            overflow: hidden; /* Prevent scrolling during game */
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        /* Huge Text for Game */
+        .word-display {
+            font-size: clamp(3rem, 15vw, 8rem);
+            line-height: 1;
+            text-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+
+        /* Timer Bar Animation */
+        .timer-bar {
+            transition: width 1s linear;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col text-white">
+
+    <!-- HEADER (Setup Mode Only) -->
+    <header id="header" class="h-16 border-b border-white/10 glass-panel flex items-center justify-between px-6 z-50">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-pink to-orange flex items-center justify-center text-xl shadow-lg">
+                🔥
+            </div>
+            <h1 class="text-2xl font-heading tracking-wide">Hot Seat</h1>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <!-- Timer Input -->
+            <div class="flex items-center gap-2 bg-dark/50 p-1 rounded-lg border border-white/10">
+                <i data-lucide="clock" class="w-4 h-4 ml-2 text-gray-400"></i>
+                <input type="number" id="time-input" value="60" min="10" max="300" class="bg-transparent w-12 text-center font-mono font-bold outline-none" title="Seconds">
+                <span class="text-xs text-gray-500 mr-2">sec</span>
+            </div>
+
+            <button onclick="toggleWords()" class="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors">
+                <i data-lucide="list" class="w-5 h-5"></i>
+                <span class="text-sm font-bold hidden md:inline">Word List</span>
+            </button>
+            
+            <button onclick="toggleSound()" id="btn-sound" class="p-2 hover:bg-white/10 rounded-full transition-colors text-gray-400">
+                <i data-lucide="volume-2" class="w-5 h-5"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-grow flex flex-col relative">
+        
+        <!-- SETUP VIEW -->
+        <div id="view-setup" class="flex-grow flex items-center justify-center p-4">
+            <div class="text-center max-w-lg w-full">
+                <div class="mb-8 relative group cursor-pointer" onclick="toggleWords()">
+                    <div class="absolute inset-0 bg-gradient-to-r from-pink to-orange blur-xl opacity-20 group-hover:opacity-40 transition-opacity"></div>
+                    <div class="relative glass-panel rounded-2xl p-8 border border-white/10 transform group-hover:scale-105 transition-transform">
+                        <h2 class="text-4xl font-heading mb-2 text-transparent bg-clip-text bg-gradient-to-r from-pink to-orange">Ready to Play?</h2>
+                        <p class="text-gray-400">Student in the Hot Seat!</p>
+                        <p class="text-sm text-gray-500 mt-4"><span id="word-count-display">0</span> words loaded</p>
+                    </div>
+                </div>
+
+                <button onclick="startGame()" class="w-full bg-gradient-to-r from-blue to-green p-4 rounded-xl text-xl font-bold font-heading tracking-widest hover:brightness-110 shadow-lg active:scale-95 transition-all">
+                    START GAME
+                </button>
+            </div>
+        </div>
+
+        <!-- GAME VIEW -->
+        <div id="view-game" class="hidden flex-col h-full absolute inset-0 bg-dark z-40">
+            
+            <!-- Timer Bar -->
+            <div class="h-4 bg-surface w-full">
+                <div id="timer-bar" class="h-full bg-gradient-to-r from-green to-blue w-full"></div>
+            </div>
+
+            <!-- Main Display Area -->
+            <div class="flex-grow flex flex-col items-center justify-center p-4 text-center relative overflow-hidden">
+                
+                <!-- Background Pulse for Time Warning -->
+                <div id="bg-pulse" class="absolute inset-0 bg-red-500/0 pointer-events-none transition-colors duration-500"></div>
+
+                <!-- Exit Button -->
+                <button onclick="toggleExitModal()" class="absolute top-4 left-4 md:top-8 md:left-8 bg-white/10 hover:bg-white/20 text-white/50 hover:text-white p-3 rounded-full backdrop-blur-md transition-all z-50 group" title="Exit Game">
+                    <i data-lucide="x" class="w-6 h-6 group-hover:scale-110 transition-transform"></i>
+                </button>
+
+                <!-- Word Card -->
+                <div id="word-card" class="relative z-10 animate-zoom-in">
+                    <h1 id="current-word" class="word-display font-heading text-white">WORD</h1>
+                </div>
+
+                <!-- Score Counter (Subtle) -->
+                <div class="absolute top-4 right-4 md:top-8 md:right-8 bg-white/10 px-4 py-2 rounded-full backdrop-blur-md">
+                    <span class="text-gray-400 text-sm font-bold uppercase mr-2">Score</span>
+                    <span id="score-display" class="text-2xl font-mono font-bold text-white">0</span>
+                </div>
+            </div>
+
+            <!-- Controls (Bottom) -->
+            <div class="h-32 grid grid-cols-2 gap-1 p-1">
+                <button onclick="handlePass()" class="bg-surface hover:bg-surface/80 text-pink flex flex-col items-center justify-center rounded-l-xl transition-all active:bg-pink/20 group">
+                    <i data-lucide="x" class="w-12 h-12 mb-1 group-hover:scale-110 transition-transform"></i>
+                    <span class="font-heading text-2xl tracking-wide">PASS</span>
+                </button>
+                <button onclick="handleCorrect()" class="bg-surface hover:bg-surface/80 text-green flex flex-col items-center justify-center rounded-r-xl transition-all active:bg-green/20 group">
+                    <i data-lucide="check" class="w-12 h-12 mb-1 group-hover:scale-110 transition-transform"></i>
+                    <span class="font-heading text-2xl tracking-wide">CORRECT</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- RESULT VIEW -->
+        <div id="view-result" class="hidden absolute inset-0 z-50 bg-dark/95 flex flex-col items-center justify-center p-6 animate-slide-up">
+            <h2 class="text-6xl font-heading text-white mb-2">TIME'S UP!</h2>
+            
+            <div class="glass-panel p-8 rounded-2xl text-center mb-8 border border-white/10 w-full max-w-md">
+                <p class="text-gray-400 uppercase tracking-widest text-sm mb-2">Final Score</p>
+                <div class="text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green to-blue mb-4 font-mono" id="final-score">
+                    0
+                </div>
+                <div class="flex justify-center gap-4 text-sm">
+                    <div class="text-green"><span id="final-correct">0</span> Correct</div>
+                    <div class="text-pink"><span id="final-passed">0</span> Passed</div>
+                </div>
+            </div>
+
+            <div class="flex gap-4">
+                <button onclick="resetGame()" class="bg-surface hover:bg-white/10 text-white px-8 py-3 rounded-xl font-bold border border-white/10 transition-colors flex items-center gap-2">
+                    <i data-lucide="home" class="w-5 h-5"></i> MENU
+                </button>
+                <button onclick="startGame()" class="bg-gradient-to-r from-pink to-orange text-white px-8 py-3 rounded-xl font-bold shadow-lg hover:scale-105 transition-transform flex items-center gap-2">
+                    <i data-lucide="rotate-ccw" class="w-5 h-5"></i> PLAY AGAIN
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- WORD LIST MODAL -->
+    <div id="modal-words" class="hidden fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="glass-panel w-full max-w-2xl rounded-2xl flex flex-col max-h-[90vh] shadow-2xl animate-zoom-in">
+            <div class="p-4 border-b border-white/10 flex justify-between items-center bg-white/5">
+                <h3 class="text-xl font-heading">Word List Editor</h3>
+                <button onclick="toggleWords()" class="text-gray-400 hover:text-white"><i data-lucide="x" class="w-6 h-6"></i></button>
+            </div>
+            <div class="p-6 flex-grow flex flex-col">
+                <p class="text-sm text-gray-400 mb-2">Enter words separated by commas or new lines.</p>
+                <textarea id="word-input" class="w-full flex-grow bg-dark/50 border border-white/10 rounded-xl p-4 text-white font-mono text-sm focus:border-blue outline-none resize-none min-h-[300px]" placeholder="Apple, Banana, Cat..."></textarea>
+            </div>
+            <div class="p-4 border-t border-white/10 flex justify-between items-center bg-white/5">
+                <div class="flex gap-2">
+                     <button onclick="loadDefault('easy')" class="text-xs bg-surface hover:bg-white/10 px-3 py-1 rounded text-gray-300">Default (Easy)</button>
+                     <button onclick="loadDefault('hard')" class="text-xs bg-surface hover:bg-white/10 px-3 py-1 rounded text-gray-300">Default (Hard)</button>
+                </div>
+                <button onclick="saveWords()" class="bg-green text-dark font-bold px-6 py-2 rounded-lg hover:brightness-110">SAVE LIST</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- EXIT CONFIRM MODAL -->
+    <div id="modal-confirm" class="hidden fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="glass-panel p-8 rounded-2xl text-center max-w-sm animate-zoom-in border border-white/10">
+            <div class="w-16 h-16 rounded-full bg-pink/20 text-pink flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="x" class="w-8 h-8"></i>
+            </div>
+            <h3 class="text-2xl font-heading mb-2 text-white">Stop Game?</h3>
+            <p class="text-gray-400 mb-8 text-sm">Your current score will be lost.</p>
+            <div class="flex gap-4 justify-center">
+                <button onclick="toggleExitModal()" class="px-6 py-2 rounded-lg bg-surface hover:bg-white/10 transition-colors font-bold text-sm text-white border border-white/5">CANCEL</button>
+                <button onclick="confirmExit()" class="px-6 py-2 rounded-lg bg-pink text-white hover:brightness-110 transition-colors font-bold text-sm shadow-lg">QUIT</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA & CONFIG ---
+        const DEFAULT_WORDS_EASY = "Apple, Banana, Cat, Dog, Elephant, Fish, Guitar, House, Ice Cream, Jacket, Kite, Lion, Moon, Nose, Orange, Pizza, Queen, Robot, Sun, Tree, Umbrella, Violin, Water, X-ray, Yo-yo, Zebra, Ball, Car, Door, Egg, Frog, Hat, Key, Lamp, Mouse, Pen, Ring, Star, Train, Van";
+        const DEFAULT_WORDS_HARD = "Astronaut, Bacteria, Calendar, Dinosaur, Eclipse, Fossil, Gravity, Hurricane, Internet, Jungle, Kangaroo, Laboratory, Microscope, Nebula, Oxygen, Pyramid, Quartz, Revolution, Skeleton, Telescope, Universe, Volcano, Weather, Zoology, Architecture, Biography, Chemistry, Democracy, Economy, Geography, History, Literature, Mathematics, Philosophy, Psychology, Technology";
+
+        let words = [];
+        let gameWords = [];
+        let currentWordIndex = 0;
+        let score = 0;
+        let passed = 0;
+        let timeLeft = 60;
+        let timerInterval = null;
+        let soundEnabled = true;
+
+        // --- AUDIO ENGINE ---
+        const Audio = {
+            ctx: null,
+            init: () => {
+                if(!Audio.ctx) {
+                    Audio.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    Tone.start();
+                }
+            },
+            playCorrect: () => {
+                if(!soundEnabled) return;
+                Audio.init();
+                const synth = new Tone.PolySynth().toDestination();
+                synth.volume.value = -8;
+                synth.triggerAttackRelease(["C5", "E5", "G5"], "16n");
+            },
+            playPass: () => {
+                if(!soundEnabled) return;
+                Audio.init();
+                const synth = new Tone.MembraneSynth().toDestination();
+                synth.volume.value = -5;
+                synth.triggerAttackRelease("G2", "16n");
+            },
+            playTick: (pitch = "C4") => {
+                if(!soundEnabled) return;
+                Audio.init();
+                const synth = new Tone.MembraneSynth().toDestination();
+                synth.volume.value = -20;
+                synth.triggerAttackRelease(pitch, "32n");
+            },
+            playEnd: () => {
+                if(!soundEnabled) return;
+                Audio.init();
+                const synth = new Tone.PolySynth().toDestination();
+                synth.triggerAttackRelease(["C3", "C2"], "2n");
+            }
+        };
+
+        // --- CORE LOGIC ---
+
+        function init() {
+            // Load saved words or default
+            const saved = localStorage.getItem('hotseat_words');
+            if(saved) {
+                document.getElementById('word-input').value = saved;
+                parseWords(saved);
+            } else {
+                loadDefault('easy');
+            }
+            lucide.createIcons();
+        }
+
+        function parseWords(text) {
+            // Split by newline or comma, filter empty
+            words = text.split(/[\n,]+/).map(w => w.trim()).filter(w => w.length > 0);
+            document.getElementById('word-count-display').innerText = words.length;
+        }
+
+        function saveWords() {
+            const text = document.getElementById('word-input').value;
+            parseWords(text);
+            localStorage.setItem('hotseat_words', text);
+            toggleWords(); // Close modal
+        }
+
+        function loadDefault(type) {
+            const text = type === 'easy' ? DEFAULT_WORDS_EASY : DEFAULT_WORDS_HARD;
+            document.getElementById('word-input').value = text;
+            // Don't auto-save to local storage yet, user might want to edit
+        }
+
+        function shuffle(array) {
+            return array.sort(() => Math.random() - 0.5);
+        }
+
+        function startGame() {
+            if(words.length === 0) {
+                alert("Please add some words first!");
+                toggleWords();
+                return;
+            }
+
+            // Init Game State
+            Audio.init();
+            gameWords = shuffle([...words]);
+            currentWordIndex = 0;
+            score = 0;
+            passed = 0;
+            timeLeft = parseInt(document.getElementById('time-input').value) || 60;
+            
+            // UI Update
+            document.getElementById('score-display').innerText = '0';
+            document.getElementById('view-setup').classList.add('hidden');
+            document.getElementById('view-result').classList.add('hidden');
+            document.getElementById('header').classList.add('hidden'); // Hide header for immersive mode
+            document.getElementById('view-game').classList.remove('hidden');
+            document.getElementById('view-game').classList.add('flex');
+            document.getElementById('bg-pulse').className = "absolute inset-0 bg-red-500/0 pointer-events-none transition-colors duration-500";
+            
+            showNextWord();
+            startTimer();
+        }
+
+        function startTimer() {
+            const initialTime = timeLeft;
+            const bar = document.getElementById('timer-bar');
+            
+            // Reset bar
+            bar.style.transition = 'none';
+            bar.style.width = '100%';
+            bar.classList.remove('bg-red-500');
+            bar.classList.add('from-green', 'to-blue', 'bg-gradient-to-r');
+            
+            // Force reflow
+            void bar.offsetWidth;
+
+            // Start animation
+            bar.style.transition = `width 1s linear`;
+
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                
+                // Update Bar Visual
+                const pct = (timeLeft / initialTime) * 100;
+                bar.style.width = `${pct}%`;
+
+                // Audio Tick
+                if(timeLeft <= 10) {
+                    Audio.playTick("C5"); // High pitch urgency
+                    // Visual urgency
+                    bar.classList.remove('from-green', 'to-blue', 'bg-gradient-to-r');
+                    bar.classList.add('bg-red-500');
+                    document.getElementById('bg-pulse').classList.replace('bg-red-500/0', 'bg-red-500/10');
+                    setTimeout(() => document.getElementById('bg-pulse').classList.replace('bg-red-500/10', 'bg-red-500/0'), 250);
+                } else {
+                     // Audio.playTick(); // Optional: tick every second? might be annoying. Let's keep silence until 10s
+                }
+
+                if(timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function showNextWord() {
+            if(currentWordIndex >= gameWords.length) {
+                // Loop around or reshuffle? Let's reshuffle remaining
+                gameWords = shuffle([...words]);
+                currentWordIndex = 0;
+            }
+            
+            const wordEl = document.getElementById('current-word');
+            const cardEl = document.getElementById('word-card');
+
+            // Animate Out
+            cardEl.classList.remove('animate-zoom-in');
+            void cardEl.offsetWidth; // reflow
+            cardEl.classList.add('animate-zoom-in');
+
+            wordEl.innerText = gameWords[currentWordIndex];
+            
+            // Adjust font size for very long words
+            if(gameWords[currentWordIndex].length > 10) {
+                wordEl.style.fontSize = "clamp(2rem, 10vw, 5rem)";
+            } else {
+                wordEl.style.fontSize = "clamp(3rem, 15vw, 8rem)";
+            }
+        }
+
+        function handleCorrect() {
+            score++;
+            currentWordIndex++;
+            document.getElementById('score-display').innerText = score;
+            Audio.playCorrect();
+            
+            // Green flash
+            const bg = document.getElementById('bg-pulse');
+            bg.className = "absolute inset-0 bg-green/20 pointer-events-none transition-colors duration-200";
+            setTimeout(() => bg.className = "absolute inset-0 bg-red-500/0 pointer-events-none transition-colors duration-500", 200);
+
+            showNextWord();
+        }
+
+        function handlePass() {
+            passed++;
+            currentWordIndex++;
+            Audio.playPass();
+            
+            // Red/Pink flash
+            const bg = document.getElementById('bg-pulse');
+            bg.className = "absolute inset-0 bg-pink/20 pointer-events-none transition-colors duration-200";
+            setTimeout(() => bg.className = "absolute inset-0 bg-red-500/0 pointer-events-none transition-colors duration-500", 200);
+
+            showNextWord();
+        }
+
+        function endGame() {
+            clearInterval(timerInterval);
+            Audio.playEnd();
+
+            document.getElementById('view-game').classList.add('hidden');
+            document.getElementById('view-game').classList.remove('flex');
+            document.getElementById('view-result').classList.remove('hidden');
+
+            document.getElementById('final-score').innerText = score;
+            document.getElementById('final-correct').innerText = score;
+            document.getElementById('final-passed').innerText = passed;
+
+            // Confetti if score > 0
+            if(score > 0) {
+                const duration = 3000;
+                const end = Date.now() + duration;
+
+                (function frame() {
+                    confetti({
+                        particleCount: 5,
+                        angle: 60,
+                        spread: 55,
+                        origin: { x: 0 },
+                        colors: ['#00E676', '#2979FF']
+                    });
+                    confetti({
+                        particleCount: 5,
+                        angle: 120,
+                        spread: 55,
+                        origin: { x: 1 },
+                        colors: ['#FF6B95', '#FF8C42']
+                    });
+                
+                    if (Date.now() < end) {
+                        requestAnimationFrame(frame);
+                    }
+                }());
+            }
+        }
+
+        // New Exit Logic using Custom Modal
+        function toggleExitModal() {
+            const m = document.getElementById('modal-confirm');
+            m.classList.toggle('hidden');
+        }
+
+        function confirmExit() {
+            toggleExitModal();
+            clearInterval(timerInterval);
+            document.getElementById('view-game').classList.add('hidden');
+            document.getElementById('view-game').classList.remove('flex');
+            resetGame(); 
+        }
+
+        function resetGame() {
+            document.getElementById('view-result').classList.add('hidden');
+            document.getElementById('view-setup').classList.remove('hidden');
+            document.getElementById('header').classList.remove('hidden');
+        }
+
+        // --- UI TOGGLES ---
+
+        function toggleWords() {
+            const modal = document.getElementById('modal-words');
+            modal.classList.toggle('hidden');
+            // If opening, ensure text area is up to date with currently loaded words variable if empty
+            if(!modal.classList.contains('hidden') && document.getElementById('word-input').value === '') {
+                // Initial load
+                parseWords(document.getElementById('word-input').value);
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const btn = document.getElementById('btn-sound');
+            btn.innerHTML = soundEnabled 
+                ? '<i data-lucide="volume-2" class="w-5 h-5"></i>' 
+                : '<i data-lucide="volume-x" class="w-5 h-5 text-red-400"></i>';
+            lucide.createIcons();
+        }
+
+        // Keyboard Shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Handle Exit Modal Keydown
+            const exitModal = document.getElementById('modal-confirm');
+            if(!exitModal.classList.contains('hidden')) {
+                if(e.key === 'Escape') toggleExitModal();
+                else if(e.key === 'Enter') confirmExit();
+                return;
+            }
+
+            // Handle Word Modal Keydown
+            const wordModal = document.getElementById('modal-words');
+            if(!wordModal.classList.contains('hidden')) {
+                if(e.key === 'Escape') toggleWords();
+                return;
+            }
+
+            // Game Logic
+            if(document.getElementById('view-game').classList.contains('hidden')) return;
+            
+            if(e.code === 'Space' || e.code === 'Enter') {
+                handleCorrect();
+            } else if (e.code === 'Backspace' || e.code === 'Delete' || e.key === 'x') {
+                handlePass();
+            } else if (e.key === 'Escape') {
+                toggleExitModal();
+            }
+        });
+
+        // Init
+        window.onload = init;
+
+    </script>
+</body>
+</html>

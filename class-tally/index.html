@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Class Tally - English 1</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;700;900&display=swap" rel="stylesheet">
+    
+    <!-- Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        pink: '#FF6B95',
+                        orange: '#FF8C42',
+                        green: '#00E676',
+                        blue: '#2979FF',
+                        dark: '#0f172a',
+                        panel: '#1e293b',
+                        surface: '#334155'
+                    },
+                    fontFamily: {
+                        heading: ['Bebas Neue', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                    },
+                    animation: {
+                        'pop-in': 'popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                        'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+                        'star-spin': 'starSpin 0.6s ease-out',
+                        'slide-down': 'slideDown 0.3s ease-out'
+                    },
+                    keyframes: {
+                        popIn: {
+                            '0%': { transform: 'scale(0.5)', opacity: '0' },
+                            '100%': { transform: 'scale(1)', opacity: '1' }
+                        },
+                        shake: {
+                            '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
+                            '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
+                            '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
+                            '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
+                        },
+                        starSpin: {
+                            '0%': { transform: 'scale(0) rotate(-180deg)', opacity: '0' },
+                            '100%': { transform: 'scale(1) rotate(0deg)', opacity: '1' }
+                        },
+                        slideDown: {
+                            '0%': { opacity: '0', transform: 'translateY(-10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #0f172a;
+            background-image: 
+                radial-gradient(at 100% 0%, rgba(0, 230, 118, 0.1) 0px, transparent 50%), 
+                radial-gradient(at 0% 100%, rgba(255, 140, 66, 0.1) 0px, transparent 50%);
+            background-attachment: fixed;
+            font-family: 'Nunito', sans-serif;
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .tally-item {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .tally-item:hover {
+            transform: scale(1.4) rotate(10deg);
+            z-index: 10;
+        }
+
+        /* Custom Scrollbar for Tally Area */
+        .tally-container::-webkit-scrollbar {
+            height: 6px;
+        }
+        .tally-container::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+        }
+        .tally-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col text-white overflow-hidden">
+
+    <!-- HEADER -->
+    <header class="h-auto md:h-20 border-b border-white/10 glass-panel flex flex-col md:flex-row items-center justify-between px-4 py-2 gap-2 z-50">
+        <!-- Logo -->
+        <div class="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-orange to-pink flex items-center justify-center text-xl shadow-lg">
+                    <span id="header-icon">🌟</span>
+                </div>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-heading tracking-wide">Class Tally</h1>
+                </div>
+            </div>
+            
+            <!-- Mobile Toggle for Settings -->
+            <button onclick="toggleSettings()" class="md:hidden p-2 text-gray-400">
+                <i data-lucide="settings" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <!-- Toolbar -->
+        <div id="toolbar" class="hidden md:flex flex-col md:flex-row items-center gap-4 w-full md:w-auto animate-slide-down md:animate-none">
+            
+            <!-- Emoji Selector -->
+            <div class="flex items-center bg-dark/40 rounded-lg p-1 border border-white/5">
+                <div class="flex gap-1 pr-2 border-r border-white/10" id="good-picker">
+                    <!-- Good Emojis injected here -->
+                </div>
+                <div class="flex gap-1 pl-2" id="bad-picker">
+                    <!-- Bad Emojis injected here -->
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+                 <div class="flex items-center bg-dark/50 border border-white/10 rounded-lg p-1 focus-within:border-orange transition-colors">
+                    <input type="text" id="student-input" placeholder="Name..." 
+                        class="bg-transparent border-none outline-none text-sm px-2 py-1 w-24 md:w-32 text-white placeholder-gray-500 font-bold"
+                        onkeypress="if(event.key === 'Enter') addStudent()">
+                    <button onclick="addStudent()" class="bg-surface hover:bg-white/20 text-white p-1.5 rounded-md transition-colors">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                    </button>
+                </div>
+
+                <div class="h-6 w-[1px] bg-white/10 hidden md:block"></div>
+
+                <button onclick="toggleSound()" id="btn-sound" class="p-2 hover:bg-white/10 rounded-full transition-colors text-gray-400">
+                    <i data-lucide="volume-2" class="w-5 h-5"></i>
+                </button>
+                <button onclick="clearAll()" class="p-2 hover:bg-red-500/20 text-pink hover:text-red-400 rounded-full transition-colors" title="Reset All">
+                    <i data-lucide="trash-2" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-grow p-4 md:p-6 overflow-y-auto relative bg-dark">
+        
+        <!-- Empty State -->
+        <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-0">
+            <div class="w-32 h-32 rounded-full bg-white/5 flex items-center justify-center text-6xl mb-6 grayscale opacity-30">
+                👩‍🏫
+            </div>
+            <h2 class="text-2xl font-bold text-white/50 mb-2">Class is empty</h2>
+            <p class="text-white/30 text-sm mb-8">Add students to start giving stars</p>
+        </div>
+
+        <!-- Cards Grid -->
+        <div id="grid-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-20 z-10 relative">
+            <!-- Cards Injected Here -->
+        </div>
+
+    </main>
+
+    <!-- MOBILE FAB -->
+    <button onclick="promptAddStudent()" class="md:hidden fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-orange to-pink rounded-full shadow-xl flex items-center justify-center text-white z-50 border border-white/20 hover:scale-105 transition-transform">
+        <i data-lucide="plus" class="w-8 h-8"></i>
+    </button>
+
+    <script>
+        // --- DATA & STATE ---
+        let students = [];
+        let soundEnabled = true;
+        
+        // Emoji Palettes
+        const GOOD_EMOJIS = ['⭐️', '❤️', '🔥', '💎', '🚀', '🦄', '💯'];
+        const BAD_EMOJIS = ['⚠️', '🛑', '🐢', '💤', '🧨', '👻'];
+
+        let currentGood = '⭐️';
+        let currentBad = '⚠️';
+
+        // --- AUDIO ENGINE ---
+        const Audio = {
+            ctx: null,
+            init: () => {
+                if(!Audio.ctx) {
+                    Audio.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    Tone.start();
+                }
+            },
+            playGood: () => {
+                if(!soundEnabled) return;
+                Audio.init();
+                const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+                synth.volume.value = -8;
+                synth.triggerAttackRelease(["C5", "E5"], "16n");
+            },
+            playBad: () => {
+                if(!soundEnabled) return;
+                Audio.init();
+                const synth = new Tone.MembraneSynth().toDestination();
+                synth.volume.value = -5;
+                synth.triggerAttackRelease("A1", "8n");
+            },
+            playMilestone: () => {
+                if(!soundEnabled) return;
+                Audio.init();
+                const synth = new Tone.MetalSynth({
+                    harmonicity: 12, resonance: 800, modulationIndex: 20, envelope: { decay: 0.4 }
+                }).toDestination();
+                synth.volume.value = -15;
+                synth.triggerAttackRelease("32n");
+                
+                const poly = new Tone.PolySynth().toDestination();
+                poly.volume.value = -8;
+                poly.triggerAttackRelease(["C4", "E4", "G4", "C5", "E5"], "4n");
+            }
+        };
+
+        // --- LOGIC ---
+
+        function initEmojiPickers() {
+            const goodContainer = document.getElementById('good-picker');
+            const badContainer = document.getElementById('bad-picker');
+
+            goodContainer.innerHTML = GOOD_EMOJIS.map(emoji => `
+                <button onclick="setEmoji('good', '${emoji}')" 
+                    class="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 transition-colors ${emoji === currentGood ? 'bg-white/20 ring-1 ring-yellow-400' : 'opacity-50 hover:opacity-100'}"
+                    title="Select ${emoji}">
+                    ${emoji}
+                </button>
+            `).join('');
+
+            badContainer.innerHTML = BAD_EMOJIS.map(emoji => `
+                <button onclick="setEmoji('bad', '${emoji}')" 
+                    class="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 transition-colors ${emoji === currentBad ? 'bg-white/20 ring-1 ring-pink' : 'opacity-50 hover:opacity-100'}"
+                    title="Select ${emoji}">
+                    ${emoji}
+                </button>
+            `).join('');
+        }
+
+        function setEmoji(type, emoji) {
+            if(type === 'good') currentGood = emoji;
+            else currentBad = emoji;
+            
+            // Re-render pickers to update active state
+            initEmojiPickers();
+            // Re-render grid to update button icons
+            render(); 
+        }
+
+        function addStudent(nameInput = null) {
+            const input = document.getElementById('student-input');
+            const name = nameInput || input.value.trim();
+            if(!name) return;
+
+            students.push({
+                id: Date.now(),
+                name: name,
+                goodLogs: [], // Array of emojis strings
+                badLogs: []   // Array of emojis strings
+            });
+
+            input.value = '';
+            save();
+            render();
+            Audio.playGood();
+        }
+
+        function promptAddStudent() {
+            const name = prompt("Enter student name:");
+            if(name) addStudent(name);
+        }
+
+        function removeStudent(id) {
+            if(confirm('Remove this student?')) {
+                students = students.filter(s => s.id !== id);
+                save();
+                render();
+            }
+        }
+
+        function addPoint(id, type) {
+            const student = students.find(s => s.id === id);
+            if(!student) return;
+
+            const card = document.getElementById(`card-${id}`);
+
+            if(type === 'good') {
+                student.goodLogs.push(currentGood);
+                Audio.playGood();
+                
+                // Celebration Logic (Every 5 good points)
+                if(student.goodLogs.length % 5 === 0) {
+                    celebrate(id);
+                    Audio.playMilestone();
+                }
+            } else {
+                student.badLogs.push(currentBad);
+                Audio.playBad();
+                
+                // Shake effect
+                card.classList.remove('animate-shake');
+                void card.offsetWidth; 
+                card.classList.add('animate-shake');
+            }
+
+            save();
+            render();
+        }
+
+        function removeLastPoint(id, type) {
+            const student = students.find(s => s.id === id);
+            if(!student) return;
+
+            if(type === 'good' && student.goodLogs.length > 0) student.goodLogs.pop();
+            if(type === 'bad' && student.badLogs.length > 0) student.badLogs.pop();
+
+            save();
+            render();
+        }
+
+        function clearAll() {
+            if(confirm("Clear all students?")) {
+                students = [];
+                save();
+                render();
+            }
+        }
+
+        function celebrate(id) {
+            const card = document.getElementById(`card-${id}`);
+            if(!card) return;
+            const rect = card.getBoundingClientRect();
+            const x = (rect.left + rect.width / 2) / window.innerWidth;
+            const y = (rect.top + rect.height / 2) / window.innerHeight;
+
+            confetti({
+                particleCount: 60, spread: 50, origin: { x, y },
+                colors: ['#FFD700', '#FFA500', '#FFFFFF']
+            });
+        }
+
+        // --- RENDER ---
+        function render() {
+            const container = document.getElementById('grid-container');
+            const emptyState = document.getElementById('empty-state');
+
+            if(students.length === 0) {
+                emptyState.style.display = 'flex';
+                container.innerHTML = '';
+                return;
+            } else {
+                emptyState.style.display = 'none';
+            }
+
+            container.innerHTML = students.map(s => {
+                // Generate Logs
+                const goodHtml = s.goodLogs.map((emoji, i) => 
+                    `<span class="tally-item inline-block text-xl md:text-2xl animate-star-spin select-none" style="animation-delay: ${Math.min(i*0.05, 0.5)}s">${emoji}</span>`
+                ).join('');
+
+                const badHtml = s.badLogs.map((emoji) => 
+                    `<span class="tally-item inline-block text-lg md:text-xl select-none">${emoji}</span>`
+                ).join('');
+
+                // Determine Mood Color Border
+                let borderColor = 'border-white/5';
+                if(s.badLogs.length > 2) borderColor = 'border-pink';
+                else if(s.goodLogs.length > 4) borderColor = 'border-yellow-400';
+
+                return `
+                <div id="card-${s.id}" class="glass-panel rounded-xl p-4 flex flex-col relative group transition-all duration-300 border-l-4 ${borderColor} hover:bg-white/5 min-h-[220px]">
+                    
+                    <!-- Header -->
+                    <div class="flex justify-between items-start mb-3">
+                        <h3 class="text-xl font-bold truncate pr-4 text-white">${s.name}</h3>
+                        <button onclick="removeStudent(${s.id})" class="text-white/20 hover:text-pink transition-colors opacity-0 group-hover:opacity-100">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+
+                    <!-- Tally Area -->
+                    <div class="flex-grow flex flex-col gap-2 mb-4 bg-dark/30 rounded-lg p-2 overflow-y-auto max-h-[150px] tally-container shadow-inner">
+                        
+                        <!-- Good Logs -->
+                        <div class="flex flex-wrap content-start gap-1 min-h-[40px]">
+                            ${goodHtml || '<span class="text-white/10 text-xs italic p-1 select-none">No points yet</span>'}
+                        </div>
+                        
+                        <!-- Bad Logs (Separator) -->
+                        ${s.badLogs.length > 0 ? `<div class="h-[1px] bg-white/10 w-full my-1"></div>` : ''}
+                        
+                        <div class="flex flex-wrap content-start gap-1">
+                            ${badHtml}
+                        </div>
+                    </div>
+
+                    <!-- Controls -->
+                    <div class="grid grid-cols-2 gap-2 mt-auto">
+                        <button onclick="addPoint(${s.id}, 'good')" 
+                            class="bg-surface hover:bg-yellow-500/20 hover:border-yellow-500 border border-transparent text-yellow-400 py-3 rounded-lg flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg group-btn">
+                            <span class="text-xl">${currentGood}</span>
+                            <span class="text-sm font-bold hidden sm:inline">Good</span>
+                        </button>
+                        
+                        <button onclick="addPoint(${s.id}, 'bad')" 
+                            class="bg-surface hover:bg-pink/20 hover:border-pink border border-transparent text-gray-400 hover:text-pink py-3 rounded-lg flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg group-btn">
+                            <span class="text-xl">${currentBad}</span>
+                            <span class="text-sm font-bold hidden sm:inline">Bad</span>
+                        </button>
+                    </div>
+
+                    <!-- Context Menu (Undo) -->
+                    <div class="absolute top-2 right-12 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                         <button onclick="removeLastPoint(${s.id}, 'good')" class="p-1 text-white/20 hover:text-white text-xs font-mono" title="Undo Good">Undo ${currentGood}</button>
+                         <button onclick="removeLastPoint(${s.id}, 'bad')" class="p-1 text-white/20 hover:text-white text-xs font-mono" title="Undo Bad">Undo ${currentBad}</button>
+                    </div>
+                </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+            initEmojiPickers();
+        }
+
+        // --- UTILS ---
+        function toggleSettings() {
+            const toolbar = document.getElementById('toolbar');
+            toolbar.classList.toggle('hidden');
+            toolbar.classList.toggle('flex');
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const btn = document.getElementById('btn-sound');
+            btn.innerHTML = soundEnabled 
+                ? '<i data-lucide="volume-2" class="w-5 h-5"></i>' 
+                : '<i data-lucide="volume-x" class="w-5 h-5 text-red-400"></i>';
+            lucide.createIcons();
+        }
+
+        function save() {
+            localStorage.setItem('english1_tally_v2_data', JSON.stringify(students));
+        }
+
+        function load() {
+            // Check for new v2 data
+            const dataV2 = localStorage.getItem('english1_tally_v2_data');
+            
+            if(dataV2) {
+                students = JSON.parse(dataV2);
+            } else {
+                // FALLBACK: Migrate old data structure if exists
+                const dataOld = localStorage.getItem('english1_tally_data');
+                if(dataOld) {
+                    const oldStudents = JSON.parse(dataOld);
+                    students = oldStudents.map(s => ({
+                        id: s.id,
+                        name: s.name,
+                        goodLogs: Array(s.stars || 0).fill('⭐️'),
+                        badLogs: Array(s.warnings || 0).fill('⚠️')
+                    }));
+                    save(); // Save as new format
+                }
+            }
+            render();
+        }
+
+        // Init
+        window.onload = () => {
+            load();
+            lucide.createIcons();
+        };
+
+    </script>
+</body>
+</html>
