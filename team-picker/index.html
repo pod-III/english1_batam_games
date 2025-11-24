@@ -3,171 +3,403 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Team Picker</title>
+    <title>Team Picker: Classroom Edition</title>
+    
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        pink: '#FF6B95',
+                        orange: '#FF8C42',
+                        green: '#00E676',
+                        blue: '#2979FF',
+                        dark: '#0f172a',
+                        panel: '#1e293b',
+                        surface: '#334155'
+                    },
+                    fontFamily: {
+                        heading: ['Bebas Neue', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    animation: {
+                        'pop': 'pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                        'slide-up': 'slideUp 0.4s ease-out',
+                    },
+                    keyframes: {
+                        pop: {
+                            '0%': { transform: 'scale(0.8)', opacity: '0' },
+                            '100%': { transform: 'scale(1)', opacity: '1' },
+                        },
+                        slideUp: {
+                            '0%': { transform: 'translateY(20px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;700&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f3f4f6;
+        body { 
+            font-family: 'Nunito', sans-serif;
+            background-color: #0f172a;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(255, 140, 66, 0.15) 0px, transparent 50%), 
+                radial-gradient(at 100% 100%, rgba(41, 121, 255, 0.1) 0px, transparent 50%);
+            background-attachment: fixed;
+            color: white;
+            overflow-x: hidden;
         }
-        .container {
-            max-width: 900px;
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
         }
-        .gradient-button {
-            background-image: linear-gradient(to right, #4F46E5 0%, #6366F1 51%, #4F46E5 100%);
-            transition: 0.5s;
-            background-size: 200% auto;
+
+        .btn-3d {
+            transition: all 0.1s;
+            transform: translateY(0);
+            box-shadow: 0 4px 0 rgba(0,0,0,0.3);
+            border-bottom: 4px solid rgba(0,0,0,0.2);
         }
-        .gradient-button:hover {
-            background-position: right center;
+        .btn-3d:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 rgba(0,0,0,0.2);
+            border-bottom: 0px solid transparent;
         }
+
+        /* Member Item Animation */
+        .member-item {
+            animation: pop 0.3s forwards;
+        }
+
+        /* Team Card Colors */
+        .team-card-0 { border-top: 4px solid #FF6B95; }
+        .team-card-1 { border-top: 4px solid #2979FF; }
+        .team-card-2 { border-top: 4px solid #00E676; }
+        .team-card-3 { border-top: 4px solid #FF8C42; }
+        .team-card-4 { border-top: 4px solid #A855F7; }
+        .team-card-5 { border-top: 4px solid #EAB308; }
+        .team-card-6 { border-top: 4px solid #06B6D4; }
+        .team-card-7 { border-top: 4px solid #EC4899; }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
-    <div class="container bg-white p-6 md:p-10 rounded-3xl shadow-xl w-full">
-        <h1 class="text-3xl font-bold text-center text-indigo-700 mb-6">Team Picker</h1>
-        <p class="text-center text-gray-500 mb-8">Enter names (one per line), specify the number of teams, and set a max size to get a random distribution.</p>
-        
-        <!-- Input Section -->
-        <div class="flex flex-col md:flex-row gap-6 mb-8">
-            <!-- Names Input -->
-            <div class="flex-1">
-                <label for="namesInput" class="block text-gray-700 font-semibold mb-2">Enter names:</label>
-                <textarea id="namesInput" rows="10" placeholder="John Doe&#10;Jane Smith&#10;Alice Johnson&#10;Bob Williams"
-                    class="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-200 resize-y"></textarea>
+<body class="flex flex-col min-h-screen">
+
+    <!-- Header -->
+    <header class="w-full glass-panel border-b border-white/10 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-br from-orange to-pink w-10 h-10 rounded-lg flex items-center justify-center text-xl shadow-lg">
+                    👥
+                </div>
+                <div>
+                    <h1 class="text-2xl font-heading tracking-wider text-white leading-none">TEAM PICKER</h1>
+                    <div class="text-[10px] font-mono text-gray-400 tracking-widest">ENGLISH 1 BATAM</div>
+                </div>
             </div>
-            
-            <!-- Number of Teams and Button -->
-            <div class="md:w-1/3 flex flex-col gap-4">
-                <div class="flex-1">
-                    <label for="numTeamsInput" class="block text-gray-700 font-semibold mb-2">Number of teams:</label>
-                    <input type="number" id="numTeamsInput" value="2" min="2"
-                        class="w-full p-4 border border-gray-300 rounded-xl text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-200">
+
+            <div class="flex items-center gap-3">
+                <button id="sound-toggle" class="p-2 rounded-full hover:bg-white/10 transition-colors text-gray-400" title="Toggle Sound">
+                    <i data-lucide="volume-2" class="w-5 h-5"></i>
+                </button>
+                <button id="reset-btn" class="p-2 rounded-full hover:bg-white/10 transition-colors text-pink" title="Reset All">
+                    <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow flex flex-col md:flex-row gap-6 p-6 max-w-7xl mx-auto w-full">
+        
+        <!-- Left Panel: Input -->
+        <div class="w-full md:w-1/3 flex flex-col gap-4">
+            <div class="glass-panel p-6 rounded-2xl animate-slide-up">
+                <h2 class="text-xl font-heading text-white mb-4 flex items-center gap-2">
+                    <i data-lucide="users" class="w-5 h-5 text-blue"></i> Players
+                </h2>
+                
+                <textarea id="name-input" 
+                    class="w-full h-48 bg-dark border border-white/10 rounded-xl p-4 text-white focus:border-blue focus:ring-1 focus:ring-blue outline-none resize-none font-mono text-sm shadow-inner mb-4"
+                    placeholder="Enter names here...&#10;Alice&#10;Bob&#10;Charlie&#10;(Separate by new lines or commas)"></textarea>
+
+                <div class="flex items-center justify-between mb-4 bg-surface/30 p-3 rounded-xl border border-white/5">
+                    <span class="text-xs font-bold text-gray-300 uppercase">Total Players</span>
+                    <span id="player-count" class="font-mono text-blue font-bold">0</span>
                 </div>
-                <div class="flex-1">
-                    <label for="maxPerTeamInput" class="block text-gray-700 font-semibold mb-2">Max members per team:</label>
-                    <input type="number" id="maxPerTeamInput" value="" min="1" placeholder="Optional"
-                        class="w-full p-4 border border-gray-300 rounded-xl text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-200">
+
+                <div class="space-y-4 mb-6">
+                    <div>
+                        <div class="flex justify-between mb-2">
+                            <label class="text-xs font-bold text-orange uppercase tracking-widest">Number of Teams</label>
+                            <span id="team-count-display" class="font-mono text-orange font-bold">2</span>
+                        </div>
+                        <input type="range" id="team-slider" min="2" max="10" value="2" class="w-full h-2 bg-surface rounded-lg appearance-none cursor-pointer accent-orange">
+                    </div>
                 </div>
-                <button id="generateButton"
-                    class="gradient-button w-full text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition duration-300">
-                    Generate Teams
+
+                <button id="generate-btn" class="w-full btn-3d bg-gradient-to-r from-blue to-green text-white py-4 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-2">
+                    <i data-lucide="zap" class="w-5 h-5"></i> GENERATE TEAMS
                 </button>
             </div>
         </div>
 
-        <!-- Error Message -->
-        <div id="errorMessage" class="text-red-500 text-center font-bold mb-4" style="display: none;"></div>
+        <!-- Right Panel: Results -->
+        <div class="w-full md:w-2/3 flex flex-col">
+            
+            <!-- Toolbar -->
+            <div id="results-toolbar" class="flex justify-between items-center mb-4 opacity-0 transition-opacity">
+                <h2 class="text-2xl font-heading text-white">Results</h2>
+                <button id="copy-btn" class="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-white bg-surface/50 px-3 py-2 rounded-lg transition border border-white/5">
+                    <i data-lucide="copy" class="w-4 h-4"></i> Copy List
+                </button>
+            </div>
 
-        <!-- Results Section -->
-        <div id="resultsContainer" class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" style="display: none;">
+            <!-- Teams Grid -->
+            <div id="teams-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-min">
+                <!-- Teams injected here -->
+                
+                <!-- Placeholder State -->
+                <div class="col-span-full py-20 text-center opacity-50">
+                    <div class="text-6xl mb-4 grayscale">🎲</div>
+                    <p class="text-gray-400">Add names and click Generate to start.</p>
+                </div>
+            </div>
+
         </div>
-    </div>
+
+    </main>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const namesInput = document.getElementById('namesInput');
-            const numTeamsInput = document.getElementById('numTeamsInput');
-            const maxPerTeamInput = document.getElementById('maxPerTeamInput');
-            const generateButton = document.getElementById('generateButton');
-            const resultsContainer = document.getElementById('resultsContainer');
-            const errorMessage = document.getElementById('errorMessage');
+        // --- AUDIO ENGINE ---
+        let audioEnabled = true;
+        const AudioEngine = {
+            init: async () => { await Tone.start(); },
+            playDeal: () => {
+                if(!audioEnabled) return;
+                const synth = new Tone.MembraneSynth().toDestination();
+                synth.triggerAttackRelease("C2", "32n", Tone.now(), 0.05); // Short thump
+            },
+            playPop: (note = "C4") => {
+                if(!audioEnabled) return;
+                const synth = new Tone.PolySynth().toDestination();
+                synth.triggerAttackRelease(note, "16n", Tone.now(), 0.1);
+            },
+            playWin: () => {
+                if(!audioEnabled) return;
+                const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+                const now = Tone.now();
+                synth.triggerAttackRelease(["C4", "E4", "G4", "C5"], "8n", now);
+                synth.triggerAttackRelease(["E4", "G4", "B4", "E5"], "8n", now + 0.15);
+                synth.triggerAttackRelease(["G4", "B4", "D5", "G5"], "4n", now + 0.3);
+            }
+        };
 
-            // Pre-fill names for demonstration
-            namesInput.value = "John Doe\nJane Smith\nAlice Johnson\nBob Williams\nCharlie Brown\nDiana Prince\nEthan Hunt\nFiona Gallagher\nGeorge Costanza\nHannah Montana";
+        // --- DOM ELEMENTS ---
+        const nameInput = document.getElementById('name-input');
+        const playerCountEl = document.getElementById('player-count');
+        const teamSlider = document.getElementById('team-slider');
+        const teamCountDisplay = document.getElementById('team-count-display');
+        const generateBtn = document.getElementById('generate-btn');
+        const teamsGrid = document.getElementById('teams-grid');
+        const resultsToolbar = document.getElementById('results-toolbar');
+        const copyBtn = document.getElementById('copy-btn');
+        const resetBtn = document.getElementById('reset-btn');
 
-            // Add event listeners to trigger dynamic team count
-            namesInput.addEventListener('input', updateNumTeams);
-            maxPerTeamInput.addEventListener('input', updateNumTeams);
+        // --- STATE ---
+        let players = [];
+        let isGenerating = false;
 
-            generateButton.addEventListener('click', generateTeams);
+        // --- FUNCTIONS ---
 
-            function updateNumTeams() {
-                const names = namesInput.value.split('\n').map(name => name.trim()).filter(name => name !== '');
-                const maxPerTeam = parseInt(maxPerTeamInput.value, 10);
+        function initIcons() {
+            lucide.createIcons();
+        }
 
-                // Only update if maxPerTeam is a valid number and there are names
-                if (!isNaN(maxPerTeam) && maxPerTeam > 0 && names.length > 0) {
-                    let maxPossibleTeams = Math.floor(names.length / maxPerTeam);
-                    // Ensure a minimum of 2 teams if possible
-                    if (maxPossibleTeams < 2) {
-                        maxPossibleTeams = 2;
-                    }
-                    numTeamsInput.value = maxPossibleTeams;
-                }
+        function updatePlayerCount() {
+            const text = nameInput.value;
+            // Split by comma or newline, filter empty
+            players = text.split(/[\n,]+/).map(n => n.trim()).filter(n => n.length > 0);
+            playerCountEl.innerText = players.length;
+            
+            // Visual feedback on valid input
+            if(players.length > 0) {
+                playerCountEl.classList.add('text-green');
+                playerCountEl.classList.remove('text-blue');
+            } else {
+                playerCountEl.classList.add('text-blue');
+                playerCountEl.classList.remove('text-green');
+            }
+        }
+
+        function shuffle(array) {
+            let currentIndex = array.length, randomIndex;
+            while (currentIndex != 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        }
+
+        async function generateTeams() {
+            if (isGenerating || players.length === 0) return;
+            isGenerating = true;
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> SORTING...`;
+            initIcons();
+            
+            // Init Audio
+            if (Tone.context.state !== 'running') await Tone.start();
+
+            // Prepare Grid
+            const numTeams = parseInt(teamSlider.value);
+            teamsGrid.innerHTML = '';
+            resultsToolbar.classList.remove('opacity-0');
+
+            // Create Team Containers
+            const teamContainers = [];
+            for(let i=0; i<numTeams; i++) {
+                const teamCard = document.createElement('div');
+                teamCard.className = `glass-panel rounded-xl p-4 team-card-${i % 8} animate-pop`;
+                teamCard.style.animationDelay = `${i * 50}ms`;
+                
+                const title = document.createElement('h3');
+                title.className = 'font-heading text-lg text-white mb-3 border-b border-white/10 pb-2 flex justify-between';
+                title.innerHTML = `<span>TEAM ${i + 1}</span> <span class="text-gray-500 text-xs font-mono self-center count-badge">0</span>`;
+                
+                const list = document.createElement('ul');
+                list.className = 'space-y-2 min-h-[50px]';
+                list.id = `team-list-${i}`;
+                
+                teamCard.appendChild(title);
+                teamCard.appendChild(list);
+                teamsGrid.appendChild(teamCard);
+                teamContainers.push(list);
             }
 
-            function generateTeams() {
-                // Clear previous results and errors
-                resultsContainer.innerHTML = '';
-                resultsContainer.style.display = 'none';
-                errorMessage.style.display = 'none';
+            // Shuffle Players
+            const shuffledPlayers = shuffle([...players]);
 
-                const names = namesInput.value.split('\n').map(name => name.trim()).filter(name => name !== '');
-                const numTeams = parseInt(numTeamsInput.value, 10);
-                const maxPerTeam = parseInt(maxPerTeamInput.value, 10);
-
-                if (names.length === 0) {
-                    showError('Please enter at least one name.');
-                    return;
-                }
-
-                if (numTeams < 2 || isNaN(numTeams)) {
-                    showError('Please enter a valid number of teams (2 or more).');
-                    return;
-                }
+            // Distribute with Animation
+            // Strategy: Round Robin distribution
+            let currentTeamIndex = 0;
+            
+            for (let i = 0; i < shuffledPlayers.length; i++) {
+                const player = shuffledPlayers[i];
+                const targetList = teamContainers[currentTeamIndex];
                 
-                // New validation for maxPerTeam and team creation
-                if (!isNaN(maxPerTeam) && names.length / numTeams > maxPerTeam) {
-                    showError(`Cannot create ${numTeams} teams with a max of ${maxPerTeam} members. You need to reduce the number of teams or increase the max members per team.`);
-                    return;
-                }
+                // Wait for effect
+                await new Promise(r => setTimeout(r, 200)); // Delay between items
                 
-                if (names.length < numTeams) {
-                    showError(`You have fewer names (${names.length}) than teams (${numTeams}). Please add more names or reduce the number of teams.`);
-                    return;
-                }
+                // Add Element
+                const li = document.createElement('li');
+                li.className = 'member-item text-sm font-bold text-gray-300 flex items-center gap-2';
+                li.innerHTML = `<div class="w-2 h-2 rounded-full bg-white/50"></div> ${player}`;
+                targetList.appendChild(li);
+                
+                // Update Badge Count
+                const countBadge = targetList.parentElement.querySelector('.count-badge');
+                countBadge.innerText = targetList.children.length;
 
-                // Shuffle the names array using Fisher-Yates algorithm
-                shuffleArray(names);
+                // Audio
+                const notes = ["C4", "E4", "G4", "A4", "B4", "C5"];
+                AudioEngine.playPop(notes[i % notes.length]);
 
-                // Create team arrays
-                const teams = Array.from({ length: numTeams }, () => []);
+                // Next Team
+                currentTeamIndex = (currentTeamIndex + 1) % numTeams;
+            }
 
-                // Distribute names to teams in a round-robin fashion
-                names.forEach((name, index) => {
-                    teams[index % numTeams].push(name);
+            // Finish
+            setTimeout(() => {
+                AudioEngine.playWin();
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 }
                 });
+                isGenerating = false;
+                generateBtn.disabled = false;
+                generateBtn.innerHTML = `<i data-lucide="zap" class="w-5 h-5"></i> GENERATE TEAMS`;
+                initIcons();
+            }, 300);
+        }
 
-                // Render the results
-                teams.forEach((team, index) => {
-                    const teamCard = document.createElement('div');
-                    teamCard.className = 'bg-gray-50 p-6 rounded-2xl shadow-md border border-gray-200';
-                    teamCard.innerHTML = `
-                        <h2 class="text-xl font-bold text-indigo-600 mb-4 border-b-2 border-indigo-200 pb-2">Team ${index + 1}</h2>
-                        <ul class="space-y-2">
-                            ${team.map(member => `<li class="text-gray-700">${member}</li>`).join('')}
-                        </ul>
-                    `;
-                    resultsContainer.appendChild(teamCard);
-                });
-                
-                resultsContainer.style.display = 'grid';
-            }
+        function copyToClipboard() {
+            let text = "";
+            const cards = teamsGrid.querySelectorAll('.glass-panel');
+            cards.forEach(card => {
+                const name = card.querySelector('h3 span').innerText;
+                const members = Array.from(card.querySelectorAll('li')).map(li => li.innerText).join(', ');
+                text += `${name}: ${members}\n`;
+            });
+            
+            navigator.clipboard.writeText(text).then(() => {
+                const originalText = copyBtn.innerHTML;
+                copyBtn.innerHTML = `<i data-lucide="check" class="w-4 h-4 text-green"></i> Copied!`;
+                initIcons();
+                setTimeout(() => {
+                    copyBtn.innerHTML = originalText;
+                    initIcons();
+                }, 2000);
+            });
+        }
 
-            function shuffleArray(array) {
-                for (let i = array.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [array[i], array[j]] = [array[j], array[i]];
-                }
-            }
+        // --- EVENT LISTENERS ---
 
-            function showError(message) {
-                errorMessage.textContent = message;
-                errorMessage.style.display = 'block';
-            }
+        nameInput.addEventListener('input', updatePlayerCount);
+        
+        teamSlider.addEventListener('input', (e) => {
+            teamCountDisplay.innerText = e.target.value;
         });
+
+        generateBtn.addEventListener('click', generateTeams);
+
+        copyBtn.addEventListener('click', copyToClipboard);
+
+        resetBtn.addEventListener('click', () => {
+            nameInput.value = '';
+            teamsGrid.innerHTML = `
+                <div class="col-span-full py-20 text-center opacity-50">
+                    <div class="text-6xl mb-4 grayscale">🎲</div>
+                    <p class="text-gray-400">Add names and click Generate to start.</p>
+                </div>
+            `;
+            resultsToolbar.classList.add('opacity-0');
+            updatePlayerCount();
+        });
+
+        document.getElementById('sound-toggle').addEventListener('click', (e) => {
+            audioEnabled = !audioEnabled;
+            const icon = audioEnabled ? 'volume-2' : 'volume-x';
+            e.currentTarget.innerHTML = `<i data-lucide="${icon}" class="w-5 h-5"></i>`;
+            initIcons();
+        });
+
+        // Init
+        initIcons();
+        updatePlayerCount(); // In case browser remembers input
+
     </script>
 </body>
 </html>
