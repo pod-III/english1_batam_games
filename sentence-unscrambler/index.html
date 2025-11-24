@@ -3,169 +3,289 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multi-Round Sentence Unscrambler</title>
-    <!-- Tailwind CSS CDN -->
+    <title>Sentence Builder: English 1 Edition</title>
+    
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Inter and Montserrat Fonts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        pink: '#FF6B95',
+                        orange: '#FF8C42',
+                        green: '#00E676',
+                        blue: '#2979FF',
+                        dark: '#0f172a',
+                        panel: '#1e293b',
+                        surface: '#334155'
+                    },
+                    fontFamily: {
+                        heading: ['Bebas Neue', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    animation: {
+                        'pop': 'pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                        'shake': 'shake 0.4s cubic-bezier(.36,.07,.19,.97) both',
+                    },
+                    keyframes: {
+                        pop: {
+                            '0%': { transform: 'scale(0.8)', opacity: '0' },
+                            '100%': { transform: 'scale(1)', opacity: '1' },
+                        },
+                        shake: {
+                            '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
+                            '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
+                            '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
+                            '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Montserrat:wght@700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;700&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+
     <style>
-        :root {
-            --background-color: #e2e8f0; /* slate-200 */
-            --container-bg: #ffffff;
-            --header-color: #1d4ed8; /* blue-700 */
-            --text-color: #4b5563; /* gray-600 */
-            --card-bg-start: #3b82f6; /* blue-500 */
-            --card-bg-end: #2563eb; /* blue-600 */
-            --button-primary-start: #10b981; /* emerald-500 */
-            --button-primary-end: #059669; /* emerald-600 */
-            --button-secondary-start: #6b7280; /* gray-500 */
-            --button-secondary-end: #4b5563; /* gray-600 */
-            --success-color: #16a34a; /* green-600 */
-            --error-color: #dc2626; /* red-600 */
-            --drag-over-color: #94a3b8; /* slate-400 */
+        body { 
+            font-family: 'Nunito', sans-serif;
+            background-color: #0f172a;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(0, 230, 118, 0.1) 0px, transparent 50%), 
+                radial-gradient(at 100% 100%, rgba(41, 121, 255, 0.1) 0px, transparent 50%);
+            background-attachment: fixed;
+            color: white;
+            overflow-x: hidden;
         }
 
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--background-color);
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .btn-3d {
+            transition: all 0.1s;
+            transform: translateY(0);
+            box-shadow: 0 4px 0 rgba(0,0,0,0.3);
+            border-bottom: 4px solid rgba(0,0,0,0.2);
+        }
+        .btn-3d:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 rgba(0,0,0,0.2);
+            border-bottom: 0px solid transparent;
         }
         
-        .message-box.win {
-            color: var(--success-color);
-            background: #dcfce7; /* light green */
-            border: 2px solid var(--success-color);
-            padding: 1rem;
-            border-radius: 1rem;
-            animation: pop-in 0.5s ease-out;
-            font-weight: bold;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
-        }
-        .message-box.lose {
-            color: var(--error-color);
-        }
+        /* Word Card Styles */
         .word-card {
             cursor: grab;
-            transition: all 0.2s ease-in-out;
+            touch-action: none;
             user-select: none;
-            background: linear-gradient(135deg, var(--card-bg-start), var(--card-bg-end));
-            flex-grow: 0;
-            flex-shrink: 0;
-            height: 56px;
-            /* Added transition for all properties for smooth sliding */
-            transition: transform 0.2s ease-in-out, background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out, opacity 0.2s ease-in-out;
+            transition: background-color 0.2s, transform 0.2s;
         }
-        .word-card:active {
-            cursor: grabbing;
-        }
-        .drag-placeholder {
-            border: 2px dashed #94a3b8; /* slate-400 */
-            border-radius: 1rem;
-            transition: all 0.2s ease-in-out;
-            transform: scale(0.9);
-            opacity: 0.5;
-        }
-        /* Animation for placeholder appearance */
-        .placeholder-fade-in {
-            animation: fadeInAndScale 0.2s forwards;
-        }
-        @keyframes fadeInAndScale {
-            from {
-                opacity: 0;
-                transform: scale(0.8);
-            }
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
-        }
-        .input-focus:focus {
-            outline: none;
-            border-color: var(--header-color);
-            box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.5); /* blue-700 with alpha */
-        }
-        .animate-card-bounce {
-            animation: bounce-in 0.5s ease-out;
-        }
-        @keyframes bounce-in {
-            0% { transform: scale(0); opacity: 0; }
-            50% { transform: scale(1.1); opacity: 1; }
-            100% { transform: scale(1); }
-        }
-        @keyframes pop-in {
-            0% { transform: scale(0.8); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
+        .word-card:active { cursor: grabbing; }
+        .word-card.sortable-ghost { opacity: 0.4; background: #334155; }
+        .word-card.sortable-drag { background: #2979FF; transform: scale(1.1); z-index: 50; }
+
+        /* Draggable Area */
+        #word-container {
+            min-height: 120px;
         }
     </style>
 </head>
-<body class="bg-slate-200 flex justify-center items-center min-h-screen p-4 text-gray-800">
+<body class="flex flex-col min-h-screen">
 
-    <div class="bg-white p-8 rounded-3xl shadow-2xl border border-slate-300 w-full max-w-3xl text-center transition-all duration-300">
+    <!-- Header -->
+    <header class="w-full glass-panel border-b border-white/10 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-br from-green to-blue w-10 h-10 rounded-lg flex items-center justify-center text-xl shadow-lg">
+                    🧩
+                </div>
+                <div>
+                    <h1 class="text-2xl font-heading tracking-wider text-white leading-none">SENTENCE BUILDER</h1>
+                    <div class="text-[10px] font-mono text-gray-400 tracking-widest">ENGLISH 1 BATAM</div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <button id="sound-toggle" class="p-2 rounded-full hover:bg-white/10 transition-colors text-gray-400" title="Toggle Sound">
+                    <i data-lucide="volume-2" class="w-5 h-5"></i>
+                </button>
+                <button id="setup-btn" class="btn-3d bg-blue text-white px-4 py-2 rounded-lg font-bold text-sm tracking-wide">
+                    SETUP
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow flex flex-col items-center justify-center p-4 w-full max-w-5xl mx-auto">
         
-        <h1 class="font-['Montserrat'] text-4xl font-extrabold text-blue-700 mb-2 tracking-wide">Sentence Unscrambler</h1>
-        <p class="text-gray-600 mb-8 max-w-lg mx-auto">Enter sentences separated by commas, then drag and drop the words to put them back in the correct order!</p>
-        
-        <!-- Input Section -->
-        <div id="input-section">
-            <textarea id="sentence-input" 
-                      class="w-full p-4 border-4 border-blue-300 rounded-2xl resize-y min-h-[100px] text-lg transition-colors duration-200 input-focus mb-6 font-semibold"
-                      placeholder="Type multiple sentences separated by commas here..."></textarea>
+        <!-- Game Area (Initially Hidden) -->
+        <div id="game-area" class="w-full hidden flex-col items-center animate-pop">
             
-            <button id="scramble-btn" 
-                    class="w-full md:w-auto bg-gradient-to-br from-indigo-500 to-indigo-700 text-white font-bold py-4 px-12 rounded-2xl shadow-xl transition-all duration-300 uppercase tracking-wider text-lg hover:shadow-2xl hover:-translate-y-1">
-                Start Game
+            <!-- Progress Bar -->
+            <div class="w-full max-w-3xl mb-8 flex items-center justify-between text-gray-400 font-mono text-sm">
+                <span>Sentence <span id="current-round" class="text-white font-bold">1</span> of <span id="total-rounds">5</span></span>
+                <div class="w-32 h-2 bg-surface rounded-full overflow-hidden">
+                    <div id="progress-bar" class="h-full bg-green w-0 transition-all duration-500"></div>
+                </div>
+            </div>
+
+            <!-- The Drop Zone / Word Container -->
+            <div class="w-full max-w-4xl bg-surface/30 border-2 border-dashed border-white/10 rounded-3xl p-6 md:p-10 mb-8 relative">
+                <p class="absolute -top-3 left-6 bg-dark px-2 text-xs font-bold text-blue uppercase tracking-widest">Drag words to order</p>
+                
+                <div id="word-container" class="flex flex-wrap gap-3 justify-center items-center min-h-[100px]">
+                    <!-- Draggable words injected here -->
+                </div>
+            </div>
+
+            <!-- Feedback Message -->
+            <div id="feedback-msg" class="h-12 mb-4 flex items-center justify-center text-xl font-bold font-heading tracking-wide"></div>
+
+            <!-- Controls -->
+            <div class="flex gap-4">
+                <button id="check-btn" class="btn-3d bg-gradient-to-r from-green to-emerald-600 text-white px-10 py-4 rounded-xl font-bold text-xl shadow-lg flex items-center gap-3">
+                    <i data-lucide="check-circle" class="w-6 h-6"></i> CHECK ANSWER
+                </button>
+                <button id="next-btn" class="hidden btn-3d bg-surface border border-white/10 text-white px-8 py-4 rounded-xl font-bold text-xl shadow-lg flex items-center gap-3 hover:bg-white/10">
+                    NEXT <i data-lucide="arrow-right" class="w-6 h-6"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Empty State / Start Prompt -->
+        <div id="empty-state" class="text-center py-20 animate-pop">
+            <div class="text-6xl mb-4 grayscale opacity-50">📝</div>
+            <h2 class="text-3xl font-heading text-white mb-2">No Sentences Loaded</h2>
+            <p class="text-gray-400 mb-8">Teachers, click SETUP to create your lesson.</p>
+            <button onclick="document.getElementById('setup-btn').click()" class="btn-3d bg-gradient-to-r from-pink to-orange text-white px-8 py-4 rounded-xl font-bold text-xl shadow-lg">
+                CREATE LESSON
             </button>
         </div>
 
-        <!-- Game Section -->
-        <div id="game-section" class="hidden flex flex-col gap-8">
-            <div id="round-info" class="text-xl font-bold text-gray-700"></div>
+    </main>
 
-            <!-- Word Cards Container -->
-            <div id="word-cards-container" class="flex flex-wrap justify-center items-center gap-4 my-8"></div>
+    <!-- SETUP MODAL -->
+    <div id="setup-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-pop">
+        <div class="glass-panel w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             
-            <!-- Message Box -->
-            <div id="message-box" class="min-h-[2.5rem] text-2xl font-bold"></div>
-            
-            <!-- Action Buttons -->
-            <div class="flex flex-col md:flex-row justify-center gap-4 mt-4">
-                <button id="check-btn" 
-                        class="btn bg-gradient-to-br from-green-500 to-green-700 text-white font-bold py-4 px-8 rounded-2xl shadow-lg transition-all duration-300 uppercase tracking-wider text-lg hover:shadow-xl hover:-translate-y-1">
-                    Check Answer
+            <div class="p-6 border-b border-white/10 flex justify-between items-center bg-black/20">
+                <h2 class="text-2xl font-heading text-white tracking-wide">LESSON SETUP</h2>
+                <button id="close-setup" class="text-gray-400 hover:text-white transition">
+                    <i data-lucide="x" class="w-6 h-6"></i>
                 </button>
-                <button id="next-btn"
-                        class="btn bg-gradient-to-br from-blue-500 to-blue-700 text-white font-bold py-4 px-8 rounded-2xl shadow-lg transition-all duration-300 uppercase tracking-wider text-lg hover:shadow-xl hover:-translate-y-1 hidden">
-                    Next Sentence
-                </button>
-                <button id="reset-btn" 
-                        class="btn bg-gradient-to-br from-slate-400 to-slate-600 text-white font-bold py-4 px-8 rounded-2xl shadow-lg transition-all duration-300 uppercase tracking-wider text-lg hover:shadow-xl hover:-translate-y-1">
-                    Restart Game
+            </div>
+
+            <div class="p-6 overflow-y-auto space-y-6">
+                <!-- Presets -->
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-blue uppercase tracking-widest">Quick Presets</label>
+                    <div class="flex flex-wrap gap-2">
+                        <button class="preset-btn px-3 py-1 bg-surface hover:bg-blue/20 border border-white/10 rounded-full text-xs transition" 
+                            data-text="The cat sat on the mat.; I like to eat apples.; The sun is very hot.">Simple (K-2)</button>
+                        <button class="preset-btn px-3 py-1 bg-surface hover:bg-blue/20 border border-white/10 rounded-full text-xs transition" 
+                            data-text="She is reading a book.; They are playing soccer.; We went to the park.">Present Continuous</button>
+                        <button class="preset-btn px-3 py-1 bg-surface hover:bg-blue/20 border border-white/10 rounded-full text-xs transition" 
+                            data-text="What time is it?; Where are you going?; How do you do?">Questions</button>
+                    </div>
+                </div>
+
+                <!-- Input -->
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-orange uppercase tracking-widest">Sentences (One per line or semicolon ; separated)</label>
+                    <textarea id="sentence-input" 
+                        class="w-full h-48 bg-dark border border-white/10 rounded-xl p-4 text-white focus:border-blue focus:ring-1 focus:ring-blue outline-none resize-none font-mono text-sm shadow-inner leading-relaxed"
+                        placeholder="e.g.&#10;The quick brown fox jumps.&#10;She sells sea shells.&#10;How are you today?"></textarea>
+                </div>
+            </div>
+
+            <div class="p-6 border-t border-white/10 bg-black/20">
+                <button id="start-game-btn" class="w-full btn-3d bg-green text-dark px-8 py-3 rounded-xl font-bold text-lg shadow-lg">
+                    START ACTIVITY
                 </button>
             </div>
         </div>
     </div>
 
-    <script>
-        // Get references to DOM elements
-        const sentenceInput = document.getElementById('sentence-input');
-        const scrambleBtn = document.getElementById('scramble-btn');
-        const inputSection = document.getElementById('input-section');
+    <!-- WIN MODAL -->
+    <div id="win-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div class="glass-panel w-full max-w-md rounded-2xl shadow-2xl p-8 text-center animate-pop relative overflow-hidden">
+            <div class="relative z-10">
+                <div class="text-6xl mb-4 animate-bounce">🏆</div>
+                <h2 class="text-4xl font-heading text-transparent bg-clip-text bg-gradient-to-r from-green to-blue mb-2">LESSON COMPLETE!</h2>
+                <p class="text-gray-300 mb-6">Great job building sentences.</p>
+                <div class="flex flex-col gap-3">
+                    <button onclick="restartGame()" class="btn-3d bg-blue text-white py-3 rounded-xl font-bold">PLAY AGAIN</button>
+                    <button onclick="document.getElementById('setup-btn').click(); document.getElementById('win-modal').classList.add('hidden')" class="py-3 text-gray-400 hover:text-white font-bold text-sm">NEW SENTENCES</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-        const gameSection = document.getElementById('game-section');
-        const roundInfo = document.getElementById('round-info');
-        const wordCardsContainer = document.getElementById('word-cards-container');
-        const messageBox = document.getElementById('message-box');
+    <script>
+        // --- AUDIO ENGINE ---
+        let audioEnabled = true;
+        const AudioEngine = {
+            init: async () => { await Tone.start(); },
+            playClick: () => {
+                if(!audioEnabled) return;
+                const synth = new Tone.MembraneSynth().toDestination();
+                synth.triggerAttackRelease("C2", "32n", Tone.now(), 0.1);
+            },
+            playError: () => {
+                if(!audioEnabled) return;
+                const synth = new Tone.PluckSynth().toDestination();
+                synth.triggerAttackRelease("Eb2", "16n");
+            },
+            playSuccess: () => {
+                if(!audioEnabled) return;
+                const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+                synth.triggerAttackRelease(["C4", "E4", "G4"], "16n");
+            },
+            playWin: () => {
+                if(!audioEnabled) return;
+                const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+                const now = Tone.now();
+                synth.triggerAttackRelease(["C4", "E4", "G4", "C5"], "8n", now);
+                synth.triggerAttackRelease(["G4", "B4", "D5", "G5"], "4n", now + 0.3);
+            }
+        };
+
+        // --- STATE ---
+        let sentences = [];
+        let currentIndex = 0;
+        let sortable = null;
+
+        // --- DOM ELEMENTS ---
+        const wordContainer = document.getElementById('word-container');
         const checkBtn = document.getElementById('check-btn');
         const nextBtn = document.getElementById('next-btn');
-        const resetBtn = document.getElementById('reset-btn');
+        const feedbackMsg = document.getElementById('feedback-msg');
+        const progressBar = document.getElementById('progress-bar');
+        const setupModal = document.getElementById('setup-modal');
+        const sentenceInput = document.getElementById('sentence-input');
 
-        // Game state
-        let sentences = [];
-        let currentRoundIndex = 0;
-        let originalWords = [];
+        // --- FUNCTIONS ---
 
-        // Utility function to shuffle an array
+        function initIcons() { lucide.createIcons(); }
+
         function shuffleArray(array) {
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -174,200 +294,152 @@
             return array;
         }
 
-        // Function to create and render draggable word cards
-        function renderWordCards(words) {
-            wordCardsContainer.innerHTML = '';
-            words.forEach((word, index) => {
-                const card = document.createElement('div');
-                card.textContent = word;
-                card.draggable = true;
-                card.dataset.index = index;
-                card.className = "word-card text-white font-bold py-4 px-8 text-xl rounded-2xl shadow-lg transition-all duration-300 transform hover:scale-105 animate-card-bounce";
-                
-                // Add drag and drop event listeners
-                card.addEventListener('dragstart', handleDragStart);
-                card.addEventListener('dragover', handleDragOver);
-                card.addEventListener('dragleave', handleDragLeave);
-                card.addEventListener('drop', handleDrop);
-                card.addEventListener('dragend', handleDragEnd);
+        function startGame() {
+            const raw = sentenceInput.value;
+            // Split by newline or semicolon
+            sentences = raw.split(/[\n;]+/).map(s => s.trim()).filter(s => s.length > 0);
 
-                wordCardsContainer.appendChild(card);
+            if (sentences.length === 0) return;
+
+            setupModal.classList.add('hidden');
+            document.getElementById('empty-state').classList.add('hidden');
+            document.getElementById('game-area').classList.remove('hidden');
+            document.getElementById('game-area').classList.add('flex');
+            
+            document.getElementById('total-rounds').innerText = sentences.length;
+            
+            currentIndex = 0;
+            loadSentence();
+        }
+
+        function loadSentence() {
+            const sentence = sentences[currentIndex];
+            // Split into words
+            const words = sentence.split(/\s+/);
+            
+            const shuffled = shuffleArray([...words]);
+
+            // Clear container
+            wordContainer.innerHTML = '';
+            feedbackMsg.innerText = '';
+            feedbackMsg.className = 'h-12 mb-4 flex items-center justify-center text-xl font-bold font-heading tracking-wide';
+            
+            checkBtn.classList.remove('hidden');
+            nextBtn.classList.add('hidden');
+            
+            // Render Words
+            shuffled.forEach(word => {
+                const div = document.createElement('div');
+                div.className = 'word-card bg-panel border border-white/10 px-6 py-3 rounded-xl font-bold text-xl md:text-2xl shadow-md text-white hover:bg-surface transition-colors';
+                div.innerText = word;
+                wordContainer.appendChild(div);
+            });
+
+            // Update Progress
+            document.getElementById('current-round').innerText = currentIndex + 1;
+            const pct = ((currentIndex) / sentences.length) * 100;
+            progressBar.style.width = `${pct}%`;
+
+            // Init Sortable
+            if(sortable) sortable.destroy();
+            sortable = new Sortable(wordContainer, {
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                dragClass: 'sortable-drag',
+                onStart: () => AudioEngine.playClick()
             });
         }
 
-        // Drag and drop variables
-        let draggedItem = null;
-        let placeholder = document.createElement('div');
-        placeholder.className = 'drag-placeholder'; 
-        
-        // Drag and drop event handlers
-        function handleDragStart(e) {
-            draggedItem = this;
-            setTimeout(() => this.classList.add('opacity-50'), 0);
-            e.dataTransfer.effectAllowed = 'move';
-
-            placeholder.style.width = `${draggedItem.offsetWidth}px`;
-            placeholder.style.height = `${draggedItem.offsetHeight}px`;
-            placeholder.classList.add('placeholder-fade-in');
-        }
-
-        function handleDragOver(e) {
-            e.preventDefault();
-            const target = e.target.closest('.word-card');
-            if (target && target !== draggedItem) {
-                const rect = target.getBoundingClientRect();
-                const container = wordCardsContainer;
-                const x = e.clientX - rect.left;
-                const isLeftHalf = x < rect.width / 2;
-
-                if (!placeholder.parentElement) {
-                    container.appendChild(placeholder);
-                }
-
-                if (isLeftHalf) {
-                    container.insertBefore(placeholder, target);
-                } else {
-                    container.insertBefore(placeholder, target.nextSibling);
-                }
-            } else if (!target && e.target === wordCardsContainer) {
-                if (!placeholder.parentElement) {
-                    wordCardsContainer.appendChild(placeholder);
-                }
-            }
-        }
-
-        function handleDragLeave(e) {
-            // Placeholder is managed by dragover
-        }
-
-        function handleDrop(e) {
-            e.preventDefault();
-        }
-
-        function handleDragEnd(e) {
-            e.preventDefault();
-            this.classList.remove('opacity-50');
-            
-            if (placeholder.parentElement) {
-                wordCardsContainer.insertBefore(draggedItem, placeholder);
-                placeholder.remove();
-            }
-
-            const allCards = document.querySelectorAll('.word-card');
-            allCards.forEach(card => card.classList.remove('drag-over'));
-            
-            draggedItem = null;
-        }
-
-        // Function to start a new round
-        function startRound() {
-            // Check if there are more sentences
-            if (currentRoundIndex >= sentences.length) {
-                messageBox.innerHTML = `🌟 **Congratulations!** You've completed all the sentences! 🎉`;
-                messageBox.className = 'message-box win text-green-600 mt-4';
-                checkBtn.classList.add('hidden');
-                nextBtn.classList.add('hidden');
-                return;
-            }
-
-            const currentSentence = sentences[currentRoundIndex];
-            
-            originalWords = currentSentence.split(/\s+/);
-            const shuffledWords = shuffleArray([...originalWords]);
-
-            // Update UI for the new round
-            roundInfo.textContent = `Round ${currentRoundIndex + 1} of ${sentences.length}`;
-            messageBox.textContent = '';
-            messageBox.className = ''; // Clear all classes from the message box
-            checkBtn.classList.remove('hidden');
-            checkBtn.disabled = false;
-            nextBtn.classList.add('hidden');
-
-            renderWordCards(shuffledWords);
-        }
-
-        // Main function to start the game from input
-        function startGame() {
-            const sentenceInputText = sentenceInput.value.trim();
-            if (sentenceInputText === '') {
-                messageBox.textContent = "Please enter at least one sentence to play.";
-                messageBox.className = 'message-box lose text-red-600 mt-4';
-                return;
-            }
-
-            sentences = sentenceInputText.split(',').map(s => s.trim()).filter(s => s.length > 0);
-            if (sentences.length === 0) {
-                 messageBox.textContent = "Please enter valid sentences separated by commas.";
-                 messageBox.className = 'message-box lose text-red-600 mt-4';
-                 return;
-            }
-
-            currentRoundIndex = 0;
-            inputSection.classList.add('hidden');
-            gameSection.classList.remove('hidden');
-            gameSection.classList.add('flex');
-            
-            startRound();
-        }
-
-        // Function to check the user's answer
         function checkAnswer() {
-            const currentOrder = Array.from(wordCardsContainer.children).map(card => card.textContent);
-            const currentSentence = currentOrder.join(' ');
-            
-            const currentOriginalSentence = sentences[currentRoundIndex];
+            const currentWords = Array.from(wordContainer.children).map(el => el.innerText);
+            const userSentence = currentWords.join(' ');
+            const targetSentence = sentences[currentIndex];
 
-            if (currentSentence === currentOriginalSentence) {
-                messageBox.innerHTML = `🌟 **Congratulations!** You've unscrambled the sentence correctly! 🎉`;
-                messageBox.className = 'message-box win text-green-600 mt-4';
+            // Normalize for loose checking (optional, currently strict)
+            if (userSentence === targetSentence) {
+                // Correct
+                AudioEngine.playSuccess();
+                feedbackMsg.innerHTML = `<span class="text-green flex items-center gap-2"><i data-lucide="check"></i> Correct!</span>`;
+                wordContainer.querySelectorAll('.word-card').forEach(card => {
+                    card.classList.add('bg-green', 'border-green');
+                    card.classList.remove('bg-panel');
+                });
+                
+                // Disable drag
+                sortable.option("disabled", true);
+
                 checkBtn.classList.add('hidden');
                 
-                // Show the next button if there are more sentences
-                if (currentRoundIndex < sentences.length - 1) {
+                if(currentIndex < sentences.length - 1) {
                     nextBtn.classList.remove('hidden');
                 } else {
-                    // It's the last round, show the final message
-                    messageBox.innerHTML = `🌟 **Congratulations!** You've completed all the sentences! 🎉`;
-                    messageBox.className = 'message-box win text-green-600 mt-4';
+                    setTimeout(finishGame, 1000);
                 }
+                initIcons();
             } else {
-                messageBox.textContent = "Not quite right. Keep trying!";
-                messageBox.className = 'message-box lose text-red-600 mt-4';
+                // Incorrect
+                AudioEngine.playError();
+                feedbackMsg.innerHTML = `<span class="text-pink flex items-center gap-2"><i data-lucide="x"></i> Try Again</span>`;
+                document.getElementById('game-area').classList.add('animate-shake');
+                setTimeout(() => document.getElementById('game-area').classList.remove('animate-shake'), 500);
+                initIcons();
             }
         }
 
-        // Function to move to the next round
         function nextRound() {
-            currentRoundIndex++;
-            startRound();
+            currentIndex++;
+            loadSentence();
         }
 
-        // Function to reset the game to the initial input state
-        function resetGame() {
-            sentenceInput.value = '';
-            inputSection.classList.remove('hidden');
-            gameSection.classList.add('hidden');
-            gameSection.classList.remove('flex');
-            messageBox.textContent = '';
-            messageBox.className = ''; // Clear all classes from the message box
-            wordCardsContainer.innerHTML = '';
-            checkBtn.classList.remove('hidden');
-            nextBtn.classList.add('hidden');
+        function finishGame() {
+            AudioEngine.playWin();
+            confetti({
+                particleCount: 150,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ['#FF6B95', '#FF8C42', '#00E676', '#2979FF']
+            });
+            progressBar.style.width = '100%';
+            document.getElementById('win-modal').classList.remove('hidden');
         }
 
-        // Event listeners for buttons
-        scrambleBtn.addEventListener('click', startGame);
-        checkBtn.addEventListener('click', checkAnswer);
-        nextBtn.addEventListener('click', nextRound);
-        resetBtn.addEventListener('click', resetGame);
+        function restartGame() {
+            document.getElementById('win-modal').classList.add('hidden');
+            currentIndex = 0;
+            loadSentence();
+        }
 
-        // Optional: Trigger scramble on Enter key press in the input
-        sentenceInput.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                startGame();
-            }
+        // --- EVENT LISTENERS ---
+        
+        document.getElementById('setup-btn').addEventListener('click', () => {
+            setupModal.classList.remove('hidden');
         });
+        
+        document.getElementById('close-setup').addEventListener('click', () => {
+            setupModal.classList.add('hidden');
+        });
+
+        document.getElementById('start-game-btn').addEventListener('click', startGame);
+        document.getElementById('check-btn').addEventListener('click', checkAnswer);
+        document.getElementById('next-btn').addEventListener('click', nextRound);
+
+        document.querySelectorAll('.preset-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                // Replace formatted breaks with newlines for textarea
+                sentenceInput.value = e.target.dataset.text.replace(/; /g, '\n');
+            });
+        });
+
+        document.getElementById('sound-toggle').addEventListener('click', (e) => {
+            audioEnabled = !audioEnabled;
+            const icon = audioEnabled ? 'volume-2' : 'volume-x';
+            e.currentTarget.innerHTML = `<i data-lucide="${icon}" class="w-5 h-5"></i>`;
+            initIcons();
+        });
+
+        // Initialize
+        initIcons();
+
     </script>
 </body>
 </html>
