@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classroom Scoreboard - English 1</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;700&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+    
+    <!-- Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        pink: '#FF6B95',
+                        orange: '#FF8C42',
+                        green: '#00E676',
+                        blue: '#2979FF',
+                        dark: '#0f172a',
+                        panel: '#1e293b',
+                        surface: '#334155'
+                    },
+                    fontFamily: {
+                        heading: ['Bebas Neue', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    animation: {
+                        'pop': 'pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                        'slide-down': 'slideDown 0.4s ease-out',
+                        'bounce-sm': 'bounceSmall 0.3s ease-in-out'
+                    },
+                    keyframes: {
+                        pop: {
+                            '0%': { transform: 'scale(0.8)', opacity: '0' },
+                            '100%': { transform: 'scale(1)', opacity: '1' },
+                        },
+                        slideDown: {
+                            '0%': { transform: 'translateY(-20px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' },
+                        },
+                        bounceSmall: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-5px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #0f172a;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(41, 121, 255, 0.15) 0px, transparent 50%), 
+                radial-gradient(at 100% 100%, rgba(255, 107, 149, 0.1) 0px, transparent 50%);
+            background-attachment: fixed;
+            color: #f8fafc;
+            font-family: 'Nunito', sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Glass Panel */
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        /* Score Card */
+        .score-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .score-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 6px;
+            background: var(--team-color);
+        }
+
+        .score-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.3);
+            border-color: rgba(255,255,255,0.2);
+        }
+
+        /* Big Number Text */
+        .score-text {
+            font-variant-numeric: tabular-nums;
+            text-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        /* Leader Crown Animation */
+        .leader-crown {
+            animation: bounceSmall 2s infinite ease-in-out;
+            filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.5));
+        }
+
+        /* Button Effects */
+        .btn-action {
+            transition: all 0.1s;
+        }
+        .btn-action:active {
+            transform: scale(0.95);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- HEADER -->
+    <header class="sticky top-0 z-50 glass-panel border-b border-white/10 animate-slide-down">
+        <div class="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
+            
+            <!-- Logo Area -->
+            <div class="flex items-center gap-4">
+                <div class="bg-gradient-to-br from-green to-blue w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-lg">
+                    🏆
+                </div>
+                <div class="flex flex-col">
+                    <h1 class="text-3xl font-heading tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-green to-blue">SCOREBOARD</h1>
+                    <span class="text-xs font-mono text-gray-400 tracking-widest">ENGLISH 1 BATAM</span>
+                </div>
+            </div>
+
+            <!-- Global Controls -->
+            <div class="flex items-center gap-3">
+                
+                <!-- Quick Add Input -->
+                <div class="hidden md:flex items-center bg-dark/50 border border-white/10 rounded-lg p-1 mr-4 focus-within:border-blue transition-colors">
+                    <input type="text" id="quick-add-input" placeholder="New Team Name..." 
+                        class="bg-transparent border-none outline-none text-sm px-3 py-1 w-40 text-white placeholder-gray-500 font-bold"
+                        onkeypress="if(event.key === 'Enter') addTeam()">
+                    <button onclick="addTeam()" class="bg-surface hover:bg-white/20 text-white p-1.5 rounded-md transition-colors" title="Add Team">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                    </button>
+                </div>
+
+                <div class="h-8 w-[1px] bg-white/10 mx-2 hidden md:block"></div>
+
+                <button id="sound-toggle" class="p-2.5 rounded-full hover:bg-white/10 transition-colors text-gray-400 border border-transparent hover:border-white/10" title="Toggle Sound">
+                    <i data-lucide="volume-2" class="w-5 h-5"></i>
+                </button>
+                
+                <button onclick="toggleTheme()" class="p-2.5 rounded-full hover:bg-white/10 transition-colors text-yellow-400 border border-transparent hover:border-white/10" title="Toggle Theme">
+                    <i data-lucide="sun" id="theme-icon" class="w-5 h-5"></i>
+                </button>
+
+                <button onclick="resetAll()" class="p-2.5 rounded-full hover:bg-white/10 transition-colors text-pink border border-transparent hover:border-pink/30" title="Reset All Scores">
+                    <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN BOARD -->
+    <main class="flex-grow p-4 md:p-8 overflow-y-auto">
+        
+        <!-- Empty State -->
+        <div id="empty-state" class="flex flex-col items-center justify-center h-[60vh] text-center animate-pop">
+            <div class="w-24 h-24 bg-surface/30 rounded-full flex items-center justify-center mb-6 text-4xl grayscale opacity-50">
+                📊
+            </div>
+            <h2 class="text-3xl font-heading text-white mb-2 tracking-wide">Ready to Keep Score?</h2>
+            <p class="text-gray-400 mb-8 max-w-md">Add teams or students to start tracking points. Use the input above or the button below.</p>
+            <button onclick="document.getElementById('quick-add-input').focus()" class="bg-gradient-to-r from-blue to-green text-dark font-bold px-8 py-4 rounded-xl shadow-lg hover:scale-105 transition transform flex items-center gap-2">
+                <i data-lucide="plus-circle" class="w-5 h-5"></i> CREATE FIRST TEAM
+            </button>
+        </div>
+
+        <!-- Score Grid -->
+        <div id="score-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 hidden">
+            <!-- Team Cards injected here -->
+        </div>
+
+    </main>
+    
+    <!-- FOOTER CONTROLS (Mobile Only Add) -->
+    <div class="md:hidden fixed bottom-6 right-6 z-40">
+        <button onclick="promptAddTeam()" class="bg-blue hover:bg-blue/90 text-white w-14 h-14 rounded-full shadow-xl flex items-center justify-center border border-white/20">
+            <i data-lucide="plus" class="w-8 h-8"></i>
+        </button>
+    </div>
+
+    <script>
+        // --- CONFIG ---
+        const PALETTE = [
+            { name: 'Pink', hex: '#FF6B95', bg: 'bg-pink/10', border: 'border-pink/30', text: 'text-pink' },
+            { name: 'Orange', hex: '#FF8C42', bg: 'bg-orange/10', border: 'border-orange/30', text: 'text-orange' },
+            { name: 'Green', hex: '#00E676', bg: 'bg-green/10', border: 'border-green/30', text: 'text-green' },
+            { name: 'Blue', hex: '#2979FF', bg: 'bg-blue/10', border: 'border-blue/30', text: 'text-blue' }
+        ];
+
+        let teams = []; // { id, name, score, colorIndex }
+        let soundEnabled = true;
+        let colorCycle = 0;
+
+        // --- AUDIO ENGINE ---
+        const AudioEngine = {
+            init: async () => { await Tone.start(); },
+            playPointUp: (pitch = "C5") => {
+                if(!soundEnabled) return;
+                const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+                synth.volume.value = -5;
+                synth.triggerAttackRelease([pitch], "16n");
+            },
+            playPointDown: () => {
+                if(!soundEnabled) return;
+                const synth = new Tone.MembraneSynth().toDestination();
+                synth.volume.value = -10;
+                synth.triggerAttackRelease("C2", "32n");
+            },
+            playWin: () => {
+                if(!soundEnabled) return;
+                const synth = new Tone.PolySynth().toDestination();
+                const now = Tone.now();
+                synth.triggerAttackRelease(["C4", "E4", "G4", "C5"], "8n", now);
+                synth.triggerAttackRelease(["E4", "G4", "B4", "E5"], "8n", now + 0.15);
+                synth.triggerAttackRelease(["G4", "B4", "D5", "G5"], "4n", now + 0.3);
+            }
+        };
+
+        // --- STATE MANAGEMENT ---
+
+        function addTeam(customName = null) {
+            // Init audio context on first user action
+            if (Tone.context.state !== 'running') Tone.start();
+
+            const input = document.getElementById('quick-add-input');
+            const name = customName || input.value.trim();
+            
+            if (!name) return;
+
+            // Generate Team Object
+            const newTeam = {
+                id: Date.now(),
+                name: name,
+                score: 0,
+                colorIndex: colorCycle % PALETTE.length
+            };
+
+            teams.push(newTeam);
+            
+            // Clean up UI
+            input.value = '';
+            colorCycle++;
+            saveData();
+            render();
+            
+            // Success sound
+            AudioEngine.playPointUp("G5");
+        }
+
+        function removeTeam(id) {
+            if(confirm("Delete this team?")) {
+                teams = teams.filter(t => t.id !== id);
+                saveData();
+                render();
+            }
+        }
+
+        function updateScore(id, delta) {
+            const team = teams.find(t => t.id === id);
+            if (!team) return;
+
+            team.score += delta;
+            
+            // Sound feedback
+            if (delta > 0) AudioEngine.playPointUp(delta > 1 ? "E5" : "C5");
+            else AudioEngine.playPointDown();
+
+            // Visual update
+            const scoreEl = document.getElementById(`score-${id}`);
+            if (scoreEl) {
+                // Animate change
+                scoreEl.style.transform = "scale(1.2)";
+                scoreEl.classList.remove('text-white');
+                scoreEl.classList.add(delta > 0 ? 'text-green' : 'text-pink');
+                
+                setTimeout(() => {
+                    scoreEl.style.transform = "scale(1)";
+                    scoreEl.classList.remove('text-green', 'text-pink');
+                    scoreEl.classList.add('text-white');
+                }, 200);
+                
+                scoreEl.innerText = team.score;
+            }
+
+            saveData();
+            checkLeader();
+        }
+
+        function promptAddTeam() {
+            const name = prompt("Enter Team Name:");
+            if(name) addTeam(name);
+        }
+
+        function resetAll() {
+            if(confirm("Reset all scores to 0?")) {
+                teams.forEach(t => t.score = 0);
+                saveData();
+                render();
+                AudioEngine.playPointDown();
+            }
+        }
+
+        // --- RENDERING ---
+
+        function checkLeader() {
+            // Find highest score
+            if (teams.length < 2) return;
+            const maxScore = Math.max(...teams.map(t => t.score));
+            
+            teams.forEach(t => {
+                const crown = document.getElementById(`crown-${t.id}`);
+                const card = document.getElementById(`card-${t.id}`);
+                
+                if (t.score === maxScore && t.score > 0) {
+                    crown.classList.remove('hidden');
+                    card.classList.add('ring-2', 'ring-yellow-400', 'ring-offset-2', 'ring-offset-dark');
+                } else {
+                    crown.classList.add('hidden');
+                    card.classList.remove('ring-2', 'ring-yellow-400', 'ring-offset-2', 'ring-offset-dark');
+                }
+            });
+        }
+
+        function celebrate(id) {
+            const team = teams.find(t => t.id === id);
+            if(!team) return;
+
+            AudioEngine.playWin();
+            
+            // Trigger confetti from the card's position if possible, otherwise center
+            const card = document.getElementById(`card-${id}`);
+            const rect = card.getBoundingClientRect();
+            
+            // Normalize coordinates for canvas-confetti (0 to 1)
+            const x = (rect.left + rect.width / 2) / window.innerWidth;
+            const y = (rect.top + rect.height / 2) / window.innerHeight;
+
+            confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { x, y },
+                colors: [PALETTE[team.colorIndex].hex, '#ffffff']
+            });
+        }
+
+        function render() {
+            const grid = document.getElementById('score-grid');
+            const empty = document.getElementById('empty-state');
+
+            if (teams.length === 0) {
+                grid.classList.add('hidden');
+                empty.classList.remove('hidden');
+                return;
+            }
+
+            grid.classList.remove('hidden');
+            empty.classList.add('hidden');
+            grid.innerHTML = '';
+
+            teams.forEach(team => {
+                const color = PALETTE[team.colorIndex];
+                
+                const card = document.createElement('div');
+                card.id = `card-${team.id}`;
+                card.className = `score-card glass-panel rounded-2xl p-6 flex flex-col items-center justify-between min-h-[300px] animate-pop`;
+                card.style.setProperty('--team-color', color.hex);
+
+                card.innerHTML = `
+                    <!-- Header -->
+                    <div class="w-full flex justify-between items-start mb-4">
+                        <div class="flex-1">
+                            <h2 class="text-2xl font-bold font-heading tracking-wider truncate text-white">${team.name}</h2>
+                            <div class="h-1 w-12 rounded-full mt-1" style="background-color: ${color.hex}"></div>
+                        </div>
+                        <div class="flex gap-2">
+                             <button onclick="celebrate(${team.id})" class="text-gray-500 hover:text-yellow-400 transition-colors" title="Celebrate">
+                                <i data-lucide="party-popper" class="w-5 h-5"></i>
+                            </button>
+                            <button onclick="removeTeam(${team.id})" class="text-gray-500 hover:text-pink transition-colors" title="Remove Team">
+                                <i data-lucide="trash-2" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Score Display -->
+                    <div class="flex-1 flex flex-col items-center justify-center relative w-full my-4">
+                        <!-- Crown Icon -->
+                        <div id="crown-${team.id}" class="leader-crown hidden absolute -top-8 text-4xl">👑</div>
+                        
+                        <div id="score-${team.id}" class="score-text text-[8rem] font-bold text-white leading-none transition-transform duration-200 select-none">
+                            ${team.score}
+                        </div>
+                    </div>
+
+                    <!-- Controls -->
+                    <div class="w-full grid grid-cols-4 gap-2 mt-auto">
+                        <button onclick="updateScore(${team.id}, -1)" class="btn-action col-span-1 bg-surface hover:bg-white/10 text-white rounded-lg py-3 flex items-center justify-center font-mono font-bold border border-white/5">
+                            -1
+                        </button>
+                        <button onclick="updateScore(${team.id}, 1)" class="btn-action col-span-2 bg-gradient-to-r from-blue to-green hover:brightness-110 text-dark rounded-lg py-3 flex items-center justify-center font-mono font-bold text-xl shadow-lg">
+                            +1
+                        </button>
+                        <button onclick="updateScore(${team.id}, 5)" class="btn-action col-span-1 bg-surface hover:bg-white/10 text-white rounded-lg py-3 flex items-center justify-center font-mono font-bold border border-white/5">
+                            +5
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+
+            checkLeader();
+            lucide.createIcons();
+        }
+
+        // --- LOCAL STORAGE ---
+        function saveData() {
+            localStorage.setItem('english1_scoreboard_teams', JSON.stringify(teams));
+        }
+
+        function loadData() {
+            const data = localStorage.getItem('english1_scoreboard_teams');
+            if (data) {
+                teams = JSON.parse(data);
+                // Ensure color index exists for legacy data support
+                teams.forEach((t, i) => { if(t.colorIndex === undefined) t.colorIndex = i % 4; });
+                // Reset cycle counter
+                colorCycle = teams.length;
+                render();
+            }
+        }
+
+        // --- UI UTILS ---
+        function toggleTheme() {
+            const html = document.documentElement;
+            const isDark = html.classList.toggle('dark');
+            const icon = document.getElementById('theme-icon');
+            
+            if (isDark) {
+                icon.setAttribute('data-lucide', 'sun');
+                icon.classList.add('text-yellow-400');
+            } else {
+                icon.setAttribute('data-lucide', 'moon');
+                icon.classList.remove('text-yellow-400');
+                icon.classList.add('text-gray-600');
+            }
+            lucide.createIcons();
+        }
+
+        document.getElementById('sound-toggle').addEventListener('click', (e) => {
+            soundEnabled = !soundEnabled;
+            const icon = soundEnabled ? 'volume-2' : 'volume-x';
+            e.currentTarget.innerHTML = `<i data-lucide="${icon}" class="w-5 h-5"></i>`;
+            lucide.createIcons();
+        });
+
+        // Init
+        window.onload = () => {
+            loadData();
+            lucide.createIcons();
+        };
+
+    </script>
+</body>
+</html>
