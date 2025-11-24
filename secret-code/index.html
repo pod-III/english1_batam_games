@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secret Agent Decoder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&family=VT323&display=swap');
+
+        :root {
+            --theme-pink: #FF69B4;
+            --theme-orange: #FF8C00;
+            --theme-green: #32CD32;
+            --theme-blue: #1E90FF;
+        }
+
+        body {
+            font-family: 'Noto Sans', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        .font-mono-spy {
+            font-family: 'VT323', monospace;
+        }
+
+        /* Scanline effect for the console */
+        .scanlines {
+            background: linear-gradient(
+                to bottom,
+                rgba(255,255,255,0),
+                rgba(255,255,255,0) 50%,
+                rgba(0,0,0,0.1) 50%,
+                rgba(0,0,0,0.1)
+            );
+            background-size: 100% 4px;
+            pointer-events: none;
+        }
+
+        .btn-game {
+            transition: all 0.1s;
+        }
+        .btn-game:active {
+            transform: translateY(2px);
+            box-shadow: none;
+        }
+
+        .reveal-btn {
+            box-shadow: 0 4px 0 rgb(180, 20, 60);
+        }
+        .reveal-btn:active {
+            box-shadow: none;
+            transform: translateY(4px);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4 bg-gray-100">
+
+    <!-- Game Container -->
+    <div class="w-full max-w-3xl bg-white rounded-xl shadow-2xl overflow-hidden border-4 border-gray-800 relative flex flex-col">
+        
+        <!-- Header -->
+        <header class="bg-gray-900 text-white p-4 flex justify-between items-center border-b-4 border-gray-800">
+            <div class="flex items-center gap-3">
+                <div class="bg-[var(--theme-orange)] text-black p-2 rounded-full">
+                    <i class="fas fa-user-secret text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold uppercase tracking-widest font-mono-spy">Cipher Terminal</h1>
+                    <p class="text-xs text-gray-400">CLEARANCE: TOP SECRET</p>
+                </div>
+            </div>
+            <div class="text-right">
+                <div class="text-[var(--theme-green)] font-mono-spy text-2xl">SCORE: <span id="scoreDisplay">0</span></div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="p-6 space-y-6 flex-grow">
+
+            <!-- Instructions Panel (Replaced Decoder) -->
+            <div class="bg-gray-800 text-gray-300 p-4 rounded-lg border-2 border-gray-600 shadow-inner flex justify-between items-center">
+                <div>
+                    <h3 class="font-bold text-[var(--theme-orange)] uppercase text-sm tracking-wider mb-1">
+                        <i class="fas fa-key"></i> Decryption Key
+                    </h3>
+                    <p class="text-xs font-mono">CAESAR CIPHER ROT1</p>
+                </div>
+                
+                <!-- Visual Guide -->
+                <div class="flex gap-2 md:gap-4 text-center font-mono-spy text-xl md:text-2xl">
+                    <div class="bg-gray-900 p-2 rounded border border-gray-600">
+                        <span class="text-[var(--theme-pink)]">A</span> &rarr; <span class="text-[var(--theme-blue)]">B</span>
+                    </div>
+                    <div class="bg-gray-900 p-2 rounded border border-gray-600">
+                        <span class="text-[var(--theme-pink)]">B</span> &rarr; <span class="text-[var(--theme-blue)]">C</span>
+                    </div>
+                    <div class="bg-gray-900 p-2 rounded border border-gray-600 hidden sm:block">
+                        <span class="text-[var(--theme-pink)]">C</span> &rarr; <span class="text-[var(--theme-blue)]">D</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Terminal / Message Area -->
+            <div class="bg-black p-6 rounded-lg border-4 border-gray-700 shadow-lg relative overflow-hidden min-h-[350px] flex flex-col justify-center items-center">
+                <div class="scanlines absolute inset-0 z-10"></div>
+                
+                <!-- Status Line -->
+                <div class="w-full flex justify-between mb-8 font-mono-spy text-lg border-b border-gray-800 pb-2 relative z-20">
+                    <span id="missionStatus" class="text-[var(--theme-pink)] animate-pulse">AWAITING INPUT...</span>
+                    <span class="text-gray-500">FREQ: 98.4MHz</span>
+                </div>
+
+                <!-- Main Display -->
+                <div class="text-center mb-10 relative z-20 w-full">
+                    <div id="mainDisplay" class="font-mono-spy text-5xl md:text-7xl text-gray-500 tracking-widest drop-shadow-[0_0_10px_rgba(255,140,0,0.6)] break-words leading-tight transition-colors duration-300">
+                        AWAITING DATA
+                    </div>
+                    <div class="text-gray-600 text-sm mt-4 font-mono" id="hintText">SYSTEM READY</div>
+                </div>
+
+                <!-- ACTION AREA: Swaps between Input (Admin) and Button (Game) -->
+                <div id="actionArea" class="w-full max-w-md relative z-20 flex flex-col gap-4">
+                    
+                    <!-- ADMIN INPUT (Visible initially) -->
+                    <div id="adminInputGroup" class="flex flex-col gap-2">
+                        <label class="text-[var(--theme-green)] font-mono-spy text-xl">> ENTER_PHRASES:</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="adminInput" autocomplete="off" 
+                                class="flex-1 bg-gray-900 border-b-2 border-[var(--theme-green)] text-[var(--theme-green)] font-mono-spy text-2xl p-2 focus:outline-none uppercase placeholder-gray-700"
+                                placeholder="WORD1, WORD2..." autofocus>
+                            <button id="adminSubmitBtn" class="btn-game bg-[var(--theme-blue)] hover:bg-blue-600 text-white font-bold font-mono-spy text-xl py-2 px-6 rounded">
+                                LOAD
+                            </button>
+                        </div>
+                        <p class="text-xs text-gray-500 font-mono text-center mt-2">SEPARATE WORDS WITH COMMAS</p>
+                    </div>
+
+                    <!-- GAME BUTTON (Hidden initially) -->
+                    <button id="revealBtn" class="hidden w-full bg-[var(--theme-pink)] hover:bg-pink-600 text-white font-bold font-mono-spy text-3xl py-4 rounded-lg reveal-btn uppercase tracking-wider">
+                        <i class="fas fa-search mr-2"></i> REVEAL MESSAGE
+                    </button>
+                    
+                     <!-- NEXT BUTTON (Hidden initially) -->
+                     <button id="nextBtn" class="hidden w-full bg-[var(--theme-green)] hover:bg-green-600 text-white font-bold font-mono-spy text-3xl py-4 rounded-lg reveal-btn uppercase tracking-wider">
+                        <i class="fas fa-forward mr-2"></i> NEXT MISSION
+                    </button>
+
+                </div>
+
+            </div>
+
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-gray-100 p-4 border-t border-gray-300 flex justify-between items-center">
+            <button onclick="resetGame()" class="text-gray-500 hover:text-black text-sm font-bold font-mono-spy border border-gray-400 px-3 py-1 rounded">
+                <i class="fas fa-redo"></i> RESET SYSTEM
+            </button>
+            <div class="text-gray-400 text-xs font-mono">
+                SECURE CONNECTION ESTABLISHED v3.0
+            </div>
+        </footer>
+    </div>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // --- GAME STATE ---
+        let missionQueue = []; 
+        let currentPhrase = "";
+        let score = 0;
+        let isRevealed = false;
+
+        // --- DOM ELEMENTS ---
+        const mainDisplayEl = document.getElementById('mainDisplay');
+        const missionStatusEl = document.getElementById('missionStatus');
+        const hintTextEl = document.getElementById('hintText');
+        const scoreEl = document.getElementById('scoreDisplay');
+        
+        // Input Groups
+        const adminInputGroup = document.getElementById('adminInputGroup');
+        const adminInput = document.getElementById('adminInput');
+        const adminSubmitBtn = document.getElementById('adminSubmitBtn');
+        
+        // Action Buttons
+        const revealBtn = document.getElementById('revealBtn');
+        const nextBtn = document.getElementById('nextBtn');
+
+        // --- INITIALIZATION ---
+        window.onload = () => {
+            resetGame();
+        };
+
+        // --- LOGIC ---
+
+        function encrypt(text, shift = 1) {
+            return text.toUpperCase().replace(/[A-Z]/g, char => {
+                const code = char.charCodeAt(0);
+                return String.fromCharCode(((code - 65 + shift) % 26) + 65);
+            });
+        }
+
+        // ADMIN: Load words
+        function handleAdminInput() {
+            const val = adminInput.value.toUpperCase().trim();
+            if (!val) {
+                shakeInput();
+                return;
+            }
+
+            const inputs = val.split(',').map(s => s.trim()).filter(s => s.length > 0);
+            
+            if (inputs.length > 0) {
+                missionQueue = inputs;
+                // Switch UI to Game Mode
+                adminInputGroup.classList.add('hidden');
+                loadNextMission();
+            } else {
+                shakeInput();
+            }
+        }
+
+        function loadNextMission() {
+            isRevealed = false;
+            
+            if (missionQueue.length > 0) {
+                currentPhrase = missionQueue.shift();
+                const encrypted = encrypt(currentPhrase, 1);
+                
+                // UI Updates
+                missionStatusEl.textContent = `ENCRYPTED TRANSMISSION (${missionQueue.length + 1} REMAINING)`;
+                missionStatusEl.className = "text-[var(--theme-orange)] animate-pulse";
+                
+                hintTextEl.textContent = "IDENTITY CONCEALED";
+                
+                // Show Encrypted
+                animateText(encrypted, "text-[var(--theme-orange)]");
+                
+                // Button States
+                revealBtn.classList.remove('hidden');
+                nextBtn.classList.add('hidden');
+                
+            } else {
+                finishGame();
+            }
+        }
+
+        function revealAnswer() {
+            if (isRevealed) return;
+            isRevealed = true;
+
+            // Play Success Effect
+            missionStatusEl.textContent = "DECRYPTION SUCCESSFUL";
+            missionStatusEl.className = "text-[var(--theme-green)]";
+            
+            hintTextEl.textContent = "IDENTITY VERIFIED";
+
+            // Show Plain Text
+            mainDisplayEl.textContent = currentPhrase;
+            mainDisplayEl.classList.remove("text-[var(--theme-orange)]");
+            mainDisplayEl.classList.add("text-[var(--theme-green)]");
+
+            // Update Score
+            score += 100;
+            scoreEl.textContent = score;
+
+            // Switch Buttons
+            revealBtn.classList.add('hidden');
+            nextBtn.classList.remove('hidden');
+            
+            // Focus next button for easy keyboard nav
+            nextBtn.focus();
+        }
+
+        function finishGame() {
+            mainDisplayEl.textContent = "ALL MISSIONS COMPLETE";
+            mainDisplayEl.className = "font-mono-spy text-4xl text-[var(--theme-blue)]";
+            
+            missionStatusEl.textContent = "SYSTEM STANDBY";
+            missionStatusEl.className = "text-gray-500";
+            hintTextEl.textContent = "";
+
+            revealBtn.classList.add('hidden');
+            nextBtn.classList.add('hidden');
+            
+            // Re-show admin input after delay or create a "New Game" button?
+            // For now, just stay there until Reset is clicked.
+        }
+
+        function resetGame() {
+            score = 0;
+            scoreEl.textContent = "0";
+            missionQueue = [];
+            
+            // Show Admin Input
+            adminInputGroup.classList.remove('hidden');
+            revealBtn.classList.add('hidden');
+            nextBtn.classList.add('hidden');
+            
+            // Reset Text
+            mainDisplayEl.textContent = "AWAITING DATA";
+            mainDisplayEl.className = "font-mono-spy text-5xl md:text-7xl text-gray-500 tracking-widest";
+            missionStatusEl.textContent = "ADMIN MODE";
+            missionStatusEl.className = "text-[var(--theme-green)]";
+            hintTextEl.textContent = "ENTER WORDS TO BEGIN";
+            
+            adminInput.value = "";
+            adminInput.focus();
+        }
+
+        // --- EFFECTS ---
+
+        function animateText(finalText, colorClass) {
+            let iterations = 0;
+            const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            
+            // Reset classes
+            mainDisplayEl.className = `font-mono-spy text-5xl md:text-7xl ${colorClass} tracking-widest drop-shadow-[0_0_10px_rgba(255,140,0,0.6)] break-words leading-tight`;
+
+            const interval = setInterval(() => {
+                mainDisplayEl.innerText = finalText
+                .split("")
+                .map((letter, index) => {
+                    if(letter === " ") return " ";
+                    if(index < iterations) return finalText[index];
+                    return letters[Math.floor(Math.random() * 26)]
+                })
+                .join("");
+                
+                if(iterations >= finalText.length) clearInterval(interval);
+                iterations += 1 / 3;
+            }, 30);
+        }
+
+        function shakeInput() {
+            adminInput.classList.add('border-[var(--theme-pink)]');
+            setTimeout(() => adminInput.classList.remove('border-[var(--theme-pink)]'), 500);
+        }
+
+        // --- EVENT LISTENERS ---
+        adminSubmitBtn.addEventListener('click', handleAdminInput);
+        adminInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleAdminInput();
+        });
+        
+        revealBtn.addEventListener('click', revealAnswer);
+        nextBtn.addEventListener('click', loadNextMission);
+
+    </script>
+</body>
+</html>
