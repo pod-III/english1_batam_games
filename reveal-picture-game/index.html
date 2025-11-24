@@ -3,931 +3,501 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Picture Reveal Game - Local Storage</title>
+    <title>Mystery Picture: Classroom Edition</title>
+    
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        pink: '#FF6B95',
+                        orange: '#FF8C42',
+                        green: '#00E676',
+                        blue: '#2979FF',
+                        dark: '#0f172a',
+                        panel: '#1e293b',
+                        surface: '#334155'
+                    },
+                    fontFamily: {
+                        heading: ['Bebas Neue', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    animation: {
+                        'pop': 'pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                    },
+                    keyframes: {
+                        pop: {
+                            '0%': { transform: 'scale(0.8)', opacity: '0' },
+                            '100%': { transform: 'scale(1)', opacity: '1' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;700&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+
     <style>
-        :root {
-            --bg-color-dark: #0f172a;
-            --bg-color-light: #1e293b;
-            --accent-color: #38bdf8;
-            --accent-glow: #06b6d4;
-            --text-color: #f1f5f9;
-            --secondary-text-color: #cbd5e1;
-            --border-color: #475569;
-            --panel-bg: rgba(30, 41, 59, 0.9);
-            --panel-border: rgba(56, 189, 248, 0.1);
-        }
-
-        * {
-            box-sizing: border-box;
-            font-family: 'Poppins', sans-serif;
-        }
-        
-        body {
-            background: linear-gradient(135deg, var(--bg-color-dark) 0%, var(--bg-color-light) 100%);
-            color: var(--text-color);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            min-height: 100vh;
-            margin: 0;
-            gap: 20px;
-        }
-        
-        h1 { 
-            margin: 0;
-            text-align: center;
-            background: linear-gradient(45deg, var(--accent-color), var(--accent-glow));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            font-size: clamp(2rem, 5vw, 3rem);
-            font-weight: 700;
-            text-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
-            letter-spacing: 2px;
-        }
-        
-        .hidden { display: none !important; }
-        
-        .panel, .game-section, .modal-content {
-            background: var(--panel-bg);
-            backdrop-filter: blur(10px);
-            padding: clamp(20px, 4vw, 30px);
-            border-radius: 15px;
-            max-width: 600px;
-            width: 100%;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-            border: 1px solid var(--panel-border);
-            text-align: center;
-        }
-        
-        .setup-section, .game-section, .game-over-section {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        label {
-            display: block;
-            margin: 0;
-            font-weight: 600;
-            color: var(--secondary-text-color);
-            text-align: left;
-            margin-bottom: 5px;
-        }
-        
-        input[type="file"] {
-            padding: 10px;
-            cursor: pointer;
-        }
-
-        input, textarea, select {
-            width: 100%;
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-            outline: none;
-            background: #334155;
-            color: var(--text-color);
-            font-size: 1rem;
-            transition: border-color 0.3s, box-shadow 0.3s;
-        }
-        
-        input:focus, textarea:focus, select:focus {
-            border-color: var(--accent-color);
-            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
-        }
-        
-        button {
-            background: linear-gradient(45deg, var(--accent-color), var(--accent-glow));
-            color: var(--bg-color-dark);
-            font-weight: bold;
-            cursor: pointer;
-            padding: 12px;
-            border-radius: 8px;
-            border: none;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-        }
-        
-        button:hover:not(:disabled) {
-            transform: translateY(-2px) scale(1.02);
-            box-shadow: 0 6px 20px rgba(56, 189, 248, 0.4);
-        }
-        
-        button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-        
-        .game-board-container {
-            position: relative;
-            width: 100%;
-            padding-bottom: 100%; /* Creates a square aspect ratio */
-            border: 4px solid var(--accent-color);
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-        }
-
-        #gameBoard {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: grid;
-            z-index: 2;
-        }
-        
-        #gameImage {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
-            z-index: 1;
-        }
-        
-        .tile {
-            position: relative;
-            background: linear-gradient(45deg, #1e293b, #334155);
-            border: 1px solid var(--border-color);
-            transition: transform 0.4s ease, opacity 0.4s ease, background 0.2s ease;
-            cursor: pointer;
-            will-change: transform, opacity;
-        }
-        
-        .tile:hover {
-            background: linear-gradient(45deg, #334155, #475569);
-        }
-        
-        .tile.revealed {
-            transform: scale(0) rotateY(180deg);
-            opacity: 0;
-            pointer-events: none;
-        }
-        
-        .controls {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-        
-        .game-info {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: rgba(15, 23, 42, 0.5);
-            border-radius: 8px;
-            padding: 15px;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        
-        .progress-bar {
-            width: 100%;
-            height: 10px;
-            background: #334155;
-            border-radius: 5px;
-            overflow: hidden;
-            margin-top: 10px;
-        }
-        
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(45deg, var(--accent-color), var(--accent-glow));
-            transition: width 0.5s ease;
-            border-radius: 5px;
-        }
-        
-        .input-group {
-            display: flex;
-            gap: 10px;
-        }
-
-        .input-group input {
-            flex-grow: 1;
-        }
-
-        .input-group button {
-            width: auto;
-            white-space: nowrap;
-        }
-
-        #message { 
-            height: auto;
-            min-height: 40px;
-            text-align: center;
-            font-weight: 600;
-            padding: 10px;
-            border-radius: 8px;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .message-success {
-            background: rgba(34, 197, 94, 0.2);
-            border: 1px solid #22c55e;
-            color: #4ade80;
-        }
-        
-        .message-error {
-            background: rgba(239, 68, 68, 0.2);
-            border: 1px solid #ef4444;
-            color: #f87171;
-        }
-        
-        .message-info {
-            background: rgba(56, 189, 248, 0.2);
-            border: 1px solid #38bdf8;
-            color: #7dd3fc;
-        }
-        
-        .difficulty-settings {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-        }
-        
-        .word-hint {
-            margin-top: 10px;
-            padding: 10px;
-            background: rgba(56, 189, 248, 0.1);
-            border-radius: 8px;
-            text-align: center;
-            font-style: italic;
-        }
-        
-        .loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-        
-        .loading::after {
-            content: '';
-            width: 20px;
-            height: 20px;
-            border: 3px solid #334155;
-            border-top: 3px solid var(--accent-color);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 15px;
-        }
-        
-        .stat-item {
-            text-align: center;
-            padding: 15px;
-            background: rgba(15, 23, 42, 0.5);
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-        }
-        
-        .stat-value {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: var(--accent-color);
-            display: block;
-        }
-
-        .stat-label {
-            color: var(--secondary-text-color);
-            font-size: 0.9rem;
-        }
-        
-        .error-message {
-            background: rgba(239, 68, 68, 0.2);
-            border: 1px solid #ef4444;
-            color: #f87171;
-            padding: 10px;
-            border-radius: 8px;
-        }
-
-        .modal {
-            position: fixed;
-            z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background-color: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(5px);
-        }
-        
-        .modal-content {
-            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        @keyframes popIn {
-            from { transform: scale(0.8); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
-        }
-
-        .controls-row {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-            justify-content: center;
-        }
-
-        .controls-row button {
-            flex: 1 1 auto;
-        }
-        
-        .image-input-group {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            border: 1px dashed var(--border-color);
-            border-radius: 8px;
-            padding: 15px;
-            position: relative;
-        }
-
-        .image-input-group .remove-btn {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: #ef4444;
+        body { 
+            font-family: 'Nunito', sans-serif;
+            background-color: #0f172a;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(0, 230, 118, 0.15) 0px, transparent 50%), 
+                radial-gradient(at 100% 100%, rgba(41, 121, 255, 0.1) 0px, transparent 50%);
+            background-attachment: fixed;
             color: white;
-            border: none;
-            border-radius: 50%;
-            width: 25px;
-            height: 25px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0;
-            font-size: 1rem;
-            cursor: pointer;
+            overflow-x: hidden;
         }
-        
+
+        /* Glassmorphism */
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .btn-3d {
+            transition: all 0.1s;
+            transform: translateY(0);
+            box-shadow: 0 4px 0 rgba(0,0,0,0.3);
+            border-bottom: 4px solid rgba(0,0,0,0.2);
+        }
+        .btn-3d:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 rgba(0,0,0,0.2);
+            border-bottom: 0px solid transparent;
+        }
+
+        /* Tile Styles & Animation Fix */
+        @keyframes fadeOutAnimation {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(1.1); opacity: 0; }
+        }
+
+        .tile {
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+            z-index: 20; /* Ensure tiles are above image */
+        }
+        .tile:hover {
+            filter: brightness(1.2);
+            z-index: 30;
+        }
+        .tile.revealed {
+            pointer-events: none;
+            animation: fadeOutAnimation 0.5s forwards;
+        }
+
+        /* Responsive Grid Container */
+        #game-container {
+            aspect-ratio: 16/9;
+            max-height: 70vh;
+        }
+
+        input[type="range"] {
+            accent-color: #2979FF;
+        }
     </style>
 </head>
-<body>
+<body class="flex flex-col min-h-screen">
 
-    <h1>🖼️ Picture Reveal Game</h1>
-
-    <!-- Setup Panel -->
-    <div id="setupPanel" class="panel setup-section">
-        <p>Upload images or paste URLs and provide a keyword for each.</p>
-
-        <div id="imageInputsContainer">
-            <!-- Image and Keyword inputs will be dynamically added here -->
-        </div>
-
-        <button id="addImageBtn">➕ Add Image</button>
-
-        <div class="difficulty-settings">
-            <div>
-                <label for="difficulty">🎯 Difficulty:</label>
-                <select id="difficulty">
-                    <option value="easy">Easy (4x4)</option>
-                    <option value="medium" selected>Medium (6x6)</option>
-                    <option value="hard">Hard (8x8)</option>
-                </select>
+    <!-- Header -->
+    <header class="w-full glass-panel border-b border-white/10 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-br from-green to-blue w-10 h-10 rounded-lg flex items-center justify-center text-xl shadow-lg">
+                    🖼️
+                </div>
+                <div>
+                    <h1 class="text-2xl font-heading tracking-wider text-white leading-none">MYSTERY PICTURE</h1>
+                    <div class="text-[10px] font-mono text-gray-400 tracking-widest">ENGLISH 1 BATAM</div>
+                </div>
             </div>
-            <div>
-                <label for="tilesPerGuess">⚡ Tiles per guess:</label>
-                <select id="tilesPerGuess">
-                    <option value="1">1 tile</option>
-                    <option value="2" selected>2 tiles</option>
-                    <option value="3">3 tiles</option>
-                </select>
+
+            <!-- Round Indicator -->
+            <div id="round-indicator" class="hidden md:flex items-center gap-2 bg-surface/50 px-3 py-1 rounded-full border border-white/10">
+                <span class="text-xs text-gray-400 uppercase font-bold">Round</span>
+                <span id="round-display" class="font-mono text-blue font-bold">1 / 1</span>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <button id="sound-toggle" class="p-2 rounded-full hover:bg-white/10 transition-colors text-gray-400" title="Toggle Sound">
+                    <i data-lucide="volume-2" class="w-5 h-5"></i>
+                </button>
+                <button id="setup-trigger" class="btn-3d bg-blue text-white px-4 py-2 rounded-lg font-bold text-sm tracking-wide">
+                    SETUP
+                </button>
             </div>
         </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow flex flex-col items-center justify-center p-4 w-full max-w-7xl mx-auto">
         
-        <div class="controls-row">
-            <button id="startGameBtn">🚀 Start Game</button>
-            <button id="loadGameBtn">📂 Load Game</button>
-        </div>
-        <div id="setupError" class="error-message hidden"></div>
-    </div>
-
-    <!-- Game Section -->
-    <div id="gameSection" class="game-section hidden">
-        <div class="game-info">
-            <div>Round <span id="currentRoundDisplay"></span> of <span id="totalRoundsDisplay"></span></div>
-            <div>Tiles revealed: <span id="tilesRevealed"></span>/<span id="totalTiles"></span></div>
-            <div>Guesses: <span id="guessesMade"></span></div>
-        </div>
-        <div class="progress-bar">
-            <div class="progress-fill" id="progressFill"></div>
-        </div>
-        <div class="game-board-container">
-            <img id="gameImage" src="" alt="Hidden Picture">
-            <div id="gameBoard"></div>
-        </div>
-        <div id="message"></div>
-        
-        <div class="controls">
-            <div class="input-group">
-                <input type="text" id="guessInput" placeholder="Guess the keyword...">
-                <button id="guessBtn">Guess</button>
+        <!-- Game Stats/Controls -->
+        <div id="game-controls" class="w-full max-w-5xl flex justify-between items-center mb-4 hidden animate-pop">
+            <div class="flex items-center gap-4">
+                <div class="glass-panel px-4 py-2 rounded-lg flex items-center gap-2">
+                    <span class="text-xs text-gray-400 font-bold uppercase">Hidden</span>
+                    <span id="tiles-count" class="text-blue font-bold font-mono">0</span>
+                </div>
             </div>
-            <div id="wordHint" class="word-hint hidden"></div>
-            <div class="controls-row">
-                <button id="hintBtn">❓ Get Hint</button>
-                <button id="nextRoundBtn" class="hidden">➡️ Next Round</button>
-                <button id="restartBtn">🔄 Restart</button>
+            <div class="flex gap-2">
+                <button id="reset-tiles-btn" class="px-4 py-2 rounded-lg hover:bg-white/10 text-white text-sm font-bold border border-white/10 transition flex items-center gap-2">
+                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Reset
+                </button>
+                
+                <!-- Next Round Button (Initially Hidden or Disabled) -->
+                <button id="next-round-btn" class="hidden btn-3d bg-gradient-to-r from-green to-blue text-white px-4 py-2 rounded-lg font-bold text-sm tracking-wide shadow-lg flex items-center gap-2">
+                    NEXT IMAGE <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                </button>
+
+                <button id="reveal-all-btn" class="btn-3d bg-gradient-to-r from-pink to-orange text-white px-6 py-2 rounded-lg font-bold text-sm tracking-wide shadow-lg">
+                    REVEAL ALL
+                </button>
             </div>
         </div>
-    </div>
 
-    <!-- Game Over Panel -->
-    <div id="gameOverPanel" class="panel game-over-section hidden">
-        <h2>🎉 Game Over! 🎉</h2>
-        <p>You've completed all rounds!</p>
-        <div class="stats" id="finalStats">
-            <!-- Stats will be populated by JavaScript -->
+        <!-- The Game Board -->
+        <div id="game-area-wrapper" class="w-full max-w-5xl relative hidden animate-pop">
+            <div id="game-container" class="w-full relative rounded-2xl overflow-hidden shadow-2xl bg-dark border-4 border-white/10">
+                <!-- The Image (Bottom Layer) -->
+                <img id="target-image" class="absolute inset-0 w-full h-full object-contain z-0 pointer-events-none bg-black" src="" alt="Hidden Picture">
+                
+                <!-- The Grid (Top Layer) -->
+                <div id="tile-grid" class="absolute inset-0 z-10 grid w-full h-full">
+                    <!-- Tiles generated here -->
+                </div>
+            </div>
         </div>
-        <button id="playAgainBtn">🎮 Play Again</button>
-    </div>
 
-    <!-- Confirmation Modal -->
-    <div id="confirmModal" class="modal hidden">
-        <div class="modal-content">
-            <h3>Are you sure?</h3>
-            <p id="confirmMessage"></p>
-            <div class="controls-row">
-                <button id="confirmYesBtn">Yes</button>
-                <button id="confirmNoBtn">No</button>
+        <!-- Empty State / Start Prompt -->
+        <div id="empty-state" class="text-center py-20 animate-pop">
+            <div class="text-6xl mb-4">🎨</div>
+            <h2 class="text-3xl font-heading text-white mb-2">No Image Loaded</h2>
+            <p class="text-gray-400 mb-8">Click "SETUP" to upload pictures for the class.</p>
+            <button onclick="document.getElementById('setup-trigger').click()" class="btn-3d bg-gradient-to-r from-green to-blue text-white px-8 py-4 rounded-xl font-bold text-xl shadow-lg">
+                SETUP GAME
+            </button>
+        </div>
+
+    </main>
+
+    <!-- SETUP MODAL -->
+    <div id="setup-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-pop">
+        <div class="glass-panel w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+            
+            <div class="p-6 border-b border-white/10 flex justify-between items-center bg-black/20">
+                <h2 class="text-2xl font-heading text-white tracking-wide">SETUP PICTURES</h2>
+                <button id="close-setup" class="text-gray-400 hover:text-white transition">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-6">
+                
+                <!-- Image Upload (Supports Multiple) -->
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-blue uppercase tracking-widest">1. Choose Images (Multiple)</label>
+                    <div class="relative w-full h-32 border-2 border-dashed border-white/20 rounded-xl hover:border-blue/50 transition bg-surface/30 flex flex-col items-center justify-center cursor-pointer group" id="drop-zone">
+                        <input type="file" id="file-input" accept="image/*" multiple class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+                        <i data-lucide="images" class="w-8 h-8 text-gray-400 group-hover:text-white mb-2 transition"></i>
+                        <span class="text-sm text-gray-400 group-hover:text-white transition font-bold" id="file-label">Click to select images</span>
+                    </div>
+                    <div id="file-count-msg" class="text-xs text-green font-bold hidden text-center"></div>
+                </div>
+
+                <!-- Grid Settings -->
+                <div class="space-y-4">
+                    <label class="text-xs font-bold text-orange uppercase tracking-widest">2. Grid Size</label>
+                    
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-gray-300 text-sm">Rows & Columns</span>
+                        <span id="grid-val" class="font-mono text-orange font-bold text-lg">4 x 4</span>
+                    </div>
+                    <input type="range" id="grid-slider" min="2" max="8" value="4" class="w-full h-2 bg-surface rounded-lg appearance-none cursor-pointer">
+                    <div class="flex justify-between text-xs text-gray-500 font-mono mt-1">
+                        <span>2x2 (Easy)</span>
+                        <span>8x8 (Hard)</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="p-6 border-t border-white/10 bg-black/20">
+                <button id="start-game-btn" class="w-full btn-3d bg-green text-dark px-8 py-3 rounded-xl font-bold text-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    START GAME
+                </button>
             </div>
         </div>
     </div>
 
     <script>
-        // --- Game State Variables ---
-        let gameSettings = {
-            difficulty: 'medium',
-            tilesPerGuess: 2,
-            gridSize: 6,
-            tilesPerHint: 1,
+        // --- AUDIO ENGINE ---
+        let audioEnabled = true;
+        const AudioEngine = {
+            init: async () => { await Tone.start(); },
+            playPop: (pitch = "C4") => {
+                if(!audioEnabled) return;
+                const synth = new Tone.MembraneSynth({
+                    pitchDecay: 0.05,
+                    octaves: 2,
+                    oscillator: { type: "sine" },
+                    envelope: { attack: 0.001, decay: 0.2, sustain: 0.01, release: 0.4, attackCurve: "exponential" }
+                }).toDestination();
+                synth.triggerAttackRelease(pitch, "8n");
+            },
+            playWin: () => {
+                if(!audioEnabled) return;
+                const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+                const now = Tone.now();
+                synth.triggerAttackRelease(["C4", "E4", "G4", "C5"], "8n", now);
+                synth.triggerAttackRelease(["C5", "E5", "G5", "C6"], "4n", now + 0.25);
+            }
         };
-        let rounds = []; // Array to store game data for each round
-        let currentRoundIndex = 0;
-        let gameTiles = []; // Array of tile elements
-        let roundState = {
-            tilesRevealed: 0,
-            totalTiles: 0,
-            guessesMade: 0,
-            hintUsed: false,
-        };
-        let gameStats = {
-            totalGuesses: 0,
-            totalHints: 0,
-            correctGuesses: 0,
-            roundsCompleted: 0,
-        };
 
-        // --- DOM Elements ---
-        const setupPanel = document.getElementById("setupPanel");
-        const gameSection = document.getElementById("gameSection");
-        const gameOverPanel = document.getElementById("gameOverPanel");
-        const confirmModal = document.getElementById('confirmModal');
-        const confirmMessage = document.getElementById('confirmMessage');
-        const confirmYesBtn = document.getElementById('confirmYesBtn');
-        const confirmNoBtn = document.getElementById('confirmNoBtn');
+        // --- STATE ---
+        let imagesList = [];
+        let currentImageIndex = 0;
+        let gridSize = 4;
+        let tilesRemaining = 0;
 
-        const imageInputsContainer = document.getElementById('imageInputsContainer');
-        const addImageBtn = document.getElementById('addImageBtn');
-        const difficultySelect = document.getElementById("difficulty");
-        const tilesPerGuessSelect = document.getElementById("tilesPerGuess");
-        const startGameBtn = document.getElementById("startGameBtn");
-        const loadGameBtn = document.getElementById("loadGameBtn");
-        const setupError = document.getElementById("setupError");
+        // --- DOM ELEMENTS ---
+        const setupModal = document.getElementById('setup-modal');
+        const fileInput = document.getElementById('file-input');
+        const fileLabel = document.getElementById('file-label');
+        const fileCountMsg = document.getElementById('file-count-msg');
+        const gridSlider = document.getElementById('grid-slider');
+        const gridVal = document.getElementById('grid-val');
+        const startBtn = document.getElementById('start-game-btn');
+        const gameArea = document.getElementById('game-area-wrapper');
+        const gameControls = document.getElementById('game-controls');
+        const emptyState = document.getElementById('empty-state');
+        const targetImage = document.getElementById('target-image');
+        const tileGrid = document.getElementById('tile-grid');
+        const tilesCountDisplay = document.getElementById('tiles-count');
+        const roundIndicator = document.getElementById('round-indicator');
+        const roundDisplay = document.getElementById('round-display');
+        const nextRoundBtn = document.getElementById('next-round-btn');
+        const revealAllBtn = document.getElementById('reveal-all-btn');
 
-        const gameImage = document.getElementById("gameImage");
-        const gameBoard = document.getElementById("gameBoard");
-        const guessInput = document.getElementById("guessInput");
-        const guessBtn = document.getElementById("guessBtn");
-        const hintBtn = document.getElementById("hintBtn");
-        const message = document.getElementById("message");
-        const nextRoundBtn = document.getElementById("nextRoundBtn");
-        const restartBtn = document.getElementById("restartBtn");
-        const playAgainBtn = document.getElementById("playAgainBtn");
-        const wordHint = document.getElementById("wordHint");
+        // --- FUNCTIONS ---
 
-        const currentRoundDisplay = document.getElementById('currentRoundDisplay');
-        const totalRoundsDisplay = document.getElementById('totalRoundsDisplay');
-        const tilesRevealedDisplay = document.getElementById('tilesRevealed');
-        const totalTilesDisplay = document.getElementById('totalTiles');
-        const guessesMadeDisplay = document.getElementById('guessesMade');
-        const progressFill = document.getElementById('progressFill');
-        const finalStatsDiv = document.getElementById('finalStats');
-
-        // --- Helper Functions ---
-        function showMessage(text, type = 'info', duration = 3000) {
-            message.textContent = text;
-            message.className = `message-${type}`;
-            if (duration > 0) {
-                setTimeout(() => {
-                    message.textContent = '';
-                    message.className = '';
-                }, duration);
-            }
+        function initIcons() {
+            lucide.createIcons();
         }
 
-        function updateGameInfo() {
-            currentRoundDisplay.textContent = currentRoundIndex + 1;
-            totalRoundsDisplay.textContent = rounds.length;
-            tilesRevealedDisplay.textContent = roundState.tilesRevealed;
-            totalTilesDisplay.textContent = roundState.totalTiles;
-            guessesMadeDisplay.textContent = roundState.guessesMade;
-            const progress = (roundState.tilesRevealed / roundState.totalTiles) * 100;
-            progressFill.style.width = `${progress}%`;
+        function updateGridVal() {
+            const val = gridSlider.value;
+            gridSize = parseInt(val);
+            gridVal.textContent = `${val} x ${val}`;
         }
 
-        function showPanel(panelId) {
-            const panels = [setupPanel, gameSection, gameOverPanel, confirmModal];
-            panels.forEach(panel => {
-                if (panel.id === panelId) {
-                    panel.classList.remove('hidden');
-                } else {
-                    panel.classList.add('hidden');
-                }
-            });
-        }
+        function handleFileSelect(e) {
+            const files = Array.from(e.target.files);
+            if (files.length > 0) {
+                imagesList = []; // Reset list
+                let loadedCount = 0;
 
-        function showModal(modalId, messageText = '') {
-            const modals = [confirmModal];
-            modals.forEach(modal => modal.classList.add('hidden'));
-
-            const modalToShow = document.getElementById(modalId);
-            if (modalToShow) {
-                if (messageText) {
-                    const messageElement = modalToShow.querySelector('p');
-                    if (messageElement) messageElement.textContent = messageText;
-                }
-                modalToShow.classList.remove('hidden');
-            }
-        }
-
-        function hideModal(modalId) {
-            const modalToHide = document.getElementById(modalId);
-            if (modalToHide) {
-                modalToHide.classList.add('hidden');
-            }
-        }
-
-        function getUnrevealedTiles() {
-            return gameTiles.filter(tile => !tile.classList.contains('revealed'));
-        }
-
-        function getRandomUnrevealedTile() {
-            const unrevealed = getUnrevealedTiles();
-            if (unrevealed.length === 0) return null;
-            const randomIndex = Math.floor(Math.random() * unrevealed.length);
-            return unrevealed[randomIndex];
-        }
-
-        function addImageInputGroup(imageUrl = '', keyword = '') {
-            const div = document.createElement('div');
-            div.className = 'image-input-group';
-            div.innerHTML = `
-                <button class="remove-btn">✖️</button>
-                <label>📁 Upload Image:</label>
-                <input type="file" class="image-upload-input" accept="image/*">
-                <label>🔗 Or Paste Image URL:</label>
-                <input type="text" class="image-url-input" placeholder="https://example.com/pic.jpg" value="${imageUrl}">
-                <label>🔑 Keyword (e.g., 'cat'):</label>
-                <input type="text" class="keyword-input" placeholder="Enter keyword to guess..." value="${keyword}">
-            `;
-            imageInputsContainer.appendChild(div);
-            div.querySelector('.remove-btn').addEventListener('click', () => {
-                imageInputsContainer.removeChild(div);
-                // Ensure at least one input group exists
-                if (imageInputsContainer.children.length === 0) {
-                    addImageInputGroup();
-                }
-            });
-        }
-
-        function saveGameToLocalStorage() {
-            const savedGame = {
-                settings: gameSettings,
-                rounds: rounds,
-                stats: gameStats,
-            };
-            localStorage.setItem('pictureRevealGame', JSON.stringify(savedGame));
-            showMessage('Game saved to local storage!', 'success');
-        }
-
-        function loadGameFromLocalStorage() {
-            const savedGame = JSON.parse(localStorage.getItem('pictureRevealGame'));
-            if (!savedGame) {
-                showMessage('No saved game found.', 'error');
-                return;
-            }
-
-            // Restore settings and rounds
-            gameSettings = savedGame.settings;
-            rounds = savedGame.rounds;
-            gameStats = savedGame.stats;
-            
-            // Populate the setup panel with loaded data
-            difficultySelect.value = gameSettings.difficulty;
-            tilesPerGuessSelect.value = gameSettings.tilesPerGuess;
-            imageInputsContainer.innerHTML = '';
-            rounds.forEach(round => {
-                addImageInputGroup(round.imageUrl, round.keyword);
-            });
-            if (rounds.length === 0) {
-                 addImageInputGroup();
-            }
-
-            showMessage('Game loaded from local storage!', 'success');
-        }
-
-
-        // --- Game Logic Functions ---
-        function loadImagesAndStart() {
-            rounds = [];
-            const inputGroups = document.querySelectorAll('.image-input-group');
-            let hasError = false;
-
-            if (inputGroups.length === 0) {
-                setupError.textContent = "Please add at least one image/keyword pair.";
-                setupError.classList.remove('hidden');
-                return;
-            }
-
-            inputGroups.forEach(group => {
-                const fileInput = group.querySelector('.image-upload-input');
-                const urlInput = group.querySelector('.image-url-input');
-                const keywordInput = group.querySelector('.keyword-input');
-
-                let imageUrl = '';
-                if (fileInput.files.length > 0) {
-                    // Use FileReader for local files to get base64 data
+                files.forEach(file => {
                     const reader = new FileReader();
-                    reader.onload = function(e) {
-                        imageUrl = e.target.result;
-                        if (!imageUrl || !keywordInput.value.trim()) {
-                            hasError = true;
-                        } else {
-                            rounds.push({
-                                imageUrl: imageUrl,
-                                keyword: keywordInput.value.trim().toLowerCase()
-                            });
-                        }
+                    reader.onload = (e) => {
+                        imagesList.push(e.target.result);
+                        loadedCount++;
+                        
+                        // Update UI
+                        fileLabel.textContent = "Images Selected!";
+                        fileCountMsg.textContent = `${loadedCount} images loaded ready for rounds.`;
+                        fileCountMsg.classList.remove('hidden');
+                        startBtn.disabled = false;
                     };
-                    reader.readAsDataURL(fileInput.files[0]);
-                } else if (urlInput.value.trim()) {
-                    imageUrl = urlInput.value.trim();
-                    if (!imageUrl || !keywordInput.value.trim()) {
-                        hasError = true;
-                    } else {
-                        rounds.push({
-                            imageUrl: imageUrl,
-                            keyword: keywordInput.value.trim().toLowerCase()
-                        });
-                    }
-                }
-            });
-
-            setTimeout(() => { // Small delay to allow file readers to finish
-                if (hasError) {
-                    setupError.textContent = "Please provide both an image and a keyword for all entries.";
-                    setupError.classList.remove('hidden');
-                    return;
-                }
-    
-                if (rounds.length === 0) {
-                     setupError.textContent = "Please add at least one image/keyword pair.";
-                     setupError.classList.remove('hidden');
-                     return;
-                }
-    
-                setupError.classList.add('hidden');
-                startGame();
-            }, 100);
-        }
-
-        function generateHint(keyword) {
-            if (!keyword) return "No keyword provided for this round.";
-            const length = keyword.length;
-            const firstLetter = keyword[0];
-            const lastLetter = keyword[length - 1];
-            return `The keyword has ${length} letters. It starts with "${firstLetter}" and ends with "${lastLetter}".`;
+                    reader.readAsDataURL(file);
+                });
+            }
         }
 
         function startGame() {
-            gameSettings.difficulty = difficultySelect.value;
-            gameSettings.tilesPerGuess = parseInt(tilesPerGuessSelect.value);
-            gameSettings.gridSize = gameSettings.difficulty === 'easy' ? 4 : (gameSettings.difficulty === 'medium' ? 6 : 8);
+            if (imagesList.length === 0) return;
 
-            currentRoundIndex = 0;
-            gameStats = { totalGuesses: 0, totalHints: 0, correctGuesses: 0, roundsCompleted: 0 };
-            startRound();
+            // Reset to first round if starting fresh
+            currentImageIndex = 0;
+
+            // Hide setup, show game
+            setupModal.classList.add('hidden');
+            emptyState.classList.add('hidden');
+            gameArea.classList.remove('hidden');
+            gameControls.classList.remove('hidden');
+            roundIndicator.classList.remove('hidden');
+
+            loadRound();
         }
 
-        function startRound() {
-            saveGameToLocalStorage(); // Save current game state
-            showPanel('gameSection');
-            wordHint.classList.add('hidden');
-            guessInput.value = '';
-            nextRoundBtn.classList.add('hidden');
-            guessBtn.disabled = false;
-            hintBtn.disabled = false;
-            guessInput.disabled = false;
+        function loadRound() {
+            // Check bounds
+            if (currentImageIndex >= imagesList.length) currentImageIndex = 0;
 
-            const currentRound = rounds[currentRoundIndex];
-            gameImage.src = currentRound.imageUrl;
+            // Set Image
+            targetImage.src = imagesList[currentImageIndex];
             
-            // Set up tiles
-            roundState.totalTiles = gameSettings.gridSize * gameSettings.gridSize;
-            roundState.tilesRevealed = 0;
-            roundState.guessesMade = 0;
-            roundState.hintUsed = false;
+            // Update Round Display
+            roundDisplay.textContent = `${currentImageIndex + 1} / ${imagesList.length}`;
 
-            gameBoard.style.gridTemplateColumns = `repeat(${gameSettings.gridSize}, 1fr)`;
-            gameBoard.innerHTML = '';
-            gameTiles = [];
+            // Reset Next Button
+            nextRoundBtn.classList.add('hidden');
+            revealAllBtn.classList.remove('hidden');
 
-            for (let i = 0; i < roundState.totalTiles; i++) {
+            resetTiles();
+        }
+
+        function resetTiles() {
+            tileGrid.innerHTML = '';
+            
+            // Set Grid Layout
+            tileGrid.style.gridTemplateColumns = `repeat(${gridSize}, 1fr)`;
+            tileGrid.style.gridTemplateRows = `repeat(${gridSize}, 1fr)`;
+
+            const totalTiles = gridSize * gridSize;
+            tilesRemaining = totalTiles;
+            updateStats();
+
+            // Create Tiles
+            for (let i = 0; i < totalTiles; i++) {
                 const tile = document.createElement('div');
-                tile.className = 'tile';
-                tile.dataset.index = i;
-                tile.addEventListener('click', () => revealTile(tile));
-                gameBoard.appendChild(tile);
-                gameTiles.push(tile);
-            }
+                tile.className = 'tile bg-panel border border-white/5 flex items-center justify-center';
+                
+                // Styling
+                const number = i + 1;
+                tile.innerHTML = `<span class="text-2xl font-heading text-white/50 pointer-events-none select-none">${number}</span>`;
+                
+                // Colors (Checkerboard pattern subtle)
+                const isEven = i % 2 === 0;
+                tile.style.backgroundColor = isEven ? '#1e293b' : '#334155'; // panel vs surface
 
-            updateGameInfo();
+                tile.addEventListener('click', () => revealTile(tile));
+                tileGrid.appendChild(tile);
+            }
         }
 
         function revealTile(tile) {
-            if (!tile || tile.classList.contains('revealed')) return;
-            
+            if (tile.classList.contains('revealed')) return;
+
+            // Audio init on first interaction
+            if (Tone.context.state !== 'running') Tone.start();
+
             tile.classList.add('revealed');
-            roundState.tilesRevealed++;
-            updateGameInfo();
-        }
-        
-        function revealRandomTiles(count) {
-            for (let i = 0; i < count; i++) {
-                const tile = getRandomUnrevealedTile();
-                revealTile(tile);
+            tilesRemaining--;
+            updateStats();
+
+            // Play Sound
+            AudioEngine.playPop();
+
+            if (tilesRemaining === 0) {
+                celebrate();
             }
         }
 
-        function checkGuess() {
-            const userGuess = guessInput.value.trim().toLowerCase();
-            if (!userGuess) {
-                showMessage("Please enter a guess.", 'error');
-                return;
-            }
+        function revealAll() {
+            const allTiles = document.querySelectorAll('.tile:not(.revealed)');
+            let delay = 0;
+            
+            if (Tone.context.state !== 'running') Tone.start();
 
-            roundState.guessesMade++;
-            gameStats.totalGuesses++;
-            updateGameInfo();
+            if (allTiles.length === 0) return;
 
-            const keyword = rounds[currentRoundIndex].keyword;
-            if (userGuess === keyword) {
-                showMessage("Correct! You've solved the round.", 'success', 0);
-                guessBtn.disabled = true;
-                hintBtn.disabled = true;
-                guessInput.disabled = true;
-                revealAllTiles();
-                gameStats.correctGuesses++;
-                gameStats.roundsCompleted++;
+            allTiles.forEach((tile, index) => {
+                setTimeout(() => {
+                    if (!tile.classList.contains('revealed')) {
+                        tile.classList.add('revealed');
+                        AudioEngine.playPop();
+                    }
+                }, delay);
+                delay += 50; // Stagger effect
+            });
+
+            setTimeout(() => {
+                tilesRemaining = 0;
+                updateStats();
+                celebrate();
+            }, delay + 200);
+        }
+
+        function updateStats() {
+            tilesCountDisplay.innerText = tilesRemaining;
+        }
+
+        function celebrate() {
+            AudioEngine.playWin();
+            confetti({
+                particleCount: 200,
+                spread: 100,
+                origin: { y: 0.6 },
+                colors: ['#FF6B95', '#FF8C42', '#00E676', '#2979FF']
+            });
+
+            // Show Next Round Button if more images exist, or loop
+            if (imagesList.length > 1) {
                 nextRoundBtn.classList.remove('hidden');
-                wordHint.classList.add('hidden');
-            } else {
-                showMessage("Incorrect guess. Try again!", 'error');
-                revealRandomTiles(gameSettings.tilesPerGuess);
-                if (getUnrevealedTiles().length === 0) {
-                    endGame(false);
-                }
+                revealAllBtn.classList.add('hidden'); // Hide reveal btn to clean up UI
             }
-        }
-
-        function giveHint() {
-            if (roundState.hintUsed) {
-                showMessage("You've already used your hint for this round.", 'info');
-                return;
-            }
-            gameStats.totalHints++;
-            roundState.hintUsed = true;
-            wordHint.textContent = generateHint(rounds[currentRoundIndex].keyword);
-            wordHint.classList.remove('hidden');
-            revealRandomTiles(gameSettings.tilesPerHint);
-            updateGameInfo();
-            showMessage("Here's a hint to help you!", 'info');
-        }
-
-        function revealAllTiles() {
-            gameTiles.forEach(tile => tile.classList.add('revealed'));
-            roundState.tilesRevealed = roundState.totalTiles;
-            updateGameInfo();
         }
 
         function nextRound() {
-            if (currentRoundIndex < rounds.length - 1) {
-                currentRoundIndex++;
-                startRound();
-            } else {
-                endGame(true);
+            currentImageIndex++;
+            if(currentImageIndex >= imagesList.length) {
+                // Loop back or finish? Let's loop for endless play
+                currentImageIndex = 0;
             }
+            loadRound();
         }
 
-        function endGame(isComplete) {
-            saveGameToLocalStorage(); // Save final stats
-            showPanel('gameOverPanel');
-            
-            finalStatsDiv.innerHTML = `
-                <div class="stat-item">
-                    <span class="stat-value">${gameStats.roundsCompleted}</span>
-                    <span class="stat-label">Rounds Solved</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-value">${gameStats.correctGuesses}</span>
-                    <span class="stat-label">Correct Guesses</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-value">${gameStats.totalGuesses}</span>
-                    <span class="stat-label">Total Guesses</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-value">${gameStats.totalHints}</span>
-                    <span class="stat-label">Hints Used</span>
-                </div>
-            `;
-            if (isComplete) {
-                gameOverPanel.querySelector('h2').textContent = "🎉 Congratulations! 🎉";
-                gameOverPanel.querySelector('p').textContent = "You've completed all rounds!";
-            } else {
-                gameOverPanel.querySelector('h2').textContent = "Game Over";
-                gameOverPanel.querySelector('p').textContent = `You ran out of tiles on round ${currentRoundIndex + 1}.`;
-            }
-        }
+        // --- EVENT LISTENERS ---
 
-        // --- Event Listeners ---
-        startGameBtn.addEventListener("click", loadImagesAndStart);
-        loadGameBtn.addEventListener("click", loadGameFromLocalStorage);
-        guessBtn.addEventListener("click", checkGuess);
-        hintBtn.addEventListener("click", giveHint);
-        nextRoundBtn.addEventListener("click", nextRound);
+        document.getElementById('setup-trigger').addEventListener('click', () => {
+            setupModal.classList.remove('hidden');
+        });
+
+        document.getElementById('close-setup').addEventListener('click', () => {
+            setupModal.classList.add('hidden');
+        });
+
+        fileInput.addEventListener('change', handleFileSelect);
+        gridSlider.addEventListener('input', updateGridVal);
+        startBtn.addEventListener('click', startGame);
         
-        restartBtn.addEventListener("click", () => {
-            showModal('confirmModal', "Are you sure you want to restart? All progress will be lost.");
-        });
-
-        confirmYesBtn.addEventListener('click', () => {
-            hideModal('confirmModal');
-            showPanel('setupPanel');
-            // Reset state
-            rounds = [];
-            currentRoundIndex = 0;
-            gameStats = { totalGuesses: 0, totalHints: 0, correctGuesses: 0, roundsCompleted: 0 };
-            // Clear inputs
-            imageInputsContainer.innerHTML = '';
-            addImageInputGroup(); // Add a default input group
-            setupError.classList.add('hidden');
-            localStorage.removeItem('pictureRevealGame');
-        });
-
-        confirmNoBtn.addEventListener('click', () => {
-            hideModal('confirmModal');
-        });
-
-        playAgainBtn.addEventListener("click", () => showPanel('setupPanel'));
+        revealAllBtn.addEventListener('click', revealAll);
+        nextRoundBtn.addEventListener('click', nextRound);
         
-        addImageBtn.addEventListener("click", () => addImageInputGroup());
+        document.getElementById('reset-tiles-btn').addEventListener('click', resetTiles);
 
-        // Initial setup
-        window.onload = () => {
-             addImageInputGroup(); // Add the first input group on load
-        }
+        document.getElementById('sound-toggle').addEventListener('click', (e) => {
+            audioEnabled = !audioEnabled;
+            const icon = audioEnabled ? 'volume-2' : 'volume-x';
+            e.currentTarget.innerHTML = `<i data-lucide="${icon}" class="w-5 h-5"></i>`;
+            initIcons();
+        });
+
+        // Init
+        initIcons();
+        // Trigger setup initially if no image
+        document.getElementById('setup-trigger').click();
+
     </script>
 </body>
 </html>
