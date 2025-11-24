@@ -1,324 +1,486 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Paragraph Sentence Unscrambler</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Inter and Montserrat Fonts -->
+    <title>Story Order - Reading Comprehension</title>
+    
+    <!-- Fonts from Activity Hub -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Montserrat:wght@700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;700;900&display=swap" rel="stylesheet">
+    
+    <!-- Libraries (Tailwind, Lucide, Tone.js, Confetti) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <script>
+        // Tailwind config copied from main index.html for consistent styling
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        pink: '#FF6B95',
+                        orange: '#FF8C42',
+                        green: '#00E676',
+                        blue: '#2979FF',
+                        dark: '#0f172a',
+                        panel: '#1e293b',
+                        surface: '#334155'
+                    },
+                    fontFamily: {
+                        heading: ['Bebas Neue', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-out',
+                        'slide-down': 'slideDown 0.3s ease-out',
+                    },
+                    keyframes: {
+                        fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+                        slideDown: { '0%': { transform: 'translateY(-10px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } }
+                    }
+                }
+            }
+        }
+    </script>
+
     <style>
-        :root {
-            --background-color: #e2e8f0; /* slate-200 */
-            --container-bg: #ffffff;
-            --header-color: #1d4ed8; /* blue-700 */
-            --text-color: #4b5563; /* gray-600 */
-            --card-bg-start: #3b82f6; /* blue-500 */
-            --card-bg-end: #2563eb; /* blue-600 */
-            --button-primary-start: #10b981; /* emerald-500 */
-            --button-primary-end: #059669; /* emerald-600 */
-            --button-secondary-start: #6b7280; /* gray-500 */
-            --button-secondary-end: #4b5563; /* gray-600 */
-            --success-color: #16a34a; /* green-600 */
-            --error-color: #dc2626; /* red-600 */
-            --drag-over-color: #94a3b8; /* slate-400 */
+        /* Global styles matching the Activity Hub background and glass effect */
+        body {
+            background-color: #0f172a;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(41, 121, 255, 0.1) 0px, transparent 50%), 
+                radial-gradient(at 100% 100%, rgba(255, 107, 149, 0.1) 0px, transparent 50%);
+            background-attachment: fixed;
+            font-family: 'Nunito', sans-serif;
+            color: white;
+            text-align: center;
         }
 
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--background-color);
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .message-box {
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px; /* rounded-full */
+            font-weight: 700;
+            transition: all 0.3s;
+        }
+
+        .message-box.info {
+            background-color: #334155;
+            color: #94a3b8;
+        }
+
+        .message-box.success {
+            background-color: rgba(0, 230, 118, 0.2); /* green/20 */
+            color: #00E676; /* green */
         }
         
-        .message-box.win {
-            color: var(--success-color);
-            background: #dcfce7; /* light green */
-            border: 2px solid var(--success-color);
-            padding: 1rem;
-            border-radius: 1rem;
-            animation: pop-in 0.5s ease-out;
-            font-weight: bold;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        .message-box.error {
+            background-color: rgba(255, 107, 149, 0.2); /* pink/20 */
+            color: #FF6B95; /* pink */
         }
-        .message-box.lose {
-            color: var(--error-color);
+
+        .btn-base {
+            padding: 0.75rem 2rem;
+            border-radius: 0.75rem; /* rounded-xl */
+            font-family: 'Bebas Neue', sans-serif;
+            letter-spacing: 0.05em;
+            transition: transform 0.1s, box-shadow 0.1s, background-color 0.1s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
+
+        .btn-base:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-base:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-blue {
+            background-color: #2979FF; /* blue */
+            color: white;
+        }
+        .btn-blue:hover:not(:disabled) {
+            background-color: #5397FF;
+        }
+
+        .btn-orange {
+            background-color: #FF8C42; /* orange */
+            color: white;
+        }
+        .btn-orange:hover:not(:disabled) {
+            background-color: #FFa565;
+        }
+        
+        /* Input styling */
+        textarea {
+            resize: none;
+            border: 1px solid #334155;
+            background-color: #0f172a;
+            color: white;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #2979FF;
+            box-shadow: 0 0 0 2px rgba(41, 121, 255, 0.2);
+        }
+
+        /* Setup Modal Background */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
+            z-index: 50;
+        }
+
+        /* Drag-and-Drop Card Styling */
         .sentence-card {
             cursor: grab;
-            transition: all 0.2s ease-in-out;
+            transition: background-color 0.2s, transform 0.1s;
+            border-left: 5px solid transparent;
+            text-align: left;
             user-select: none;
-            background: linear-gradient(135deg, var(--card-bg-start), var(--card-bg-end));
-            height: auto; /* Allow height to adjust to sentence length */
-            text-align: left; /* Align text to the left */
-            padding: 1.5rem 2rem; /* Add more padding for sentences */
-            /* Added transition for all properties for smooth sliding */
-            transition: transform 0.2s ease-in-out, background-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out, opacity 0.2s ease-in-out;
+            line-height: 1.5;
         }
-        .sentence-card:active {
-            cursor: grabbing;
+
+        .sentence-card:hover {
+            transform: scale(1.02);
+            background-color: rgba(255, 255, 255, 0.05);
         }
-        .drag-placeholder {
-            border: 2px dashed #94a3b8; /* slate-400 */
-            border-radius: 1rem;
-            transition: all 0.2s ease-in-out;
-            transform: scale(0.9);
-            opacity: 0.5;
+
+        .sentence-card.dragging {
+            opacity: 0.4;
         }
-        /* Animation for placeholder appearance */
-        .placeholder-fade-in {
-            animation: fadeInAndScale 0.2s forwards;
-        }
-        @keyframes fadeInAndScale {
-            from {
-                opacity: 0;
-                transform: scale(0.8);
-            }
-            to {
-                opacity: 1;
-                transform: scale(1);
-            }
-        }
-        .input-focus:focus {
-            outline: none;
-            border-color: var(--header-color);
-            box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.5); /* blue-700 with alpha */
-        }
-        .animate-card-bounce {
-            animation: bounce-in 0.5s ease-out;
-        }
-        @keyframes bounce-in {
-            0% { transform: scale(0); opacity: 0; }
-            50% { transform: scale(1.1); opacity: 1; }
-            100% { transform: scale(1); }
-        }
-        @keyframes pop-in {
-            0% { transform: scale(0.8); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
+
+        .drop-target {
+            background-color: rgba(41, 121, 255, 0.2); /* blue/20 */
+            border-top: 2px dashed #2979FF;
         }
     </style>
 </head>
-<body class="bg-slate-200 flex justify-center items-center min-h-screen p-4 text-gray-800">
 
-    <div class="bg-white p-8 rounded-3xl shadow-2xl border border-slate-300 w-full max-w-3xl text-center transition-all duration-300">
-        
-        <h1 class="font-['Montserrat'] text-4xl font-extrabold text-blue-700 mb-2 tracking-wide">Paragraph Sentence Unscrambler</h1>
-        <p class="text-gray-600 mb-8 max-w-lg mx-auto">Enter a paragraph, then drag and drop the sentences to put them back in the correct order!</p>
-        
-        <!-- Input Section -->
-        <div id="input-section">
-            <textarea id="paragraph-input" 
-                      class="w-full p-4 border-4 border-blue-300 rounded-2xl resize-y min-h-[100px] text-lg transition-colors duration-200 input-focus mb-6 font-semibold"
-                      placeholder="Type a paragraph here with multiple sentences..."></textarea>
-            
-            <button id="scramble-btn" 
-                    class="w-full md:w-auto bg-gradient-to-br from-indigo-500 to-indigo-700 text-white font-bold py-4 px-12 rounded-2xl shadow-xl transition-all duration-300 uppercase tracking-wider text-lg hover:shadow-2xl hover:-translate-y-1">
-                Start Game
+<body class="dark min-h-screen flex flex-col">
+    
+    <!-- Game Header Bar -->
+    <header class="h-16 flex items-center justify-between px-4 md:px-8 bg-dark/95 border-b border-white/10 shrink-0 shadow-lg animate-slide-down">
+        <h1 class="text-xl md:text-2xl font-heading tracking-wider text-teal-400">STORY ORDER</h1>
+        <div class="flex items-center space-x-3">
+            <button id="restart-btn" class="p-2 text-gray-400 hover:text-white transition-colors rounded-full hover:bg-surface/50" title="Restart Game">
+                <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+            </button>
+            <button id="settings-btn" class="p-2 text-gray-400 hover:text-white transition-colors rounded-full hover:bg-surface/50" title="Settings">
+                <i data-lucide="settings" class="w-5 h-5"></i>
+            </button>
+            <button id="sound-toggle" class="p-2 text-gray-400 hover:text-white transition-colors rounded-full hover:bg-surface/50" title="Toggle Sound">
+                <i data-lucide="volume-2" class="w-5 h-5"></i>
             </button>
         </div>
+    </header>
 
-        <!-- Game Section -->
-        <div id="game-section" class="hidden flex flex-col gap-8">
-            <div id="round-info" class="text-xl font-bold text-gray-700"></div>
-
-            <!-- Sentence Cards Container -->
-            <div id="sentence-cards-container" class="flex flex-col items-center gap-4 my-8"></div>
+    <!-- Main Game Content -->
+    <main class="flex-grow flex items-center justify-center p-4">
+        <div id="game-section-el" class="glass-panel rounded-2xl p-8 shadow-2xl max-w-2xl w-full animate-fade-in" style="display: none;">
             
+            <h2 class="text-3xl font-heading tracking-wider mb-2 text-green">Reorder the Story!</h2>
+            <p class="text-gray-400 mb-6">Drag and drop the cards to put the story in the correct sequence.</p>
+
             <!-- Message Box -->
-            <div id="message-box" class="min-h-[2.5rem] text-2xl font-bold"></div>
-            
-            <!-- Action Buttons -->
-            <div class="flex flex-col md:flex-row justify-center gap-4 mt-4">
-                <button id="check-btn" 
-                        class="btn bg-gradient-to-br from-green-500 to-green-700 text-white font-bold py-4 px-8 rounded-2xl shadow-lg transition-all duration-300 uppercase tracking-wider text-lg hover:shadow-xl hover:-translate-y-1">
-                    Check Answer
-                </button>
-                <button id="reset-btn" 
-                        class="btn bg-gradient-to-br from-slate-400 to-slate-600 text-white font-bold py-4 px-8 rounded-2xl shadow-lg transition-all duration-300 uppercase tracking-wider text-lg hover:shadow-xl hover:-translate-y-1">
-                    Restart Game
-                </button>
+            <div class="mb-8">
+                <p id="message-box" class="message-box info mx-auto">Click 'Check Sequence' when you are done.</p>
             </div>
+
+            <!-- Sentence Cards Container (Drag & Drop Zone) -->
+            <div id="sentences-container" class="space-y-3 p-4 rounded-xl bg-dark/50 border border-white/10 min-h-[300px]">
+                <!-- Cards will be injected here -->
+            </div>
+
+            <!-- Button Controls -->
+            <div class="mt-8">
+                <button id="check-btn" class="btn-base btn-blue w-full" disabled>CHECK SEQUENCE</button>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Setup Modal (Hidden by default) -->
+    <div id="setup-modal" class="modal-overlay hidden flex items-center justify-center p-4 transition-opacity duration-300">
+        <div class="glass-panel rounded-2xl p-8 max-w-lg w-full shadow-2xl animate-fade-in">
+            <h1 class="text-3xl font-heading tracking-wider text-orange mb-4">Input Story Sentences</h1>
+            <p class="text-gray-400 mb-6">Enter the story below. Each sentence **must** be on a new line, and they should be in the **correct order**.</p>
+
+            <div class="mb-4">
+                <textarea id="story-input" rows="8" placeholder="Sentence 1 (e.g., The sun rose over the mountains.)&#10;Sentence 2 (e.g., A little bird began to sing.)&#10;Sentence 3 (e.g., I woke up and stretched.)"
+                    class="w-full p-4 rounded-xl text-sm transition-all"></textarea>
+            </div>
+            
+            <p id="setup-error" class="text-sm text-center mb-6 text-pink hidden">Please enter at least 3 sentences.</p>
+
+            <div class="flex gap-2 mb-6 text-sm justify-center">
+                <button data-story="The boy put on his jacket. He grabbed his school bag. He walked out the door and ran to the bus stop." class="preset-btn text-blue-400 hover:text-blue transition-colors">Morning Routine</button>|
+                <button data-story="First, add the flour and sugar. Next, mix in the eggs and milk. Finally, pour the batter into the pan and bake." class="preset-btn text-blue-400 hover:text-blue transition-colors">Recipe</button>
+            </div>
+
+            <button id="start-game-btn" class="btn-base btn-blue w-full">START GAME</button>
         </div>
     </div>
 
+
     <script>
-        // Get references to DOM elements
-        const paragraphInput = document.getElementById('paragraph-input');
-        const scrambleBtn = document.getElementById('scramble-btn');
-        const inputSection = document.getElementById('input-section');
-
-        const gameSection = document.getElementById('game-section');
-        const roundInfo = document.getElementById('round-info');
-        const sentenceCardsContainer = document.getElementById('sentence-cards-container');
-        const messageBox = document.getElementById('message-box');
+        // DOM Elements
+        const setupModal = document.getElementById('setup-modal');
+        const gameSectionEl = document.getElementById('game-section-el');
+        const storyInput = document.getElementById('story-input');
+        const startGameBtn = document.getElementById('start-game-btn');
+        const setupError = document.getElementById('setup-error');
+        const messageBoxEl = document.getElementById('message-box');
+        const sentencesContainer = document.getElementById('sentences-container');
         const checkBtn = document.getElementById('check-btn');
-        const resetBtn = document.getElementById('reset-btn');
+        const soundToggleBtn = document.getElementById('sound-toggle');
+        const settingsBtn = document.getElementById('settings-btn');
+        const restartBtn = document.getElementById('restart-btn');
 
-        // Game state
-        let sentences = [];
+        // Game State
+        let originalOrder = []; // Stores sentences in correct order
+        let audioEnabled = true; 
+        let draggedItem = null;
 
-        // Utility function to shuffle an array
+        // --- AUDIO AND EFFECTS ---
+        let correctSynth = new Tone.MembraneSynth().toDestination();
+        let incorrectSynth = new Tone.NoiseSynth({
+            noise: { type: 'pink' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }
+        }).toDestination();
+
+        function playCorrect() {
+            if (audioEnabled) {
+                correctSynth.triggerAttackRelease("C4", "8n");
+                correctSynth.triggerAttackRelease("E4", "8n", "+0.05");
+                correctSynth.triggerAttackRelease("G4", "8n", "+0.1");
+            }
+        }
+
+        function playIncorrect() {
+            if (audioEnabled) {
+                incorrectSynth.triggerAttackRelease("8n");
+            }
+        }
+
+        function launchConfetti() {
+            confetti({
+                particleCount: 150,
+                spread: 90,
+                origin: { y: 0.6 },
+                colors: ['#00E676', '#2979FF', '#FF6B95', '#FF8C42']
+            });
+        }
+
+        // --- UTILITIES ---
+
+        // Fisher-Yates shuffle
         function shuffleArray(array) {
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [array[i], array[j]] = [array[j], array[i]];
             }
-            return array;
         }
 
-        // Function to create and render draggable sentence cards
-        function renderSentenceCards(sentencesToRender) {
-            sentenceCardsContainer.innerHTML = '';
-            sentencesToRender.forEach((sentence, index) => {
-                const card = document.createElement('div');
-                card.textContent = sentence;
-                card.draggable = true;
-                card.dataset.index = index;
-                card.className = "sentence-card w-full text-white font-bold py-4 px-8 text-xl rounded-2xl shadow-lg transition-all duration-300 transform hover:scale-105 animate-card-bounce";
-                
-                // Add drag and drop event listeners
-                card.addEventListener('dragstart', handleDragStart);
-                card.addEventListener('dragover', handleDragOver);
-                card.addEventListener('dragleave', handleDragLeave);
-                card.addEventListener('drop', handleDrop);
-                card.addEventListener('dragend', handleDragEnd);
-
-                sentenceCardsContainer.appendChild(card);
-            });
+        function updateMessageBox(message, type = 'info') {
+            messageBoxEl.innerHTML = message;
+            messageBoxEl.className = `message-box ${type} mx-auto`;
         }
 
-        // Drag and drop variables
-        let draggedItem = null;
-        let placeholder = document.createElement('div');
-        placeholder.className = 'drag-placeholder'; 
-        
-        // Drag and drop event handlers
+        // --- DRAG AND DROP HANDLERS ---
         function handleDragStart(e) {
             draggedItem = this;
-            setTimeout(() => this.classList.add('opacity-50'), 0);
-            e.dataTransfer.effectAllowed = 'move';
+            setTimeout(() => this.classList.add('dragging'), 0);
+        }
 
-            placeholder.style.width = `${draggedItem.offsetWidth}px`;
-            placeholder.style.height = `${draggedItem.offsetHeight}px`;
-            placeholder.classList.add('placeholder-fade-in');
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+            document.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
         }
 
         function handleDragOver(e) {
-            e.preventDefault();
-            const target = e.target.closest('.sentence-card');
-            if (target && target !== draggedItem) {
-                const rect = target.getBoundingClientRect();
-                const container = sentenceCardsContainer;
-                const y = e.clientY - rect.top;
-                const isTopHalf = y < rect.height / 2;
-
-                if (!placeholder.parentElement) {
-                    container.appendChild(placeholder);
-                }
-
-                if (isTopHalf) {
-                    container.insertBefore(placeholder, target);
-                } else {
-                    container.insertBefore(placeholder, target.nextSibling);
-                }
-            } else if (!target && e.target === sentenceCardsContainer) {
-                if (!placeholder.parentElement) {
-                    sentenceCardsContainer.appendChild(placeholder);
-                }
+            e.preventDefault(); // Allows drop
+            const targetCard = e.currentTarget;
+            if (targetCard !== draggedItem) {
+                targetCard.classList.add('drop-target');
             }
         }
 
         function handleDragLeave(e) {
-            // Placeholder is managed by dragover
+            e.currentTarget.classList.remove('drop-target');
         }
 
         function handleDrop(e) {
             e.preventDefault();
+            e.currentTarget.classList.remove('drop-target');
+
+            if (draggedItem !== e.currentTarget) {
+                const targetCard = e.currentTarget;
+                const container = targetCard.parentNode;
+                const bounding = targetCard.getBoundingClientRect();
+                const offset = bounding.y + (bounding.height / 2);
+
+                // Determine if we drop above or below the target card
+                if (e.clientY < offset) {
+                    container.insertBefore(draggedItem, targetCard);
+                } else {
+                    container.insertBefore(draggedItem, targetCard.nextSibling);
+                }
+            }
+            checkBtn.disabled = false; // Enable check button after a move
         }
 
-        function handleDragEnd(e) {
-            e.preventDefault();
-            this.classList.remove('opacity-50');
+        // --- GAME FLOW ---
+
+        function renderCards(sentences) {
+            sentencesContainer.innerHTML = '';
             
-            if (placeholder.parentElement) {
-                sentenceCardsContainer.insertBefore(draggedItem, placeholder);
-                placeholder.remove();
+            sentences.forEach((sentence, index) => {
+                const card = document.createElement('div');
+                card.textContent = sentence;
+                card.className = `sentence-card glass-panel p-3 rounded-lg border-l-orange transition-shadow shadow-md`;
+                
+                // Drag and Drop attributes/listeners
+                card.setAttribute('draggable', true);
+                card.addEventListener('dragstart', handleDragStart);
+                card.addEventListener('dragend', handleDragEnd);
+                card.addEventListener('dragover', handleDragOver);
+                card.addEventListener('dragleave', handleDragLeave);
+                card.addEventListener('drop', handleDrop);
+
+                sentencesContainer.appendChild(card);
+            });
+        }
+
+        function initGame(sentences) {
+            // 1. Store the correct order
+            originalOrder = sentences.map(s => s.trim()).filter(s => s.length > 0);
+            
+            // 2. Create a shuffled copy for display
+            let shuffledSentences = [...originalOrder];
+            shuffleArray(shuffledSentences);
+            
+            // Handle the unlikely case where the initial shuffle is already correct
+            if (JSON.stringify(shuffledSentences) === JSON.stringify(originalOrder)) {
+                 // Simple manual shuffle fix
+                 shuffledSentences = shuffledSentences.reverse(); 
             }
 
-            const allCards = document.querySelectorAll('.sentence-card');
-            allCards.forEach(card => card.classList.remove('drag-over'));
+            // 3. Render the cards
+            renderCards(shuffledSentences);
+
+            // 4. Update UI state
+            setupModal.classList.add('hidden');
+            gameSectionEl.style.display = 'block';
+            checkBtn.disabled = false;
+            updateMessageBox(`Order the ${originalOrder.length} sentences. Drag and drop to reorder!`, 'info');
+        }
+        
+        function checkAnswer() {
+            // 1. Get the current order from the DOM
+            const currentOrder = Array.from(sentencesContainer.children).map(card => card.textContent.trim());
             
-            draggedItem = null;
+            // 2. Compare the joined sentences to the original paragraph
+            const userSequence = JSON.stringify(currentOrder);
+            const correctSequence = JSON.stringify(originalOrder);
+
+            if (userSequence === correctSequence) {
+                // WIN CONDITION
+                updateMessageBox(`🎉 **Congratulations!** You've unscrambled the story correctly!`, 'success');
+                launchConfetti();
+                playCorrect();
+                checkBtn.disabled = true;
+                
+                // Add success visual cue to cards
+                Array.from(sentencesContainer.children).forEach(card => {
+                    card.style.borderLeftColor = 'var(--green)';
+                });
+
+            } else {
+                // LOSS/TRY AGAIN CONDITION
+                updateMessageBox("Not quite right. Keep trying!", 'error');
+                playIncorrect();
+            }
         }
 
-        // Main function to start the game from input
-        function startGame() {
-            const paragraphInputText = paragraphInput.value.trim();
-            if (paragraphInputText === '') {
-                messageBox.textContent = "Please enter a paragraph to play.";
-                messageBox.className = 'message-box lose text-red-600 mt-4';
+
+        function openSetupModal() {
+            setupModal.classList.remove('hidden');
+            gameSectionEl.style.display = 'none';
+        }
+
+        function restartGame() {
+            // If original words were previously loaded, use them to restart
+            if (originalOrder.length > 0) {
+                initGame(originalOrder); // The init function shuffles for us
+            } else {
+                // If no story was loaded, open setup modal
+                openSetupModal();
+            }
+        }
+
+
+        // --- MAIN EVENT LISTENERS ---
+        
+        checkBtn.addEventListener('click', checkAnswer);
+
+        soundToggleBtn.addEventListener('click', (e) => {
+            audioEnabled = !audioEnabled;
+            const icon = audioEnabled ? 'volume-2' : 'volume-x';
+            e.currentTarget.innerHTML = `<i data-lucide="${icon}" class="w-5 h-5"></i>`;
+            lucide.createIcons();
+            updateMessageBox(audioEnabled ? 'Sound ON' : 'Sound OFF', 'info');
+        });
+        
+        settingsBtn.addEventListener('click', openSetupModal);
+        
+        restartBtn.addEventListener('click', restartGame);
+
+        startGameBtn.addEventListener('click', () => {
+            // Split by new line, filter out empty lines, and trim whitespace
+            const rawSentences = storyInput.value.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+            
+            if (rawSentences.length < 3) {
+                setupError.classList.remove('hidden');
+                playIncorrect();
                 return;
             }
 
-            // Split the paragraph into sentences using a more robust regex
-            sentences = paragraphInputText.split(/(?<=[.?!])\s+/).filter(s => s.length > 0);
-            if (sentences.length <= 1) {
-                 messageBox.textContent = "Please enter a valid paragraph with at least two sentences to unscramble.";
-                 messageBox.className = 'message-box lose text-red-600 mt-4';
-                 return;
-            }
+            setupError.classList.add('hidden');
+            initGame(rawSentences);
+        });
+        
+        // Presets
+        document.querySelectorAll('.preset-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                storyInput.value = e.target.dataset.story.split('. ').join('.\n');
+            });
+        });
 
-            // Shuffle the sentences
-            const shuffledSentences = shuffleArray([...sentences]);
+        // Initialize Lucide icons and open setup modal on load
+        window.onload = function() {
+            lucide.createIcons();
+            // Default story for quick testing
+            storyInput.value = "First, the little seed fell to the ground.\nNext, the rain watered the soil.\nSoon, a small sprout pushed out of the dirt.\nFinally, the sprout grew into a tall, strong flower.";
+            openSetupModal(); 
+        };
 
-            // Hide input and show game
-            inputSection.classList.add('hidden');
-            gameSection.classList.remove('hidden');
-            gameSection.classList.add('flex');
-            
-            // Clear message box
-            messageBox.textContent = '';
-            messageBox.className = '';
-
-            // Render the shuffled sentences as cards
-            renderSentenceCards(shuffledSentences);
-        }
-
-        // Function to check the user's answer
-        function checkAnswer() {
-            const currentOrder = Array.from(sentenceCardsContainer.children).map(card => card.textContent);
-            
-            // Compare the joined sentences to the original paragraph
-            const userParagraph = currentOrder.join(' ');
-            const originalParagraph = sentences.join(' ');
-
-            if (userParagraph === originalParagraph) {
-                messageBox.innerHTML = `🌟 **Congratulations!** You've unscrambled the paragraph correctly! 🎉`;
-                messageBox.className = 'message-box win text-green-600 mt-4';
-                checkBtn.disabled = true;
-            } else {
-                messageBox.textContent = "Not quite right. Keep trying!";
-                messageBox.className = 'message-box lose text-red-600 mt-4';
-            }
-        }
-
-        // Function to reset the game to the initial input state
-        function resetGame() {
-            paragraphInput.value = '';
-            inputSection.classList.remove('hidden');
-            gameSection.classList.add('hidden');
-            gameSection.classList.remove('flex');
-            messageBox.textContent = '';
-            messageBox.className = '';
-            sentenceCardsContainer.innerHTML = '';
-            checkBtn.disabled = false;
-        }
-
-        // Event listeners for buttons
-        scrambleBtn.addEventListener('click', startGame);
-        checkBtn.addEventListener('click', checkAnswer);
-        resetBtn.addEventListener('click', resetGame);
     </script>
+
 </body>
 </html>
