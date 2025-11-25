@@ -3,436 +3,622 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cosmic Timer</title>
-    <!-- Tailwind CSS CDN -->
+    <title>Classroom Timers: Zen & Boom</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Tone.js CDN for sound generation -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Montserrat:wght@700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;600&family=Share+Tech+Mono&display=swap');
+
         :root {
-            --primary-color: #5b79e8;
-            --secondary-color: #3b50c0;
-            --background-color: #0c0f16;
-            --text-color: #e0e6ed;
-            --accent-color: #7d9dfa;
-            --danger-color: #ff6b6b;
-            --success-color: #50e3c2;
-            --warn-color: #fce38a;
-            --shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
-            --border-radius: 16px;
-            --gradient-start: #1a2233;
-            --gradient-end: #0e121a;
+            --color-pink: #FF6B9C;
+            --color-orange: #FF9F43;
+            --color-green: #2ECC71;
+            --color-blue: #54A0FF;
         }
 
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--background-color);
-            color: var(--text-color);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 1rem;
-            transition: background-color 0.5s ease;
+            font-family: 'Fredoka', sans-serif;
+            overflow-x: hidden;
         }
 
-        .timer-container {
-            background: linear-gradient(145deg, var(--gradient-start), var(--gradient-end));
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 2.5rem;
-            border-radius: var(--border-radius);
-            box-shadow: var(--shadow);
-            text-align: center;
-            width: 100%;
-            max-width: 600px;
-            position: relative;
-            overflow: hidden;
-            backdrop-filter: blur(10px);
-            transition: all 0.5s ease;
+        /* Animations for Calm Mode */
+        @keyframes breathe {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.05); opacity: 1; }
         }
         
-        .timer-container::before {
-            content: '';
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+
+        .zen-circle {
+            animation: breathe 6s infinite ease-in-out;
+        }
+
+        .bubble {
             position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(91, 121, 232, 0.1) 0%, transparent 60%);
-            animation: pulse-glow 15s infinite ease-in-out;
-            z-index: 0;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            animation: float 4s infinite ease-in-out;
         }
 
-        @keyframes pulse-glow {
-            0% { transform: scale(1) translate(0, 0); }
-            50% { transform: scale(1.2) translate(10%, 10%); }
-            100% { transform: scale(1) translate(0, 0); }
+        /* Animations for Bomb Mode */
+        @keyframes tick-tock {
+            0% { transform: rotate(-2deg); }
+            50% { transform: rotate(2deg); }
+            100% { transform: rotate(-2deg); }
         }
 
-        h1 {
-            font-family: 'Montserrat', sans-serif;
-            color: var(--accent-color);
-            margin-bottom: 0.5rem;
-            text-transform: uppercase;
-            font-size: 2rem;
-            font-weight: 700;
-            letter-spacing: 2px;
-            z-index: 10;
-            position: relative;
+        @keyframes shake-mild {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
         }
 
-        .mode-switch-btn {
-            background-color: transparent;
-            color: #bdc3c7;
-            border: 1px solid #34495e;
-            padding: 0.75rem 1.5rem;
-            border-radius: var(--border-radius);
-            cursor: pointer;
-            transition: all 0.3s ease;
-            position: relative;
-            z-index: 10;
+        @keyframes shake-hard {
+            0% { transform: translate(0px, 0px) rotate(0deg); }
+            25% { transform: translate(5px, 5px) rotate(5deg); }
+            50% { transform: translate(0px, 5px) rotate(0deg); }
+            75% { transform: translate(-5px, 5px) rotate(-5deg); }
+            100% { transform: translate(0px, 0px) rotate(0deg); }
         }
 
-        .mode-switch-btn.active {
-            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-            color: white;
-            box-shadow: 0 4px 15px rgba(91, 121, 232, 0.4);
-            border-color: var(--primary-color);
+        @keyframes fuse-spark {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.5); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        .bomb-active {
+            animation: tick-tock 1s infinite;
+        }
+
+        .shake-mild {
+            animation: shake-mild 0.5s infinite;
+        }
+
+        .shake-hard {
+            animation: shake-hard 0.1s infinite;
+        }
+
+        .digital-font {
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        /* Mode Transitions */
+        .mode-transition {
+            transition: background-color 0.5s ease, color 0.5s ease;
+        }
+
+        /* Explosion Overlay */
+        #explosion-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: white;
+            z-index: 50;
+            align-items: center;
+            justify-content: center;
         }
         
-        .mode-switch-btn:hover:not(.active) {
-            background-color: #2c3e50;
-            color: white;
-            border-color: #4a69bd;
+        .boom-text {
+            font-size: 8rem;
+            font-weight: 900;
+            color: var(--color-orange);
+            text-shadow: 4px 4px var(--color-pink);
+            animation: scale-up 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
-        .timer-display {
-            font-family: 'Montserrat', sans-serif;
-            font-size: 5rem;
-            font-weight: 700;
-            margin: 2.5rem 0;
-            color: var(--text-color);
-            text-shadow: 0 0 15px rgba(125, 157, 250, 0.5), 0 0 5px rgba(125, 157, 250, 0.5);
-            transition: color 0.3s ease, text-shadow 0.3s ease;
-            position: relative;
-            z-index: 10;
-        }
-        
-        .timer-display.danger {
-            color: var(--danger-color);
-            text-shadow: 0 0 15px rgba(255, 107, 107, 0.8), 0 0 5px rgba(255, 107, 107, 0.5);
+        @keyframes scale-up {
+            0% { transform: scale(0); opacity: 0; }
+            80% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); }
         }
 
-        .control-btn {
-            padding: 1rem 2rem;
-            font-size: 1rem;
-            font-weight: bold;
-            border: none;
-            border-radius: var(--border-radius);
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            position: relative;
-            z-index: 10;
+        /* Input Styling */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
         }
-
-        .start-btn {
-            background: linear-gradient(135deg, var(--success-color), #40c0a3);
-            color: var(--background-color);
-        }
-
-        .start-btn:hover {
-            box-shadow: 0 6px 15px rgba(80, 227, 194, 0.5);
-            transform: translateY(-2px) scale(1.02);
-        }
-        
-        .pause-btn {
-            background: linear-gradient(135deg, var(--warn-color), #d1b46a);
-            color: var(--background-color);
-        }
-
-        .pause-btn:hover {
-            box-shadow: 0 6px 15px rgba(252, 227, 138, 0.5);
-            transform: translateY(-2px) scale(1.02);
-        }
-
-        .reset-btn {
-            background: linear-gradient(135deg, var(--danger-color), #c05c5c);
-            color: white;
-        }
-        
-        .reset-btn:hover {
-            box-shadow: 0 6px 15px rgba(255, 107, 107, 0.5);
-            transform: translateY(-2px) scale(1.02);
-        }
-
-        .timer-input-group, .sound-selector-group {
-            margin-top: 1.5rem;
-            position: relative;
-            z-index: 10;
-        }
-
-        .timer-input {
-            background-color: var(--background-color);
-            border: 1px solid #34495e;
-            color: var(--text-color);
-            padding: 0.75rem;
-            border-radius: 8px;
-            text-align: center;
-            transition: border-color 0.3s ease, box-shadow 0.3s ease;
-        }
-        
-        .timer-input:focus {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 8px rgba(91, 121, 232, 0.5);
-            outline: none;
-        }
-
-        .message-box {
-            background-color: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            padding: 1rem;
-            margin-top: 2rem;
-            border-radius: 8px;
-            position: relative;
-            z-index: 10;
+        input[type=number] {
+            -moz-appearance: textfield;
+            font-family: inherit;
         }
     </style>
 </head>
-<body class="bg-gray-900">
-    <div class="timer-container">
-        <!-- Header and Mode Switch -->
-        <div class="flex flex-col items-center">
-            <h1>Cosmic Timer</h1>
-            <p class="text-sm text-gray-400 mb-4 z-10 relative">A versatile timer and stopwatch for your cosmic quests.</p>
-            <div class="flex gap-4">
-                <button id="timer-mode-btn" class="mode-switch-btn active">Timer</button>
-                <button id="stopwatch-mode-btn" class="mode-switch-btn">Stopwatch</button>
-            </div>
+<body class="bg-gray-50 min-h-screen flex flex-col mode-transition" id="main-body">
+
+    <!-- Header / Mode Switcher -->
+    <nav class="w-full p-4 flex justify-between items-center bg-white/80 backdrop-blur-md shadow-sm z-10 sticky top-0">
+        <div class="flex items-center gap-2">
+            <i data-lucide="gamepad-2" class="w-6 h-6 text-gray-700"></i>
+            <h1 class="text-xl font-bold text-gray-700">Teacher's Game Hub</h1>
         </div>
-
-        <!-- Timer/Stopwatch Display -->
-        <div id="display" class="timer-display">00:00:00</div>
-
-        <!-- Timer Input and Sound Selector (Timer Mode) -->
-        <div id="timer-controls" class="flex flex-col gap-4 items-center">
-            <div class="timer-input-group flex gap-2 items-center">
-                <input type="number" id="minutes-input" class="timer-input w-20" placeholder="Min" value="5" min="0">
-                <span class="text-xl text-gray-400">:</span>
-                <input type="number" id="seconds-input" class="timer-input w-20" placeholder="Sec" value="0" min="0" max="59">
-            </div>
-            <div class="sound-selector-group flex gap-2 items-center">
-                <label for="sound-select" class="text-gray-300">Alarm Sound:</label>
-                <select id="sound-select" class="timer-input">
-                    <option value="pulse">Pulse</option>
-                    <option value="beep">Beep</option>
-                    <option value="deep-tone">Deep Tone</option>
-                </select>
-            </div>
+        
+        <div class="flex bg-gray-100 p-1 rounded-full">
+            <button onclick="setMode('calm')" id="btn-calm" class="px-4 py-2 rounded-full text-sm font-semibold transition-all flex items-center gap-2">
+                <i data-lucide="leaf"></i> Zen Flow
+            </button>
+            <button onclick="setMode('bomb')" id="btn-bomb" class="px-4 py-2 rounded-full text-sm font-semibold transition-all flex items-center gap-2">
+                <i data-lucide="bomb"></i> Fuse Rush
+            </button>
         </div>
+    </nav>
 
-        <!-- Control Buttons -->
-        <div class="flex justify-center gap-4 mt-8">
-            <button id="start-btn" class="control-btn start-btn">Start</button>
-            <button id="pause-btn" class="control-btn pause-btn hidden">Pause</button>
-            <button id="reset-btn" class="control-btn reset-btn">Reset</button>
+    <!-- Main Content Area -->
+    <main class="flex-grow flex items-center justify-center p-4 relative overflow-hidden">
+        
+        <!-- Background Decor (Dynamic) -->
+        <div id="bg-decor" class="absolute inset-0 pointer-events-none z-0"></div>
+
+        <!-- Timer Container -->
+        <div id="timer-container" class="relative z-10 bg-white/90 backdrop-blur rounded-3xl shadow-2xl p-8 w-full max-w-md text-center transition-all duration-300">
+            
+            <!-- Timer Display -->
+            <div class="mb-8 relative">
+                <!-- Visual Element (Circle or Bomb) -->
+                <div id="visual-element" class="h-48 w-48 mx-auto mb-6 flex items-center justify-center transition-all">
+                    <!-- Content injected by JS -->
+                </div>
+
+                <!-- Digital Numbers (Editable Inputs) -->
+                <div id="time-display-container" class="flex justify-center items-center text-6xl font-bold text-gray-800 transition-colors gap-1">
+                    <input type="number" id="min-input" value="05" min="0" max="99" 
+                           class="w-24 text-center bg-transparent focus:outline-none focus:bg-white/50 focus:ring-2 ring-blue-300 transition-all rounded-xl p-1 cursor-pointer hover:bg-black/5" 
+                           onchange="updateTimeFromInput()" onfocus="stopTimer(); this.select()" 
+                           aria-label="Minutes">
+                    <span class="pb-4 select-none">:</span>
+                    <input type="number" id="sec-input" value="00" min="0" max="59" 
+                           class="w-24 text-center bg-transparent focus:outline-none focus:bg-white/50 focus:ring-2 ring-blue-300 transition-all rounded-xl p-1 cursor-pointer hover:bg-black/5" 
+                           onchange="updateTimeFromInput()" onfocus="stopTimer(); this.select()"
+                           aria-label="Seconds">
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="flex flex-col gap-4">
+                <!-- Time Adjusters -->
+                <div class="flex justify-center flex-wrap gap-2 text-sm text-gray-500 font-mono">
+                    <button onclick="adjustTime(-60)" class="hover:bg-red-50 hover:text-red-500 hover:border-red-200 px-3 py-1 rounded border border-gray-200 transition-colors bg-white">-1m</button>
+                    <button onclick="adjustTime(-30)" class="hover:bg-red-50 hover:text-red-500 hover:border-red-200 px-3 py-1 rounded border border-gray-200 transition-colors bg-white">-30s</button>
+                    <div class="w-px bg-gray-300 mx-1 hidden sm:block"></div>
+                    <button onclick="adjustTime(30)" class="hover:bg-green-50 hover:text-green-500 hover:border-green-200 px-3 py-1 rounded border border-gray-200 transition-colors bg-white">+30s</button>
+                    <button onclick="adjustTime(60)" class="hover:bg-green-50 hover:text-green-500 hover:border-green-200 px-3 py-1 rounded border border-gray-200 transition-colors bg-white">+1m</button>
+                    <button onclick="adjustTime(300)" class="hover:bg-green-50 hover:text-green-500 hover:border-green-200 px-3 py-1 rounded border border-gray-200 transition-colors bg-white">+5m</button>
+                </div>
+
+                <!-- Play/Pause/Reset -->
+                <div class="flex justify-center gap-4 mt-2">
+                    <button onclick="toggleTimer()" id="start-btn" class="w-16 h-16 rounded-full flex items-center justify-center text-white text-xl shadow-lg transform transition active:scale-95 hover:shadow-xl">
+                        <i data-lucide="play" id="play-icon"></i>
+                    </button>
+                    
+                    <button onclick="resetTimer()" class="w-16 h-16 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center text-xl shadow hover:bg-gray-300 transform transition active:scale-95">
+                        <i data-lucide="rotate-ccw"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Status Text -->
+            <p id="status-text" class="mt-6 text-gray-500 font-medium">Ready to start</p>
         </div>
+    </main>
 
-        <!-- Message Box for alerts -->
-        <div id="message-box" class="message-box hidden"></div>
+    <!-- Explosion Overlay -->
+    <div id="explosion-overlay">
+        <div class="text-center">
+            <div class="boom-text">BOOM!</div>
+            <p class="text-2xl mt-4 text-gray-600 font-bold">Time's Up!</p>
+            <button onclick="closeExplosion()" class="mt-8 px-8 py-3 bg-gray-800 text-white rounded-full hover:bg-gray-700 transition font-bold">
+                Reset
+            </button>
+        </div>
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // DOM Elements
-            const timerModeBtn = document.getElementById('timer-mode-btn');
-            const stopwatchModeBtn = document.getElementById('stopwatch-mode-btn');
-            const display = document.getElementById('display');
-            const timerControls = document.getElementById('timer-controls');
-            const minutesInput = document.getElementById('minutes-input');
-            const secondsInput = document.getElementById('seconds-input');
-            const soundSelect = document.getElementById('sound-select');
-            const startBtn = document.getElementById('start-btn');
-            const pauseBtn = document.getElementById('pause-btn');
-            const resetBtn = document.getElementById('reset-btn');
-            const messageBox = document.getElementById('message-box');
+        // State
+        let timeLeft = 300; // 5 minutes in seconds
+        let initialTime = 300;
+        let isRunning = false;
+        let intervalId = null;
+        let currentMode = 'calm'; // 'calm' or 'bomb'
+        
+        // Audio Context (Browser requires user interaction to start audio)
+        let audioCtx;
 
-            // State variables
-            let mode = 'timer'; // 'timer' or 'stopwatch'
-            let intervalId = null;
-            let totalSeconds = 0;
-            let startTime = 0;
-            let isRunning = false;
-            let currentSound = 'pulse';
+        // Elements
+        const body = document.getElementById('main-body');
+        const displayContainer = document.getElementById('time-display-container');
+        const minInput = document.getElementById('min-input');
+        const secInput = document.getElementById('sec-input');
+        
+        const visualElement = document.getElementById('visual-element');
+        const startBtn = document.getElementById('start-btn');
+        const playIcon = document.getElementById('play-icon');
+        const statusText = document.getElementById('status-text');
+        const timerContainer = document.getElementById('timer-container');
+        const bgDecor = document.getElementById('bg-decor');
+        const explosionOverlay = document.getElementById('explosion-overlay');
 
-            // Tone.js Synths for sounds
-            const pulseSynth = new Tone.PulseOscillator().toDestination();
-            const beepSynth = new Tone.Synth().toDestination();
-            const deepToneSynth = new Tone.MembraneSynth().toDestination();
-            const synths = {
-                'pulse': pulseSynth,
-                'beep': beepSynth,
-                'deep-tone': deepToneSynth
-            };
+        // Colors
+        const colors = {
+            green: '#2ECC71',
+            blue: '#54A0FF',
+            orange: '#FF9F43',
+            pink: '#FF6B9C',
+            darkRed: '#d63031'
+        };
 
-            // Function to format time from seconds to HH:MM:SS
-            function formatTime(seconds) {
-                const h = Math.floor(seconds / 3600);
-                const m = Math.floor((seconds % 3600) / 60);
-                const s = Math.floor(seconds % 60);
-                return [h, m, s].map(v => v.toString().padStart(2, '0')).join(':');
-            }
+        // --- Initialization ---
+        lucide.createIcons();
+        setMode('calm'); // Default
 
-            // Function to update the display
-            function updateDisplay() {
-                if (mode === 'timer') {
-                    if (totalSeconds <= 10 && totalSeconds > 0) {
-                        display.classList.add('danger');
-                    } else {
-                        display.classList.remove('danger');
-                    }
-                    display.textContent = formatTime(totalSeconds);
-                } else { // stopwatch
-                    const elapsed = Math.floor((Date.now() - startTime) / 1000);
-                    display.textContent = formatTime(elapsed);
-                }
-            }
+        // --- Logic ---
 
-            // Function to play selected sound
-            async function playSound() {
-                try {
-                    await Tone.start();
-                    switch (currentSound) {
-                        case 'pulse':
-                            pulseSynth.start().stop('1s');
-                            break;
-                        case 'beep':
-                            beepSynth.triggerAttackRelease('C4', '8n');
-                            break;
-                        case 'deep-tone':
-                            deepToneSynth.triggerAttackRelease('C2', '8n');
-                            break;
-                    }
-                } catch (error) {
-                    console.error("Audio playback error:", error);
-                }
-            }
-            
-            // Function to show a message
-            function showMessage(text) {
-                messageBox.textContent = text;
-                messageBox.classList.remove('hidden');
-            }
+        function setMode(mode) {
+            currentMode = mode;
+            stopTimer(); // Pause if switching
 
-            // Timer mode functions
-            function startTimer() {
-                if (isRunning) return;
-                isRunning = true;
+            const btnCalm = document.getElementById('btn-calm');
+            const btnBomb = document.getElementById('btn-bomb');
+
+            if (mode === 'calm') {
+                // UI Styles
+                body.style.backgroundColor = '#EBFBF2'; // Light Green tint
+                btnCalm.className = "px-4 py-2 rounded-full text-sm font-semibold transition-all flex items-center gap-2 bg-green-500 text-white shadow-md";
+                btnBomb.className = "px-4 py-2 rounded-full text-sm font-semibold transition-all flex items-center gap-2 text-gray-500 hover:bg-gray-200";
+                startBtn.style.backgroundColor = colors.blue;
                 
-                startBtn.classList.add('hidden');
-                pauseBtn.classList.remove('hidden');
+                displayContainer.classList.remove('digital-font', 'text-red-500');
+                displayContainer.classList.add('text-gray-800');
                 
-                intervalId = setInterval(() => {
-                    totalSeconds--;
-                    if (totalSeconds <= 0) {
-                        totalSeconds = 0;
-                        clearInterval(intervalId);
-                        isRunning = false;
-                        playSound();
-                        showMessage("Timer complete!");
-                        
-                        startBtn.classList.remove('hidden');
-                        pauseBtn.classList.add('hidden');
-                    }
-                    updateDisplay();
-                }, 1000);
-            }
-
-            // Stopwatch mode functions
-            function startStopwatch() {
-                if (isRunning) return;
-                isRunning = true;
-                startTime = Date.now() - totalSeconds * 1000;
+                timerContainer.classList.remove('shake-mild', 'shake-hard');
                 
-                startBtn.classList.add('hidden');
-                pauseBtn.classList.remove('hidden');
+                // Visuals
+                updateCalmVisuals();
+                statusText.innerText = "Focus & Breathe";
+                
+                // Decor
+                bgDecor.innerHTML = `
+                    <div class="bubble w-32 h-32 top-10 left-10 bg-green-200 opacity-20"></div>
+                    <div class="bubble w-24 h-24 bottom-20 right-20 bg-blue-200 opacity-20"></div>
+                    <div class="bubble w-16 h-16 top-1/2 left-1/4 bg-blue-100 opacity-20"></div>
+                `;
 
-                intervalId = setInterval(() => {
-                    totalSeconds = Math.floor((Date.now() - startTime) / 1000);
-                    updateDisplay();
-                }, 1000);
+            } else {
+                // UI Styles
+                body.style.backgroundColor = '#FFF0E6'; // Light Orange tint
+                btnBomb.className = "px-4 py-2 rounded-full text-sm font-semibold transition-all flex items-center gap-2 bg-orange-500 text-white shadow-md";
+                btnCalm.className = "px-4 py-2 rounded-full text-sm font-semibold transition-all flex items-center gap-2 text-gray-500 hover:bg-gray-200";
+                startBtn.style.backgroundColor = colors.pink;
+                
+                displayContainer.classList.add('digital-font'); // Monospaced for bomb
+                
+                // Visuals
+                updateBombVisuals();
+                statusText.innerText = "Detonation Sequence";
+
+                // Decor
+                bgDecor.innerHTML = `
+                   <div class="absolute top-0 left-0 w-full h-2 bg-[repeating-linear-gradient(45deg,${colors.orange},${colors.orange}_10px,transparent_10px,transparent_20px)] opacity-50"></div>
+                   <div class="absolute bottom-0 left-0 w-full h-2 bg-[repeating-linear-gradient(45deg,${colors.pink},${colors.pink}_10px,transparent_10px,transparent_20px)] opacity-50"></div>
+                `;
             }
-
-            function pause() {
-                clearInterval(intervalId);
-                isRunning = false;
-                startBtn.classList.remove('hidden');
-                pauseBtn.classList.add('hidden');
-            }
-
-            function reset() {
-                pause();
-                totalSeconds = 0;
-                updateDisplay();
-                messageBox.classList.add('hidden');
-            }
-
-            // Event listeners for control buttons
-            startBtn.addEventListener('click', () => {
-                if (mode === 'timer') {
-                    const minutes = parseInt(minutesInput.value) || 0;
-                    const seconds = parseInt(secondsInput.value) || 0;
-                    totalSeconds = minutes * 60 + seconds;
-                    if (totalSeconds > 0) {
-                        startTimer();
-                    } else {
-                        showMessage("Please set a duration greater than 0.");
-                    }
-                } else {
-                    startStopwatch();
-                }
-            });
-
-            pauseBtn.addEventListener('click', pause);
-            resetBtn.addEventListener('click', reset);
-            
-            soundSelect.addEventListener('change', (e) => {
-                currentSound = e.target.value;
-            });
-
-            // Mode switch functionality
-            timerModeBtn.addEventListener('click', () => {
-                if (mode === 'stopwatch') {
-                    reset();
-                    mode = 'timer';
-                    timerModeBtn.classList.add('active');
-                    stopwatchModeBtn.classList.remove('active');
-                    timerControls.classList.remove('hidden');
-                    // Reset display to show timer input values
-                    totalSeconds = (parseInt(minutesInput.value) || 0) * 60 + (parseInt(secondsInput.value) || 0);
-                    updateDisplay();
-                }
-            });
-
-            stopwatchModeBtn.addEventListener('click', () => {
-                if (mode === 'timer') {
-                    reset();
-                    mode = 'stopwatch';
-                    stopwatchModeBtn.classList.add('active');
-                    timerModeBtn.classList.remove('active');
-                    timerControls.classList.add('hidden');
-                    // Reset display to 0 for stopwatch
-                    display.textContent = '00:00:00';
-                }
-            });
-            
-            // Initial setup
             updateDisplay();
-        });
+        }
+
+        function updateDisplay() {
+            const m = Math.floor(timeLeft / 60);
+            const s = timeLeft % 60;
+            
+            // Only update inputs if they are not currently being focused/edited to avoid jumping
+            if (document.activeElement !== minInput && document.activeElement !== secInput) {
+                minInput.value = m.toString().padStart(2, '0');
+                secInput.value = s.toString().padStart(2, '0');
+            }
+            
+            // Dynamic Updates based on mode
+            if (currentMode === 'calm') {
+                updateCalmVisuals();
+            } else {
+                updateBombVisuals();
+            }
+        }
+
+        function updateTimeFromInput() {
+            let m = parseInt(minInput.value) || 0;
+            let s = parseInt(secInput.value) || 0;
+            
+            // Basic validation
+            if (s > 59) { m += Math.floor(s/60); s = s % 60; }
+            if (m > 99) m = 99;
+
+            timeLeft = (m * 60) + s;
+            initialTime = timeLeft > 0 ? timeLeft : 300; // Reset initial time base for visuals
+            
+            // Force update formatting (e.g. if user typed "5", make it "05")
+            minInput.value = m.toString().padStart(2, '0');
+            secInput.value = s.toString().padStart(2, '0');
+            
+            updateDisplay();
+        }
+
+        function adjustTime(seconds) {
+            let newTime = timeLeft + seconds;
+            if (newTime < 0) newTime = 0;
+            timeLeft = newTime;
+            
+            // If we are adding time, we might want to update the "initialTime" 
+            // so the progress bar/fuse doesn't look weird (jumping to >100%)
+            if (timeLeft > initialTime) initialTime = timeLeft;
+            
+            updateDisplay();
+        }
+
+        function toggleTimer() {
+            if (!audioCtx) initAudio(); // Start audio context on first user click
+
+            if (isRunning) {
+                stopTimer();
+            } else {
+                startTimer();
+            }
+        }
+
+        function startTimer() {
+            // Update values from input one last time before starting to be sure
+            updateTimeFromInput();
+            
+            if (timeLeft <= 0) return;
+            
+            isRunning = true;
+            playIcon.setAttribute('data-lucide', 'pause');
+            lucide.createIcons();
+            
+            // Disable inputs while running to prevent weird state
+            // minInput.disabled = true;
+            // secInput.disabled = true;
+            
+            if (currentMode === 'bomb') {
+                statusText.innerText = "Fuse Lit!";
+                statusText.style.color = colors.orange;
+            } else {
+                statusText.innerText = "Flowing...";
+                statusText.style.color = colors.green;
+            }
+
+            intervalId = setInterval(() => {
+                timeLeft--;
+                updateDisplay();
+
+                // Sound Effects
+                if (currentMode === 'bomb') {
+                    playTickSound();
+                }
+
+                // Bomb Panic Logic
+                if (currentMode === 'bomb' && timeLeft <= 10 && timeLeft > 0) {
+                     timerContainer.classList.add('shake-mild');
+                     displayContainer.classList.add('text-red-600');
+                     displayContainer.classList.remove('text-gray-800');
+                }
+                
+                if (currentMode === 'bomb' && timeLeft <= 5 && timeLeft > 0) {
+                     timerContainer.classList.remove('shake-mild');
+                     timerContainer.classList.add('shake-hard');
+                     body.style.backgroundColor = (timeLeft % 2 === 0) ? '#ffcccb' : '#FFF0E6'; // Flash red
+                }
+
+                if (timeLeft <= 0) {
+                    finishTimer();
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            isRunning = false;
+            clearInterval(intervalId);
+            playIcon.setAttribute('data-lucide', 'play');
+            lucide.createIcons();
+            statusText.innerText = "Paused";
+            statusText.style.color = 'gray';
+            
+            // Re-enable inputs
+            // minInput.disabled = false;
+            // secInput.disabled = false;
+            
+            // Clear Bomb FX
+            timerContainer.classList.remove('shake-mild', 'shake-hard');
+            if(currentMode === 'bomb') body.style.backgroundColor = '#FFF0E6';
+        }
+
+        function resetTimer() {
+            stopTimer();
+            timeLeft = initialTime > 0 ? initialTime : 300;
+            if(currentMode === 'bomb') {
+                displayContainer.classList.remove('text-red-600');
+                displayContainer.classList.add('text-gray-800');
+            }
+            updateDisplay();
+            statusText.innerText = "Ready";
+        }
+
+        function finishTimer() {
+            stopTimer();
+            timeLeft = 0;
+            updateDisplay();
+
+            if (currentMode === 'bomb') {
+                playExplosionSound();
+                explosionOverlay.style.display = 'flex';
+            } else {
+                playCalmChime();
+                statusText.innerText = "Session Complete";
+                // Gentle pulse
+                const circle = document.querySelector('.zen-circle');
+                if(circle) circle.style.transform = 'scale(1.2)';
+            }
+        }
+
+        function closeExplosion() {
+            explosionOverlay.style.display = 'none';
+            resetTimer();
+        }
+
+        // --- Visual Generators ---
+
+        function updateCalmVisuals() {
+            // Visualize percentage remaining as a water level or simple circle stroke
+            const pct = Math.max(0, timeLeft / initialTime);
+            // We'll create an SVG circle that "drains"
+            const dashArray = 283; // 2 * pi * 45
+            const dashOffset = dashArray * (1 - pct);
+
+            visualElement.innerHTML = `
+                <div class="relative w-full h-full flex items-center justify-center">
+                    <svg class="w-full h-full transform -rotate-90 zen-circle" viewBox="0 0 100 100">
+                        <!-- Track -->
+                        <circle cx="50" cy="50" r="45" fill="none" stroke="#E2E8F0" stroke-width="8" />
+                        <!-- Progress -->
+                        <circle cx="50" cy="50" r="45" fill="none" stroke="${colors.green}" stroke-width="8" 
+                                stroke-dasharray="${dashArray}" stroke-dashoffset="${dashOffset}" 
+                                stroke-linecap="round" style="transition: stroke-dashoffset 1s linear;" />
+                    </svg>
+                    <i data-lucide="leaf" class="absolute text-green-400 w-12 h-12 opacity-80"></i>
+                </div>
+            `;
+            lucide.createIcons();
+        }
+
+        function updateBombVisuals() {
+            // Visualize a cartoon bomb with a fuse that shortens
+            const pct = Math.max(0, timeLeft / initialTime);
+            const fuseWidth = pct * 60; // Max width in SVG units
+            
+            // Change bomb color based on urgency
+            let bombColor = '#374151'; // Dark Gray
+            let fuseColor = colors.orange;
+            
+            if (timeLeft <= 10) {
+                bombColor = '#991B1B'; // Red
+                fuseColor = '#FF0000';
+            }
+
+            visualElement.innerHTML = `
+                 <svg class="w-full h-full drop-shadow-lg" viewBox="0 0 100 100">
+                    <!-- Fuse Line -->
+                    <path d="M50 20 Q 60 5, 80 15" fill="none" stroke="#666" stroke-width="3" />
+                    
+                    <!-- Burning Part of Fuse (Dynamic) -->
+                    <line x1="80" y1="15" x2="${80 - (1-pct)*30}" y2="${15 + (1-pct)*5}" stroke="${fuseColor}" stroke-width="4" stroke-dasharray="2,2" />
+                    
+                    <!-- Spark -->
+                    <circle cx="${80 - (1-pct)*30}" cy="${15 + (1-pct)*5}" r="3" fill="#FFEAA7" class="animate-pulse">
+                        <animate attributeName="r" values="3;5;3" dur="0.2s" repeatCount="indefinite" />
+                    </circle>
+
+                    <!-- Bomb Body -->
+                    <circle cx="50" cy="60" r="30" fill="${bombColor}" />
+                    <!-- Shine -->
+                    <path d="M40 50 Q 45 45, 50 50" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="3" stroke-linecap="round"/>
+                    
+                    <!-- Skull Icon inside -->
+                    <text x="50" y="68" font-size="20" text-anchor="middle" fill="white" opacity="0.8" style="font-family: sans-serif">☠</text>
+                </svg>
+            `;
+        }
+
+        // --- Audio Generation (Web Audio API) ---
+        // Generates sounds via code so no external assets are needed.
+        
+        function initAudio() {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            audioCtx = new AudioContext();
+        }
+
+        function playTickSound() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            // Different tick pitch for urgency
+            osc.frequency.value = timeLeft <= 10 ? 800 : 400; 
+            osc.type = 'square';
+            
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+            
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1);
+        }
+
+        function playExplosionSound() {
+            if (!audioCtx) return;
+            const duration = 1.0;
+            const bufferSize = audioCtx.sampleRate * duration;
+            const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+            const data = buffer.getChannelData(0);
+
+            // White noise
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+
+            const noise = audioCtx.createBufferSource();
+            noise.buffer = buffer;
+
+            const gainNode = audioCtx.createGain();
+            // Start loud, fade out
+            gainNode.gain.setValueAtTime(1, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            
+            // Lowpass filter to make it sound like an explosion (deep boom)
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(1000, audioCtx.currentTime);
+            filter.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + duration);
+
+            noise.connect(filter);
+            filter.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            noise.start();
+        }
+
+        function playCalmChime() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            osc.frequency.setValueAtTime(440, audioCtx.currentTime); // A4
+            osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.1); // Slide up to A5
+            
+            osc.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 2);
+            
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 2);
+        }
+
     </script>
 </body>
 </html>
