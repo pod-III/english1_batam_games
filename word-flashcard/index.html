@@ -1,218 +1,157 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Word Flashcards</title>
+    <title>Vocabulary Timer App</title>
+    
+    <!-- Fonts for a unified classroom aesthetic -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue:wght@400;700&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+    
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Montserrat:wght@700&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --primary-color: #4a69bd;
-            --secondary-color: #6a89cc;
-            --background-color: #f0f4f8;
-            --text-color: #2c3e50;
-            --success-color: #2ecc71;
-            --error-color: #e74c3c;
-            --shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-            --border-radius: 16px;
-            --gradient-start: #4a69bd;
-            --gradient-end: #6a89cc;
+    <script>
+        // Tailwind Configuration using the specified color palette
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        pink: '#FF6B95', // Error / Action
+                        orange: '#FF8C42', // Accent / Timer Warning
+                        green: '#00E676', // Success / Primary Timer Color
+                        blue: '#2979FF', // Primary Button
+                        dark: '#0f172a', // Deep background
+                        panel: '#1e293b', // Card background
+                        surface: '#334155', // Input/Secondary button background
+                        darker: '#090d15', 
+                    },
+                    fontFamily: {
+                        heading: ['Bebas Neue', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                    },
+                    animation: {
+                        'pop-in': 'popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                        'word-slide': 'wordSlide 0.5s ease-out forwards',
+                    },
+                    keyframes: {
+                        popIn: {
+                            '0%': { transform: 'scale(0.8)', opacity: '0' },
+                            '100%': { transform: 'scale(1)', opacity: '1' }
+                        },
+                        wordSlide: {
+                            '0%': { transform: 'translateY(10px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' }
+                        }
+                    }
+                }
+            }
         }
-
+    </script>
+    <style>
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--background-color);
+            font-family: 'Nunito', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            /* Custom gradient background (matching Hangman/Tally) */
+            background-image: 
+                radial-gradient(at 100% 0%, rgba(0, 230, 118, 0.15) 0px, transparent 50%), 
+                radial-gradient(at 0% 100%, rgba(255, 140, 66, 0.15) 0px, transparent 50%);
+            background-attachment: fixed;
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             margin: 0;
-            color: var(--text-color);
             padding: 1rem;
             box-sizing: border-box;
         }
 
-        .game-container {
-            background-color: white;
-            padding: 2.5rem;
-            border-radius: var(--border-radius);
-            box-shadow: var(--shadow);
-            text-align: center;
-            width: 100%;
-            max-width: 900px;
-            box-sizing: border-box;
-            border: 1px solid #e0e6ed;
-            transition: all 0.3s ease;
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.85); 
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        @media (max-width: 600px) {
-            .game-container {
-                padding: 1.5rem;
-            }
+        /* --- Custom Button Styles (3D Press Effect) --- */
+        .btn-3d {
+            transition: all 0.1s;
+            transform: translateY(0);
+            box-shadow: 0 4px 0 rgba(15, 23, 42, 0.5); 
         }
-
-        h1 {
-            font-family: 'Montserrat', sans-serif;
-            color: var(--primary-color);
-            margin-bottom: 0.5rem;
-            font-weight: 700;
+        .btn-3d:active:not(:disabled) {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 rgba(0,0,0,0.2);
         }
-
-        p {
-            color: #7f8c8d;
-        }
-
-        .btn {
-            padding: 1rem 2rem;
-            font-size: 1rem;
-            font-weight: bold;
-            border: none;
-            border-radius: var(--border-radius);
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            text-transform: uppercase;
-            background-color: var(--primary-color);
-            color: white;
-            background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
-        }
-
-        .btn:hover {
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
-            transform: translateY(-2px);
-        }
-        
-        .btn:active {
-            transform: scale(0.98);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .teacher-console {
-            display: flex;
-            flex-direction: column;
-            gap: 1.5rem;
-        }
-        
-        .input-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            align-items: flex-start;
-        }
-
-        .input-group label {
-            font-weight: bold;
-            color: var(--text-color);
-        }
-        
-        .input-group textarea, .input-group input {
-            width: 100%;
-            padding: 1rem;
-            border: 2px solid var(--secondary-color);
-            border-radius: var(--border-radius);
-            font-size: 1rem;
-            box-sizing: border-box;
-            transition: border-color 0.3s ease;
-        }
-
-        .game-screen {
-            display: none;
-            text-align: center;
-        }
-
-        .game-word {
-            font-family: 'Montserrat', sans-serif;
-            font-size: 3rem;
-            font-weight: 700;
-            color: var(--primary-color);
-            margin-bottom: 1rem;
-            text-transform: uppercase;
-        }
-
-        .timer-display {
-            font-family: 'Montserrat', sans-serif;
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--error-color);
-            margin-bottom: 2rem;
-        }
-        
-        .timer-display.warning {
-            color: orange;
-        }
-
-        .synonym-reveal {
-            min-height: 2.5rem;
-            font-size: 1.2rem;
-            font-weight: bold;
-            margin-top: 1rem;
-            color: var(--success-color);
-        }
-        
-        .results-screen {
-            display: none;
-        }
-
-        .results-screen h2 {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--primary-color);
-            margin-bottom: 1rem;
-        }
-
-        .results-screen ul {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            display: grid;
-            gap: 0.5rem;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            margin-bottom: 2rem;
-        }
-        
-        .results-screen ul li {
-            background-color: #e9ecef;
-            padding: 0.5rem;
-            border-radius: 8px;
-        }
-
     </style>
 </head>
 <body>
 
-    <div class="game-container">
+    <div class="glass-panel p-6 sm:p-10 rounded-3xl shadow-2xl w-full max-w-4xl border-2 border-blue/50 animate-pop-in">
+        
+        <!-- HEADER -->
+        <div class="flex items-center gap-3 border-b border-white/10 pb-4 mb-8">
+            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-orange to-pink flex items-center justify-center text-xl shadow-lg">
+                <span class="text-white">⏱️</span>
+            </div>
+            <h1 class="text-3xl font-heading tracking-wide text-blue">VOCABULARY TIMER</h1>
+        </div>
+
         <!-- Teacher Console -->
-        <div id="teacher-console" class="teacher-console">
-            <h1>Word Flashcards</h1>
-            <p>Input your word list to begin a practice session.</p>
+        <div id="teacher-console" class="flex flex-col gap-6">
+            <p class="text-slate-300">Input a list of words for your students to define, spell, or use in a sentence before the timer runs out. Ideal for quick synonym review.</p>
+            
             <div class="input-group">
-                <label for="word-list-input">Word List (comma-separated):</label>
-                <textarea id="word-list-input" rows="5" class="resize-y" placeholder="happy, sad, brave, smart"></textarea>
+                <label for="word-list-input" class="block font-bold text-slate-200 mb-2">Word List (Separate with commas or new lines):</label>
+                <textarea id="word-list-input" rows="5" class="w-full bg-dark border-2 border-surface rounded-xl p-4 text-lg focus:border-orange focus:ring-2 focus:ring-orange/50 outline-none transition font-body resize-y" placeholder="e.g., ADJECTIVE, SYNONYM, METAPHOR, ONOMATOPOEIA"></textarea>
             </div>
-            <div class="input-group">
-                <label for="round-duration-input">Time per word (seconds):</label>
-                <input type="number" id="round-duration-input" value="30" min="10">
+            
+            <div class="grid sm:grid-cols-2 gap-4">
+                <div class="input-group">
+                    <label for="round-duration-input" class="block font-bold text-slate-200 mb-2">Time per word (seconds):</label>
+                    <input type="number" id="round-duration-input" value="30" min="10" class="w-full bg-dark border-2 border-surface rounded-xl p-4 text-lg focus:border-green focus:ring-2 focus:ring-green/50 outline-none transition font-body">
+                </div>
+                <div class="input-group">
+                    <label for="prep-time-input" class="block font-bold text-slate-200 mb-2">Prep time before word reveal (seconds):</label>
+                    <input type="number" id="prep-time-input" value="5" min="0" class="w-full bg-dark border-2 border-surface rounded-xl p-4 text-lg focus:border-green focus:ring-2 focus:ring-green/50 outline-none transition font-body">
+                </div>
             </div>
-            <button id="start-game-btn" class="btn">Start Flashcards</button>
+
+            <button id="start-game-btn" class="btn-3d bg-blue text-white py-4 rounded-xl font-black text-xl hover:bg-blue/90 transition shadow-blue-800">
+                START FLASHCARDS
+            </button>
         </div>
 
         <!-- Game Screen -->
-        <div id="game-screen" class="game-screen">
-            <div id="game-content">
-                <p>Your word:</p>
-                <div id="game-word" class="game-word"></div>
-                <div id="timer-display" class="timer-display"></div>
+        <div id="game-screen" class="hidden">
+            <div id="game-content" class="text-center">
+                <p id="current-task" class="text-orange text-lg font-bold mb-4">Prepare for the next word...</p>
+                <div id="game-word" class="text-5xl sm:text-7xl font-heading tracking-wider mb-6 text-green animate-word-slide">WORD</div>
+                
+                <div id="timer-display" class="text-6xl font-heading tracking-widest text-green">30</div>
+                <p class="text-slate-400 mt-2">seconds remaining</p>
+                
+                <button id="skip-word-btn" class="mt-8 btn-3d bg-orange text-white py-3 px-6 rounded-xl font-bold hover:bg-orange/90 transition shadow-orange-800">
+                    SKIP WORD ⏭️
+                </button>
             </div>
         </div>
 
         <!-- Final Results Screen -->
-        <div id="results-screen" class="results-screen">
-            <h2>Flashcard Session Complete!</h2>
-            <div id="final-scores-title" class="message-box win">All words have been covered.</div>
-            <h3>Words from your session:</h3>
-            <ul id="final-synonym-list" class="flex flex-wrap gap-2 justify-center"></ul>
-            <button id="restart-game-btn" class="btn">Restart Session</button>
+        <div id="results-screen" class="hidden text-center">
+            <h2 class="text-3xl font-heading tracking-wide text-green mb-4">SESSION COMPLETE!</h2>
+            <p class="text-slate-300 mb-6">Review the words covered in this session:</p>
+
+            <div class="flex flex-wrap gap-3 justify-center">
+                <ul id="final-synonym-list" class="flex flex-wrap gap-3 justify-center">
+                    <!-- Words injected here -->
+                </ul>
+            </div>
+            
+            <button id="restart-game-btn" class="mt-8 btn-3d bg-pink text-white py-3 px-6 rounded-xl font-bold hover:bg-pink/90 transition shadow-pink-800">
+                SETUP NEW SESSION
+            </button>
         </div>
     </div>
 
@@ -221,9 +160,12 @@
         const teacherConsoleEl = document.getElementById('teacher-console');
         const wordListInput = document.getElementById('word-list-input');
         const roundDurationInput = document.getElementById('round-duration-input');
+        const prepTimeInput = document.getElementById('prep-time-input'); 
         const startGameBtn = document.getElementById('start-game-btn');
+        const skipWordBtn = document.getElementById('skip-word-btn');
         
         const gameScreenEl = document.getElementById('game-screen');
+        const currentTaskEl = document.getElementById('current-task');
         const gameWordEl = document.getElementById('game-word');
         const timerDisplayEl = document.getElementById('timer-display');
         
@@ -236,22 +178,57 @@
         let currentWordIndex = 0;
         let timerId;
         let timeLeft;
-        
+        let isPrepPhase = false; 
+
+        // --- AUDIO ENGINE (Simple Click/Ding) ---
+        // Using basic Web Audio API for simple effects
+        const Audio = {
+            ctx: null,
+            init: () => {
+                if(!Audio.ctx) {
+                    Audio.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+            playTick: () => {
+                Audio.init();
+                const osc = Audio.ctx.createOscillator();
+                const gain = Audio.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = 440;
+                gain.gain.setValueAtTime(0.05, Audio.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.00001, Audio.ctx.currentTime + 0.1);
+                osc.connect(gain).connect(Audio.ctx.destination);
+                osc.start();
+                osc.stop(Audio.ctx.currentTime + 0.1);
+            },
+            playDing: () => {
+                Audio.init();
+                const osc = Audio.ctx.createOscillator();
+                const gain = Audio.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.value = 880;
+                gain.gain.setValueAtTime(0.1, Audio.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.00001, Audio.ctx.currentTime + 0.3);
+                osc.connect(gain).connect(Audio.ctx.destination);
+                osc.start();
+                osc.stop(Audio.ctx.currentTime + 0.3);
+            }
+        };
+
+
         // Start a new session
         startGameBtn.addEventListener('click', () => {
-            const words = wordListInput.value.split(',').map(word => word.trim().toLowerCase()).filter(word => word !== '');
+            // Clean and process input (split by comma or newline)
+            const words = wordListInput.value.split(/[,|\n]/)
+                .map(word => word.trim().toUpperCase())
+                .filter(word => word.length > 0);
 
             if (words.length < 1) {
-                const dialog = document.createElement('div');
-                dialog.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center';
-                dialog.innerHTML = `
-                    <div class="bg-white p-6 rounded-lg shadow-lg">
-                        <h3 class="text-xl font-bold mb-4">Input Error</h3>
-                        <p class="mb-4">Please enter at least one word in the word list.</p>
-                        <button class="btn" onclick="this.closest('.fixed').remove()">OK</button>
-                    </div>
-                `;
-                document.body.appendChild(dialog);
+                showErrorModal("Input Error", "Please enter at least one word in the word list.");
+                return;
+            }
+            if (parseInt(roundDurationInput.value, 10) < 5) {
+                showErrorModal("Input Error", "Time per word must be at least 5 seconds.");
                 return;
             }
 
@@ -259,17 +236,58 @@
             currentWordIndex = 0;
             
             teacherConsoleEl.style.display = 'none';
+            resultsScreenEl.style.display = 'none';
             gameScreenEl.style.display = 'block';
 
-            nextWord();
+            startPrepPhase();
         });
+
+        // Start the preparation phase
+        function startPrepPhase() {
+            clearInterval(timerId);
+            
+            isPrepPhase = true;
+            timeLeft = parseInt(prepTimeInput.value, 10) || 0; // Use input value or 0
+            
+            // If no prep time, jump straight to the first word
+            if (timeLeft <= 0) {
+                 isPrepPhase = false;
+                 nextWord();
+                 return;
+            }
+
+            currentTaskEl.textContent = "GET READY!";
+            currentTaskEl.className = 'text-blue text-2xl font-bold mb-4 animate-word-slide';
+            gameWordEl.textContent = "STARTING SOON";
+            gameWordEl.className = 'text-5xl sm:text-7xl font-heading tracking-wider mb-6 text-orange animate-word-slide';
+            timerDisplayEl.textContent = timeLeft;
+            timerDisplayEl.className = 'text-6xl font-heading tracking-widest text-orange';
+            skipWordBtn.classList.add('hidden');
+
+            timerId = setInterval(() => {
+                timeLeft--;
+                timerDisplayEl.textContent = timeLeft;
+                Audio.playTick();
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerId);
+                    isPrepPhase = false;
+                    nextWord();
+                }
+            }, 1000);
+        }
 
         // Move to the next word
         function nextWord() {
+            clearInterval(timerId);
+
             if (currentWordIndex >= teacherWords.length) {
                 endGame();
                 return;
             }
+            
+            // Display skip button for active words
+            skipWordBtn.classList.remove('hidden');
 
             const currentWord = teacherWords[currentWordIndex].toUpperCase();
 
@@ -277,20 +295,37 @@
             timeLeft = parseInt(roundDurationInput.value, 10);
 
             // Set up UI
+            currentTaskEl.textContent = `Word ${currentWordIndex + 1} of ${teacherWords.length}:`;
+            currentTaskEl.className = 'text-blue text-lg font-bold mb-4 animate-word-slide';
             gameWordEl.textContent = currentWord;
+            gameWordEl.className = 'text-5xl sm:text-7xl font-heading tracking-wider mb-6 text-green animate-word-slide';
             
+            // Reset animation to re-trigger on word change
+            gameWordEl.classList.remove('animate-word-slide');
+            void gameWordEl.offsetWidth; 
+            gameWordEl.classList.add('animate-word-slide');
+
             // Start the timer
-            timerDisplayEl.textContent = `${timeLeft}s`;
+            timerDisplayEl.textContent = timeLeft;
+            timerDisplayEl.classList.add('text-green');
+            timerDisplayEl.classList.remove('text-orange', 'text-pink');
+
             timerId = setInterval(() => {
                 timeLeft--;
-                timerDisplayEl.textContent = `${timeLeft}s`;
+                timerDisplayEl.textContent = timeLeft;
+                Audio.playTick();
+
                 if (timeLeft <= 10) {
-                    timerDisplayEl.classList.add('warning');
-                } else {
-                    timerDisplayEl.classList.remove('warning');
+                    timerDisplayEl.classList.add('text-orange');
+                    timerDisplayEl.classList.remove('text-green');
+                }
+                if (timeLeft <= 5) {
+                    timerDisplayEl.classList.add('text-pink');
+                    timerDisplayEl.classList.remove('text-orange');
                 }
                 if (timeLeft <= 0) {
                     clearInterval(timerId);
+                    Audio.playDing();
                     
                     // Proceed to the next word immediately
                     currentWordIndex++;
@@ -298,15 +333,30 @@
                 }
             }, 1000);
         }
+        
+        // Skip button functionality
+        skipWordBtn.addEventListener('click', () => {
+            if (!isPrepPhase) {
+                clearInterval(timerId);
+                Audio.playDing();
+                currentWordIndex++;
+                nextWord();
+            }
+        });
+
 
         // End the entire session
         function endGame() {
+            clearInterval(timerId);
+            skipWordBtn.classList.add('hidden');
+
             // Show all words from the session
             finalSynonymListEl.innerHTML = '';
             teacherWords.forEach(word => {
                 const li = document.createElement('li');
-                li.textContent = word.toUpperCase();
-                li.className = "text-left p-2 bg-gray-100 rounded-lg";
+                li.textContent = word;
+                // Use a neutral gray background for the list items
+                li.className = "text-center p-3 bg-surface rounded-xl text-slate-200 font-body text-sm shadow-md";
                 finalSynonymListEl.appendChild(li);
             });
 
@@ -315,11 +365,33 @@
             resultsScreenEl.style.display = 'block';
         }
 
+        // Error Modal (Styled like previous examples)
+        function showErrorModal(title, message) {
+            const dialog = document.createElement('div');
+            dialog.className = 'fixed inset-0 bg-dark/70 overflow-y-auto h-full w-full flex items-center justify-center z-50 animate-pop-in';
+            dialog.innerHTML = `
+                <div class="glass-panel p-8 rounded-xl shadow-2xl w-full max-w-sm border-pink border-2 text-center">
+                    <h3 class="text-2xl font-heading text-pink mb-4">${title}</h3>
+                    <p class="mb-6 text-slate-300">${message}</p>
+                    <button class="btn-3d bg-pink text-white py-2 px-6 rounded-xl font-bold hover:bg-pink/90 transition shadow-pink-800" onclick="this.closest('.fixed').remove()">OK</button>
+                </div>
+            `;
+            document.body.appendChild(dialog);
+        }
+
+
         // Event listener for restart button
         restartGameBtn.addEventListener('click', () => {
             resultsScreenEl.style.display = 'none';
             teacherConsoleEl.style.display = 'flex';
+            wordListInput.focus();
         });
+        
+        // Initialize focus on load
+        window.onload = () => {
+            wordListInput.focus();
+        };
+
     </script>
 </body>
 </html>

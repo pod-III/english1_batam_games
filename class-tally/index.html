@@ -28,7 +28,11 @@
                         blue: '#2979FF',
                         dark: '#0f172a',
                         panel: '#1e293b',
-                        surface: '#334155'
+                        surface: '#334155',
+                        // Adding a slightly brighter shade of the primary dark for depth
+                        darker: '#090d15', 
+                        // Tweaking the primary action color to match the gradient better
+                        accent: '#FF8C42', 
                     },
                     fontFamily: {
                         heading: ['Bebas Neue', 'sans-serif'],
@@ -38,7 +42,8 @@
                         'pop-in': 'popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
                         'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
                         'star-spin': 'starSpin 0.6s ease-out',
-                        'slide-down': 'slideDown 0.3s ease-out'
+                        'slide-down': 'slideDown 0.3s ease-out',
+                        'pulse-yellow': 'pulseYellow 1s infinite',
                     },
                     keyframes: {
                         popIn: {
@@ -58,6 +63,10 @@
                         slideDown: {
                             '0%': { opacity: '0', transform: 'translateY(-10px)' },
                             '100%': { opacity: '1', transform: 'translateY(0)' }
+                        },
+                        pulseYellow: {
+                            '0%, 100%': { 'box-shadow': '0 0 0 0 rgba(255, 215, 0, 0.4)' },
+                            '50%': { 'box-shadow': '0 0 0 6px rgba(255, 215, 0, 0)' }
                         }
                     }
                 }
@@ -68,15 +77,17 @@
     <style>
         body {
             background-color: #0f172a;
+            /* Enhanced gradient background for depth */
             background-image: 
-                radial-gradient(at 100% 0%, rgba(0, 230, 118, 0.1) 0px, transparent 50%), 
-                radial-gradient(at 0% 100%, rgba(255, 140, 66, 0.1) 0px, transparent 50%);
+                radial-gradient(at 100% 0%, rgba(0, 230, 118, 0.15) 0px, transparent 50%), 
+                radial-gradient(at 0% 100%, rgba(255, 140, 66, 0.15) 0px, transparent 50%);
             background-attachment: fixed;
             font-family: 'Nunito', sans-serif;
         }
 
         .glass-panel {
-            background: rgba(30, 41, 59, 0.8);
+            /* Slightly more transparency for the glass effect */
+            background: rgba(30, 41, 59, 0.85); 
             backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
@@ -94,9 +105,11 @@
         /* Custom Scrollbar for Tally Area */
         .tally-container::-webkit-scrollbar {
             height: 6px;
+            width: 6px;
+            background: transparent;
         }
         .tally-container::-webkit-scrollbar-thumb {
-            background: rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.15);
             border-radius: 10px;
         }
         .tally-container::-webkit-scrollbar-track {
@@ -107,7 +120,7 @@
 <body class="min-h-screen flex flex-col text-white overflow-hidden">
 
     <!-- HEADER -->
-    <header class="h-auto md:h-20 border-b border-white/10 glass-panel flex flex-col md:flex-row items-center justify-between px-4 py-2 gap-2 z-50">
+    <header class="h-auto md:h-20 border-b border-white/10 glass-panel flex flex-col md:flex-row items-center justify-between px-4 py-2 gap-2 z-50 shadow-2xl">
         <!-- Logo -->
         <div class="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
             <div class="flex items-center gap-3">
@@ -120,7 +133,7 @@
             </div>
             
             <!-- Mobile Toggle for Settings -->
-            <button onclick="toggleSettings()" class="md:hidden p-2 text-gray-400">
+            <button onclick="toggleSettings()" class="md:hidden p-2 text-gray-400 hover:text-white transition-colors">
                 <i data-lucide="settings" class="w-5 h-5"></i>
             </button>
         </div>
@@ -128,32 +141,57 @@
         <!-- Toolbar -->
         <div id="toolbar" class="hidden md:flex flex-col md:flex-row items-center gap-4 w-full md:w-auto animate-slide-down md:animate-none">
             
-            <!-- Emoji Selector -->
-            <div class="flex items-center bg-dark/40 rounded-lg p-1 border border-white/5">
-                <div class="flex gap-1 pr-2 border-r border-white/10" id="good-picker">
-                    <!-- Good Emojis injected here -->
+            <!-- Emoji Dropdown Containers -->
+            <div class="relative flex gap-2">
+                <!-- Good Emoji Picker -->
+                <div class="relative">
+                    <button onclick="toggleGoodDropdown(event)" id="btn-good-picker" class="flex items-center gap-1 bg-dark/40 border border-white/10 rounded-lg p-2 hover:bg-white/10 transition-colors focus:ring-2 focus:ring-yellow-400">
+                        <span id="current-good-emoji" class="text-xl">⭐️</span> 
+                        <i data-lucide="chevron-down" id="chevron-good" class="w-4 h-4 text-yellow-400 transition-transform"></i>
+                    </button>
+                    <!-- Dropdown Panel for Good Emojis -->
+                    <div id="dropdown-good" class="absolute top-12 left-0 w-64 glass-panel rounded-xl shadow-2xl p-3 z-50 hidden origin-top-left">
+                        <div class="grid grid-cols-6 gap-2" id="good-picker-grid">
+                            <!-- Emojis injected here -->
+                        </div>
+                    </div>
                 </div>
-                <div class="flex gap-1 pl-2" id="bad-picker">
-                    <!-- Bad Emojis injected here -->
+
+                <!-- Bad Emoji Picker -->
+                <div class="relative">
+                    <button onclick="toggleBadDropdown(event)" id="btn-bad-picker" class="flex items-center gap-1 bg-dark/40 border border-white/10 rounded-lg p-2 hover:bg-white/10 transition-colors focus:ring-2 focus:ring-pink">
+                        <span id="current-bad-emoji" class="text-xl">⚠️</span> 
+                        <i data-lucide="chevron-down" id="chevron-bad" class="w-4 h-4 text-pink transition-transform"></i>
+                    </button>
+                    <!-- Dropdown Panel for Bad Emojis -->
+                    <div id="dropdown-bad" class="absolute top-12 left-0 w-64 glass-panel rounded-xl shadow-2xl p-3 z-50 hidden origin-top-left">
+                        <div class="grid grid-cols-6 gap-2" id="bad-picker-grid">
+                            <!-- Emojis injected here -->
+                        </div>
+                    </div>
                 </div>
             </div>
 
+
             <div class="flex items-center gap-2">
-                 <div class="flex items-center bg-dark/50 border border-white/10 rounded-lg p-1 focus-within:border-orange transition-colors">
+                 <!-- Student Input -->
+                 <div class="flex items-center bg-dark/50 border border-white/10 rounded-lg p-1 focus-within:border-accent transition-colors">
                     <input type="text" id="student-input" placeholder="Name..." 
-                        class="bg-transparent border-none outline-none text-sm px-2 py-1 w-24 md:w-32 text-white placeholder-gray-500 font-bold"
+                        class="bg-transparent border-none outline-none text-sm px-2 py-1 w-24 md:w-32 text-white placeholder-gray-400 font-bold"
                         onkeypress="if(event.key === 'Enter') addStudent()">
-                    <button onclick="addStudent()" class="bg-surface hover:bg-white/20 text-white p-1.5 rounded-md transition-colors">
+                    <button onclick="addStudent()" class="bg-surface hover:bg-white/20 text-white p-1.5 rounded-md transition-colors active:scale-95">
                         <i data-lucide="plus" class="w-4 h-4"></i>
                     </button>
                 </div>
 
                 <div class="h-6 w-[1px] bg-white/10 hidden md:block"></div>
 
-                <button onclick="toggleSound()" id="btn-sound" class="p-2 hover:bg-white/10 rounded-full transition-colors text-gray-400">
+                <!-- Sound Toggle -->
+                <button onclick="toggleSound()" id="btn-sound" class="p-2 hover:bg-white/20 rounded-full transition-colors text-gray-400 hover:text-white" title="Toggle Sound">
                     <i data-lucide="volume-2" class="w-5 h-5"></i>
                 </button>
-                <button onclick="clearAll()" class="p-2 hover:bg-red-500/20 text-pink hover:text-red-400 rounded-full transition-colors" title="Reset All">
+                <!-- Clear All -->
+                <button onclick="clearAll()" class="p-2 hover:bg-red-600/30 text-pink hover:text-red-400 rounded-full transition-colors active:scale-95" title="Reset All">
                     <i data-lucide="trash-2" class="w-5 h-5"></i>
                 </button>
             </div>
@@ -161,26 +199,26 @@
     </header>
 
     <!-- MAIN CONTENT -->
-    <main class="flex-grow p-4 md:p-6 overflow-y-auto relative bg-dark">
+    <main class="flex-grow p-4 md:p-6 overflow-y-auto relative bg-darker">
         
         <!-- Empty State -->
         <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-0">
-            <div class="w-32 h-32 rounded-full bg-white/5 flex items-center justify-center text-6xl mb-6 grayscale opacity-30">
-                👩‍🏫
+            <div class="w-32 h-32 rounded-full bg-surface/50 flex items-center justify-center text-6xl mb-6 opacity-80 shadow-inner">
+                📚
             </div>
-            <h2 class="text-2xl font-bold text-white/50 mb-2">Class is empty</h2>
-            <p class="text-white/30 text-sm mb-8">Add students to start giving stars</p>
+            <h2 class="text-3xl font-heading text-white/70 tracking-wider mb-2">ADD YOUR CLASS</h2>
+            <p class="text-white/40 text-sm mb-8">Start tracking participation and behavior.</p>
         </div>
 
         <!-- Cards Grid -->
-        <div id="grid-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-20 z-10 relative">
+        <div id="grid-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-20 z-10 relative">
             <!-- Cards Injected Here -->
         </div>
 
     </main>
 
     <!-- MOBILE FAB -->
-    <button onclick="promptAddStudent()" class="md:hidden fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-orange to-pink rounded-full shadow-xl flex items-center justify-center text-white z-50 border border-white/20 hover:scale-105 transition-transform">
+    <button onclick="promptAddStudent()" class="md:hidden fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-orange to-pink rounded-full shadow-2xl flex items-center justify-center text-white z-50 border border-white/20 hover:scale-105 transition-transform active:scale-95">
         <i data-lucide="plus" class="w-8 h-8"></i>
     </button>
 
@@ -188,10 +226,12 @@
         // --- DATA & STATE ---
         let students = [];
         let soundEnabled = true;
+        let isGoodDropdownOpen = false;
+        let isBadDropdownOpen = false;
         
-        // Emoji Palettes
-        const GOOD_EMOJIS = ['⭐️', '❤️', '🔥', '💎', '🚀', '🦄', '💯'];
-        const BAD_EMOJIS = ['⚠️', '🛑', '🐢', '💤', '🧨', '👻'];
+        // Emoji Palettes (EXPANDED FOR PLENTY OF OPTIONS)
+        const GOOD_EMOJIS = ['⭐️', '❤️', '🔥', '💎', '🚀', '🦄', '💯', '👍', '🧠', '👑', '🎉', '🥇', '💡', '✅', '👏', '🏆', '💫', '✨'];
+        const BAD_EMOJIS = ['⚠️', '🛑', '🐢', '💤', '🧨', '👻', '❌', '🕰️', '🤫', '🌧️', '🚧', '🐌', '🤷‍♀️', '✋', '📉', '😶', '🗑️', '❓'];
 
         let currentGood = '⭐️';
         let currentBad = '⚠️';
@@ -200,6 +240,7 @@
         const Audio = {
             ctx: null,
             init: () => {
+                // Initialize audio context if it hasn't been done yet
                 if(!Audio.ctx) {
                     Audio.ctx = new (window.AudioContext || window.webkitAudioContext)();
                     Tone.start();
@@ -234,23 +275,85 @@
             }
         };
 
-        // --- LOGIC ---
+        // --- DROPDOWN LOGIC (Fixes previously reported errors) ---
+        function toggleDropdown(dropdownId, chevronId, type) {
+            const dropdown = document.getElementById(dropdownId);
+            const chevron = document.getElementById(chevronId);
+            
+            const isCurrentlyOpen = !dropdown.classList.contains('hidden');
+
+            // Determine if we are opening or closing the target dropdown
+            const newState = !isCurrentlyOpen;
+
+            // Update state variable
+            if (type === 'good') {
+                isGoodDropdownOpen = newState;
+                if (newState && isBadDropdownOpen) {
+                    // Close the other dropdown if it is open and we are opening this one
+                    toggleDropdown('dropdown-bad', 'chevron-bad', 'bad'); 
+                }
+            } else if (type === 'bad') {
+                isBadDropdownOpen = newState;
+                if (newState && isGoodDropdownOpen) {
+                    // Close the other dropdown if it is open and we are opening this one
+                    toggleDropdown('dropdown-good', 'chevron-good', 'good'); 
+                }
+            }
+
+            // Apply visibility and rotation
+            if (newState) {
+                dropdown.classList.remove('hidden');
+            } else {
+                dropdown.classList.add('hidden');
+            }
+            chevron.style.transform = newState ? 'rotate(180deg)' : 'rotate(0deg)';
+        }
+
+        function toggleGoodDropdown(event) {
+            event.stopPropagation();
+            toggleDropdown('dropdown-good', 'chevron-good', 'good');
+        }
+
+        function toggleBadDropdown(event) {
+            event.stopPropagation();
+            toggleDropdown('dropdown-bad', 'chevron-bad', 'bad');
+        }
+
+        // Global click listener to close dropdowns when clicking anywhere else
+        document.addEventListener('click', () => {
+            if (isGoodDropdownOpen) {
+                toggleDropdown('dropdown-good', 'chevron-good', 'good');
+            }
+            if (isBadDropdownOpen) {
+                toggleDropdown('dropdown-bad', 'chevron-bad', 'bad');
+            }
+        });
+
+
+        // --- EMOJI PICKER & SELECTION ---
 
         function initEmojiPickers() {
-            const goodContainer = document.getElementById('good-picker');
-            const badContainer = document.getElementById('bad-picker');
+            const goodGrid = document.getElementById('good-picker-grid');
+            const badGrid = document.getElementById('bad-picker-grid');
+            const currentGoodEmojiSpan = document.getElementById('current-good-emoji');
+            const currentBadEmojiSpan = document.getElementById('current-bad-emoji');
 
-            goodContainer.innerHTML = GOOD_EMOJIS.map(emoji => `
+            if (currentGoodEmojiSpan) currentGoodEmojiSpan.textContent = currentGood;
+            if (currentBadEmojiSpan) currentBadEmojiSpan.textContent = currentBad;
+
+            // Generate Good Emoji Grid
+            goodGrid.innerHTML = GOOD_EMOJIS.map(emoji => `
                 <button onclick="setEmoji('good', '${emoji}')" 
-                    class="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 transition-colors ${emoji === currentGood ? 'bg-white/20 ring-1 ring-yellow-400' : 'opacity-50 hover:opacity-100'}"
+                    class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/20 transition-colors text-2xl ${emoji === currentGood ? 'ring-2 ring-yellow-400 scale-110' : ''}"
                     title="Select ${emoji}">
                     ${emoji}
                 </button>
             `).join('');
 
-            badContainer.innerHTML = BAD_EMOJIS.map(emoji => `
+            // Generate Bad Emoji Grid
+            badGrid.innerHTML = BAD_EMOJIS.map(emoji => `
                 <button onclick="setEmoji('bad', '${emoji}')" 
-                    class="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 transition-colors ${emoji === currentBad ? 'bg-white/20 ring-1 ring-pink' : 'opacity-50 hover:opacity-100'}"
+                    class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/20 transition-colors text-2xl ${emoji === currentBad ? 'ring-2 ring-pink scale-110' : ''}"
                     title="Select ${emoji}">
                     ${emoji}
                 </button>
@@ -258,14 +361,26 @@
         }
 
         function setEmoji(type, emoji) {
-            if(type === 'good') currentGood = emoji;
-            else currentBad = emoji;
+            if(type === 'good') {
+                currentGood = emoji;
+                document.getElementById('current-good-emoji').textContent = emoji;
+                // Use the corrected toggleDropdown to close the panel
+                toggleDropdown('dropdown-good', 'chevron-good', 'good'); 
+            }
+            else {
+                currentBad = emoji;
+                document.getElementById('current-bad-emoji').textContent = emoji;
+                // Use the corrected toggleDropdown to close the panel
+                toggleDropdown('dropdown-bad', 'chevron-bad', 'bad'); 
+            }
             
             // Re-render pickers to update active state
             initEmojiPickers();
-            // Re-render grid to update button icons
+            // Re-render grid to update button icons on student cards
             render(); 
         }
+
+        // --- STUDENT LOGIC ---
 
         function addStudent(nameInput = null) {
             const input = document.getElementById('student-input');
@@ -286,12 +401,14 @@
         }
 
         function promptAddStudent() {
+            // Using prompt since custom modal UI is complex for single-file implementation
             const name = prompt("Enter student name:");
             if(name) addStudent(name);
         }
 
         function removeStudent(id) {
-            if(confirm('Remove this student?')) {
+            // Using confirm since custom modal UI is complex for single-file implementation
+            if(confirm('Remove this student?')) { 
                 students = students.filter(s => s.id !== id);
                 save();
                 render();
@@ -339,7 +456,7 @@
         }
 
         function clearAll() {
-            if(confirm("Clear all students?")) {
+            if(confirm("Clear all students?")) { 
                 students = [];
                 save();
                 render();
@@ -382,28 +499,43 @@
                     `<span class="tally-item inline-block text-lg md:text-xl select-none">${emoji}</span>`
                 ).join('');
 
-                // Determine Mood Color Border
+                // Determine Mood Color Border & Classes
                 let borderColor = 'border-white/5';
-                if(s.badLogs.length > 2) borderColor = 'border-pink';
-                else if(s.goodLogs.length > 4) borderColor = 'border-yellow-400';
+                let goodButtonClass = 'bg-yellow-600/10 hover:bg-yellow-600/20 text-yellow-400 border-yellow-700/50';
+                let badButtonClass = 'bg-pink/10 hover:bg-pink/20 text-pink border-pink-700/50';
+                let cardAnimation = '';
+
+                if(s.badLogs.length > 2) {
+                    borderColor = 'border-pink ring-4 ring-pink/20';
+                }
+                else if(s.goodLogs.length > 4) {
+                    borderColor = 'border-yellow-400 ring-4 ring-yellow-400/20';
+                    if (s.goodLogs.length % 5 === 0) {
+                        cardAnimation = 'animate-pulse-yellow';
+                    }
+                }
+                
+                // Card Tally Log Area Style
+                const logAreaClass = 'bg-dark/50 shadow-inner shadow-black/30';
+
 
                 return `
-                <div id="card-${s.id}" class="glass-panel rounded-xl p-4 flex flex-col relative group transition-all duration-300 border-l-4 ${borderColor} hover:bg-white/5 min-h-[220px]">
+                <div id="card-${s.id}" class="glass-panel rounded-xl p-4 flex flex-col relative group transition-all duration-300 border-l-4 ${borderColor} hover:bg-white/5 min-h-[220px] shadow-xl ${cardAnimation}">
                     
                     <!-- Header -->
                     <div class="flex justify-between items-start mb-3">
                         <h3 class="text-xl font-bold truncate pr-4 text-white">${s.name}</h3>
-                        <button onclick="removeStudent(${s.id})" class="text-white/20 hover:text-pink transition-colors opacity-0 group-hover:opacity-100">
+                        <button onclick="removeStudent(${s.id})" class="text-white/20 hover:text-pink transition-colors opacity-0 group-hover:opacity-100 p-1 -mt-1 -mr-1">
                             <i data-lucide="x" class="w-4 h-4"></i>
                         </button>
                     </div>
 
                     <!-- Tally Area -->
-                    <div class="flex-grow flex flex-col gap-2 mb-4 bg-dark/30 rounded-lg p-2 overflow-y-auto max-h-[150px] tally-container shadow-inner">
+                    <div class="flex-grow flex flex-col gap-2 mb-4 rounded-lg p-2 overflow-y-auto max-h-[150px] tally-container ${logAreaClass}">
                         
                         <!-- Good Logs -->
                         <div class="flex flex-wrap content-start gap-1 min-h-[40px]">
-                            ${goodHtml || '<span class="text-white/10 text-xs italic p-1 select-none">No points yet</span>'}
+                            ${goodHtml || '<span class="text-white/10 text-xs italic p-1 select-none">No positive marks yet</span>'}
                         </div>
                         
                         <!-- Bad Logs (Separator) -->
@@ -417,22 +549,22 @@
                     <!-- Controls -->
                     <div class="grid grid-cols-2 gap-2 mt-auto">
                         <button onclick="addPoint(${s.id}, 'good')" 
-                            class="bg-surface hover:bg-yellow-500/20 hover:border-yellow-500 border border-transparent text-yellow-400 py-3 rounded-lg flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg group-btn">
+                            class="border ${goodButtonClass} py-3 rounded-lg flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg font-bold">
                             <span class="text-xl">${currentGood}</span>
-                            <span class="text-sm font-bold hidden sm:inline">Good</span>
+                            <span class="text-sm hidden sm:inline">Good</span>
                         </button>
                         
                         <button onclick="addPoint(${s.id}, 'bad')" 
-                            class="bg-surface hover:bg-pink/20 hover:border-pink border border-transparent text-gray-400 hover:text-pink py-3 rounded-lg flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg group-btn">
+                            class="border ${badButtonClass} py-3 rounded-lg flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg font-bold">
                             <span class="text-xl">${currentBad}</span>
-                            <span class="text-sm font-bold hidden sm:inline">Bad</span>
+                            <span class="text-sm hidden sm:inline">Bad</span>
                         </button>
                     </div>
 
                     <!-- Context Menu (Undo) -->
-                    <div class="absolute top-2 right-12 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                         <button onclick="removeLastPoint(${s.id}, 'good')" class="p-1 text-white/20 hover:text-white text-xs font-mono" title="Undo Good">Undo ${currentGood}</button>
-                         <button onclick="removeLastPoint(${s.id}, 'bad')" class="p-1 text-white/20 hover:text-white text-xs font-mono" title="Undo Bad">Undo ${currentBad}</button>
+                    <div class="absolute top-2 right-12 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-dark/70 rounded-md backdrop-blur-sm px-2 py-0.5">
+                         <button onclick="removeLastPoint(${s.id}, 'good')" class="p-0.5 text-yellow-400/50 hover:text-yellow-400 text-xs font-body transition-colors" title="Undo Good">Undo +</button>
+                         <button onclick="removeLastPoint(${s.id}, 'bad')" class="p-0.5 text-pink/50 hover:text-pink text-xs font-body transition-colors" title="Undo Bad">Undo -</button>
                     </div>
                 </div>
                 `;
@@ -445,6 +577,7 @@
         // --- UTILS ---
         function toggleSettings() {
             const toolbar = document.getElementById('toolbar');
+            // Toggle visibility for mobile menu
             toolbar.classList.toggle('hidden');
             toolbar.classList.toggle('flex');
         }
@@ -459,17 +592,17 @@
         }
 
         function save() {
+            // NOTE: Using localStorage as requested, but for a real-world multi-user app, Firestore would be used here.
             localStorage.setItem('english1_tally_v2_data', JSON.stringify(students));
         }
 
         function load() {
-            // Check for new v2 data
             const dataV2 = localStorage.getItem('english1_tally_v2_data');
             
             if(dataV2) {
                 students = JSON.parse(dataV2);
             } else {
-                // FALLBACK: Migrate old data structure if exists
+                // FALLBACK: Migration logic from older version
                 const dataOld = localStorage.getItem('english1_tally_data');
                 if(dataOld) {
                     const oldStudents = JSON.parse(dataOld);
