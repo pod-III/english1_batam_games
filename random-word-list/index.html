@@ -3,392 +3,419 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Word List Randomizer Tool</title>
-    
-    <!-- Fonts: Bebas Neue (Headings), Nunito (Body) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
-    
-    <!-- Icons (for copy icon and theme toggle) -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-
-    <!-- Tailwind CSS with Game Hub Configuration -->
+    <title>Random Word List | English 1 Games</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
-            darkMode: 'class',
             theme: {
                 extend: {
-                    colors: {
-                        pink: '#FF6B95',
-                        orange: '#FF8C42',
-                        green: '#00E676',
-                        blue: '#2979FF',
-                        dark: '#0f172a',    // Main background
-                        panel: '#1e293b',   // Card background
-                        surface: '#334155'  // Border/Detail color
-                    },
                     fontFamily: {
-                        heading: ['Bebas Neue', 'sans-serif'],
-                        body: ['Nunito', 'sans-serif'],
+                        sans: ['Fredoka', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        brand: {
+                            pink: '#EC4899',
+                            orange: '#F97316',
+                            green: '#22C55E',
+                            blue: '#3B82F6',
+                            dark: '#0f172a'
+                        }
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                     }
                 }
             }
         }
     </script>
     <style>
-        /* General Body Styling for Game Hub Look */
         body {
-            font-family: 'Nunito', sans-serif;
-            background-color: #f0f4f8; /* Light mode default */
-            transition: background-color 0.5s, color 0.3s;
+            background-color: #020617; /* Slate 950 */
+            color: #e2e8f0;
+            overflow-x: hidden;
         }
         
-        /* Dark Mode Styling */
-        html.dark body {
-            background-color: #0f172a; /* dark */
-            color: #f8fafc; /* Light text in dark mode */
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.05); 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569; 
         }
 
-        /* Input specific dark mode styling */
-        html.dark textarea, html.dark input {
-            background-color: #1e293b;
-            border-color: #334155;
-            color: #f8fafc;
+        .blob {
+            position: absolute;
+            filter: blur(90px);
+            z-index: -1;
+            opacity: 0.4;
+            animation: float 20s infinite ease-in-out;
         }
-
-        /* Toast Notification Styling */
-        .toast-notification {
-            z-index: 1000;
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(30px, -50px) scale(1.1); }
+            66% { transform: translate(-20px, 20px) scale(0.9); }
         }
         
-        /* Custom Header Colors (For dynamic list backgrounds) */
-        .list-header-1 { background-color: #FF6B95; } /* Pink */
-        .list-header-2 { background-color: #FF8C42; } /* Orange */
-        .list-header-3 { background-color: #00E676; } /* Green */
-        .list-header-4 { background-color: #2979FF; } /* Blue */
-        .list-header-5 { background-color: #f73f75; } /* Darker Pink */
-        .list-header-6 { background-color: #f7731f; } /* Darker Orange */
-        .list-header-7 { background-color: #00b85e; } /* Darker Green */
-        .list-header-8 { background-color: #2161cc; } /* Darker Blue */
-
-        /* Enhanced List Card Look */
-        .list-card {
-            transition: all 0.3s ease;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        .list-enter {
+            animation: slideUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            opacity: 0;
+            transform: translateY(20px);
         }
-        .dark .list-card {
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+        @keyframes slideUp {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.7); 
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none; 
+            background: transparent; 
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #3B82F6;
+            margin-top: -6px;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #334155;
+            border-radius: 2px;
         }
     </style>
 </head>
-<body class="font-body min-h-screen p-4 sm:p-8">
+<body class="min-h-screen relative selection:bg-brand-pink selection:text-white">
 
-    <div class="max-w-5xl mx-auto bg-white dark:bg-panel shadow-2xl rounded-2xl p-6 md:p-10 border border-surface/50">
-        <header class="text-center mb-10 relative">
-            <!-- Theme Toggle Button -->
-            <button id="theme-toggle" aria-label="Toggle theme" class="absolute top-0 right-0 p-2 rounded-full hover:bg-gray-200 dark:hover:bg-white/10 transition-colors text-gray-600 dark:text-yellow-400">
-                <i data-lucide="sun" id="sun-icon" class="w-6 h-6 hidden"></i>
-                <i data-lucide="moon" id="moon-icon" class="w-6 h-6 hidden"></i>
-            </button>
+    <!-- Ambient Background -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none">
+        <div class="blob bg-brand-pink w-96 h-96 rounded-full top-0 left-0 -translate-x-1/4 -translate-y-1/4 opacity-20"></div>
+        <div class="blob bg-brand-blue w-[500px] h-[500px] rounded-full bottom-0 right-0 translate-x-1/4 translate-y-1/4 opacity-20 animation-delay-2000"></div>
+        <div class="blob bg-brand-orange w-64 h-64 rounded-full top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-20 delay-1000"></div>
+    </div>
 
-            <h1 class="text-4xl sm:text-5xl font-heading tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-blue to-pink inline-block">
-                WORD LIST RANDOMIZER
+    <!-- Navigation -->
+    <nav class="fixed top-0 left-0 right-0 h-16 bg-slate-950/80 backdrop-blur-md border-b border-white/10 z-50 flex items-center justify-between px-6 shadow-sm">
+        <div class="flex items-center gap-3">
+            <a href="../index.html" class="w-8 h-8 rounded-xl bg-slate-800 flex items-center justify-center text-slate-400 hover:bg-brand-blue hover:text-white transition-colors duration-300">
+                <i class="fas fa-arrow-left"></i>
+            </a>
+            <h1 class="text-xl font-bold text-white tracking-tight">
+                English 1 <span class="bg-gradient-to-r from-brand-pink via-brand-orange to-brand-blue bg-clip-text text-transparent">Games</span>
             </h1>
-            <p class="mt-3 text-lg text-gray-600 dark:text-gray-300">
-                Instantly create shuffled versions of your word bank for differentiated activities.
-            </p>
-        </header>
+        </div>
+        <div class="hidden md:flex items-center text-sm font-medium text-slate-400 bg-slate-900 border border-slate-800 px-3 py-1 rounded-full">
+            <i class="fas fa-list-ol mr-2 text-brand-orange"></i> Multi-List Generator
+        </div>
+    </nav>
 
-        <!-- Controls Area -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            <!-- Number of Lists Input -->
-            <div class="col-span-1">
-                 <label for="listCount" class="block text-xl font-heading tracking-wide mb-2 text-gray-700 dark:text-gray-200">
-                    LIST COUNT
-                </label>
-                <input
-                    type="number"
-                    id="listCount"
-                    value="8"
-                    min="1"
-                    max="8"
-                    class="w-full p-3 border-2 border-surface/30 rounded-xl focus:ring-4 focus:ring-green/30 focus:border-green transition duration-200 text-lg shadow-inner text-center font-bold"
-                />
-            </div>
+    <!-- Main Content -->
+    <div class="pt-20 pb-6 px-4 md:px-6 h-screen flex flex-col md:flex-row gap-6 max-w-7xl mx-auto">
+        
+        <!-- LEFT PANEL: Configuration -->
+        <div class="w-full md:w-1/3 flex flex-col gap-4 animate-fade-in-up">
+            <div class="bg-slate-900 rounded-3xl p-1 shadow-2xl flex-grow flex flex-col overflow-hidden border border-slate-800 ring-1 ring-white/10">
+                <div class="bg-slate-950 px-4 py-3 flex items-center justify-between rounded-t-[20px] border-b border-slate-800">
+                    <div class="flex gap-2">
+                        <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
+                        <div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+                        <div class="w-3 h-3 rounded-full bg-green-500/80"></div>
+                    </div>
+                    <div class="text-xs font-mono text-slate-500"><i class="fas fa-cog"></i> config</div>
+                </div>
 
-            <!-- Word Bank Input (takes remaining space) -->
-            <div class="col-span-1 md:col-span-3">
-                <label for="wordInput" class="block text-xl font-heading tracking-wide mb-2 text-gray-700 dark:text-gray-200">
-                    WORD BANK <span class="text-sm font-body font-light text-gray-500 dark:text-gray-400">(Separate words with a comma)</span>
-                </label>
-                <textarea
-                    id="wordInput"
-                    rows="4"
-                    placeholder="e.g., vocabulary, grammar, sentence, paragraph, essay, punctuation, reading, writing"
-                    class="w-full p-4 border-2 border-surface/30 rounded-xl focus:ring-4 focus:ring-green/30 focus:border-green transition duration-200 resize-none text-lg shadow-inner"
-                ></textarea>
+                <div class="flex-grow p-4 flex flex-col bg-slate-900/50">
+                    <div class="text-slate-500 font-mono text-xs mb-2"># Source Pool (One word per line)</div>
+                    <textarea id="wordInput" 
+                        class="w-full h-full bg-transparent text-emerald-400 font-mono text-sm focus:outline-none resize-none custom-scroll placeholder-slate-700 p-2"
+                        placeholder="// Paste all your words here...&#10;Apple&#10;Banana&#10;Cherry&#10;Date&#10;Elderberry&#10;Fig&#10;Grape"
+                        spellcheck="false"></textarea>
+                    
+                    <div class="mt-2 text-right">
+                         <span id="poolCount" class="text-xs font-mono text-brand-green bg-slate-950 px-2 py-1 rounded">0 words in pool</span>
+                    </div>
+                </div>
+
+                <div class="bg-slate-950 p-5 border-t border-slate-800 space-y-5">
+                    
+                    <!-- Slider 1: How many lists? -->
+                    <div>
+                        <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex justify-between items-center">
+                            <span>Number of Lists</span>
+                            <span id="listCountValue" class="bg-brand-pink/20 text-brand-pink px-2 py-0.5 rounded text-xs font-mono">4</span>
+                        </label>
+                        <input type="range" id="listCountRange" min="1" max="10" value="4" 
+                            class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-brand-pink">
+                    </div>
+
+                    <!-- Slider 2: Words per list? -->
+                    <div>
+                        <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 flex justify-between items-center">
+                            <span>Words per List</span>
+                            <span id="wordsPerListValue" class="bg-brand-blue/20 text-brand-blue px-2 py-0.5 rounded text-xs font-mono">10</span>
+                        </label>
+                        <input type="range" id="wordsPerListRange" min="1" max="30" value="10" 
+                            class="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-brand-blue">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-3 pt-2">
+                        <button onclick="clearConsole()" class="py-3 px-4 rounded-xl border border-slate-700 bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-white transition font-mono text-sm font-bold flex items-center justify-center gap-2">
+                            <i class="fas fa-trash-alt"></i> RESET
+                        </button>
+                        <button onclick="generateLists()" class="py-3 px-4 rounded-xl bg-gradient-to-r from-brand-blue to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-blue-900/20 transition transform active:scale-95 font-mono text-sm font-bold flex items-center justify-center gap-2 group">
+                            <i class="fas fa-play text-xs group-hover:animate-pulse"></i> GENERATE
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 
+        <!-- RIGHT PANEL: Output -->
+        <div class="w-full md:w-2/3 glass-panel rounded-3xl shadow-2xl flex flex-col overflow-hidden relative">
+            <div class="h-16 px-6 flex items-center justify-between border-b border-white/5 bg-slate-900/30">
+                <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                    <i class="fas fa-layer-group text-brand-orange"></i> 
+                    Generated Lists
+                </h2>
+                <!-- Copy All Button -->
+                <button onclick="copyAllLists()" class="w-9 h-9 rounded-lg bg-slate-800/50 hover:bg-slate-800 border border-white/5 hover:border-white/10 flex items-center justify-center text-slate-400 hover:text-brand-blue transition" title="Copy All Lists">
+                    <i class="fas fa-copy"></i>
+                </button>
+            </div>
 
-        <!-- Action Buttons -->
-        <div class="flex flex-col sm:flex-row justify-center gap-4 mb-10">
-            <!-- Generate Button -->
-            <button
-                id="generateButton"
-                class="px-8 py-3 w-full sm:w-auto bg-gradient-to-r from-orange to-pink text-white font-bold text-lg rounded-xl shadow-lg shadow-orange/30 hover:shadow-xl hover:shadow-pink/40 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-orange/50 transform hover:-translate-y-1 flex items-center justify-center gap-2"
-            >
-                <i data-lucide="shuffle" class="w-5 h-5"></i> GENERATE LISTS
-            </button>
+            <!-- Empty State -->
+            <div id="emptyState" class="absolute inset-0 flex flex-col items-center justify-center z-10 bg-slate-900/20 backdrop-blur-[2px]">
+                <div class="w-24 h-24 bg-slate-800/50 rounded-full border border-white/10 flex items-center justify-center mb-4 animate-pulse-slow">
+                    <i class="fas fa-boxes text-4xl text-slate-600"></i>
+                </div>
+                <h3 class="text-xl font-bold text-white mb-2">No Lists Generated</h3>
+                <p class="text-slate-500 text-sm">Configure settings and click Generate</p>
+            </div>
 
-            <!-- Copy Button (Hidden initially) -->
-            <button
-                id="copyButton"
-                class="px-8 py-3 w-full sm:w-auto bg-panel/80 dark:bg-surface/50 border-2 border-surface/50 text-gray-800 dark:text-white font-bold text-lg rounded-xl shadow-md hover:bg-surface/70 hover:border-surface transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-surface/30 transform hover:-translate-y-1 hidden flex items-center justify-center gap-2"
-            >
-                <i data-lucide="clipboard-copy" class="w-5 h-5"></i> COPY ALL
-            </button>
-        </div>
-
-        <!-- Results Area -->
-        <div id="resultsContainer">
-            <div id="listsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <!-- Lists will be dynamically added here -->
+            <!-- Results Grid -->
+            <div id="resultsArea" class="flex-grow p-6 overflow-y-auto custom-scroll relative z-20 hidden">
+                <div id="listsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 pb-10">
+                    <!-- Lists injected here -->
+                </div>
+            </div>
+            
+            <div class="bg-slate-950/30 h-10 border-t border-white/5 px-6 flex items-center justify-between text-xs text-slate-500 font-mono">
+                <span id="resultStats">Ready</span>
+                <span>v2.1 Multi-List</span>
             </div>
         </div>
     </div>
 
+    <!-- Toast -->
+    <div id="toast" class="fixed top-24 right-6 bg-slate-800 border border-slate-700 shadow-2xl rounded-xl p-4 flex items-center gap-3 transform translate-x-full transition-transform duration-300 z-[60]">
+        <div id="toastIcon" class="w-8 h-8 rounded-full bg-brand-green/20 flex items-center justify-center text-brand-green">
+            <i class="fas fa-check"></i>
+        </div>
+        <div>
+            <h4 class="text-sm font-bold text-white" id="toastTitle">Success</h4>
+            <p class="text-xs text-slate-400" id="toastMessage">Action completed.</p>
+        </div>
+    </div>
+
     <script>
-        const generateButton = document.getElementById('generateButton');
-        const copyButton = document.getElementById('copyButton');
+        // DOM Elements
         const wordInput = document.getElementById('wordInput');
-        const listCountInput = document.getElementById('listCount');
-        const listsGrid = document.getElementById('listsGrid');
+        const listCountRange = document.getElementById('listCountRange');
+        const listCountValue = document.getElementById('listCountValue');
+        const wordsPerListRange = document.getElementById('wordsPerListRange');
+        const wordsPerListValue = document.getElementById('wordsPerListValue');
+        const poolCount = document.getElementById('poolCount');
         
-        // --- THEME LOGIC START ---
-        const html = document.documentElement;
-        const toggleBtn = document.getElementById('theme-toggle');
-        const sunIcon = document.getElementById('sun-icon');
-        const moonIcon = document.getElementById('moon-icon');
+        const emptyState = document.getElementById('emptyState');
+        const resultsArea = document.getElementById('resultsArea');
+        const listsGrid = document.getElementById('listsGrid');
+        const resultStats = document.getElementById('resultStats');
 
-        function updateThemeIcon() {
-            const isDark = html.classList.contains('dark');
-            sunIcon.classList.toggle('hidden', !isDark);
-            moonIcon.classList.toggle('hidden', isDark);
-        }
-
-        function toggleTheme() {
-            const isDark = html.classList.toggle('dark');
-            localStorage.setItem('theme', isDark ? 'dark' : 'light');
-            updateThemeIcon();
-        }
-
-        function initializeTheme() {
-            const savedTheme = localStorage.getItem('theme');
-            
-            // Check saved preference or system preference (prefers-color-scheme)
-            if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                html.classList.add('dark');
-            } else {
-                html.classList.remove('dark');
-            }
-            updateThemeIcon();
-        }
-        // --- THEME LOGIC END ---
-
-        // Color classes mapped directly to CSS classes for Game Hub style
-        const headerColors = [
-            'list-header-1', // Pink
-            'list-header-2', // Orange
-            'list-header-3', // Green
-            'list-header-4', // Blue
-            'list-header-5', // Darker Pink
-            'list-header-6', // Darker Orange
-            'list-header-7', // Darker Green
-            'list-header-8'  // Darker Blue
+        // Colors for List Headers
+        const colors = [
+            { border: 'border-pink-500', text: 'text-pink-400', bg: 'bg-pink-500/10' },
+            { border: 'border-orange-500', text: 'text-orange-400', bg: 'bg-orange-500/10' },
+            { border: 'border-green-500', text: 'text-green-400', bg: 'bg-green-500/10' },
+            { border: 'border-blue-500', text: 'text-blue-400', bg: 'bg-blue-500/10' }
         ];
 
-        // Fisher-Yates Shuffle Algorithm
-        function shuffleArray(array) {
-            let newArray = [...array];
-            let currentIndex = newArray.length;
-            let randomIndex;
+        // Listeners
+        wordInput.addEventListener('input', updatePoolCount);
+        listCountRange.addEventListener('input', (e) => listCountValue.textContent = e.target.value);
+        wordsPerListRange.addEventListener('input', (e) => wordsPerListValue.textContent = e.target.value);
 
-            while (currentIndex !== 0) {
-                randomIndex = Math.floor(Math.random() * currentIndex);
-                currentIndex--;
-                [newArray[currentIndex], newArray[randomIndex]] = [
-                    newArray[randomIndex], newArray[currentIndex]
-                ];
-            }
-            return newArray;
+        function updatePoolCount() {
+            const text = wordInput.value;
+            const lines = text.split(/[\n,]/).filter(l => l.trim().length > 0);
+            poolCount.textContent = `${lines.length} words in pool`;
         }
 
-        // Toast Notification (Game Hub style)
-        function showToast(message, isError = false) {
-            // Remove existing toasts
-            const existing = document.querySelector('.toast-notification');
-            if (existing) existing.remove();
-
-            const toast = document.createElement('div');
-            const bgColor = isError ? 'bg-red-600' : 'bg-green-600';
-            const shadow = isError ? 'shadow-red-500/50' : 'shadow-green-500/50';
-
-            toast.className = `toast-notification fixed bottom-6 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-full ${bgColor} text-white font-body font-extrabold shadow-xl ${shadow} z-50 transition-all duration-500 translate-y-20 opacity-0`;
-            toast.textContent = message;
-            
-            document.body.appendChild(toast);
-
-            // Animate in
-            requestAnimationFrame(() => {
-                toast.classList.remove('translate-y-20', 'opacity-0');
-            });
-
-            // Animate out
-            setTimeout(() => {
-                toast.classList.add('translate-y-20', 'opacity-0');
-                setTimeout(() => toast.remove(), 500);
-            }, 3000);
+        function clearConsole() {
+            wordInput.value = '';
+            updatePoolCount();
+            wordInput.focus();
+            showToast('Reset', 'Input cleared');
         }
 
         function generateLists() {
-            const input = wordInput.value.trim();
-            let count = parseInt(listCountInput.value, 10);
-            
-            // Validate word input
-            if (!input) {
-                showToast("Please enter some words first!", true);
+            const text = wordInput.value;
+            let pool = text.split(/[\n,]/).map(w => w.trim()).filter(w => w.length > 0);
+            pool = [...new Set(pool)]; // Remove duplicates from source
+
+            if (pool.length === 0) {
+                showToast('Error', 'Source pool is empty!', true);
                 return;
             }
 
-            const words = input.split(',')
-                .map(w => w.trim())
-                .filter(w => w.length > 0);
-
-            if (words.length < 2) {
-                showToast("Please enter at least two unique words.", true);
-                return;
-            }
-            
-            // Validate count input
-            if (isNaN(count) || count < 1 || count > 8) {
-                count = Math.min(Math.max(1, count), 8); // Clamp value
-                listCountInput.value = count; // Update display
-                showToast(`List count adjusted to ${count} (Max 8).`, true);
-            }
+            const numberOfLists = parseInt(listCountRange.value);
+            const wordsPerList = parseInt(wordsPerListRange.value);
 
             // Clear previous results
             listsGrid.innerHTML = '';
             
-            // Show copy button
-            copyButton.classList.remove('hidden');
-
-            // Adjust grid columns based on count for better visual density
-            // Taildwind classes: lg:grid-cols-1, lg:grid-cols-2, lg:grid-cols-3, lg:grid-cols-4
-            let gridColsClass = '';
-            if (count === 1) gridColsClass = 'lg:grid-cols-1';
-            else if (count === 2) gridColsClass = 'lg:grid-cols-2';
-            else if (count === 3) gridColsClass = 'lg:grid-cols-3';
-            else gridColsClass = 'lg:grid-cols-4'; // Default for 4-8 lists
-
-            listsGrid.className = `grid grid-cols-1 sm:grid-cols-2 ${gridColsClass} gap-6`;
-
-
             // Generate Lists
-            for (let i = 0; i < count; i++) {
-                const shuffledWords = shuffleArray(words);
-                const colorClass = headerColors[i % headerColors.length];
-                const listNumber = i + 1;
-
-                // Card Container
-                const card = document.createElement('div');
-                card.className = "list-card bg-white dark:bg-panel rounded-xl overflow-hidden hover:shadow-2xl transition-shadow duration-300 flex flex-col border border-surface/50";
-
-                // Header
-                const header = document.createElement('div');
-                header.className = `${colorClass} p-3 text-center`;
-                header.innerHTML = `<h3 class="text-white font-heading text-xl tracking-wider">LIST ${listNumber}</h3>`;
-
-                // List Content
-                const list = document.createElement('ol');
-                list.className = "p-5 space-y-2 list-decimal list-inside text-gray-700 dark:text-gray-300 flex-grow text-lg";
+            for (let i = 0; i < numberOfLists; i++) {
+                // Shuffle a copy of the pool for each list to ensure randomness
+                // This allows duplicates ACROSS lists (which is usually desired for equal difficulty), 
+                // but no duplicates WITHIN a list.
+                let listPool = [...pool]; 
                 
-                shuffledWords.forEach(word => {
-                    const li = document.createElement('li');
-                    li.textContent = word;
-                    li.className = "pl-1 border-b border-gray-100 dark:border-surface/50 last:border-0 pb-1 last:pb-0";
-                    list.appendChild(li);
-                });
+                // Shuffle Logic
+                for (let k = listPool.length - 1; k > 0; k--) {
+                    const j = Math.floor(Math.random() * (k + 1));
+                    [listPool[k], listPool[j]] = [listPool[j], listPool[k]];
+                }
 
-                card.appendChild(header);
-                card.appendChild(list);
-                listsGrid.appendChild(card);
+                // Slice
+                const selectedWords = listPool.slice(0, wordsPerList);
+                
+                createListCard(i, selectedWords);
             }
+
+            emptyState.style.display = 'none';
+            resultsArea.classList.remove('hidden');
+            resultStats.textContent = `Generated ${numberOfLists} lists of ${wordsPerList} words`;
+            showToast('Success', 'Lists generated successfully');
+        }
+
+        function createListCard(index, words) {
+            const color = colors[index % colors.length];
+            const card = document.createElement('div');
             
-            showToast(`${count} Randomized lists generated!`);
+            card.className = `bg-slate-900 border ${color.border} rounded-2xl overflow-hidden flex flex-col shadow-lg hover:shadow-xl transition-all list-enter relative group`;
+            card.style.animationDelay = `${index * 100}ms`;
+
+            // Card Header
+            const header = document.createElement('div');
+            header.className = `${color.bg} p-4 border-b border-slate-800 flex justify-between items-center`;
+            header.innerHTML = `
+                <h3 class="font-bold ${color.text} uppercase tracking-wider text-sm">List ${index + 1}</h3>
+                <button onclick="copySingleList(this)" class="text-slate-500 hover:text-white transition" title="Copy this list">
+                    <i class="fas fa-copy"></i>
+                </button>
+            `;
+            
+            // List Content
+            const content = document.createElement('div');
+            content.className = "p-4 flex-grow";
+            
+            const ul = document.createElement('ul');
+            ul.className = "space-y-2 text-sm text-slate-300 font-mono";
+            
+            words.forEach((w, i) => {
+                const li = document.createElement('li');
+                li.className = "flex items-start gap-2 border-b border-slate-800/50 pb-1 last:border-0";
+                li.innerHTML = `<span class="text-slate-600 select-none w-5 text-right">${i + 1}.</span> <span class="word-text">${w}</span>`;
+                ul.appendChild(li);
+            });
+
+            content.appendChild(ul);
+            card.appendChild(header);
+            card.appendChild(content);
+            
+            // Hidden text area for simpler copying logic if needed, 
+            // but we'll extract text dynamically to be cleaner.
+            
+            listsGrid.appendChild(card);
+        }
+
+        function copySingleList(btn) {
+            const card = btn.closest('div').parentElement; // Traverse up to main card container
+            const words = Array.from(card.querySelectorAll('.word-text')).map(span => span.textContent);
+            const text = words.join('\n');
+            
+            copyToClipboard(text, 'List copied!');
         }
 
         function copyAllLists() {
-            if (listsGrid.children.length === 0) return;
+            const lists = document.querySelectorAll('#listsGrid > div');
+            if (lists.length === 0) return;
 
-            let textToCopy = "";
-            const lists = listsGrid.querySelectorAll('.list-card'); // Select cards
-
+            let fullText = "";
             lists.forEach((card, index) => {
-                textToCopy += `LIST #${index + 1}\n`;
-                const items = card.querySelectorAll('li');
-                items.forEach((item, i) => {
-                    // Extract text content, stripping the list number (which is added by the list-inside class)
-                    const itemText = item.textContent.replace(/^\s*\d+\.\s*/, '').trim(); 
-                    textToCopy += `${i + 1}. ${itemText}\n`;
-                });
-                textToCopy += "\n";
+                const words = Array.from(card.querySelectorAll('.word-text')).map(span => span.textContent);
+                fullText += `--- LIST ${index + 1} ---\n` + words.join('\n') + '\n\n';
             });
 
-            // Robust copy method using execCommand
-            copyTextToClipboard(textToCopy);
+            copyToClipboard(fullText, 'All lists copied!');
         }
 
-        // Robust copy method using execCommand (works in iframe environments)
-        function copyTextToClipboard(text) {
-            const textArea = document.createElement("textarea");
-            textArea.value = text;
-            
-            // Minimal styling to keep it off-screen but selectable
-            textArea.style.position = "fixed";
-            textArea.style.top = "0";
-            textArea.style.left = "-9999px"; 
-            
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
+        function copyToClipboard(text, successMsg) {
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(() => showToast('Copied', successMsg));
+            } else {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                showToast('Copied', successMsg);
+            }
+        }
 
-            try {
-                const successful = document.execCommand('copy');
-                if (successful) {
-                    showToast("All lists copied to clipboard!");
-                } else {
-                    showToast("Failed to copy.", true);
-                }
-            } catch (err) {
-                console.error("Copy failed: ", err);
-                showToast("Failed to copy.", true);
+        function showToast(title, message, isError = false) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastTitle').textContent = title;
+            document.getElementById('toastMessage').textContent = message;
+            
+            const iconContainer = document.getElementById('toastIcon');
+            const icon = iconContainer.querySelector('i');
+            
+            if (isError) {
+                iconContainer.className = 'w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center text-red-500';
+                icon.className = 'fas fa-exclamation';
+            } else {
+                iconContainer.className = 'w-8 h-8 rounded-full bg-brand-green/20 flex items-center justify-center text-brand-green';
+                icon.className = 'fas fa-check';
             }
 
-            document.body.removeChild(textArea);
+            toast.classList.remove('translate-x-full');
+            if (window.toastTimeout) clearTimeout(window.toastTimeout);
+            window.toastTimeout = setTimeout(() => {
+                toast.classList.add('translate-x-full');
+            }, 3000);
         }
-
-        generateButton.addEventListener('click', generateLists);
-        copyButton.addEventListener('click', copyAllLists);
-        toggleBtn.addEventListener('click', toggleTheme); // Attach theme toggle listener
-        
-        // Initial setup
-        window.onload = function() {
-            initializeTheme(); // 1. Initialize Theme before icons
-            lucide.createIcons(); // 2. Create Lucide icons after theme init
-        };
     </script>
 </body>
 </html>
