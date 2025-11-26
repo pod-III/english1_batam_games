@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classroom Clock</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;600&family=Share+Tech+Mono&display=swap');
+
+        :root {
+            --color-pink: #FF6B9C;
+            --color-orange: #FF9F43;
+            --color-green: #2ECC71;
+            --color-blue: #54A0FF;
+        }
+
+        body {
+            font-family: 'Fredoka', sans-serif;
+            background-color: #F8FAFC;
+        }
+
+        .digital-font {
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        /* Floating Shapes Background */
+        .shape {
+            position: absolute;
+            filter: blur(50px);
+            z-index: 0;
+            opacity: 0.4;
+            animation: float 20s infinite ease-in-out alternate;
+        }
+
+        @keyframes float {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            100% { transform: translate(20px, 40px) rotate(10deg); }
+        }
+
+        /* Clock Hands Transitions */
+        /* CRITICAL FIX: transform-box: view-box ensures origin is relative to the SVG canvas, not the element */
+        .hand {
+            transition: transform 0.1s cubic-bezier(0.4, 2.08, 0.55, 0.44); /* Elastic tick */
+            transform-box: view-box;
+            transform-origin: center;
+        }
+        
+        .hand-smooth {
+            transition: transform 1s linear; /* Smooth sweep */
+            transform-box: view-box;
+            transform-origin: center;
+        }
+        
+        .clock-shadow {
+            box-shadow: 20px 20px 60px #d1d5db, -20px -20px 60px #ffffff;
+        }
+        
+        /* Card Hover Effect */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col overflow-hidden relative text-gray-800">
+
+    <!-- Ambient Background -->
+    <div class="shape w-96 h-96 bg-blue-200 rounded-full top-[-10%] left-[-10%]"></div>
+    <div class="shape w-80 h-80 bg-pink-200 rounded-full bottom-[-10%] right-[-5%] animation-delay-2000"></div>
+    <div class="shape w-64 h-64 bg-orange-100 rounded-full top-[40%] right-[10%] animation-delay-4000"></div>
+
+    <!-- Nav -->
+    <nav class="w-full p-4 flex justify-between items-center z-10">
+        <div class="flex items-center gap-2">
+            <div class="bg-white p-2 rounded-lg shadow-sm">
+                <i data-lucide="clock" class="w-6 h-6 text-blue-500"></i>
+            </div>
+            <h1 class="text-xl font-bold text-gray-700">Classroom Clock</h1>
+        </div>
+        
+        <div class="flex bg-white/50 backdrop-blur p-1 rounded-full border border-white/50 shadow-sm">
+            <button onclick="toggleFormat()" id="btn-format" class="px-3 py-1 text-sm font-semibold text-gray-600 hover:text-blue-500 transition">
+                24H
+            </button>
+            <div class="w-px bg-gray-300 mx-1 my-1"></div>
+            <button onclick="toggleView()" id="btn-view" class="px-3 py-1 text-sm font-semibold text-gray-600 hover:text-blue-500 transition">
+                <span id="view-text">Analog</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-grow flex flex-col items-center justify-center relative z-10 p-6">
+        
+        <!-- Clock Container -->
+        <div class="relative w-full max-w-2xl aspect-square md:aspect-video flex flex-col items-center justify-center">
+            
+            <!-- Digital Clock View -->
+            <div id="digital-view" class="text-center w-full transition-all duration-500 transform scale-100 opacity-100">
+                <!-- Date -->
+                <div id="date-display" class="text-2xl md:text-3xl font-medium text-gray-500 mb-2 uppercase tracking-widest">
+                    Monday, Oct 26
+                </div>
+                
+                <!-- Time -->
+                <div class="relative inline-block">
+                    <div id="time-display" class="digital-font text-[6rem] md:text-[10rem] leading-none font-bold text-gray-800 tracking-tighter tabular-nums drop-shadow-sm">
+                        12:30<span class="text-4xl md:text-6xl text-gray-400 font-normal align-top ml-2">45</span>
+                    </div>
+                </div>
+
+                <!-- AM/PM Indicator (Hidden in 24h) -->
+                <div id="ampm-display" class="text-xl font-bold text-blue-500 mt-2">PM</div>
+            </div>
+
+            <!-- Analog Clock View (Hidden by default) -->
+            <div id="analog-view" class="absolute inset-0 flex items-center justify-center transition-all duration-500 transform scale-90 opacity-0 pointer-events-none">
+                <div class="relative w-80 h-80 md:w-96 md:h-96 rounded-full bg-white clock-shadow border-8 border-white flex items-center justify-center">
+                    <svg viewBox="0 0 100 100" class="w-full h-full">
+                        <!-- Clock Face Markers -->
+                        <g id="face-markers"></g>
+                        
+                        <!-- Hour Hand -->
+                        <line id="hand-hour" x1="50" y1="50" x2="50" y2="25" stroke="#374151" stroke-width="4" stroke-linecap="round" class="hand" />
+                        
+                        <!-- Minute Hand -->
+                        <line id="hand-min" x1="50" y1="50" x2="50" y2="15" stroke="#9CA3AF" stroke-width="3" stroke-linecap="round" class="hand" />
+                        
+                        <!-- Second Hand -->
+                        <line id="hand-sec" x1="50" y1="60" x2="50" y2="10" stroke="#FF6B9C" stroke-width="1.5" stroke-linecap="round" class="hand-smooth" />
+                        
+                        <!-- Center Dot -->
+                        <circle cx="50" cy="50" r="3" fill="#FF6B9C" />
+                    </svg>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Greeting / Info -->
+        <div class="absolute bottom-8 text-center">
+            <p class="text-gray-400 text-sm font-medium bg-white/50 px-4 py-2 rounded-full backdrop-blur-sm">
+                <span id="location-text">Batam, Indonesia</span> • <span id="timezone-text">GMT+7</span>
+            </p>
+        </div>
+
+    </main>
+
+    <script>
+        // State
+        let is24Hour = false;
+        let isAnalog = false;
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        
+        // Analog Clock State Variables (Moved up for proper initialization)
+        let secondsLoop = 0;
+        let lastSeconds = -1;
+
+        // Elements
+        const timeDisplay = document.getElementById('time-display');
+        const dateDisplay = document.getElementById('date-display');
+        const ampmDisplay = document.getElementById('ampm-display');
+        const btnFormat = document.getElementById('btn-format');
+        const btnView = document.getElementById('btn-view');
+        const digitalView = document.getElementById('digital-view');
+        const analogView = document.getElementById('analog-view');
+        const viewText = document.getElementById('view-text');
+
+        // Analog Hands
+        const handHour = document.getElementById('hand-hour');
+        const handMin = document.getElementById('hand-min');
+        const handSec = document.getElementById('hand-sec');
+        const faceMarkers = document.getElementById('face-markers');
+
+        // Init
+        lucide.createIcons();
+        createClockFace();
+        updateClock();
+        setInterval(updateClock, 1000);
+
+        // Logic
+        function toggleFormat() {
+            is24Hour = !is24Hour;
+            btnFormat.innerText = is24Hour ? "12H" : "24H";
+            btnFormat.classList.toggle('text-blue-500');
+            updateClock();
+        }
+
+        function toggleView() {
+            isAnalog = !isAnalog;
+            
+            if (isAnalog) {
+                // Show Analog
+                digitalView.classList.remove('scale-100', 'opacity-100');
+                digitalView.classList.add('scale-90', 'opacity-0', 'pointer-events-none');
+                
+                analogView.classList.remove('scale-90', 'opacity-0', 'pointer-events-none');
+                analogView.classList.add('scale-100', 'opacity-100');
+                
+                viewText.innerText = "Digital";
+                dateDisplay.style.opacity = '0'; 
+            } else {
+                // Show Digital
+                analogView.classList.remove('scale-100', 'opacity-100');
+                analogView.classList.add('scale-90', 'opacity-0', 'pointer-events-none');
+                
+                digitalView.classList.remove('scale-90', 'opacity-0', 'pointer-events-none');
+                digitalView.classList.add('scale-100', 'opacity-100');
+                
+                viewText.innerText = "Analog";
+                dateDisplay.style.opacity = '1';
+            }
+        }
+
+        // Logic to track loops for infinite smooth rotation without "spin-back"
+        function updateClock() {
+            const now = new Date();
+            
+            // --- Digital Update ---
+            let h = now.getHours();
+            const m = now.getMinutes().toString().padStart(2, '0');
+            const s = now.getSeconds().toString().padStart(2, '0');
+            let ampm = '';
+
+            if (!is24Hour) {
+                ampm = h >= 12 ? 'PM' : 'AM';
+                h = h % 12;
+                h = h ? h : 12; 
+            } else {
+                h = h.toString().padStart(2, '0');
+            }
+
+            timeDisplay.innerHTML = `${h}:${m}<span class="text-4xl md:text-6xl text-gray-400 font-normal align-top ml-2 digital-font">${s}</span>`;
+            ampmDisplay.innerText = ampm;
+            ampmDisplay.style.display = is24Hour ? 'none' : 'block';
+
+            // Date
+            const dayName = days[now.getDay()];
+            const monthName = months[now.getMonth()];
+            const dateNum = now.getDate();
+            dateDisplay.innerText = `${dayName}, ${monthName} ${dateNum}`;
+
+            // --- Analog Update ---
+            const currentSeconds = now.getSeconds();
+            
+            // Detect if we wrapped from 59 to 0, which means a full rotation occurred
+            if (lastSeconds === 59 && currentSeconds === 0) {
+                secondsLoop++;
+            }
+            lastSeconds = currentSeconds;
+
+            // Calculate ratios including the loop offset
+            // secondsRatio is (0-59 + 60*loops) / 60
+            const secondsRatio = (currentSeconds + (secondsLoop * 60)) / 60;
+            
+            // Minute moves slightly as seconds move (no loop needed as it's slow)
+            const minutesRatio = (now.getMinutes() + currentSeconds/60) / 60;
+            
+            // Hour moves slightly as minutes move
+            const hoursRatio = (now.getHours() % 12 + minutesRatio) / 12;
+
+            setRotation(handSec, secondsRatio);
+            setRotation(handMin, minutesRatio);
+            setRotation(handHour, hoursRatio);
+        }
+
+        function setRotation(element, rotationRatio) {
+            // rotationRatio of 1 = 360deg
+            element.style.transform = `rotate(${rotationRatio * 360}deg)`;
+        }
+
+        function createClockFace() {
+            for (let i = 0; i < 12; i++) {
+                const angle = i * 30;
+                const isCardinal = i % 3 === 0;
+                const length = isCardinal ? 8 : 4;
+                const width = isCardinal ? 3 : 1;
+                const color = isCardinal ? '#FF9F43' : '#E5E7EB';
+                
+                const tick = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                tick.setAttribute("x1", "50");
+                tick.setAttribute("y1", "10");
+                tick.setAttribute("x2", "50");
+                tick.setAttribute("y2", 10 + length);
+                tick.setAttribute("stroke", color);
+                tick.setAttribute("stroke-width", width);
+                tick.setAttribute("stroke-linecap", "round");
+                tick.setAttribute("transform", `rotate(${angle} 50 50)`);
+                
+                faceMarkers.appendChild(tick);
+            }
+        }
+    </script>
+</body>
+</html>
