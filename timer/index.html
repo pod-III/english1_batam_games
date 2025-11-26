@@ -23,6 +23,7 @@
 
         /* Animations for Calm Mode */
         @keyframes breathe {
+            /* Kept the same scale range */
             0%, 100% { transform: scale(1); opacity: 0.8; }
             50% { transform: scale(1.05); opacity: 1; }
         }
@@ -34,7 +35,8 @@
         }
 
         .zen-circle {
-            animation: breathe 6s infinite ease-in-out;
+            /* Now set to a very slow, smooth 30-second cycle (15s in, 15s out) */
+            animation: breathe 30s infinite linear alternate;
         }
 
         .bubble {
@@ -231,7 +233,9 @@
         let timeLeft = 300; // 5 minutes in seconds
         let initialTime = 300;
         let isRunning = false;
-        let intervalId = null;
+        let intervalId = null; // 1-second interval for digital time/core logic
+        let progressUpdateId = null; // Fast interval for smooth progress bar update
+        let startTime = 0; // The timestamp when the timer started
         let currentMode = 'calm'; // 'calm' or 'bomb'
         
         // Audio Context (Browser requires user interaction to start audio)
@@ -315,23 +319,26 @@
                    <div class="absolute bottom-0 left-0 w-full h-2 bg-[repeating-linear-gradient(45deg,${colors.pink},${colors.pink}_10px,transparent_10px,transparent_20px)] opacity-50"></div>
                 `;
             }
-            updateDisplay();
+            // Update display only when changing modes or when stopped/reset
+            if (!isRunning) updateDisplay(true);
         }
 
-        function updateDisplay() {
+        // Flag to control if we update inputs (only needed on 1s tick or initialization)
+        function updateDisplay(isOneSecondTick = false) { 
             const m = Math.floor(timeLeft / 60);
             const s = timeLeft % 60;
             
-            // Only update inputs if they are not currently being focused/edited to avoid jumping
-            if (document.activeElement !== minInput && document.activeElement !== secInput) {
+            // Only update inputs if they are not currently being focused/edited 
+            // AND it's a 1-second tick or initial load
+            if (isOneSecondTick && document.activeElement !== minInput && document.activeElement !== secInput) {
                 minInput.value = m.toString().padStart(2, '0');
                 secInput.value = s.toString().padStart(2, '0');
             }
             
-            // Dynamic Updates based on mode
-            if (currentMode === 'calm') {
+            // Dynamic Updates based on mode (Only update static visuals if NOT running in calm mode)
+            if (currentMode === 'calm' && !isRunning) {
                 updateCalmVisuals();
-            } else {
+            } else if (currentMode === 'bomb') {
                 updateBombVisuals();
             }
         }
@@ -351,7 +358,8 @@
             minInput.value = m.toString().padStart(2, '0');
             secInput.value = s.toString().padStart(2, '0');
             
-            updateDisplay();
+            // If the timer is stopped, update the visual to the new input time
+            if (!isRunning) updateDisplay(true);
         }
 
         function adjustTime(seconds) {
@@ -360,10 +368,14 @@
             timeLeft = newTime;
             
             // If we are adding time, we might want to update the "initialTime" 
-            // so the progress bar/fuse doesn't look weird (jumping to >100%)
             if (timeLeft > initialTime) initialTime = timeLeft;
             
-            updateDisplay();
+            updateDisplay(true);
+            
+            // If running in calm mode, restart the smooth progress calculation from the new time
+            if (isRunning && currentMode === 'calm') {
+                startTime = Date.now() - (initialTime - timeLeft) * 1000;
+            }
         }
 
         function toggleTimer() {
@@ -386,10 +398,6 @@
             playIcon.setAttribute('data-lucide', 'pause');
             lucide.createIcons();
             
-            // Disable inputs while running to prevent weird state
-            // minInput.disabled = true;
-            // secInput.disabled = true;
-            
             if (currentMode === 'bomb') {
                 statusText.innerText = "Fuse Lit!";
                 statusText.style.color = colors.orange;
@@ -398,10 +406,11 @@
                 statusText.style.color = colors.green;
             }
 
+            // 1. Core Timer (decrements the displayed time every second)
             intervalId = setInterval(() => {
                 timeLeft--;
-                updateDisplay();
-
+                updateDisplay(true); // Update digital time every second
+                
                 // Sound Effects
                 if (currentMode === 'bomb') {
                     playTickSound();
@@ -424,19 +433,24 @@
                     finishTimer();
                 }
             }, 1000);
+            
+            // 2. Smooth Visual Update (runs frequently to animate the progress bar)
+            if (currentMode === 'calm') {
+                startTime = Date.now() - (initialTime - timeLeft) * 1000; // Calculate accurate start time
+                progressUpdateId = setInterval(smoothProgressUpdate, 50); // 50ms = 20 FPS for smooth progress
+            }
         }
 
         function stopTimer() {
             isRunning = false;
             clearInterval(intervalId);
+            clearInterval(progressUpdateId); // Clear fast interval
+            progressUpdateId = null;
+
             playIcon.setAttribute('data-lucide', 'play');
             lucide.createIcons();
             statusText.innerText = "Paused";
             statusText.style.color = 'gray';
-            
-            // Re-enable inputs
-            // minInput.disabled = false;
-            // secInput.disabled = false;
             
             // Clear Bomb FX
             timerContainer.classList.remove('shake-mild', 'shake-hard');
@@ -450,14 +464,14 @@
                 displayContainer.classList.remove('text-red-600');
                 displayContainer.classList.add('text-gray-800');
             }
-            updateDisplay();
+            updateDisplay(true); // Force display update
             statusText.innerText = "Ready";
         }
 
         function finishTimer() {
             stopTimer();
             timeLeft = 0;
-            updateDisplay();
+            updateDisplay(true);
 
             if (currentMode === 'bomb') {
                 playExplosionSound();
@@ -476,6 +490,36 @@
             resetTimer();
         }
 
+        // This runs frequently (e.g., every 50ms) to update the visual progress smoothly.
+        function smoothProgressUpdate() {
+            if (currentMode !== 'calm' || !isRunning || initialTime === 0) return;
+
+            // Calculate elapsed time based on the actual start time
+            const elapsed = (Date.now() - startTime) / 1000; // seconds
+            
+            // Calculate current time remaining
+            const currentTotalTime = Math.max(0, initialTime - elapsed);
+            
+            // Calculate percentage remaining
+            const pct = currentTotalTime / initialTime;
+
+            // Update the progress visual based on the smooth percentage
+            const dashArray = 283; // 2 * pi * 45
+            const dashOffset = dashArray * (1 - pct);
+
+            const progressCircle = document.getElementById('progress-circle');
+            if (progressCircle) {
+                progressCircle.style.strokeDashoffset = dashOffset;
+            }
+            
+            // If the progress bar hits zero, make sure to stop the interval
+            if (currentTotalTime <= 0) {
+                 clearInterval(progressUpdateId);
+                 progressUpdateId = null;
+            }
+        }
+
+
         // --- Visual Generators ---
 
         function updateCalmVisuals() {
@@ -492,12 +536,19 @@
                         <circle cx="50" cy="50" r="45" fill="none" stroke="#E2E8F0" stroke-width="8" />
                         <!-- Progress -->
                         <circle cx="50" cy="50" r="45" fill="none" stroke="${colors.green}" stroke-width="8" 
-                                stroke-dasharray="${dashArray}" stroke-dashoffset="${dashOffset}" 
-                                stroke-linecap="round" style="transition: stroke-dashoffset 1s linear;" />
+                                stroke-dasharray="${dashArray}" 
+                                stroke-linecap="round" 
+                                id="progress-circle"
+                                style="transition: none;" /> <!-- Transition removed for JS control -->
                     </svg>
                     <i data-lucide="leaf" class="absolute text-green-400 w-12 h-12 opacity-80"></i>
                 </div>
             `;
+            // Manually set initial offset (since we removed the CSS transition)
+            const progressCircle = document.getElementById('progress-circle');
+            if (progressCircle) {
+                 progressCircle.style.strokeDashoffset = dashOffset;
+            }
             lucide.createIcons();
         }
 
