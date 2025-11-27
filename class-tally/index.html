@@ -270,7 +270,8 @@
             </div>
 
             <!-- Cards Grid -->
-            <div id="grid-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-20 z-10 relative">
+            <!-- MODIFIED GRID LAYOUT: Increased column count for laptop (lg and up) for denser display -->
+            <div id="grid-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 pb-20 z-10 relative">
                 <!-- Cards Injected Here -->
             </div>
         </div>
@@ -516,8 +517,18 @@
                 start: () => {
                     if (timerInterval) clearInterval(timerInterval);
                     timerInterval = setInterval(() => {
-                        if (State.timerSeconds > 0) { State.timerSeconds--; Timer.updateDisplay(); } 
-                        else { Timer.stop(); Audio.playMilestone(); console.error("Time's up!"); } // Replaced alert()
+                        if (State.timerSeconds > 0) { 
+                            State.timerSeconds--; 
+                            Timer.updateDisplay(); 
+                            // Play tick sound every second
+                            Audio.playTick(); 
+                        } 
+                        else { 
+                            Timer.stop(); 
+                            Audio.playMilestone(); // Fanfare when time is up
+                            // Using console error as a non-intrusive message box replacement
+                            console.error("Time's up! Timer stopped."); 
+                        } 
                     }, 1000);
                 },
                 stop: () => { if (timerInterval) clearInterval(timerInterval); timerInterval = null; },
@@ -540,9 +551,12 @@
                     CanvasDraw.ctx.lineCap = 'round';
                     CanvasDraw.ctx.strokeStyle = State.currentStrokeColor;
                     
+                    // Mouse events
                     ['mousedown', 'mousemove', 'mouseup', 'mouseout'].forEach(evt => CanvasDraw.canvas.addEventListener(evt, e => {
                         if (evt === 'mousedown') CanvasDraw.startDraw(e); else if (evt === 'mousemove') CanvasDraw.draw(e); else CanvasDraw.stopDraw();
                     }));
+                    
+                    // Touch events
                     ['touchstart', 'touchmove', 'touchend'].forEach(evt => CanvasDraw.canvas.addEventListener(evt, e => {
                          if(evt !== 'touchend') e.preventDefault();
                          const touch = e.touches[0];
@@ -553,40 +567,87 @@
                 setStrokeColor: (c) => { State.currentStrokeColor = c; if (CanvasDraw.ctx) CanvasDraw.ctx.strokeStyle = c; CanvasDraw.updateUISelectors(); },
                 setStrokeWidth: (w) => { State.currentStrokeWidth = w; if (CanvasDraw.ctx) CanvasDraw.ctx.lineWidth = w; CanvasDraw.updateUISelectors(); },
                 updateUISelectors: () => {
+                    // Update color selection rings
                     document.querySelectorAll('#content-draw button[id^="color-"]').forEach(btn => {
-                        btn.classList.toggle('ring-4', btn.id.includes(State.currentStrokeColor.replace('#',''))); // simplified check
-                        if(btn.id === 'color-dark' && State.currentStrokeColor === '#0f172a') btn.classList.add('ring-4');
-                        if(btn.id === 'color-blue' && State.currentStrokeColor === '#3B82F6') btn.classList.add('ring-4');
-                        if(btn.id === 'color-pink' && State.currentStrokeColor === '#EC4899') btn.classList.add('ring-4');
+                        btn.classList.remove('ring-4', 'ring-offset-2', 'ring-slate-300');
+                        // Simple way to match color buttons based on ID
+                        const hex = State.currentStrokeColor.substring(1).toUpperCase();
+                        if (btn.id.includes(hex)) {
+                            btn.classList.add('ring-4', 'ring-offset-2', 'ring-slate-300');
+                        }
                     });
                 },
                 resizeObserver: new ResizeObserver(entries => {
                     for (let entry of entries) {
+                        // FIX: Added null/undefined check for canvas before accessing properties
+                        if (!CanvasDraw.canvas) continue; 
+                        
                         const { width, height } = entry.contentRect;
+                        // Save existing drawing data before resizing
                         let imgData = CanvasDraw.hasDrawn ? CanvasDraw.getSignature() : null;
-                        CanvasDraw.canvas.width = width; CanvasDraw.canvas.height = height;
-                        CanvasDraw.ctx.lineWidth = State.currentStrokeWidth; CanvasDraw.ctx.lineCap = 'round'; CanvasDraw.ctx.strokeStyle = State.currentStrokeColor;
-                        if (imgData) { const img = new Image(); img.onload = () => CanvasDraw.ctx.drawImage(img, 0, 0, width, height); img.src = imgData; }
+                        
+                        // Resize canvas DOM element attributes
+                        CanvasDraw.canvas.width = width; 
+                        CanvasDraw.canvas.height = height;
+                        
+                        // Restore context settings after resize (canvas reset context on resize)
+                        if(CanvasDraw.ctx) {
+                             CanvasDraw.ctx.lineWidth = State.currentStrokeWidth; 
+                             CanvasDraw.ctx.lineCap = 'round'; 
+                             CanvasDraw.ctx.strokeStyle = State.currentStrokeColor;
+                        }
+                        
+                        // Redraw the image if data exists
+                        if (imgData) { 
+                            const img = new Image(); 
+                            img.onload = () => CanvasDraw.ctx.drawImage(img, 0, 0, width, height); 
+                            img.src = imgData; 
+                        }
                     }
                 }),
                 startDraw: (e) => { CanvasDraw.isDrawing = true; [CanvasDraw.lastX, CanvasDraw.lastY] = CanvasDraw.getCoords(e); CanvasDraw.hasDrawn = true; },
                 draw: (e) => {
-                    if (!CanvasDraw.isDrawing) return;
+                    if (!CanvasDraw.isDrawing || !CanvasDraw.ctx) return;
                     CanvasDraw.ctx.beginPath(); CanvasDraw.ctx.moveTo(CanvasDraw.lastX, CanvasDraw.lastY);
                     const [nx, ny] = CanvasDraw.getCoords(e); CanvasDraw.ctx.lineTo(nx, ny); CanvasDraw.ctx.stroke();
                     [CanvasDraw.lastX, CanvasDraw.lastY] = [nx, ny];
                 },
                 stopDraw: () => { CanvasDraw.isDrawing = false; },
-                getCoords: (e) => { const r = CanvasDraw.canvas.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; },
-                clear: () => { CanvasDraw.ctx.clearRect(0, 0, CanvasDraw.canvas.width, CanvasDraw.canvas.height); CanvasDraw.hasDrawn = false; },
+                getCoords: (e) => { 
+                    const r = CanvasDraw.canvas.getBoundingClientRect(); 
+                    // Handle touch event structure vs mouse event structure
+                    const clientX = e.clientX !== undefined ? e.clientX : (e.targetTouches ? e.targetTouches[0].clientX : 0);
+                    const clientY = e.clientY !== undefined ? e.clientY : (e.targetTouches ? e.targetTouches[0].clientY : 0);
+                    return [clientX - r.left, clientY - r.top]; 
+                },
+                clear: () => { 
+                    if (!CanvasDraw.ctx) return;
+                    CanvasDraw.ctx.clearRect(0, 0, CanvasDraw.canvas.width, CanvasDraw.canvas.height); 
+                    CanvasDraw.hasDrawn = false; 
+                },
                 getSignature: () => CanvasDraw.canvas.toDataURL('image/png')
             };
+            
+            // Wait for canvas to be in the DOM before observing it
+            document.addEventListener('DOMContentLoaded', () => {
+                const canvas = document.getElementById('signature-canvas');
+                if (canvas) {
+                    // Initial resize to set canvas attributes correctly
+                    const rect = canvas.getBoundingClientRect();
+                    // NOTE: Removed the initial resizeObserver.observe(canvas) call here to prevent the error
+                    // as the element is display:none. The observation will now only start when the tab is clicked.
+                    canvas.width = rect.width;
+                    canvas.height = rect.height;
+                }
+            });
+
 
             // --- NATIVE AUDIO REPLACEMENT (PERFORMANCE OPTIMIZATION) ---
             const Audio = {
                 ctx: null,
                 init: () => {
                     if (!Audio.ctx) {
+                        // Check for webkit prefix for compatibility
                         Audio.ctx = new (window.AudioContext || window.webkitAudioContext)();
                     }
                 },
@@ -599,14 +660,18 @@
                     const gain = Audio.ctx.createGain();
                     osc.type = type;
                     osc.frequency.setValueAtTime(freq, Audio.ctx.currentTime);
-                    gain.gain.setValueAtTime(0.1, Audio.ctx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.01, Audio.ctx.currentTime + duration);
+                    
+                    // Envelope for click-free sound
+                    gain.gain.setValueAtTime(0, Audio.ctx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.1, Audio.ctx.currentTime + 0.01);
+                    gain.gain.linearRampToValueAtTime(0, Audio.ctx.currentTime + duration);
+
                     osc.connect(gain);
                     gain.connect(Audio.ctx.destination);
                     osc.start();
-                    osc.stop(Audio.ctx.currentTime + duration);
+                    osc.stop(Audio.ctx.currentTime + duration + 0.05); // Stop slightly later than envelope release
                 },
-                playGood: () => { if(!State.soundEnabled) return; Audio.playTone(880, 'sine', 0.2); setTimeout(()=>Audio.playTone(1760, 'sine', 0.2), 100); }, // Ding!
+                playGood: () => { if(!State.soundEnabled) return; Audio.playTone(880, 'sine', 0.1); setTimeout(()=>Audio.playTone(1320, 'sine', 0.15), 100); }, // Short Ding!
                 playBad: () => { if(!State.soundEnabled) return; Audio.playTone(150, 'sawtooth', 0.3); }, // Buzz!
                 playMilestone: () => { if(!State.soundEnabled) return; [523, 659, 784, 1046].forEach((f,i) => setTimeout(()=>Audio.playTone(f,'triangle',0.2), i*80)); }, // Fanfare
                 playTick: () => { if(!State.soundEnabled) return; Audio.playTone(800, 'square', 0.05); },
@@ -615,17 +680,41 @@
 
             // --- PERSISTENCE ---
             const Persistence = {
-                save: () => localStorage.setItem('english1_tally_v5', JSON.stringify({ students: State.students, sound: State.soundEnabled, good: State.currentGood, bad: State.currentBad })),
+                save: () => {
+                    // Only save necessary state for students and app settings
+                    const dataToSave = { 
+                        students: State.students, 
+                        sound: State.soundEnabled, 
+                        good: State.currentGood, 
+                        bad: State.currentBad,
+                        // Add other global state elements you want to persist
+                    };
+                    localStorage.setItem('class_tally_v1', JSON.stringify(dataToSave));
+                },
                 load: () => {
-                    const d = localStorage.getItem('english1_tally_v5') || localStorage.getItem('english1_tally_v4_state');
+                    // Try current key first, fall back to old keys
+                    const d = localStorage.getItem('class_tally_v1') || localStorage.getItem('english1_tally_v5') || localStorage.getItem('english1_tally_v4_state');
                     if(d) {
-                        const o = JSON.parse(d);
-                        State.students = o.students || [];
-                        State.soundEnabled = o.sound !== undefined ? o.sound : true;
-                        State.currentGood = o.good || '⭐️';
-                        State.currentBad = o.bad || '⚠️';
+                        try {
+                            const o = JSON.parse(d);
+                            State.students = o.students || [];
+                            State.soundEnabled = o.sound !== undefined ? o.sound : true;
+                            State.currentGood = o.good || '⭐️';
+                            State.currentBad = o.bad || '⚠️';
+                        } catch (e) {
+                            console.error("Error loading saved state:", e);
+                            State.students = []; // Reset on error
+                        }
                     }
-                    State.students = State.students.map(s => ({...s, cardColor: s.cardColor || '#3B82F6', avatar: s.avatar || '😀'}));
+                    // Ensure all students have required default properties for stability
+                    State.students = State.students.map(s => ({
+                        ...s, 
+                        cardColor: s.cardColor || '#3B82F6', 
+                        avatar: s.avatar || '😀',
+                        // Ensure logs are arrays
+                        goodLogs: s.goodLogs || [],
+                        badLogs: s.badLogs || []
+                    }));
                 }
             };
 
@@ -634,8 +723,16 @@
                 addTyped: () => {
                     const name = document.getElementById('student-name-input').value.trim();
                     const view = State.modalView;
-                    if (view === 'type' && !name) return;
-                    if (view === 'draw' && !CanvasDraw.hasDrawn) return;
+                    
+                    // Input validation
+                    if (view === 'type' && !name) {
+                        console.error("Please enter a name.");
+                        return;
+                    }
+                    if (view === 'draw' && !CanvasDraw.hasDrawn) {
+                         console.error("Please draw a signature.");
+                         return;
+                    }
 
                     const newStudent = {
                         id: Date.now(),
@@ -647,7 +744,11 @@
                     };
                     State.students.push(newStudent);
                     document.getElementById('student-name-input').value = '';
-                    UI.hideStudentModal(); CanvasDraw.clear(); Persistence.save(); UI.render(); Audio.playGood();
+                    UI.hideStudentModal(); 
+                    CanvasDraw.clear(); 
+                    Persistence.save(); 
+                    UI.render(); 
+                    Audio.playGood();
                 },
                 remove: (id) => UI.showConfirmationModal('Remove Student?', 'Are you sure you want to delete this student data?', 'Delete', (y) => { if(y) { State.students = State.students.filter(s => s.id !== id); Persistence.save(); UI.render(); }}),
                 
@@ -660,10 +761,10 @@
                     } else {
                         s.badLogs.push(State.currentBad); Audio.playBad();
                         const card = document.getElementById(`card-${id}`);
+                        // Trigger shake animation by removing and re-adding class
                         if(card) { card.classList.remove('animate-shake'); void card.offsetWidth; card.classList.add('animate-shake'); }
                     }
                     Persistence.save(); 
-                    // Use granular update instead of full render
                     UI.updateCardLogs(id);
                 },
                 
@@ -673,30 +774,48 @@
                     if(type === 'good' && s.goodLogs.length > 0) s.goodLogs.pop();
                     else if (type === 'bad' && s.badLogs.length > 0) s.badLogs.pop();
                     Persistence.save(); 
-                    // Use granular update
                     UI.updateCardLogs(id);
                 },
                 pickRandom: () => {
-                    if (State.students.length === 0) return;
+                    if (State.students.length === 0) return console.error("Class is empty. Add students first.");
                     if (State.isPicking) return;
                     State.isPicking = true;
+                    // Remove highlight from all cards
                     document.querySelectorAll('.app-panel').forEach(el => el.classList.remove('card-highlight'));
                     
                     let i = 0, delay = 50;
                     const loop = () => {
+                        // Clear all highlights
                         document.querySelectorAll('.app-panel').forEach(el => el.classList.remove('card-highlight'));
+                        
+                        // Select a random student
                         const rS = State.students[Math.floor(Math.random() * State.students.length)];
                         const card = document.getElementById(`card-${rS.id}`);
+                        
+                        // Highlight the selected card and play tick sound
                         if(card) { card.classList.add('card-highlight'); Audio.playTick(); }
+                        
                         i++;
-                        if(i < 25) { delay *= 1.1; setTimeout(loop, delay); }
+                        if(i < 25) { 
+                            delay *= 1.1; // Increase delay for slowing down effect
+                            setTimeout(loop, delay); 
+                        }
                         else {
+                            // Final selection
                             if(card) {
                                 card.scrollIntoView({behavior:'smooth', block:'center'});
                                 setTimeout(() => { 
                                     Audio.playMilestone(); 
+                                    // Trigger confetti at the card's location
                                     const rect = card.getBoundingClientRect();
-                                    confetti({ particleCount: 60, spread: 70, origin: { x: (rect.left+rect.width/2)/window.innerWidth, y: (rect.top+rect.height/2)/window.innerHeight } });
+                                    confetti({ 
+                                        particleCount: 60, 
+                                        spread: 70, 
+                                        origin: { 
+                                            x: (rect.left+rect.width/2)/window.innerWidth, 
+                                            y: (rect.top+rect.height/2)/window.innerHeight 
+                                        } 
+                                    });
                                     State.isPicking = false; 
                                 }, 300);
                             } else State.isPicking = false;
@@ -706,7 +825,7 @@
                 },
                 addAllGood: () => UI.showConfirmationModal('Reward Class', `Give +1 ${State.currentGood} to everyone?`, 'Yes', (y) => { if(y) { State.students.forEach(s => s.goodLogs.push(State.currentGood)); Persistence.save(); UI.render(); Audio.playMassAction('good'); confetti(); } }),
                 addAllBad: () => UI.showConfirmationModal('Warn Class', `Give +1 ${State.currentBad} to everyone?`, 'Yes', (y) => { if(y) { State.students.forEach(s => s.badLogs.push(State.currentBad)); Persistence.save(); UI.render(); Audio.playMassAction('bad'); } }),
-                clearAll: () => UI.showConfirmationModal('Reset All', 'Delete all students?', 'Delete All', (y) => { if(y) { State.students = []; Persistence.save(); UI.render(); } }),
+                clearAll: () => UI.showConfirmationModal('Reset All', 'Delete all students and their data?', 'Delete All', (y) => { if(y) { State.students = []; Persistence.save(); UI.render(); } }),
             };
 
             // --- UI ---
@@ -721,8 +840,10 @@
                 updateCardColorPicker: () => {
                     State.CARD_COLORS.forEach(c => {
                         const btn = document.getElementById(`color-btn-${c.hex.substring(1)}`);
-                        if(c.hex === State.currentCardColor) { btn.classList.add('ring-4', 'ring-offset-2', 'ring-slate-300'); }
-                        else { btn.classList.remove('ring-4', 'ring-offset-2', 'ring-slate-300'); }
+                        if(btn) {
+                            if(c.hex === State.currentCardColor) { btn.classList.add('ring-4', 'ring-offset-2', 'ring-slate-300'); }
+                            else { btn.classList.remove('ring-4', 'ring-offset-2', 'ring-slate-300'); }
+                        }
                     });
                 },
                 initAvatarPicker: () => {
@@ -737,18 +858,58 @@
                     document.getElementById(`tab-${v}`).classList.add('active', 'bg-white', 'shadow-sm', 'text-slate-800');
                     document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
                     document.getElementById(`content-${v}`).style.display = 'block';
-                    if(v === 'draw') { CanvasDraw.resizeObserver.observe(CanvasDraw.canvas); CanvasDraw.clear(); } 
-                    else CanvasDraw.resizeObserver.unobserve(CanvasDraw.canvas);
+                    
+                    if(v === 'draw') { 
+                        const canvas = document.getElementById('signature-canvas');
+                        // Start observing when draw tab is open/visible
+                        if (canvas) CanvasDraw.resizeObserver.observe(canvas); 
+                        CanvasDraw.clear(); 
+                    } 
+                    else {
+                        const canvas = document.getElementById('signature-canvas');
+                        // Stop observing when draw tab is closed/hidden
+                        if (canvas) CanvasDraw.resizeObserver.unobserve(canvas); 
+                    }
                     
                     const confirmBtn = document.getElementById('btn-add-confirm');
                     confirmBtn.onclick = Student.addTyped; 
                 },
-                showStudentModal: () => { UI.setModalView('type'); UI.initCardColorPicker(); UI.initAvatarPicker(); document.getElementById('add-student-modal').classList.remove('hidden', 'opacity-0'); },
-                hideStudentModal: () => { document.getElementById('add-student-modal').classList.add('opacity-0'); setTimeout(() => document.getElementById('add-student-modal').classList.add('hidden'), 300); },
-                showTeamModal: () => { document.getElementById('team-modal').classList.remove('hidden', 'opacity-0'); },
-                hideTeamModal: () => { document.getElementById('team-modal').classList.add('opacity-0'); setTimeout(() => document.getElementById('team-modal').classList.add('hidden'), 300); },
-                showConfirmationModal: (t, m, c, cb) => { modalCallback = cb; document.getElementById('modal-title').textContent = t; document.getElementById('modal-message').textContent = m; document.getElementById('modal-confirm').textContent = c; document.getElementById('confirmation-modal').classList.remove('hidden', 'opacity-0'); },
-                hideModal: () => { document.getElementById('confirmation-modal').classList.add('opacity-0'); setTimeout(() => document.getElementById('confirmation-modal').classList.add('hidden'), 300); },
+                showStudentModal: () => { 
+                    UI.setModalView('type'); 
+                    UI.initCardColorPicker(); 
+                    UI.initAvatarPicker(); 
+                    document.getElementById('add-student-modal').classList.remove('hidden');
+                    // Add timeout for fade-in effect
+                    setTimeout(() => document.getElementById('add-student-modal').classList.remove('opacity-0'), 10);
+                },
+                hideStudentModal: () => { 
+                    // Stop observing canvas when closing the modal completely
+                    const canvas = document.getElementById('signature-canvas');
+                    if (canvas) CanvasDraw.resizeObserver.unobserve(canvas);
+                    
+                    document.getElementById('add-student-modal').classList.add('opacity-0'); 
+                    setTimeout(() => document.getElementById('add-student-modal').classList.add('hidden'), 300); 
+                },
+                showTeamModal: () => { 
+                    document.getElementById('team-modal').classList.remove('hidden');
+                    setTimeout(() => document.getElementById('team-modal').classList.remove('opacity-0'), 10);
+                },
+                hideTeamModal: () => { 
+                    document.getElementById('team-modal').classList.add('opacity-0'); 
+                    setTimeout(() => document.getElementById('team-modal').classList.add('hidden'), 300); 
+                },
+                showConfirmationModal: (t, m, c, cb) => { 
+                    modalCallback = cb; 
+                    document.getElementById('modal-title').textContent = t; 
+                    document.getElementById('modal-message').textContent = m; 
+                    document.getElementById('modal-confirm').textContent = c; 
+                    document.getElementById('confirmation-modal').classList.remove('hidden'); 
+                    setTimeout(() => document.getElementById('confirmation-modal').classList.remove('opacity-0'), 10);
+                },
+                hideModal: () => { 
+                    document.getElementById('confirmation-modal').classList.add('opacity-0'); 
+                    setTimeout(() => document.getElementById('confirmation-modal').classList.add('hidden'), 300); 
+                },
                 handleModalAction: (y) => { UI.hideModal(); if (modalCallback) { modalCallback(y); modalCallback = null; } },
                 
                 // **FIXED LOGIC**: Use consistent toggle and close mechanism
@@ -787,7 +948,7 @@
                     if(t === 'good') State.currentGood = e; else State.currentBad = e;
                     Persistence.save(); 
                     UI.initEmojiPickers(); // Re-render pickers to update selection highlight
-                    UI.render();
+                    UI.render(); // Re-render cards to show new emoji
                     UI.closeAllDropdowns();
                 },
                 toggleSound: () => {
@@ -797,7 +958,8 @@
                 },
                 toggleSettings: () => { document.getElementById('toolbar').classList.toggle('hidden'); document.getElementById('toolbar').classList.toggle('flex'); },
                 celebrate: (id) => {
-                    const el = document.getElementById(`card-${id}`); if(!el) return;
+                    const el = document.getElementById(`card-${id}`); 
+                    if(!el) return;
                     const r = el.getBoundingClientRect();
                     confetti({ particleCount: 60, spread: 50, origin: { x: (r.left+r.width/2)/window.innerWidth, y: (r.top+r.height/2)/window.innerHeight } });
                 },
@@ -812,9 +974,10 @@
                         const goodCount = s.goodLogs.length;
                         const badCount = s.badLogs.length;
                         
+                        // Note: Reduced gap for a tighter feel (gap-1)
                         logContainer.innerHTML = `
-                            ${s.goodLogs.map((e,i) => `<span onclick="ClassTallyApp.Student.removeLastPoint(${s.id},'good')" class="tally-item text-2xl select-none hover:opacity-50" style="animation: popIn 0.3s backwards; animation-delay: ${i*0.05}s">${e}</span>`).join('')}
-                            ${s.badLogs.map(e => `<span onclick="ClassTallyApp.Student.removeLastPoint(${s.id},'bad')" class="tally-item text-xl grayscale opacity-80 hover:opacity-100">${e}</span>`).join('')}
+                            ${s.goodLogs.map((e,i) => `<span onclick="event.stopPropagation(); ClassTallyApp.Student.removeLastPoint(${s.id},'good')" class="tally-item text-2xl select-none hover:opacity-50" style="animation: popIn 0.3s backwards; animation-delay: ${i*0.05}s">${e}</span>`).join('')}
+                            ${s.badLogs.map(e => `<span onclick="event.stopPropagation(); ClassTallyApp.Student.removeLastPoint(${s.id},'bad')" class="tally-item text-xl grayscale opacity-80 hover:opacity-100">${e}</span>`).join('')}
                             ${goodCount === 0 && badCount === 0 ? '<span class="text-sm text-slate-400 font-medium self-center mt-6 italic">Ready for points</span>' : ''}
                         `;
                         // Auto scroll to bottom
@@ -827,9 +990,16 @@
 
                 render: () => {
                     const container = document.getElementById('grid-container');
-                    if(State.students.length === 0) { document.getElementById('empty-state').style.display = 'flex'; container.innerHTML = ''; return; }
+                    
+                    // Check for empty state
+                    if(State.students.length === 0) { 
+                        document.getElementById('empty-state').style.display = 'flex'; 
+                        container.innerHTML = ''; 
+                        return; 
+                    }
                     document.getElementById('empty-state').style.display = 'none';
                     
+                    // Render all student cards
                     container.innerHTML = State.students.map(s => {
                         const goodCount = s.goodLogs.length;
                         const badCount = s.badLogs.length;
@@ -864,13 +1034,16 @@
                             </div>
 
                             <!-- Card Body (Tally Logs & Buttons) -->
-                            <div class="px-5 pb-6 pt-3 flex flex-col flex-grow items-center">
+                            <!-- CHANGED: pt-3 to pt-1 to decrease vertical space after name box -->
+                            <div class="px-5 pb-6 pt-1 flex flex-col flex-grow items-center">
                                 
                                 <!-- Log Area (Clean & Interactive) -->
-                                <div class="w-full bg-slate-50 rounded-2xl border border-slate-100 p-3 mb-6 flex-grow relative group/logs min-h-[100px] flex flex-col">
-                                    <div class="flex flex-wrap justify-center content-start gap-2 h-full overflow-y-auto custom-scrollbar max-h-[120px] w-full">
-                                        ${s.goodLogs.map((e,i) => `<span onclick="ClassTallyApp.Student.removeLastPoint(${s.id},'good')" class="tally-item text-2xl select-none hover:opacity-50" style="animation: popIn 0.3s backwards; animation-delay: ${i*0.05}s">${e}</span>`).join('')}
-                                        ${s.badLogs.map(e => `<span onclick="ClassTallyApp.Student.removeLastPoint(${s.id},'bad')" class="tally-item text-xl grayscale opacity-80 hover:opacity-100">${e}</span>`).join('')}
+                                <!-- CHANGED: p-3 to p-1 to make emojis feel less confined/overflowing -->
+                                <div class="w-full bg-slate-50 rounded-2xl border border-slate-100 p-1 mb-6 flex-grow relative group/logs min-h-[100px] flex flex-col">
+                                    <!-- CHANGED: gap-2 to gap-1 to increase density -->
+                                    <div class="flex flex-wrap justify-center content-start gap-1 h-full overflow-y-auto custom-scrollbar max-h-[120px] w-full">
+                                        ${s.goodLogs.map((e,i) => `<span onclick="event.stopPropagation(); ClassTallyApp.Student.removeLastPoint(${s.id},'good')" class="tally-item text-2xl select-none hover:opacity-50" style="animation: popIn 0.3s backwards; animation-delay: ${i*0.05}s">${e}</span>`).join('')}
+                                        ${s.badLogs.map(e => `<span onclick="event.stopPropagation(); ClassTallyApp.Student.removeLastPoint(${s.id},'bad')" class="tally-item text-xl grayscale opacity-80 hover:opacity-100">${e}</span>`).join('')}
                                         
                                         ${goodCount === 0 && badCount === 0 ? '<span class="text-sm text-slate-400 font-medium self-center mt-6 italic">Ready for points</span>' : ''}
                                     </div>
@@ -904,9 +1077,13 @@
                 init: () => { 
                     Persistence.load(); 
                     CanvasDraw.init('signature-canvas'); 
-                    UI.initEmojiPickers(); // Initialize pickers here to populate grids
+                    UI.initEmojiPickers(); 
                     UI.render(); 
+                    // Hide dropdowns when clicking anywhere else
                     document.addEventListener('click', UI.closeAllDropdowns); 
+                    // Initial check for sound button icon
+                    document.getElementById('btn-sound').innerHTML = State.soundEnabled ? '<i data-lucide="volume-2" class="w-5 h-5"></i>' : '<i data-lucide="volume-x" class="w-5 h-5 text-red-400"></i>';
+                    lucide.createIcons();
                 }, 
                 Student, Teams, UI, Timer, CanvasDraw 
             };
