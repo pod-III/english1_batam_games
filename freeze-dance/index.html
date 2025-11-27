@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Freeze Dance | English 1 Games</title>
+    <!-- Importing Nunito for that round, friendly classroom look -->
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* English 1 Palette - Refined & Brighter for Kids */
+            --c-pink: #FF6B81;
+            --c-orange: #FFA502;
+            --c-green: #2ED573;
+            --c-blue: #1E90FF;
+            
+            --c-bg: #F0F3F7;
+            --c-card: #ffffff;
+            --c-text-main: #2F3542;
+            
+            --radius-lg: 30px;
+            --radius-md: 20px;
+            --shadow-soft: 0 10px 40px -10px rgba(0,0,0,0.1);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: var(--c-bg);
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            color: var(--c-text-main);
+            overflow: hidden;
+        }
+
+        /* --- Header --- */
+        header {
+            background: var(--c-card);
+            padding: 1rem 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            z-index: 20;
+            transition: transform 0.3s ease;
+        }
+
+        /* Hide header in full immersive mode */
+        body.immersive-mode header {
+            transform: translateY(-100%);
+            position: absolute;
+        }
+
+        .logo {
+            font-weight: 900;
+            font-size: 1.6rem;
+            color: var(--c-blue);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo-icon { font-size: 2rem; animation: wobble 2s infinite; }
+
+        @keyframes wobble {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-10deg); }
+            75% { transform: rotate(10deg); }
+        }
+
+        /* --- Main Layout --- */
+        main {
+            flex: 1;
+            display: flex;
+            gap: 1.5rem;
+            padding: 1.5rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+            height: 100%;
+            transition: all 0.5s ease;
+        }
+
+        /* Fullscreen adjustments */
+        body.immersive-mode main {
+            padding: 0;
+            max-width: 100%;
+        }
+
+        /* --- Left Panel: Teacher Controls --- */
+        .panel-controls {
+            flex: 0 0 320px;
+            background: var(--c-card);
+            padding: 2rem;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-soft);
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            transition: all 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            z-index: 10;
+        }
+
+        /* Hide dashboard logic */
+        body.immersive-mode .panel-controls {
+            margin-left: -350px; /* Slide off screen */
+            opacity: 0;
+        }
+
+        h2 { margin: 0; font-size: 1.2rem; font-weight: 800; display: flex; align-items: center; gap: 10px; }
+        .divider { height: 3px; background: #f1f2f6; width: 100%; margin: 0.5rem 0; border-radius: 9px; }
+
+        label { display: block; font-weight: 800; margin-bottom: 0.6rem; font-size: 0.9rem; color: #747d8c; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        /* Cute Inputs */
+        .time-inputs { display: flex; gap: 10px; }
+        .input-wrapper {
+            background: #f1f2f6;
+            padding: 0.8rem;
+            border-radius: var(--radius-md);
+            flex: 1;
+            transition: 0.2s;
+            border: 3px solid transparent;
+            text-align: center;
+        }
+        .input-wrapper:focus-within { background: white; border-color: var(--c-blue); }
+
+        input[type="number"] {
+            width: 100%; border: none; background: transparent; font-family: inherit; font-size: 1.4rem; font-weight: 900; color: var(--c-blue); outline: none; text-align: center;
+        }
+
+        /* Buttons */
+        .btn {
+            width: 100%; padding: 1.2rem; border: none; border-radius: var(--radius-md); font-weight: 900; font-size: 1.1rem;
+            cursor: pointer; transition: transform 0.1s, box-shadow 0.1s; color: white; display: flex; align-items: center; justify-content: center; gap: 12px;
+            box-shadow: 0 6px 0 rgba(0,0,0,0.1); /* Chunky shadow for kid feel */
+        }
+        .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 rgba(0,0,0,0.1); }
+        .btn-upload { background-color: var(--c-blue); }
+        .btn-start { background-color: var(--c-green); font-size: 1.3rem; }
+        
+        /* Floating Stop Button (In-Game) */
+        .btn-floating-stop {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) scale(0); /* Hidden by default */
+            background-color: var(--c-pink);
+            padding: 15px 40px;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            font-weight: 900;
+            color: white;
+            border: none;
+            box-shadow: 0 8px 0 #d63031;
+            cursor: pointer;
+            z-index: 100;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .btn-floating-stop:active { transform: translateX(-50%) translateY(4px); box-shadow: 0 2px 0 #d63031; }
+
+        body.immersive-mode .btn-floating-stop {
+            transform: translateX(-50%) scale(1); /* Show in immersive mode */
+        }
+
+        /* --- Right Panel: Game Stage --- */
+        .panel-game {
+            flex: 1;
+            background: var(--c-card);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-soft);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.5s ease;
+            border: 4px solid white;
+        }
+
+        body.immersive-mode .panel-game {
+            border-radius: 0;
+            border: none;
+        }
+
+        /* Decorative Background Pattern */
+        .bg-pattern {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            opacity: 0.1;
+            background-image: radial-gradient(var(--c-text-main) 20%, transparent 20%), radial-gradient(var(--c-text-main) 20%, transparent 20%);
+            background-color: #ffffff;
+            background-position: 0 0, 25px 25px;
+            background-size: 50px 50px;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        /* Video */
+        video {
+            width: 60%;
+            max-width: 500px;
+            border-radius: var(--radius-md);
+            margin-bottom: 2rem;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            background: black;
+            display: none; 
+            z-index: 2;
+            border: 5px solid white;
+        }
+        
+        /* Make video huge in immersive mode but keep controls reachable */
+        body.immersive-mode video {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 300px; /* Mini player in corner */
+            opacity: 0.8;
+            border-radius: 15px;
+        }
+        
+        body.immersive-mode video:hover { opacity: 1; }
+
+        /* Typography */
+        .status-container { z-index: 5; text-align: center; position: relative; }
+        
+        .status-emoji {
+            font-size: 6rem;
+            display: block;
+            margin-bottom: 10px;
+            filter: drop-shadow(0 5px 10px rgba(0,0,0,0.1));
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .status-text {
+            font-size: clamp(4rem, 12vw, 9rem);
+            font-weight: 900;
+            line-height: 1;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            -webkit-text-stroke: 3px rgba(0,0,0,0.05);
+            text-shadow: 0 10px 0 rgba(0,0,0,0.05);
+        }
+        
+        .sub-text {
+            font-size: 1.8rem;
+            color: #a4b0be;
+            margin-top: 1rem;
+            font-weight: 800;
+        }
+
+        /* --- Visualizer --- */
+        .visualizer {
+            display: flex;
+            align-items: flex-end;
+            gap: 15px;
+            height: 120px;
+            margin-bottom: 30px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .bar {
+            width: 25px;
+            background: white;
+            border-radius: 99px;
+            height: 20%;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        /* --- Game States --- */
+        
+        /* DANCE MODE */
+        .state-dance { background-color: var(--c-green); }
+        .state-dance .bg-pattern { opacity: 0.1; background-image: radial-gradient(#fff 20%, transparent 20%), radial-gradient(#fff 20%, transparent 20%); }
+        .state-dance .status-text { 
+            color: white; 
+            transform: scale(1.1) rotate(-3deg);
+            animation: bounce 0.5s infinite alternate ease-in-out;
+        }
+        .state-dance .status-emoji { animation: dance-emoji 1s infinite alternate; }
+        .state-dance .sub-text { color: rgba(255,255,255,0.9); }
+        .state-dance .visualizer { opacity: 1; }
+        .state-dance .bar { animation: equalizer 0.4s infinite ease-in-out alternate; }
+        .state-dance .bar:nth-child(even) { animation-duration: 0.5s; }
+
+        /* FREEZE MODE */
+        .state-freeze { background-color: var(--c-pink); }
+        .state-freeze .bg-pattern { opacity: 0.1; background-image: radial-gradient(#fff 20%, transparent 20%), radial-gradient(#fff 20%, transparent 20%); }
+        .state-freeze .status-text { 
+            color: white; 
+            transform: scale(1.0) rotate(3deg);
+        }
+        .state-freeze .status-emoji { transform: scale(1.3); }
+        .state-freeze .sub-text { color: rgba(255,255,255,0.9); }
+        .state-freeze .visualizer { opacity: 0.5; }
+        .state-freeze .bar { height: 10% !important; animation: none; }
+
+        /* Animations */
+        @keyframes bounce { from { transform: translateY(0) rotate(-3deg); } to { transform: translateY(-15px) rotate(-3deg); } }
+        @keyframes dance-emoji { from { transform: rotate(-10deg); } to { transform: rotate(10deg); } }
+        @keyframes equalizer { 0% { height: 30%; } 100% { height: 100%; } }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo"><span class="logo-icon">🧊</span> Freeze<span>Dance</span></div>
+        <div style="font-weight: 800; color: #a4b0be; background:#f1f2f6; padding: 5px 15px; border-radius: 20px;">English 1</div>
+    </header>
+
+    <main>
+        <!-- Teacher Inputs (Left Side) -->
+        <div class="panel-controls">
+            <div>
+                <h2>🎛️ Teacher Panel</h2>
+                <div class="divider"></div>
+            </div>
+
+            <!-- Upload -->
+            <div>
+                <label>1. Pick a Song / Video</label>
+                <button class="btn btn-upload" onclick="document.getElementById('file-input').click()">
+                    <span>🎵</span> Upload File
+                </button>
+                <input type="file" id="file-input" accept="audio/*,video/*" style="display: none;">
+                <div id="file-name" style="font-size:0.8rem; text-align:center; margin-top:5px; color:#aaa;">No file selected</div>
+            </div>
+
+            <!-- Timers -->
+            <div>
+                <label>2. Timer (Seconds)</label>
+                <div class="time-inputs">
+                    <div class="input-wrapper">
+                        <div style="font-size: 0.7rem; color: #888; margin-bottom: 5px;">MIN</div>
+                        <input type="number" id="min-time" value="4" min="1">
+                    </div>
+                    <div class="input-wrapper">
+                        <div style="font-size: 0.7rem; color: #888; margin-bottom: 5px;">MAX</div>
+                        <input type="number" id="max-time" value="10" min="2">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Start Button -->
+            <div style="margin-top: auto;">
+                <button id="btn-start" class="btn btn-start" disabled onclick="toggleGame()">
+                    Waiting for file...
+                </button>
+            </div>
+        </div>
+
+        <!-- Game Display (Right Side) -->
+        <div id="game-panel" class="panel-game state-idle">
+            <div class="bg-pattern"></div>
+            
+            <video id="media-player" controls playsinline></video>
+            
+            <div class="visualizer">
+                <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+            </div>
+
+            <div class="status-container">
+                <div id="status-emoji" class="status-emoji">👋</div>
+                <div id="status-display" class="status-text">HELLO!</div>
+                <div id="instruction-text" class="sub-text">Teacher, please upload a song</div>
+            </div>
+
+            <!-- Floating Stop Button (Only shows in game) -->
+            <button class="btn-floating-stop" onclick="stopGame()">
+                <span>⏹</span> STOP GAME
+            </button>
+        </div>
+    </main>
+
+    <script>
+        const fileInput = document.getElementById('file-input');
+        const fileName = document.getElementById('file-name');
+        const mediaPlayer = document.getElementById('media-player');
+        const startBtn = document.getElementById('btn-start');
+        
+        const gamePanel = document.getElementById('game-panel');
+        const statusDisplay = document.getElementById('status-display');
+        const statusEmoji = document.getElementById('status-emoji');
+        const subText = document.getElementById('instruction-text');
+        
+        const minTimeInput = document.getElementById('min-time');
+        const maxTimeInput = document.getElementById('max-time');
+
+        let isGameRunning = false;
+        let isFrozen = false;
+        let freezeTimer = null;
+
+        // 1. File Upload
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                mediaPlayer.src = URL.createObjectURL(file);
+                fileName.innerText = "Ready: " + file.name;
+                fileName.style.color = "var(--c-green)";
+                
+                startBtn.disabled = false;
+                startBtn.innerHTML = "<span>▶</span> START PARTY";
+                
+                statusEmoji.innerText = "🤩";
+                statusDisplay.innerText = "READY?";
+                subText.innerText = "Press Start!";
+                mediaPlayer.style.display = "block";
+            }
+        });
+
+        // 2. Start Game
+        function toggleGame() {
+            if (!mediaPlayer.src) return;
+            if (isGameRunning) stopGame();
+            else startGame();
+        }
+
+        function startGame() {
+            isGameRunning = true;
+            document.body.classList.add('immersive-mode'); // Hides dashboard
+            
+            // Start dancing immediately
+            enterDanceMode();
+        }
+
+        function stopGame() {
+            isGameRunning = false;
+            document.body.classList.remove('immersive-mode'); // Shows dashboard
+            clearTimeout(freezeTimer);
+            mediaPlayer.pause();
+            
+            // Reset UI
+            gamePanel.className = "panel-game state-idle";
+            statusEmoji.innerText = "😌";
+            statusDisplay.innerText = "PAUSED";
+            subText.innerText = "Great job everyone!";
+            startBtn.innerHTML = "<span>▶</span> RESUME PARTY";
+        }
+
+        // 3. Logic: DANCE
+        function enterDanceMode() {
+            if (!isGameRunning) return;
+            isFrozen = false;
+
+            // UI
+            gamePanel.className = "panel-game state-dance";
+            statusEmoji.innerText = "💃";
+            statusDisplay.innerText = "DANCE!";
+            subText.innerText = "Move your body!";
+            
+            mediaPlayer.play();
+
+            // Random Time
+            const min = parseInt(minTimeInput.value) * 1000;
+            const max = parseInt(maxTimeInput.value) * 1000;
+            const randomTime = Math.floor(Math.random() * (max - min + 1) + min);
+
+            freezeTimer = setTimeout(enterFreezeMode, randomTime);
+        }
+
+        // 4. Logic: FREEZE
+        function enterFreezeMode() {
+            if (!isGameRunning) return;
+            isFrozen = true;
+
+            // UI
+            gamePanel.className = "panel-game state-freeze";
+            statusEmoji.innerText = "🥶";
+            statusDisplay.innerText = "FREEZE!";
+            subText.innerText = "Statue mode: ON";
+
+            mediaPlayer.pause();
+
+            // Random Freeze Duration (2-5s)
+            const freezeDuration = Math.floor(Math.random() * 3000) + 2000;
+
+            freezeTimer = setTimeout(enterDanceMode, freezeDuration);
+        }
+
+        // 5. Spacebar Shortcut
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && mediaPlayer.src && !fileInput.disabled) {
+                e.preventDefault();
+                if (!isGameRunning) {
+                    toggleGame();
+                } else {
+                    // Manual override
+                    clearTimeout(freezeTimer);
+                    if (isFrozen) enterDanceMode();
+                    else enterFreezeMode();
+                }
+            }
+        });
+
+        mediaPlayer.onended = () => {
+            stopGame();
+            statusDisplay.innerText = "FINISHED";
+            statusEmoji.innerText = "🎉";
+        };
+
+    </script>
+</body>
+</html>
