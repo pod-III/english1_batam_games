@@ -3,805 +3,703 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Detective OS v2.1 - Academy Edition</title>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+    <title>DETECTIVE: COLD CASE UNIT</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Permanent+Marker&family=Special+Elite&family=Abril+Fatface&display=swap" rel="stylesheet">
+    
     <style>
         :root {
-            /* Fahrul's Requested Palette */
-            --pink: #FF6B95;
-            --orange: #FF8C42;
-            --green: #00E676;
-            --blue: #2979FF;
+            /* TRUE NOIR PALETTE */
+            --noir-red: #8a0b0b;      /* Blood / Danger */
+            --noir-amber: #cca43b;    /* Whiskey / Light */
+            --noir-steel: #5f6e7c;    /* Cold / Metal */
+            --noir-paper: #e6dcc3;    /* Aged Paper */
+            --noir-ink: #1a1a1a;      /* Typewriter Ink */
             
-            /* Dark Mode UI Colors */
-            --bg-dark: #0f172a;
-            --bg-panel: #1e293b;
-            --bg-input: #020617;
-            --text-light: #f8fafc;
-            --text-dim: #94a3b8;
-            
-            --border-color: rgba(255,255,255,0.1);
+            --bg-night: #050505;
+            --desk-wood: #2a1d15;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
 
         body {
-            font-family: 'Nunito', sans-serif;
-            background-color: var(--bg-dark);
-            color: var(--text-light);
+            font-family: 'Courier Prime', monospace;
+            background-color: var(--bg-night);
+            color: var(--noir-ink);
             height: 100vh;
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            position: relative;
         }
 
-        /* --- Header --- */
+        /* --- CINEMATIC FX --- */
+        .fx-layer {
+            position: absolute; top:0; left:0; width:100%; height:100%; pointer-events: none; z-index: 100;
+        }
+        
+        /* Rain */
+        .rain {
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0.05));
+            width: 100%; height: 100%; position: absolute;
+        }
+        .drop {
+            position: absolute; width: 1px; height: 100px;
+            background: rgba(255,255,255,0.05);
+            animation: fall 0.6s linear infinite;
+        }
+        @keyframes fall { from { transform: translateY(-100px); } to { transform: translateY(110vh); } }
+
+        /* Film Grain & Vignette */
+        .overlay {
+            background: radial-gradient(circle, transparent 40%, #000 120%);
+            mix-blend-mode: multiply; opacity: 0.9;
+            width: 100%; height: 100%; position: absolute;
+        }
+        .grain {
+            position: absolute; top:0; left:0; width:100%; height:100%;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.07'/%3E%3C/svg%3E");
+            opacity: 0.4;
+        }
+
+        /* --- HEADER --- */
         header {
-            background: rgba(15, 23, 42, 0.95);
-            border-bottom: 1px solid var(--blue);
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            height: 70px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-            z-index: 10;
+            background: rgba(10,5,5,0.95);
+            padding: 0 40px; height: 70px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 1px solid #333; z-index: 200;
+            box-shadow: 0 5px 30px #000;
         }
-
+        
         .brand {
-            font-family: 'JetBrains Mono', monospace;
-            font-weight: 700;
-            font-size: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            font-family: 'Abril Fatface', cursive; font-size: 1.8rem; letter-spacing: 2px;
+            color: #ddd; text-shadow: 0 2px 10px #000;
         }
-        .brand span { color: var(--blue); }
+        .brand span { color: var(--noir-red); }
 
-        .header-controls { display: flex; gap: 15px; align-items: center; }
-        
-        .control-btn {
-            background: transparent;
-            border: 1px solid var(--border-color);
-            color: var(--text-dim);
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            cursor: pointer;
-            transition: 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2rem;
+        .btn-nav {
+            background: transparent; border: 1px solid #444; color: #888;
+            padding: 8px 16px; font-family: 'Courier Prime'; text-transform: uppercase;
+            cursor: pointer; transition: 0.3s;
         }
-        .control-btn:hover { border-color: var(--green); color: var(--green); background: rgba(255,255,255,0.05); }
+        .btn-nav:hover { border-color: var(--noir-amber); color: var(--noir-amber); }
 
-        /* --- Main Layout --- */
-        .main-container {
-            display: flex;
-            flex: 1;
-            height: calc(100vh - 70px);
-            position: relative;
+        /* --- DESK LAYOUT --- */
+        .desk {
+            flex: 1; padding: 30px; display: flex; justify-content: center;
+            position: relative; z-index: 50; perspective: 1000px;
         }
 
-        /* LEFT PANEL: Visual Data (GUI) */
-        .gui-panel {
-            flex: 1.2;
-            padding: 20px;
-            overflow-y: auto;
-            border-right: 1px solid var(--border-color);
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
+        .folder-wrapper {
+            width: 100%; max-width: 1000px; height: 100%;
+            display: flex; flex-direction: column; position: relative;
         }
 
-        /* RIGHT PANEL: Terminal (CLI) */
-        .cli-panel {
-            flex: 1;
-            background-color: #0d1117;
-            display: flex;
-            flex-direction: column;
-            font-family: 'JetBrains Mono', monospace;
-            border-left: 1px solid #30363d;
+        /* Tabs */
+        .tabs { display: flex; padding-left: 20px; z-index: 5; }
+        .tab {
+            background: #3d342b; color: #999;
+            padding: 12px 30px; margin-right: 4px; border-radius: 6px 6px 0 0;
+            cursor: pointer; font-family: 'Special Elite';
+            border: 1px solid #222; border-bottom: none;
+            box-shadow: inset 0 -10px 20px rgba(0,0,0,0.5);
+        }
+        .tab.active {
+            background: var(--noir-paper); color: #111; font-weight: bold;
+            box-shadow: 0 -5px 10px rgba(0,0,0,0.2);
+            padding-bottom: 15px; margin-bottom: -2px; z-index: 10;
         }
 
-        /* --- GUI Components --- */
-        .case-header {
-            background: linear-gradient(145deg, var(--bg-panel), #232d42);
-            padding: 20px;
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
-            position: relative;
-            overflow: hidden;
-            transition: background 0.5s ease;
-        }
-        .case-header::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; width: 4px; height: 100%;
-            background: var(--orange);
-        }
-
-        .timer-badge {
-            position: absolute;
-            right: 20px;
-            top: 20px;
-            background: rgba(0,0,0,0.3);
-            padding: 5px 15px;
-            border-radius: 20px;
-            border: 1px solid var(--green);
-            color: var(--green);
-            font-family: 'JetBrains Mono', monospace;
-            font-weight: bold;
-            font-size: 1.2rem;
-            box-shadow: 0 0 10px rgba(0, 230, 118, 0.2);
-        }
-
-        .nav-tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 10px;
+        /* The File */
+        .file {
+            background: var(--noir-paper); flex: 1;
+            border-radius: 2px; position: relative;
+            box-shadow: 0 20px 60px #000, inset 0 0 100px rgba(61, 44, 25, 0.2);
+            border: 1px solid #888; overflow: hidden; padding: 40px;
+            /* Paper Texture */
+            background-image: linear-gradient(rgba(255,255,255,0.4), rgba(255,255,255,0) 80%), url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.05'/%3E%3C/svg%3E");
         }
         
-        .nav-btn {
-            background: var(--bg-panel);
-            border: 1px solid var(--border-color);
-            color: var(--text-dim);
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s;
-            flex: 1;
-            text-align: center;
-        }
-        .nav-btn:hover { background: #2d3748; }
-        .nav-btn.active {
-            background: var(--blue);
-            color: white;
-            border-color: var(--blue);
-            box-shadow: 0 4px 12px rgba(41, 121, 255, 0.3);
+        /* Stains & Grime */
+        .stain {
+            position: absolute; border-radius: 50%; pointer-events: none;
+            border: 10px solid rgba(60, 40, 10, 0.08);
+            width: 120px; height: 120px; bottom: 50px; right: 50px; filter: blur(1px);
         }
 
-        .view-section { display: none; animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-        .view-section.active { display: block; }
+        .view { display: none; height: 100%; overflow-y: auto; padding-right: 15px; }
+        .view.active { display: block; animation: fade 0.6s; }
+        @keyframes fade { from { opacity:0; } to { opacity:1; } }
 
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+        /* Typography */
+        h1 { 
+            font-family: 'Special Elite'; font-size: 2.5rem; color: #111;
+            border-bottom: 4px double #333; padding-bottom: 15px; margin-bottom: 25px;
+            text-transform: uppercase; letter-spacing: 1px;
         }
+        h2 { font-family: 'Special Elite'; color: var(--noir-steel); border-bottom: 1px solid #aaa; margin-bottom: 20px; }
 
-        /* Grid for Cards */
-        .grid-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 15px;
+        /* --- CARDS --- */
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 30px; }
+
+        .doc {
+            background: #fff; padding: 20px; box-shadow: 2px 5px 10px rgba(0,0,0,0.2);
+            position: relative; transition: 0.2s; border: 1px solid #ccc;
         }
+        .doc:hover { transform: scale(1.02) rotate(0deg) !important; z-index: 20; box-shadow: 10px 20px 30px rgba(0,0,0,0.3); }
 
-        .data-card {
-            background: var(--bg-panel);
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            padding: 15px;
-            transition: all 0.3s;
-            position: relative;
-            overflow: hidden;
+        .polaroid {
+            background: #fff; padding: 12px 12px 50px 12px;
+            box-shadow: 2px 5px 15px rgba(0,0,0,0.3);
         }
-
-        .data-card:hover {
-            transform: translateY(-2px);
-            border-color: var(--blue);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        .photo {
+            background: #222; height: 180px; width: 100%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 4rem; color: #555; filter: grayscale(100%) contrast(1.2);
+            position: relative; overflow: hidden;
         }
-
-        .data-card h3 { color: var(--pink); margin-bottom: 5px; display: flex; justify-content: space-between; }
-        .data-card .type-badge { font-size: 0.7em; background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; color: var(--text-dim); }
-        
-        .locked-overlay {
-            margin-top: 10px;
-            padding: 10px;
-            background: rgba(0,0,0,0.3);
-            border-radius: 6px;
-            border: 1px dashed var(--text-dim);
-            color: var(--text-dim);
-            font-size: 0.9em;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .unlocked-content {
-            margin-top: 10px;
-            padding: 10px;
-            background: rgba(0, 230, 118, 0.1);
-            border-radius: 6px;
-            border-left: 3px solid var(--green);
-            color: #e2e8f0;
-            font-size: 0.9em;
-            display: none; /* Hidden by default */
-        }
-
-        .data-card.revealed .locked-overlay { display: none; }
-        .data-card.revealed .unlocked-content { display: block; animation: fadeIn 0.5s; }
-
-        /* --- Terminal Components --- */
-        .cli-header {
-            padding: 10px 15px;
-            background: #010409;
-            color: var(--text-dim);
-            font-size: 0.8rem;
-            border-bottom: 1px solid #30363d;
-            display: flex;
-            justify-content: space-between;
-        }
-
-        .cli-output {
-            flex: 1;
-            padding: 15px;
-            overflow-y: auto;
-            color: var(--text-light);
-            font-size: 0.95rem;
-            line-height: 1.6;
-        }
-
-        .cli-input-wrapper {
-            background: var(--bg-input);
-            padding: 15px;
-            border-top: 1px solid #30363d;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .prompt { color: var(--green); font-weight: bold; }
-        
-        #cliInput {
-            background: transparent;
-            border: none;
-            color: #fff;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 1rem;
-            flex: 1;
-            outline: none;
-        }
-
-        /* Terminal Text Styles */
-        .log-line { margin-bottom: 6px; }
-        .log-success { color: var(--green); }
-        .log-error { color: var(--pink); }
-        .log-warn { color: var(--orange); }
-        .log-info { color: var(--blue); }
-        .log-user { color: var(--text-dim); border-left: 2px solid var(--text-dim); padding-left: 8px; margin: 8px 0; }
-
-        /* Modal/Overlay */
-        .modal-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.95);
-            backdrop-filter: blur(5px);
-            z-index: 100;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            transition: opacity 0.3s ease;
+        .photo::after {
+            content:''; position:absolute; top:0; left:0; width:100%; height:100%;
+            background: linear-gradient(rgba(255,255,255,0.1), transparent);
         }
         
-        .modal-content {
-            background: var(--bg-panel);
-            padding: 40px;
-            border-radius: 16px;
-            border: 1px solid var(--blue);
-            max-width: 500px;
-            width: 90%;
-            text-align: center;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        /* Redacted Text */
+        .censored {
+            background: #000; color: #000; font-family: 'Courier Prime';
+            padding: 4px; margin-top: 10px; cursor: pointer; transition: 0.4s;
+            position: relative; overflow: hidden;
         }
+        .censored::after {
+            content: "CLASSIFIED"; color: #333; font-size: 0.6rem; letter-spacing: 2px;
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+        }
+        .revealed .censored {
+            background: transparent; color: var(--noir-red);
+            font-weight: bold; border-bottom: 2px solid var(--noir-red);
+        }
+        .revealed .censored::after { display: none; }
 
-        .modal-title { font-size: 2rem; margin-bottom: 10px; color: var(--blue); }
-        .modal-btn {
-            margin-top: 20px;
-            padding: 15px 30px;
-            background: var(--blue);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 1.1rem;
-            cursor: pointer;
-            transition: 0.3s;
-            width: 100%;
-            font-family: 'JetBrains Mono', monospace;
-            text-align: left;
+        /* Action Buttons */
+        .actions { margin-top: 15px; display: flex; flex-direction: column; gap: 8px; }
+        .stamp-btn {
+            border: 2px solid #555; background: transparent; color: #333;
+            font-family: 'Special Elite'; font-size: 1rem; padding: 10px;
+            cursor: pointer; transition: 0.2s; text-transform: uppercase; opacity: 0.7;
         }
-        .modal-btn:hover { background: var(--green); color: #000; transform: translateX(5px); }
+        .stamp-btn:hover { opacity: 1; border-color: var(--noir-red); color: var(--noir-red); transform: rotate(-1deg); }
+        .revealed .btn-reveal { display: none; }
 
-        /* Mobile Responsiveness */
-        @media (max-width: 768px) {
-            .main-container { flex-direction: column; height: auto; }
-            .gui-panel { height: 50vh; }
-            .cli-panel { height: 50vh; }
-            body { overflow: auto; }
+        /* --- HUD --- */
+        .timer-stamp {
+            position: absolute; top: -20px; right: 30px;
+            font-family: 'Special Elite'; font-size: 2.5rem;
+            color: var(--noir-red); transform: rotate(-5deg);
+            border: 4px solid var(--noir-red); padding: 5px 20px;
+            background: rgba(255, 240, 240, 0.9); z-index: 50;
+            box-shadow: 0 5px 10px rgba(0,0,0,0.3);
+            transition: 0.5s;
         }
+        .critical { animation: pulse 1s infinite; background: #300; color: #f00; border-color: #f00; }
+        @keyframes pulse { 0% { transform: rotate(-5deg) scale(1); } 50% { transform: rotate(-5deg) scale(1.1); } 100% { transform: rotate(-5deg) scale(1); } }
 
-        /* Typing Cursor Animation */
-        .typing-cursor::after {
-            content: '▋';
-            animation: blink 1s infinite;
-            color: var(--green);
+        .strike-panel {
+            position: absolute; top: -15px; left: 30px;
+            display: flex; gap: 15px; z-index: 50;
         }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+        .x-mark {
+            font-family: 'Permanent Marker'; font-size: 3.5rem; color: rgba(0,0,0,0.1);
+        }
+        .x-mark.active { color: #800; text-shadow: 2px 2px 0 #000; }
+
+        /* --- PAGER --- */
+        .pager {
+            position: fixed; bottom: 30px; right: 30px; width: 300px;
+            background: #151515; border: 2px solid #333;
+            padding: 15px; border-radius: 8px; z-index: 300;
+            box-shadow: 0 10px 40px #000;
+        }
+        .screen {
+            background: #08100c; height: 100px; border: 3px inset #333;
+            padding: 10px; font-family: 'Courier Prime'; color: var(--noir-amber);
+            text-shadow: 0 0 5px var(--noir-amber); font-size: 0.85rem;
+            display: flex; flex-direction: column-reverse; overflow: hidden;
+        }
+        .log-entry { border-bottom: 1px dotted #333; padding: 2px 0; }
+
+        /* --- MODALS --- */
+        .modal {
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.92); z-index: 500;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .paper-modal {
+            background: #f0f0f0; padding: 50px; width: 90%; max-width: 800px;
+            transform: rotate(1deg); box-shadow: 0 0 100px #000;
+            max-height: 90vh; overflow-y: auto;
+        }
         
+        .case-list { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .case-btn {
+            background: #fff; padding: 20px; border: 1px solid #999;
+            text-align: left; cursor: pointer; transition: 0.2s; position: relative;
+        }
+        .case-btn:hover { border-color: var(--noir-red); transform: scale(1.02); z-index: 10; box-shadow: 0 5px 20px rgba(0,0,0,0.2); }
+        
+        /* Tags */
+        .level { position: absolute; top: 10px; right: 10px; font-weight: bold; font-size: 0.7rem; color: #fff; padding: 2px 6px; }
+        .lvl-1 { background: var(--noir-steel); }
+        .lvl-2 { background: var(--noir-amber); }
+        .lvl-3 { background: var(--noir-red); }
+
+        /* Outcome Stamps */
+        .stamp {
+            font-family: 'Permanent Marker'; font-size: 5rem;
+            border: 10px solid; padding: 10px 30px;
+            transform: rotate(-15deg); display: inline-block;
+            margin: 30px; opacity: 0; animation: smash 0.4s forwards 0.5s;
+        }
+        @keyframes smash { 0% { opacity:0; transform: scale(3) rotate(0deg); } 100% { opacity:0.8; transform: scale(1) rotate(-15deg); } }
+        
+        .s-solved { color: #006633; border-color: #006633; }
+        .s-failed { color: #800; border-color: #800; }
+
+        @media(max-width: 600px) { .case-list { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
 
-    <!-- HEADER -->
+    <!-- FX LAYERS -->
+    <div class="fx-layer">
+        <div class="rain" id="rain"></div>
+        <div class="grain"></div>
+        <div class="overlay"></div>
+    </div>
+
     <header>
-        <div class="brand">
-            <span>//</span> DETECTIVE_OS <span>v2.1</span>
-        </div>
-        <div class="header-controls">
-            <button class="control-btn" onclick="showMainMenu()" title="Switch Case / Main Menu">📂</button>
-            <button class="control-btn" id="soundToggle" onclick="toggleSound()" title="Toggle Sound">🔊</button>
-            <div style="color: var(--text-dim); font-size: 0.9rem; margin-left: 10px;">Classroom Mode</div>
+        <div class="brand">NOIR <span>DETECTIVE</span></div>
+        <div>
+            <button class="btn-nav" onclick="showArchives()">Archives</button>
+            <button class="btn-nav" id="soundBtn" onclick="toggleMute()">SND: ON</button>
         </div>
     </header>
 
-    <!-- MAIN INTERFACE -->
-    <div class="main-container">
-        
-        <!-- LEFT: VISUAL DATA -->
-        <div class="gui-panel">
+    <div class="desk">
+        <div class="folder-wrapper" id="shaker">
             
-            <!-- Case Status Header -->
-            <div class="case-header">
-                <h2 style="color: var(--text-light); margin-bottom: 5px;" id="caseTitle">Waiting for Input...</h2>
-                <p style="color: var(--text-dim);" id="caseDifficulty">System Standby</p>
-                <div class="timer-badge" id="timerDisplay">00:00</div>
+            <!-- HUD -->
+            <div class="timer-stamp" id="timer">10:00</div>
+            <div class="strike-panel">
+                <div class="x-mark" id="x1">X</div>
+                <div class="x-mark" id="x2">X</div>
             </div>
 
-            <!-- Navigation -->
-            <div class="nav-tabs">
-                <button class="nav-btn active" onclick="switchView('brief')">📁 Brief</button>
-                <button class="nav-btn" onclick="switchView('evidence')">🔍 Evidence</button>
-                <button class="nav-btn" onclick="switchView('suspects')">👥 Suspects</button>
+            <div class="tabs">
+                <div class="tab active" onclick="tab('brief')">CASE BRIEF</div>
+                <div class="tab" onclick="tab('evidence')">EVIDENCE</div>
+                <div class="tab" onclick="tab('suspects')">SUSPECTS</div>
             </div>
 
-            <!-- View: Brief -->
-            <div id="brief" class="view-section active">
-                <div style="background: rgba(255,255,255,0.03); padding: 20px; border-radius: 8px; line-height: 1.6;">
-                    <h3 style="color: var(--orange); margin-bottom: 10px;">Incident Report</h3>
-                    <p id="briefText">No active investigation. Please initialize a case from the terminal.</p>
-                    <div style="margin-top: 20px; padding: 10px; background: rgba(41, 121, 255, 0.1); border-radius: 6px; font-size: 0.9rem; color: var(--blue);">
-                        ℹ️ <strong>Teacher's Note:</strong> Instruct students to look at the right-hand terminal to start.
+            <div class="file">
+                <div class="stain"></div>
+                
+                <!-- Briefing -->
+                <div class="view active" id="brief">
+                    <h1>CASE FILE: <span id="cTitle" style="color:#555">UNASSIGNED</span></h1>
+                    <div style="font-size: 1.1rem; line-height: 1.8;">
+                        <p><strong>DIFFICULTY:</strong> <span id="cDiff">--</span></p>
+                        <p><strong>STATUS:</strong> OPEN INVESTIGATION</p>
+                        <hr style="border:0; border-top:1px dashed #333; margin:20px 0;">
+                        <p id="cBrief">No active investigation loaded.</p>
+                    </div>
+                    <div style="margin-top:40px; border:2px solid var(--noir-red); padding:20px; background:rgba(255,0,0,0.03);">
+                        <strong style="color:var(--noir-red)">DEPARTMENT PROTOCOL:</strong>
+                        <ul style="margin-left:20px; margin-top:10px; line-height:1.6;">
+                            <li>Wait for <strong>AUTO-DECRYPT</strong> (Every 60s).</li>
+                            <li>Use <strong>FORCE DECRYPT</strong> for instant data (-90s Penalty).</li>
+                            <li>Identify the culprit and <strong>ISSUE WARRANT</strong>.</li>
+                            <li><strong style="color:var(--noir-red)">WARNING:</strong> Two incorrect warrants result in immediate dismissal.</li>
+                        </ul>
                     </div>
                 </div>
-            </div>
 
-            <!-- View: Evidence -->
-            <div id="evidence" class="view-section">
-                <div class="grid-container" id="evidenceGrid">
-                    <!-- Injected via JS -->
+                <!-- Evidence -->
+                <div class="view" id="evidence">
+                    <h2>EVIDENCE COLLECTION</h2>
+                    <div class="grid" id="evGrid"></div>
                 </div>
-            </div>
 
-            <!-- View: Suspects -->
-            <div id="suspects" class="view-section">
-                <div class="grid-container" id="suspectGrid">
-                    <!-- Injected via JS -->
+                <!-- Suspects -->
+                <div class="view" id="suspects">
+                    <h2>SUSPECT LINEUP</h2>
+                    <div class="grid" id="susGrid"></div>
                 </div>
-            </div>
 
-        </div>
-
-        <!-- RIGHT: TERMINAL -->
-        <div class="cli-panel">
-            <div class="cli-header">
-                <span>root@detective-academy:~</span>
-                <span>BASH v5.2</span>
-            </div>
-            <div class="cli-output" id="cliOutput">
-                <!-- Logs go here -->
-            </div>
-            <div class="cli-input-wrapper">
-                <span class="prompt">➜</span>
-                <input type="text" id="cliInput" placeholder="Type command here..." autocomplete="off" spellcheck="false">
             </div>
         </div>
 
+        <!-- Pager -->
+        <div class="pager">
+            <div style="font-size:0.7rem; color:#666; display:flex; justify-content:space-between; margin-bottom:5px;">
+                <span>ENCRYPTED CHANNEL</span> <span>V.9.0</span>
+            </div>
+            <div class="screen" id="log">
+                <div class="log-entry">SYSTEM STANDBY...</div>
+            </div>
+        </div>
     </div>
 
-    <!-- CASE SELECTION MODAL -->
-    <div class="modal-overlay" id="startModal">
-        <div class="modal-content">
-            <div class="modal-title">🕵️ DETECTIVE OS</div>
-            <p style="color: var(--text-dim); margin-bottom: 30px;">Select an investigation to begin class.</p>
-            
-            <div style="display: flex; flex-direction: column; gap: 10px;">
-                <button class="modal-btn" onclick="initGame('trophy')"><strong>[EASY]</strong> Case 1: The Missing Trophy</button>
-                <button class="modal-btn" onclick="initGame('poison')" style="border-color: var(--orange); color: var(--orange);"><strong>[MED]</strong> Case 2: The Poisoned Diner</button>
-                <button class="modal-btn" onclick="initGame('library')" style="border-color: var(--pink); color: var(--pink);"><strong>[HARD]</strong> Case 3: The Library Mystery</button>
+    <!-- START MODAL -->
+    <div class="modal" id="startModal">
+        <div class="paper-modal">
+            <h1 style="text-align:center;">ARCHIVES</h1>
+            <p style="text-align:center; color:#666; margin-bottom:30px;">Select a cold case file to reopen.</p>
+            <div class="case-list">
+                <div class="case-btn" onclick="loadCase('trophy')">
+                    <strong>THE MISSING TROPHY</strong><br><small>Theft / School</small>
+                    <div class="level lvl-1">EASY</div>
+                </div>
+                <div class="case-btn" onclick="loadCase('stream')">
+                    <strong>THE SILENT STREAM</strong><br><small>Murder / Cyber</small>
+                    <div class="level lvl-1">EASY</div>
+                </div>
+                <div class="case-btn" onclick="loadCase('poison')">
+                    <strong>THE POISONED DINER</strong><br><small>Murder / Poison</small>
+                    <div class="level lvl-2">MED</div>
+                </div>
+                <div class="case-btn" onclick="loadCase('curtain')">
+                    <strong>THE FINAL CURTAIN</strong><br><small>Murder / Theater</small>
+                    <div class="level lvl-2">MED</div>
+                </div>
+                <div class="case-btn" onclick="loadCase('jogger')">
+                    <strong>THE FROZEN JOGGER</strong><br><small>Forensics / Snow</small>
+                    <div class="level lvl-3">HARD</div>
+                </div>
+                <div class="case-btn" onclick="loadCase('express')">
+                    <strong>THE MIDNIGHT EXPRESS</strong><br><small>Murder / Train</small>
+                    <div class="level lvl-3">HARD</div>
+                </div>
             </div>
+        </div>
+    </div>
+
+    <!-- END MODAL -->
+    <div class="modal" id="endModal" style="display:none;">
+        <div class="paper-modal" style="text-align:center;">
+            <div id="endStamp" class="stamp s-solved">SOLVED</div>
+            <h2 style="border:none;">FINAL REPORT</h2>
+            <div style="text-align:left; background:#fff; padding:30px; border:1px solid #aaa; font-family:'Courier Prime'; line-height:1.6;" id="endText">
+                ...
+            </div>
+            <button class="stamp-btn" style="margin-top:30px; width:100%; font-size:1.2rem;" onclick="showArchives()">FILE AWAY</button>
         </div>
     </div>
 
     <script>
-        /* --- GAME DATA --- */
-        const cases = {
+        /* --- RAIN FX --- */
+        const rain = document.getElementById('rain');
+        for(let i=0; i<60; i++){
+            let d = document.createElement('div');
+            d.className = 'drop';
+            d.style.left = Math.random()*100+'%';
+            d.style.animationDuration = (Math.random()*0.5 + 0.5)+'s';
+            d.style.animationDelay = Math.random()+'s';
+            rain.appendChild(d);
+        }
+
+        /* --- DATA --- */
+        const DB = {
             trophy: {
-                title: "The Missing Championship Trophy",
-                difficulty: "EASY // TIME: 10:00",
-                brief: "The Westfield High Golden Trophy vanished from the locked case between 3:30 PM and 6:00 AM. The lock was picked, not broken. Security cameras were disabled specifically between 4:15 PM and 4:45 PM.",
-                culprit: "carmen",
-                evidence: [
-                    { id: "fabric", name: "Blue Fabric", type: "Physical", desc: "Torn fabric caught on the case latch.", hidden: "Material Analysis: Synthetic blend used in Security Guard uniforms." },
-                    { id: "prints", name: "Muddy Prints", type: "Trace", desc: "Size 9 boot prints near the exit.", hidden: "Forensic Match: Heavy duty work boots. Soil matches the school garden." },
-                    { id: "logbook", name: "Security Log", type: "Document", desc: "Daily patrol sign-in sheet.", hidden: "Anomaly Detected: The 4:30 PM patrol check is completely missing." }
+                title: "THE MISSING TROPHY", diff: "LEVEL 1", culprit: "carmen",
+                brief: "The Westfield Trophy was stolen between 16:15 and 06:00. The lock was picked. CCTV deleted.",
+                text: "Carmen's uniform matched the **Blue Fabric** found on the lock. Her background as a **Locksmith** explains the picked lock, and the forged **Logbook** covered her tracks.",
+                ev: [
+                    {id:"e1", name:"Blue Fabric", desc:"Snagged on lock.", hidden:"LAB: Match to Security Uniform."},
+                    {id:"e2", name:"Muddy Prints", desc:"Size 9 boot prints.", hidden:"MATCH: Heavy boots from garden."},
+                    {id:"e3", name:"Logbook", desc:"Sign-in sheet.", hidden:"ANOMALY: 16:30 entry forged."}
                 ],
-                suspects: [
-                    { id: "jake", name: "Jake", role: "Star Player", desc: "Failing grades. Needs scholarship.", hidden: "Alibi Verified: Was at math tutoring until 5:00 PM." },
-                    { id: "carmen", name: "Carmen", role: "Security Guard", desc: "Shift started at 4:00 PM.", hidden: "Motive Found: Complained about low pay. Has master keys and camera access." },
-                    { id: "wells", name: "Ms. Wells", role: "Rival Coach", desc: "Spotted in parking lot at 4:20 PM.", hidden: "Alibi Verified: Was arguing with the Principal in his office." }
+                sus: [
+                    {id:"s1", name:"Jake", role:"Athlete", hidden:"ALIBI: In gym until 17:00."},
+                    {id:"s2", name:"Carmen", role:"Security", hidden:"MOTIVE: Financial debt. Ex-locksmith."},
+                    {id:"s3", name:"Wells", role:"Coach", hidden:"ALIBI: Meeting with Principal."}
                 ]
             },
             poison: {
-                title: "The Poisoned Diner",
-                difficulty: "MEDIUM // TIME: 10:00",
-                brief: "Elena collapsed at 'The Rusty Spoon' diner at midnight. The air smelled of bitter almonds (Cyanide). Four friends were at the table.",
-                culprit: "leo",
-                evidence: [
-                    { id: "glass", name: "Lemonade Glass", type: "Physical", desc: "Elena's glass is half full.", hidden: "Toxicology Report: High concentration of Cyanide found in the ice cubes." },
-                    { id: "receipt", name: "Order Receipt", type: "Document", desc: "Time: 11:55 PM. Server: Leo.", hidden: "Note: The drinks were ordered and served exclusively by Leo." },
-                    { id: "pie", name: "Apple Pie", type: "Food", desc: "Half eaten slice on table.", hidden: "Analysis: Pie is non-toxic. Sugar content normal." }
+                title: "THE POISONED DINER", diff: "LEVEL 2", culprit: "leo",
+                brief: "Victim died of Cyanide poisoning at midnight. No one entered or left the diner.",
+                text: "The poison was in the **Ice Cubes**, not the drink. Leo, the waiter, was the only one with access to the ice machine. His chemistry background allowed him to prepare the toxin.",
+                ev: [
+                    {id:"e1", name:"Glass", desc:"Lemonade with ice.", hidden:"TOX: Cyanide in ice only."},
+                    {id:"e2", name:"Receipt", desc:"Time: 23:55.", hidden:"DATA: Served by Leo."},
+                    {id:"e3", name:"Pie", desc:"Half eaten.", hidden:"ANALYSIS: Safe to eat."}
                 ],
-                suspects: [
-                    { id: "maya", name: "Maya", role: "Best Friend", desc: "Sat next to Elena.", hidden: "Check: Bag contained only personal items. No chemical traces." },
-                    { id: "leo", name: "Leo", role: "Waiter", desc: "Served the table.", hidden: "Background Check: Former chemistry student. Recently fired from pharmacy for theft." },
-                    { id: "harlan", name: "Harlan", role: "Owner", desc: "In the kitchen.", hidden: "Alibi: Was on a phone call with suppliers from 11:40 to 12:10." }
+                sus: [
+                    {id:"s1", name:"Maya", role:"Friend", hidden:"SEARCH: Clean."},
+                    {id:"s2", name:"Leo", role:"Waiter", hidden:"BG: Chemistry dropout. Theft record."},
+                    {id:"s3", name:"Harlan", role:"Owner", hidden:"ALIBI: On phone call."}
                 ]
             },
-            library: {
-                title: "The Library Mystery",
-                difficulty: "HARD // TIME: 08:00",
-                brief: "A rare First Edition book ($75,000) was stolen from the vault. The digital lock was opened with a valid code, but no entry was logged in the main system.",
-                culprit: "sarah",
-                evidence: [
-                    { id: "gloves", name: "Cotton Gloves", type: "Physical", desc: "Found on the floor.", hidden: "DNA Result: Traces of nervous sweat. Size Small." },
-                    { id: "server", name: "Server Logs", type: "Digital", desc: "Network activity report.", hidden: "Hack Detected: The main log was suppressed by a bypass script at 7:20 PM." },
-                    { id: "coffee", name: "Coffee Cup", type: "Trace", desc: "Expensive brand, still warm.", hidden: "Fingerprint: Matches Sarah Kim." }
+            stream: {
+                title: "THE SILENT STREAM", diff: "LEVEL 1", culprit: "alex",
+                brief: "Streamer died live on camera. Room locked from inside. Lights flickered before death.",
+                text: "The murder weapon was the **Smart Lights**, triggering a seizure. Only Alex (Admin) had the remote access credentials to hack the home router.",
+                ev: [
+                    {id:"e1", name:"Router Log", desc:"Network history.", hidden:"HACK: Remote Admin login detected."},
+                    {id:"e2", name:"Chat Log", desc:"Twitch chat.", hidden:"THREAT: 'Lights out' posted by Admin."},
+                    {id:"e3", name:"Autopsy", desc:"Medical report.", hidden:"CAUSE: Induced seizure."}
                 ],
-                suspects: [
-                    { id: "harper", name: "Dr. Harper", role: "Librarian", desc: "Has vault code.", hidden: "Alibi: Was at a budget meeting downtown." },
-                    { id: "sarah", name: "Sarah", role: "Grad Student", desc: "Computer Science major.", hidden: "Motive: Deep debt. Tech skills confirm ability to hack logs." },
-                    { id: "davis", name: "Prof. Davis", role: "English Dept", desc: "Last person seen.", hidden: "Check: Arthritis prevents him from typing fast enough for the hack." }
+                sus: [
+                    {id:"s1", name:"Alex", role:"Mod", hidden:"CHECK: IP match found."},
+                    {id:"s2", name:"Ben", role:"Roommate", hidden:"ALIBI: Seen in video background."},
+                    {id:"s3", name:"Zack", role:"Troll", hidden:"CHECK: Banned. No access."}
+                ]
+            },
+            curtain: {
+                title: "THE FINAL CURTAIN", diff: "LEVEL 2", culprit: "marcus",
+                brief: "Actor collapsed on stage. Prop goblet contained slow-acting Wolfsbane poison.",
+                text: "Wolfsbane takes **15 minutes** to work. CCTV proves Marcus filled the cup exactly 15 minutes before the collapse, using his role as Prop Master to plant the trap.",
+                ev: [
+                    {id:"e1", name:"Goblet", desc:"Prop cup.", hidden:"TOX: Wolfsbane found."},
+                    {id:"e2", name:"Script", desc:"Scene notes.", hidden:"TIMING: Cup used 15m before death."},
+                    {id:"e3", name:"CCTV", desc:"Backstage cam.", hidden:"VID: Marcus handled cup 15m prior."}
+                ],
+                sus: [
+                    {id:"s1", name:"Lucas", role:"Understudy", hidden:"CHECK: Held cup for 30s only."},
+                    {id:"s2", name:"Marcus", role:"Prop Master", hidden:"MOTIVE: Revenge for firing."},
+                    {id:"s3", name:"Ms. V", role:"Director", hidden:"ALIBI: Arguing with crew."}
+                ]
+            },
+            jogger: {
+                title: "THE FROZEN JOGGER", diff: "LEVEL 3", culprit: "kyle",
+                brief: "Body found in snow. Only ONE set of prints leads to body. None leading away.",
+                text: "Kyle walked **backward** carrying the victim, stepping in his own tracks. The deep footprints prove he was carrying a heavy load. He is the only suspect strong enough.",
+                ev: [
+                    {id:"e1", name:"Prints", desc:"Deep snow prints.", hidden:"PHYSICS: 2x depth = Heavy load carried."},
+                    {id:"e2", name:"Temp Log", desc:"Weather data.", hidden:"DATA: -5C at time of death."},
+                    {id:"e3", name:"Puddle", desc:"Water near body.", hidden:"LAB: Melted icicle (Weapon)."}
+                ],
+                sus: [
+                    {id:"s1", name:"Kyle", role:"Ex", hidden:"SIZE: 6'4 Rugby Player. Boots match."},
+                    {id:"s2", name:"Gary", role:"Rival", hidden:"MED: Broken leg. Cannot walk."},
+                    {id:"s3", name:"Sam", role:"Gardener", hidden:"CHECK: Wrong shoe size."}
+                ]
+            },
+            express: {
+                title: "MIDNIGHT EXPRESS", diff: "LEVEL 3", culprit: "alfred",
+                brief: "Murder on a moving train. Body found in cabin. Killer is still on board.",
+                text: "The watch was smashed to fake the time of death. The train was in a pitch black **Tunnel** at the alleged time. Alfred admitted to being there earlier, the only possible time for the crime.",
+                ev: [
+                    {id:"e1", name:"Watch", desc:"Smashed at 11:45.", hidden:"FAKE: Smashed intentionally."},
+                    {id:"e2", name:"Log", desc:"Train Route.", hidden:"FACT: Tunnel (Darkness) at 11:45."},
+                    {id:"e3", name:"Tea Set", desc:"Used cup.", hidden:"PRINT: Butler's prints found."}
+                ],
+                sus: [
+                    {id:"s1", name:"Alfred", role:"Butler", hidden:"NOTE: Admitted being there at 11:30."},
+                    {id:"s2", name:"Dr. Green", role:"Passenger", hidden:"CHECK: Asleep in cabin."},
+                    {id:"s3", name:"Heir", role:"Son", hidden:"ALIBI: In Bar at 11:45."}
                 ]
             }
         };
 
-        /* --- STATE MANAGEMENT --- */
-        let currentCase = null;
-        let timeLeft = 600;
-        let timerInterval = null;
-        let soundEnabled = true;
-        let gameActive = false;
+        /* --- STATE --- */
+        let activeCase = null;
+        let time = 600;
+        let strikes = 0;
+        let gameOn = false;
+        let timerInt, autoInt;
+        let sound = true;
 
-        /* --- AUDIO ENGINE --- */
-        const AudioEngine = {
-            ctx: new (window.AudioContext || window.webkitAudioContext)(),
-            playTone: function(freq, type, duration) {
-                if (!soundEnabled) return;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = type;
-                osc.frequency.value = freq;
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                gain.gain.exponentialRampToValueAtTime(0.00001, this.ctx.currentTime + duration);
-                osc.stop(this.ctx.currentTime + duration);
+        /* --- AUDIO MOCK --- */
+        const SFX = {
+            ctx: new (window.AudioContext||window.webkitAudioContext)(),
+            play(f,t,l) {
+                if(!sound) return;
+                let o=this.ctx.createOscillator(), g=this.ctx.createGain();
+                o.type=t; o.frequency.value=f;
+                o.connect(g); g.connect(this.ctx.destination);
+                o.start(); g.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime+l);
+                o.stop(this.ctx.currentTime+l);
             },
-            type: function() { this.playTone(800, 'sine', 0.05); },
-            error: function() { this.playTone(150, 'sawtooth', 0.3); },
-            success: function() { 
-                this.playTone(600, 'sine', 0.1);
-                setTimeout(() => this.playTone(1200, 'sine', 0.2), 100);
-            },
-            scan: function() {
-                if (!soundEnabled) return;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.frequency.setValueAtTime(200, this.ctx.currentTime);
-                osc.frequency.linearRampToValueAtTime(800, this.ctx.currentTime + 0.3);
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.3);
-            }
+            warn() { this.play(100,'sawtooth',0.4); },
+            click() { this.play(800,'sine',0.05); },
+            beep() { this.play(2000,'square',0.1); },
+            win() { this.play(600,'sine',0.2); setTimeout(()=>this.play(900,'sine',0.4),150); }
         };
+        
+        function toggleMute() { sound=!sound; document.getElementById('soundBtn').innerText = sound?"SND: ON":"SND: OFF"; }
 
-        function toggleSound() {
-            soundEnabled = !soundEnabled;
-            document.getElementById('soundToggle').innerText = soundEnabled ? '🔊' : '🔇';
-            document.getElementById('cliInput').focus();
-        }
-
-        /* --- INITIALIZATION --- */
-        function initGame(caseKey) {
-            currentCase = cases[caseKey];
-            gameActive = true;
-            timeLeft = caseKey === 'library' ? 480 : 600; // 8 mins for hard, 10 for others
+        /* --- LOGIC --- */
+        function loadCase(id) {
+            SFX.ctx.resume();
+            activeCase = DB[id];
+            gameOn = true;
+            time = 600; strikes = 0;
             
-            // Clear Terminal for new game
-            const cli = document.getElementById('cliOutput');
-            cli.innerHTML = '';
-            
-            // UI Setup
+            // Render UI
             document.getElementById('startModal').style.display = 'none';
-            document.getElementById('caseTitle').innerText = currentCase.title;
-            document.getElementById('caseDifficulty').innerText = currentCase.difficulty;
-            document.getElementById('briefText').innerText = currentCase.brief;
-            
-            // Reset visual styles
-            document.querySelector('.case-header').style.background = "linear-gradient(145deg, var(--bg-panel), #232d42)";
-            
-            // Populate Grids
-            renderGrid('evidenceGrid', currentCase.evidence, 'scan');
-            renderGrid('suspectGrid', currentCase.suspects, 'check');
-            
-            // Start Terminal
-            writeLog("INITIALIZING DETECTIVE OS...", "log-info");
-            setTimeout(() => writeLog("CONNECTING TO POLICE DATABASE... [OK]", "log-success"), 500);
-            setTimeout(() => {
-                writeLog("CASE DATA LOADED.", "log-success");
-                writeLog("Type 'help' for available commands.", "log-warn");
-            }, 1000);
-            
-            // Start Timer
-            startTimer();
-            document.getElementById('cliInput').focus();
-        }
+            document.getElementById('endModal').style.display = 'none';
+            document.getElementById('cTitle').innerText = activeCase.title;
+            document.getElementById('cDiff').innerText = activeCase.diff;
+            document.getElementById('cBrief').innerText = activeCase.brief;
+            log("CASE LOADED: " + activeCase.title);
 
-        function showMainMenu() {
-            gameActive = false;
-            clearInterval(timerInterval);
-            document.getElementById('startModal').style.display = 'flex';
-            // Optional: write to log if key is still visible
-            writeLog("SESSION INTERRUPTED. RETURNED TO MENU.", "log-warn");
-        }
-
-        function renderGrid(elementId, dataArray, commandPrefix) {
-            const container = document.getElementById(elementId);
-            container.innerHTML = '';
-            dataArray.forEach(item => {
-                const card = document.createElement('div');
-                card.className = 'data-card';
-                card.id = `card-${item.id}`;
-                card.innerHTML = `
-                    <h3>${item.name} <span class="type-badge">${item.type || item.role}</span></h3>
-                    <p style="color: #cbd5e1; font-size: 0.9em; margin-bottom: 8px;">${item.desc}</p>
-                    <div class="locked-overlay">
-                        <span>🔒 LOCKED</span>
-                        <span style="font-size: 0.8em; opacity: 0.7;">Use '${commandPrefix} ${item.name.split(' ')[0].toLowerCase()}'</span>
-                    </div>
-                    <div class="unlocked-content">${item.hidden}</div>
-                `;
-                container.appendChild(card);
+            // Evidence
+            let h = '';
+            activeCase.ev.forEach(e => {
+                let r = (Math.random()*4-2).toFixed(1);
+                h += `<div class="doc" id="${e.id}" style="transform:rotate(${r}deg)">
+                    <div class="tape"></div><h3>${e.name}</h3><p>${e.desc}</p>
+                    <div class="censored">${e.hidden}</div>
+                    <div class="actions"><button class="stamp-btn btn-reveal" onclick="force('${e.id}','${e.name}')">FORCE DECRYPT (-90s)</button></div>
+                </div>`;
             });
+            document.getElementById('evGrid').innerHTML = h;
+
+            // Suspects
+            h = '';
+            activeCase.sus.forEach(s => {
+                let r = (Math.random()*4-2).toFixed(1);
+                h += `<div class="polaroid" id="${s.id}" style="transform:rotate(${r}deg)">
+                    <div class="tape"></div><div class="photo">?</div>
+                    <div class="name-tag">${s.name} <small>(${s.role})</small></div>
+                    <div class="censored">${s.hidden}</div>
+                    <div class="actions">
+                        <button class="stamp-btn btn-reveal" onclick="force('${s.id}','${s.name}')">BG CHECK (-90s)</button>
+                        <button class="stamp-btn" onclick="accuse('${s.name}')" style="color:#a00; border-color:#a00">ISSUE WARRANT</button>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('susGrid').innerHTML = h;
+
+            // Timers
+            updateHUD();
+            if(timerInt) clearInterval(timerInt);
+            timerInt = setInterval(tick, 1000);
+            if(autoInt) clearInterval(autoInt);
+            autoInt = setInterval(autoReveal, 60000);
         }
 
-        /* --- GAME LOGIC --- */
-        function startTimer() {
-            if (timerInterval) clearInterval(timerInterval);
-            updateTimerDisplay();
-            timerInterval = setInterval(() => {
-                if (!gameActive) return;
-                timeLeft--;
-                updateTimerDisplay();
-                if (timeLeft <= 0) {
-                    gameOver(false);
-                }
-            }, 1000);
+        function tick() {
+            if(!gameOn) return;
+            time--;
+            updateHUD();
+            if(time <= 0) gameOver(false, "TIME EXPIRED");
         }
 
-        function updateTimerDisplay() {
-            const m = Math.floor(timeLeft / 60);
-            const s = timeLeft % 60;
-            const display = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
-            const badge = document.getElementById('timerDisplay');
-            badge.innerText = display;
+        function updateHUD() {
+            let m = Math.floor(time/60).toString().padStart(2,'0');
+            let s = (time%60).toString().padStart(2,'0');
+            let tEl = document.getElementById('timer');
+            tEl.innerText = m+":"+s;
+            tEl.className = time<60 ? "timer-stamp critical" : "timer-stamp";
             
-            if (timeLeft < 60) {
-                badge.style.color = 'var(--pink)';
-                badge.style.borderColor = 'var(--pink)';
-                badge.style.boxShadow = '0 0 15px rgba(255, 107, 149, 0.3)';
-            } else {
-                badge.style.color = 'var(--green)';
-                badge.style.borderColor = 'var(--green)';
-                badge.style.boxShadow = '0 0 10px rgba(0, 230, 118, 0.2)';
-            }
+            document.getElementById('x1').className = strikes>=1 ? "x-mark active" : "x-mark";
+            document.getElementById('x2').className = strikes>=2 ? "x-mark active" : "x-mark";
         }
 
-        function gameOver(win) {
-            gameActive = false;
-            clearInterval(timerInterval);
-            if (win) {
-                writeLog("🎉 CONGRATULATIONS! CASE SOLVED!", "log-success");
-                writeLog("The culprit has been apprehended.", "log-info");
-                AudioEngine.success();
-                document.querySelector('.case-header').style.background = "linear-gradient(145deg, #064e3b, #065f46)"; // Victory Green
-                writeLog("Type 'menu' to start a new case.", "log-warn");
-            } else {
-                writeLog("💀 CRITICAL FAILURE. TIME EXPIRED.", "log-error");
-                writeLog("The suspect has escaped jurisdiction.", "log-error");
-                AudioEngine.error();
-                document.querySelector('.case-header').style.background = "linear-gradient(145deg, #881337, #9f1239)"; // Defeat Red
-                writeLog("Type 'menu' to retry.", "log-warn");
-            }
-        }
-
-        /* --- TERMINAL ENGINE --- */
-        const cliInput = document.getElementById('cliInput');
-        const cliOutput = document.getElementById('cliOutput');
-
-        cliInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                const cmd = this.value.trim();
-                this.value = '';
-                processCommand(cmd);
-            } else {
-                AudioEngine.type();
-            }
-        });
-
-        function writeLog(text, className = '') {
-            const line = document.createElement('div');
-            line.className = `log-line ${className}`;
-            cliOutput.appendChild(line);
-            cliOutput.scrollTop = cliOutput.scrollHeight;
-
-            // Typewriter effect for the content
-            let i = 0;
-            line.innerHTML = ''; // Clear initially
-            const typeInterval = setInterval(() => {
-                line.textContent += text.charAt(i);
-                i++;
-                if (i > text.length) clearInterval(typeInterval);
-            }, 10);
-        }
-
-        function processCommand(input) {
-            // Allow 'menu' or 'exit' even if game is inactive/over
-            if (!gameActive && input !== 'restart' && input !== 'exit' && input !== 'menu') {
-                writeLog("System offline. Type 'menu' to select a new case.", "log-error");
-                return;
-            }
-
-            // Log user input
-            const userLine = document.createElement('div');
-            userLine.className = 'log-user';
-            userLine.textContent = `➜ ${input}`;
-            cliOutput.appendChild(userLine);
-
-            const parts = input.toLowerCase().split(' ');
-            const command = parts[0];
-            const args = parts.slice(1).join(' ');
-
-            switch(command) {
-                case 'help':
-                    writeLog("AVAILABLE COMMANDS:", "log-info");
-                    writeLog("  scan [item]   : Analyze evidence (e.g. 'scan gloves')");
-                    writeLog("  check [name]  : Background check (e.g. 'check sarah')");
-                    writeLog("  accuse [name] : Submit final verdict");
-                    writeLog("  status        : Show case timer");
-                    writeLog("  menu          : Return to case selection");
-                    writeLog("  clear         : Clear terminal");
-                    break;
-
-                case 'clear':
-                    cliOutput.innerHTML = '';
-                    break;
-
-                case 'status':
-                    const m = Math.floor(timeLeft / 60);
-                    const s = timeLeft % 60;
-                    writeLog(`TIME REMAINING: ${m}:${s}`, "log-warn");
-                    writeLog(`CASE: ${currentCase.title}`, "log-info");
-                    break;
-
-                case 'scan':
-                case 'analyze':
-                    handleInteraction(args, currentCase.evidence, 'scan');
-                    break;
-
-                case 'check':
-                case 'investigate':
-                    handleInteraction(args, currentCase.suspects, 'check');
-                    break;
-
-                case 'accuse':
-                    handleAccusation(args);
-                    break;
-                    
-                case 'exit':
-                case 'menu':
-                case 'quit':
-                    showMainMenu();
-                    break;
-
-                default:
-                    writeLog(`Command not found: '${command}'. Type 'help'.`, "log-error");
-                    AudioEngine.error();
-            }
-        }
-
-        function handleInteraction(targetName, dataArray, type) {
-            if (!targetName) {
-                writeLog(`Error: Missing target. Usage: ${type} [name]`, "log-error");
-                return;
-            }
-
-            // Find item by partial match
-            const item = dataArray.find(i => 
-                i.name.toLowerCase().includes(targetName) || 
-                targetName.includes(i.name.toLowerCase().split(' ')[0])
-            );
-
-            if (item) {
-                const card = document.getElementById(`card-${item.id}`);
-                if (card) {
-                    if (!card.classList.contains('revealed')) {
-                        card.classList.add('revealed');
-                        writeLog(`PROCESSING ${item.name.toUpperCase()}...`, "log-warn");
-                        setTimeout(() => {
-                            writeLog(`✅ ANALYSIS COMPLETE. DATA UPDATED.`, "log-success");
-                            AudioEngine.scan();
-                            // Auto switch view
-                            switchView(type === 'scan' ? 'evidence' : 'suspects');
-                        }, 800);
-                    } else {
-                        writeLog(`Info: ${item.name} already analyzed.`, "log-info");
-                    }
-                }
-            } else {
-                writeLog(`Error: Subject '${targetName}' not found in database. Check spelling.`, "log-error");
-                AudioEngine.error();
-            }
-        }
-
-        function handleAccusation(suspectName) {
-            if (!suspectName) {
-                writeLog("Error: Usage 'accuse [suspect name]'", "log-error");
-                return;
-            }
-
-            writeLog("⚠️ SUBMITTING FINAL VERDICT...", "log-warn");
-            setTimeout(() => {
-                if (suspectName.toLowerCase().includes(currentCase.culprit)) {
-                    gameOver(true);
-                } else {
-                    writeLog("❌ INCORRECT VERDICT.", "log-error");
-                    writeLog("DNA does not match. 60 seconds penalty.", "log-error");
-                    timeLeft -= 60;
-                    AudioEngine.error();
-                    updateTimerDisplay();
-                }
-            }, 1500);
-        }
-
-        /* --- VIEW CONTROLLER --- */
-        function switchView(viewId) {
-            // Update Tabs
-            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-            const activeBtn = Array.from(document.querySelectorAll('.nav-btn')).find(b => b.getAttribute('onclick').includes(viewId));
-            if(activeBtn) activeBtn.classList.add('active');
-
-            // Update Sections
-            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-            document.getElementById(viewId).classList.add('active');
+        function force(id, name) {
+            if(!gameOn) return;
+            let el = document.getElementById(id);
+            if(el.classList.contains('revealed')) return;
             
-            // Sound effect
-            AudioEngine.type();
+            time -= 90;
+            updateHUD();
+            shake();
+            SFX.warn();
+            log("PENALTY: -90s");
+            reveal(id, name, false);
         }
 
+        function reveal(id, name, auto) {
+            let el = document.getElementById(id);
+            if(!el) return;
+            el.classList.add('revealed');
+            log(auto ? "NEW INTEL: "+name : "DECRYPTED: "+name);
+            if(auto) SFX.beep();
+        }
+
+        function autoReveal() {
+            if(!gameOn) return;
+            let hidden = document.querySelectorAll('.doc:not(.revealed), .polaroid:not(.revealed)');
+            if(hidden.length>0) {
+                let t = hidden[Math.floor(Math.random()*hidden.length)];
+                let n = t.querySelector('h3') ? t.querySelector('h3').innerText : t.querySelector('.name-tag').innerText;
+                reveal(t.id, n, true);
+            }
+        }
+
+        function accuse(name) {
+            if(!gameOn) return;
+            if(name.toLowerCase().includes(activeCase.culprit)) {
+                gameOver(true);
+            } else {
+                strikes++;
+                shake();
+                SFX.warn();
+                updateHUD();
+                if(strikes >= 2) gameOver(false, "EXCESSIVE ERRORS. FIRED.");
+                else {
+                    time -= 60;
+                    updateHUD();
+                    log("WARRANT DENIED. STRIKE "+strikes);
+                }
+            }
+        }
+
+        function gameOver(win, reason) {
+            gameOn = false;
+            clearInterval(timerInt);
+            clearInterval(autoInt);
+            
+            let modal = document.getElementById('endModal');
+            let stamp = document.getElementById('endStamp');
+            let text = document.getElementById('endText');
+            
+            if(win) {
+                SFX.win();
+                stamp.innerText = "SOLVED";
+                stamp.className = "stamp s-solved";
+                text.innerHTML = activeCase.text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            } else {
+                SFX.warn();
+                stamp.innerText = "COLD CASE";
+                stamp.className = "stamp s-failed";
+                text.innerHTML = `<strong style="color:#a00">FAILURE REPORT:</strong><br>${reason}`;
+            }
+            modal.style.display = 'flex';
+        }
+
+        function log(msg) {
+            let d = document.createElement('div');
+            d.className = 'log-entry';
+            d.innerText = "> "+msg;
+            document.getElementById('log').prepend(d);
+        }
+
+        function shake() {
+            let b = document.getElementById('shaker');
+            b.style.transform = "translate(5px, 5px)";
+            setTimeout(()=>b.style.transform="translate(-5px, -5px)", 50);
+            setTimeout(()=>b.style.transform="translate(5px, -5px)", 100);
+            setTimeout(()=>b.style.transform="none", 150);
+        }
+
+        function tab(id) {
+            document.querySelectorAll('.view').forEach(e=>e.classList.remove('active'));
+            document.querySelectorAll('.tab').forEach(e=>e.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            event.target.classList.add('active');
+            SFX.click();
+        }
+
+        function showArchives() {
+            gameOn = false;
+            document.getElementById('endModal').style.display='none';
+            document.getElementById('startModal').style.display='flex';
+        }
+
+        // Boot
+        document.getElementById('startModal').style.display='flex';
     </script>
 </body>
 </html>
