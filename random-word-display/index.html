@@ -94,8 +94,8 @@
 </head>
 <body class="text-white h-screen w-screen flex overflow-hidden font-body">
 
-    <!-- LEFT PANEL: CONTROLS -->
-    <aside id="controls" class="w-full md:w-96 bg-panel/90 backdrop-blur-xl border-r border-white/10 h-full flex flex-col shadow-2xl z-50 transition-transform duration-300 absolute md:relative transform md:translate-x-0">
+    <!-- LEFT PANEL: CONTROLS (Auto-open: removed absolute, hidden, translate classes) -->
+    <aside id="controls" class="w-full md:w-96 bg-panel/90 backdrop-blur-xl border-r border-white/10 h-full flex flex-col shadow-2xl z-50 transition-transform duration-300 relative transform">
         
         <!-- Header -->
         <div class="p-6 border-b border-white/10 bg-black/20">
@@ -118,16 +118,16 @@
 
             <!-- Input -->
             <div class="space-y-2">
-                <label class="text-xs font-bold text-gray-400 uppercase tracking-widest">Word Data Source</label>
+                <label class="text-xs font-bold text-gray-400 uppercase tracking-widest">Word Data Source (Auto-Saved)</label>
                 <textarea id="word-input" spellcheck="false"
                     class="w-full h-64 p-4 bg-dark text-gray-200 font-mono text-sm border border-white/10 rounded-xl focus:border-blue focus:ring-1 focus:ring-blue outline-none resize-none shadow-inner"
                     placeholder="Example:
 Apple, Banana, Cherry
 Dog, Cat, Elephant
 Red, Blue, Green"
-                >Primary Set, Core Idea, Key Concept
-Second Round Words, Transition, Next Step
-Final Words, Conclusion, Wrap Up, Thank You</textarea>
+                >Apple, Banana, Cheery
+A,P,P,L,E
+She,likes,to,eat,pizza</textarea>
             </div>
 
             <!-- Action Buttons -->
@@ -197,6 +197,9 @@ Final Words, Conclusion, Wrap Up, Thank You</textarea>
     </main>
 
     <script>
+        // --- LOCAL STORAGE KEY ---
+        const LS_KEY_WORDS = 'wordAnimatorData';
+
         let roundsData = [];
         let currentRoundIndex = -1;
         let activeBouncingWords = [];
@@ -213,6 +216,33 @@ Final Words, Conclusion, Wrap Up, Thank You</textarea>
         ];
         
         const fontSizes = ["text-4xl", "text-5xl", "text-6xl", "text-7xl"];
+        
+        const wordInput = document.getElementById("word-input");
+        const controlsPanel = document.getElementById("controls");
+
+        // --- AUTOSAVE/LOAD FUNCTIONS ---
+
+        function saveWords(wordsString) {
+             try {
+                localStorage.setItem(LS_KEY_WORDS, wordsString);
+            } catch (e) {
+                console.error("Could not save words to local storage:", e);
+            }
+        }
+
+        function loadWords() {
+            try {
+                const savedWords = localStorage.getItem(LS_KEY_WORDS);
+                // Only load saved content if it exists. Otherwise, the default HTML content is used.
+                if (savedWords) {
+                    wordInput.value = savedWords;
+                }
+            } catch (e) {
+                console.error("Could not load words from local storage:", e);
+            }
+        }
+
+        // --- CORE LOGIC ---
 
         // Update speed from slider
         function updateSpeed(val) {
@@ -331,7 +361,11 @@ Final Words, Conclusion, Wrap Up, Thank You</textarea>
         }
 
         function parseAndLoadRounds() {
-            const input = document.getElementById("word-input").value;
+            const input = wordInput.value;
+            // Clear any error messages from previous attempt
+            const status = document.getElementById("round-counter");
+            status.className = "text-center font-mono text-orange font-bold text-lg";
+
             const lines = input.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
             
             roundsData = lines.map((line) =>
@@ -339,7 +373,8 @@ Final Words, Conclusion, Wrap Up, Thank You</textarea>
             ).filter((r) => r.length > 0);
 
             if (!roundsData.length) {
-                alert("Please enter some words first!");
+                // Using alert() is forbidden, so we update the status footer instead.
+                status.innerHTML = "STATUS: <span class='text-pink'>ERROR - NO WORDS!</span>";
                 return;
             }
 
@@ -361,14 +396,18 @@ Final Words, Conclusion, Wrap Up, Thank You</textarea>
             const controls = document.getElementById("controls");
             const showBtn = document.getElementById("show-controls-btn");
             
-            const isHidden = controls.classList.contains("-translate-x-full") || controls.classList.contains("hidden");
-
-            if (isHidden) {
-                controls.classList.remove("hidden", "-translate-x-full");
-                showBtn.classList.add("hidden");
-            } else {
-                controls.classList.add("hidden", "-translate-x-full");
+            // On desktop, the controls panel is relative and always visible. 
+            // We use different classes for the two layout states.
+            if (controls.classList.contains("relative")) {
+                // Transition to hidden (fullscreen view)
+                controls.classList.remove("relative");
+                controls.classList.add("absolute", "-translate-x-full");
                 showBtn.classList.remove("hidden");
+            } else {
+                 // Transition to visible (setup view)
+                controls.classList.remove("absolute", "-translate-x-full");
+                controls.classList.add("relative");
+                showBtn.classList.add("hidden");
             }
         }
 
@@ -376,6 +415,25 @@ Final Words, Conclusion, Wrap Up, Thank You</textarea>
         window.addEventListener('resize', () => {
             // The loop handles boundaries dynamically, no reset needed
         });
+        
+        // --- INITIALIZATION ---
+        
+        function initializeApplication() {
+            // 1. Load words from storage into the input field
+            loadWords();
+            
+            // 2. Attach Auto-Save Hook
+            wordInput.addEventListener('input', (e) => {
+                saveWords(e.target.value);
+            });
+
+            // 3. Auto-open Setup: The controls panel is already visible by default (no 'hidden' class).
+            // We just ensure it's in the correct starting state for desktop/mobile.
+            controlsPanel.classList.remove("absolute", "-translate-x-full", "hidden");
+            controlsPanel.classList.add("relative");
+        }
+        
+        initializeApplication();
 
     </script>
 </body>
