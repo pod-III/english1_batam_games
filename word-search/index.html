@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Word Search Creator | English 1 Batam</title>
+    
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <!-- Configuration -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        pink: '#FF6B95',
+                        orange: '#FF8C42',
+                        green: '#00E676',
+                        blue: '#2979FF',
+                        dark: '#0f172a',
+                        panel: '#1e293b',
+                        surface: '#334155'
+                    },
+                    fontFamily: {
+                        heading: ['Bebas Neue', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    animation: {
+                        'pop': 'pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                        'shake': 'shake 0.4s cubic-bezier(.36,.07,.19,.97) both',
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'fade-in': 'fadeIn 0.5s ease-out',
+                    },
+                    keyframes: {
+                        pop: {
+                            '0%': { transform: 'scale(0.8)', opacity: '0.8' },
+                            '100%': { transform: 'scale(1)', opacity: '1' },
+                        },
+                        shake: {
+                            '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
+                            '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
+                            '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
+                            '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
+                        },
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;700&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <style>
+        body { 
+            font-family: 'Nunito', sans-serif;
+            background-color: #0f172a;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(41, 121, 255, 0.15) 0px, transparent 50%), 
+                radial-gradient(at 100% 100%, rgba(255, 107, 149, 0.1) 0px, transparent 50%);
+            background-attachment: fixed;
+            color: white;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Glassmorphism */
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        /* Interactive Elements */
+        .btn-action {
+            transition: all 0.2s;
+            transform: translateY(0);
+            box-shadow: 0 4px 0 rgba(0,0,0,0.3);
+            border-bottom: 4px solid rgba(0,0,0,0.2);
+        }
+        .btn-action:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 rgba(0,0,0,0.2);
+            border-bottom: 0px solid transparent;
+        }
+
+        /* Grid System */
+        .grid-cell {
+            background: #1e293b;
+            border: 1px solid rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.7);
+            cursor: pointer;
+            transition: background 0.1s, transform 0.1s;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: bold;
+            position: relative;
+        }
+
+        /* Active/Preview States */
+        .grid-cell.active-start {
+            background: #2979FF !important;
+            color: white !important;
+            box-shadow: 0 0 15px rgba(41, 121, 255, 0.6);
+            transform: scale(1.1);
+            z-index: 20;
+            border-color: #2979FF;
+        }
+
+        .grid-cell.preview-line {
+            background: rgba(41, 121, 255, 0.2);
+            color: white;
+            border-color: rgba(41, 121, 255, 0.5);
+        }
+
+        /* Result States */
+        .grid-cell.found {
+            background: #00E676 !important;
+            color: white !important;
+            border-color: #00E676 !important;
+            box-shadow: 0 0 10px rgba(0, 230, 118, 0.3);
+            animation: pop 0.4s ease;
+            z-index: 5;
+        }
+
+        .grid-cell.revealed {
+            background: #FF6B95 !important;
+            color: white !important;
+            border-color: #FF6B95 !important;
+            opacity: 0.8;
+            animation: pop 0.4s ease;
+        }
+
+        .grid-cell.error {
+            background: #FF6B95 !important;
+            color: white !important;
+            animation: shake 0.4s;
+        }
+        
+        .grid-cell.locked {
+            cursor: default;
+            pointer-events: none;
+        }
+
+        /* Word Bank */
+        .word-tag {
+            transition: all 0.3s ease;
+        }
+        .word-tag.found {
+            text-decoration: line-through;
+            color: #00E676;
+            border-color: #00E676;
+            background: rgba(0, 230, 118, 0.1);
+            opacity: 0.6;
+        }
+        .word-tag.revealed {
+            color: #FF6B95;
+            border-color: #FF6B95;
+            opacity: 0.6;
+        }
+
+        /* --- PRINT STYLES --- */
+        @media print {
+            body { 
+                background: white; 
+                color: black; 
+                background-image: none; 
+                padding: 0; 
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact;
+            }
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            
+            #game-container {
+                box-shadow: none; border: none; background: none; backdrop-filter: none;
+            }
+
+            #word-grid {
+                border: 2px solid black; gap: 0 !important; background: white;
+            }
+
+            .grid-cell {
+                background: white !important; color: black !important;
+                border: 1px solid #ccc !important; border-radius: 0 !important;
+                box-shadow: none !important; animation: none !important;
+                font-size: 12pt !important;
+            }
+
+            /* Solution Key for Teachers */
+            .grid-cell.found, .grid-cell.revealed {
+                background: #e5e7eb !important; /* Light gray */
+                color: black !important;
+                font-weight: 900 !important;
+                border-color: #9ca3af !important;
+            }
+            
+            .word-tag {
+                border: none !important; color: black !important; background: none !important;
+                padding: 0 !important; font-weight: bold;
+            }
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <!-- Header -->
+    <header class="w-full glass-panel border-b border-white/10 sticky top-0 z-50 no-print">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-br from-blue to-pink w-10 h-10 rounded-lg flex items-center justify-center text-xl shadow-lg">
+                    <i data-lucide="grid" class="text-white w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-heading tracking-wider text-white leading-none">WORD SEARCH</h1>
+                    <div class="text-[10px] font-mono text-gray-400 tracking-widest">ENGLISH 1 BATAM</div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <button id="give-up-btn" class="p-2 rounded-full hover:bg-white/10 transition-colors text-orange relative group" title="Give Up & Reveal">
+                    <i data-lucide="flag" class="w-5 h-5"></i>
+                </button>
+                <button onclick="window.print()" class="p-2 rounded-full hover:bg-white/10 transition-colors text-blue" title="Print Worksheet">
+                    <i data-lucide="printer" class="w-5 h-5"></i>
+                </button>
+                <button id="setup-btn" class="btn-action bg-pink text-white px-4 py-2 rounded-lg font-bold text-sm tracking-wide">
+                    SETUP
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Print Header (Hidden on Screen) -->
+    <div class="print-only hidden w-full max-w-4xl mx-auto p-8 mb-4">
+        <div class="text-center mb-8 border-b-2 border-black pb-4">
+            <h1 class="text-4xl font-bold uppercase mb-2">Word Search Challenge</h1>
+        </div>
+        <div class="flex justify-between text-lg mb-4">
+            <div>Name: <span class="border-b border-black w-48 inline-block"></span></div>
+            <div>Date: <span class="border-b border-black w-48 inline-block"></span></div>
+        </div>
+        <div class="flex justify-between text-lg mb-8">
+            <div>Class: <span class="border-b border-black w-48 inline-block"></span></div>
+            <div>Score: <span class="border-b border-black w-24 inline-block"></span></div>
+        </div>
+    </div>
+
+    <!-- Main Game Area -->
+    <main class="flex-grow flex flex-col items-center justify-center p-4 w-full max-w-5xl mx-auto">
+        
+        <div id="game-container" class="glass-panel w-full p-6 rounded-2xl flex flex-col items-center gap-6 animate-fade-in">
+            
+            <!-- Interactive HUD -->
+            <div id="play-controls" class="hidden w-full flex justify-between items-center px-2 no-print">
+                <div class="flex items-center gap-2 font-mono text-sm">
+                    <span class="text-gray-400">FOUND:</span>
+                    <span id="found-count" class="text-green font-bold text-xl">0</span>
+                    <span class="text-gray-500">/</span>
+                    <span id="total-count" class="text-gray-400 text-lg">0</span>
+                </div>
+                
+                <!-- Dynamic Status Bar -->
+                <div id="status-bar" class="text-xs text-blue bg-blue/10 px-4 py-2 rounded-full border border-blue/20 animate-pulse-slow font-bold tracking-wide">
+                    TAP FIRST LETTER ➔ TAP LAST LETTER
+                </div>
+
+                <!-- Play Again Button (Hidden initially) -->
+                <button id="play-again-btn" class="hidden btn-action bg-green text-white px-4 py-1 rounded-lg font-bold text-xs">
+                    PLAY AGAIN
+                </button>
+            </div>
+
+            <!-- The Grid -->
+            <div id="word-grid" class="grid gap-1 bg-surface/50 p-2 rounded-xl transition-all select-none touch-manipulation">
+                <!-- Empty State -->
+                <div class="text-center py-12 text-gray-400 col-span-full w-full">
+                    <div class="mb-4 text-6xl opacity-20">ｧｩ</div>
+                    <p class="mb-6 text-lg">No puzzle active.</p>
+                    <button onclick="document.getElementById('setup-btn').click()" class="text-blue hover:text-white underline font-bold">Create New Puzzle</button>
+                </div>
+            </div>
+
+            <!-- Word Bank -->
+            <div class="w-full border-t border-white/10 pt-6">
+                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 text-center">VOCABULARY LIST</h3>
+                <div id="word-bank" class="flex flex-wrap justify-center gap-3">
+                    <!-- Words injected here -->
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- CONFIRMATION MODAL -->
+    <div id="confirm-modal" class="fixed inset-0 z-[110] hidden flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-pop">
+        <div class="glass-panel w-full max-w-sm rounded-2xl p-6 text-center border border-orange/50">
+            <div class="flex justify-center mb-4 text-orange">
+                <i data-lucide="flag" class="w-12 h-12"></i>
+            </div>
+            <h3 class="text-xl font-heading text-white mb-2">Give Up?</h3>
+            <p class="text-gray-400 text-sm mb-6">This will end the game and reveal all answers.</p>
+            <div class="flex gap-3 justify-center">
+                <button id="cancel-reveal" class="px-4 py-2 rounded-lg text-gray-300 hover:text-white font-bold text-sm transition-colors">Keep Playing</button>
+                <button id="confirm-reveal" class="btn-action bg-orange text-white px-6 py-2 rounded-lg font-bold text-sm">Reveal Answers</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SETUP MODAL -->
+    <div id="setup-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-pop">
+        <div class="glass-panel w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            
+            <div class="p-6 border-b border-white/10 flex justify-between items-center bg-black/20">
+                <div class="flex items-center gap-3">
+                    <i data-lucide="settings-2" class="text-pink w-6 h-6"></i>
+                    <h2 class="text-2xl font-heading text-white tracking-wide">PUZZLE SETUP</h2>
+                </div>
+                <button id="close-setup" class="text-gray-400 hover:text-white transition">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-6 overflow-y-auto">
+                
+                <!-- Grid Size -->
+                <div>
+                    <div class="flex justify-between items-end mb-2">
+                        <label class="text-xs font-bold text-blue uppercase tracking-widest">Grid Size</label>
+                        <span id="size-display" class="font-mono text-sm text-blue font-bold">10x10</span>
+                    </div>
+                    <input type="range" id="size-slider" min="6" max="14" value="10" class="w-full h-2 bg-surface rounded-lg appearance-none cursor-pointer accent-blue">
+                    <div class="flex justify-between text-[10px] text-gray-500 mt-1">
+                        <span>Easy (6)</span>
+                        <span>Hard (14)</span>
+                    </div>
+                </div>
+
+                <!-- Word Input -->
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-gray-400 uppercase tracking-widest">Vocabulary List</label>
+                    <textarea id="word-input" 
+                        class="w-full h-32 bg-dark border border-white/10 rounded-xl p-4 text-white focus:border-pink focus:ring-1 focus:ring-pink outline-none resize-none font-mono text-sm shadow-inner transition-all placeholder-gray-600"
+                        placeholder="Enter words separated by commas...&#10;Example: Apple, Banana, Orange"></textarea>
+                </div>
+                
+                <!-- Presets -->
+                <div>
+                    <label class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 block">Quick Presets</label>
+                    <div class="flex flex-wrap gap-2">
+                        <button class="preset-btn px-3 py-1 bg-surface hover:bg-pink/20 border border-white/10 rounded-full text-xs transition" data-words="RED, BLUE, GREEN, PINK, ORANGE, BLACK, WHITE">🎨 Colors</button>
+                        <button class="preset-btn px-3 py-1 bg-surface hover:bg-pink/20 border border-white/10 rounded-full text-xs transition" data-words="LION, TIGER, BEAR, WOLF, ZEBRA, MONKEY">🦁 Animals</button>
+                        <button class="preset-btn px-3 py-1 bg-surface hover:bg-pink/20 border border-white/10 rounded-full text-xs transition" data-words="RUN, JUMP, SWIM, READ, WRITE, SPEAK">🏃 Verbs</button>
+                        <button class="preset-btn px-3 py-1 bg-surface hover:bg-pink/20 border border-white/10 rounded-full text-xs transition" data-words="ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN">🔢 Numbers</button>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="p-6 border-t border-white/10 bg-black/20">
+                <button id="generate-btn" class="btn-action bg-gradient-to-r from-green to-blue text-white w-full py-3 rounded-xl font-bold text-lg shadow-lg tracking-wide hover:brightness-110 transition-all">
+                    GENERATE PUZZLE
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUDIO ENGINE (Simple Web Audio API) -->
+    <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        const playTone = (freq, type, duration) => {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        };
+
+        const Sound = {
+            tap: () => playTone(600, 'sine', 0.1),
+            select: () => playTone(800, 'sine', 0.15),
+            success: () => {
+                playTone(500, 'triangle', 0.1);
+                setTimeout(() => playTone(1000, 'triangle', 0.2), 100);
+            },
+            error: () => {
+                playTone(150, 'sawtooth', 0.2);
+            },
+            win: () => {
+                [400, 500, 600, 800].forEach((f, i) => setTimeout(() => playTone(f, 'square', 0.2), i * 100));
+            }
+        };
+    </script>
+
+    <!-- GAME LOGIC -->
+    <script>
+        // Init Icons
+        lucide.createIcons();
+
+        // State Management
+        const State = {
+            grid: [],
+            solutions: new Set(),
+            validWords: new Set(),
+            foundWords: new Set(),
+            selectionStart: null,
+            isActive: false,
+            totalWords: 0
+        };
+
+        // DOM Elements
+        const DOM = {
+            grid: document.getElementById('word-grid'),
+            bank: document.getElementById('word-bank'),
+            input: document.getElementById('word-input'),
+            slider: document.getElementById('size-slider'),
+            sizeDisp: document.getElementById('size-display'),
+            foundCount: document.getElementById('found-count'),
+            totalCount: document.getElementById('total-count'),
+            statusBar: document.getElementById('status-bar'),
+            playAgain: document.getElementById('play-again-btn'),
+            modals: {
+                setup: document.getElementById('setup-modal'),
+                confirm: document.getElementById('confirm-modal')
+            },
+            controls: document.getElementById('play-controls')
+        };
+
+        // --- SETUP HANDLERS ---
+        
+        document.getElementById('setup-btn').onclick = () => DOM.modals.setup.classList.remove('hidden');
+        document.getElementById('close-setup').onclick = () => DOM.modals.setup.classList.add('hidden');
+        
+        DOM.slider.oninput = (e) => {
+            const val = e.target.value;
+            DOM.sizeDisp.innerText = `${val}x${val}`;
+        };
+
+        document.querySelectorAll('.preset-btn').forEach(btn => {
+            btn.onclick = (e) => DOM.input.value = e.target.dataset.words;
+        });
+
+        document.getElementById('generate-btn').onclick = () => {
+            const raw = DOM.input.value;
+            const size = parseInt(DOM.slider.value);
+            
+            const words = raw.split(',')
+                .map(w => w.trim().toUpperCase())
+                .filter(w => w.length > 0 && w.length <= size); // Remove words longer than grid
+
+            // Remove duplicates
+            const uniqueWords = [...new Set(words)];
+
+            if(uniqueWords.length < 1) {
+                alert("Please enter valid words that fit in the grid.");
+                return;
+            }
+
+            initGame(size, uniqueWords);
+            DOM.modals.setup.classList.add('hidden');
+        };
+
+        // --- GAME CORE ---
+
+        function initGame(size, words) {
+            // Reset State
+            State.grid = Array(size).fill(null).map(() => Array(size).fill(''));
+            State.solutions.clear();
+            State.validWords = new Set(words);
+            State.foundWords.clear();
+            State.isActive = true;
+            State.selectionStart = null;
+            State.totalWords = 0;
+
+            // Sort words by length (longest first for better fitting)
+            words.sort((a,b) => b.length - a.length);
+
+            // 1. Place Words
+            const placedWords = [];
+            words.forEach(word => {
+                if(placeWordInGrid(word, size)) {
+                    placedWords.push(word);
+                    State.validWords.add(word); // Ensure only placed words are valid
+                }
+            });
+            State.totalWords = placedWords.length;
+
+            // 2. Fill Empty
+            const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            for(let r=0; r<size; r++) {
+                for(let c=0; c<size; c++) {
+                    if(State.grid[r][c] === '') {
+                        State.grid[r][c] = alphabet[Math.floor(Math.random() * alphabet.length)];
+                    }
+                }
+            }
+
+            // 3. Render
+            renderGrid(size);
+            renderWordBank(placedWords);
+            updateHUD();
+
+            // FX
+            Sound.select();
+            confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 }, colors: ['#2979FF'] });
+        }
+
+        function placeWordInGrid(word, size) {
+            const directions = [
+                {r:0, c:1}, {r:1, c:0}, {r:1, c:1}, {r:-1, c:1}, 
+                {r:0, c:-1}, {r:-1, c:0}, {r:-1, c:-1}, {r:1, c:-1}
+            ];
+            
+            // Try 100 times to place the word
+            for(let attempt=0; attempt<100; attempt++) {
+                const dir = directions[Math.floor(Math.random() * directions.length)];
+                const startR = Math.floor(Math.random() * size);
+                const startC = Math.floor(Math.random() * size);
+
+                // Check bounds
+                const endR = startR + (dir.r * (word.length - 1));
+                const endC = startC + (dir.c * (word.length - 1));
+                if(endR < 0 || endR >= size || endC < 0 || endC >= size) continue;
+
+                // Check collisions
+                let collision = false;
+                for(let i=0; i<word.length; i++) {
+                    const r = startR + (dir.r * i);
+                    const c = startC + (dir.c * i);
+                    const cell = State.grid[r][c];
+                    if(cell !== '' && cell !== word[i]) {
+                        collision = true; break;
+                    }
+                }
+
+                if(!collision) {
+                    // Place it
+                    for(let i=0; i<word.length; i++) {
+                        const r = startR + (dir.r * i);
+                        const c = startC + (dir.c * i);
+                        State.grid[r][c] = word[i];
+                        State.solutions.add(`${r},${c}`); // Mark as part of solution
+                    }
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function renderGrid(size) {
+            DOM.grid.style.gridTemplateColumns = `repeat(${size}, minmax(0, 1fr))`;
+            DOM.grid.innerHTML = '';
+            
+            for(let r=0; r<size; r++) {
+                for(let c=0; c<size; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'grid-cell aspect-square text-sm md:text-xl transition-all duration-200';
+                    cell.innerText = State.grid[r][c];
+                    cell.dataset.r = r;
+                    cell.dataset.c = c;
+                    
+                    // Events
+                    cell.onmousedown = () => handleInput(r, c, cell);
+                    cell.ontouchstart = (e) => { e.preventDefault(); handleInput(r, c, cell); }; // Better mobile support
+                    cell.onmouseenter = () => handleHover(r, c);
+                    
+                    DOM.grid.appendChild(cell);
+                }
+            }
+            DOM.controls.classList.remove('hidden');
+        }
+
+        function renderWordBank(words) {
+            DOM.bank.innerHTML = '';
+            words.sort().forEach(w => {
+                const tag = document.createElement('div');
+                tag.className = 'word-tag px-3 py-1 bg-surface border border-white/10 rounded-lg text-sm font-mono text-gray-300 transition-all duration-300';
+                tag.innerText = w;
+                tag.id = `tag-${w}`;
+                DOM.bank.appendChild(tag);
+            });
+        }
+
+        function updateHUD() {
+            DOM.foundCount.innerText = State.foundWords.size;
+            DOM.totalCount.innerText = State.totalWords;
+            
+            if(State.foundWords.size === State.totalWords) {
+                endGame(true);
+            }
+        }
+
+        // --- INTERACTION LOGIC (TAP-START / TAP-END) ---
+
+        function handleInput(r, c, el) {
+            if(!State.isActive || el.classList.contains('locked')) return;
+
+            // Start Selection
+            if(!State.selectionStart) {
+                State.selectionStart = { r, c, el };
+                el.classList.add('active-start');
+                Sound.tap();
+                return;
+            }
+
+            // Cancel Selection (Tap same cell)
+            if(State.selectionStart.r === r && State.selectionStart.c === c) {
+                clearSelection();
+                return;
+            }
+
+            // End Selection
+            checkMatch(State.selectionStart, { r, c, el });
+        }
+
+        function handleHover(r, c) {
+            if(!State.selectionStart || !State.isActive) return;
+
+            // Remove old preview
+            document.querySelectorAll('.preview-line').forEach(el => el.classList.remove('preview-line'));
+
+            // Calculate path
+            const path = getLineCells(State.selectionStart, {r, c});
+            if(path) {
+                path.forEach(pos => {
+                    const cell = getCell(pos.r, pos.c);
+                    if(cell && !cell.classList.contains('found')) {
+                        cell.classList.add('preview-line');
+                    }
+                });
+            }
+        }
+
+        function checkMatch(start, end) {
+            const path = getLineCells(start, end);
+            
+            if(!path) {
+                // Invalid line
+                Sound.error();
+                end.el.classList.add('error');
+                setTimeout(() => end.el.classList.remove('error'), 400);
+                return;
+            }
+
+            // Build word
+            const word = path.map(p => State.grid[p.r][p.c]).join('');
+            const reversed = word.split('').reverse().join('');
+            
+            let match = null;
+            if(State.validWords.has(word) && !State.foundWords.has(word)) match = word;
+            else if(State.validWords.has(reversed) && !State.foundWords.has(reversed)) match = reversed;
+
+            if(match) {
+                // SUCCESS
+                Sound.success();
+                path.forEach((p, i) => {
+                    const cell = getCell(p.r, p.c);
+                    setTimeout(() => cell.classList.add('found'), i * 30); // Staggered animation
+                });
+                
+                document.getElementById(`tag-${match}`).classList.add('found');
+                State.foundWords.add(match);
+                updateHUD();
+                clearSelection();
+            } else {
+                // FAIL
+                Sound.error();
+                path.forEach(p => {
+                    const cell = getCell(p.r, p.c);
+                    cell.classList.add('error');
+                    setTimeout(() => cell.classList.remove('error'), 400);
+                });
+                clearSelection();
+            }
+        }
+
+        // --- UTILS ---
+
+        function getLineCells(start, end) {
+            const dr = end.r - start.r;
+            const dc = end.c - start.c;
+            
+            // Check if horizontal, vertical, or perfectly diagonal
+            if(dr !== 0 && dc !== 0 && Math.abs(dr) !== Math.abs(dc)) return null;
+
+            const steps = Math.max(Math.abs(dr), Math.abs(dc));
+            const rStep = dr === 0 ? 0 : dr / steps;
+            const cStep = dc === 0 ? 0 : dc / steps;
+
+            const path = [];
+            for(let i=0; i<=steps; i++) {
+                path.push({ r: start.r + (rStep*i), c: start.c + (cStep*i) });
+            }
+            return path;
+        }
+
+        function getCell(r, c) {
+            return document.querySelector(`.grid-cell[data-r="${r}"][data-c="${c}"]`);
+        }
+
+        function clearSelection() {
+            if(State.selectionStart) {
+                State.selectionStart.el.classList.remove('active-start');
+                State.selectionStart = null;
+            }
+            document.querySelectorAll('.preview-line').forEach(el => el.classList.remove('preview-line'));
+        }
+
+        // --- GAME OVER / REVEAL LOGIC ---
+
+        document.getElementById('give-up-btn').onclick = () => {
+            if(!State.isActive) return;
+            DOM.modals.confirm.classList.remove('hidden');
+        };
+
+        document.getElementById('cancel-reveal').onclick = () => DOM.modals.confirm.classList.add('hidden');
+        
+        document.getElementById('confirm-reveal').onclick = () => {
+            DOM.modals.confirm.classList.add('hidden');
+            endGame(false);
+        };
+
+        function endGame(won) {
+            State.isActive = false;
+            
+            if(won) {
+                Sound.win();
+                confetti({ particleCount: 200, spread: 100, origin: { y: 0.6 }, colors: ['#00E676', '#2979FF'] });
+                DOM.statusBar.innerText = "YOU WON! AMAZING!";
+                DOM.statusBar.className = "text-xs text-green bg-green/10 px-4 py-2 rounded-full border border-green/20 font-bold tracking-wide";
+            } else {
+                Sound.error();
+                DOM.statusBar.innerText = "GAME OVER - ANSWERS REVEALED";
+                DOM.statusBar.className = "text-xs text-orange bg-orange/10 px-4 py-2 rounded-full border border-orange/20 font-bold tracking-wide";
+                
+                // Reveal missing
+                document.querySelectorAll('.grid-cell').forEach(cell => {
+                    const key = `${cell.dataset.r},${cell.dataset.c}`;
+                    if(State.solutions.has(key) && !cell.classList.contains('found')) {
+                        cell.classList.add('revealed');
+                    }
+                    cell.classList.add('locked');
+                });
+                
+                document.querySelectorAll('.word-tag:not(.found)').forEach(tag => tag.classList.add('revealed'));
+            }
+
+            // Show Play Again
+            DOM.playAgain.classList.remove('hidden');
+            DOM.playAgain.onclick = () => document.getElementById('setup-btn').click();
+            
+            clearSelection();
+        }
+
+        // Init
+        document.getElementById('setup-btn').click();
+
+    </script>
+</body>
+</html>
