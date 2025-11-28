@@ -144,6 +144,9 @@
     </div>
 
     <script>
+        // --- LOCAL STORAGE KEY ---
+        const LS_KEY_TEXT = 'scramblerInputText';
+        
         // Get references to DOM elements
         const textInput = document.getElementById('text-input');
         const scrambleBtn = document.getElementById('scramble-btn');
@@ -176,6 +179,28 @@
 
         toggleBtn.addEventListener('click', toggleTheme);
         
+        /* --- PERSISTENCE --- */
+        
+        function saveText(text) {
+             try {
+                localStorage.setItem(LS_KEY_TEXT, text);
+            } catch (e) {
+                console.error("Could not save text to local storage:", e);
+            }
+        }
+
+        function loadText() {
+            try {
+                const savedText = localStorage.getItem(LS_KEY_TEXT);
+                if (savedText) {
+                    textInput.value = savedText;
+                }
+            } catch (e) {
+                console.error("Could not load text from local storage:", e);
+            }
+        }
+
+
         /* --- SCRAMBLER LOGIC --- */
 
         // Function to scramble the letters of a single word
@@ -249,6 +274,9 @@
         // Add event listener to the scramble button
         scrambleBtn.addEventListener('click', scrambleText);
         
+        // Auto-save on input
+        textInput.addEventListener('input', (e) => saveText(e.target.value));
+
         // Optional: Also trigger scrambling on 'Enter' key press in the textarea
         textInput.addEventListener('keydown', (event) => {
             if (event.key === 'Enter' && !event.shiftKey) { // Avoid scrambling on Shift+Enter
@@ -259,8 +287,10 @@
 
         // Initialize theme and icons on load
         window.onload = () => {
+            loadText(); // 1. Auto-load saved text
             initializeTheme();
             lucide.createIcons();
+            textInput.focus(); // Set focus on the input field
         }
     </script>
 </body>
