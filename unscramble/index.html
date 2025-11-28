@@ -185,6 +185,9 @@
     </div>
 
     <script>
+        // --- LOCAL STORAGE KEY ---
+        const LS_KEY_WORDS = 'unscrambleWordList';
+
         // DOM Elements
         const teacherConsoleEl = document.getElementById('teacher-console-el');
         const gameSectionEl = document.getElementById('game-section-el');
@@ -202,6 +205,28 @@
         let currentWordIndex = -1;
         let currentWord = '';
         let gameActive = false;
+
+        // --- PERSISTENCE ---
+
+        function saveWords(text) {
+             try {
+                localStorage.setItem(LS_KEY_WORDS, text);
+            } catch (e) {
+                console.error("Could not save words to local storage:", e);
+            }
+        }
+
+        function loadWords() {
+            try {
+                const savedWords = localStorage.getItem(LS_KEY_WORDS);
+                if (savedWords) {
+                    wordListInputEl.value = savedWords;
+                }
+            } catch (e) {
+                console.error("Could not load words from local storage:", e);
+            }
+        }
+
 
         // Utility: Shuffles an array (Fisher-Yates)
         function shuffleArray(array) {
@@ -231,17 +256,21 @@
             if (words.length === 0) {
                 // If the word list is exhausted, go back to the console
                 scrambledWordEl.textContent = 'GAME OVER';
-                messageBoxEl.textContent = 'All words used! Restart to play again.';
+                messageBoxEl.textContent = 'All words used! Click START GAME to play again.';
                 messageBoxEl.className = 'message-box win';
                 
                 revealBtn.disabled = true;
                 nextBtn.disabled = true;
 
-                // Optionally show the console again for setup
+                // Return to console for quick restart
                 setTimeout(() => {
                     gameSectionEl.style.display = 'none';
                     teacherConsoleEl.style.display = 'block';
-                }, 3000); 
+                    // Re-enable the start button and clear console message
+                    startGameBtn.disabled = false;
+                    consoleMessageEl.textContent = '\u00a0';
+                    consoleMessageEl.className = 'text-sm text-center mb-6 text-gray-400';
+                }, 2000); 
 
                 return;
             }
@@ -299,6 +328,7 @@
             // Hide the console and show the game
             teacherConsoleEl.style.display = 'none';
             gameSectionEl.style.display = 'block';
+            startGameBtn.disabled = true;
 
             // Reset console message on success
             consoleMessageEl.className = 'text-sm text-center mb-6 text-gray-400';
@@ -307,9 +337,24 @@
             startRound();
         });
 
-        // Initialize Lucide icons
+        // --- INITIALIZATION ---
+        
+        function initializeApplication() {
+            // 1. Load saved words into the input field
+            loadWords();
+            
+            // 2. Attach Auto-Save Hook to the input event
+            wordListInputEl.addEventListener('input', (e) => saveWords(e.target.value));
+
+            // 3. Auto-open setup: The teacher console is already visible by default, 
+            // so we just ensure the game is hidden and the console is ready.
+            gameSectionEl.style.display = 'none';
+            teacherConsoleEl.style.display = 'block';
+        }
+
         window.onload = function() {
             lucide.createIcons();
+            initializeApplication();
         };
 
     </script>
