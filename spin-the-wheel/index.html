@@ -141,10 +141,10 @@
                 </div>
             </div>
 
-            <!-- Batch Edit Toggle -->
+            <!-- Batch Edit Toggle (The Textarea for Autosave) -->
             <div>
                 <button onclick="toggleBatch()" class="text-xs text-blue hover:text-white underline font-mono">Edit List as Text</button>
-                <textarea id="batchInput" class="hidden w-full h-32 mt-2 bg-dark border border-white/10 rounded-lg p-3 text-sm font-mono text-gray-300 focus:border-blue focus:outline-none resize-none" placeholder="Paste list here (one per line)"></textarea>
+                <textarea id="batchInput" class="hidden w-full h-32 mt-2 bg-dark border border-white/10 rounded-lg p-3 text-sm font-mono text-gray-300 focus:border-blue focus:outline-none resize-none" placeholder="Paste list here (one per line, or comma separated)"></textarea>
                 <button id="saveBatchBtn" onclick="saveBatch()" class="hidden w-full mt-2 bg-green/20 text-green hover:bg-green/30 py-2 rounded-lg text-xs font-bold border border-green/30">UPDATE WHEEL</button>
             </div>
 
@@ -163,16 +163,21 @@
     </div>
 
     <script>
+        // --- LOCAL STORAGE KEY ---
+        const LS_KEY_RAW_OPTIONS = 'wheelRawOptionsText';
+
         // --- CONFIG ---
         const PALETTE = ['#FF6B95', '#FF8C42', '#00E676', '#2979FF']; // Pink, Orange, Green, Blue
-        let options = ["Team Alpha", "Team Bravo", "Team Charlie", "Team Delta", "Team Echo", "Team Foxtrot"];
+        let options = []; // Initialized by load
+
+        // --- GAME STATE ---
         let startAngle = 0;
-        let arc = Math.PI / (options.length / 2);
+        let arc = 0;
         let spinTimeout = null;
-        let spinArcStart = 10;
+        let spinAngleStart = 0;
         let spinTime = 0;
         let spinTimeTotal = 0;
-        let lastScheduledClickTime = 0; // Changed to track scheduled time in Tone.js seconds
+        let lastScheduledClickTime = 0; 
         let ctx;
         let isSpinning = false;
         let audioInitialized = false;
@@ -182,10 +187,8 @@
         
         async function initAudio() {
             if (audioInitialized) return;
-            // The user must interact with the document before audio can start
             await Tone.start();
             
-            // Mechanical Click Sound
             clickSynth = new Tone.MembraneSynth({
                 pitchDecay: 0.05,
                 octaves: 2,
@@ -193,7 +196,6 @@
                 envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.1 }
             }).toDestination();
 
-            // Victory Sound
             winSynth = new Tone.PolySynth(Tone.Synth, {
                 oscillator: { type: "triangle" },
                 envelope: { attack: 0.02, decay: 0.1, sustain: 0.1, release: 1 }
@@ -202,7 +204,6 @@
             audioInitialized = true;
         }
 
-        // Play click using Tone.now() for precise scheduling
         function playClick(time) {
             if(clickSynth) clickSynth.triggerAttackRelease("C2", "32n", time);
         }
@@ -216,6 +217,16 @@
             }
         }
 
+        // --- PERSISTENCE ---
+
+        function saveRawOptions(text) {
+             try {
+                localStorage.setItem(LS_KEY_RAW_OPTIONS, text);
+            } catch (e) {
+                console.error("Could not save options to local storage:", e);
+            }
+        }
+
         // --- DRAWING ---
         function drawRouletteWheel() {
             const canvas = document.getElementById("wheelCanvas");
@@ -226,17 +237,15 @@
             
             ctx.strokeStyle = "#0f172a";
             ctx.lineWidth = 2;
-            
             ctx.font = 'bold 24px "Nunito", sans-serif';
             
             arc = Math.PI * 2 / options.length;
             
-            // Center of the canvas (500x500 scaled in CSS, keep internal res high)
             const cx = 300;
             const cy = 300;
             const outsideRadius = 280;
             const textRadius = 200;
-            const insideRadius = 40; // Donut hole
+            const insideRadius = 40; 
 
             if (options.length === 0) {
                 // Draw Empty State
@@ -264,12 +273,11 @@
                 
                 // Draw Text
                 ctx.save();
-                ctx.fillStyle = "#0f172a"; // Dark text on bright colors
+                ctx.fillStyle = "#0f172a"; 
                 ctx.translate(cx + Math.cos(angle + arc / 2) * textRadius, 
                             cy + Math.sin(angle + arc / 2) * textRadius);
                 ctx.rotate(angle + arc / 2);
                 
-                // Adjust font size based on length
                 const text = options[i];
                 if(text.length > 12) ctx.font = 'bold 18px "Nunito", sans-serif';
                 else ctx.font = 'bold 24px "Nunito", sans-serif';
@@ -297,52 +305,44 @@
             }
             
             isSpinning = true;
-            initAudio(); // Ensure audio context starts on gesture
+            initAudio(); 
             
             document.getElementById("result-text").classList.add("hidden");
             document.getElementById("spinBtn").classList.add("opacity-50", "cursor-not-allowed");
             
-            // EXAGGERATED VALUES HERE
             spinAngleStart = Math.random() * 30 + 40; 
             spinTime = 0;
             spinTimeTotal = (Math.random() * 3000) + 5000; 
             
-            // Reset click tracker using Tone.now() time
             lastScheduledClickTime = Tone.now(); 
 
-            // Add motion blur class
             document.getElementById("wheelCanvas").classList.add("spinning-fast");
 
             rotateWheel();
         }
 
         function rotateWheel() {
-            spinTime += 30; // Milliseconds elapsed
-            const spinTimeSec = spinTime / 1000; // Seconds elapsed
+            spinTime += 30; 
+            const spinTimeSec = spinTime / 1000; 
             
             if(spinTime >= spinTimeTotal) {
                 stopRotateWheel();
                 return;
             }
             
-            // Easing
             const spinAngle = spinAngleStart - easeOut(spinTime, 0, spinAngleStart, spinTimeTotal);
             startAngle += (spinAngle * Math.PI / 180);
             
             drawRouletteWheel();
             
-            // Remove blur when slowing down (70% through)
             if (spinTime > spinTimeTotal * 0.7) {
                 document.getElementById("wheelCanvas").classList.remove("spinning-fast");
             }
             
-            // FIX: Schedule click using Tone.js time for accuracy
             const progress = spinTime / spinTimeTotal;
-            // Click interval decreases as progress approaches 1 (slower clicks)
             const clickIntervalSec = Math.max(0.03, progress * 0.1); 
             
             if (Tone.now() >= lastScheduledClickTime + clickIntervalSec) {
-                // Schedule the click sound precisely at the current time
                 playClick(Tone.now()); 
                 lastScheduledClickTime = Tone.now();
             }
@@ -354,7 +354,7 @@
             clearTimeout(spinTimeout);
             isSpinning = false;
             document.getElementById("spinBtn").classList.remove("opacity-50", "cursor-not-allowed");
-            document.getElementById("wheelCanvas").classList.remove("spinning-fast"); // Ensure blur is gone
+            document.getElementById("wheelCanvas").classList.remove("spinning-fast"); 
             
             const degrees = startAngle * 180 / Math.PI + 90;
             const arcd = arc * 180 / Math.PI;
@@ -363,7 +363,6 @@
             ctx.save();
             const winner = options[index];
             
-            // Show Winner
             const resText = document.getElementById("result-text");
             resText.innerText = winner.toUpperCase();
             resText.classList.remove("hidden");
@@ -377,7 +376,7 @@
             return b+c*(tc + -3*ts + 3*t);
         }
 
-        // --- UI HELPERS ---
+        // --- UI HELPERS & STATE MANAGEMENT ---
         function renderList() {
             const list = document.getElementById("optionsList");
             list.innerHTML = "";
@@ -400,19 +399,36 @@
             const input = document.getElementById("optionInput");
             const val = input.value.trim();
             if(val) {
-                options.push(val);
+                options.push(val); 
                 input.value = "";
+                
+                // Update and Save
+                const newRawText = options.join('\n');
+                saveRawOptions(newRawText);
+                document.getElementById("batchInput").value = newRawText; // Keep batch area updated
+                
                 renderList();
             }
         }
 
         function removeOption(idx) {
             options.splice(idx, 1);
+            
+            // Update and Save
+            const newRawText = options.join('\n');
+            saveRawOptions(newRawText);
+            document.getElementById("batchInput").value = newRawText; // Keep batch area updated
+
             renderList();
         }
 
         function clearAll() {
             options = [];
+            
+            // Update and Save
+            saveRawOptions('');
+            document.getElementById("batchInput").value = ''; // Clear batch area
+            
             renderList();
         }
 
@@ -420,10 +436,12 @@
             const area = document.getElementById("batchInput");
             const btn = document.getElementById("saveBatchBtn");
             if(area.classList.contains("hidden")) {
-                area.value = options.join("\n");
+                // Opening: populate with current state
+                area.value = options.join("\n"); 
                 area.classList.remove("hidden");
                 btn.classList.remove("hidden");
             } else {
+                // Closing: hide elements
                 area.classList.add("hidden");
                 btn.classList.add("hidden");
             }
@@ -431,21 +449,59 @@
 
         function saveBatch() {
             const area = document.getElementById("batchInput");
-            const lines = area.value.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+            // Handles both newlines and commas
+            const rawText = area.value;
+            const lines = rawText.split(/[\n,]+/).map(l => l.trim()).filter(l => l.length > 0);
+            
+            // Update main options list
             options = lines;
+            
+            // Save the raw text
+            saveRawOptions(rawText);
+            
             toggleBatch(); // Hide
             renderList();
         }
 
-        // --- EVENTS ---
-        document.getElementById("spinBtn").addEventListener("click", spin);
-        document.getElementById("addOptionBtn").addEventListener("click", addOption);
-        document.getElementById("optionInput").addEventListener("keydown", (e) => {
-            if(e.key === 'Enter') addOption();
-        });
+        // --- INITIALIZATION ---
+        
+        function initializeApplication() {
+            // 1. Load the raw text
+            const initialRawText = localStorage.getItem(LS_KEY_RAW_OPTIONS);
+            
+            if (initialRawText) {
+                // Populate the hidden batch input immediately with saved data
+                document.getElementById("batchInput").value = initialRawText; 
+                
+                // Process the saved raw text into the options array
+                options = initialRawText.split(/[\n,]+/).map(l => l.trim()).filter(l => l.length > 0);
+            } else {
+                // If nothing is saved, use the hardcoded default and save it immediately.
+                const defaultOptions = ["Team Alpha", "Team Bravo", "Team Charlie", "Team Delta", "Team Echo", "Team Foxtrot"];
+                options = defaultOptions;
+                const defaultRaw = defaultOptions.join('\n');
+                document.getElementById("batchInput").value = defaultRaw;
+                saveRawOptions(defaultRaw);
+            }
 
-        // Init
-        renderList();
+            // 2. Attach Auto-Save Hook for the batch input textarea
+            // This ensures continuous saving while the user is typing in the batch editor.
+            document.getElementById("batchInput").addEventListener('input', (e) => {
+                saveRawOptions(e.target.value);
+            });
+            
+            // 3. Attach other event listeners
+            document.getElementById("spinBtn").addEventListener("click", spin);
+            document.getElementById("addOptionBtn").addEventListener("click", addOption);
+            document.getElementById("optionInput").addEventListener("keydown", (e) => {
+                if(e.key === 'Enter') addOption();
+            });
+
+            // 4. Initialize UI (Draw the wheel and tags)
+            renderList();
+        }
+
+        window.onload = initializeApplication;
 
     </script>
 </body>
