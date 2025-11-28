@@ -363,7 +363,7 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Word List (WORD : CLUE)</label>
+                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Word List (WORD : CLUE) (Auto-Saved)</label>
                     <textarea id="word-input" 
                         class="w-full h-48 bg-dark border border-white/10 rounded-xl p-4 font-mono text-sm text-white focus:border-pink focus:ring-1 focus:ring-pink outline-none resize-none placeholder-gray-600" 
                         placeholder="CAT : A small pet&#10;DOG : A loyal friend"></textarea>
@@ -375,15 +375,15 @@
                      <div class="flex gap-2 flex-wrap">
                         <button class="preset-btn px-3 py-1 bg-surface rounded-full text-xs text-gray-300 hover:text-white border border-white/10 transition-colors" 
                             data-text="TEACHER : The person who teaches&#10;STUDENT : The person who learns&#10;PENCIL : Used for writing&#10;ERASER : Removes pencil marks&#10;BOOK : Has pages to read&#10;DESK : Where you sit&#10;BOARD : Teacher writes on this">
-                            🏫 Classroom
+                            <i data-lucide="monitor" class="w-3 h-3 inline-block mr-1"></i> Classroom
                         </button>
                         <button class="preset-btn px-3 py-1 bg-surface rounded-full text-xs text-gray-300 hover:text-white border border-white/10 transition-colors" 
                             data-text="RED : The color of fire&#10;BLUE : The color of the sky&#10;GREEN : The color of grass&#10;YELLOW : The color of the sun&#10;PURPLE : The color of grapes">
-                            🎨 Colors
+                            <i data-lucide="palette" class="w-3 h-3 inline-block mr-1"></i> Colors
                         </button>
                         <button class="preset-btn px-3 py-1 bg-surface rounded-full text-xs text-gray-300 hover:text-white border border-white/10 transition-colors" 
                             data-text="CAT : Meows and chases mice&#10;DOG : Barks and chases cats&#10;BIRD : Flies in the sky&#10;FISH : Swims in the water&#10;LION : King of the jungle">
-                            🦁 Animals
+                            <i data-lucide="paw-print" class="w-3 h-3 inline-block mr-1"></i> Animals
                         </button>
                     </div>
                 </div>
@@ -401,6 +401,9 @@
     <script>
         lucide.createIcons();
         
+        // --- LOCAL STORAGE KEY ---
+        const LS_KEY_WORDS = 'crosswordWordsAndClues';
+
         // --- AUDIO ENGINE ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const playTone = (freq, type, duration) => {
@@ -442,11 +445,33 @@
             down: document.getElementById('clues-down'),
             input: document.getElementById('word-input'),
             modal: document.getElementById('setup-modal'),
-            empty: document.getElementById('empty-state')
+            empty: document.getElementById('empty-state'),
+            setupBtn: document.getElementById('setup-btn')
         };
 
+        // --- PERSISTENCE ---
+
+        function saveWords(text) {
+             try {
+                localStorage.setItem(LS_KEY_WORDS, text);
+            } catch (e) {
+                console.error("Could not save words to local storage:", e);
+            }
+        }
+
+        function loadWords() {
+            try {
+                const savedWords = localStorage.getItem(LS_KEY_WORDS);
+                if (savedWords) {
+                    els.input.value = savedWords;
+                }
+            } catch (e) {
+                console.error("Could not load words from local storage:", e);
+            }
+        }
+
         // --- HANDLERS ---
-        document.getElementById('setup-btn').onclick = () => els.modal.classList.remove('hidden');
+        els.setupBtn.onclick = () => els.modal.classList.remove('hidden');
         document.getElementById('close-setup').onclick = () => els.modal.classList.add('hidden');
         
         // Zoom Handlers
@@ -473,7 +498,10 @@
         }
         
         document.querySelectorAll('.preset-btn').forEach(b => {
-            b.onclick = () => els.input.value = b.dataset.text;
+            b.onclick = () => {
+                els.input.value = b.dataset.text;
+                saveWords(b.dataset.text); // Save preset on load
+            }
         });
 
         document.querySelectorAll('.grid-btn').forEach(b => {
@@ -490,7 +518,14 @@
 
         document.getElementById('generate-btn').onclick = () => {
             const lines = els.input.value.split('\n').filter(l => l.includes(':'));
-            if(lines.length < 2) { alert("Please add at least 2 words!"); return; }
+            
+            // Ensure final save before generating
+            saveWords(els.input.value); 
+
+            if(lines.length < 2) { 
+                alert("Please add at least 2 words!"); 
+                return; 
+            }
             
             const inputData = lines.map(l => {
                 const [w, c] = l.split(':');
@@ -741,12 +776,7 @@
             let nextR = r + dr;
             let nextC = c + dc;
 
-            // Loop to find next cell that is either empty OR not locked
-            // But standard crossword behavior: Just jump to next cell in word, even if filled. 
-            // USER REQUEST: "Problem if tile already filled" -> Implies skip filled.
-            
-            // Let's iterate until we find an empty cell OR end of word
-            // Check max 15 steps to prevent infinite loop
+            // Iterate until we find an empty cell OR end of word
             for(let i=0; i<15; i++) {
                  // Check if valid cell in grid
                  const cell = document.querySelector(`.cw-cell[data-r="${nextR}"][data-c="${nextC}"]`);
@@ -756,22 +786,18 @@
                  
                  const input = cell.querySelector('input');
                  
-                 // If cell is empty, stop here and focus
-                 if(!input.value) {
+                 // If cell is empty or NOT locked, focus here
+                 if(input && (!input.value || !cell.classList.contains('locked'))) {
                      focusCell(nextR, nextC);
                      return;
                  }
                  
-                 // If cell is filled... loop again to next
+                 // If cell is filled AND locked, loop again to next
                  nextR += dr;
                  nextC += dc;
             }
             
-            // If we reached here, word is full. 
-            // Focus the very next cell (even if filled) to allow correction?
-            // Or just stay at last input?
-            // Let's just focus the immediate neighbor if we didn't find an empty one, so user isn't stuck.
-            // Reset to immediate next
+            // If we reached here, word is full/locked. Just focus the immediate neighbor to allow correction.
             focusCell(r + dr, c + dc);
         }
 
@@ -782,8 +808,7 @@
              let prevR = r + dr;
              let prevC = c + dc;
              
-             // Simple move back, but skip locked cells?
-             // Usually backspace just goes back one.
+             // Simple move back, but skip locked cells
              
              const cell = document.querySelector(`.cw-cell[data-r="${prevR}"][data-c="${prevC}"]`);
              if(cell) {
@@ -902,8 +927,20 @@
             Sound.success();
         };
 
-        // Init
-        document.getElementById('setup-btn').click();
+        // --- INITIALIZATION ---
+        
+        function initializeApplication() {
+            // 1. Load saved words into the input field
+            loadWords();
+            
+            // 2. Attach Auto-Save Hook
+            els.input.addEventListener('input', (e) => saveWords(e.target.value));
+
+            // 3. Auto-open setup modal
+            els.setupBtn.click();
+        }
+
+        window.onload = initializeApplication;
 
     </script>
 </body>
