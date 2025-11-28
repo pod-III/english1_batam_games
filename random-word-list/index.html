@@ -133,7 +133,7 @@
                     <!-- Presets & Label -->
                     <div class="flex flex-wrap justify-between items-end gap-2">
                         <label for="wordInput" class="text-xl font-heading tracking-wide text-gray-700 dark:text-gray-200 flex items-center gap-2">
-                            <i data-lucide="list" class="w-5 h-5 text-pink"></i> WORD BANK
+                            <i data-lucide="list" class="w-5 h-5 text-pink"></i> WORD BANK (Auto-Saved)
                         </label>
                         
                         <!-- Presets Dropdown -->
@@ -231,6 +231,9 @@
 
     <!-- Javascript -->
     <script>
+        // --- LOCAL STORAGE KEY ---
+        const LS_KEY_WORDS = 'randomizerWordBank';
+        
         // --- State & Config ---
         const presets = {
             verbs: "run, jump, swim, fly, read, write, sing, dance, play, sleep, eat, drink, walk, talk, listen, watch",
@@ -252,19 +255,43 @@
         const listsGrid = document.getElementById('listsGrid');
         const actionToolbar = document.getElementById('actionToolbar');
 
+        // --- AUTOSAVE/LOAD FUNCTIONS ---
+
+        function saveWords(wordsString) {
+             try {
+                localStorage.setItem(LS_KEY_WORDS, wordsString);
+            } catch (e) {
+                console.error("Could not save words to local storage:", e);
+            }
+        }
+
+        function loadWords() {
+            try {
+                const savedWords = localStorage.getItem(LS_KEY_WORDS);
+                if (savedWords) {
+                    wordInput.value = savedWords;
+                }
+            } catch (e) {
+                console.error("Could not load words from local storage:", e);
+            }
+        }
+
         // --- Functions ---
 
         function loadPreset(key) {
             if (presets[key]) {
                 wordInput.value = presets[key];
                 showToast(`Loaded ${key} preset!`);
-                // Optional: visual feedback on textarea
+                // Trigger save after loading preset
+                saveWords(wordInput.value); 
                 wordInput.focus();
             }
         }
 
         function clearInput() {
             wordInput.value = '';
+            // Trigger save after clearing
+            saveWords('');
             wordInput.focus();
         }
 
@@ -287,6 +314,9 @@
 
         function generateLists() {
             const text = wordInput.value.trim();
+            // Auto-save one final time before generation
+            saveWords(text); 
+
             if (!text) {
                 showToast("Please enter words or load a preset!", true);
                 return;
@@ -353,9 +383,19 @@
             });
 
             try {
-                await navigator.clipboard.writeText(output);
+                // Use execCommand('copy') as navigator.clipboard.writeText() may not work due to iFrame restrictions.
+                const textarea = document.createElement('textarea');
+                textarea.value = output;
+                textarea.style.position = 'fixed'; // Prevents scrolling to bottom of page in Firefox.
+                document.body.appendChild(textarea);
+                textarea.focus();
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                
                 showToast("All lists copied to clipboard!");
             } catch (err) {
+                console.error('Failed to copy text: ', err);
                 showToast("Failed to copy automatically.", true);
             }
         }
@@ -402,11 +442,25 @@
         }
 
         // --- Init ---
-        toggleBtn.addEventListener('click', toggleTheme);
-        document.getElementById('generateButton').addEventListener('click', generateLists);
         
-        initTheme();
-        lucide.createIcons();
+        function initializeApplication() {
+            // 1. Load saved words into the input field
+            loadWords();
+            
+            // 2. Attach Auto-Save Hook to the input event
+            wordInput.addEventListener('input', (e) => {
+                saveWords(e.target.value);
+            });
+            
+            // 3. Attach other event listeners
+            toggleBtn.addEventListener('click', toggleTheme);
+            document.getElementById('generateButton').addEventListener('click', generateLists);
+            
+            initTheme();
+            lucide.createIcons();
+        }
+        
+        initializeApplication();
     </script>
 </body>
 </html>
