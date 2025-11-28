@@ -23,7 +23,8 @@
                         }
                     },
                     animation: {
-                        'bounce-in': 'bounceIn 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards',
+                        // ADJUSTED: Changed duration and function for a smoother entrance
+                        'bounce-in': 'bounceIn 1.0s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards',
                         'float': 'float 6s ease-in-out infinite',
                     }
                 }
@@ -70,9 +71,9 @@
 
         /* Card Animation */
         @keyframes bounceIn {
-            0% { opacity: 0; transform: scale(0.3) translateY(50px); }
-            50% { opacity: 1; transform: scale(1.05); }
-            70% { transform: scale(0.95); }
+            0% { opacity: 0; transform: scale(0.9) translateY(50px); }
+            50% { opacity: 1; transform: scale(1.01); } /* Smoother overshoot */
+            70% { transform: scale(1); }
             100% { transform: scale(1); }
         }
 
@@ -129,7 +130,7 @@
             <div class="glass-panel rounded-3xl p-5 flex flex-col h-full overflow-hidden relative">
                 
                 <h2 class="text-lg font-bold text-slate-600 mb-4 flex items-center gap-2">
-                    <i class="fas fa-edit text-brand-blue"></i> Teacher Input
+                    <i class="fas fa-edit text-brand-blue"></i> Teacher Input (Auto-Saving)
                 </h2>
 
                 <!-- Inputs Scrollable Area -->
@@ -141,7 +142,7 @@
                         </label>
                         <textarea id="peopleInput" rows="6" 
                             class="kid-input w-full rounded-2xl p-3 text-lg font-medium text-slate-700 placeholder-slate-400 resize-none"
-                            placeholder="Alex&#10;Bella&#10;Charlie"></textarea>
+                            placeholder="Alex, Bella, Charlie&#10;or one name per line"></textarea>
                     </div>
 
                     <!-- Tasks -->
@@ -151,7 +152,7 @@
                         </label>
                         <textarea id="taskInput" rows="6" 
                             class="kid-input w-full rounded-2xl p-3 text-lg font-medium text-slate-700 placeholder-slate-400 resize-none"
-                            placeholder="Clean Up&#10;Line Leader&#10;Books"></textarea>
+                            placeholder="Clean Up, Line Leader, Books&#10;or one task per line"></textarea>
                     </div>
                 </div>
 
@@ -197,6 +198,10 @@
     </div>
 
     <script>
+        // --- LOCAL STORAGE KEYS ---
+        const LS_KEY_PEOPLE = 'taskAssignerPeople';
+        const LS_KEY_TASKS = 'taskAssignerTasks';
+
         // Elements
         const peopleInput = document.getElementById('peopleInput');
         const taskInput = document.getElementById('taskInput');
@@ -215,33 +220,66 @@
             { bg: 'bg-blue-50', border: 'border-blue-300', text: 'text-blue-600', icon: 'bg-blue-100', accent: 'bg-blue-500' },
         ];
 
-        // Listeners
-        peopleInput.addEventListener('input', updateCounts);
-        taskInput.addEventListener('input', updateCounts);
+        // --- AUTOSAVE/LOAD FUNCTIONS ---
+
+        function saveInputs() {
+             try {
+                // Save both inputs separately
+                localStorage.setItem(LS_KEY_PEOPLE, peopleInput.value);
+                localStorage.setItem(LS_KEY_TASKS, taskInput.value);
+            } catch (e) {
+                console.error("Could not save inputs to local storage:", e);
+            }
+        }
+
+        function loadInputs() {
+            try {
+                const savedPeople = localStorage.getItem(LS_KEY_PEOPLE);
+                const savedTasks = localStorage.getItem(LS_KEY_TASKS);
+                
+                if (savedPeople) {
+                    peopleInput.value = savedPeople;
+                }
+                if (savedTasks) {
+                    taskInput.value = savedTasks;
+                }
+                updateCounts(); // Initial update of counts after loading
+            } catch (e) {
+                console.error("Could not load inputs from local storage:", e);
+            }
+        }
+
+        // --- LOGIC ---
 
         function updateCounts() {
+            // The splitting logic handles both newlines and commas
             const p = peopleInput.value.split(/[\n,]/).filter(t => t.trim()).length;
             const t = taskInput.value.split(/[\n,]/).filter(t => t.trim()).length;
             peopleCount.textContent = p;
             taskCount.textContent = t;
+            saveInputs(); // Autocall save on every update to input
         }
 
         function clearAll() {
             peopleInput.value = '';
             taskInput.value = '';
-            updateCounts();
+            updateCounts(); // This calls saveInputs() and updates counts to 0
+            
+            // Clear result display
+            cardsGrid.innerHTML = '';
             resultsArea.classList.add('hidden');
             emptyState.style.display = 'flex';
             statusText.textContent = "Waiting for magic...";
         }
 
         function assignTasks() {
-            // Get Data
+            // Get Data (using regex to split by newline OR comma)
             let people = peopleInput.value.split(/[\n,]/).map(s => s.trim()).filter(s => s);
             let tasks = taskInput.value.split(/[\n,]/).map(s => s.trim()).filter(s => s);
 
             if (people.length === 0 || tasks.length === 0) {
-                // If inputs are missing, we just don't run. No popups.
+                // If inputs are missing, we just don't run.
+                statusText.textContent = "ERROR: Need both people and tasks!";
                 return;
             }
 
@@ -269,6 +307,7 @@
             
             const card = document.createElement('div');
             // Flex row for landscape layout on larger screens
+            // NOTE: The transition property here is now combined with the hover state for smoothness
             card.className = `${style.bg} border-b-8 ${style.border} rounded-3xl p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 animate-bounce-in relative overflow-hidden group`;
             card.style.animationDelay = `${index * 150}ms`; // Staggered entrance
 
@@ -314,6 +353,18 @@
             }
             return array;
         }
+
+        // --- INITIALIZATION ---
+        function initializeApplication() {
+            // 1. Load saved inputs from Local Storage
+            loadInputs();
+            
+            // 2. Attach Auto-Save Hooks (using updateCounts which calls saveInputs)
+            peopleInput.addEventListener('input', updateCounts);
+            taskInput.addEventListener('input', updateCounts);
+        }
+
+        window.onload = initializeApplication;
     </script>
 </body>
 </html>
