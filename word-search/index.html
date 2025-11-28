@@ -292,7 +292,7 @@
             <!-- The Grid -->
             <div id="word-grid" class="grid gap-1 bg-surface/50 p-2 rounded-xl transition-all select-none touch-manipulation">
                 <!-- Empty State -->
-                <div class="text-center py-12 text-gray-400 col-span-full w-full">
+                <div id="empty-state" class="text-center py-12 text-gray-400 col-span-full w-full">
                     <div class="mb-4 text-6xl opacity-20">ｧｩ</div>
                     <p class="mb-6 text-lg">No puzzle active.</p>
                     <button onclick="document.getElementById('setup-btn').click()" class="text-blue hover:text-white underline font-bold">Create New Puzzle</button>
@@ -344,7 +344,7 @@
                 <!-- Grid Size -->
                 <div>
                     <div class="flex justify-between items-end mb-2">
-                        <label class="text-xs font-bold text-blue uppercase tracking-widest">Grid Size</label>
+                        <label class="text-xs font-bold text-blue uppercase tracking-widest">Grid Size (Auto-Saved)</label>
                         <span id="size-display" class="font-mono text-sm text-blue font-bold">10x10</span>
                     </div>
                     <input type="range" id="size-slider" min="6" max="14" value="10" class="w-full h-2 bg-surface rounded-lg appearance-none cursor-pointer accent-blue">
@@ -356,7 +356,7 @@
 
                 <!-- Word Input -->
                 <div class="space-y-2">
-                    <label class="text-xs font-bold text-gray-400 uppercase tracking-widest">Vocabulary List</label>
+                    <label class="text-xs font-bold text-gray-400 uppercase tracking-widest">Vocabulary List (Auto-Saved)</label>
                     <textarea id="word-input" 
                         class="w-full h-32 bg-dark border border-white/10 rounded-xl p-4 text-white focus:border-pink focus:ring-1 focus:ring-pink outline-none resize-none font-mono text-sm shadow-inner transition-all placeholder-gray-600"
                         placeholder="Enter words separated by commas...&#10;Example: Apple, Banana, Orange"></textarea>
@@ -422,6 +422,10 @@
         // Init Icons
         lucide.createIcons();
 
+        // --- LOCAL STORAGE KEYS ---
+        const LS_KEY_WORDS = 'wordSearchWords';
+        const LS_KEY_SIZE = 'wordSearchSize';
+
         // State Management
         const State = {
             grid: [],
@@ -448,8 +452,37 @@
                 setup: document.getElementById('setup-modal'),
                 confirm: document.getElementById('confirm-modal')
             },
-            controls: document.getElementById('play-controls')
+            controls: document.getElementById('play-controls'),
+            emptyState: document.getElementById('empty-state')
         };
+        
+        // --- PERSISTENCE ---
+
+        function saveInputs() {
+             try {
+                localStorage.setItem(LS_KEY_WORDS, DOM.input.value);
+                localStorage.setItem(LS_KEY_SIZE, DOM.slider.value);
+            } catch (e) {
+                console.error("Could not save inputs to local storage:", e);
+            }
+        }
+
+        function loadInputs() {
+            try {
+                const savedWords = localStorage.getItem(LS_KEY_WORDS);
+                const savedSize = localStorage.getItem(LS_KEY_SIZE);
+
+                if (savedWords) DOM.input.value = savedWords;
+                if (savedSize) {
+                    DOM.slider.value = savedSize;
+                    DOM.sizeDisp.innerText = `${savedSize}x${savedSize}`;
+                }
+                
+            } catch (e) {
+                console.error("Could not load inputs from local storage:", e);
+            }
+        }
+
 
         // --- SETUP HANDLERS ---
         
@@ -459,15 +492,24 @@
         DOM.slider.oninput = (e) => {
             const val = e.target.value;
             DOM.sizeDisp.innerText = `${val}x${val}`;
+            saveInputs(); // Autosave size change
         };
 
+        DOM.input.oninput = () => saveInputs(); // Autosave word list change
+
         document.querySelectorAll('.preset-btn').forEach(btn => {
-            btn.onclick = (e) => DOM.input.value = e.target.dataset.words;
+            btn.onclick = (e) => {
+                DOM.input.value = e.target.dataset.words;
+                saveInputs(); // Autosave preset load
+            };
         });
 
         document.getElementById('generate-btn').onclick = () => {
             const raw = DOM.input.value;
             const size = parseInt(DOM.slider.value);
+            
+            // Save final values before starting
+            saveInputs(); 
             
             const words = raw.split(',')
                 .map(w => w.trim().toUpperCase())
@@ -491,7 +533,7 @@
             // Reset State
             State.grid = Array(size).fill(null).map(() => Array(size).fill(''));
             State.solutions.clear();
-            State.validWords = new Set(words);
+            State.validWords = new Set(); // Cleared here
             State.foundWords.clear();
             State.isActive = true;
             State.selectionStart = null;
@@ -505,10 +547,13 @@
             words.forEach(word => {
                 if(placeWordInGrid(word, size)) {
                     placedWords.push(word);
-                    State.validWords.add(word); // Ensure only placed words are valid
+                    State.validWords.add(word); 
                 }
             });
             State.totalWords = placedWords.length;
+            
+            // Hide empty state
+            DOM.emptyState.classList.add('hidden');
 
             // 2. Fill Empty
             const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -576,10 +621,17 @@
             DOM.grid.style.gridTemplateColumns = `repeat(${size}, minmax(0, 1fr))`;
             DOM.grid.innerHTML = '';
             
+            // Calculate appropriate font size based on grid size
+            const baseFontSize = 1.8; // Default text-xl is ~1.25rem = 20px
+            let fontSize = baseFontSize;
+            if (size > 12) fontSize = 1; // text-lg
+            if (size > 14) fontSize = 0.875; // text-base
+            
             for(let r=0; r<size; r++) {
                 for(let c=0; c<size; c++) {
                     const cell = document.createElement('div');
-                    cell.className = 'grid-cell aspect-square text-sm md:text-xl transition-all duration-200';
+                    cell.className = 'grid-cell aspect-square transition-all duration-200';
+                    cell.style.fontSize = `${fontSize}rem`;
                     cell.innerText = State.grid[r][c];
                     cell.dataset.r = r;
                     cell.dataset.c = c;
@@ -664,6 +716,9 @@
                 Sound.error();
                 end.el.classList.add('error');
                 setTimeout(() => end.el.classList.remove('error'), 400);
+                start.el.classList.add('error');
+                setTimeout(() => start.el.classList.remove('error'), 400);
+                clearSelection();
                 return;
             }
 
@@ -777,8 +832,19 @@
             clearSelection();
         }
 
-        // Init
-        document.getElementById('setup-btn').click();
+        // --- INITIALIZATION ---
+        function initializeApplication() {
+            // 1. Load saved settings
+            loadInputs();
+            
+            // 2. Auto-open setup modal
+            DOM.modals.setup.classList.remove('hidden');
+
+            // Ensure empty state is visible until puzzle is generated
+            DOM.emptyState.classList.remove('hidden');
+        }
+        
+        window.onload = initializeApplication;
 
     </script>
 </body>
