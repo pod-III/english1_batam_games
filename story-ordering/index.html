@@ -178,7 +178,7 @@
     
     <!-- Game Header Bar -->
     <header class="h-16 flex items-center justify-between px-4 md:px-8 bg-dark/95 border-b border-white/10 shrink-0 shadow-lg animate-slide-down">
-        <h1 class="text-xl md:text-2xl font-heading tracking-wider text-teal-400">STORY ORDER</h1>
+        <h1 class="text-xl md:text-2xl font-heading tracking-wider text-green">STORY ORDER</h1>
         <div class="flex items-center space-x-3">
             <button id="restart-btn" class="p-2 text-gray-400 hover:text-white transition-colors rounded-full hover:bg-surface/50" title="Restart Game">
                 <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
@@ -240,6 +240,9 @@
 
 
     <script>
+        // --- LOCAL STORAGE KEY ---
+        const LS_KEY_STORY = 'storyOrderSentences';
+        
         // DOM Elements
         const setupModal = document.getElementById('setup-modal');
         const gameSectionEl = document.getElementById('game-section-el');
@@ -258,14 +261,46 @@
         let audioEnabled = true; 
         let draggedItem = null;
 
-        // --- AUDIO AND EFFECTS ---
-        let correctSynth = new Tone.MembraneSynth().toDestination();
-        let incorrectSynth = new Tone.NoiseSynth({
-            noise: { type: 'pink' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }
-        }).toDestination();
+        // --- PERSISTENCE ---
 
+        function saveStory(text) {
+             try {
+                localStorage.setItem(LS_KEY_STORY, text);
+            } catch (e) {
+                console.error("Could not save story to local storage:", e);
+            }
+        }
+
+        function loadStory() {
+            try {
+                const savedStory = localStorage.getItem(LS_KEY_STORY);
+                if (savedStory) {
+                    storyInput.value = savedStory;
+                }
+            } catch (e) {
+                console.error("Could not load story from local storage:", e);
+            }
+        }
+
+
+        // --- AUDIO AND EFFECTS ---
+        let correctSynth;
+        let incorrectSynth;
+        
+        async function initAudio() {
+            try {
+                 await Tone.start();
+                 correctSynth = new Tone.MembraneSynth().toDestination();
+                 incorrectSynth = new Tone.NoiseSynth({
+                     noise: { type: 'pink' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }
+                 }).toDestination();
+            } catch(e) {
+                console.warn("Audio context not supported or failed to initialize.");
+            }
+        }
+        
         function playCorrect() {
-            if (audioEnabled) {
+            if (audioEnabled && correctSynth) {
                 correctSynth.triggerAttackRelease("C4", "8n");
                 correctSynth.triggerAttackRelease("E4", "8n", "+0.05");
                 correctSynth.triggerAttackRelease("G4", "8n", "+0.1");
@@ -273,7 +308,7 @@
         }
 
         function playIncorrect() {
-            if (audioEnabled) {
+            if (audioEnabled && incorrectSynth) {
                 incorrectSynth.triggerAttackRelease("8n");
             }
         }
@@ -409,6 +444,7 @@
                 // Add success visual cue to cards
                 Array.from(sentencesContainer.children).forEach(card => {
                     card.style.borderLeftColor = 'var(--green)';
+                    card.setAttribute('draggable', false);
                 });
 
             } else {
@@ -455,6 +491,9 @@
             // Split by new line, filter out empty lines, and trim whitespace
             const rawSentences = storyInput.value.split('\n').map(s => s.trim()).filter(s => s.length > 0);
             
+            // Save current input before validation
+            saveStory(storyInput.value);
+
             if (rawSentences.length < 3) {
                 setupError.classList.remove('hidden');
                 playIncorrect();
@@ -468,17 +507,31 @@
         // Presets
         document.querySelectorAll('.preset-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                storyInput.value = e.target.dataset.story.split('. ').join('.\n');
+                const newStory = e.target.dataset.story.split('. ').join('.\n');
+                storyInput.value = newStory;
+                saveStory(newStory); // Save preset content
             });
         });
 
-        // Initialize Lucide icons and open setup modal on load
-        window.onload = function() {
-            lucide.createIcons();
-            // Default story for quick testing
-            storyInput.value = "First, the little seed fell to the ground.\nNext, the rain watered the soil.\nSoon, a small sprout pushed out of the dirt.\nFinally, the sprout grew into a tall, strong flower.";
+        // --- INITIALIZATION ---
+        
+        function initializeApplication() {
+            initAudio();
+
+            // 1. Load saved story
+            loadStory();
+
+            // 2. Attach Auto-Save Hook
+            storyInput.addEventListener('input', (e) => saveStory(e.target.value));
+
+            // 3. Auto-open setup modal
             openSetupModal(); 
-        };
+            
+            // 4. Initialize Icons
+            lucide.createIcons();
+        }
+
+        window.onload = initializeApplication;
 
     </script>
 
