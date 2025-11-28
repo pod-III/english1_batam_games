@@ -114,7 +114,7 @@
         <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div class="bg-gradient-to-br from-green to-blue w-10 h-10 rounded-lg flex items-center justify-center text-xl shadow-lg">
-                    🧩
+                    📝
                 </div>
                 <div>
                     <h1 class="text-2xl font-heading tracking-wider text-white leading-none">SENTENCE BUILDER</h1>
@@ -209,7 +209,7 @@
 
                 <!-- Input -->
                 <div class="space-y-2">
-                    <label class="text-xs font-bold text-orange uppercase tracking-widest">Sentences (One per line or semicolon ; separated)</label>
+                    <label class="text-xs font-bold text-orange uppercase tracking-widest">Sentences (One per line or semicolon ; separated) (Auto-Saved)</label>
                     <textarea id="sentence-input" 
                         class="w-full h-48 bg-dark border border-white/10 rounded-xl p-4 text-white focus:border-blue focus:ring-1 focus:ring-blue outline-none resize-none font-mono text-sm shadow-inner leading-relaxed"
                         placeholder="e.g.&#10;The quick brown fox jumps.&#10;She sells sea shells.&#10;How are you today?"></textarea>
@@ -240,6 +240,9 @@
     </div>
 
     <script>
+        // --- LOCAL STORAGE KEY ---
+        const LS_KEY_SENTENCES = 'sentenceBuilderSentences';
+
         // --- AUDIO ENGINE ---
         let audioEnabled = true;
         const AudioEngine = {
@@ -256,7 +259,7 @@
             },
             playSuccess: () => {
                 if(!audioEnabled) return;
-                const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+                const synth = new Tone.PolySynth().toDestination();
                 synth.triggerAttackRelease(["C4", "E4", "G4"], "16n");
             },
             playWin: () => {
@@ -282,6 +285,27 @@
         const setupModal = document.getElementById('setup-modal');
         const sentenceInput = document.getElementById('sentence-input');
 
+        // --- PERSISTENCE ---
+
+        function saveSentences(text) {
+             try {
+                localStorage.setItem(LS_KEY_SENTENCES, text);
+            } catch (e) {
+                console.error("Could not save sentences to local storage:", e);
+            }
+        }
+
+        function loadSentences() {
+            try {
+                const savedSentences = localStorage.getItem(LS_KEY_SENTENCES);
+                if (savedSentences) {
+                    sentenceInput.value = savedSentences;
+                }
+            } catch (e) {
+                console.error("Could not load sentences from local storage:", e);
+            }
+        }
+
         // --- FUNCTIONS ---
 
         function initIcons() { lucide.createIcons(); }
@@ -301,6 +325,9 @@
 
             if (sentences.length === 0) return;
 
+            // Ensure final save before starting
+            saveSentences(raw);
+            
             setupModal.classList.add('hidden');
             document.getElementById('empty-state').classList.add('hidden');
             document.getElementById('game-area').classList.remove('hidden');
@@ -314,7 +341,7 @@
 
         function loadSentence() {
             const sentence = sentences[currentIndex];
-            // Split into words
+            // Split into words, preserving surrounding spaces if any (though usually removed by trim)
             const words = sentence.split(/\s+/);
             
             const shuffled = shuffleArray([...words]);
@@ -355,8 +382,8 @@
             const userSentence = currentWords.join(' ');
             const targetSentence = sentences[currentIndex];
 
-            // Normalize for loose checking (optional, currently strict)
-            if (userSentence === targetSentence) {
+            // Normalize spacing/capitalization for comparison (strict check remains)
+            if (userSentence.trim() === targetSentence.trim()) {
                 // Correct
                 AudioEngine.playSuccess();
                 feedbackMsg.innerHTML = `<span class="text-green flex items-center gap-2"><i data-lucide="check"></i> Correct!</span>`;
@@ -425,8 +452,9 @@
 
         document.querySelectorAll('.preset-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                // Replace formatted breaks with newlines for textarea
-                sentenceInput.value = e.target.dataset.text.replace(/; /g, '\n');
+                const text = e.target.dataset.text.replace(/; /g, '\n');
+                sentenceInput.value = text;
+                saveSentences(text); // Save preset on load
             });
         });
 
@@ -436,9 +464,27 @@
             e.currentTarget.innerHTML = `<i data-lucide="${icon}" class="w-5 h-5"></i>`;
             initIcons();
         });
+        
+        // --- INITIALIZATION ---
+        
+        function initializeApplication() {
+            // 1. Load saved sentences
+            loadSentences();
 
-        // Initialize
-        initIcons();
+            // 2. Attach Auto-Save Hook to the input event
+            sentenceInput.addEventListener('input', (e) => saveSentences(e.target.value));
+
+            // 3. Auto-open setup modal
+            document.getElementById('setup-btn').click(); 
+            
+            // 4. Initialize Icons
+            initIcons();
+            
+            // 5. Ensure the input gets focus initially
+            sentenceInput.focus();
+        }
+
+        window.onload = initializeApplication;
 
     </script>
 </body>
