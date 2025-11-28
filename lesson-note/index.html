@@ -3,16 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lesson Notes - English 1</title>
+    <title>Lesson Notes - English 1 Batam</title>
     
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
     <!-- Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <!-- Quill Rich Text Editor -->
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
     
     <script>
         tailwind.config = {
@@ -35,22 +40,11 @@
                     },
                     animation: {
                         'fade-in': 'fadeIn 0.2s ease-out',
-                        'slide-in': 'slideIn 0.3s ease-out',
-                        'pop-in': 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                        'pop': 'popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
                     },
                     keyframes: {
-                        fadeIn: {
-                            '0%': { opacity: '0' },
-                            '100%': { opacity: '1' },
-                        },
-                        slideIn: {
-                            '0%': { transform: 'translateX(-20px)', opacity: '0' },
-                            '100%': { transform: 'translateX(0)', opacity: '1' },
-                        },
-                        popIn: {
-                            '0%': { transform: 'scale(0.9)', opacity: '0' },
-                            '100%': { transform: 'scale(1)', opacity: '1' },
-                        }
+                        fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+                        popIn: { '0%': { transform: 'scale(0.9)' }, '100%': { transform: 'scale(1)' } }
                     }
                 }
             }
@@ -60,136 +54,234 @@
     <style>
         body {
             background-color: #0f172a;
-            color: white;
+            color: #e2e8f0;
             font-family: 'Nunito', sans-serif;
-            overflow: hidden; /* App-like feel */
+            overflow: hidden;
         }
 
-        .glass-panel {
+        /* Glassmorphism Utilities */
+        .glass {
             background: rgba(30, 41, 59, 0.7);
             backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        .note-item.active {
-            background: rgba(41, 121, 255, 0.15);
-            border-left: 4px solid #2979FF;
-        }
-
-        /* Custom Scrollbar */
+        /* Scrollbar Styling */
         ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #475569; }
 
+        /* Note List Item Styles */
+        .note-item {
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+        .note-item:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+        .note-item.active {
+            background: rgba(41, 121, 255, 0.1);
+            border-left-color: #2979FF;
+        }
+        .note-item.active h3 { color: #60a5fa; } /* blue-400 */
+
+        /* Editor Input Clean Reset */
         .editor-input {
             background: transparent;
             border: none;
             outline: none;
             width: 100%;
         }
+
+        /* Loading Overlay */
+        #loading-overlay.active { display: flex; }
+
+        /* --- QUILL EDITOR CUSTOMIZATION --- */
+        .ql-toolbar.ql-snow {
+            border: none !important;
+            border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+            padding: 16px 32px !important;
+            background: rgba(15, 23, 42, 0.5); /* Semi-transparent dark */
+        }
+        
+        .ql-container.ql-snow {
+            border: none !important;
+            font-family: 'Nunito', sans-serif !important;
+            font-size: 1.1rem !important;
+        }
+        
+        .ql-editor {
+            padding: 2rem 2rem 4rem 2rem !important; /* Extra bottom padding */
+            color: #cbd5e1; /* slate-300 */
+            line-height: 1.7;
+        }
+        
+        .ql-editor.ql-blank::before {
+            color: #475569 !important; /* slate-600 */
+            font-style: italic;
+        }
+
+        /* Toolbar Icons */
+        .ql-snow .ql-stroke { stroke: #64748b !important; transition: stroke 0.2s; }
+        .ql-snow .ql-fill { fill: #64748b !important; transition: fill 0.2s; }
+        .ql-snow .ql-picker { color: #64748b !important; }
+        .ql-snow .ql-button:hover .ql-stroke { stroke: #e2e8f0 !important; }
+        .ql-snow .ql-button:hover .ql-fill { fill: #e2e8f0 !important; }
+        .ql-snow .ql-button.ql-active .ql-stroke { stroke: #2979FF !important; }
+        .ql-snow .ql-button.ql-active .ql-fill { fill: #2979FF !important; }
+        .ql-snow .ql-picker-options { background-color: #1e293b !important; border: 1px solid rgba(255,255,255,0.1) !important; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5) !important; }
+
+        /* Smooth Width Transition for Sidebar & TOC */
+        #sidebar, #toc-sidebar {
+            transition-property: width, transform, opacity;
+            transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+            transition-duration: 500ms;
+        }
+        
+        /* TOC Styles */
+        .toc-link {
+            transition: all 0.2s;
+            border-left: 2px solid transparent;
+        }
+        .toc-link:hover {
+            color: #60a5fa; /* blue-400 */
+            border-left-color: #60a5fa;
+            background: rgba(255,255,255,0.03);
+        }
+        .toc-link-h1 { padding-left: 1rem; font-weight: 700; color: #e2e8f0; }
+        .toc-link-h2 { padding-left: 2rem; font-weight: 500; color: #94a3b8; font-size: 0.9em; }
+        .toc-link-h3 { padding-left: 3rem; font-weight: 400; color: #64748b; font-size: 0.85em; }
     </style>
 </head>
-<body class="h-screen flex flex-col">
+<body class="h-screen flex flex-col bg-dark selection:bg-blue/30 selection:text-white">
 
     <!-- HEADER -->
-    <header class="h-16 border-b border-white/10 glass-panel flex items-center justify-between px-6 shrink-0 z-20">
+    <header class="h-16 glass flex items-center justify-between px-6 shrink-0 z-30 relative">
         <div class="flex items-center gap-3">
-            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-pink to-orange flex items-center justify-center shadow-lg">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-pink to-orange flex items-center justify-center shadow-lg shadow-orange/20">
                 <i data-lucide="notebook-pen" class="w-5 h-5 text-white"></i>
             </div>
-            <div>
-                <h1 class="text-xl font-heading tracking-wider">Lesson Notes</h1>
-                <p class="text-[10px] text-gray-400 font-bold tracking-widest uppercase">English 1 Batam</p>
+            <div class="flex flex-col">
+                <h1 class="text-xl font-heading tracking-wider leading-none text-white">Lesson Notes</h1>
+                <p class="text-[10px] text-blue font-bold tracking-[0.2em] uppercase leading-none mt-1">English 1 Batam</p>
             </div>
         </div>
 
-        <div class="flex items-center gap-3">
-            <span id="save-status" class="text-xs font-bold text-green flex items-center gap-1 opacity-0 transition-opacity duration-500">
-                <i data-lucide="check" class="w-3 h-3"></i> Saved locally
-            </span>
-            <div class="h-6 w-px bg-white/10 mx-2"></div>
-            <button onclick="NoteApp.UI.toggleSidebar()" class="md:hidden p-2 hover:bg-white/10 rounded-lg text-gray-400">
+        <div class="flex items-center gap-4">
+            <!-- Auto Save Indicator -->
+            <div id="save-status" class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-green/10 border border-green/20 opacity-0 transition-opacity duration-500">
+                <div class="w-1.5 h-1.5 rounded-full bg-green animate-pulse"></div>
+                <span class="text-[10px] font-bold text-green uppercase tracking-wider">Saved</span>
+            </div>
+
+            <div class="h-6 w-px bg-white/10 mx-1 hidden md:block"></div>
+            
+            <!-- Outline Toggle: preventDefault on mousedown prevents focus loss from editor -->
+            <button onmousedown="event.preventDefault()" onclick="NoteApp.UI.toggleTOC()" class="p-2 hover:bg-white/5 rounded-lg text-gray-400 transition-colors tooltip flex items-center gap-2" title="Table of Contents">
+                 <i data-lucide="list" class="w-5 h-5"></i>
+                 <span class="text-xs font-bold uppercase hidden md:inline">Outline</span>
+            </button>
+            
+            <button onclick="NoteApp.UI.toggleSidebar()" class="md:hidden p-2 hover:bg-white/5 rounded-lg text-gray-400 transition-colors">
                 <i data-lucide="menu" class="w-5 h-5"></i>
             </button>
         </div>
     </header>
 
-    <!-- MAIN APP LAYOUT -->
+    <!-- MAIN LAYOUT -->
     <div class="flex flex-1 overflow-hidden relative">
         
-        <!-- SIDEBAR (Note List) -->
-        <aside id="sidebar" class="w-full md:w-80 bg-panel border-r border-white/5 flex flex-col absolute md:relative z-10 h-full transform transition-transform duration-300 md:translate-x-0 -translate-x-full">
-            
-            <!-- Search / New Note -->
-            <div class="p-4 border-b border-white/5 space-y-3">
-                <button onclick="NoteApp.Logic.createNote()" class="w-full bg-blue hover:bg-blue/90 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue/20 transition-all active:scale-95">
-                    <i data-lucide="plus" class="w-5 h-5"></i> New Note
+        <!-- SIDEBAR (LEFT) -->
+        <aside id="sidebar" class="w-full md:w-80 bg-panel border-r border-white/5 flex flex-col absolute md:relative z-20 h-full transform transition-all duration-500 md:translate-x-0 -translate-x-full shadow-2xl md:shadow-none overflow-hidden">
+            <div class="p-5 border-b border-white/5 flex flex-col gap-4 items-center shrink-0">
+                <button onclick="NoteApp.Logic.createNote()" class="group w-full bg-gradient-to-r from-pink to-orange hover:from-pink/90 hover:to-orange/90 text-white py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-orange/20 transition-all active:scale-[0.98]">
+                    <i data-lucide="plus" class="w-5 h-5 transition-transform duration-300 group-hover:rotate-90"></i> 
+                    <span class="whitespace-nowrap">New Note</span>
                 </button>
-                <div class="relative">
-                    <i data-lucide="search" class="absolute left-3 top-2.5 w-4 h-4 text-gray-500"></i>
+                <div class="relative group w-full">
+                    <i data-lucide="search" class="absolute left-3.5 top-3 w-4 h-4 text-gray-500 group-focus-within:text-blue transition-colors"></i>
                     <input type="text" id="search-input" onkeyup="NoteApp.UI.renderList()" 
-                        class="w-full bg-dark/50 border border-white/10 rounded-lg py-2 pl-9 pr-3 text-sm text-gray-300 placeholder-gray-600 focus:border-blue focus:outline-none transition-colors"
-                        placeholder="Search notes...">
+                        class="w-full bg-dark/50 border border-white/5 rounded-xl py-2.5 pl-10 pr-4 text-sm text-gray-300 placeholder-gray-600 focus:border-blue/50 focus:ring-1 focus:ring-blue/50 focus:outline-none transition-all"
+                        placeholder="Search lessons...">
                 </div>
             </div>
-
-            <!-- List Container -->
-            <div id="note-list" class="flex-1 overflow-y-auto p-2 space-y-1">
-                <!-- Notes injected here -->
-            </div>
-            
-            <!-- Sidebar Footer -->
-            <div class="p-3 text-center border-t border-white/5">
-                <p class="text-[10px] text-gray-500">Data saved to browser storage</p>
+            <div id="note-list" class="flex-1 overflow-y-auto p-3 space-y-1 w-full"></div>
+            <div class="p-4 text-center border-t border-white/5 bg-panel/50 shrink-0">
+                <p class="text-[10px] text-gray-500 font-mono flex items-center justify-center gap-2 whitespace-nowrap">
+                    <i data-lucide="hard-drive" class="w-3 h-3"></i> Local Storage
+                </p>
             </div>
         </aside>
 
-        <!-- EDITOR AREA -->
-        <main class="flex-1 flex flex-col bg-dark relative w-full">
-            
-            <!-- Empty State -->
-            <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center text-gray-600 hidden">
-                <i data-lucide="file-plus" class="w-16 h-16 mb-4 opacity-20"></i>
-                <p>Select a note or create a new one.</p>
+        <!-- EDITOR AREA (CENTER) -->
+        <main class="flex-1 flex flex-col bg-dark relative w-full z-10 transition-all duration-500">
+            <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center text-gray-600 hidden animate-fade-in">
+                <div class="w-20 h-20 rounded-full bg-panel border border-white/5 flex items-center justify-center mb-6 shadow-inner">
+                    <i data-lucide="pen-tool" class="w-8 h-8 text-gray-700"></i>
+                </div>
+                <h2 class="text-xl font-bold text-gray-500 mb-2">No Lesson Selected</h2>
+                <p class="text-sm text-gray-600">Select a note from the sidebar or create a new one.</p>
             </div>
 
-            <!-- Editor Content -->
-            <div id="editor-container" class="flex-1 flex flex-col h-full hidden">
-                <!-- Title Bar -->
-                <div class="px-8 pt-8 pb-4 flex gap-4 items-start">
+            <div id="editor-container" class="flex-1 flex flex-col h-full hidden animate-fade-in">
+                <div class="px-8 pt-8 pb-2 flex gap-6 items-start shrink-0">
                     <input type="text" id="note-title" placeholder="Untitled Lesson" 
-                        class="editor-input text-4xl font-heading tracking-wide text-white placeholder-gray-600"
+                        class="editor-input text-4xl font-heading tracking-wide text-white placeholder-gray-700 caret-pink"
                         oninput="NoteApp.Logic.updateActiveNote()">
-                    
-                    <button onclick="NoteApp.Logic.deleteActiveNote()" class="p-2 hover:bg-red-500/10 text-gray-500 hover:text-red-500 rounded-lg transition-colors" title="Delete Note">
-                        <i data-lucide="trash-2" class="w-5 h-5"></i>
-                    </button>
+                    <div class="flex gap-1 shrink-0 bg-panel border border-white/5 rounded-lg p-1">
+                        <button onclick="NoteApp.Logic.exportPDF()" class="p-2 hover:bg-blue/10 text-gray-400 hover:text-blue rounded-md transition-colors tooltip" title="Export PDF">
+                            <i data-lucide="download" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="NoteApp.Logic.deleteActiveNote()" class="p-2 hover:bg-red-500/10 text-gray-400 hover:text-red-400 rounded-md transition-colors tooltip" title="Delete">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
                 </div>
-
-                <!-- Meta Info -->
-                <div class="px-8 pb-4 flex items-center gap-4 text-xs text-gray-500 font-mono border-b border-white/5">
-                    <span id="note-date">Created: --</span>
-                    <span>|</span>
-                    <span id="word-count">0 words</span>
+                <div class="px-9 pb-4 flex items-center gap-4 text-[11px] text-gray-500 font-bold uppercase tracking-widest border-b border-white/5">
+                    <span id="note-date">--</span>
+                    <span class="text-gray-700">•</span>
+                    <span id="word-count" class="text-blue">0 words</span>
                 </div>
-
-                <!-- Text Area -->
-                <textarea id="note-content" placeholder="Start typing your lesson plan here..." 
-                    class="flex-1 w-full bg-transparent border-none outline-none p-8 text-lg text-gray-300 leading-relaxed resize-none font-body placeholder-gray-700"
-                    oninput="NoteApp.Logic.updateActiveNote()"></textarea>
+                <div class="flex-1 flex flex-col overflow-hidden relative">
+                    <div id="editor" class="h-full"></div>
+                </div>
             </div>
         </main>
+
+        <!-- TOC SIDEBAR (RIGHT) -->
+        <aside id="toc-sidebar" class="w-0 opacity-0 bg-panel border-l border-white/5 flex flex-col relative z-20 h-full shadow-none overflow-hidden transition-all duration-500">
+            <div class="p-4 border-b border-white/5 bg-panel/50">
+                <h3 class="font-bold text-gray-400 uppercase tracking-widest text-xs flex items-center gap-2">
+                    <i data-lucide="list-tree" class="w-3 h-3"></i> Outline
+                </h3>
+            </div>
+            <div id="toc-list" class="flex-1 overflow-y-auto p-2 space-y-1">
+                <!-- TOC Items injected here -->
+            </div>
+        </aside>
+
     </div>
 
-    <!-- DELETE CONFIRMATION MODAL -->
-    <div id="delete-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
-        <div class="bg-panel border border-white/10 p-6 rounded-2xl shadow-2xl max-w-sm w-full mx-4 animate-pop-in">
-            <h3 class="text-xl font-bold text-white mb-2">Delete Note?</h3>
-            <p class="text-gray-400 text-sm mb-6">This action cannot be undone. Are you sure you want to remove this lesson plan?</p>
+    <!-- LOADING OVERLAY & MODALS -->
+    <div id="loading-overlay" class="fixed inset-0 z-[60] hidden bg-black/80 backdrop-blur-md flex flex-col items-center justify-center animate-fade-in">
+        <div class="relative w-16 h-16 mb-4">
+            <div class="absolute inset-0 border-4 border-surface rounded-full"></div>
+            <div class="absolute inset-0 border-4 border-blue border-t-transparent rounded-full animate-spin"></div>
+        </div>
+        <p class="text-white font-heading text-xl tracking-wider">Generating PDF...</p>
+    </div>
+
+    <div id="delete-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in">
+        <div class="bg-panel border border-white/10 p-6 rounded-2xl shadow-2xl max-w-sm w-full mx-6 animate-pop">
+            <div class="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
+                <i data-lucide="alert-triangle" class="w-6 h-6 text-red-500"></i>
+            </div>
+            <h3 class="text-xl font-bold text-white mb-2">Delete Lesson Note?</h3>
+            <p class="text-gray-400 text-sm mb-6 leading-relaxed">This action will permanently remove this note from your local storage. This cannot be undone.</p>
             <div class="flex justify-end gap-3">
-                <button onclick="NoteApp.UI.hideModal()" class="px-4 py-2 rounded-lg text-gray-300 hover:bg-white/5 transition-colors font-bold text-sm">Cancel</button>
-                <button onclick="NoteApp.Logic.confirmDelete()" class="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20 transition-all active:scale-95 font-bold text-sm">Delete</button>
+                <button onclick="NoteApp.UI.hideModal()" class="px-5 py-2.5 rounded-xl text-gray-400 hover:bg-white/5 hover:text-white transition-colors font-bold text-xs uppercase tracking-wide">Cancel</button>
+                <button onclick="NoteApp.Logic.confirmDelete()" class="px-5 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white shadow-lg shadow-red-500/20 transition-all active:scale-95 font-bold text-xs uppercase tracking-wide">Delete</button>
             </div>
         </div>
     </div>
@@ -197,15 +289,15 @@
     <!-- JAVASCRIPT LOGIC -->
     <script>
         const NoteApp = (function() {
-            
+            let quill; 
+
             // --- STATE ---
-            const State = {
-                notes: [],
+            const State = { 
+                notes: [], 
                 activeNoteId: null,
-                searchQuery: ''
+                isTOCOpen: false
             };
 
-            // --- HELPER: XSS Protection ---
             const escapeHtml = (unsafe) => {
                 if (!unsafe) return "";
                 return unsafe
@@ -216,9 +308,15 @@
                      .replace(/'/g, "&#039;");
             };
 
+            const stripHtml = (html) => {
+                let tmp = document.createElement("DIV");
+                tmp.innerHTML = html;
+                return tmp.textContent || tmp.innerText || "";
+            }
+
             // --- PERSISTENCE ---
             const Storage = {
-                KEY: 'english1_lesson_notes_v1',
+                KEY: 'english1_lesson_notes_v2',
                 save: () => {
                     localStorage.setItem(Storage.KEY, JSON.stringify(State.notes));
                     UI.showSaveStatus();
@@ -227,7 +325,6 @@
                     const data = localStorage.getItem(Storage.KEY);
                     if (data) {
                         State.notes = JSON.parse(data);
-                        // Sort by date modified (newest first)
                         State.notes.sort((a, b) => b.updatedAt - a.updatedAt);
                     }
                 }
@@ -242,52 +339,45 @@
                         content: '',
                         updatedAt: Date.now()
                     };
-                    State.notes.unshift(newNote); // Add to top
+                    State.notes.unshift(newNote);
                     State.activeNoteId = newNote.id;
                     Storage.save();
                     UI.renderList();
                     UI.loadEditor(newNote.id);
-                    
-                    // Auto focus title on mobile create
                     if(window.innerWidth < 768) UI.toggleSidebar();
                     document.getElementById('note-title').focus();
                 },
 
                 updateActiveNote: () => {
                     if (!State.activeNoteId) return;
-
                     const note = State.notes.find(n => n.id === State.activeNoteId);
                     if (!note) return;
 
                     const titleInput = document.getElementById('note-title');
-                    const contentInput = document.getElementById('note-content');
+                    const htmlContent = quill.root.innerHTML;
+                    const isEmpty = quill.getText().trim().length === 0;
 
                     note.title = titleInput.value;
-                    note.content = contentInput.value;
+                    note.content = isEmpty ? '' : htmlContent;
                     note.updatedAt = Date.now();
 
-                    // Move to top of list
                     State.notes.sort((a, b) => b.updatedAt - a.updatedAt);
                     
                     Storage.save();
-                    UI.renderList(false); // Update list titles without losing focus
+                    UI.renderList(false);
                     UI.updateMeta(note);
+                    UI.renderTOC(); 
                 },
 
                 setActiveNote: (id) => {
                     State.activeNoteId = id;
                     UI.renderList();
                     UI.loadEditor(id);
-                    if(window.innerWidth < 768) UI.toggleSidebar(); // Close sidebar on mobile select
+                    if(window.innerWidth < 768) UI.toggleSidebar();
                 },
 
-                // Step 1: Trigger Modal
-                deleteActiveNote: () => {
-                    if (!State.activeNoteId) return;
-                    UI.showModal();
-                },
+                deleteActiveNote: () => UI.showModal(),
 
-                // Step 2: Confirm and Delete
                 confirmDelete: () => {
                     State.notes = State.notes.filter(n => n.id !== State.activeNoteId);
                     State.activeNoteId = null;
@@ -295,14 +385,103 @@
                     UI.renderList();
                     UI.resetEditor();
                     UI.hideModal();
+                },
+
+                exportPDF: () => {
+                    if (!State.activeNoteId) return;
+                    const note = State.notes.find(n => n.id === State.activeNoteId);
+                    if (!note) return;
+
+                    document.getElementById('loading-overlay').classList.add('active');
+
+                    // PDF Content Generation
+                    const tempContainer = document.createElement('div');
+                    tempContainer.style.padding = '40px';
+                    tempContainer.style.color = '#000000';
+                    tempContainer.style.background = '#ffffff';
+                    tempContainer.style.fontFamily = 'Helvetica, sans-serif';
+                    
+                    tempContainer.innerHTML = `
+                        <div style="border-bottom: 2px solid #2979FF; padding-bottom: 20px; margin-bottom: 30px;">
+                            <h1 style="font-size: 28px; font-weight: bold; margin: 0; color: #1e293b;">
+                                ${escapeHtml(note.title) || 'Untitled Lesson'}
+                            </h1>
+                            <div style="margin-top: 10px; color: #64748b; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">
+                                ${UI.formatDate(note.updatedAt)} • English 1 Batam
+                            </div>
+                        </div>
+                        <div class="pdf-content" style="font-size: 14px; line-height: 1.8; color: #334155;">
+                            ${note.content}
+                        </div>
+                    `;
+
+                    const style = document.createElement('style');
+                    style.innerHTML = `
+                        .pdf-content h1 { font-size: 22px; font-weight: bold; margin-top: 25px; margin-bottom: 10px; color: #0f172a; }
+                        .pdf-content h2 { font-size: 18px; font-weight: bold; margin-top: 20px; margin-bottom: 10px; color: #0f172a; border-left: 4px solid #FF8C42; padding-left: 10px; }
+                        .pdf-content h3 { font-size: 16px; font-weight: bold; margin-top: 15px; margin-bottom: 5px; }
+                        .pdf-content ul { margin-left: 20px; margin-bottom: 15px; }
+                        .pdf-content ol { margin-left: 20px; margin-bottom: 15px; }
+                        .pdf-content li { margin-bottom: 5px; }
+                        .pdf-content p { margin-bottom: 15px; }
+                    `;
+                    tempContainer.appendChild(style);
+
+                    const opt = {
+                        margin:       0.5,
+                        filename:     `${note.title || 'lesson-plan'}.pdf`,
+                        image:        { type: 'jpeg', quality: 0.98 },
+                        html2canvas:  { scale: 2, useCORS: true },
+                        jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+                    };
+
+                    setTimeout(() => {
+                        html2pdf().set(opt).from(tempContainer).save().then(() => {
+                            document.getElementById('loading-overlay').classList.remove('active');
+                        }).catch(err => {
+                            console.error(err);
+                            alert("Export failed.");
+                            document.getElementById('loading-overlay').classList.remove('active');
+                        });
+                    }, 500);
                 }
             };
 
             // --- UI ---
             const UI = {
                 init: () => {
+                    quill = new Quill('#editor', {
+                        theme: 'snow',
+                        placeholder: 'Start typing your lesson plan here...',
+                        modules: {
+                            toolbar: [
+                                [{ 'header': [1, 2, 3, false] }],
+                                ['bold', 'italic', 'underline', 'strike'],
+                                [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                                [{ 'indent': '-1'}, { 'indent': '+1' }],
+                                [{ 'color': [] }, { 'background': [] }],
+                                ['clean']
+                            ]
+                        }
+                    });
+
+                    quill.on('text-change', () => Logic.updateActiveNote());
+
+                    const titleInput = document.getElementById('note-title');
+                    const handleInteraction = () => UI.setFocusMode(true);
+                    const handleBlur = () => UI.setFocusMode(false);
+                    
+                    // Added PASTE event listener
+                    titleInput.addEventListener('input', handleInteraction);
+                    quill.root.addEventListener('keydown', handleInteraction);
+                    quill.root.addEventListener('paste', handleInteraction);
+                    
+                    titleInput.addEventListener('blur', handleBlur);
+                    quill.root.addEventListener('blur', handleBlur);
+
                     Storage.load();
                     UI.renderList();
+                    
                     if (State.notes.length > 0) {
                         UI.loadEditor(State.notes[0].id);
                     } else {
@@ -311,23 +490,82 @@
                     lucide.createIcons();
                 },
 
+                // UPDATED: Zen Mode Logic
+                focusTimeout: null,
+                setFocusMode: (isActive) => {
+                    clearTimeout(UI.focusTimeout);
+                    UI.focusTimeout = setTimeout(() => {
+                        const sidebar = document.getElementById('sidebar');
+                        const tocSidebar = document.getElementById('toc-sidebar');
+                        
+                        if (isActive) {
+                            // HIDE Left Sidebar (Files)
+                            sidebar.classList.remove('md:w-80');
+                            sidebar.classList.add('md:w-0', 'md:opacity-0', 'md:border-none');
+                            
+                            // DO NOT HIDE Right Sidebar (TOC) automatically anymore
+                            // If it's open, keep it open as context. If closed, keep it closed.
+                        } else {
+                            // RESTORE Left Sidebar
+                            sidebar.classList.add('md:w-80');
+                            sidebar.classList.remove('md:w-0', 'md:opacity-0', 'md:border-none');
+                        }
+                    }, 200);
+                },
+
                 toggleSidebar: () => {
                     const sidebar = document.getElementById('sidebar');
-                    const isHidden = sidebar.classList.contains('-translate-x-full');
-                    if (isHidden) {
-                        sidebar.classList.remove('-translate-x-full');
+                    sidebar.classList.toggle('-translate-x-full');
+                },
+
+                // --- TOC LOGIC ---
+                toggleTOC: () => {
+                    State.isTOCOpen = !State.isTOCOpen;
+                    const tocSidebar = document.getElementById('toc-sidebar');
+                    
+                    if (State.isTOCOpen) {
+                        tocSidebar.classList.add('w-64', 'opacity-100');
+                        tocSidebar.classList.remove('w-0', 'opacity-0');
                     } else {
-                        sidebar.classList.add('-translate-x-full');
+                        tocSidebar.classList.remove('w-64', 'opacity-100');
+                        tocSidebar.classList.add('w-0', 'opacity-0');
                     }
                 },
 
-                showModal: () => {
-                    document.getElementById('delete-modal').classList.remove('hidden');
+                renderTOC: () => {
+                    const tocList = document.getElementById('toc-list');
+                    if (!tocList) return;
+
+                    const headers = quill.root.querySelectorAll('h1, h2, h3');
+                    
+                    if (headers.length === 0) {
+                        tocList.innerHTML = `<p class="text-xs text-gray-600 p-2 italic">No headings found.</p>`;
+                        return;
+                    }
+
+                    tocList.innerHTML = Array.from(headers).map((header, index) => {
+                        const text = header.textContent || "Untitled Section";
+                        const tag = header.tagName.toLowerCase(); 
+                        
+                        return `
+                        <div onclick="NoteApp.UI.scrollToHeading(${index})" 
+                             class="toc-link toc-link-${tag} cursor-pointer py-1.5 pr-2 truncate text-sm hover:bg-white/5 rounded-r-lg select-none">
+                            ${escapeHtml(text)}
+                        </div>
+                        `;
+                    }).join('');
                 },
 
-                hideModal: () => {
-                    document.getElementById('delete-modal').classList.add('hidden');
+                scrollToHeading: (index) => {
+                    const headers = quill.root.querySelectorAll('h1, h2, h3');
+                    if (headers[index]) {
+                        headers[index].scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
                 },
+                // ----------------
+
+                showModal: () => document.getElementById('delete-modal').classList.remove('hidden'),
+                hideModal: () => document.getElementById('delete-modal').classList.add('hidden'),
 
                 showSaveStatus: () => {
                     const el = document.getElementById('save-status');
@@ -337,7 +575,7 @@
 
                 formatDate: (timestamp) => {
                     return new Date(timestamp).toLocaleDateString('en-US', {
-                        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                        month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'
                     });
                 },
 
@@ -345,23 +583,27 @@
                     const listEl = document.getElementById('note-list');
                     const search = document.getElementById('search-input').value.toLowerCase();
                     
-                    // Filter
-                    const filtered = State.notes.filter(n => 
-                        (n.title || '').toLowerCase().includes(search) || 
-                        (n.content || '').toLowerCase().includes(search)
-                    );
+                    const filtered = State.notes.filter(n => {
+                        const plainText = stripHtml(n.content).toLowerCase();
+                        return (n.title || '').toLowerCase().includes(search) || plainText.includes(search);
+                    });
 
-                    listEl.innerHTML = filtered.map(note => {
+                    listEl.innerHTML = filtered.map((note, index) => {
                         const isActive = note.id === State.activeNoteId;
                         const title = escapeHtml(note.title) || 'Untitled Note';
-                        const preview = escapeHtml(note.content.slice(0, 50).replace(/\n/g, ' ')) || 'No content...';
+                        const plainText = stripHtml(note.content);
+                        const preview = plainText.slice(0, 60) + (plainText.length > 60 ? '...' : '') || 'No additional text';
                         
                         return `
                         <div onclick="NoteApp.Logic.setActiveNote(${note.id})" 
-                             class="note-item p-4 rounded-xl cursor-pointer transition-colors hover:bg-white/5 border-l-4 border-transparent ${isActive ? 'active' : ''}">
-                            <h3 class="font-bold text-gray-200 truncate ${!note.title ? 'text-gray-500 italic' : ''}">${title}</h3>
-                            <p class="text-xs text-gray-500 mt-1 truncate">${preview}</p>
-                            <div class="mt-2 text-[10px] text-gray-600 font-mono">${UI.formatDate(note.updatedAt)}</div>
+                             class="note-item p-4 mb-2 rounded-xl cursor-pointer relative overflow-hidden group ${isActive ? 'active' : ''}">
+                            <div class="relative z-10">
+                                <h3 class="font-bold text-sm text-gray-200 truncate group-hover:text-white transition-colors ${!note.title ? 'italic text-gray-500' : ''}">${title}</h3>
+                                <p class="text-[11px] text-gray-500 mt-1 truncate group-hover:text-gray-400 transition-colors">${preview}</p>
+                                <div class="mt-2 text-[10px] text-gray-600 font-mono flex items-center gap-1">
+                                    <span>${UI.formatDate(note.updatedAt).split(',')[0]}</span>
+                                </div>
+                            </div>
                         </div>
                         `;
                     }).join('');
@@ -376,15 +618,18 @@
                     document.getElementById('editor-container').classList.remove('hidden');
 
                     document.getElementById('note-title').value = note.title;
-                    document.getElementById('note-content').value = note.content;
+                    quill.root.innerHTML = note.content;
                     
                     UI.updateMeta(note);
+                    UI.renderTOC(); 
+                    lucide.createIcons(); 
                 },
 
                 updateMeta: (note) => {
-                    const wordCount = (note.content || '').trim().split(/\s+/).filter(w => w.length > 0).length;
-                    document.getElementById('word-count').innerText = `${wordCount} words`;
-                    document.getElementById('note-date').innerText = `Last Edited: ${UI.formatDate(note.updatedAt)}`;
+                    const text = quill.getText();
+                    const wordCount = text.trim().length === 0 ? 0 : text.trim().split(/\s+/).length;
+                    document.getElementById('word-count').innerText = `${wordCount} WORDS`;
+                    document.getElementById('note-date').innerText = `EDITED ${UI.formatDate(note.updatedAt)}`;
                 },
 
                 resetEditor: () => {
@@ -397,7 +642,6 @@
             return { Logic, UI };
         })();
 
-        // Start App
         window.onload = NoteApp.UI.init;
     </script>
 </body>
