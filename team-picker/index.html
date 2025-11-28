@@ -33,12 +33,13 @@
                         mono: ['JetBrains Mono', 'monospace'],
                     },
                     animation: {
-                        'pop': 'pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                        // ADJUSTED: Smoother cubic-bezier and longer duration (0.4s)
+                        'pop': 'pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
                         'slide-up': 'slideUp 0.4s ease-out',
                     },
                     keyframes: {
                         pop: {
-                            '0%': { transform: 'scale(0.8)', opacity: '0' },
+                            '0%': { transform: 'scale(0.9)', opacity: '0' }, // Start slightly bigger for smoother entry
                             '100%': { transform: 'scale(1)', opacity: '1' },
                         },
                         slideUp: {
@@ -89,18 +90,18 @@
 
         /* Member Item Animation */
         .member-item {
-            animation: pop 0.3s forwards;
+            animation: pop 0.4s forwards; /* Updated to 0.4s */
         }
 
-        /* Team Card Colors */
-        .team-card-0 { border-top: 4px solid #FF6B95; }
-        .team-card-1 { border-top: 4px solid #2979FF; }
-        .team-card-2 { border-top: 4px solid #00E676; }
-        .team-card-3 { border-top: 4px solid #FF8C42; }
-        .team-card-4 { border-top: 4px solid #A855F7; }
-        .team-card-5 { border-top: 4px solid #EAB308; }
-        .team-card-6 { border-top: 4px solid #06B6D4; }
-        .team-card-7 { border-top: 4px solid #EC4899; }
+        /* Team Card Colors - Updated to use custom Tailwind colors if possible, otherwise fixed. */
+        .team-card-0 { border-top: 4px solid #FF6B95; } /* Pink */
+        .team-card-1 { border-top: 4px solid #2979FF; } /* Blue */
+        .team-card-2 { border-top: 4px solid #00E676; } /* Green */
+        .team-card-3 { border-top: 4px solid #FF8C42; } /* Orange */
+        .team-card-4 { border-top: 4px solid #A855F7; } /* Purple */
+        .team-card-5 { border-top: 4px solid #EAB308; } /* Yellow */
+        .team-card-6 { border-top: 4px solid #06B6D4; } /* Cyan */
+        .team-card-7 { border-top: 4px solid #EC4899; } /* Deep Pink */
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
@@ -136,12 +137,12 @@
         <div class="w-full md:w-1/3 flex flex-col gap-4">
             <div class="glass-panel p-6 rounded-2xl animate-slide-up">
                 <h2 class="text-xl font-heading text-white mb-4 flex items-center gap-2">
-                    <i data-lucide="users" class="w-5 h-5 text-blue"></i> Players
+                    <i data-lucide="users" class="w-5 h-5 text-blue"></i> Players (Auto-Saved)
                 </h2>
                 
                 <textarea id="name-input" 
                     class="w-full h-48 bg-dark border border-white/10 rounded-xl p-4 text-white focus:border-blue focus:ring-1 focus:ring-blue outline-none resize-none font-mono text-sm shadow-inner mb-4"
-                    placeholder="Enter names here...&#10;Alice&#10;Bob&#10;Charlie&#10;(Separate by new lines or commas)"></textarea>
+                    placeholder="Enter names here...&#10;Alice, Bob, Charlie&#10;or one name per line"></textarea>
 
                 <div class="flex items-center justify-between mb-4 bg-surface/30 p-3 rounded-xl border border-white/5">
                     <span class="text-xs font-bold text-gray-300 uppercase">Total Players</span>
@@ -191,6 +192,9 @@
     </main>
 
     <script>
+        // --- LOCAL STORAGE KEY ---
+        const LS_KEY_PLAYERS = 'teamPickerPlayers';
+
         // --- AUDIO ENGINE ---
         let audioEnabled = true;
         const AudioEngine = {
@@ -230,6 +234,27 @@
         let players = [];
         let isGenerating = false;
 
+        // --- PERSISTENCE ---
+
+        function savePlayers(text) {
+             try {
+                localStorage.setItem(LS_KEY_PLAYERS, text);
+            } catch (e) {
+                console.error("Could not save players to local storage:", e);
+            }
+        }
+
+        function loadPlayers() {
+            try {
+                const savedPlayers = localStorage.getItem(LS_KEY_PLAYERS);
+                if (savedPlayers) {
+                    nameInput.value = savedPlayers;
+                }
+            } catch (e) {
+                console.error("Could not load players from local storage:", e);
+            }
+        }
+
         // --- FUNCTIONS ---
 
         function initIcons() {
@@ -250,6 +275,9 @@
                 playerCountEl.classList.add('text-blue');
                 playerCountEl.classList.remove('text-green');
             }
+            
+            // --- AUTOSAVE HOOK ---
+            savePlayers(text);
         }
 
         function shuffle(array) {
@@ -264,6 +292,10 @@
 
         async function generateTeams() {
             if (isGenerating || players.length === 0) return;
+            
+            // Ensure final save before generating
+            savePlayers(nameInput.value); 
+            
             isGenerating = true;
             generateBtn.disabled = true;
             generateBtn.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> SORTING...`;
@@ -279,6 +311,15 @@
 
             // Create Team Containers
             const teamContainers = [];
+            // Ensure grid adapts to the number of teams for better layout
+            if (numTeams <= 3) {
+                 teamsGrid.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-min';
+            } else if (numTeams <= 6) {
+                 teamsGrid.className = 'grid grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-min';
+            } else {
+                 teamsGrid.className = 'grid grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-min';
+            }
+
             for(let i=0; i<numTeams; i++) {
                 const teamCard = document.createElement('div');
                 teamCard.className = `glass-panel rounded-xl p-4 team-card-${i % 8} animate-pop`;
@@ -302,15 +343,14 @@
             const shuffledPlayers = shuffle([...players]);
 
             // Distribute with Animation
-            // Strategy: Round Robin distribution
             let currentTeamIndex = 0;
             
             for (let i = 0; i < shuffledPlayers.length; i++) {
                 const player = shuffledPlayers[i];
                 const targetList = teamContainers[currentTeamIndex];
                 
-                // Wait for effect
-                await new Promise(r => setTimeout(r, 200)); // Delay between items
+                // ADJUSTED: Reduced delay from 200ms to 150ms for faster flow
+                await new Promise(r => setTimeout(r, 150)); 
                 
                 // Add Element
                 const li = document.createElement('li');
@@ -349,35 +389,30 @@
             let text = "";
             const cards = teamsGrid.querySelectorAll('.glass-panel');
             cards.forEach(card => {
-                const name = card.querySelector('h3 span').innerText;
-                const members = Array.from(card.querySelectorAll('li')).map(li => li.innerText).join(', ');
+                const name = card.querySelector('h3 span').innerText.replace(/\s+\d+$/, ''); // Clean up team name
+                const members = Array.from(card.querySelectorAll('li')).map(li => li.innerText.replace('● ', '').trim()).join(', ');
                 text += `${name}: ${members}\n`;
             });
             
-            navigator.clipboard.writeText(text).then(() => {
-                const originalText = copyBtn.innerHTML;
-                copyBtn.innerHTML = `<i data-lucide="check" class="w-4 h-4 text-green"></i> Copied!`;
+            // Use execCommand('copy') for better iframe compatibility
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+
+            const originalText = copyBtn.innerHTML;
+            copyBtn.innerHTML = `<i data-lucide="check" class="w-4 h-4 text-green"></i> Copied!`;
+            initIcons();
+            setTimeout(() => {
+                copyBtn.innerHTML = originalText;
                 initIcons();
-                setTimeout(() => {
-                    copyBtn.innerHTML = originalText;
-                    initIcons();
-                }, 2000);
-            });
+            }, 2000);
         }
 
-        // --- EVENT LISTENERS ---
-
-        nameInput.addEventListener('input', updatePlayerCount);
-        
-        teamSlider.addEventListener('input', (e) => {
-            teamCountDisplay.innerText = e.target.value;
-        });
-
-        generateBtn.addEventListener('click', generateTeams);
-
-        copyBtn.addEventListener('click', copyToClipboard);
-
-        resetBtn.addEventListener('click', () => {
+        function resetAll() {
+            // Clear UI
             nameInput.value = '';
             teamsGrid.innerHTML = `
                 <div class="col-span-full py-20 text-center opacity-50">
@@ -386,19 +421,41 @@
                 </div>
             `;
             resultsToolbar.classList.add('opacity-0');
-            updatePlayerCount();
-        });
 
-        document.getElementById('sound-toggle').addEventListener('click', (e) => {
-            audioEnabled = !audioEnabled;
-            const icon = audioEnabled ? 'volume-2' : 'volume-x';
-            e.currentTarget.innerHTML = `<i data-lucide="${icon}" class="w-5 h-5"></i>`;
+            // Clear Persistence and State
+            localStorage.removeItem(LS_KEY_PLAYERS);
+            updatePlayerCount(); 
+        }
+
+        // --- INITIALIZATION ---
+        
+        function initializeApplication() {
+            // 1. Load saved players and update count/autosave hook
+            loadPlayers();
+            updatePlayerCount(); 
+
+            // 2. Attach Event Listeners
+            nameInput.addEventListener('input', updatePlayerCount);
+            
+            teamSlider.addEventListener('input', (e) => {
+                teamCountDisplay.innerText = e.target.value;
+            });
+
+            generateBtn.addEventListener('click', generateTeams);
+            copyBtn.addEventListener('click', copyToClipboard);
+            resetBtn.addEventListener('click', resetAll);
+            
+            document.getElementById('sound-toggle').addEventListener('click', (e) => {
+                audioEnabled = !audioEnabled;
+                const icon = audioEnabled ? 'volume-2' : 'volume-x';
+                e.currentTarget.innerHTML = `<i data-lucide="${icon}" class="w-5 h-5"></i>`;
+                initIcons();
+            });
+
             initIcons();
-        });
+        }
 
-        // Init
-        initIcons();
-        updatePlayerCount(); // In case browser remembers input
+        window.onload = initializeApplication;
 
     </script>
 </body>
