@@ -103,7 +103,7 @@
             <p class="text-slate-300">Input a list of words for your students to define, spell, or use in a sentence before the timer runs out. Ideal for quick synonym review.</p>
             
             <div class="input-group">
-                <label for="word-list-input" class="block font-bold text-slate-200 mb-2">Word List (Separate with commas or new lines):</label>
+                <label for="word-list-input" class="block font-bold text-slate-200 mb-2">Word List (Separate with commas or new lines) (Auto-Saved):</label>
                 <textarea id="word-list-input" rows="5" class="w-full bg-dark border-2 border-surface rounded-xl p-4 text-lg focus:border-orange focus:ring-2 focus:ring-orange/50 outline-none transition font-body resize-y" placeholder="e.g., ADJECTIVE, SYNONYM, METAPHOR, ONOMATOPOEIA"></textarea>
             </div>
             
@@ -156,6 +156,11 @@
     </div>
 
     <script>
+        // --- LOCAL STORAGE KEY ---
+        const LS_KEY_WORDS = 'vocabTimerWordList'; // Unique key for this app
+        const LS_KEY_DURATION = 'vocabTimerDuration';
+        const LS_KEY_PREP = 'vocabTimerPrep';
+
         // DOM elements
         const teacherConsoleEl = document.getElementById('teacher-console');
         const wordListInput = document.getElementById('word-list-input');
@@ -216,6 +221,34 @@
         };
 
 
+        // --- PERSISTENCE ---
+
+        function saveInputs() {
+             try {
+                localStorage.setItem(LS_KEY_WORDS, wordListInput.value);
+                localStorage.setItem(LS_KEY_DURATION, roundDurationInput.value);
+                localStorage.setItem(LS_KEY_PREP, prepTimeInput.value);
+            } catch (e) {
+                console.error("Could not save inputs to local storage:", e);
+            }
+        }
+
+        function loadInputs() {
+            try {
+                const savedWords = localStorage.getItem(LS_KEY_WORDS);
+                const savedDuration = localStorage.getItem(LS_KEY_DURATION);
+                const savedPrep = localStorage.getItem(LS_KEY_PREP);
+
+                if (savedWords) wordListInput.value = savedWords;
+                if (savedDuration) roundDurationInput.value = savedDuration;
+                if (savedPrep) prepTimeInput.value = savedPrep;
+                
+            } catch (e) {
+                console.error("Could not load inputs from local storage:", e);
+            }
+        }
+
+
         // Start a new session
         startGameBtn.addEventListener('click', () => {
             // Clean and process input (split by comma or newline)
@@ -231,6 +264,9 @@
                 showErrorModal("Input Error", "Time per word must be at least 5 seconds.");
                 return;
             }
+
+            // Save final values before starting
+            saveInputs();
 
             teacherWords = words;
             currentWordIndex = 0;
@@ -387,10 +423,25 @@
             wordListInput.focus();
         });
         
-        // Initialize focus on load
-        window.onload = () => {
+        // --- INITIALIZATION ---
+        
+        function initializeApplication() {
+            // 1. Load all saved inputs
+            loadInputs();
+            
+            // 2. Attach Auto-Save Hooks to all input fields
+            wordListInput.addEventListener('input', saveInputs);
+            roundDurationInput.addEventListener('input', saveInputs);
+            prepTimeInput.addEventListener('input', saveInputs);
+            
+            // 3. Auto-open setup: The teacher console is already visible by default.
+            gameScreenEl.style.display = 'none';
+            resultsScreenEl.style.display = 'none';
+            teacherConsoleEl.style.display = 'flex';
             wordListInput.focus();
-        };
+        }
+
+        window.onload = initializeApplication;
 
     </script>
 </body>
