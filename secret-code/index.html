@@ -9,11 +9,12 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&family=VT323&display=swap');
 
+        /* English 1 Colors */
         :root {
-            --theme-pink: #FF69B4;
-            --theme-orange: #FF8C00;
-            --theme-green: #32CD32;
-            --theme-blue: #1E90FF;
+            --theme-pink: #FF6B95;
+            --theme-orange: #FF8C42;
+            --theme-green: #00E676;
+            --theme-blue: #2979FF;
         }
 
         body {
@@ -47,7 +48,7 @@
         }
 
         .reveal-btn {
-            box-shadow: 0 4px 0 rgb(180, 20, 60);
+            box-shadow: 0 4px 0 rgb(180, 20, 60); /* Adjusted for pink theme */
         }
         .reveal-btn:active {
             box-shadow: none;
@@ -79,7 +80,7 @@
         <!-- Main Content -->
         <main class="p-6 space-y-6 flex-grow">
 
-            <!-- Instructions Panel (Replaced Decoder) -->
+            <!-- Instructions Panel (Decryption Key) -->
             <div class="bg-gray-800 text-gray-300 p-4 rounded-lg border-2 border-gray-600 shadow-inner flex justify-between items-center">
                 <div>
                     <h3 class="font-bold text-[var(--theme-orange)] uppercase text-sm tracking-wider mb-1">
@@ -166,6 +167,9 @@
 
     <!-- JavaScript Logic -->
     <script>
+        // --- LOCAL STORAGE KEY ---
+        const LS_KEY_WORDS = 'decoderMissionPhrases';
+
         // --- GAME STATE ---
         let missionQueue = []; 
         let currentPhrase = "";
@@ -187,10 +191,26 @@
         const revealBtn = document.getElementById('revealBtn');
         const nextBtn = document.getElementById('nextBtn');
 
-        // --- INITIALIZATION ---
-        window.onload = () => {
-            resetGame();
-        };
+        // --- AUTOSAVE/LOAD FUNCTIONS ---
+
+        function saveWords(wordsString) {
+             try {
+                localStorage.setItem(LS_KEY_WORDS, wordsString);
+            } catch (e) {
+                console.error("Could not save words to local storage:", e);
+            }
+        }
+
+        function loadWords() {
+            try {
+                const savedWords = localStorage.getItem(LS_KEY_WORDS);
+                if (savedWords) {
+                    adminInput.value = savedWords;
+                }
+            } catch (e) {
+                console.error("Could not load words from local storage:", e);
+            }
+        }
 
         // --- LOGIC ---
 
@@ -283,9 +303,6 @@
 
             revealBtn.classList.add('hidden');
             nextBtn.classList.add('hidden');
-            
-            // Re-show admin input after delay or create a "New Game" button?
-            // For now, just stay there until Reset is clicked.
         }
 
         function resetGame() {
@@ -305,7 +322,8 @@
             missionStatusEl.className = "text-[var(--theme-green)]";
             hintTextEl.textContent = "ENTER WORDS TO BEGIN";
             
-            adminInput.value = "";
+            // Reload saved words into the input field
+            loadWords();
             adminInput.focus();
         }
 
@@ -346,6 +364,32 @@
         
         revealBtn.addEventListener('click', revealAnswer);
         nextBtn.addEventListener('click', loadNextMission);
+        
+        // Auto-save on input for persistence
+        adminInput.addEventListener('input', (e) => {
+            saveWords(e.target.value);
+        });
+
+        // --- INITIALIZATION ---
+        
+        function initializeApplication() {
+            // 1. Load saved words into the input field right away
+            loadWords();
+            
+            // 2. Set UI to Admin Mode, ready for the user to press LOAD.
+            // This is crucial to prevent auto-starting the game.
+            adminInputGroup.classList.remove('hidden');
+            revealBtn.classList.add('hidden');
+            nextBtn.classList.add('hidden');
+            mainDisplayEl.textContent = "AWAITING DATA";
+            mainDisplayEl.className = "font-mono-spy text-5xl md:text-7xl text-gray-500 tracking-widest";
+            missionStatusEl.textContent = "ADMIN MODE";
+            missionStatusEl.className = "text-[var(--theme-green)]";
+            hintTextEl.textContent = "ENTER WORDS TO BEGIN";
+            adminInput.focus();
+        }
+
+        window.onload = initializeApplication;
 
     </script>
 </body>
