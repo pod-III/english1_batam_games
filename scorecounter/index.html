@@ -61,7 +61,8 @@
 
     <style>
         body {
-            background-color: #0f172a;
+            /* These styles are applied regardless of theme, but Tailwind classes handle the main switching */
+            background-color: #0f172a; 
             background-image: 
                 radial-gradient(at 0% 0%, rgba(41, 121, 255, 0.15) 0px, transparent 50%), 
                 radial-gradient(at 100% 100%, rgba(255, 107, 149, 0.1) 0px, transparent 50%);
@@ -70,6 +71,27 @@
             font-family: 'Nunito', sans-serif;
             overflow-x: hidden;
         }
+
+        /* Light Mode Overrides (Applied when 'dark' class is removed from <html>) */
+        html:not(.dark) body {
+            background-color: #f1f5f9; /* Slate 100 */
+            color: #1e293b; /* Slate 800 */
+            background-image: none; /* Clear background gradient in light mode */
+        }
+        html:not(.dark) .glass-panel {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.05);
+        }
+        html:not(.dark) .score-card:hover {
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.1);
+            border-color: rgba(0, 0, 0, 0.1);
+        }
+        html:not(.dark) .score-text {
+            text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            color: #1e293b; /* Dark text for light mode score */
+        }
+
 
         /* Glass Panel */
         .glass-panel {
@@ -104,6 +126,10 @@
             font-variant-numeric: tabular-nums;
             text-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
+        html:not(.dark) #score-grid .score-text {
+             color: #1e293b;
+        }
+
 
         /* Leader Crown Animation */
         .leader-crown {
@@ -123,6 +149,8 @@
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #0f172a; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        html:not(.dark) ::-webkit-scrollbar-track { background: #f1f5f9; }
+        html:not(.dark) ::-webkit-scrollbar-thumb { background: #cbd5e1; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
@@ -156,17 +184,23 @@
                 </div>
 
                 <div class="h-8 w-[1px] bg-white/10 mx-2 hidden md:block"></div>
-
+                
                 <button id="sound-toggle" class="p-2.5 rounded-full hover:bg-white/10 transition-colors text-gray-400 border border-transparent hover:border-white/10" title="Toggle Sound">
                     <i data-lucide="volume-2" class="w-5 h-5"></i>
                 </button>
                 
-                <button onclick="toggleTheme()" class="p-2.5 rounded-full hover:bg-white/10 transition-colors text-yellow-400 border border-transparent hover:border-white/10" title="Toggle Theme">
-                    <i data-lucide="sun" id="theme-icon" class="w-5 h-5"></i>
+                <!-- Theme Button -->
+                <button onclick="toggleTheme()" class="p-2.5 rounded-full hover:bg-white/10 transition-colors border border-transparent" title="Toggle Theme">
+                    <i data-lucide="sun" id="theme-icon" class="w-5 h-5 text-yellow-400"></i>
                 </button>
 
-                <button onclick="resetAll()" class="p-2.5 rounded-full hover:bg-white/10 transition-colors text-pink border border-transparent hover:border-pink/30" title="Reset All Scores">
+                <button onclick="resetScores()" class="p-2.5 rounded-full hover:bg-white/10 transition-colors text-pink border border-transparent hover:border-pink/30" title="Reset All Scores">
                     <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+                </button>
+                
+                <!-- WIPE ALL BUTTON with trash-2 icon -->
+                <button onclick="wipeAll()" class="p-2.5 rounded-full hover:bg-red-900 transition-colors text-red-500 border border-transparent hover:border-red-500/30" title="DELETE All Teams and Scores">
+                    <i data-lucide="trash-2" class="w-5 h-5"></i>
                 </button>
             </div>
         </div>
@@ -196,10 +230,29 @@
     
     <!-- FOOTER CONTROLS (Mobile Only Add) -->
     <div class="md:hidden fixed bottom-6 right-6 z-40">
-        <button onclick="promptAddTeam()" class="bg-blue hover:bg-blue/90 text-white w-14 h-14 rounded-full shadow-xl flex items-center justify-center border border-white/20">
+        <!-- Change the mobile button to focus the main input -->
+        <button onclick="document.getElementById('quick-add-input').scrollIntoView({ behavior: 'smooth', block: 'center' }); document.getElementById('quick-add-input').focus();" class="bg-blue hover:bg-blue/90 text-white w-14 h-14 rounded-full shadow-xl flex items-center justify-center border border-white/20">
             <i data-lucide="plus" class="w-8 h-8"></i>
         </button>
     </div>
+    
+    <!-- CONFIRMATION MODAL -->
+    <div id="confirmation-modal" class="fixed inset-0 z-[100] bg-dark/80 backdrop-blur-sm hidden items-center justify-center p-4 transition-opacity">
+        <div class="glass-panel rounded-xl w-full max-w-sm p-6 animate-pop">
+            <h3 id="modal-title" class="text-2xl font-heading text-white mb-2 tracking-wide"></h3>
+            <p id="modal-message" class="text-gray-400 mb-6"></p>
+            
+            <div class="flex justify-end gap-3">
+                <button onclick="closeModal()" class="bg-surface hover:bg-white/10 text-white font-semibold px-4 py-2 rounded-lg transition-colors">
+                    Cancel
+                </button>
+                <button id="modal-confirm-btn" onclick="handleConfirm()" class="bg-pink hover:bg-pink/80 text-dark font-bold px-4 py-2 rounded-lg transition-colors shadow-lg">
+                    Confirm Action
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- END CONFIRMATION MODAL -->
 
     <script>
         // --- CONFIG ---
@@ -213,6 +266,7 @@
         let teams = []; // { id, name, score, colorIndex }
         let soundEnabled = true;
         let colorCycle = 0;
+        let pendingAction = null; // Stores the function to execute on confirm
 
         // --- AUDIO ENGINE ---
         const AudioEngine = {
@@ -238,6 +292,38 @@
                 synth.triggerAttackRelease(["G4", "B4", "D5", "G5"], "4n", now + 0.3);
             }
         };
+
+        // --- CUSTOM MODAL LOGIC ---
+
+        function showConfirmationModal(title, message, actionCallback, confirmButtonClasses = 'bg-pink hover:bg-pink/80') {
+            const modal = document.getElementById('confirmation-modal');
+            const confirmBtn = document.getElementById('modal-confirm-btn');
+            
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-message').innerText = message;
+            
+            // Replaces the entire color scheme classes (bg-color hover:bg-color)
+            confirmBtn.className = confirmBtn.className.replace(/bg-[\w\/]+(?:\s*hover:bg-[\w\/]+)?/, confirmButtonClasses);
+            
+            pendingAction = actionCallback; 
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('confirmation-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            pendingAction = null; 
+        }
+
+        function handleConfirm() {
+            if (pendingAction) {
+                pendingAction();
+            }
+            closeModal();
+        }
 
         // --- STATE MANAGEMENT ---
 
@@ -271,11 +357,17 @@
         }
 
         function removeTeam(id) {
-            if(confirm("Delete this team?")) {
-                teams = teams.filter(t => t.id !== id);
-                saveData();
-                render();
-            }
+            showConfirmationModal(
+                "Remove Team?",
+                "Are you sure you want to remove this team? This action cannot be undone.",
+                () => {
+                    teams = teams.filter(t => t.id !== id);
+                    saveData();
+                    render();
+                    AudioEngine.playPointDown();
+                },
+                'bg-red-500 hover:bg-red-600' // Use red confirm button for single team deletion
+            );
         }
 
         function updateScore(id, delta) {
@@ -308,19 +400,35 @@
             saveData();
             checkLeader();
         }
-
-        function promptAddTeam() {
-            const name = prompt("Enter Team Name:");
-            if(name) addTeam(name);
+        
+        // Reworked resetScores confirmation
+        function resetScores() {
+            showConfirmationModal(
+                "Ready to Reset Scores?", 
+                "All team scores will be set back to zero. Teams will remain on the board.", 
+                () => {
+                    teams.forEach(t => t.score = 0);
+                    saveData();
+                    render();
+                    AudioEngine.playPointDown();
+                },
+                'bg-blue hover:bg-blue/80' // Using blue for a primary, non-destructive action
+            );
         }
-
-        function resetAll() {
-            if(confirm("Reset all scores to 0?")) {
-                teams.forEach(t => t.score = 0);
-                saveData();
-                render();
-                AudioEngine.playPointDown();
-            }
+        
+        // Delete all teams and scores
+        function wipeAll() {
+            showConfirmationModal(
+                "DANGER: DELETE ALL TEAMS & SCORES", 
+                "This will permanently delete all teams and their scores from your device. This action cannot be undone.", 
+                () => {
+                    teams = [];
+                    localStorage.removeItem('english1_scoreboard_teams');
+                    render();
+                    AudioEngine.playPointDown();
+                },
+                'bg-red-500 hover:bg-red-600' // Use red confirm button for wipe
+            );
         }
 
         // --- RENDERING ---
@@ -399,6 +507,7 @@
                              <button onclick="celebrate(${team.id})" class="text-gray-500 hover:text-yellow-400 transition-colors" title="Celebrate">
                                 <i data-lucide="party-popper" class="w-5 h-5"></i>
                             </button>
+                            <!-- Updated single team removal to use custom modal -->
                             <button onclick="removeTeam(${team.id})" class="text-gray-500 hover:text-pink transition-colors" title="Remove Team">
                                 <i data-lucide="trash-2" class="w-5 h-5"></i>
                             </button>
@@ -453,21 +562,70 @@
         }
 
         // --- UI UTILS ---
-        function toggleTheme() {
+
+        // Function to update the theme visually and in storage
+        function applyTheme(isDark) {
             const html = document.documentElement;
-            const isDark = html.classList.toggle('dark');
             const icon = document.getElementById('theme-icon');
             
+            // 1. Apply/Remove 'dark' class
             if (isDark) {
+                html.classList.add('dark');
                 icon.setAttribute('data-lucide', 'sun');
                 icon.classList.add('text-yellow-400');
+                icon.classList.remove('text-gray-600');
             } else {
+                html.classList.remove('dark');
                 icon.setAttribute('data-lucide', 'moon');
                 icon.classList.remove('text-yellow-400');
                 icon.classList.add('text-gray-600');
             }
             lucide.createIcons();
+            
+            // 2. Save preference to local storage
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            
+            // Adjust input style based on theme
+            const input = document.getElementById('quick-add-input');
+            const inputContainer = input.parentElement;
+            if (isDark) {
+                inputContainer.classList.add('bg-dark/50', 'border-white/10');
+                inputContainer.classList.remove('bg-gray-100', 'border-gray-300');
+                input.classList.remove('text-gray-800');
+                input.classList.add('text-white');
+            } else {
+                inputContainer.classList.remove('bg-dark/50', 'border-white/10');
+                inputContainer.classList.add('bg-gray-100', 'border-gray-300');
+                input.classList.add('text-gray-800');
+                input.classList.remove('text-white');
+            }
         }
+
+        // Toggles the theme based on the current state
+        function toggleTheme() {
+            const html = document.documentElement;
+            const isDark = !html.classList.contains('dark');
+            applyTheme(isDark);
+        }
+        
+        // Initialization function to load theme preference
+        function loadThemePreference() {
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            
+            let isDark;
+            
+            if (savedTheme) {
+                isDark = savedTheme === 'dark';
+            } else {
+                // Default to system preference if no saved theme
+                isDark = prefersDark;
+            }
+            
+            // Apply the determined theme immediately
+            applyTheme(isDark);
+        }
+
 
         document.getElementById('sound-toggle').addEventListener('click', (e) => {
             soundEnabled = !soundEnabled;
@@ -479,6 +637,7 @@
         // Init
         window.onload = () => {
             loadData();
+            loadThemePreference(); // Load the preferred theme on load
             lucide.createIcons();
         };
 
