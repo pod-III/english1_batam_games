@@ -1,667 +1,1406 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Card Match</title>
-    
-    <!-- Icons -->
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Card Match (Polished)</title>
+
     <script src="https://unpkg.com/lucide@latest"></script>
-    
-    <!-- Libraries -->
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    
+
     <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        pink: '#FF6B95',
-                        orange: '#FF8C42',
-                        green: '#00E676',
-                        blue: '#2979FF',
-                        dark: '#0f172a',
-                        panel: '#1e293b',
-                        surface: '#334155'
-                    },
-                    fontFamily: {
-                        heading: ['Bebas Neue', 'sans-serif'],
-                        body: ['Nunito', 'sans-serif'],
-                        mono: ['JetBrains Mono', 'monospace'],
-                    },
-                    animation: {
-                        'bounce-slight': 'bounce-slight 0.3s ease-in-out',
-                        'pop': 'pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-                    },
-                    keyframes: {
-                        'bounce-slight': {
-                            '0%, 100%': { transform: 'translateY(0)' },
-                            '50%': { transform: 'translateY(-5px)' },
-                        },
-                        pop: {
-                            '0%': { transform: 'scale(0.8)', opacity: '0' },
-                            '100%': { transform: 'scale(1)', opacity: '1' },
-                        }
-                    }
-                }
-            }
-        }
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              pink: "#FF6B95",
+              orange: "#FF8C42",
+              green: "#00E676",
+              blue: "#2979FF",
+              dark: "#0f172a",
+              panel: "#1e293b",
+              surface: "#334155",
+            },
+            fontFamily: {
+              heading: ["Bebas Neue", "sans-serif"],
+              body: ["Nunito", "sans-serif"],
+              mono: ["JetBrains Mono", "monospace"],
+            },
+            animation: {
+              "bounce-slight": "bounce-slight 0.3s ease-in-out",
+              pop: "pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+              "fade-in-up": "fadeInUp 0.3s ease-out forwards",
+            },
+            keyframes: {
+              "bounce-slight": {
+                "0%, 100%": { transform: "translateY(0)" },
+                "50%": { transform: "translateY(-5px)" },
+              },
+              pop: {
+                "0%": { transform: "scale(0.9)", opacity: "0" },
+                "100%": { transform: "scale(1)", opacity: "1" },
+              },
+              fadeInUp: {
+                "0%": { opacity: "0", transform: "translateY(10px)" },
+                "100%": { opacity: "1", transform: "translateY(0)" },
+              },
+            },
+          },
+        },
+      };
     </script>
-    
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;700&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;700&family=Nunito:wght@400;600;800&display=swap"
+      rel="stylesheet"
+    />
 
     <style>
-        body { 
-            font-family: 'Nunito', sans-serif;
-            background-color: #0f172a;
-            background-image: 
-                radial-gradient(at 0% 0%, rgba(41, 121, 255, 0.15) 0px, transparent 50%), 
-                radial-gradient(at 100% 100%, rgba(255, 107, 149, 0.1) 0px, transparent 50%);
-            background-attachment: fixed;
-            color: white;
-            overflow-x: hidden;
-        }
+      body {
+        font-family: "Nunito", sans-serif;
+        background-color: #0f172a;
+        background-image: radial-gradient(
+            at 0% 0%,
+            rgba(41, 121, 255, 0.15) 0px,
+            transparent 50%
+          ),
+          radial-gradient(
+            at 100% 100%,
+            rgba(255, 107, 149, 0.1) 0px,
+            transparent 50%
+          );
+        background-attachment: fixed;
+        color: white;
+        overflow-x: hidden;
+      }
 
-        /* Glassmorphism Panels */
-        .glass-panel {
-            background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-        }
+      .glass-panel {
+        background: rgba(30, 41, 59, 0.7);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      }
 
-        /* 3D Button Style */
-        .btn-3d {
-            transition: all 0.1s;
-            transform: translateY(0);
-            box-shadow: 0 4px 0 rgba(0,0,0,0.3);
-            border-bottom: 4px solid rgba(0,0,0,0.2);
-        }
-        .btn-3d:active {
-            transform: translateY(4px);
-            box-shadow: 0 0 0 rgba(0,0,0,0.2);
-            border-bottom: 0px solid transparent;
-        }
+      .btn-3d {
+        transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+        transform: translateY(0);
+        box-shadow: 0 4px 0 rgba(0, 0, 0, 0.3);
+        border-bottom: 4px solid rgba(0, 0, 0, 0.2);
+        position: relative;
+        overflow: hidden;
+      }
+      .btn-3d:active {
+        transform: translateY(4px);
+        box-shadow: 0 0 0 rgba(0, 0, 0, 0.2);
+        border-bottom: 0px solid transparent;
+      }
 
-        /* Card Flip Mechanics */
-        .card {
-            perspective: 1000px;
-            cursor: pointer;
-            -webkit-tap-highlight-color: transparent;
-            user-select: none;
-        }
-        
-        .card-inner {
-            width: 100%;
-            height: 100%;
-            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-            transform-style: preserve-3d;
-            position: relative;
-        }
+      /* Improved Card Mechanics */
+      .card {
+        perspective: 1000px;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+      }
 
-        .card.flipped .card-inner {
-            transform: rotateY(180deg);
-        }
+      .card-inner {
+        width: 100%;
+        height: 100%;
+        transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        transform-style: preserve-3d;
+        position: relative;
+      }
 
-        .card.matched .card-front {
-            border-color: #00E676;
-            background: rgba(0, 230, 118, 0.2);
-            color: #00E676;
-            box-shadow: 0 0 15px rgba(0, 0, 0, 0.4);
-        }
+      .card.flipped .card-inner {
+        transform: rotateY(180deg);
+      }
 
-        .card-face {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            backface-visibility: hidden;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            border-radius: 1rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-            padding: 0.5rem;
-            text-align: center;
-            border: 2px solid rgba(255,255,255,0.1);
-        }
+      .card.matched .card-front {
+        border-color: #00e676;
+        background: rgba(0, 230, 118, 0.15);
+        color: #00e676;
+        box-shadow: 0 0 20px rgba(0, 230, 118, 0.3);
+      }
 
-        .card-back {
-            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-            color: rgba(255,255,255,0.5);
-            font-size: 2rem;
-        }
-        
-        .card-front {
-            background: #1e293b;
-            color: white;
-            transform: rotateY(180deg);
-            font-weight: 700;
-            overflow: hidden;
-            word-wrap: break-word;
-        }
+      .card-face {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        backface-visibility: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        border-radius: 1rem;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        padding: 0.5rem;
+        text-align: center;
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        word-break: break-word;
+      }
 
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #0f172a; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+      .card-back {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        color: rgba(255, 255, 255, 0.5);
+        font-size: 2rem;
+        transition: border-color 0.3s;
+      }
+
+      .card:hover .card-back {
+        border-color: rgba(255, 255, 255, 0.3);
+        color: rgba(255, 255, 255, 0.8);
+      }
+
+      .card-front {
+        background: #1e293b;
+        color: white;
+        transform: rotateY(180deg);
+        font-weight: 700;
+        overflow: hidden;
+        word-wrap: break-word;
+        padding: 0.75rem;
+      }
+
+      .card-front img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        border-radius: 0.5rem;
+      }
+
+      /* Upload Zone */
+      .upload-zone {
+        transition: all 0.2s ease;
+        background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='8' ry='8' stroke='%23FF6B9566' stroke-width='2' stroke-dasharray='8%2c 8' stroke-dashoffset='0' stroke-linecap='square'/%3e%3c/svg%3e");
+      }
+      .upload-zone:hover,
+      .upload-zone.drag-over {
+        background-color: rgba(255, 107, 149, 0.1);
+        border-color: #ff6b95;
+      }
+
+      /* List Item Hover */
+      .list-item-hover {
+        transition: all 0.2s;
+      }
+      .list-item-hover:hover {
+        transform: translateX(4px);
+        background: rgba(51, 65, 85, 0.8);
+      }
+
+      #toast-container {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 200;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .toast {
+        background: rgba(30, 41, 59, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        animation: fade-in-up 0.3s ease-out forwards;
+      }
+
+      ::-webkit-scrollbar {
+        width: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #0f172a;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #334155;
+        border-radius: 4px;
+      }
     </style>
-</head>
-<body class="flex flex-col min-h-screen">
-    
-    <!-- Navbar / Header -->
-    <header class="w-full glass-panel border-b border-white/10 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="bg-gradient-to-br from-blue to-pink w-10 h-10 rounded-lg flex items-center justify-center text-xl shadow-lg">
-                    🧠
-                </div>
-                <div>
-                    <h1 class="text-2xl font-heading tracking-wider text-white leading-none">CARD MATCH</h1>
-                    <div class="text-[10px] font-mono text-gray-400 tracking-widest">ENGLISH 1 BATAM</div>
-                </div>
+  </head>
+  <body class="flex flex-col min-h-screen">
+    <header
+      class="w-full glass-panel border-b border-white/10 sticky top-0 z-50"
+    >
+      <div
+        class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between"
+      >
+        <div class="flex items-center gap-3">
+          <div
+            class="bg-gradient-to-br from-blue to-pink w-10 h-10 rounded-lg flex items-center justify-center text-xl shadow-lg"
+          >
+            🧠
+          </div>
+          <div>
+            <h1
+              class="text-2xl font-heading tracking-wider text-white leading-none"
+            >
+              CARD MATCH
+            </h1>
+            <div class="text-[10px] font-mono text-gray-400 tracking-widest">
+              ENGLISH 1 BATAM
             </div>
-
-            <!-- Game Stats (Hidden initially) -->
-            <div id="game-stats" class="hidden md:flex items-center gap-6">
-                <div class="flex flex-col items-center">
-                    <span class="text-[10px] uppercase text-gray-400 font-bold tracking-wider">Time</span>
-                    <span id="timer-display" class="font-mono text-xl text-blue font-bold">00:00</span>
-                </div>
-                <div class="flex flex-col items-center">
-                    <span class="text-[10px] uppercase text-gray-400 font-bold tracking-wider">Moves</span>
-                    <span id="moves-display" class="font-mono text-xl text-orange font-bold">0</span>
-                </div>
-                <div class="flex flex-col items-center">
-                    <span class="text-[10px] uppercase text-gray-400 font-bold tracking-wider">Pairs</span>
-                    <span id="pairs-display" class="font-mono text-xl text-green font-bold">0/0</span>
-                </div>
-            </div>
-
-            <div class="flex items-center gap-3">
-                <button id="sound-toggle" class="p-2 rounded-full hover:bg-white/10 transition-colors text-gray-400" title="Toggle Sound">
-                    <i data-lucide="volume-2" class="w-5 h-5"></i>
-                </button>
-                <button id="restart-btn" class="p-2 rounded-full hover:bg-white/10 transition-colors text-pink" title="Restart Game">
-                    <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
-                </button>
-                <button id="settings-btn" class="btn-3d bg-blue text-white px-4 py-2 rounded-lg font-bold text-sm tracking-wide">
-                    SETUP
-                </button>
-            </div>
+          </div>
         </div>
+
+        <div id="game-stats" class="hidden md:flex items-center gap-6">
+          <div class="flex flex-col items-center">
+            <span
+              class="text-[10px] uppercase text-gray-400 font-bold tracking-wider"
+              >Time</span
+            >
+            <span
+              id="timer-display"
+              class="font-mono text-xl text-blue font-bold"
+              >00:00</span
+            >
+          </div>
+          <div class="flex flex-col items-center">
+            <span
+              class="text-[10px] uppercase text-gray-400 font-bold tracking-wider"
+              >Moves</span
+            >
+            <span
+              id="moves-display"
+              class="font-mono text-xl text-orange font-bold"
+              >0</span
+            >
+          </div>
+          <div class="flex flex-col items-center">
+            <span
+              class="text-[10px] uppercase text-gray-400 font-bold tracking-wider"
+              >Pairs</span
+            >
+            <span
+              id="pairs-display"
+              class="font-mono text-xl text-green font-bold"
+              >0/0</span
+            >
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <button
+            id="sound-toggle"
+            class="p-2 rounded-full hover:bg-white/10 transition-colors text-gray-400"
+            title="Toggle Sound"
+          >
+            <i data-lucide="volume-2" class="w-5 h-5"></i>
+          </button>
+          <button
+            id="restart-btn"
+            class="p-2 rounded-full hover:bg-white/10 transition-colors text-pink"
+            title="Restart Game"
+          >
+            <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+          </button>
+          <button
+            id="settings-btn"
+            class="btn-3d bg-blue text-white px-4 py-2 rounded-lg font-bold text-sm tracking-wide shadow-blue/20 shadow-lg"
+          >
+            SETUP
+          </button>
+        </div>
+      </div>
     </header>
 
-    <!-- Main Game Area -->
-    <main class="flex-grow flex flex-col items-center justify-center p-4 w-full max-w-7xl mx-auto">
-        
-        <!-- Mobile Stats (Visible only on small screens) -->
-        <div id="mobile-stats" class="md:hidden flex justify-between w-full mb-4 px-4 glass-panel py-3 rounded-xl hidden">
-             <div class="flex items-center gap-2">
-                <i data-lucide="clock" class="w-4 h-4 text-blue"></i>
-                <span id="mobile-timer" class="font-mono font-bold">00:00</span>
-            </div>
-             <div class="flex items-center gap-2">
-                <i data-lucide="hash" class="w-4 h-4 text-orange"></i>
-                <span id="mobile-moves" class="font-mono font-bold">0</span>
-            </div>
+    <main
+      class="flex-grow flex flex-col items-center justify-center p-4 w-full max-w-7xl mx-auto"
+    >
+      <div
+        id="mobile-stats"
+        class="md:hidden flex justify-between w-full mb-4 px-4 glass-panel py-3 rounded-xl hidden"
+      >
+        <div class="flex items-center gap-2">
+          <i data-lucide="clock" class="w-4 h-4 text-blue"></i>
+          <span id="mobile-timer" class="font-mono font-bold">00:00</span>
         </div>
-
-        <!-- The Grid -->
-        <div id="game-grid" class="grid gap-4 w-full max-w-5xl mx-auto perspective-1000 transition-all duration-500">
-            <!-- Cards injected here -->
-            <div class="col-span-full py-20 text-center animate-pop">
-                <div class="text-6xl mb-4">📚</div>
-                <h2 class="text-3xl font-heading text-white mb-2">Ready to Play?</h2>
-                <p class="text-gray-400 mb-8">Click "SETUP" to create your vocabulary list.</p>
-                <button onclick="document.getElementById('settings-btn').click()" class="btn-3d bg-gradient-to-r from-pink to-orange text-white px-8 py-4 rounded-xl font-bold text-xl shadow-lg">
-                    CREATE NEW GAME
-                </button>
-            </div>
+        <div class="flex items-center gap-2">
+          <i data-lucide="hash" class="w-4 h-4 text-orange"></i>
+          <span id="mobile-moves" class="font-mono font-bold">0</span>
         </div>
+      </div>
 
+      <div
+        id="game-grid"
+        class="grid gap-4 w-full max-w-5xl mx-auto perspective-1000 transition-all duration-500"
+      >
+        <div
+          id="empty-grid-msg"
+          class="col-span-full py-20 text-center animate-pop"
+        >
+          <div class="text-6xl mb-4">📚</div>
+          <h2 class="text-3xl font-heading text-white mb-2">Ready to Play?</h2>
+          <p class="text-gray-400 mb-8">
+            Click "SETUP" to create your vocabulary or image list.
+          </p>
+          <button
+            onclick="document.getElementById('settings-btn').click()"
+            class="btn-3d bg-gradient-to-r from-pink to-orange text-white px-8 py-4 rounded-xl font-bold text-xl shadow-lg hover:shadow-orange/20"
+          >
+            CREATE NEW GAME
+          </button>
+        </div>
+      </div>
     </main>
 
-    <!-- SETUP MODAL -->
-    <div id="setup-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-pop">
-        <div class="glass-panel w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] relative">
-            
-            <div class="p-6 border-b border-white/10 flex justify-between items-center bg-black/20 z-10">
-                <h2 class="text-2xl font-heading text-white tracking-wide">GAME SETUP (MAX 12 PAIRS)</h2>
-                <button id="close-setup" class="text-gray-400 hover:text-white transition">
-                    <i data-lucide="x" class="w-6 h-6"></i>
-                </button>
-            </div>
-
-            <div class="p-6 overflow-y-auto space-y-6">
-                
-                <!-- Presets -->
-                <div class="space-y-2">
-                    <label class="text-xs font-bold text-blue uppercase tracking-widest">Quick Load Preset</label>
-                    <div class="flex flex-wrap gap-2">
-                        <button class="preset-btn px-3 py-1 bg-surface hover:bg-blue/20 border border-white/10 rounded-full text-xs transition" data-words="Cat, Dog, Bird, Fish, Lion, Tiger">animals (6 Pairs)</button>
-                        <button class="preset-btn px-3 py-1 bg-surface hover:bg-blue/20 border border-white/10 rounded-full text-xs transition" data-words="Red, Blue, Green, Yellow, Pink, Purple, Orange, Black, White">colors (9 Pairs)</button>
-                        <button class="preset-btn px-3 py-1 bg-surface hover:bg-blue/20 border border-white/10 rounded-full text-xs transition" data-words="Head, Shoulders, Knees, Toes, Eyes, Ears, Mouth, Nose, Hand, Foot, Leg, Arm">body parts (12 Pairs)</button>
-                        <button class="preset-btn px-3 py-1 bg-surface hover:bg-blue/20 border border-white/10 rounded-full text-xs transition" data-words="Run, Jump, Swim, Eat, Sleep, Read, Write, Speak, Listen">verbs (9 Pairs)</button>
-                    </div>
-                </div>
-
-                <!-- Input -->
-                <div class="space-y-2">
-                    <label class="text-xs font-bold text-gray-400 uppercase tracking-widest">Vocabulary List (Comma Separated) - Automatically Saved</label>
-                    <textarea id="word-input" 
-                        class="w-full h-40 bg-dark border border-white/10 rounded-xl p-4 text-white focus:border-blue focus:ring-1 focus:ring-blue outline-none resize-none font-mono text-sm shadow-inner"
-                        placeholder="e.g. Apple, Banana, Cherry, Date..."></textarea>
-                    <p id="word-count-msg" class="text-xs text-gray-500">You need to enter 3 to 12 words/pairs. The board will adjust its size automatically.</p>
-                </div>
-
-                <!-- Error Msg -->
-                <div id="setup-error" class="hidden p-3 bg-pink/10 border border-pink/30 rounded-lg text-pink text-sm font-bold flex items-center gap-2">
-                    <i data-lucide="alert-circle" class="w-4 h-4"></i>
-                    <span id="error-text">Please enter at least 3 words.</span>
-                </div>
-
-            </div>
-
-            <div class="p-6 border-t border-white/10 bg-black/20 flex justify-end gap-3 z-10">
-                <button id="start-game-btn" class="btn-3d bg-gradient-to-r from-green to-blue text-white px-8 py-3 rounded-xl font-bold text-lg shadow-lg w-full md:w-auto">
-                    START GAME
-                </button>
-            </div>
+    <div
+      id="setup-modal"
+      class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-pop"
+    >
+      <div
+        class="glass-panel w-full max-w-4xl rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] relative"
+      >
+        <div
+          class="p-6 border-b border-white/10 flex justify-between items-center bg-black/20 z-10"
+        >
+          <div class="flex flex-col">
+            <h2 class="text-2xl font-heading text-white tracking-wide">
+              GAME SETUP
+            </h2>
+            <span class="text-xs text-gray-400 font-mono"
+              >Customize your teaching material</span
+            >
+          </div>
+          <button
+            id="close-setup"
+            class="text-gray-400 hover:text-white transition bg-white/5 p-2 rounded-lg"
+          >
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
         </div>
+
+        <div class="p-6 overflow-y-auto space-y-6 flex-grow">
+          <div class="flex flex-wrap border-b border-white/10">
+            <button
+              id="tab-simple"
+              onclick="switchSetupTab('simple')"
+              class="tab-btn px-4 py-3 font-bold text-sm tracking-wide border-b-2 border-blue bg-surface/50"
+            >
+              1. Simple Match
+            </button>
+            <button
+              id="tab-word-def"
+              onclick="switchSetupTab('word-def')"
+              class="tab-btn px-4 py-3 font-bold text-sm tracking-wide text-gray-400 border-b-2 border-transparent hover:border-white/20"
+            >
+              2. Word/Definition
+            </button>
+            <button
+              id="tab-word-image"
+              onclick="switchSetupTab('word-image')"
+              class="tab-btn px-4 py-3 font-bold text-sm tracking-wide text-gray-400 border-b-2 border-transparent hover:border-white/20"
+            >
+              3. Word/Image
+            </button>
+            <button
+              id="tab-image-image"
+              onclick="switchSetupTab('image-image')"
+              class="tab-btn px-4 py-3 font-bold text-sm tracking-wide text-gray-400 border-b-2 border-transparent hover:border-white/20"
+            >
+              4. Image/Image
+            </button>
+          </div>
+
+          <div id="setup-panels-container">
+            <div
+              id="simple-setup-panel"
+              class="space-y-4 p-4 bg-surface rounded-xl border border-white/10"
+            >
+              <h3 class="text-lg font-bold text-blue flex items-center gap-2">
+                <i data-lucide="type" class="w-5 h-5"></i> Simple Word Match
+              </h3>
+              <div class="space-y-1">
+                <label
+                  class="text-xs font-bold text-gray-400 uppercase tracking-widest"
+                  >Words (Comma Separated)</label
+                >
+                <textarea
+                  id="simple-word-input"
+                  class="w-full h-24 bg-dark border border-white/10 rounded-lg p-3 text-white focus:border-pink focus:ring-1 focus:ring-pink outline-none resize-none font-mono text-sm"
+                  placeholder="e.g. Apple, Banana, Dog, Cat, Red, Blue"
+                ></textarea>
+              </div>
+              <div class="space-y-1">
+                <label
+                  class="text-xs font-bold text-gray-400 uppercase tracking-widest"
+                  >Quick Presets</label
+                >
+                <div
+                  id="simple-presets"
+                  class="flex flex-wrap gap-2 pt-2"
+                ></div>
+              </div>
+            </div>
+
+            <div
+              id="word-def-panel"
+              class="space-y-4 p-4 bg-surface rounded-xl border border-white/10 hidden"
+            >
+              <h3 class="text-lg font-bold text-orange flex items-center gap-2">
+                <i data-lucide="book-open" class="w-5 h-5"></i> Word &
+                Definition
+              </h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-1">
+                  <label
+                    class="text-xs font-bold text-gray-400 uppercase tracking-widest"
+                    >Word (The Key)</label
+                  >
+                  <input
+                    type="text"
+                    id="def-input-match-key"
+                    placeholder="e.g. Diligent"
+                    class="w-full bg-dark border border-white/10 rounded-lg p-3 text-white focus:border-pink focus:ring-1 focus:ring-pink outline-none text-sm enter-trigger"
+                  />
+                </div>
+                <div class="space-y-1">
+                  <label
+                    class="text-xs font-bold text-gray-400 uppercase tracking-widest"
+                    >Definition / Synonym</label
+                  >
+                  <input
+                    type="text"
+                    id="def-input-content"
+                    placeholder="e.g. Hard working"
+                    class="w-full bg-dark border border-white/10 rounded-lg p-3 text-white focus:border-orange focus:ring-1 focus:ring-orange outline-none text-sm enter-trigger"
+                  />
+                </div>
+              </div>
+              <button
+                id="add-def-pair-btn"
+                class="btn-3d w-full bg-gradient-to-r from-pink to-orange text-white px-4 py-3 rounded-xl font-bold text-sm"
+              >
+                ADD PAIR
+              </button>
+              <div class="space-y-1 border-t border-white/10 pt-4">
+                <label
+                  class="text-xs font-bold text-gray-400 uppercase tracking-widest"
+                  >Presets</label
+                >
+                <div
+                  id="word-def-presets"
+                  class="flex flex-wrap gap-2 pt-2"
+                ></div>
+              </div>
+            </div>
+
+            <div
+              id="word-image-panel"
+              class="space-y-4 p-4 bg-surface rounded-xl border border-white/10 hidden"
+            >
+              <h3 class="text-lg font-bold text-green flex items-center gap-2">
+                <i data-lucide="image" class="w-5 h-5"></i> Word & Image
+              </h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-1">
+                  <label
+                    class="text-xs font-bold text-gray-400 uppercase tracking-widest"
+                    >Word (The Key)</label
+                  >
+                  <input
+                    type="text"
+                    id="word-image-input-match-key"
+                    placeholder="e.g. Tree"
+                    class="w-full bg-dark border border-white/10 rounded-lg p-3 text-white focus:border-pink focus:ring-1 focus:ring-pink outline-none text-sm enter-trigger"
+                  />
+                </div>
+                <div class="space-y-1">
+                  <label
+                    class="text-xs font-bold text-gray-400 uppercase tracking-widest"
+                    >Image Filename / URL</label
+                  >
+                  <input
+                    type="text"
+                    id="word-image-input-filename"
+                    placeholder="e.g. tree.jpg"
+                    class="w-full bg-dark border border-white/10 rounded-lg p-3 text-white focus:border-green focus:ring-1 focus:ring-green outline-none text-sm enter-trigger"
+                  />
+                </div>
+              </div>
+              <button
+                id="add-word-image-pair-btn"
+                class="btn-3d w-full bg-gradient-to-r from-blue to-green text-white px-4 py-3 rounded-xl font-bold text-sm"
+              >
+                ADD PAIR
+              </button>
+            </div>
+
+            <div
+              id="image-image-panel"
+              class="space-y-4 p-4 bg-surface rounded-xl border border-white/10 hidden"
+            >
+              <h3 class="text-lg font-bold text-pink flex items-center gap-2">
+                <i data-lucide="layers" class="w-5 h-5"></i> Batch Image Upload
+              </h3>
+              <div class="space-y-2">
+                <div
+                  id="image-upload-zone"
+                  class="upload-zone h-32 rounded-xl cursor-pointer flex flex-col items-center justify-center gap-2 relative overflow-hidden group bg-dark/30 border-2 border-dashed border-pink/30 hover:border-pink/80"
+                >
+                  <input
+                    type="file"
+                    id="image-file-input"
+                    accept="image/*"
+                    multiple
+                    class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                  />
+                  <div
+                    id="drop-zone-content"
+                    class="flex flex-col items-center gap-2 text-gray-400 pointer-events-none transition-opacity group-hover:text-pink"
+                  >
+                    <div class="p-3 bg-pink/10 rounded-full">
+                      <i data-lucide="upload-cloud" class="w-6 h-6"></i>
+                    </div>
+                    <div class="text-center">
+                      <span class="text-sm font-bold block"
+                        >Drop images here</span
+                      >
+                      <span class="text-xs opacity-70"
+                        >Filename becomes the match key</span
+                      >
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-3">
+            <div
+              class="flex justify-between items-end border-b border-white/10 pb-2"
+            >
+              <h3
+                class="text-sm font-bold text-white uppercase tracking-widest"
+              >
+                Staged Cards
+                <span id="current-pairs-count" class="text-pink font-mono ml-2"
+                  >(0/12)</span
+                >
+              </h3>
+              <button
+                id="clear-all-pairs-btn"
+                class="text-[10px] bg-red-500/10 hover:bg-red-500/20 text-red-400 px-3 py-1 rounded transition font-bold flex items-center gap-1"
+              >
+                CLEAR ALL
+              </button>
+            </div>
+
+            <div
+              id="pair-list"
+              class="grid grid-cols-1 gap-2 min-h-[50px] max-h-[250px] overflow-y-auto pr-2"
+            ></div>
+          </div>
+        </div>
+
+        <div
+          class="p-6 border-t border-white/10 bg-black/20 flex flex-col md:flex-row justify-between items-center gap-4 z-10"
+        >
+          <div class="text-xs text-gray-500 hidden md:block">
+            <i data-lucide="info" class="w-3 h-3 inline mr-1"></i> Ensure you
+            have at least 2 pairs.
+          </div>
+          <button
+            id="start-game-btn"
+            class="btn-3d bg-gradient-to-r from-green to-blue text-white px-8 py-3 rounded-xl font-bold text-lg shadow-lg w-full md:w-auto tracking-wide"
+          >
+            START GAME
+          </button>
+        </div>
+      </div>
     </div>
 
-    <!-- WIN MODAL -->
-    <div id="win-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-        <div class="glass-panel w-full max-w-md rounded-2xl shadow-2xl p-8 text-center animate-pop relative overflow-hidden">
-            <!-- Glow effect behind -->
-            <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-green/20 blur-[100px] rounded-full pointer-events-none"></div>
-
-            <div class="relative z-10">
-                <div class="text-6xl mb-4 animate-bounce-slight">🎉</div>
-                <h2 class="text-4xl font-heading text-transparent bg-clip-text bg-gradient-to-r from-green to-blue mb-2">FANTASTIC!</h2>
-                <p class="text-gray-300 mb-6">You cleared the board!</p>
-
-                <div class="grid grid-cols-2 gap-4 mb-8">
-                    <div class="bg-surface/50 p-3 rounded-xl border border-white/5">
-                        <div class="text-xs text-gray-400 uppercase font-bold">Time</div>
-                        <div id="final-time" class="text-xl font-mono text-white font-bold">00:00</div>
-                    </div>
-                    <div class="bg-surface/50 p-3 rounded-xl border border-white/5">
-                        <div class="text-xs text-gray-400 uppercase font-bold">Moves</div>
-                        <div id="final-moves" class="text-xl font-mono text-white font-bold">0</div>
-                    </div>
-                </div>
-
-                <div class="flex flex-col gap-3">
-                    <button onclick="restartGame()" class="btn-3d bg-blue text-white py-3 rounded-xl font-bold">PLAY AGAIN</button>
-                    <button onclick="document.getElementById('settings-btn').click(); document.getElementById('win-modal').classList.add('hidden')" class="py-3 text-gray-400 hover:text-white font-bold text-sm">CHANGE WORDS</button>
-                </div>
+    <div
+      id="win-modal"
+      class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+    >
+      <div
+        class="glass-panel w-full max-w-md rounded-2xl shadow-2xl p-8 text-center animate-pop relative overflow-hidden"
+      >
+        <div
+          class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-green/20 blur-[100px] rounded-full pointer-events-none"
+        ></div>
+        <div class="relative z-10">
+          <div class="text-6xl mb-4 animate-bounce-slight">🎉</div>
+          <h2
+            class="text-4xl font-heading text-transparent bg-clip-text bg-gradient-to-r from-green to-blue mb-2"
+          >
+            FANTASTIC!
+          </h2>
+          <div class="grid grid-cols-2 gap-4 mb-8 mt-6">
+            <div class="bg-surface/50 p-3 rounded-xl border border-white/5">
+              <div class="text-xs text-gray-400 uppercase font-bold">Time</div>
+              <div
+                id="final-time"
+                class="text-xl font-mono text-white font-bold"
+              >
+                00:00
+              </div>
             </div>
+            <div class="bg-surface/50 p-3 rounded-xl border border-white/5">
+              <div class="text-xs text-gray-400 uppercase font-bold">Moves</div>
+              <div
+                id="final-moves"
+                class="text-xl font-mono text-white font-bold"
+              >
+                0
+              </div>
+            </div>
+          </div>
+          <div class="flex flex-col gap-3">
+            <button
+              onclick="restartGame()"
+              class="btn-3d bg-blue text-white py-3 rounded-xl font-bold"
+            >
+              PLAY AGAIN
+            </button>
+            <button
+              onclick="document.getElementById('settings-btn').click(); document.getElementById('win-modal').classList.add('hidden')"
+              class="py-3 text-gray-400 hover:text-white font-bold text-sm"
+            >
+              CHANGE WORDS
+            </button>
+          </div>
         </div>
+      </div>
     </div>
+
+    <div id="toast-container"></div>
 
     <script>
-        // --- LOCAL STORAGE KEY ---
-        // This stores the last list loaded/started by the user. (Saved continuously on input)
-        const LS_KEY_CURRENT_WORDS = 'cardMatchCurrentWords'; 
-        
-        // --- FIXED DIFFICULTY SETTINGS ---
-        const MAX_PAIRS = 12; 
+      // --- STORAGE ---
+      const DB_NAME = "CardMatchDB";
+      const STORE_NAME = "Configs";
+      const DB_VERSION = 1;
 
-        // --- AUDIO ENGINE (Tone.js) ---
-        let audioEnabled = true;
-        const AudioEngine = {
-            init: async () => { await Tone.start(); },
-            playFlip: () => {
-                if(!audioEnabled) return;
-                const synth = new Tone.MembraneSynth().toDestination();
-                synth.triggerAttackRelease("C2", "32n", Tone.now(), 0.1);
-            },
-            playMatch: () => {
-                if(!audioEnabled) return;
-                const synth = new Tone.PolySynth(Tone.Synth).toDestination();
-                synth.triggerAttackRelease(["C4", "E4", "G4"], "16n");
-            },
-            playError: () => {
-                if(!audioEnabled) return;
-                const synth = new Tone.PluckSynth().toDestination();
-                synth.triggerAttackRelease("C2", "16n");
-            },
-            playWin: () => {
-                if(!audioEnabled) return;
-                const synth = new Tone.PolySynth(Tone.Synth).toDestination();
-                const now = Tone.now();
-                synth.triggerAttackRelease(["C4", "E4", "G4", "C5"], "8n", now);
-                synth.triggerAttackRelease(["E4", "G4", "B4", "E5"], "8n", now + 0.15);
-                synth.triggerAttackRelease(["G4", "B4", "D5", "G5"], "4n", now + 0.3);
-            }
+      const dbPromise = new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains(STORE_NAME))
+            db.createObjectStore(STORE_NAME);
         };
+        request.onsuccess = (e) => resolve(e.target.result);
+        request.onerror = (e) => reject(e.target.error);
+      });
 
-        // --- GAME STATE ---
-        let cards = [];
-        let flippedCards = [];
-        let matchedPairs = 0;
-        let totalPairs = 0;
-        let moves = 0;
-        let timerSeconds = 0;
-        let timerInterval = null;
-        let isLocked = false;
-        let currentWords = [];
+      async function dbSave(key, value) {
+        try {
+          const db = await dbPromise;
+          const tx = db.transaction(STORE_NAME, "readwrite");
+          tx.objectStore(STORE_NAME).put(value, key);
+        } catch (err) {
+          console.error("Save Failed", err);
+        }
+      }
 
-        // --- DOM ELEMENTS ---
-        const gameGrid = document.getElementById('game-grid');
-        const setupModal = document.getElementById('setup-modal');
-        const winModal = document.getElementById('win-modal');
-        const wordInput = document.getElementById('word-input');
-        const setupError = document.getElementById('setup-error');
-        const errorText = document.getElementById('error-text');
-        const wordCountMsg = document.getElementById('word-count-msg');
-        const timerDisplays = [document.getElementById('timer-display'), document.getElementById('mobile-timer')];
-        const moveDisplays = [document.getElementById('moves-display'), document.getElementById('mobile-moves')];
-        const pairsDisplay = document.getElementById('pairs-display');
-        
-        // --- INITIALIZATION ---
+      async function dbGet(key) {
+        try {
+          const db = await dbPromise;
+          return new Promise((resolve) => {
+            const req = db
+              .transaction(STORE_NAME, "readonly")
+              .objectStore(STORE_NAME)
+              .get(key);
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => resolve(null);
+          });
+        } catch (err) {
+          return null;
+        }
+      }
+
+      // --- CONSTANTS ---
+      const MAX_PAIRS = 12;
+      const OFFLINE_PLACEHOLDER =
+        "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 24 24' fill='none' stroke='%23475569' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='18' height='18' rx='2' ry='2'/%3E%3C/svg%3E";
+
+      function escapeHTML(str) {
+        return str
+          ? str.replace(
+              /[&<>'"]/g,
+              (tag) =>
+                ({
+                  "&": "&amp;",
+                  "<": "&lt;",
+                  ">": "&gt;",
+                  "'": "&#39;",
+                  '"': "&quot;",
+                }[tag])
+            )
+          : str;
+      }
+
+      // --- STATE ---
+      let gameConfig = { pairs: [] };
+      let cards = [],
+        flippedCards = [],
+        matchedPairs = 0,
+        totalPairs = 0,
+        moves = 0;
+      let timerSeconds = 0,
+        timerInterval = null,
+        isLocked = false;
+      let audioEnabled = true;
+      let activeSetupTab = "simple";
+
+      const PRESETS = {
+        simple: {
+          colors: "Red, Blue, Green, Yellow, Orange, Purple, Pink, Black",
+          animals: "Dog, Cat, Bird, Fish, Lion, Elephant, Tiger, Monkey",
+          fruits: "Apple, Banana, Orange, Grape, Mango, Pear, Lemon, Berry",
+          school: "Pencil, Book, Eraser, Ruler, Desk, Chair, Pen, Bag",
+          body: "Head, Hand, Foot, Eye, Ear, Mouth, Nose, Knee",
+          weather: "Sunny, Rainy, Cloudy, Snowy, Windy, Stormy, Hot, Cold",
+          sports: "Soccer, Tennis, Golf, Swim, Run, Jump, Basket, Box",
+          family: "Mom, Dad, Sister, Brother, Grandma, Grandpa, Aunt, Uncle",
+        },
+        "word-def": {
+          jobs: [
+            { matchKey: "Doctor", content: "Treats sick people" },
+            { matchKey: "Teacher", content: "Educates students" },
+            { matchKey: "Chef", content: "Cooks meals" },
+            { matchKey: "Pilot", content: "Flies airplanes" },
+            { matchKey: "Artist", content: "Creates paintings" },
+            { matchKey: "Police", content: "Enforces the law" },
+          ],
+          nature: [
+            { matchKey: "Volcano", content: "Mountain with lava" },
+            { matchKey: "Island", content: "Land in water" },
+            { matchKey: "Valley", content: "Low land between hills" },
+            { matchKey: "Forest", content: "Area with many trees" },
+            { matchKey: "Desert", content: "Dry sandy place" },
+            { matchKey: "Ocean", content: "Large body of salt water" },
+          ],
+          emotions: [
+            { matchKey: "Jubilant", content: "Extremely joyful" },
+            { matchKey: "Melancholy", content: "Pensive sadness" },
+            { matchKey: "Anxious", content: "Worried or nervous" },
+            { matchKey: "Furious", content: "Very angry" },
+            { matchKey: "Exhausted", content: "Very tired" },
+            { matchKey: "Terrified", content: "Very scared" },
+          ],
+          movement: [
+            { matchKey: "Sprint", content: "Run very fast" },
+            { matchKey: "Whisper", content: "Speak softly" },
+            { matchKey: "Gaze", content: "Look steadily" },
+            { matchKey: "Devour", content: "Eat quickly" },
+            { matchKey: "Stroll", content: "Walk slowly" },
+            { matchKey: "Hurl", content: "Throw forcefully" },
+          ],
+          opposites: [
+            { matchKey: "Ancient", content: "Modern" },
+            { matchKey: "Expand", content: "Shrink" },
+            { matchKey: "Victory", content: "Defeat" },
+            { matchKey: "Public", content: "Private" },
+            { matchKey: "Generous", content: "Stingy" },
+            { matchKey: "Innocent", content: "Guilty" },
+          ],
+        },
+      };
+
+      const AudioEngine = {
+        init: async () => {
+          if (Tone.context.state !== "running") await Tone.start();
+        },
+        playFlip: () => {
+          if (audioEnabled)
+            new Tone.MembraneSynth()
+              .toDestination()
+              .triggerAttackRelease("C2", "32n");
+        },
+        playMatch: () => {
+          if (audioEnabled)
+            new Tone.PolySynth(Tone.Synth)
+              .toDestination()
+              .triggerAttackRelease(["C4", "E4", "G4"], "16n");
+        },
+        playError: () => {
+          if (audioEnabled)
+            new Tone.PluckSynth()
+              .toDestination()
+              .triggerAttackRelease("C2", "16n");
+        },
+        playWin: () => {
+          if (audioEnabled) {
+            const s = new Tone.PolySynth().toDestination();
+            s.triggerAttackRelease(["C4", "E4", "G4", "C5"], "8n");
+          }
+        },
+      };
+
+      function showToast(message, type = "success") {
+        const container = document.getElementById("toast-container");
+        const toast = document.createElement("div");
+        toast.className = "toast";
+        toast.innerHTML = `<i data-lucide="${
+          type === "success" ? "check-circle" : "alert-circle"
+        }" class="${
+          type === "success" ? "text-green" : "text-pink"
+        } w-5 h-5"></i><span>${message}</span>`;
+        container.appendChild(toast);
         lucide.createIcons();
-        
-        // ** The entire logic for starting the game or opening setup is now handled 
-        // in one function called at the end of the script. **
-        initializeApplication(); 
+        setTimeout(() => {
+          toast.style.opacity = "0";
+          setTimeout(() => toast.remove(), 300);
+        }, 3000);
+      }
 
-        // --- LOCAL STORAGE FUNCTIONS (Auto-Saving Current List) ---
+      // --- DOM ---
+      const elements = {
+        grid: document.getElementById("game-grid"),
+        msg: document.getElementById("empty-grid-msg"),
+        modal: document.getElementById("setup-modal"),
+        win: document.getElementById("win-modal"),
+        pairList: document.getElementById("pair-list"),
+        simpleInput: document.getElementById("simple-word-input"),
+        defKey: document.getElementById("def-input-match-key"),
+        defContent: document.getElementById("def-input-content"),
+        wordImgKey: document.getElementById("word-image-input-match-key"),
+        wordImgFile: document.getElementById("word-image-input-filename"),
+        imgDrop: document.getElementById("image-upload-zone"),
+        imgInput: document.getElementById("image-file-input"),
+      };
 
-        function saveCurrentWords(wordsString) {
-             try {
-                // Stores the comma-separated word list that was last used/edited by the user.
-                localStorage.setItem(LS_KEY_CURRENT_WORDS, wordsString);
-            } catch (e) {
-                console.error("Could not save current words to local storage:", e);
-            }
+      // --- PAIR MANAGEMENT (IMPROVED) ---
+      function clearSetupInputs() {
+        elements.defKey.value = "";
+        elements.defContent.value = "";
+        elements.wordImgKey.value = "";
+        elements.wordImgFile.value = "";
+        elements.imgInput.value = "";
+        elements.defKey.focus();
+      }
+
+      async function addStructuredPair(
+        pairType,
+        matchKey,
+        content1,
+        content2,
+        imageURL1,
+        imageURL2
+      ) {
+        if (!matchKey || (!content1 && !imageURL1)) {
+          return showToast("Missing Fields", "error");
         }
-        
-        // --- SETUP MANAGEMENT ---
-
-        function loadWordsToInput() {
-            try {
-                // Load the last active word list into the textarea
-                const savedWords = localStorage.getItem(LS_KEY_CURRENT_WORDS);
-                if (savedWords) {
-                    wordInput.value = savedWords; // Populate the textarea
-                    return savedWords;
-                }
-                return null;
-            } catch (e) {
-                console.error("Could not load setup from local storage:", e);
-                return null;
-            }
-        }
-        
-        // --- CORE GAME FUNCTIONS (Unchanged) ---
-        
-        function formatTime(secs) {
-            const mins = Math.floor(secs / 60);
-            const s = secs % 60;
-            return `${mins.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-        }
-
-        function startTimer() {
-            stopTimer();
-            timerSeconds = 0;
-            updateUI();
-            timerInterval = setInterval(() => {
-                timerSeconds++;
-                updateUI();
-            }, 1000);
+        if (gameConfig.pairs.length >= MAX_PAIRS) {
+          return showToast("Max 12 Pairs Reached", "error");
         }
 
-        function stopTimer() {
-            if(timerInterval) clearInterval(timerInterval);
+        gameConfig.pairs.push({
+          id: Date.now() + Math.random(),
+          pairType,
+          matchKey,
+          content: content1,
+          content2,
+          imageURL1,
+          imageURL2,
+        });
+
+        await saveConfig();
+        renderPairList();
+        clearSetupInputs();
+        showToast("Pair Added");
+        AudioEngine.playMatch();
+      }
+
+      async function editPair(id) {
+        const pair = gameConfig.pairs.find((p) => p.id === id);
+        if (!pair) return;
+
+        // Remove from list
+        gameConfig.pairs = gameConfig.pairs.filter((p) => p.id !== id);
+        await saveConfig();
+        renderPairList();
+
+        // Populate inputs & switch tab
+        if (pair.pairType === "word-def") {
+          switchSetupTab("word-def");
+          elements.defKey.value = pair.matchKey;
+          elements.defContent.value = pair.content2;
+          elements.defContent.focus();
+        } else if (pair.pairType === "word-image") {
+          switchSetupTab("word-image");
+          elements.wordImgKey.value = pair.matchKey;
+          elements.wordImgFile.value = pair.imageURL1;
+          elements.wordImgFile.focus();
         }
+        // For simple image match, we just delete as they are file uploads
+      }
 
-        function updateUI() {
-            const timeStr = formatTime(timerSeconds);
-            timerDisplays.forEach(el => el.innerText = timeStr);
-            moveDisplays.forEach(el => el.innerText = moves);
-            pairsDisplay.innerText = `${matchedPairs}/${totalPairs}`;
+      function renderPairList() {
+        elements.pairList.innerHTML = "";
+        document.getElementById(
+          "current-pairs-count"
+        ).textContent = `(${gameConfig.pairs.length}/${MAX_PAIRS})`;
+
+        if (gameConfig.pairs.length === 0) {
+          elements.pairList.innerHTML =
+            '<div class="text-gray-500 text-sm text-center py-6 border-2 border-dashed border-white/10 rounded-xl">No staged pairs yet.<br><span class="text-xs">Add from tabs above.</span></div>';
+          document
+            .getElementById("clear-all-pairs-btn")
+            .classList.add("hidden");
+          return;
         }
+        document
+          .getElementById("clear-all-pairs-btn")
+          .classList.remove("hidden");
 
-        function shuffle(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
-            }
-            return array;
-        }
+        gameConfig.pairs.forEach((pair) => {
+          const isImg = pair.imageURL1 && pair.imageURL1 !== pair.matchKey;
+          const icon =
+            pair.pairType === "word-def"
+              ? "book-open"
+              : pair.pairType === "word-image"
+              ? "image"
+              : "layers";
+          const color =
+            pair.pairType === "word-def"
+              ? "text-orange"
+              : pair.pairType === "word-image"
+              ? "text-green"
+              : "text-pink";
 
-        function initGame(words) {
-            stopTimer();
-            currentWords = words;
-            matchedPairs = 0;
-            moves = 0;
-            totalPairs = words.length; // Total pairs is the number of words provided
-            cards = [];
-            flippedCards = [];
-            isLocked = false;
-            
-            // Show stats
-            document.getElementById('game-stats').classList.remove('hidden');
-            document.getElementById('mobile-stats').classList.remove('hidden');
-            
-            // Create pairs
-            const deck = [...words, ...words];
-            shuffle(deck);
+          const el = document.createElement("div");
+          el.className = `list-item-hover p-2 rounded-lg flex gap-3 items-center bg-surface/50 border border-white/5 group`;
 
-            // Dynamically determine grid size based on the number of pairs provided (up to MAX_PAIRS)
-            let cols = 4;
-            if (totalPairs >= 9) {
-                cols = 6; // Use 6 columns for 9-12 pairs (18-24 cards)
-            } else if (totalPairs >= 7) {
-                 cols = 5; // Use 5 columns for 7-8 pairs (14-16 cards)
-            } else if (totalPairs <= 4) {
-                cols = 3; // Use 3 columns for 3-4 pairs (6-8 cards)
-            }
-            
-            // Grid layout is now determined by the number of pairs
-            gameGrid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
-            gameGrid.innerHTML = '';
+          // Content Preview
+          let contentPreview = "";
+          if (
+            pair.pairType === "image-image" ||
+            (pair.pairType === "word-image" && pair.imageURL1)
+          ) {
+            contentPreview = `<img src="${pair.imageURL1}" class="w-8 h-8 rounded bg-dark object-cover border border-white/10">`;
+          } else {
+            contentPreview = `<div class="w-8 h-8 rounded bg-dark flex items-center justify-center text-xs text-gray-400 font-mono border border-white/10">Abc</div>`;
+          }
 
-            deck.forEach((word, index) => {
-                const card = document.createElement('div');
-                card.className = 'card aspect-square relative';
-                card.dataset.word = word;
-                card.dataset.index = index;
-                
-                // Adjust font size based on length
-                const fontSize = word.length > 8 ? 'text-xs md:text-sm' : 'text-sm md:text-xl';
-
-                card.innerHTML = `
-                    <div class="card-inner">
-                        <div class="card-face card-front ${fontSize}">
-                            ${word}
+          el.innerHTML = `
+                    ${contentPreview}
+                    <div class="flex flex-col flex-1 min-w-0">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="${icon}" class="w-3 h-3 ${color}"></i>
+                            <span class="text-white font-bold text-sm truncate leading-tight">${escapeHTML(
+                              pair.matchKey
+                            )}</span>
                         </div>
-                        <div class="card-face card-back">
-                            ?
-                        </div>
+                        <span class="text-[10px] text-gray-400 truncate">${
+                          pair.content2
+                            ? escapeHTML(pair.content2)
+                            : "Image Match"
+                        }</span>
+                    </div>
+                    
+                    <div class="flex items-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                        ${
+                          pair.pairType !== "image-image"
+                            ? `
+                        <button class="edit-btn p-1.5 hover:bg-blue/20 rounded-md text-blue transition" title="Edit">
+                            <i data-lucide="pencil" class="w-3 h-3"></i>
+                        </button>`
+                            : ""
+                        }
+                        <button class="rm-btn p-1.5 hover:bg-pink/20 rounded-md text-pink transition" title="Delete">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
                     </div>
                 `;
-                
-                card.addEventListener('click', () => flipCard(card));
-                gameGrid.appendChild(card);
-                cards.push(card);
+
+          if (pair.pairType !== "image-image")
+            el.querySelector(".edit-btn").onclick = () => editPair(pair.id);
+          el.querySelector(".rm-btn").onclick = async () => {
+            gameConfig.pairs = gameConfig.pairs.filter((p) => p.id !== pair.id);
+            await saveConfig();
+            renderPairList();
+            AudioEngine.playError();
+          };
+          elements.pairList.appendChild(el);
+        });
+        lucide.createIcons();
+      }
+
+      // --- SETUP TABS ---
+      function switchSetupTab(tabName) {
+        clearSetupInputs();
+        activeSetupTab = tabName;
+        ["simple", "word-def", "word-image", "image-image"].forEach((t) => {
+          const panel =
+            document.getElementById(t + "-panel") ||
+            document.getElementById(t + "-setup-panel");
+          if (panel) panel.classList.toggle("hidden", t !== tabName);
+          const btn = document.getElementById("tab-" + t);
+          if (btn)
+            btn.className = `tab-btn px-4 py-3 font-bold text-sm tracking-wide border-b-2 transition ${
+              t === tabName
+                ? "border-blue bg-surface/50 text-white"
+                : "border-transparent text-gray-400 hover:border-white/20"
+            }`;
+        });
+      }
+
+      // --- EVENT BINDINGS ---
+      window.onload = async () => {
+        await loadConfig();
+        setupDragDrop();
+
+        // Generate Presets
+        Object.keys(PRESETS).forEach((mode) => {
+          const c = document.getElementById(mode + "-presets");
+          if (c)
+            Object.keys(PRESETS[mode]).forEach((k) => {
+              const b = document.createElement("button");
+              b.className =
+                "bg-dark hover:bg-blue/20 hover:text-blue text-gray-400 text-xs font-mono px-3 py-1.5 rounded-full transition border border-white/5";
+              b.innerText = k.charAt(0).toUpperCase() + k.slice(1);
+              b.onclick = async () => {
+                if (mode === "simple")
+                  elements.simpleInput.value = PRESETS[mode][k];
+                else {
+                  gameConfig.pairs = PRESETS[mode][k].map((item) => ({
+                    id: Date.now() + Math.random(),
+                    pairType: mode,
+                    matchKey: item.matchKey,
+                    content: item.content || item.matchKey,
+                    content2: item.content,
+                    imageURL1: item.imageURL1 || item.content,
+                  }));
+                  await saveConfig();
+                  renderPairList();
+                  switchSetupTab(mode);
+                }
+                showToast("Preset Loaded");
+              };
+              c.appendChild(b);
             });
+        });
 
-            startTimer();
-            updateUI();
+        renderPairList();
+
+        const simpleWords = elements.simpleInput.value
+          .split(",")
+          .filter((w) => w.trim());
+        if (simpleWords.length >= 2) initGame(compileTextPairs(simpleWords));
+        else elements.modal.classList.remove("hidden");
+      };
+
+      // Button Actions
+      document.getElementById("settings-btn").onclick = () => {
+        elements.modal.classList.remove("hidden");
+        elements.win.classList.add("hidden");
+      };
+      document.getElementById("close-setup").onclick = () =>
+        elements.modal.classList.add("hidden");
+      document.getElementById("restart-btn").onclick = () => restartGame();
+
+      document.getElementById("start-game-btn").onclick = () => {
+        if (activeSetupTab === "simple") {
+          const words = elements.simpleInput.value
+            .split(",")
+            .filter((w) => w.trim());
+          if (words.length < 2)
+            return showToast("Need at least 2 words", "error");
+          initGame(compileTextPairs(words));
+        } else {
+          if (gameConfig.pairs.length < 2)
+            return showToast("Need at least 2 pairs", "error");
+          initGame(gameConfig.pairs);
+        }
+      };
+
+      document
+        .getElementById("add-def-pair-btn")
+        .addEventListener("click", () =>
+          addStructuredPair(
+            "word-def",
+            elements.defKey.value,
+            elements.defContent.value,
+            elements.defContent.value
+          )
+        );
+
+      document
+        .getElementById("add-word-image-pair-btn")
+        .addEventListener("click", () => {
+          const f = elements.wordImgFile.value.trim();
+          addStructuredPair(
+            "word-image",
+            elements.wordImgKey.value,
+            f,
+            null,
+            f,
+            null
+          );
+        });
+
+      document.getElementById("clear-all-pairs-btn").onclick = async () => {
+        if (confirm("Delete all staged pairs?")) {
+          gameConfig.pairs = [];
+          await saveConfig();
+          renderPairList();
+        }
+      };
+
+      // "Enter" key trigger
+      document.querySelectorAll(".enter-trigger").forEach((input) => {
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            if (activeSetupTab === "word-def")
+              document.getElementById("add-def-pair-btn").click();
+            else if (activeSetupTab === "word-image")
+              document.getElementById("add-word-image-pair-btn").click();
+          }
+        });
+      });
+
+      document.getElementById("sound-toggle").onclick = (e) => {
+        audioEnabled = !audioEnabled;
+        e.currentTarget.innerHTML = `<i data-lucide="${
+          audioEnabled ? "volume-2" : "volume-x"
+        }" class="w-5 h-5"></i>`;
+        lucide.createIcons();
+      };
+
+      elements.simpleInput.oninput = () => saveConfig();
+
+      // --- GAME ENGINE ---
+      function restartGame() {
+        elements.win.classList.add("hidden");
+        document.getElementById("start-game-btn").click();
+      }
+
+      async function initGame(pairs) {
+        await AudioEngine.init();
+        elements.modal.classList.add("hidden");
+        elements.msg.classList.add("hidden");
+        document.getElementById("game-stats").classList.remove("hidden");
+        document.getElementById("mobile-stats").classList.remove("hidden");
+
+        matchedPairs = 0;
+        moves = 0;
+        totalPairs = pairs.length;
+        cards = [];
+        flippedCards = [];
+        isLocked = false;
+
+        let deck = [];
+        pairs.forEach((p) => {
+          const base = { id: p.id, matchKey: p.matchKey };
+          if (p.pairType === "simple-word" || p.pairType === "word-def") {
+            deck.push(
+              { ...base, type: "text", content: p.matchKey },
+              { ...base, type: "text", content: p.content2 || p.content }
+            );
+          } else if (p.pairType === "word-image") {
+            deck.push(
+              { ...base, type: "text", content: p.matchKey },
+              { ...base, type: "image", url: p.imageURL1 }
+            );
+          } else if (p.pairType === "image-image") {
+            deck.push(
+              { ...base, type: "image", url: p.imageURL1 },
+              { ...base, type: "image", url: p.imageURL2 || p.imageURL1 }
+            );
+          }
+        });
+
+        // Shuffle
+        for (let i = deck.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [deck[i], deck[j]] = [deck[j], deck[i]];
         }
 
-        function flipCard(card) {
-            if (isLocked || card.classList.contains('flipped') || card.classList.contains('matched')) return;
+        elements.grid.innerHTML = "";
+        let cols = deck.length > 12 ? (deck.length > 16 ? 6 : 5) : 4;
+        elements.grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
 
-            // Start Audio Context on first user interaction if needed
-            if (Tone.context.state !== 'running') Tone.start();
+        deck.forEach((data) => {
+          const card = document.createElement("div");
+          card.className = "card aspect-square relative";
+          card.dataset.key = data.matchKey;
 
-            card.classList.add('flipped');
-            flippedCards.push(card);
-            AudioEngine.playFlip();
+          const contentHtml =
+            data.type === "image"
+              ? `<img src="${data.url}" class="" onerror="this.src='${OFFLINE_PLACEHOLDER}'">`
+              : `<span class="${
+                  data.content.length > 10 ? "text-xs" : "text-lg"
+                }">${escapeHTML(data.content)}</span>`;
 
-            if (flippedCards.length === 2) {
-                moves++;
-                updateUI();
-                checkForMatch();
-            }
+          card.innerHTML = `
+                    <div class="card-inner">
+                        <div class="card-face card-front border-2 border-white/10 rounded-xl">${contentHtml}</div>
+                        <div class="card-face card-back border-2 border-white/10 flex items-center justify-center">?</div>
+                    </div>`;
+
+          card.onclick = () => flipCard(card);
+          elements.grid.appendChild(card);
+          cards.push(card);
+        });
+
+        // Timer
+        if (timerInterval) clearInterval(timerInterval);
+        timerSeconds = 0;
+        const updateTimer = () => {
+          const s = timerSeconds % 60,
+            m = Math.floor(timerSeconds / 60);
+          const str = `${m.toString().padStart(2, "0")}:${s
+            .toString()
+            .padStart(2, "0")}`;
+          document.getElementById("timer-display").innerText = str;
+          document.getElementById("mobile-timer").innerText = str;
+          document.getElementById("moves-display").innerText = moves;
+          document.getElementById("mobile-moves").innerText = moves;
+          document.getElementById(
+            "pairs-display"
+          ).innerText = `${matchedPairs}/${totalPairs}`;
+        };
+        updateTimer();
+        timerInterval = setInterval(() => {
+          timerSeconds++;
+          updateTimer();
+        }, 1000);
+      }
+
+      function flipCard(card) {
+        if (
+          isLocked ||
+          card.classList.contains("flipped") ||
+          card.classList.contains("matched")
+        )
+          return;
+        card.classList.add("flipped");
+        flippedCards.push(card);
+        AudioEngine.playFlip();
+        if (flippedCards.length === 2) {
+          moves++;
+          checkForMatch();
         }
+      }
 
-        function checkForMatch() {
-            isLocked = true;
-            const [card1, card2] = flippedCards;
-            const match = card1.dataset.word === card2.dataset.word;
-
-            if (match) {
-                setTimeout(() => {
-                    card1.classList.add('matched');
-                    card2.classList.add('matched');
-                    AudioEngine.playMatch();
-                    matchedPairs++;
-                    updateUI();
-                    resetTurn();
-                    checkWin();
-                }, 500);
-            } else {
-                setTimeout(() => {
-                    AudioEngine.playError();
-                    card1.classList.remove('flipped');
-                    card2.classList.remove('flipped');
-                    resetTurn();
-                }, 1000);
-            }
-        }
-
-        function resetTurn() {
+      function checkForMatch() {
+        isLocked = true;
+        const [c1, c2] = flippedCards;
+        if (c1.dataset.key === c2.dataset.key) {
+          setTimeout(() => {
+            c1.classList.add("matched");
+            c2.classList.add("matched");
+            matchedPairs++;
+            AudioEngine.playMatch();
+            if (matchedPairs === totalPairs) handleWin();
             flippedCards = [];
             isLocked = false;
+          }, 500);
+        } else {
+          setTimeout(() => {
+            c1.classList.remove("flipped");
+            c2.classList.remove("flipped");
+            AudioEngine.playError();
+            flippedCards = [];
+            isLocked = false;
+          }, 1000);
         }
+      }
 
-        function checkWin() {
-            if (matchedPairs === totalPairs) {
-                stopTimer();
-                AudioEngine.playWin();
-                confetti({
-                    particleCount: 150,
-                    spread: 70,
-                    origin: { y: 0.6 },
-                    colors: ['#FF6B95', '#FF8C42', '#00E676', '#2979FF']
-                });
-                
-                document.getElementById('final-time').innerText = formatTime(timerSeconds);
-                document.getElementById('final-moves').innerText = moves;
-                
-                setTimeout(() => {
-                    winModal.classList.remove('hidden');
-                }, 1000);
-            }
-        }
-
-        function restartGame() {
-            winModal.classList.add('hidden');
-            if(currentWords.length > 0) initGame(currentWords);
-            else setupModal.classList.remove('hidden'); // Directly show modal on restart if no words
-        }
-
-        // --- APPLICATION STARTUP LOGIC ---
-        function initializeApplication() {
-            // 1. Load words into the textarea (auto-saved content)
-            const savedWords = loadWordsToInput();
-
-            // 2. Validate words
-            if (savedWords) {
-                const wordsArray = savedWords.split(',').map(w => w.trim()).filter(w => w.length > 0);
-                const uniqueWords = [...new Set(wordsArray)];
-                
-                if (uniqueWords.length >= 3 && uniqueWords.length <= MAX_PAIRS) {
-                    // 3a. If valid, start the game immediately.
-                    initGame(uniqueWords);
-                    return; // Stop here, game is running.
-                }
-                // If invalid (too few/too many), fall through to open setup.
-            }
-            
-            // 3b. If no valid game was started, open the setup modal directly.
-            setupModal.classList.remove('hidden'); 
-        }
-
-        // --- EVENT LISTENERS ---
-        
-        // Setup Modal Controls
-        document.getElementById('settings-btn').addEventListener('click', () => {
-            setupModal.classList.remove('hidden');
-            winModal.classList.add('hidden');
+      function handleWin() {
+        clearInterval(timerInterval);
+        AudioEngine.playWin();
+        confetti({
+          particleCount: 150,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ["#FF6B95", "#FF8C42", "#00E676", "#2979FF"],
         });
+        document.getElementById("final-time").innerText =
+          document.getElementById("timer-display").innerText;
+        document.getElementById("final-moves").innerText = moves;
+        setTimeout(() => elements.win.classList.remove("hidden"), 1000);
+      }
 
-        document.getElementById('close-setup').addEventListener('click', () => {
-            setupModal.classList.add('hidden');
+      function compileTextPairs(words) {
+        return [...new Set(words)].map((w) => ({
+          id: Math.random(),
+          pairType: "simple-word",
+          matchKey: w.trim(),
+          content: w.trim(),
+        }));
+      }
+
+      async function saveConfig() {
+        await dbSave("gameConfig", {
+          pairs: gameConfig.pairs,
+          simpleWords: elements.simpleInput.value,
         });
+      }
+      async function loadConfig() {
+        const data = (await dbGet("gameConfig")) || {};
+        if (data.pairs) gameConfig.pairs = data.pairs;
+        if (data.simpleWords) elements.simpleInput.value = data.simpleWords;
+      }
 
-        // Automatic saving on input
-        wordInput.addEventListener('input', () => {
-            // Save the content of the textarea immediately when the user types
-            saveCurrentWords(wordInput.value);
-        });
-
-        // Start Game
-        document.getElementById('start-game-btn').addEventListener('click', () => {
-            const raw = wordInput.value;
-            const words = raw.split(',').map(w => w.trim()).filter(w => w.length > 0);
-            
-            // Unique words only
-            const uniqueWords = [...new Set(words)];
-            
-            if (uniqueWords.length < 3) {
-                errorText.textContent = "You must enter at least 3 words/pairs to start the game.";
-                setupError.classList.remove('hidden');
-                return;
-            }
-
-            if (uniqueWords.length > MAX_PAIRS) {
-                errorText.textContent = `You entered too many words (${uniqueWords.length}). The maximum supported is ${MAX_PAIRS} pairs. Please remove ${uniqueWords.length - MAX_PAIRS} words.`;
-                setupError.classList.remove('hidden');
-                return;
-            }
-
-            // The word list is already saved continuously, but we ensure one final save here.
-            saveCurrentWords(raw); 
-
-            setupError.classList.add('hidden');
-            setupModal.classList.add('hidden');
-            
-            // Use all valid words entered
-            initGame(uniqueWords);
-        });
-
-        // Presets
-        document.querySelectorAll('.preset-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                wordInput.value = e.target.dataset.words;
-                // Trigger auto-save immediately after loading a preset
-                saveCurrentWords(wordInput.value); 
-            });
-        });
-
-        // Header Controls
-        document.getElementById('restart-btn').addEventListener('click', restartGame);
-        
-        document.getElementById('sound-toggle').addEventListener('click', (e) => {
-            audioEnabled = !audioEnabled;
-            const icon = audioEnabled ? 'volume-2' : 'volume-x';
-            e.currentTarget.innerHTML = `<i data-lucide="${icon}" class="w-5 h-5"></i>`;
-            lucide.createIcons();
-        });
-
+      // Drag Drop Logic
+      function setupDragDrop() {
+        const zone = elements.imgDrop;
+        const input = elements.imgInput;
+        const processFiles = (files) => {
+          let count = 0;
+          Array.from(files).forEach((file) => {
+            if (
+              !file.type.startsWith("image/") ||
+              gameConfig.pairs.length >= MAX_PAIRS
+            )
+              return;
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+              gameConfig.pairs.push({
+                id: Date.now() + Math.random(),
+                pairType: "image-image",
+                matchKey: file.name.replace(/\.[^/.]+$/, ""),
+                content: "Image",
+                content2: "Image",
+                imageURL1: e.target.result,
+                imageURL2: e.target.result,
+              });
+              count++;
+              if (
+                count ===
+                Math.min(
+                  files.length,
+                  MAX_PAIRS - gameConfig.pairs.length + count
+                )
+              ) {
+                await saveConfig();
+                renderPairList();
+                showToast("Images Added");
+                AudioEngine.playMatch();
+              }
+            };
+            reader.readAsDataURL(file);
+          });
+        };
+        input.onchange = (e) => processFiles(e.target.files);
+        zone.ondragover = (e) => {
+          e.preventDefault();
+          zone.classList.add("drag-over");
+        };
+        zone.ondragleave = () => zone.classList.remove("drag-over");
+        zone.ondrop = (e) => {
+          e.preventDefault();
+          zone.classList.remove("drag-over");
+          processFiles(e.dataTransfer.files);
+        };
+      }
     </script>
-</body>
+  </body>
 </html>
