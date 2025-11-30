@@ -3,21 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Word List Randomizer - Game Hub</title>
-    
-    <!-- Fonts: Bebas Neue (Headings), Nunito (Body) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <title>Word Randomizer - Game Hub</title>
     
     <!-- Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-
+    
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
-            darkMode: 'class',
+            darkMode: 'class', 
             theme: {
                 extend: {
                     colors: {
@@ -27,23 +22,21 @@
                         blue: '#2979FF',
                         dark: '#0f172a',
                         panel: '#1e293b',
-                        surface: '#334155'
+                        surface: '#334155',
+                        terminal: '#1e1e1e',
+                        terminalHeader: '#2d2d2d'
                     },
                     fontFamily: {
                         heading: ['Bebas Neue', 'sans-serif'],
                         body: ['Nunito', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
                     },
                     animation: {
-                        'fade-in': 'fadeIn 0.5s ease-out forwards',
-                        'pop': 'pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                        'pop': 'pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
                     },
                     keyframes: {
-                        fadeIn: {
-                            '0%': { opacity: '0', transform: 'translateY(10px)' },
-                            '100%': { opacity: '1', transform: 'translateY(0)' },
-                        },
                         pop: {
-                            '0%': { transform: 'scale(0.95)', opacity: '0' },
+                            '0%': { transform: 'scale(0.9)', opacity: '0' },
                             '100%': { transform: 'scale(1)', opacity: '1' },
                         }
                     }
@@ -51,168 +44,219 @@
             }
         }
     </script>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+
     <style>
-        body {
+        body { 
             font-family: 'Nunito', sans-serif;
-            background-color: #f0f4f8;
-            transition: background-color 0.5s, color 0.3s;
-        }
-        
-        html.dark body {
             background-color: #0f172a;
-            color: #f8fafc;
+            /* Matches Card Match Background */
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(41, 121, 255, 0.15) 0px, transparent 50%), 
+                radial-gradient(at 100% 100%, rgba(255, 107, 149, 0.1) 0px, transparent 50%);
+            background-attachment: fixed;
+            color: white;
+            overflow-x: hidden;
         }
 
-        /* Custom Scrollbar for Textarea */
-        textarea::-webkit-scrollbar {
-            width: 8px;
-        }
-        textarea::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        textarea::-webkit-scrollbar-thumb {
-            background-color: #cbd5e1;
-            border-radius: 4px;
-        }
-        .dark textarea::-webkit-scrollbar-thumb {
-            background-color: #475569;
+        /* Glassmorphism Panels */
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
         }
 
-        /* Header Colors */
-        .header-pink { background-color: #FF6B95; }
-        .header-orange { background-color: #FF8C42; }
-        .header-green { background-color: #00E676; }
-        .header-blue { background-color: #2979FF; }
-        .header-dark-pink { background-color: #e91e63; }
-        .header-dark-orange { background-color: #ff5722; }
-        .header-dark-green { background-color: #00c853; }
-        .header-dark-blue { background-color: #2962ff; }
-
-        /* Button Gradient Hover Effects */
-        .btn-gradient {
-            background-size: 200% auto;
-            transition: 0.5s;
+        /* 3D Button Style */
+        .btn-3d {
+            transition: all 0.1s;
+            transform: translateY(0);
+            box-shadow: 0 4px 0 rgba(0,0,0,0.3);
+            border-bottom: 4px solid rgba(0,0,0,0.2);
         }
-        .btn-gradient:hover {
-            background-position: right center;
+        .btn-3d:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 rgba(0,0,0,0.2);
+            border-bottom: 0px solid transparent;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+
+        /* Terminal styling */
+        .terminal-window {
+            background-color: #1e1e1e;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.75rem;
+            overflow: hidden;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.5);
+        }
+
+        /* PRINT STYLES */
+        @media print {
+            body { background: white !important; color: black !important; background-image: none !important; }
+            header, nav, .no-print { display: none !important; }
+            .glass-panel { background: white !important; border: none !important; box-shadow: none !important; backdrop-filter: none !important; }
+            #control-panel { display: none !important; }
+            #resultsContainer { padding: 0; }
+            #listsGrid { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 20px; }
+            .list-card {
+                break-inside: avoid;
+                border: 1px solid #ccc;
+                background: white !important;
+                color: black !important;
+                box-shadow: none !important;
+            }
+            .list-card h3 { color: black !important; border-bottom: 1px solid #000; }
+            li { color: black !important; border-bottom: 1px solid #eee; }
         }
     </style>
 </head>
-<body class="min-h-screen p-4 md:p-8 flex flex-col items-center">
+<body class="flex flex-col min-h-screen pb-12">
 
-    <!-- Theme Toggle (Absolute Top Right) -->
-    <button id="theme-toggle" class="fixed top-4 right-4 p-3 rounded-full bg-white/50 dark:bg-black/20 hover:bg-white dark:hover:bg-white/10 transition-all backdrop-blur-sm z-50 text-gray-600 dark:text-yellow-400 shadow-sm">
-        <i data-lucide="sun" id="sun-icon" class="w-6 h-6 hidden"></i>
-        <i data-lucide="moon" id="moon-icon" class="w-6 h-6 hidden"></i>
-    </button>
+    <!-- Navbar / Header -->
+    <header class="w-full glass-panel border-b border-white/10 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-gradient-to-br from-orange to-pink w-10 h-10 rounded-lg flex items-center justify-center text-xl shadow-lg">
+                    🎲
+                </div>
+                <div>
+                    <h1 class="text-2xl font-heading tracking-wider text-white leading-none">RANDOMIZER</h1>
+                    <div class="text-[10px] font-mono text-gray-400 tracking-widest">ENGLISH 1 BATAM</div>
+                </div>
+            </div>
+
+            <!-- Header Actions -->
+            <div class="flex items-center gap-3">
+                <a href="#" class="text-gray-400 hover:text-white transition-colors text-sm font-bold flex items-center gap-2">
+                    <i data-lucide="layout-grid" class="w-4 h-4"></i> HUB
+                </a>
+            </div>
+        </div>
+    </header>
 
     <!-- Main Container -->
-    <div class="w-full max-w-6xl animate-fade-in">
+    <main class="w-full max-w-6xl mx-auto p-4 md:p-8 animate-pop">
         
-        <!-- Header Section -->
-        <header class="text-center mb-8 relative">
-            <h1 class="text-5xl md:text-6xl font-heading tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-blue via-pink to-orange inline-block pb-2">
-                RANDOMIZER
-            </h1>
-            <p class="text-gray-600 dark:text-gray-400 text-lg font-medium">
-                Generate shuffled word lists for your class instantly.
+        <!-- Intro Text -->
+        <div class="text-center mb-8 mt-2">
+            <h2 class="text-3xl md:text-5xl font-heading tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-blue via-pink to-orange mb-2">
+                TEAM GENERATOR
+            </h2>
+            <p class="text-gray-400 text-sm md:text-base font-medium max-w-lg mx-auto">
+                Paste your student names or vocabulary list below.
             </p>
-        </header>
+        </div>
 
-        <!-- Control Panel Card -->
-        <div class="bg-white dark:bg-panel rounded-3xl shadow-xl shadow-blue/5 border border-surface/20 p-6 md:p-8 mb-8 relative overflow-hidden">
-            <!-- Decorative Background Blob -->
-            <div class="absolute -top-24 -right-24 w-64 h-64 bg-pink/5 rounded-full blur-3xl pointer-events-none"></div>
-            <div class="absolute -bottom-24 -left-24 w-64 h-64 bg-blue/5 rounded-full blur-3xl pointer-events-none"></div>
-
+        <!-- Control Panel -->
+        <div id="control-panel" class="glass-panel rounded-3xl p-6 md:p-8 mb-10 relative overflow-hidden">
+            
             <div class="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8">
                 
-                <!-- Left Column: Inputs -->
-                <div class="lg:col-span-8 flex flex-col gap-6">
+                <!-- Left Column: Console Input -->
+                <div class="lg:col-span-8 flex flex-col gap-4">
                     
-                    <!-- Presets & Label -->
-                    <div class="flex flex-wrap justify-between items-end gap-2">
-                        <label for="wordInput" class="text-xl font-heading tracking-wide text-gray-700 dark:text-gray-200 flex items-center gap-2">
-                            <i data-lucide="list" class="w-5 h-5 text-pink"></i> WORD BANK (Auto-Saved)
+                    <!-- Toolbar -->
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3">
+                        <label class="text-sm font-bold text-blue uppercase tracking-widest flex items-center gap-2">
+                            <i data-lucide="terminal" class="w-4 h-4"></i> Input Console
                         </label>
                         
                         <!-- Presets Dropdown -->
-                        <div class="relative group">
-                            <button class="flex items-center gap-2 px-4 py-1.5 bg-blue/10 dark:bg-blue/20 text-blue hover:bg-blue hover:text-white rounded-lg text-sm font-bold transition-colors">
-                                <i data-lucide="book-open" class="w-4 h-4"></i> LOAD PRESET
-                            </button>
-                            <!-- Dropdown Menu -->
-                            <div class="absolute right-0 mt-2 w-48 bg-white dark:bg-surface rounded-xl shadow-xl border border-gray-100 dark:border-gray-700 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-20 overflow-hidden transform origin-top-right">
-                                <div class="py-1">
-                                    <button onclick="loadPreset('verbs')" class="w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-black/20 text-gray-700 dark:text-gray-200 text-sm">Action Verbs</button>
-                                    <button onclick="loadPreset('adjectives')" class="w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-black/20 text-gray-700 dark:text-gray-200 text-sm">Adjectives</button>
-                                    <button onclick="loadPreset('animals')" class="w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-black/20 text-gray-700 dark:text-gray-200 text-sm">Animals</button>
-                                    <button onclick="loadPreset('fruits')" class="w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-black/20 text-gray-700 dark:text-gray-200 text-sm">Fruits & Veg</button>
-                                    <button onclick="loadPreset('classroom')" class="w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-black/20 text-gray-700 dark:text-gray-200 text-sm">Classroom Objects</button>
-                                    <button onclick="loadPreset('colors')" class="w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-black/20 text-gray-700 dark:text-gray-200 text-sm">Colors</button>
-                                </div>
-                            </div>
+                        <div class="flex flex-wrap gap-2">
+                            <button onclick="loadPreset('verbs')" class="px-3 py-1.5 bg-surface/50 hover:bg-blue hover:text-white border border-white/10 rounded-lg text-xs font-bold uppercase tracking-wide transition text-gray-400">Verbs</button>
+                            <button onclick="loadPreset('animals')" class="px-3 py-1.5 bg-surface/50 hover:bg-orange hover:text-white border border-white/10 rounded-lg text-xs font-bold uppercase tracking-wide transition text-gray-400">Animals</button>
+                            <button onclick="loadPreset('classroom')" class="px-3 py-1.5 bg-surface/50 hover:bg-green hover:text-white border border-white/10 rounded-lg text-xs font-bold uppercase tracking-wide transition text-gray-400">Objects</button>
+                            <button onclick="loadPreset('fruits')" class="px-3 py-1.5 bg-surface/50 hover:bg-pink hover:text-white border border-white/10 rounded-lg text-xs font-bold uppercase tracking-wide transition text-gray-400">Fruits</button>
+                            <button onclick="loadPreset('colors')" class="px-3 py-1.5 bg-surface/50 hover:bg-blue hover:text-white border border-white/10 rounded-lg text-xs font-bold uppercase tracking-wide transition text-gray-400">Colors</button>
+                            <button onclick="loadPreset('adjectives')" class="px-3 py-1.5 bg-surface/50 hover:bg-purple-500 hover:text-white border border-white/10 rounded-lg text-xs font-bold uppercase tracking-wide transition text-gray-400">Adj.</button>
                         </div>
                     </div>
 
-                    <!-- Text Area -->
-                    <div class="relative group">
+                    <!-- Terminal Area -->
+                    <div class="terminal-window group">
+                        <!-- Terminal Bar -->
+                        <div class="bg-terminalHeader px-4 py-2 flex items-center justify-between border-b border-white/5">
+                            <div class="flex gap-1.5">
+                                <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
+                                <div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+                                <div class="w-3 h-3 rounded-full bg-green-500/80"></div>
+                            </div>
+                            <span class="text-[10px] font-mono text-gray-500 uppercase tracking-widest">source_data.txt</span>
+                        </div>
+                        <!-- Textarea -->
                         <textarea
                             id="wordInput"
-                            rows="5"
-                            placeholder="Enter words separated by commas (e.g. apple, banana, cherry)..."
-                            class="w-full p-4 bg-gray-50 dark:bg-black/20 border-2 border-gray-200 dark:border-surface/50 rounded-xl focus:ring-4 focus:ring-pink/20 focus:border-pink transition-all duration-300 resize-none text-lg text-gray-700 dark:text-gray-200 shadow-inner"
+                            rows="6"
+                            placeholder="Enter items separated by commas (e.g. John, Sarah, Mike)..."
+                            class="w-full p-4 bg-transparent text-green font-mono text-sm leading-relaxed resize-none focus:outline-none placeholder-gray-600"
                         ></textarea>
-                        <!-- Clear Button inside textarea -->
-                        <button onclick="clearInput()" class="absolute top-3 right-3 p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Clear Text">
-                            <i data-lucide="trash-2" class="w-4 h-4"></i>
-                        </button>
+                        <!-- Clear Button overlay -->
+                        <div class="flex justify-end px-2 pb-2">
+                            <button onclick="clearInput()" class="text-xs text-gray-600 hover:text-red-400 transition-colors font-mono">
+                                [ Clear Console ]
+                            </button>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Right Column: Settings & Actions -->
                 <div class="lg:col-span-4 flex flex-col justify-between gap-6">
                     
-                    <!-- Settings -->
-                    <div>
-                        <label for="listCount" class="text-xl font-heading tracking-wide text-gray-700 dark:text-gray-200 flex items-center gap-2 mb-3">
-                            <i data-lucide="hash" class="w-5 h-5 text-orange"></i> LIST COUNT
+                    <!-- Settings Box (Polished) -->
+                    <div class="bg-black/20 p-6 rounded-2xl border border-white/5 flex flex-col justify-center h-full">
+                        <label class="text-xs font-bold text-orange uppercase tracking-widest flex items-center gap-2 mb-4">
+                            <i data-lucide="layers" class="w-4 h-4"></i> Total Groups
                         </label>
-                        <div class="relative">
-                            <input
-                                type="number"
-                                id="listCount"
-                                value="4"
-                                min="1"
-                                max="12"
-                                class="w-full p-4 bg-gray-50 dark:bg-black/20 border-2 border-gray-200 dark:border-surface/50 rounded-xl focus:ring-4 focus:ring-orange/20 focus:border-orange transition-all duration-300 text-2xl font-bold text-center text-gray-700 dark:text-gray-200"
-                            />
-                            <div class="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-1">
-                                <button onclick="adjustCount(1)" class="text-gray-400 hover:text-green"><i data-lucide="chevron-up" class="w-4 h-4"></i></button>
-                                <button onclick="adjustCount(-1)" class="text-gray-400 hover:text-red-500"><i data-lucide="chevron-down" class="w-4 h-4"></i></button>
+                        
+                        <div class="flex items-center justify-between bg-dark rounded-xl p-2 border border-white/10 shadow-inner">
+                            <button onclick="adjustCount(-1)" class="w-12 h-12 flex items-center justify-center bg-surface hover:bg-orange hover:text-white rounded-lg text-gray-400 transition-all active:scale-95">
+                                <i data-lucide="minus" class="w-5 h-5"></i>
+                            </button>
+                            
+                            <div class="flex-1 text-center">
+                                <input
+                                    type="number"
+                                    id="listCount"
+                                    value="4"
+                                    min="1"
+                                    max="12"
+                                    class="w-full bg-transparent text-3xl font-bold font-mono text-center text-white border-none focus:ring-0 outline-none p-0"
+                                />
                             </div>
+
+                            <button onclick="adjustCount(1)" class="w-12 h-12 flex items-center justify-center bg-surface hover:bg-green hover:text-white rounded-lg text-gray-400 transition-all active:scale-95">
+                                <i data-lucide="plus" class="w-5 h-5"></i>
+                            </button>
                         </div>
+                        <p class="text-[10px] text-gray-500 text-center mt-3 font-mono">MIN: 1 | MAX: 12</p>
                     </div>
 
-                    <!-- Generate Button -->
+                    <!-- Generate Button (3D Style) -->
                     <button
                         id="generateButton"
-                        class="w-full py-4 bg-gradient-to-r from-blue via-purple-500 to-pink btn-gradient text-white font-bold text-xl rounded-xl shadow-lg shadow-blue/30 hover:shadow-xl hover:shadow-pink/30 hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-2 group"
+                        class="w-full py-4 bg-gradient-to-r from-blue via-blue to-purple-600 btn-3d text-white font-bold font-heading tracking-widest text-2xl rounded-xl flex items-center justify-center gap-3 shadow-lg shadow-blue/20"
                     >
-                        <i data-lucide="shuffle" class="w-6 h-6 group-hover:rotate-180 transition-transform duration-500"></i>
-                        GENERATE
+                        <i data-lucide="shuffle" class="w-6 h-6"></i> GENERATE
                     </button>
                 </div>
             </div>
         </div>
 
-        <!-- Toolbar (Copy / Actions) - Only shows when lists exist -->
-        <div id="actionToolbar" class="hidden mb-6 flex justify-end animate-fade-in">
+        <!-- Toolbar (Copy / Actions) -->
+        <div id="actionToolbar" class="hidden mb-6 flex justify-end animate-pop no-print">
             <button
                 onclick="copyAllLists()"
-                class="px-6 py-2.5 bg-white dark:bg-surface border border-gray-200 dark:border-gray-600 rounded-xl shadow-sm hover:shadow-md hover:bg-gray-50 dark:hover:bg-surface/80 transition-all flex items-center gap-2 text-gray-700 dark:text-white font-semibold"
+                class="btn-3d px-6 py-2 bg-surface text-white border border-white/10 rounded-lg font-bold text-sm tracking-wide flex items-center gap-2 hover:bg-white/10"
             >
-                <i data-lucide="copy" class="w-4 h-4"></i> Copy All Lists
+                <i data-lucide="copy" class="w-4 h-4"></i> COPY RESULTS
             </button>
         </div>
 
@@ -220,21 +264,25 @@
         <div id="resultsContainer" class="pb-20">
             <div id="listsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <!-- Empty State Placeholder -->
-                <div class="col-span-1 sm:col-span-2 lg:col-span-4 text-center py-20 opacity-50 border-2 border-dashed border-gray-300 dark:border-surface rounded-2xl">
-                    <i data-lucide="ghost" class="w-16 h-16 mx-auto mb-4 text-gray-400"></i>
-                    <p class="text-xl font-heading text-gray-500">Lists will appear here</p>
+                <div id="emptyState" class="col-span-1 sm:col-span-2 lg:col-span-4 text-center py-20 border-2 border-dashed border-white/10 rounded-3xl bg-white/5">
+                    <div class="bg-white/5 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i data-lucide="box" class="w-8 h-8 text-gray-500"></i>
+                    </div>
+                    <p class="text-xl font-heading tracking-wide text-gray-500">Waiting for Data...</p>
+                    <p class="text-sm text-gray-600 font-mono">Use the console above to initialize.</p>
                 </div>
             </div>
         </div>
 
-    </div>
+    </main>
 
     <!-- Javascript -->
     <script>
-        // --- LOCAL STORAGE KEY ---
+        // --- LOCAL STORAGE KEYS ---
         const LS_KEY_WORDS = 'randomizerWordBank';
+        const LS_KEY_RESULTS = 'randomizerGeneratedLists';
         
-        // --- State & Config ---
+        // --- Config ---
         const presets = {
             verbs: "run, jump, swim, fly, read, write, sing, dance, play, sleep, eat, drink, walk, talk, listen, watch",
             adjectives: "happy, sad, big, small, fast, slow, hot, cold, hungry, thirsty, loud, quiet, strong, weak, tall, short",
@@ -244,9 +292,20 @@
             colors: "red, orange, yellow, green, blue, purple, pink, black, white, brown, grey, silver, gold, indigo, violet"
         };
 
+        // Matching the game colors
         const colors = [
-            'header-pink', 'header-orange', 'header-green', 'header-blue',
-            'header-dark-pink', 'header-dark-orange', 'header-dark-green', 'header-dark-blue'
+            'border-pink text-pink', 
+            'border-orange text-orange', 
+            'border-green text-green', 
+            'border-blue text-blue'
+        ];
+        
+        // For the header backgrounds of the cards
+        const bgColors = [
+            'bg-pink',
+            'bg-orange',
+            'bg-green',
+            'bg-blue'
         ];
 
         // --- DOM Elements ---
@@ -255,25 +314,31 @@
         const listsGrid = document.getElementById('listsGrid');
         const actionToolbar = document.getElementById('actionToolbar');
 
-        // --- AUTOSAVE/LOAD FUNCTIONS ---
+        // --- STORAGE FUNCTIONS ---
 
         function saveWords(wordsString) {
-             try {
-                localStorage.setItem(LS_KEY_WORDS, wordsString);
-            } catch (e) {
-                console.error("Could not save words to local storage:", e);
-            }
+             try { localStorage.setItem(LS_KEY_WORDS, wordsString); } catch (e) { console.error(e); }
         }
 
         function loadWords() {
             try {
                 const savedWords = localStorage.getItem(LS_KEY_WORDS);
-                if (savedWords) {
-                    wordInput.value = savedWords;
+                if (savedWords) wordInput.value = savedWords;
+            } catch (e) { console.error(e); }
+        }
+
+        function saveGeneratedLists(listsData) {
+            try { localStorage.setItem(LS_KEY_RESULTS, JSON.stringify(listsData)); } catch (e) { console.error(e); }
+        }
+
+        function loadGeneratedLists() {
+            try {
+                const savedJSON = localStorage.getItem(LS_KEY_RESULTS);
+                if (savedJSON) {
+                    const listsData = JSON.parse(savedJSON);
+                    if (Array.isArray(listsData) && listsData.length > 0) renderLists(listsData);
                 }
-            } catch (e) {
-                console.error("Could not load words from local storage:", e);
-            }
+            } catch (e) { console.error(e); }
         }
 
         // --- Functions ---
@@ -281,8 +346,7 @@
         function loadPreset(key) {
             if (presets[key]) {
                 wordInput.value = presets[key];
-                showToast(`Loaded ${key} preset!`);
-                // Trigger save after loading preset
+                showToast(`Loaded ${key}`);
                 saveWords(wordInput.value); 
                 wordInput.focus();
             }
@@ -290,7 +354,6 @@
 
         function clearInput() {
             wordInput.value = '';
-            // Trigger save after clearing
             saveWords('');
             wordInput.focus();
         }
@@ -314,29 +377,41 @@
 
         function generateLists() {
             const text = wordInput.value.trim();
-            // Auto-save one final time before generation
             saveWords(text); 
 
             if (!text) {
-                showToast("Please enter words or load a preset!", true);
+                showToast("Input is empty!", true);
                 return;
             }
 
-            // Split by comma or newline
             const words = text.split(/[\n,]+/).map(w => w.trim()).filter(w => w.length > 0);
 
             if (words.length < 2) {
-                showToast("Need at least 2 words.", true);
+                showToast("Need at least 2 items.", true);
                 return;
             }
 
             const count = Math.min(Math.max(parseInt(listCountInput.value) || 1, 1), 12);
             
-            // Clear and Show
+            // Generate Data
+            let allListsData = [];
+            for (let i = 0; i < count; i++) {
+                const shuffled = shuffleArray(words);
+                allListsData.push(shuffled);
+            }
+
+            saveGeneratedLists(allListsData);
+            renderLists(allListsData);
+            
+            showToast(`Generated ${count} Lists!`);
+        }
+
+        function renderLists(listsData) {
+            const count = listsData.length;
+            
             listsGrid.innerHTML = '';
             actionToolbar.classList.remove('hidden');
 
-            // Responsive Columns Logic
             let gridClass = 'lg:grid-cols-4';
             if (count === 1) gridClass = 'lg:grid-cols-1 max-w-md mx-auto';
             else if (count === 2) gridClass = 'lg:grid-cols-2';
@@ -344,37 +419,34 @@
             
             listsGrid.className = `grid grid-cols-1 sm:grid-cols-2 ${gridClass} gap-6`;
 
-            // Render Cards
-            for (let i = 0; i < count; i++) {
-                const shuffled = shuffleArray(words);
-                const colorClass = colors[i % colors.length];
-                const delay = i * 50; // Staggered animation
+            listsData.forEach((listItems, i) => {
+                const bgClass = bgColors[i % bgColors.length];
+                const delay = i * 50; 
 
                 const cardHTML = `
-                    <div class="list-card bg-white dark:bg-panel rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-all duration-300 border border-gray-100 dark:border-surface/50 animate-pop" style="animation-delay: ${delay}ms">
-                        <div class="${colorClass} p-3 text-center relative overflow-hidden">
-                            <div class="absolute inset-0 bg-white/10 opacity-0 hover:opacity-100 transition-opacity"></div>
-                            <h3 class="text-white font-heading text-2xl tracking-wider shadow-sm">LIST ${i + 1}</h3>
+                    <div class="list-card glass-panel rounded-xl overflow-hidden hover:-translate-y-1 transition-all duration-300 animate-pop" style="animation-delay: ${delay}ms">
+                        <!-- Header -->
+                        <div class="${bgClass} p-3 text-center relative overflow-hidden">
+                            <h3 class="text-white font-heading text-2xl tracking-wider shadow-sm">GROUP ${i + 1}</h3>
                         </div>
-                        <ol class="p-5 list-decimal list-inside text-gray-700 dark:text-gray-300 space-y-1.5 font-medium">
-                            ${shuffled.map(w => `<li class="pl-1 border-b border-gray-50 dark:border-surface/30 last:border-0 pb-1">${w}</li>`).join('')}
+                        <!-- List -->
+                        <ol class="p-5 list-decimal list-inside text-gray-300 space-y-2 font-mono text-sm">
+                            ${listItems.map(w => `<li class="pl-2 border-b border-white/5 last:border-0 pb-1">${w}</li>`).join('')}
                         </ol>
                     </div>
                 `;
                 listsGrid.insertAdjacentHTML('beforeend', cardHTML);
-            }
-
-            showToast(`${count} unique lists generated!`);
+            });
         }
 
         async function copyAllLists() {
-            if (!listsGrid.children.length || listsGrid.children[0].classList.contains('text-center')) return;
+            if (!listsGrid.children.length) return;
 
             let output = "";
             const cards = listsGrid.querySelectorAll('.list-card');
             
             cards.forEach((card, idx) => {
-                output += `--- LIST ${idx + 1} ---\n`;
+                output += `--- GROUP ${idx + 1} ---\n`;
                 const items = card.querySelectorAll('li');
                 items.forEach((li, liIdx) => {
                     output += `${liIdx + 1}. ${li.innerText}\n`;
@@ -383,32 +455,31 @@
             });
 
             try {
-                // Use execCommand('copy') as navigator.clipboard.writeText() may not work due to iFrame restrictions.
                 const textarea = document.createElement('textarea');
                 textarea.value = output;
-                textarea.style.position = 'fixed'; // Prevents scrolling to bottom of page in Firefox.
+                textarea.style.position = 'fixed'; 
                 document.body.appendChild(textarea);
                 textarea.focus();
                 textarea.select();
                 document.execCommand('copy');
                 document.body.removeChild(textarea);
                 
-                showToast("All lists copied to clipboard!");
+                showToast("Copied to Clipboard!");
             } catch (err) {
                 console.error('Failed to copy text: ', err);
-                showToast("Failed to copy automatically.", true);
+                showToast("Copy Failed", true);
             }
         }
 
-        // --- Toast Logic ---
         function showToast(msg, isError = false) {
             const existing = document.querySelector('.toast');
             if (existing) existing.remove();
 
             const toast = document.createElement('div');
-            toast.className = `toast fixed bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full font-bold text-white shadow-2xl z-50 animate-fade-in ${isError ? 'bg-red-500' : 'bg-gray-800 dark:bg-white dark:text-gray-900'}`;
-            toast.innerText = msg;
+            toast.className = `toast fixed bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full font-bold font-mono text-xs shadow-2xl z-50 animate-pop flex items-center gap-2 border border-white/10 backdrop-blur-md ${isError ? 'bg-red-500/90 text-white' : 'bg-green/90 text-black'}`;
+            toast.innerHTML = isError ? `<i data-lucide="alert-circle" class="w-4 h-4"></i> ${msg}` : `<i data-lucide="check-circle" class="w-4 h-4"></i> ${msg}`;
             document.body.appendChild(toast);
+            lucide.createIcons();
             
             setTimeout(() => {
                 toast.style.opacity = '0';
@@ -417,46 +488,14 @@
             }, 3000);
         }
 
-        // --- Theme Logic ---
-        const html = document.documentElement;
-        const toggleBtn = document.getElementById('theme-toggle');
-        
-        function initTheme() {
-            const saved = localStorage.getItem('theme');
-            if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                html.classList.add('dark');
-            }
-            updateIcons();
-        }
-
-        function toggleTheme() {
-            html.classList.toggle('dark');
-            localStorage.setItem('theme', html.classList.contains('dark') ? 'dark' : 'light');
-            updateIcons();
-        }
-
-        function updateIcons() {
-            const isDark = html.classList.contains('dark');
-            document.getElementById('sun-icon').classList.toggle('hidden', !isDark);
-            document.getElementById('moon-icon').classList.toggle('hidden', isDark);
-        }
-
         // --- Init ---
-        
         function initializeApplication() {
-            // 1. Load saved words into the input field
             loadWords();
+            loadGeneratedLists();
             
-            // 2. Attach Auto-Save Hook to the input event
-            wordInput.addEventListener('input', (e) => {
-                saveWords(e.target.value);
-            });
-            
-            // 3. Attach other event listeners
-            toggleBtn.addEventListener('click', toggleTheme);
+            wordInput.addEventListener('input', (e) => saveWords(e.target.value));
             document.getElementById('generateButton').addEventListener('click', generateLists);
             
-            initTheme();
             lucide.createIcons();
         }
         
