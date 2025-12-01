@@ -318,34 +318,17 @@
             </p>
           </div>
 
-          <div id="resume-widget" class="hidden">
-            <button
-              onclick="App.resumeLast()"
-              class="glass-panel hover:bg-white/10 px-5 py-3 rounded-xl flex items-center gap-4 transition-all group text-left border border-green/30"
+          <!-- REPLACED old recent-widget with container for up to 3 recently used tools -->
+          <div id="recent-widget-container" class="hidden flex flex-col gap-2">
+            <p
+              class="text-[10px] text-gray-400 font-bold tracking-[0.2em] uppercase pl-1"
             >
-              <div
-                class="w-10 h-10 rounded-lg bg-green/20 text-green flex items-center justify-center"
-              >
-                <i data-lucide="history" class="w-5 h-5"></i>
-              </div>
-              <div>
-                <div
-                  class="text-[10px] text-green uppercase font-bold tracking-wider"
-                >
-                  Resume
-                </div>
-                <div
-                  id="last-game-title"
-                  class="font-bold text-white group-hover:text-green transition-colors"
-                >
-                  ...
-                </div>
-              </div>
-              <i
-                data-lucide="arrow-right"
-                class="w-4 h-4 text-gray-500 group-hover:translate-x-1 transition-transform"
-              ></i>
-            </button>
+              Recently Used
+            </p>
+            <!-- MODIFIED: Changed flex-col to flex-row for horizontal stacking -->
+            <div id="recent-list" class="flex flex-row gap-2">
+              <!-- Recent buttons will be injected here by JavaScript -->
+            </div>
           </div>
         </div>
       </section>
@@ -626,6 +609,7 @@
       };
 
       // Data Definition
+      // NOTE: This data is internally sorted by title in App.renderGrid()
       const GameData = [
         // --- TOOLS ---
         {
@@ -943,13 +927,14 @@
       // --- Logic ---
       const App = {
         currentFilter: "all",
-        lastId: null,
+        // Removed lastId property, now using recentGameIds array
         activeGame: null,
 
         init: () => {
           App.updateGreeting();
           App.renderGrid();
-          App.checkRecent();
+          // Updated: Call renderRecentList to initialize the recent widget
+          App.renderRecentList();
 
           // Hotkey for search
           document.addEventListener("keydown", (e) => {
@@ -990,23 +975,62 @@
             new Date().toLocaleDateString("en-US", options);
         },
 
-        checkRecent: () => {
-          const recent = localStorage.getItem("lastGameId");
-          if (recent) {
-            const game = GameData.find((g) => g.id === recent);
-            if (game) {
-              document
-                .getElementById("resume-widget")
-                .classList.remove("hidden");
-              document.getElementById("last-game-title").innerText = game.title;
-              App.lastId = recent;
+        // NEW: Function to load and manage the recent list from localStorage
+        getRecentIds: () => {
+            try {
+                const recent = localStorage.getItem("recentGameIds");
+                return recent ? JSON.parse(recent) : [];
+            } catch (e) {
+                console.error("Error loading recent IDs:", e);
+                return [];
             }
-          }
         },
 
-        resumeLast: () => {
-          if (App.lastId) App.openGame(App.lastId);
+        // NEW: Renders the list of recently used tools (max 3)
+        renderRecentList: () => {
+            const recentIds = App.getRecentIds();
+            const container = document.getElementById("recent-list");
+            const widgetContainer = document.getElementById("recent-widget-container");
+
+            if (!container || !widgetContainer) return;
+
+            container.innerHTML = '';
+
+            if (recentIds.length > 0) {
+                widgetContainer.classList.remove("hidden");
+                
+                // Map IDs to GameData, filtering out any missing games
+                const recentGames = recentIds
+                    .map(id => GameData.find(g => g.id === id))
+                    .filter(g => g);
+
+                recentGames.forEach(game => {
+                    const card = `
+                        <button
+                            onclick="App.openGame('${game.id}')"
+                            class="glass-panel hover:bg-white/10 px-4 py-2.5 rounded-xl flex items-center gap-3 transition-all group text-left border border-white/5 hover:border-white/20 flex-shrink-0 w-40"
+                        >
+                            <div class="w-8 h-8 rounded-lg bg-surface/50 flex items-center justify-center ${game.color}">
+                                <i data-lucide="${game.icon}" class="w-4 h-4"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="font-bold text-sm text-white truncate">${game.title}</div>
+                            </div>
+                            <i
+                                data-lucide="arrow-right"
+                                class="w-4 h-4 text-gray-500 group-hover:text-green transition-transform group-hover:translate-x-0.5"
+                            ></i>
+                        </button>
+                    `;
+                    container.innerHTML += card;
+                });
+            } else {
+                widgetContainer.classList.add("hidden");
+            }
+            lucide.createIcons();
         },
+
+        // REMOVED: checkRecent, resumeLast
 
         setFilter: (category) => {
           App.currentFilter = category;
@@ -1029,6 +1053,11 @@
           const container = document.getElementById("main-grid");
           const featuredContainer = document.getElementById("featured-grid");
           container.innerHTML = "";
+          
+          // SORTING: Sort the GameData array alphabetically by title
+          const sortedGameData = [...GameData].sort((a, b) => 
+            a.title.localeCompare(b.title)
+          );
 
           // If searching, hide Featured to reduce noise
           if (searchQuery) {
@@ -1049,7 +1078,7 @@
             // Render Featured only if no search & filter is all
             if (App.currentFilter === "all") {
               featuredContainer.innerHTML = "";
-              // Pick random featured
+              // Pick random featured (using original GameData for randomized picks)
               const tools = GameData.filter((g) => g.category === "tool")
                 .sort(() => 0.5 - Math.random())
                 .slice(0, 2);
@@ -1063,7 +1092,8 @@
           }
 
           let visibleCount = 0;
-          GameData.forEach((item) => {
+          // Use the sorted array for rendering the main grid
+          sortedGameData.forEach((item) => {
             // Filter Logic
             if (
               App.currentFilter !== "all" &&
@@ -1124,9 +1154,21 @@
 
           App.activeGame = game;
 
-          // Save to Recent
-          localStorage.setItem("lastGameId", id);
-          App.checkRecent();
+          // START OF NEW RECENT LOGIC: Manage the array of recent IDs (max 3)
+          let recentIds = App.getRecentIds();
+          
+          // 1. Remove ID if already exists to ensure it's moved to the front
+          recentIds = recentIds.filter(recentId => recentId !== id);
+          
+          // 2. Add ID to the beginning
+          recentIds.unshift(id);
+          
+          // 3. Keep only the top 3 items
+          recentIds = recentIds.slice(0, 3);
+          
+          localStorage.setItem("recentGameIds", JSON.stringify(recentIds));
+          App.renderRecentList(); // Refresh the recent widget
+          // END OF NEW RECENT LOGIC
 
           document.getElementById("active-game-title").innerText =
             game.title.toUpperCase();
@@ -1185,14 +1227,20 @@
           modal.style.display = "none";
           document.getElementById("game-frame").src = "";
           App.activeGame = null;
-          history.pushState(
-            "",
-            document.title,
-            window.location.pathname + window.location.search
-          );
-        },
 
-        // ... inside the App object ...
+          // FIX: Wrap history.pushState in a try-catch block to prevent SecurityError
+          // and fall back to setting the hash directly if pushState fails.
+          try {
+            history.pushState(
+              "",
+              document.title,
+              window.location.pathname + window.location.search
+            );
+          } catch (e) {
+            console.warn("Could not use history.pushState, falling back to location.hash=''");
+            window.location.hash = ''; // Fallback for sandboxed environments
+          }
+        },
 
         openFeedback: () => {
           const modal = document.getElementById("feedback-modal");
@@ -1214,8 +1262,6 @@
           // Clear src to stop playing/loading
           document.getElementById("feedback-frame").src = "";
         },
-
-        // ... rest of App object ...
       };
 
       window.onload = App.init;
