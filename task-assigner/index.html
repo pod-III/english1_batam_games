@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Task Assigner | English 1 Games</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
             theme: {
@@ -20,12 +21,13 @@
                             orange: '#F97316',
                             green: '#22C55E',
                             blue: '#3B82F6',
+                            purple: '#A855F7',
                         }
                     },
                     animation: {
-                        // ADJUSTED: Changed duration and function for a smoother entrance
-                        'bounce-in': 'bounceIn 1.0s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards',
+                        'bounce-in': 'bounceIn 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards',
                         'float': 'float 6s ease-in-out infinite',
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                     }
                 }
             }
@@ -34,24 +36,24 @@
     <style>
         body {
             background-color: #f0f9ff;
-            overflow: hidden; /* Prevent scrolling on body, handle in containers */
+            /* Subtle dot pattern for texture */
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 20px 20px;
+            overflow: hidden;
         }
         
-        /* Fun Scrollbar */
-        ::-webkit-scrollbar {
-            width: 12px;
+        /* Custom Scrollbar */
+        .custom-scroll::-webkit-scrollbar {
+            width: 8px;
         }
-        ::-webkit-scrollbar-track {
-            background: rgba(0,0,0,0.05);
-            border-radius: 10px;
+        .custom-scroll::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.02);
         }
-        ::-webkit-scrollbar-thumb {
+        .custom-scroll::-webkit-scrollbar-thumb {
             background: #cbd5e1; 
             border-radius: 10px;
-            border: 3px solid transparent;
-            background-clip: content-box;
         }
-        ::-webkit-scrollbar-thumb:hover {
+        .custom-scroll::-webkit-scrollbar-thumb:hover {
             background-color: #94a3b8; 
         }
 
@@ -59,9 +61,9 @@
         .blob {
             position: absolute;
             border-radius: 50%;
-            filter: blur(60px);
+            filter: blur(80px);
             z-index: -1;
-            opacity: 0.6;
+            opacity: 0.5;
             animation: float 10s infinite ease-in-out;
         }
         @keyframes float {
@@ -69,129 +71,178 @@
             50% { transform: translate(20px, -20px); }
         }
 
-        /* Card Animation */
         @keyframes bounceIn {
-            0% { opacity: 0; transform: scale(0.9) translateY(50px); }
-            50% { opacity: 1; transform: scale(1.01); } /* Smoother overshoot */
-            70% { transform: scale(1); }
+            0% { opacity: 0; transform: scale(0.9) translateY(20px); }
+            60% { opacity: 1; transform: scale(1.02); }
+            80% { transform: scale(0.98); }
             100% { transform: scale(1); }
         }
 
         .glass-panel {
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(10px);
-            border: 4px solid #fff;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.1);
         }
 
-        /* Input styling */
         .kid-input {
-            background-color: #f1f5f9;
+            background-color: #ffffff;
             border: 2px solid #e2e8f0;
-            transition: all 0.3s;
+            transition: all 0.2s ease;
         }
         .kid-input:focus {
-            background-color: #fff;
             border-color: #3B82F6;
-            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
             outline: none;
+            transform: translateY(-1px);
+        }
+
+        /* Group Buttons */
+        .group-btn {
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+        .group-btn.active {
+            background-color: white;
+            color: #3B82F6;
+            border-color: #e2e8f0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            transform: scale(1.05);
+        }
+        .group-btn:hover:not(.active) {
+            background-color: rgba(255,255,255,0.5);
+            color: #475569;
+        }
+
+        /* Ticket/Card Effect */
+        .ticket-edge {
+            mask-image: radial-gradient(circle at center, transparent 0px, black 1px);
         }
     </style>
 </head>
 <body class="h-screen w-screen flex flex-col text-slate-800 font-sans selection:bg-brand-pink selection:text-white">
 
     <!-- Background Decoration -->
-    <div class="fixed inset-0 pointer-events-none">
-        <div class="blob bg-brand-pink/30 w-96 h-96 top-0 left-0 -translate-x-1/2 -translate-y-1/2"></div>
-        <div class="blob bg-brand-blue/30 w-80 h-80 bottom-0 right-0 translate-x-1/3 translate-y-1/3 delay-1000"></div>
-        <div class="blob bg-brand-orange/20 w-64 h-64 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 delay-2000"></div>
+    <div class="fixed inset-0 pointer-events-none overflow-hidden">
+        <div class="blob bg-brand-pink/40 w-96 h-96 top-0 left-0 -translate-x-1/2 -translate-y-1/2"></div>
+        <div class="blob bg-brand-blue/30 w-[500px] h-[500px] bottom-0 right-0 translate-x-1/3 translate-y-1/3 delay-1000"></div>
+        <div class="blob bg-brand-orange/30 w-64 h-64 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 delay-2000"></div>
     </div>
 
     <!-- Header / Nav -->
-    <nav class="h-16 flex-none bg-white/80 backdrop-blur-md border-b-4 border-slate-100 px-6 flex items-center justify-between z-50">
-        <div class="flex items-center gap-3">
-            <a href="../index.html" class="w-10 h-10 rounded-2xl bg-slate-100 text-slate-400 hover:bg-brand-blue hover:text-white hover:scale-110 hover:rotate-3 transition-all duration-300 flex items-center justify-center shadow-sm">
-                <i class="fas fa-arrow-left text-lg"></i>
+    <nav class="h-16 flex-none bg-white/70 backdrop-blur-md border-b border-white/50 px-6 flex items-center justify-between z-50 shadow-sm">
+        <div class="flex items-center gap-4">
+            <a href="../index.html" class="w-10 h-10 rounded-xl bg-white border border-slate-100 text-slate-400 hover:bg-brand-blue hover:text-white hover:border-brand-blue hover:scale-105 transition-all duration-300 flex items-center justify-center shadow-sm group">
+                <i class="fas fa-arrow-left text-lg group-hover:-translate-x-1 transition-transform"></i>
             </a>
-            <h1 class="text-2xl font-bold tracking-tight text-slate-700">
-                <span class="text-brand-pink">Task</span> <span class="text-brand-green">Assigner</span>
+            <h1 class="text-2xl font-bold tracking-tight text-slate-700 flex items-center gap-1">
+                <i class="fas fa-bolt text-brand-orange text-xl mr-1"></i>
+                <span class="text-slate-800">Task</span><span class="text-brand-blue">Assigner</span>
             </h1>
         </div>
-        <div class="hidden md:flex items-center gap-2 bg-slate-100 px-4 py-1.5 rounded-full text-slate-500 font-bold text-sm">
-            <i class="fas fa-shapes text-brand-orange animate-bounce"></i> For Kids
+        <div class="hidden md:flex items-center gap-2 bg-white/80 border border-slate-100 px-4 py-1.5 rounded-full text-slate-500 font-bold text-sm shadow-sm">
+            <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span> Ready to Pair
         </div>
     </nav>
 
     <!-- Main Content Layout -->
-    <div class="flex-grow flex flex-col md:flex-row p-4 gap-4 overflow-hidden">
+    <div class="flex-grow flex flex-col md:flex-row p-4 gap-4 overflow-hidden max-w-7xl mx-auto w-full">
         
-        <!-- LEFT PANEL: Teacher Controls (Compact) -->
-        <div class="w-full md:w-80 flex-none flex flex-col gap-4">
-            <div class="glass-panel rounded-3xl p-5 flex flex-col h-full overflow-hidden relative">
+        <!-- LEFT PANEL: Teacher Controls -->
+        <div class="w-full md:w-80 flex-none flex flex-col gap-4 z-10">
+            <div class="glass-panel rounded-3xl p-5 flex flex-col h-full overflow-hidden relative border-t-4 border-t-brand-blue">
                 
-                <h2 class="text-lg font-bold text-slate-600 mb-4 flex items-center gap-2">
-                    <i class="fas fa-edit text-brand-blue"></i> Teacher Input (Auto-Saving)
-                </h2>
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-bold text-slate-700 flex items-center gap-2">
+                        <span class="w-8 h-8 rounded-lg bg-blue-100 text-brand-blue flex items-center justify-center"><i class="fas fa-sliders-h text-sm"></i></span>
+                        Setup
+                    </h2>
+                    <div class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-md">AUTOSAVE ON</div>
+                </div>
 
                 <!-- Inputs Scrollable Area -->
-                <div class="flex-grow overflow-y-auto pr-2 space-y-4">
+                <div class="flex-grow overflow-y-auto pr-1 space-y-5 custom-scroll pb-2">
                     <!-- Students -->
                     <div>
-                        <label class="block text-sm font-bold text-slate-500 mb-1 ml-1 uppercase tracking-wide">
-                            Who is here? <span id="peopleCount" class="bg-brand-pink text-white px-2 py-0.5 rounded-full text-xs ml-1">0</span>
-                        </label>
-                        <textarea id="peopleInput" rows="6" 
-                            class="kid-input w-full rounded-2xl p-3 text-lg font-medium text-slate-700 placeholder-slate-400 resize-none"
-                            placeholder="Alex, Bella, Charlie&#10;or one name per line"></textarea>
+                        <div class="flex justify-between items-end mb-1.5 ml-1">
+                            <label class="text-sm font-bold text-slate-500 uppercase tracking-wide">Who is here?</label>
+                            <span id="peopleCount" class="bg-brand-pink/10 text-brand-pink px-2 py-0.5 rounded-md text-xs font-bold">0</span>
+                        </div>
+                        <textarea id="peopleInput" rows="5" 
+                            class="kid-input w-full rounded-2xl p-3 text-base font-medium text-slate-700 placeholder-slate-300 resize-none"
+                            placeholder="Paste names here...&#10;Alice&#10;Bob&#10;Charlie"></textarea>
                     </div>
 
                     <!-- Tasks -->
                     <div>
-                        <label class="block text-sm font-bold text-slate-500 mb-1 ml-1 uppercase tracking-wide">
-                            What to do? <span id="taskCount" class="bg-brand-orange text-white px-2 py-0.5 rounded-full text-xs ml-1">0</span>
-                        </label>
-                        <textarea id="taskInput" rows="6" 
-                            class="kid-input w-full rounded-2xl p-3 text-lg font-medium text-slate-700 placeholder-slate-400 resize-none"
-                            placeholder="Clean Up, Line Leader, Books&#10;or one task per line"></textarea>
+                        <div class="flex justify-between items-end mb-1.5 ml-1">
+                            <label class="text-sm font-bold text-slate-500 uppercase tracking-wide">Missions</label>
+                            <span id="taskCount" class="bg-brand-orange/10 text-brand-orange px-2 py-0.5 rounded-md text-xs font-bold">0</span>
+                        </div>
+                        <textarea id="taskInput" rows="5" 
+                            class="kid-input w-full rounded-2xl p-3 text-base font-medium text-slate-700 placeholder-slate-300 resize-none"
+                            placeholder="Paste tasks here...&#10;Leader&#10;Cleaner&#10;Helper"></textarea>
+                    </div>
+
+                    <!-- Group Size Selector -->
+                    <div class="bg-slate-50 p-3 rounded-2xl border border-slate-100">
+                        <label class="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wide text-center">Group Size</label>
+                        <div class="flex bg-slate-200/50 rounded-xl p-1 gap-1">
+                            <button onclick="setGroupSize(1)" id="btnSize1" class="group-btn active flex-1 py-2 rounded-lg text-sm font-bold">
+                                1
+                            </button>
+                            <button onclick="setGroupSize(2)" id="btnSize2" class="group-btn flex-1 py-2 rounded-lg text-sm font-bold">
+                                2
+                            </button>
+                            <button onclick="setGroupSize(3)" id="btnSize3" class="group-btn flex-1 py-2 rounded-lg text-sm font-bold">
+                                3
+                            </button>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Action Buttons -->
-                <div class="mt-4 pt-4 border-t-2 border-slate-100 grid grid-cols-2 gap-3 flex-none">
-                    <button onclick="clearAll()" class="bg-slate-200 hover:bg-slate-300 text-slate-500 font-bold py-3 px-4 rounded-xl transition-transform active:scale-95 flex items-center justify-center gap-2">
-                        <i class="fas fa-trash-alt"></i> Clear
+                <div class="mt-4 pt-4 border-t border-slate-100 grid grid-cols-[auto_1fr] gap-3 flex-none">
+                    <button onclick="clearAll()" class="bg-white border-2 border-slate-100 hover:border-red-200 hover:bg-red-50 text-slate-400 hover:text-red-400 font-bold w-14 rounded-xl transition-all active:scale-95 flex items-center justify-center" title="Clear All">
+                        <i class="fas fa-trash-alt"></i>
                     </button>
-                    <button onclick="assignTasks()" class="bg-gradient-to-br from-brand-blue to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-blue-500/30 transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
-                        <i class="fas fa-magic"></i> GO!
+                    <button onclick="assignTasks()" class="bg-gradient-to-r from-brand-blue to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-blue-500/20 transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2 animate-pulse-slow">
+                        <i class="fas fa-wand-magic-sparkles"></i> ASSIGN!
                     </button>
                 </div>
 
             </div>
         </div>
 
-        <!-- RIGHT PANEL: The Stage (Huge Visibility) -->
-        <div class="flex-grow glass-panel rounded-3xl p-6 relative overflow-hidden flex flex-col">
+        <!-- RIGHT PANEL: The Stage -->
+        <div class="flex-grow glass-panel rounded-3xl p-6 relative overflow-hidden flex flex-col z-0 border-t-4 border-t-brand-pink">
             
             <!-- Empty State -->
             <div id="emptyState" class="absolute inset-0 flex flex-col items-center justify-center z-10 text-center p-8">
-                <div class="w-40 h-40 bg-white rounded-full shadow-xl flex items-center justify-center mb-6 animate-float border-4 border-slate-50">
-                    <i class="fas fa-rocket text-6xl text-brand-pink"></i>
+                <div class="relative">
+                    <div class="absolute inset-0 bg-brand-pink/20 blur-xl rounded-full animate-pulse"></div>
+                    <div class="w-32 h-32 bg-white rounded-3xl shadow-lg flex items-center justify-center mb-6 animate-float relative z-10 border border-slate-50">
+                        <i class="fas fa-rocket text-5xl text-brand-pink"></i>
+                    </div>
                 </div>
-                <h3 class="text-4xl font-bold text-slate-700 mb-3">Ready to Play?</h3>
-                <p class="text-xl text-slate-400 font-medium max-w-md">Teacher, fill in the names and tasks on the left!</p>
+                <h3 class="text-3xl font-bold text-slate-700 mb-2">Ready for Class?</h3>
+                <p class="text-lg text-slate-400 font-medium max-w-sm">Enter your students and tasks on the left, then hit Assign!</p>
             </div>
 
             <!-- Results Grid -->
             <div id="resultsArea" class="flex-grow overflow-y-auto pr-2 hidden custom-scroll">
-                <div id="cardsGrid" class="grid grid-cols-1 xl:grid-cols-2 gap-6 pb-20">
+                <div id="cardsGrid" class="grid grid-cols-1 xl:grid-cols-2 gap-5 pb-20 pt-2">
                     <!-- Cards will be injected here -->
                 </div>
             </div>
 
             <!-- Bottom Stats -->
-            <div class="h-8 flex-none flex items-center justify-between text-slate-400 text-sm font-bold mt-2 border-t-2 border-slate-50 pt-2">
-                <span id="statusText">Waiting for magic...</span>
-                <span>English 1 Games</span>
+            <div class="h-10 flex-none flex items-center justify-between text-slate-400 text-xs font-bold mt-2 border-t border-slate-100 pt-2">
+                <span id="statusText" class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-slate-300"></span> Waiting...
+                </span>
+                <span class="opacity-50">English 1 Games © 2025</span>
             </div>
 
         </div>
@@ -211,81 +262,139 @@
         const resultsArea = document.getElementById('resultsArea');
         const cardsGrid = document.getElementById('cardsGrid');
         const statusText = document.getElementById('statusText');
+        
+        // Group Size State
+        let currentGroupSize = 1;
 
-        // Styles for the Random Cards
+        // Enhanced Styles for Cards
         const cardStyles = [
-            { bg: 'bg-pink-50', border: 'border-pink-300', text: 'text-pink-600', icon: 'bg-pink-100', accent: 'bg-pink-500' },
-            { bg: 'bg-orange-50', border: 'border-orange-300', text: 'text-orange-600', icon: 'bg-orange-100', accent: 'bg-orange-500' },
-            { bg: 'bg-green-50', border: 'border-green-300', text: 'text-green-600', icon: 'bg-green-100', accent: 'bg-green-500' },
-            { bg: 'bg-blue-50', border: 'border-blue-300', text: 'text-blue-600', icon: 'bg-blue-100', accent: 'bg-blue-500' },
+            { 
+                bg: 'bg-gradient-to-br from-pink-50 to-white', 
+                border: 'border-pink-200', 
+                text: 'text-pink-600', 
+                subtext: 'text-pink-400',
+                iconBg: 'bg-pink-100', 
+                dash: 'border-pink-300'
+            },
+            { 
+                bg: 'bg-gradient-to-br from-orange-50 to-white', 
+                border: 'border-orange-200', 
+                text: 'text-orange-600', 
+                subtext: 'text-orange-400',
+                iconBg: 'bg-orange-100', 
+                dash: 'border-orange-300'
+            },
+            { 
+                bg: 'bg-gradient-to-br from-green-50 to-white', 
+                border: 'border-green-200', 
+                text: 'text-green-600', 
+                subtext: 'text-green-400',
+                iconBg: 'bg-green-100', 
+                dash: 'border-green-300'
+            },
+            { 
+                bg: 'bg-gradient-to-br from-blue-50 to-white', 
+                border: 'border-blue-200', 
+                text: 'text-blue-600', 
+                subtext: 'text-blue-400',
+                iconBg: 'bg-blue-100', 
+                dash: 'border-blue-300'
+            },
+            { 
+                bg: 'bg-gradient-to-br from-purple-50 to-white', 
+                border: 'border-purple-200', 
+                text: 'text-purple-600', 
+                subtext: 'text-purple-400',
+                iconBg: 'bg-purple-100', 
+                dash: 'border-purple-300'
+            },
         ];
 
         // --- AUTOSAVE/LOAD FUNCTIONS ---
 
         function saveInputs() {
              try {
-                // Save both inputs separately
                 localStorage.setItem(LS_KEY_PEOPLE, peopleInput.value);
                 localStorage.setItem(LS_KEY_TASKS, taskInput.value);
-            } catch (e) {
-                console.error("Could not save inputs to local storage:", e);
-            }
+            } catch (e) { console.error(e); }
         }
 
         function loadInputs() {
             try {
                 const savedPeople = localStorage.getItem(LS_KEY_PEOPLE);
                 const savedTasks = localStorage.getItem(LS_KEY_TASKS);
-                
-                if (savedPeople) {
-                    peopleInput.value = savedPeople;
-                }
-                if (savedTasks) {
-                    taskInput.value = savedTasks;
-                }
-                updateCounts(); // Initial update of counts after loading
-            } catch (e) {
-                console.error("Could not load inputs from local storage:", e);
-            }
+                if (savedPeople) peopleInput.value = savedPeople;
+                if (savedTasks) taskInput.value = savedTasks;
+                updateCounts();
+            } catch (e) { console.error(e); }
         }
 
         // --- LOGIC ---
 
         function updateCounts() {
-            // The splitting logic handles both newlines and commas
             const p = peopleInput.value.split(/[\n,]/).filter(t => t.trim()).length;
             const t = taskInput.value.split(/[\n,]/).filter(t => t.trim()).length;
             peopleCount.textContent = p;
             taskCount.textContent = t;
-            saveInputs(); // Autocall save on every update to input
+            saveInputs();
+        }
+
+        function setGroupSize(size) {
+            currentGroupSize = size;
+            [1, 2, 3].forEach(id => {
+                const btn = document.getElementById(`btnSize${id}`);
+                if (id === size) {
+                    btn.classList.add('active');
+                    btn.classList.remove('text-slate-400');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
         }
 
         function clearAll() {
-            peopleInput.value = '';
-            taskInput.value = '';
-            updateCounts(); // This calls saveInputs() and updates counts to 0
-            
-            // Clear result display
-            cardsGrid.innerHTML = '';
-            resultsArea.classList.add('hidden');
-            emptyState.style.display = 'flex';
-            statusText.textContent = "Waiting for magic...";
+            if(confirm("Are you sure you want to clear all names and tasks?")) {
+                peopleInput.value = '';
+                taskInput.value = '';
+                updateCounts();
+                cardsGrid.innerHTML = '';
+                resultsArea.classList.add('hidden');
+                emptyState.style.display = 'flex';
+                statusText.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-300"></span> Waiting...`;
+            }
         }
 
         function assignTasks() {
-            // Get Data (using regex to split by newline OR comma)
+            // Get Data
             let people = peopleInput.value.split(/[\n,]/).map(s => s.trim()).filter(s => s);
             let tasks = taskInput.value.split(/[\n,]/).map(s => s.trim()).filter(s => s);
 
             if (people.length === 0 || tasks.length === 0) {
-                // If inputs are missing, we just don't run.
-                statusText.textContent = "ERROR: Need both people and tasks!";
+                alert("Please enter both students and tasks!");
                 return;
             }
+
+            // Confetti Effect!
+            confetti({
+                particleCount: 150,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ['#EC4899', '#F97316', '#22C55E', '#3B82F6']
+            });
 
             // Shuffle
             people = shuffle(people);
             tasks = shuffle(tasks);
+
+            // Grouping Logic
+            let groups = [];
+            if (currentGroupSize === 1) {
+                groups = people.map(p => [p]);
+            } else {
+                for (let i = 0; i < people.length; i += currentGroupSize) {
+                    groups.push(people.slice(i, i + currentGroupSize));
+                }
+            }
 
             // Clear Display
             cardsGrid.innerHTML = '';
@@ -293,50 +402,72 @@
             emptyState.style.display = 'none';
 
             // Generate Cards
-            people.forEach((person, index) => {
-                // If more people than tasks, cycle tasks.
+            groups.forEach((groupArray, index) => {
                 const task = tasks[index % tasks.length];
-                createBigCard(person, task, index);
+                createBigCard(groupArray, task, index);
             });
 
-            statusText.textContent = `Assigned ${people.length} amazing students!`;
+            const unit = currentGroupSize === 1 ? "students" : "groups";
+            statusText.innerHTML = `<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Assigned ${groups.length} ${unit} successfully!`;
         }
 
-        function createBigCard(person, task, index) {
+        function createBigCard(namesArray, task, index) {
             const style = cardStyles[index % cardStyles.length];
             
+            // Logic for name formatting
+            let namesHtml = '';
+            let labelText = namesArray.length > 1 ? 'TEAM' : 'STUDENT';
+            let iconClass = namesArray.length > 1 ? 'fa-user-friends' : 'fa-user';
+            
+            let nameSizeClass = 'text-2xl sm:text-3xl';
+            if (namesArray.length > 1) nameSizeClass = 'text-xl sm:text-2xl';
+            if (namesArray.length > 2) nameSizeClass = 'text-lg sm:text-xl';
+
+            if (namesArray.length > 1) {
+                namesHtml = `<div class="flex flex-col leading-tight gap-1 mt-1">
+                    ${namesArray.map(n => `<span class="bg-white/50 px-2 rounded-md inline-block w-fit">${n}</span>`).join('')}
+                </div>`;
+            } else {
+                namesHtml = `<span class="mt-1 block">${namesArray[0]}</span>`;
+            }
+
             const card = document.createElement('div');
-            // Flex row for landscape layout on larger screens
-            // NOTE: The transition property here is now combined with the hover state for smoothness
-            card.className = `${style.bg} border-b-8 ${style.border} rounded-3xl p-4 sm:p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 animate-bounce-in relative overflow-hidden group`;
-            card.style.animationDelay = `${index * 150}ms`; // Staggered entrance
+            // The card structure is now a single block on mobile, row on desktop, with a dashed border separating sections
+            card.className = `${style.bg} border ${style.border} rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 animate-bounce-in flex flex-col sm:flex-row overflow-hidden group relative`;
+            card.style.animationDelay = `${index * 100}ms`; 
 
             card.innerHTML = `
-                <!-- Decoration Circle -->
-                <div class="absolute top-0 right-0 w-32 h-32 ${style.icon} rounded-full -mr-10 -mt-10 opacity-50 z-0"></div>
-
-                <!-- Student Side -->
-                <div class="flex items-center gap-4 z-10 w-full sm:w-5/12">
-                    <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white border-4 ${style.border} flex flex-shrink-0 items-center justify-center text-3xl sm:text-4xl shadow-md">
-                        <i class="fas fa-smile ${style.text}"></i>
+                <!-- Left: People -->
+                <div class="p-5 flex-1 flex items-start gap-4 relative z-10">
+                    <div class="w-12 h-12 rounded-full ${style.iconBg} ${style.text} flex items-center justify-center text-xl flex-shrink-0">
+                        <i class="fas ${iconClass}"></i>
                     </div>
-                    <div class="flex flex-col min-w-0">
-                        <span class="text-xs font-black text-slate-400 uppercase tracking-widest">Student</span>
-                        <span class="text-2xl sm:text-4xl font-black ${style.text} truncate leading-tight">${person}</span>
+                    <div class="min-w-0 flex-1">
+                        <div class="text-[10px] font-black ${style.subtext} uppercase tracking-widest">${labelText}</div>
+                        <div class="font-bold ${style.text} ${nameSizeClass} break-words">
+                            ${namesHtml}
+                        </div>
                     </div>
                 </div>
 
-                <!-- Connector Arrow -->
-                <div class="z-10 flex-shrink-0 text-slate-300 transform rotate-90 sm:rotate-0">
-                    <i class="fas fa-chevron-right text-4xl hidden sm:block"></i>
-                    <i class="fas fa-chevron-down text-4xl block sm:hidden"></i>
+                <!-- Divider (Dashed Line) -->
+                <div class="hidden sm:block w-px border-r-2 border-dashed ${style.dash} relative my-3">
+                    <div class="absolute -top-4 -left-2 w-4 h-4 bg-white rounded-full border ${style.border}"></div>
+                    <div class="absolute -bottom-4 -left-2 w-4 h-4 bg-white rounded-full border ${style.border}"></div>
                 </div>
+                <!-- Horizontal Divider for Mobile -->
+                <div class="block sm:hidden h-px w-full border-b-2 border-dashed ${style.dash} relative mx-3"></div>
 
-                <!-- Task Side -->
-                <div class="flex items-center gap-4 z-10 w-full sm:w-5/12 justify-end sm:flex-row-reverse text-right sm:text-left">
-                    <div class="flex flex-col min-w-0 items-end sm:items-start">
-                        <span class="text-xs font-black text-slate-400 uppercase tracking-widest">Mission</span>
-                        <span class="text-2xl sm:text-4xl font-black ${style.text} truncate leading-tight">${task}</span>
+                <!-- Right: Task -->
+                <div class="p-5 flex-1 flex items-center justify-between sm:justify-start gap-4 relative z-10 bg-white/30">
+                     <div class="min-w-0 flex-1 text-right sm:text-left">
+                        <div class="text-[10px] font-black ${style.subtext} uppercase tracking-widest">MISSION</div>
+                        <div class="font-black ${style.text} text-2xl sm:text-3xl leading-tight mt-1">
+                            ${task}
+                        </div>
+                    </div>
+                    <div class="w-10 h-10 rounded-full bg-white/80 ${style.text} flex items-center justify-center text-lg flex-shrink-0 shadow-sm">
+                        <i class="fas fa-check"></i>
                     </div>
                 </div>
             `;
@@ -354,12 +485,8 @@
             return array;
         }
 
-        // --- INITIALIZATION ---
         function initializeApplication() {
-            // 1. Load saved inputs from Local Storage
             loadInputs();
-            
-            // 2. Attach Auto-Save Hooks (using updateCounts which calls saveInputs)
             peopleInput.addEventListener('input', updateCounts);
             taskInput.addEventListener('input', updateCounts);
         }
