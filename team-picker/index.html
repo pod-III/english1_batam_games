@@ -3,12 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Team Picker: Classroom Edition</title>
+    <title>Team Picker: Classroom Console</title>
     
-    <!-- Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    
-    <!-- Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -19,13 +16,14 @@
             theme: {
                 extend: {
                     colors: {
+                        // English 1 Palette
                         pink: '#FF6B95',
                         orange: '#FF8C42',
                         green: '#00E676',
                         blue: '#2979FF',
-                        dark: '#0f172a',
-                        panel: '#1e293b',
-                        surface: '#334155'
+                        // UI Base Colors
+                        dark: '#0f172a',    // Slate-900
+                        panel: '#1e293b',   // Slate-800
                     },
                     fontFamily: {
                         heading: ['Bebas Neue', 'sans-serif'],
@@ -33,18 +31,23 @@
                         mono: ['JetBrains Mono', 'monospace'],
                     },
                     animation: {
-                        // ADJUSTED: Smoother cubic-bezier and longer duration (0.4s)
-                        'pop': 'pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
-                        'slide-up': 'slideUp 0.4s ease-out',
+                        'pop': 'pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                        'spin-slow': 'spin 3s linear infinite',
+                        'pulse-glow': 'pulseGlow 2s ease-in-out infinite',
+                        'fade-in': 'fadeIn 0.3s ease-out forwards',
                     },
                     keyframes: {
                         pop: {
-                            '0%': { transform: 'scale(0.9)', opacity: '0' }, // Start slightly bigger for smoother entry
-                            '100%': { transform: 'scale(1)', opacity: '1' },
+                            '0%': { transform: 'scale(0.8) translateY(10px)', opacity: '0' },
+                            '100%': { transform: 'scale(1) translateY(0)', opacity: '1' },
                         },
-                        slideUp: {
-                            '0%': { transform: 'translateY(20px)', opacity: '0' },
-                            '100%': { transform: 'translateY(0)', opacity: '1' },
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        },
+                        pulseGlow: {
+                            '0%, 100%': { boxShadow: '0 0 20px rgba(41, 121, 255, 0.2)' },
+                            '50%': { boxShadow: '0 0 40px rgba(41, 121, 255, 0.6)' },
                         }
                     }
                 }
@@ -52,411 +55,461 @@
         }
     </script>
     
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;700&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@700&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
 
     <style>
+        /* --- GLOBAL STYLES --- */
         body { 
             font-family: 'Nunito', sans-serif;
             background-color: #0f172a;
+            /* Subtle radial gradient background */
             background-image: 
-                radial-gradient(at 0% 0%, rgba(255, 140, 66, 0.15) 0px, transparent 50%), 
-                radial-gradient(at 100% 100%, rgba(41, 121, 255, 0.1) 0px, transparent 50%);
+                radial-gradient(at 50% 0%, rgba(41, 121, 255, 0.15) 0px, transparent 50%), 
+                radial-gradient(at 50% 100%, rgba(255, 107, 149, 0.15) 0px, transparent 50%);
             background-attachment: fixed;
             color: white;
             overflow-x: hidden;
         }
 
+        /* Glassmorphism Panel Helper */
         .glass-panel {
             background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(12px);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
             border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
         }
 
+        /* Modal Overlay Background */
+        .modal-overlay {
+            background: rgba(15, 23, 42, 0.92); /* Dark, slightly transparent */
+            backdrop-filter: blur(5px);
+        }
+
+        /* --- THEATRICAL ELEMENTS --- */
+        
+        /* The Spinning Ring */
+        .roulette-ring {
+            background: conic-gradient(transparent, #2979FF, #00E676, #FF8C42, #FF6B95, transparent);
+            border-radius: 50%;
+            mask: radial-gradient(transparent 60%, black 61%);
+            -webkit-mask: radial-gradient(transparent 60%, black 61%);
+        }
+
+        /* Team Cards */
+        .team-card {
+            width: 100%;            /* Mobile: Full width */
+            max-width: 20rem;       /* Desktop: Fixed 20rem (approx 320px) */
+            flex: none;             /* Prevent flexing/stretching */
+            transition: transform 0.2s ease;
+        }
+        .team-card:hover {
+            transform: translateY(-4px); /* Lift effect on hover */
+        }
+
+        /* 3D Button Style */
         .btn-3d {
             transition: all 0.1s;
             transform: translateY(0);
-            box-shadow: 0 4px 0 rgba(0,0,0,0.3);
-            border-bottom: 4px solid rgba(0,0,0,0.2);
+            border-bottom-width: 4px;
+            border-bottom-color: rgba(0,0,0,0.3);
         }
         .btn-3d:active {
-            transform: translateY(4px);
-            box-shadow: 0 0 0 rgba(0,0,0,0.2);
-            border-bottom: 0px solid transparent;
+            transform: translateY(3px); /* Push down effect */
+            border-bottom-width: 0px;
+            border-bottom-color: transparent;
+            margin-bottom: -1px; 
         }
 
-        /* Member Item Animation */
-        .member-item {
-            animation: pop 0.4s forwards; /* Updated to 0.4s */
-        }
-
-        /* Team Card Colors - Updated to use custom Tailwind colors if possible, otherwise fixed. */
-        .team-card-0 { border-top: 4px solid #FF6B95; } /* Pink */
-        .team-card-1 { border-top: 4px solid #2979FF; } /* Blue */
-        .team-card-2 { border-top: 4px solid #00E676; } /* Green */
-        .team-card-3 { border-top: 4px solid #FF8C42; } /* Orange */
-        .team-card-4 { border-top: 4px solid #A855F7; } /* Purple */
-        .team-card-5 { border-top: 4px solid #EAB308; } /* Yellow */
-        .team-card-6 { border-top: 4px solid #06B6D4; } /* Cyan */
-        .team-card-7 { border-top: 4px solid #EC4899; } /* Deep Pink */
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
 
-    <!-- Header -->
-    <header class="w-full glass-panel border-b border-white/10 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+    <header class="w-full glass-panel sticky top-0 z-40 border-b border-white/5">
+        <div class="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="bg-gradient-to-br from-orange to-pink w-10 h-10 rounded-lg flex items-center justify-center text-xl shadow-lg">
-                    👥
-                </div>
+                <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-orange to-pink flex items-center justify-center text-lg shadow-lg">🎲</div>
                 <div>
-                    <h1 class="text-2xl font-heading tracking-wider text-white leading-none">TEAM PICKER</h1>
-                    <div class="text-[10px] font-mono text-gray-400 tracking-widest">ENGLISH 1 BATAM</div>
+                    <h1 class="font-heading text-2xl tracking-wide leading-none text-white">Team Picker</h1>
+                    <p class="text-[10px] text-gray-400 font-mono tracking-widest uppercase">English 1 Batam</p>
                 </div>
             </div>
-
-            <div class="flex items-center gap-3">
-                <button id="sound-toggle" class="p-2 rounded-full hover:bg-white/10 transition-colors text-gray-400" title="Toggle Sound">
+            
+            <div class="flex gap-2">
+                <button id="sound-toggle" class="w-10 h-10 flex items-center justify-center hover:bg-white/10 rounded-xl transition text-gray-400" title="Toggle Sound">
                     <i data-lucide="volume-2" class="w-5 h-5"></i>
                 </button>
-                <button id="reset-btn" class="p-2 rounded-full hover:bg-white/10 transition-colors text-pink" title="Reset All">
-                    <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+                <button id="reset-btn" class="w-10 h-10 flex items-center justify-center hover:bg-pink/20 text-pink rounded-xl transition" title="Clear All">
+                    <i data-lucide="trash-2" class="w-5 h-5"></i>
                 </button>
             </div>
         </div>
     </header>
 
-    <!-- Main Content -->
-    <main class="flex-grow flex flex-col md:flex-row gap-6 p-6 max-w-7xl mx-auto w-full">
+    <main class="flex-grow flex items-center justify-center p-6 w-full">
         
-        <!-- Left Panel: Input -->
-        <div class="w-full md:w-1/3 flex flex-col gap-4">
-            <div class="glass-panel p-6 rounded-2xl animate-slide-up">
-                <h2 class="text-xl font-heading text-white mb-4 flex items-center gap-2">
-                    <i data-lucide="users" class="w-5 h-5 text-blue"></i> Players (Auto-Saved)
-                </h2>
+        <div class="w-full max-w-2xl flex flex-col gap-4 animate-fade-in">
+            <div class="glass-panel p-8 rounded-3xl border border-white/10 shadow-2xl relative overflow-hidden">
+                
+                <div class="absolute top-0 right-0 w-64 h-64 bg-blue/10 blur-3xl rounded-full -mr-32 -mt-32 pointer-events-none"></div>
+
+                <div class="flex justify-between items-center mb-6 relative">
+                    <h2 class="text-xl font-heading tracking-wider text-white flex items-center gap-2">
+                        <i data-lucide="keyboard" class="w-5 h-5 text-blue"></i> Input Console
+                    </h2>
+                    <span id="player-count" class="bg-surface/50 text-gray-400 px-3 py-1 rounded-lg text-xs font-mono font-bold border border-white/5 transition-colors">
+                        0 PLAYERS
+                    </span>
+                </div>
                 
                 <textarea id="name-input" 
-                    class="w-full h-48 bg-dark border border-white/10 rounded-xl p-4 text-white focus:border-blue focus:ring-1 focus:ring-blue outline-none resize-none font-mono text-sm shadow-inner mb-4"
-                    placeholder="Enter names here...&#10;Alice, Bob, Charlie&#10;or one name per line"></textarea>
+                    class="w-full h-48 bg-dark/50 border border-white/10 rounded-xl p-5 text-base focus:border-blue focus:ring-1 focus:ring-blue outline-none resize-none font-mono mb-8 transition-colors shadow-inner text-gray-200 placeholder-gray-600 relative z-10"
+                    placeholder="Enter student names here...&#10;One per line"></textarea>
 
-                <div class="flex items-center justify-between mb-4 bg-surface/30 p-3 rounded-xl border border-white/5">
-                    <span class="text-xs font-bold text-gray-300 uppercase">Total Players</span>
-                    <span id="player-count" class="font-mono text-blue font-bold">0</span>
-                </div>
-
-                <div class="space-y-4 mb-6">
-                    <div>
-                        <div class="flex justify-between mb-2">
-                            <label class="text-xs font-bold text-orange uppercase tracking-widest">Number of Teams</label>
-                            <span id="team-count-display" class="font-mono text-orange font-bold">2</span>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
+                    
+                    <div class="bg-white/5 p-4 rounded-xl border border-white/5 flex flex-col justify-center">
+                        <div class="flex justify-between text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">
+                            <span>Total Teams</span>
+                            <span id="team-val" class="text-orange text-xl leading-none font-heading">2</span>
                         </div>
-                        <input type="range" id="team-slider" min="2" max="10" value="2" class="w-full h-2 bg-surface rounded-lg appearance-none cursor-pointer accent-orange">
+                        <input type="range" id="team-slider" min="2" max="10" value="2" class="w-full accent-orange h-2 bg-dark rounded-lg appearance-none cursor-pointer">
                     </div>
+
+                    <button id="generate-btn" class="btn-3d bg-gradient-to-br from-blue to-green text-white rounded-xl font-heading text-2xl tracking-widest shadow-lg flex items-center justify-center gap-3 hover:brightness-110">
+                        <i data-lucide="zap" class="w-6 h-6"></i> GENERATE
+                    </button>
                 </div>
-
-                <button id="generate-btn" class="w-full btn-3d bg-gradient-to-r from-blue to-green text-white py-4 rounded-xl font-bold text-lg shadow-lg flex items-center justify-center gap-2">
-                    <i data-lucide="zap" class="w-5 h-5"></i> GENERATE TEAMS
-                </button>
             </div>
-        </div>
-
-        <!-- Right Panel: Results -->
-        <div class="w-full md:w-2/3 flex flex-col">
             
-            <!-- Toolbar -->
-            <div id="results-toolbar" class="flex justify-between items-center mb-4 opacity-0 transition-opacity">
-                <h2 class="text-2xl font-heading text-white">Results</h2>
-                <button id="copy-btn" class="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-white bg-surface/50 px-3 py-2 rounded-lg transition border border-white/5">
-                    <i data-lucide="copy" class="w-4 h-4"></i> Copy List
-                </button>
-            </div>
-
-            <!-- Teams Grid -->
-            <div id="teams-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-min">
-                <!-- Teams injected here -->
-                
-                <!-- Placeholder State -->
-                <div class="col-span-full py-20 text-center opacity-50">
-                    <div class="text-6xl mb-4 grayscale">🎲</div>
-                    <p class="text-gray-400">Add names and click Generate to start.</p>
-                </div>
-            </div>
-
+            <p class="text-center text-gray-500 text-xs font-mono">English 1 Toolset • Batam</p>
         </div>
 
     </main>
 
-    <script>
-        // --- LOCAL STORAGE KEY ---
-        const LS_KEY_PLAYERS = 'teamPickerPlayers';
+    <div id="results-modal" class="fixed inset-0 z-50 hidden flex-col modal-overlay transition-opacity duration-300">
+        
+        <div class="flex justify-between items-center p-6 max-w-7xl mx-auto w-full border-b border-white/5 bg-dark/50 backdrop-blur-md sticky top-0 z-50">
+            <h2 class="font-heading text-3xl text-white tracking-widest flex items-center gap-3">
+                <span id="status-dot" class="w-3 h-3 rounded-full bg-green animate-pulse"></span> RESULTS
+            </h2>
+            <div class="flex gap-3">
+                <button id="copy-btn" class="px-4 py-2 rounded-lg border border-white/10 hover:bg-white/10 text-xs font-bold uppercase tracking-wider text-gray-300 transition flex items-center gap-2">
+                    <i data-lucide="copy" class="w-4 h-4"></i> Copy List
+                </button>
+                <button id="close-modal-btn" class="w-10 h-10 rounded-full border border-white/10 hover:bg-pink/20 hover:border-pink text-white flex items-center justify-center transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </div>
 
-        // --- AUDIO ENGINE ---
+        <div class="flex-grow overflow-y-auto px-6 pb-20 relative">
+            
+            <div id="spinner-container" class="absolute inset-x-0 top-10 flex flex-col items-center justify-start z-10 pointer-events-none transition-opacity duration-500">
+                <div class="relative w-64 h-64 flex items-center justify-center mb-4">
+                    <div class="absolute inset-0 roulette-ring animate-spin-slow opacity-80"></div>
+                    <div class="absolute inset-4 roulette-ring animate-spin-slow opacity-40" style="animation-direction: reverse; animation-duration: 5s;"></div>
+                    
+                    <div class="absolute inset-8 bg-dark rounded-full border border-white/10 flex flex-col items-center justify-center shadow-[0_0_50px_rgba(41,121,255,0.2)]">
+                        <div class="text-[10px] text-blue font-mono uppercase tracking-[0.2em] mb-2 opacity-70">Sorting</div>
+                        <div id="spinner-text" class="text-2xl font-heading text-white px-4 text-center truncate w-full">...</div>
+                    </div>
+                </div>
+                <div class="bg-dark/80 px-4 py-1 rounded-full border border-white/10 backdrop-blur">
+                    <span class="text-gray-400 font-mono text-xs tracking-widest uppercase">Assigning to</span> 
+                    <span id="stage-team-current" class="text-white font-bold ml-2">Team 1</span>
+                </div>
+            </div>
+
+            <div id="results-grid" class="flex flex-wrap justify-center gap-6 max-w-7xl mx-auto pt-[320px] pb-20">
+                </div>
+
+        </div>
+    </div>
+
+    <script>
+        // --- 1. CONFIGURATION ---
+        const PALETTE = ['pink', 'blue', 'green', 'orange']; // The English 1 Colors
+        const LS_KEY = 'tp_data_v4'; // Local Storage Key
+
+        // --- 2. AUDIO ENGINE (Tone.js) ---
         let audioEnabled = true;
-        const AudioEngine = {
-            init: async () => { await Tone.start(); },
-            playDeal: () => {
+        const Audio = {
+            init: async () => await Tone.start(),
+            
+            // "Tick" sound for spinner movement
+            tick: () => {
                 if(!audioEnabled) return;
-                const synth = new Tone.MembraneSynth().toDestination();
-                synth.triggerAttackRelease("C2", "32n", Tone.now(), 0.05); // Short thump
+                const osc = new Tone.Oscillator(800, "sine").toDestination();
+                osc.volume.value = -12;
+                osc.start().stop("+0.02"); 
             },
-            playPop: (note = "C4") => {
-                if(!audioEnabled) return;
-                const synth = new Tone.PolySynth().toDestination();
-                synth.triggerAttackRelease(note, "16n", Tone.now(), 0.1);
-            },
-            playWin: () => {
+            
+            // "Lock" sound when a name is selected
+            lock: () => {
                 if(!audioEnabled) return;
                 const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+                synth.volume.value = -8;
+                synth.triggerAttackRelease(["C5", "E5"], "32n");
+            },
+            
+            // Victory Fanfare
+            win: () => {
+                if(!audioEnabled) return;
+                const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+                synth.volume.value = -5;
                 const now = Tone.now();
-                synth.triggerAttackRelease(["C4", "E4", "G4", "C5"], "8n", now);
-                synth.triggerAttackRelease(["E4", "G4", "B4", "E5"], "8n", now + 0.15);
-                synth.triggerAttackRelease(["G4", "B4", "D5", "G5"], "4n", now + 0.3);
+                // Play a generic C-Major chord arpeggio
+                synth.triggerAttackRelease(["C4", "G4", "C5", "E5"], "4n", now);
+                synth.triggerAttackRelease(["G4", "C5", "E5", "G5"], "2n", now + 0.2);
             }
         };
 
-        // --- DOM ELEMENTS ---
-        const nameInput = document.getElementById('name-input');
-        const playerCountEl = document.getElementById('player-count');
-        const teamSlider = document.getElementById('team-slider');
-        const teamCountDisplay = document.getElementById('team-count-display');
-        const generateBtn = document.getElementById('generate-btn');
-        const teamsGrid = document.getElementById('teams-grid');
-        const resultsToolbar = document.getElementById('results-toolbar');
-        const copyBtn = document.getElementById('copy-btn');
-        const resetBtn = document.getElementById('reset-btn');
+        // --- 3. DOM ELEMENT REFERENCES ---
+        const els = {
+            input: document.getElementById('name-input'),
+            count: document.getElementById('player-count'),
+            slider: document.getElementById('team-slider'),
+            teamVal: document.getElementById('team-val'),
+            genBtn: document.getElementById('generate-btn'),
+            
+            // Modal Elements
+            modal: document.getElementById('results-modal'),
+            grid: document.getElementById('results-grid'),
+            spinnerContainer: document.getElementById('spinner-container'),
+            spinner: document.getElementById('spinner-text'),
+            stageTeam: document.getElementById('stage-team-current'),
+            statusDot: document.getElementById('status-dot'),
+            copyBtn: document.getElementById('copy-btn'),
+            closeBtn: document.getElementById('close-modal-btn')
+        };
 
-        // --- STATE ---
         let players = [];
-        let isGenerating = false;
 
-        // --- PERSISTENCE ---
+        // --- 4. UTILITY FUNCTIONS ---
 
-        function savePlayers(text) {
-             try {
-                localStorage.setItem(LS_KEY_PLAYERS, text);
-            } catch (e) {
-                console.error("Could not save players to local storage:", e);
-            }
-        }
-
-        function loadPlayers() {
-            try {
-                const savedPlayers = localStorage.getItem(LS_KEY_PLAYERS);
-                if (savedPlayers) {
-                    nameInput.value = savedPlayers;
-                }
-            } catch (e) {
-                console.error("Could not load players from local storage:", e);
-            }
-        }
-
-        // --- FUNCTIONS ---
-
-        function initIcons() {
-            lucide.createIcons();
-        }
-
-        function updatePlayerCount() {
-            const text = nameInput.value;
-            // Split by comma or newline, filter empty
-            players = text.split(/[\n,]+/).map(n => n.trim()).filter(n => n.length > 0);
-            playerCountEl.innerText = players.length;
+        /** * Parses input text and updates player count badge 
+         */
+        function updateState() {
+            const raw = els.input.value;
+            // Split by newline or comma, remove whitespace, remove empty entries
+            players = raw.split(/[\n,]+/).map(s => s.trim()).filter(s => s.length > 0);
             
-            // Visual feedback on valid input
+            // Update UI
+            els.count.innerText = `${players.length} PLAYERS`;
+            
+            // Change badge color if data exists
             if(players.length > 0) {
-                playerCountEl.classList.add('text-green');
-                playerCountEl.classList.remove('text-blue');
+                els.count.className = "bg-green/20 text-green px-3 py-1 rounded-lg text-xs font-mono font-bold border border-green/30 transition-colors";
             } else {
-                playerCountEl.classList.add('text-blue');
-                playerCountEl.classList.remove('text-green');
+                els.count.className = "bg-surface/50 text-gray-400 px-3 py-1 rounded-lg text-xs font-mono font-bold border border-white/5 transition-colors";
             }
             
-            // --- AUTOSAVE HOOK ---
-            savePlayers(text);
+            // Auto-Save
+            localStorage.setItem(LS_KEY, raw);
         }
 
-        function shuffle(array) {
-            let currentIndex = array.length, randomIndex;
-            while (currentIndex != 0) {
-                randomIndex = Math.floor(Math.random() * currentIndex);
-                currentIndex--;
-                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
-            }
-            return array;
+        /**
+         * Mathematical easing for the spinner deceleration
+         * x is progress (0 to 1)
+         */
+        function easeOutCubic(x) { return 1 - Math.pow(1 - x, 3); }
+
+        /**
+         * Visual "Scramble" effect
+         * Cycles through random names before landing on 'targetName'
+         */
+        async function scrambleEffect(targetName) {
+            const duration = 500; // Total spin time in ms
+            const start = performance.now();
+            let lastUpdate = 0;
+            
+            // Create a pool of "dummy" names to flash
+            const pool = players.length > 1 ? players.filter(p => p !== targetName) : ["Detecting..."];
+            
+            return new Promise(resolve => {
+                function frame(time) {
+                    const elapsed = time - start;
+                    const progress = Math.min(elapsed / duration, 1);
+                    const eased = easeOutCubic(progress);
+                    
+                    // Calculate dynamic delay: Starts fast (30ms), ends slow (130ms)
+                    const dynamicInterval = 30 + (100 * eased);
+
+                    if (time - lastUpdate > dynamicInterval) {
+                        if (progress < 1) {
+                            // Flash a random name
+                            els.spinner.innerText = pool[Math.floor(Math.random() * pool.length)];
+                            Audio.tick();
+                        } else {
+                            // Final frame: Show target
+                            els.spinner.innerText = targetName;
+                            Audio.lock();
+                            resolve();
+                            return;
+                        }
+                        lastUpdate = time;
+                    }
+                    
+                    if (progress < 1) requestAnimationFrame(frame);
+                    else {
+                        // Safety fallback to ensure loop ends
+                        els.spinner.innerText = targetName;
+                        resolve();
+                    }
+                }
+                requestAnimationFrame(frame);
+            });
         }
 
-        async function generateTeams() {
-            if (isGenerating || players.length === 0) return;
-            
-            // Ensure final save before generating
-            savePlayers(nameInput.value); 
-            
-            isGenerating = true;
-            generateBtn.disabled = true;
-            generateBtn.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> SORTING...`;
-            initIcons();
-            
-            // Init Audio
-            if (Tone.context.state !== 'running') await Tone.start();
+        // --- 5. MAIN LOGIC: GENERATE TEAMS ---
 
-            // Prepare Grid
-            const numTeams = parseInt(teamSlider.value);
-            teamsGrid.innerHTML = '';
-            resultsToolbar.classList.remove('opacity-0');
-
-            // Create Team Containers
-            const teamContainers = [];
-            // Ensure grid adapts to the number of teams for better layout
-            if (numTeams <= 3) {
-                 teamsGrid.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-min';
-            } else if (numTeams <= 6) {
-                 teamsGrid.className = 'grid grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-min';
-            } else {
-                 teamsGrid.className = 'grid grid-cols-2 lg:grid-cols-4 gap-4 auto-rows-min';
+        async function generate() {
+            if(players.length === 0) {
+                alert("Please enter some names first!");
+                return;
             }
+            
+            // Initialize Audio Context (required by browsers)
+            await Audio.init();
+            
+            // A. Prepare UI
+            els.modal.classList.remove('hidden');
+            els.modal.classList.add('flex');
+            els.spinnerContainer.style.opacity = '1';
+            els.grid.innerHTML = ''; // Clear previous results
+            els.grid.style.paddingTop = '320px'; // Make room for spinner
 
+            const numTeams = parseInt(els.slider.value);
+            const buckets = [];
+
+            // B. Create Team Cards (Empty)
             for(let i=0; i<numTeams; i++) {
-                const teamCard = document.createElement('div');
-                teamCard.className = `glass-panel rounded-xl p-4 team-card-${i % 8} animate-pop`;
-                teamCard.style.animationDelay = `${i * 50}ms`;
+                const colorKey = PALETTE[i % PALETTE.length];
                 
-                const title = document.createElement('h3');
-                title.className = 'font-heading text-lg text-white mb-3 border-b border-white/10 pb-2 flex justify-between';
-                title.innerHTML = `<span>TEAM ${i + 1}</span> <span class="text-gray-500 text-xs font-mono self-center count-badge">0</span>`;
+                // Create Card DOM
+                const card = document.createElement('div');
+                card.className = `glass-panel rounded-2xl team-card flex flex-col overflow-hidden animate-fade-in w-full sm:w-80`;
+                card.style.animationDelay = `${i * 100}ms`; // Staggered entry
                 
-                const list = document.createElement('ul');
-                list.className = 'space-y-2 min-h-[50px]';
-                list.id = `team-list-${i}`;
+                card.innerHTML = `
+                    <div class="h-2 w-full bg-${colorKey}"></div>
+                    <div class="p-5 flex flex-col flex-grow">
+                        <div class="flex justify-between items-center mb-4 border-b border-white/10 pb-2">
+                            <h3 class="font-heading text-2xl text-white tracking-wide">TEAM ${i+1}</h3>
+                            <span class="text-xs font-bold font-mono bg-${colorKey}/20 text-${colorKey} px-2 py-0.5 rounded team-count">0</span>
+                        </div>
+                        <ul class="space-y-2 flex-grow" id="bucket-${i}"></ul>
+                    </div>
+                `;
+                els.grid.appendChild(card);
                 
-                teamCard.appendChild(title);
-                teamCard.appendChild(list);
-                teamsGrid.appendChild(teamCard);
-                teamContainers.push(list);
-            }
-
-            // Shuffle Players
-            const shuffledPlayers = shuffle([...players]);
-
-            // Distribute with Animation
-            let currentTeamIndex = 0;
-            
-            for (let i = 0; i < shuffledPlayers.length; i++) {
-                const player = shuffledPlayers[i];
-                const targetList = teamContainers[currentTeamIndex];
-                
-                // ADJUSTED: Reduced delay from 200ms to 150ms for faster flow
-                await new Promise(r => setTimeout(r, 150)); 
-                
-                // Add Element
-                const li = document.createElement('li');
-                li.className = 'member-item text-sm font-bold text-gray-300 flex items-center gap-2';
-                li.innerHTML = `<div class="w-2 h-2 rounded-full bg-white/50"></div> ${player}`;
-                targetList.appendChild(li);
-                
-                // Update Badge Count
-                const countBadge = targetList.parentElement.querySelector('.count-badge');
-                countBadge.innerText = targetList.children.length;
-
-                // Audio
-                const notes = ["C4", "E4", "G4", "A4", "B4", "C5"];
-                AudioEngine.playPop(notes[i % notes.length]);
-
-                // Next Team
-                currentTeamIndex = (currentTeamIndex + 1) % numTeams;
-            }
-
-            // Finish
-            setTimeout(() => {
-                AudioEngine.playWin();
-                confetti({
-                    particleCount: 100,
-                    spread: 70,
-                    origin: { y: 0.6 }
+                // Store reference for quick access
+                buckets.push({ 
+                    el: document.getElementById(`bucket-${i}`), 
+                    countBadge: card.querySelector('.team-count') 
                 });
-                isGenerating = false;
-                generateBtn.disabled = false;
-                generateBtn.innerHTML = `<i data-lucide="zap" class="w-5 h-5"></i> GENERATE TEAMS`;
-                initIcons();
-            }, 300);
+            }
+
+            // C. The Loop
+            // Randomize player list
+            const shuffled = [...players].sort(() => Math.random() - 0.5);
+            let tIdx = 0;
+
+            for(let p of shuffled) {
+                // Update Overlay Text
+                els.stageTeam.innerText = `TEAM ${tIdx+1}`;
+                els.stageTeam.className = `font-bold ml-2 text-${PALETTE[tIdx % PALETTE.length]}`;
+                
+                // Run the Spinner Effect
+                await scrambleEffect(p);
+                
+                // Add Player to List
+                const li = document.createElement('li');
+                li.className = 'flex items-center gap-3 animate-pop text-gray-200 font-medium text-sm p-2 rounded hover:bg-white/5 transition';
+                li.innerHTML = `<i data-lucide="user" class="w-4 h-4 text-gray-500"></i> ${p}`;
+                buckets[tIdx].el.appendChild(li);
+                
+                // Update Badge
+                buckets[tIdx].countBadge.innerText = buckets[tIdx].el.children.length;
+                lucide.createIcons(); // Re-render icons
+
+                // Move to next team (Round Robin)
+                tIdx = (tIdx + 1) % numTeams;
+                
+                // Tiny pause between players for pacing
+                await new Promise(r => setTimeout(r, 200)); 
+            }
+
+            // D. Finish
+            els.spinnerContainer.style.opacity = '0'; // Fade out spinner
+            els.grid.style.transition = 'padding 0.5s ease';
+            els.grid.style.paddingTop = '40px'; // Slide grid up
+            
+            Audio.win();
+            confetti({ particleCount: 200, spread: 120, origin: { y: 0.5 }, zIndex: 60 });
         }
 
-        function copyToClipboard() {
-            let text = "";
-            const cards = teamsGrid.querySelectorAll('.glass-panel');
-            cards.forEach(card => {
-                const name = card.querySelector('h3 span').innerText.replace(/\s+\d+$/, ''); // Clean up team name
-                const members = Array.from(card.querySelectorAll('li')).map(li => li.innerText.replace('● ', '').trim()).join(', ');
-                text += `${name}: ${members}\n`;
+        // --- 6. INITIALIZATION ---
+        window.onload = () => {
+            // Setup Icons
+            lucide.createIcons();
+            
+            // Load Saved Data
+            const saved = localStorage.getItem(LS_KEY);
+            if(saved) els.input.value = saved;
+            updateState();
+
+            // Event Listeners
+            els.input.addEventListener('input', updateState);
+            els.slider.addEventListener('input', e => els.teamVal.innerText = e.target.value);
+            els.genBtn.addEventListener('click', generate);
+            
+            // Close Modal
+            els.closeBtn.addEventListener('click', () => {
+                els.modal.classList.add('hidden');
+                els.modal.classList.remove('flex');
             });
-            
-            // Use execCommand('copy') for better iframe compatibility
-            const textarea = document.createElement('textarea');
-            textarea.value = text;
-            document.body.appendChild(textarea);
-            textarea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textarea);
 
-            const originalText = copyBtn.innerHTML;
-            copyBtn.innerHTML = `<i data-lucide="check" class="w-4 h-4 text-green"></i> Copied!`;
-            initIcons();
-            setTimeout(() => {
-                copyBtn.innerHTML = originalText;
-                initIcons();
-            }, 2000);
-        }
-
-        function resetAll() {
-            // Clear UI
-            nameInput.value = '';
-            teamsGrid.innerHTML = `
-                <div class="col-span-full py-20 text-center opacity-50">
-                    <div class="text-6xl mb-4 grayscale">🎲</div>
-                    <p class="text-gray-400">Add names and click Generate to start.</p>
-                </div>
-            `;
-            resultsToolbar.classList.add('opacity-0');
-
-            // Clear Persistence and State
-            localStorage.removeItem(LS_KEY_PLAYERS);
-            updatePlayerCount(); 
-        }
-
-        // --- INITIALIZATION ---
-        
-        function initializeApplication() {
-            // 1. Load saved players and update count/autosave hook
-            loadPlayers();
-            updatePlayerCount(); 
-
-            // 2. Attach Event Listeners
-            nameInput.addEventListener('input', updatePlayerCount);
-            
-            teamSlider.addEventListener('input', (e) => {
-                teamCountDisplay.innerText = e.target.value;
+            // Copy to Clipboard
+            els.copyBtn.addEventListener('click', () => {
+                let txt = '';
+                document.querySelectorAll('.team-card').forEach(card => {
+                    const title = card.querySelector('h3').innerText;
+                    const names = Array.from(card.querySelectorAll('li')).map(l => l.innerText).join(', ');
+                    txt += `${title}: ${names}\n`;
+                });
+                navigator.clipboard.writeText(txt);
+                
+                // Feedback animation
+                const oldHTML = els.copyBtn.innerHTML;
+                els.copyBtn.innerHTML = `<i data-lucide="check" class="w-4 h-4 text-green"></i> Copied`;
+                lucide.createIcons();
+                setTimeout(() => { els.copyBtn.innerHTML = oldHTML; lucide.createIcons(); }, 2000);
             });
 
-            generateBtn.addEventListener('click', generateTeams);
-            copyBtn.addEventListener('click', copyToClipboard);
-            resetBtn.addEventListener('click', resetAll);
-            
-            document.getElementById('sound-toggle').addEventListener('click', (e) => {
+            // Reset
+            document.getElementById('reset-btn').addEventListener('click', () => {
+                if(confirm('Are you sure you want to clear all names?')) {
+                    els.input.value = '';
+                    updateState();
+                }
+            });
+
+            // Sound Toggle
+            document.getElementById('sound-toggle').addEventListener('click', function() {
                 audioEnabled = !audioEnabled;
-                const icon = audioEnabled ? 'volume-2' : 'volume-x';
-                e.currentTarget.innerHTML = `<i data-lucide="${icon}" class="w-5 h-5"></i>`;
-                initIcons();
+                this.innerHTML = audioEnabled 
+                    ? `<i data-lucide="volume-2" class="w-5 h-5"></i>` 
+                    : `<i data-lucide="volume-x" class="w-5 h-5"></i>`;
+                lucide.createIcons();
             });
-
-            initIcons();
-        }
-
-        window.onload = initializeApplication;
-
+        };
     </script>
 </body>
 </html>
