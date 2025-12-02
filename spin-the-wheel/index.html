@@ -1,18 +1,20 @@
 <!DOCTYPE html>
 <html lang="en" class="dark">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spin the Wheel: English 1 Edition</title>
-    
-    <!-- Fonts -->
+    <title>Spin the Wheel - English 1</title>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;700&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
-    
-    <!-- Libraries -->
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;700;900&display=swap"
+        rel="stylesheet">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
 
     <script>
         tailwind.config = {
@@ -26,12 +28,19 @@
                         blue: '#2979FF',
                         dark: '#0f172a',
                         panel: '#1e293b',
-                        surface: '#334155'
                     },
                     fontFamily: {
                         heading: ['Bebas Neue', 'sans-serif'],
                         body: ['Nunito', 'sans-serif'],
-                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    animation: {
+                        'bounce-slight': 'bounceSlight 0.3s infinite',
+                    },
+                    keyframes: {
+                        bounceSlight: {
+                            '0%, 100%': { transform: 'translateY(-2%)' },
+                            '50%': { transform: 'translateY(0)' },
+                        }
                     }
                 }
             }
@@ -41,468 +50,489 @@
     <style>
         body {
             background-color: #0f172a;
-            background-image: 
-                radial-gradient(at 0% 0%, rgba(41, 121, 255, 0.15) 0px, transparent 50%), 
-                radial-gradient(at 100% 100%, rgba(255, 107, 149, 0.1) 0px, transparent 50%);
-            background-attachment: fixed;
-            color: #f8fafc;
-            overflow-x: hidden;
+            background-image:
+                radial-gradient(circle at 15% 50%, rgba(255, 107, 149, 0.08) 0%, transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(41, 121, 255, 0.08) 0%, transparent 25%);
+            font-family: 'Nunito', sans-serif;
+            overflow: hidden;
         }
 
-        /* --- Wheel Styling --- */
-        .wheel-wrapper {
+        /* --- WHEEL & STATIC POINTER --- */
+        .wheel-container {
+            filter: drop-shadow(0 0 50px rgba(0, 0, 0, 0.5));
             position: relative;
-            filter: drop-shadow(0 0 30px rgba(41, 121, 255, 0.2));
-            transition: transform 0.3s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
-        #wheelCanvas {
-            border-radius: 50%;
-            border: 8px solid #1e293b;
-            background: #0f172a;
-            transition: filter 0.3s; /* Smooth blur transition */
-        }
-        
-        /* Motion Blur Class */
-        .spinning-fast {
-            filter: blur(2px);
-        }
-
-        .pointer {
+        .pointer-container {
             position: absolute;
-            top: -20px;
+            top: -25px;
+            /* Adjusts how much it overlaps the wheel */
             left: 50%;
             transform: translateX(-50%);
-            width: 0;
-            height: 0;
-            border-left: 20px solid transparent;
-            border-right: 20px solid transparent;
-            border-top: 40px solid #FF6B95;
-            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5));
-            z-index: 10;
+            z-index: 50;
+            /* No transitions or animations here */
         }
 
-        /* --- Animations --- */
-        @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
-        .animate-pop { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        .pointer-simple {
+            width: 0;
+            height: 0;
+            border-left: 25px solid transparent;
+            border-right: 25px solid transparent;
+            border-top: 50px solid #ffffff;
+            /* Clean White Arrow */
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5));
+        }
 
-        /* --- Custom Scrollbar --- */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #0f172a; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        /* --- UI ELEMENTS --- */
+        input[type="range"] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #2979FF;
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 10px rgba(41, 121, 255, 0.5);
+        }
+
+        input[type="range"]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+        }
+
+        /* --- WINNER MODAL --- */
+        #winner-modal {
+            backdrop-filter: blur(12px);
+            background: rgba(15, 23, 42, 0.6);
+        }
+
+        .winner-card {
+            background: rgba(30, 41, 59, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 100px rgba(41, 121, 255, 0.3);
+            transform: scale(0.9);
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        #winner-modal.active .winner-card {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
     </style>
 </head>
-<body class="min-h-screen flex flex-col lg:flex-row items-center justify-center p-4 gap-8 font-body">
 
-    <!-- LEFT: THE WHEEL -->
-    <div class="flex-1 flex flex-col items-center justify-center w-full max-w-2xl order-2 lg:order-1">
-        
-        <div class="wheel-wrapper mb-8">
-            <canvas id="wheelCanvas" width="600" height="600" class="max-w-[90vw] max-h-[90vw] w-[500px] h-[500px]"></canvas>
-            <div class="pointer"></div>
+<body class="h-screen flex flex-col lg:flex-row items-center justify-center p-4 gap-6 overflow-hidden">
+
+    <div class="flex-1 flex flex-col items-center justify-center w-full h-full relative order-2 lg:order-1">
+
+        <div class="wheel-container">
+            <canvas id="wheelCanvas" width="800" height="800"
+                class="max-h-[80vh] w-auto aspect-square rounded-full border-8 border-slate-800 shadow-2xl"></canvas>
+
+            <div class="pointer-container">
+                <div class="pointer-simple"></div>
+            </div>
+
+            <div
+                class="absolute w-20 h-20 bg-white rounded-full shadow-lg flex items-center justify-center z-10 border-4 border-slate-200">
+                <i data-lucide="star" class="w-10 h-10 text-orange fill-orange"></i>
+            </div>
         </div>
 
-        <!-- Winner Display (Float below wheel) -->
-        <div id="result-container" class="h-24 flex items-center justify-center">
-            <h2 id="result-text" class="text-4xl md:text-6xl font-heading text-transparent bg-clip-text bg-gradient-to-r from-green to-blue tracking-wider animate-pop hidden">
-                WINNER!
-            </h2>
+    </div>
+
+    <div
+        class="w-full lg:w-96 glass-panel rounded-2xl shadow-2xl flex flex-col h-[600px] max-h-[85vh] order-1 lg:order-2 z-10 animate-fade-in shrink-0">
+
+        <div class="p-5 border-b border-white/5 bg-black/20 flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-heading tracking-wider text-white leading-none">SPIN COMMAND</h1>
+                <p class="text-[10px] text-blue font-bold tracking-[0.2em] uppercase mt-1">English 1 Batam</p>
+            </div>
+            <button onclick="toggleMute()" id="muteBtn"
+                class="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors text-white" title="Toggle Sound">
+                <i id="muteIcon" data-lucide="volume-2" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <div
+            class="flex-1 overflow-y-auto p-5 space-y-6 scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-transparent">
+
+            <button id="spinBtn"
+                class="group w-full relative overflow-hidden bg-gradient-to-r from-pink to-orange p-5 rounded-xl shadow-lg transition-all transform active:scale-95 hover:shadow-orange/20 hover:shadow-xl">
+                <div
+                    class="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                </div>
+                <div class="relative flex items-center justify-center gap-3">
+                    <span class="font-heading text-4xl tracking-widest text-white shadow-sm">SPIN</span>
+                    <i data-lucide="loader-2" class="w-6 h-6 text-white animate-spin hidden" id="spinIcon"></i>
+                </div>
+            </button>
+
+            <div class="bg-black/20 p-4 rounded-xl border border-white/5">
+                <div class="flex justify-between items-center mb-2">
+                    <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Spin Duration</label>
+                    <span id="durationValue" class="text-xs font-mono text-blue font-bold">5s</span>
+                </div>
+                <input type="range" id="durationSlider" min="1" max="15" value="5" class="w-full">
+            </div>
+
+            <div class="space-y-3">
+                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Add Player</label>
+                <div class="flex gap-2">
+                    <input type="text" id="optionInput" placeholder="Type name here..."
+                        class="flex-1 bg-slate-900/50 border border-white/10 rounded-lg px-4 py-2 text-white placeholder-slate-500 focus:border-blue focus:ring-1 focus:ring-blue focus:outline-none transition-all text-sm font-bold">
+                    <button id="addOptionBtn"
+                        class="bg-blue hover:bg-blue-600 text-white px-4 rounded-lg transition-colors font-bold shadow-lg shadow-blue/20">
+                        <i data-lucide="plus" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <div class="flex justify-between items-end border-b border-white/5 pb-2">
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        Roster (<span id="count" class="text-white">0</span>)
+                    </span>
+                    <div class="flex gap-3">
+                        <button onclick="toggleBatch()"
+                            class="text-xs text-blue hover:text-white transition-colors flex items-center gap-1">
+                            <i data-lucide="edit-3" class="w-3 h-3"></i> Edit List
+                        </button>
+                        <button onclick="clearAll()"
+                            class="text-xs text-pink hover:text-white transition-colors flex items-center gap-1">
+                            <i data-lucide="trash" class="w-3 h-3"></i> Clear
+                        </button>
+                    </div>
+                </div>
+
+                <div id="batchContainer" class="hidden animate-fade-in">
+                    <textarea id="batchInput"
+                        class="w-full h-32 bg-slate-900/50 border border-white/10 rounded-lg p-3 text-xs font-mono text-slate-300 focus:border-blue focus:outline-none resize-none mb-2"
+                        placeholder="Paste list here..."></textarea>
+                    <button onclick="saveBatch()"
+                        class="w-full py-2 bg-green/20 text-green border border-green/20 rounded-lg text-xs font-bold hover:bg-green/30 transition-colors">UPDATE
+                        & CLOSE</button>
+                </div>
+
+                <div id="optionsList" class="flex flex-wrap gap-2 max-h-40 overflow-y-auto pr-1"></div>
+            </div>
         </div>
     </div>
 
-    <!-- RIGHT: CONTROL PANEL -->
-    <div class="w-full lg:w-96 bg-panel/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl flex flex-col h-[600px] order-1 lg:order-2 animate-pop">
-        
-        <!-- Header -->
-        <div class="p-6 border-b border-white/10 bg-black/20">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-lg bg-blue/20 flex items-center justify-center text-2xl">🎡</div>
-                <div>
-                    <h1 class="text-2xl font-heading tracking-wider text-white">SPIN COMMAND</h1>
-                    <p class="text-xs text-gray-400 font-mono">ENGLISH 1 BATAM</p>
+    <div id="winner-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+        <div class="winner-card w-full max-w-lg p-8 rounded-3xl text-center relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-pink via-orange to-blue"></div>
+            <div class="mb-6 flex justify-center">
+                <div
+                    class="w-20 h-20 bg-gradient-to-br from-green to-blue rounded-full flex items-center justify-center shadow-lg shadow-green/20 animate-bounce">
+                    <i data-lucide="trophy" class="w-10 h-10 text-white"></i>
                 </div>
             </div>
-        </div>
-
-        <!-- Input Area -->
-        <div class="p-6 flex-1 overflow-y-auto space-y-6">
-            
-            <!-- Main Action -->
-            <button id="spinBtn" class="w-full bg-gradient-to-r from-pink to-orange hover:brightness-110 text-white font-bold py-4 rounded-xl shadow-lg transform active:scale-95 transition-all font-heading text-3xl tracking-widest border-b-4 border-black/20">
-                SPIN THE WHEEL
-            </button>
-
-            <!-- Quick Add -->
-            <div class="space-y-2">
-                <label class="text-xs font-bold text-gray-400 uppercase tracking-widest font-mono">Add Option</label>
-                <div class="flex gap-2">
-                    <input type="text" id="optionInput" placeholder="Enter name..." class="flex-1 bg-dark border border-white/10 rounded-lg px-4 py-2 text-white focus:border-blue focus:outline-none font-mono text-sm">
-                    <button id="addOptionBtn" class="bg-surface hover:bg-white/20 text-white px-4 rounded-lg transition-colors font-bold">+</button>
-                </div>
-            </div>
-
-            <!-- Batch Edit Toggle (The Textarea for Autosave) -->
-            <div>
-                <button onclick="toggleBatch()" class="text-xs text-blue hover:text-white underline font-mono">Edit List as Text</button>
-                <textarea id="batchInput" class="hidden w-full h-32 mt-2 bg-dark border border-white/10 rounded-lg p-3 text-sm font-mono text-gray-300 focus:border-blue focus:outline-none resize-none" placeholder="Paste list here (one per line, or comma separated)"></textarea>
-                <button id="saveBatchBtn" onclick="saveBatch()" class="hidden w-full mt-2 bg-green/20 text-green hover:bg-green/30 py-2 rounded-lg text-xs font-bold border border-green/30">UPDATE WHEEL</button>
-            </div>
-
-            <!-- Options List -->
-            <div class="space-y-2">
-                <div class="flex justify-between items-end">
-                    <label class="text-xs font-bold text-gray-400 uppercase tracking-widest font-mono">Current Options (<span id="count">0</span>)</label>
-                    <button onclick="clearAll()" class="text-xs text-pink hover:text-white transition-colors font-mono">Clear All</button>
-                </div>
-                <div id="optionsList" class="flex flex-wrap gap-2">
-                    <!-- Tags injected here -->
-                </div>
-            </div>
-
+            <h2 class="text-xl font-bold text-slate-400 uppercase tracking-widest mb-2">The Selected One is</h2>
+            <h1 id="modal-winner-text"
+                class="text-5xl md:text-6xl font-heading text-white tracking-wide mb-8 drop-shadow-lg break-words">
+                PLAYER</h1>
+            <button onclick="closeWinnerModal()"
+                class="px-8 py-3 bg-white text-slate-900 font-bold rounded-xl hover:scale-105 transition-transform shadow-xl">CONTINUE</button>
         </div>
     </div>
 
     <script>
-        // --- LOCAL STORAGE KEY ---
-        const LS_KEY_RAW_OPTIONS = 'wheelRawOptionsText';
+        // --- LOGIC ---
+        const LS_KEY = 'wheelRawOptionsText';
+        const PALETTE = ['#FF6B95', '#FF8C42', '#00E676', '#2979FF'];
 
-        // --- CONFIG ---
-        const PALETTE = ['#FF6B95', '#FF8C42', '#00E676', '#2979FF']; // Pink, Orange, Green, Blue
-        let options = []; // Initialized by load
-
-        // --- GAME STATE ---
+        let options = [];
         let startAngle = 0;
         let arc = 0;
-        let spinTimeout = null;
-        let spinAngleStart = 0;
-        let spinTime = 0;
-        let spinTimeTotal = 0;
-        let lastScheduledClickTime = 0; 
         let ctx;
-        let isSpinning = false;
-        let audioInitialized = false;
 
-        // --- AUDIO ENGINE (Tone.js) ---
-        let clickSynth, winSynth;
-        
+        // Animation State
+        let isSpinning = false;
+        let spinAngleStart = 0;
+        let spinTimeTotal = 0;
+        let spinStartTime = 0;
+        let lastFrameTime = 0;
+        let animationFrameId = null;
+
+        // Audio State
+        let isMuted = false;
+        let audioInitialized = false;
+        let synth, winSynth;
+        let lastPlayedIndex = -1;
+
+        // --- DRAWING ---
+        function drawWheel() {
+            const canvas = document.getElementById("wheelCanvas");
+            if (!canvas.getContext) return;
+            ctx = canvas.getContext("2d");
+
+            // Clear using new dimensions
+            ctx.clearRect(0, 0, 800, 800);
+
+            // New Center for 800x800 canvas
+            const cx = 400;
+            const cy = 400;
+            const outsideRadius = 380; // Maximize size
+            const textRadius = 260; // Push text out
+            const insideRadius = 70;
+
+            arc = Math.PI * 2 / options.length;
+
+            if (options.length === 0) {
+                ctx.beginPath();
+                ctx.arc(cx, cy, outsideRadius, 0, 2 * Math.PI);
+                ctx.fillStyle = "#1e293b";
+                ctx.fill();
+                ctx.font = 'bold 30px "Nunito"';
+                ctx.fillStyle = "#64748b";
+                ctx.textAlign = "center";
+                ctx.fillText("Add Players to Spin", cx, cy);
+                return;
+            }
+
+            for (let i = 0; i < options.length; i++) {
+                const angle = startAngle + i * arc;
+                ctx.fillStyle = PALETTE[i % PALETTE.length];
+
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.arc(cx, cy, outsideRadius, angle, angle + arc, false);
+                ctx.lineTo(cx, cy);
+                ctx.fill();
+
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = "#0f172a";
+                ctx.stroke();
+
+                ctx.save();
+                ctx.fillStyle = "#0f172a";
+                ctx.translate(cx + Math.cos(angle + arc / 2) * textRadius,
+                    cy + Math.sin(angle + arc / 2) * textRadius);
+                ctx.rotate(angle + arc / 2);
+
+                const text = options[i];
+                // Scaled fonts for larger canvas
+                if (text.length > 15) ctx.font = 'bold 24px "Nunito"';
+                else if (text.length > 10) ctx.font = 'bold 32px "Nunito"';
+                else ctx.font = 'bold 40px "Nunito"';
+
+                ctx.fillText(text, -ctx.measureText(text).width / 2, 10);
+                ctx.restore();
+            }
+        }
+
+        // --- ANIMATION LOOP (RequestAnimationFrame) ---
+        function spin() {
+            if (isSpinning) return;
+            if (options.length < 2) {
+                alert("Please add at least 2 options!");
+                return;
+            }
+
+            isSpinning = true;
+            initAudio();
+
+            // Get Duration from Slider
+            const sliderVal = document.getElementById("durationSlider").value;
+            const durationSeconds = parseInt(sliderVal);
+
+            document.getElementById("spinBtn").classList.add("opacity-50", "cursor-not-allowed");
+            document.getElementById("spinIcon").classList.remove("hidden");
+
+            // Physics setup
+            spinAngleStart = Math.random() * 10 + 20; // Initial velocity
+            spinTimeTotal = durationSeconds * 1000; // Convert to ms
+            spinStartTime = performance.now();
+            lastFrameTime = spinStartTime;
+
+            animationFrameId = requestAnimationFrame(animateWheel);
+        }
+
+        function animateWheel(currentTime) {
+            const elapsedTime = currentTime - spinStartTime;
+
+            // Stop Condition
+            if (elapsedTime >= spinTimeTotal) {
+                stopRotateWheel();
+                return;
+            }
+
+            // Calculate Smooth Easing
+            const spinAngle = spinAngleStart - easeOut(elapsedTime, 0, spinAngleStart, spinTimeTotal);
+
+            // Update Angle based on time delta to ensure smoothness regardless of FPS
+            startAngle += (spinAngle * Math.PI / 180);
+
+            drawWheel();
+            checkTicker(); // Audio/Visual Ticks
+
+            animationFrameId = requestAnimationFrame(animateWheel);
+        }
+
+        function stopRotateWheel() {
+            cancelAnimationFrame(animationFrameId);
+            isSpinning = false;
+            document.getElementById("spinBtn").classList.remove("opacity-50", "cursor-not-allowed");
+            document.getElementById("spinIcon").classList.add("hidden");
+
+            const degrees = startAngle * 180 / Math.PI + 90;
+            const arcd = arc * 180 / Math.PI;
+            const index = Math.floor((360 - degrees % 360) / arcd);
+            const winner = options[index];
+
+            showWinner(winner);
+        }
+
+        // --- PHYSICS HELPERS ---
+        function checkTicker() {
+            // Calculate which index is currently at 12 o'clock
+            const degrees = startAngle * 180 / Math.PI + 90;
+            const arcd = arc * 180 / Math.PI;
+            const currentIndex = Math.floor((360 - degrees % 360) / arcd);
+
+            if (currentIndex !== lastPlayedIndex) {
+                playTick();
+                lastPlayedIndex = currentIndex;
+            }
+        }
+
+        function easeOut(t, b, c, d) {
+            const ts = (t /= d) * t;
+            const tc = ts * t;
+            return b + c * (tc + -3 * ts + 3 * t);
+        }
+
+        // --- AUDIO ENGINE ---
         async function initAudio() {
-            if (audioInitialized) return;
+            if (audioInitialized || isMuted) return;
             await Tone.start();
-            
-            clickSynth = new Tone.MembraneSynth({
-                pitchDecay: 0.05,
-                octaves: 2,
-                oscillator: { type: "sine" },
-                envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.1 }
+
+            synth = new Tone.MembraneSynth({
+                pitchDecay: 0.05, octaves: 4, oscillator: { type: "sine" },
+                envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.1 }, volume: -10
             }).toDestination();
 
             winSynth = new Tone.PolySynth(Tone.Synth, {
-                oscillator: { type: "triangle" },
-                envelope: { attack: 0.02, decay: 0.1, sustain: 0.1, release: 1 }
+                volume: -8, oscillator: { type: "fmsine", modulationType: "square", modulationIndex: 3, harmonicity: 3.4 },
+                envelope: { attack: 0.001, decay: 0.1, sustain: 0.1, release: 1.2 }
             }).toDestination();
 
             audioInitialized = true;
         }
 
-        function playClick(time) {
-            if(clickSynth) clickSynth.triggerAttackRelease("C2", "32n", time);
-        }
-
-        function playWin() {
-            if(winSynth) {
+        function playTick() { if (!isMuted && synth) synth.triggerAttackRelease("C1", "32n"); }
+        function playWinSound() {
+            if (!isMuted && winSynth) {
                 const now = Tone.now();
                 winSynth.triggerAttackRelease(["C4", "E4", "G4", "C5"], "8n", now);
                 winSynth.triggerAttackRelease(["E4", "G4", "B4", "E5"], "8n", now + 0.15);
-                winSynth.triggerAttackRelease(["G4", "B4", "D5", "G5"], "4n", now + 0.3);
+                winSynth.triggerAttackRelease(["F4", "A4", "C5", "F5"], "2n", now + 0.3);
             }
         }
-
-        // --- PERSISTENCE ---
-
-        function saveRawOptions(text) {
-             try {
-                localStorage.setItem(LS_KEY_RAW_OPTIONS, text);
-            } catch (e) {
-                console.error("Could not save options to local storage:", e);
+        function toggleMute() {
+            isMuted = !isMuted;
+            const icon = document.getElementById('muteIcon');
+            if (isMuted) {
+                icon.setAttribute('data-lucide', 'volume-x');
+                document.getElementById('muteBtn').classList.add('text-red-400');
+            } else {
+                icon.setAttribute('data-lucide', 'volume-2');
+                document.getElementById('muteBtn').classList.remove('text-red-400');
+                if (!audioInitialized) initAudio();
             }
+            lucide.createIcons();
         }
 
-        // --- DRAWING ---
-        function drawRouletteWheel() {
-            const canvas = document.getElementById("wheelCanvas");
-            if (!canvas.getContext) return;
-            
-            ctx = canvas.getContext("2d");
-            ctx.clearRect(0, 0, 600, 600);
-            
-            ctx.strokeStyle = "#0f172a";
-            ctx.lineWidth = 2;
-            ctx.font = 'bold 24px "Nunito", sans-serif';
-            
-            arc = Math.PI * 2 / options.length;
-            
-            const cx = 300;
-            const cy = 300;
-            const outsideRadius = 280;
-            const textRadius = 200;
-            const insideRadius = 40; 
-
-            if (options.length === 0) {
-                // Draw Empty State
-                ctx.beginPath();
-                ctx.arc(cx, cy, outsideRadius, 0, 2 * Math.PI);
-                ctx.fillStyle = "#1e293b";
-                ctx.fill();
-                ctx.fillStyle = "#94a3b8";
-                ctx.textAlign = "center";
-                ctx.fillText("Add Options...", cx, cy);
-                return;
-            }
-
-            for(let i = 0; i < options.length; i++) {
-                const angle = startAngle + i * arc;
-                
-                // Draw Slice
-                ctx.fillStyle = PALETTE[i % PALETTE.length];
-                
-                ctx.beginPath();
-                ctx.arc(cx, cy, outsideRadius, angle, angle + arc, false);
-                ctx.arc(cx, cy, insideRadius, angle + arc, angle, true);
-                ctx.fill();
-                ctx.stroke();
-                
-                // Draw Text
-                ctx.save();
-                ctx.fillStyle = "#0f172a"; 
-                ctx.translate(cx + Math.cos(angle + arc / 2) * textRadius, 
-                            cy + Math.sin(angle + arc / 2) * textRadius);
-                ctx.rotate(angle + arc / 2);
-                
-                const text = options[i];
-                if(text.length > 12) ctx.font = 'bold 18px "Nunito", sans-serif';
-                else ctx.font = 'bold 24px "Nunito", sans-serif';
-                
-                ctx.fillText(text, -ctx.measureText(text).width / 2, 0);
-                ctx.restore();
-            }
-            
-            // Decorative Center Ring
-            ctx.beginPath();
-            ctx.arc(cx, cy, insideRadius, 0, 2 * Math.PI);
-            ctx.fillStyle = "#0f172a";
-            ctx.fill();
-            ctx.lineWidth = 4;
-            ctx.strokeStyle = "#FF6B95"; // Pink ring
-            ctx.stroke();
+        // --- UI & DATA ---
+        function showWinner(name) {
+            playWinSound();
+            confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: PALETTE });
+            document.getElementById('modal-winner-text').innerText = name;
+            const modal = document.getElementById('winner-modal');
+            modal.classList.remove('hidden');
+            requestAnimationFrame(() => modal.classList.add('active'));
         }
 
-        // --- LOGIC ---
-        function spin() {
-            if(isSpinning) return;
-            if(options.length < 2) {
-                alert("Please add at least 2 options!");
-                return;
-            }
-            
-            isSpinning = true;
-            initAudio(); 
-            
-            document.getElementById("result-text").classList.add("hidden");
-            document.getElementById("spinBtn").classList.add("opacity-50", "cursor-not-allowed");
-            
-            spinAngleStart = Math.random() * 30 + 40; 
-            spinTime = 0;
-            spinTimeTotal = (Math.random() * 3000) + 5000; 
-            
-            lastScheduledClickTime = Tone.now(); 
-
-            document.getElementById("wheelCanvas").classList.add("spinning-fast");
-
-            rotateWheel();
+        function closeWinnerModal() {
+            const modal = document.getElementById('winner-modal');
+            modal.classList.remove('active');
+            setTimeout(() => modal.classList.add('hidden'), 300);
         }
 
-        function rotateWheel() {
-            spinTime += 30; 
-            const spinTimeSec = spinTime / 1000; 
-            
-            if(spinTime >= spinTimeTotal) {
-                stopRotateWheel();
-                return;
-            }
-            
-            const spinAngle = spinAngleStart - easeOut(spinTime, 0, spinAngleStart, spinTimeTotal);
-            startAngle += (spinAngle * Math.PI / 180);
-            
-            drawRouletteWheel();
-            
-            if (spinTime > spinTimeTotal * 0.7) {
-                document.getElementById("wheelCanvas").classList.remove("spinning-fast");
-            }
-            
-            const progress = spinTime / spinTimeTotal;
-            const clickIntervalSec = Math.max(0.03, progress * 0.1); 
-            
-            if (Tone.now() >= lastScheduledClickTime + clickIntervalSec) {
-                playClick(Tone.now()); 
-                lastScheduledClickTime = Tone.now();
-            }
-            
-            spinTimeout = setTimeout(rotateWheel, 30);
-        }
-
-        function stopRotateWheel() {
-            clearTimeout(spinTimeout);
-            isSpinning = false;
-            document.getElementById("spinBtn").classList.remove("opacity-50", "cursor-not-allowed");
-            document.getElementById("wheelCanvas").classList.remove("spinning-fast"); 
-            
-            const degrees = startAngle * 180 / Math.PI + 90;
-            const arcd = arc * 180 / Math.PI;
-            const index = Math.floor((360 - degrees % 360) / arcd);
-            
-            ctx.save();
-            const winner = options[index];
-            
-            const resText = document.getElementById("result-text");
-            resText.innerText = winner.toUpperCase();
-            resText.classList.remove("hidden");
-            
-            playWin();
-        }
-
-        function easeOut(t, b, c, d) {
-            const ts = (t/=d)*t;
-            const tc = ts*t;
-            return b+c*(tc + -3*ts + 3*t);
-        }
-
-        // --- UI HELPERS & STATE MANAGEMENT ---
         function renderList() {
             const list = document.getElementById("optionsList");
             list.innerHTML = "";
             options.forEach((opt, i) => {
                 const color = PALETTE[i % PALETTE.length];
                 const tag = document.createElement("div");
-                tag.className = "flex items-center gap-2 bg-dark border border-white/10 rounded-md px-3 py-1 text-sm font-bold text-white";
-                tag.style.borderColor = color;
-                tag.innerHTML = `
-                    <span style="color:${color}">●</span> ${opt}
-                    <button onclick="removeOption(${i})" class="ml-2 text-gray-500 hover:text-red-400">×</button>
-                `;
+                tag.className = "flex items-center gap-2 bg-slate-800 border border-white/5 rounded px-2 py-1 text-xs font-bold text-white shadow-sm";
+                tag.style.borderLeft = `3px solid ${color}`;
+                tag.innerHTML = `${opt} <button onclick="removeOption(${i})" class="ml-1 text-slate-500 hover:text-red-400"><i data-lucide="x" class="w-3 h-3"></i></button>`;
                 list.appendChild(tag);
             });
             document.getElementById("count").innerText = options.length;
-            drawRouletteWheel();
+            lucide.createIcons();
+            drawWheel();
         }
 
         function addOption() {
             const input = document.getElementById("optionInput");
             const val = input.value.trim();
-            if(val) {
-                options.push(val); 
-                input.value = "";
-                
-                // Update and Save
-                const newRawText = options.join('\n');
-                saveRawOptions(newRawText);
-                document.getElementById("batchInput").value = newRawText; // Keep batch area updated
-                
-                renderList();
-            }
+            if (val) { options.push(val); input.value = ""; saveData(); renderList(); }
         }
-
-        function removeOption(idx) {
-            options.splice(idx, 1);
-            
-            // Update and Save
-            const newRawText = options.join('\n');
-            saveRawOptions(newRawText);
-            document.getElementById("batchInput").value = newRawText; // Keep batch area updated
-
-            renderList();
-        }
-
-        function clearAll() {
-            options = [];
-            
-            // Update and Save
-            saveRawOptions('');
-            document.getElementById("batchInput").value = ''; // Clear batch area
-            
-            renderList();
-        }
-
+        function removeOption(idx) { options.splice(idx, 1); saveData(); renderList(); }
+        function clearAll() { if (confirm("Clear all names?")) { options = []; saveData(); renderList(); } }
         function toggleBatch() {
-            const area = document.getElementById("batchInput");
-            const btn = document.getElementById("saveBatchBtn");
-            if(area.classList.contains("hidden")) {
-                // Opening: populate with current state
-                area.value = options.join("\n"); 
-                area.classList.remove("hidden");
-                btn.classList.remove("hidden");
-            } else {
-                // Closing: hide elements
-                area.classList.add("hidden");
-                btn.classList.add("hidden");
-            }
+            const container = document.getElementById("batchContainer");
+            const input = document.getElementById("batchInput");
+            if (container.classList.contains("hidden")) { input.value = options.join("\n"); container.classList.remove("hidden"); }
+            else { container.classList.add("hidden"); }
         }
-
         function saveBatch() {
-            const area = document.getElementById("batchInput");
-            // Handles both newlines and commas
-            const rawText = area.value;
-            const lines = rawText.split(/[\n,]+/).map(l => l.trim()).filter(l => l.length > 0);
-            
-            // Update main options list
-            options = lines;
-            
-            // Save the raw text
-            saveRawOptions(rawText);
-            
-            toggleBatch(); // Hide
+            const input = document.getElementById("batchInput");
+            options = input.value.split(/[\n,]+/).map(l => l.trim()).filter(l => l.length > 0);
+            saveData(); toggleBatch(); renderList();
+        }
+        function saveData() { localStorage.setItem(LS_KEY, options.join('\n')); }
+        function loadData() {
+            const raw = localStorage.getItem(LS_KEY);
+            options = raw ? raw.split(/[\n,]+/).map(l => l.trim()).filter(l => l.length > 0) : ["Team Alpha", "Team Bravo", "Team Charlie", "Team Delta"];
             renderList();
         }
 
-        // --- INITIALIZATION ---
-        
-        function initializeApplication() {
-            // 1. Load the raw text
-            const initialRawText = localStorage.getItem(LS_KEY_RAW_OPTIONS);
-            
-            if (initialRawText) {
-                // Populate the hidden batch input immediately with saved data
-                document.getElementById("batchInput").value = initialRawText; 
-                
-                // Process the saved raw text into the options array
-                options = initialRawText.split(/[\n,]+/).map(l => l.trim()).filter(l => l.length > 0);
-            } else {
-                // If nothing is saved, use the hardcoded default and save it immediately.
-                const defaultOptions = ["Team Alpha", "Team Bravo", "Team Charlie", "Team Delta", "Team Echo", "Team Foxtrot"];
-                options = defaultOptions;
-                const defaultRaw = defaultOptions.join('\n');
-                document.getElementById("batchInput").value = defaultRaw;
-                saveRawOptions(defaultRaw);
-            }
+        // Duration Slider Listener
+        document.getElementById("durationSlider").addEventListener("input", (e) => {
+            document.getElementById("durationValue").innerText = e.target.value + "s";
+        });
 
-            // 2. Attach Auto-Save Hook for the batch input textarea
-            // This ensures continuous saving while the user is typing in the batch editor.
-            document.getElementById("batchInput").addEventListener('input', (e) => {
-                saveRawOptions(e.target.value);
-            });
-            
-            // 3. Attach other event listeners
+        window.onload = () => {
+            loadData();
+            lucide.createIcons();
             document.getElementById("spinBtn").addEventListener("click", spin);
             document.getElementById("addOptionBtn").addEventListener("click", addOption);
-            document.getElementById("optionInput").addEventListener("keydown", (e) => {
-                if(e.key === 'Enter') addOption();
-            });
-
-            // 4. Initialize UI (Draw the wheel and tags)
-            renderList();
-        }
-
-        window.onload = initializeApplication;
-
+            document.getElementById("optionInput").addEventListener("keydown", (e) => { if (e.key === 'Enter') addOption(); });
+        };
     </script>
 </body>
+
 </html>
