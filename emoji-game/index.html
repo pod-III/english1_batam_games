@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emoji Guess: Classroom Edition</title>
+    
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        pink: '#FF6B95',
+                        orange: '#FF8C42',
+                        green: '#00E676',
+                        blue: '#2979FF',
+                        dark: '#334155', // Used for main text/accents
+                        surface: '#FFFFFF',
+                        border: '#E2E8F0',
+                    },
+                    fontFamily: {
+                        heading: ['Fredoka', 'sans-serif'], // Primary display font
+                        body: ['Nunito', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                        emoji: ['"Apple Color Emoji"', '"Segoe UI Emoji"', '"Segoe UI Symbol"', '"Noto Color Emoji"', 'sans-serif'],
+                    },
+                    animation: {
+                        'pop': 'pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                        'slide-up': 'slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
+                        'float': 'float 6s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        pop: {
+                            '0%': { transform: 'scale(0.9)', opacity: '0' },
+                            '100%': { transform: 'scale(1)', opacity: '1' },
+                        },
+                        slideUp: {
+                            '0%': { transform: 'translateY(40px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' },
+                        },
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* --- BASE STYLES (Kid Theme Only) --- */
+        body { 
+            font-family: 'Nunito', sans-serif;
+            overflow: hidden;
+            background-color: #F0F9FF;
+            /* Graph Paper Pattern */
+            background-image: 
+                linear-gradient(#CBD5E1 1px, transparent 1px),
+                linear-gradient(90deg, #CBD5E1 1px, transparent 1px);
+            background-size: 20px 20px;
+            color: #334155;
+            transition: none;
+        }
+        
+        /* Apply kid font globally for headers */
+        h1, h2, button { font-family: 'Fredoka', sans-serif; }
+
+        /* Game Card Styling (The "Sticker" Look) */
+        .game-card-panel {
+            background: #FFFFFF;
+            border: 4px solid #334155;
+            box-shadow: 8px 8px 0px #334155;
+            border-radius: 2rem;
+        }
+        
+        /* Button Primary Style */
+        .btn-primary {
+            background: #2979FF;
+            color: white;
+            border: 3px solid #1e3a8a;
+            box-shadow: 0 4px 0 #1e3a8a;
+        }
+
+        /* --- COMMON UTILS --- */
+        .btn-3d {
+            transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateY(0);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn-3d:active, .btn-3d.active-press {
+            transform: translateY(4px);
+            box-shadow: none !important;
+            border-bottom: none !important;
+        }
+
+        /* EMOJI RENDERING (Clean, clear shadow) */
+        .emoji-renderer {
+            font-family: "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", "Android Emoji", sans-serif;
+            letter-spacing: -0.05em; /* Tighten up spacing slightly */
+            line-height: 1.2;
+            filter: drop-shadow(4px 4px 0px rgba(0, 0, 0, 0.1));
+        }
+
+        #timer-bar { transition: width 0.1s linear, background-color 0.5s ease; }
+        .modal-enter { animation: modalPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        
+        @keyframes modalPop {
+            0% { transform: scale(0.9); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen selection:bg-pink selection:text-white">
+
+    <!-- WELCOME VIEW (Title Screen) -->
+    <div id="welcome-view" class="fixed inset-0 z-[40] flex flex-col items-center justify-center overflow-hidden hidden">
+        <div class="absolute inset-0 bg-white/90 backdrop-blur-sm z-0"></div>
+        
+        <div class="relative z-10 text-center space-y-8 p-8 animate-pop">
+            <div class="inline-block p-8 rounded-[3rem] bg-white border-4 border-slate-800 shadow-2xl mb-4 animate-float">
+                <div class="text-8xl md:text-9xl filter drop-shadow-lg transform hover:scale-110 transition-transform duration-300 cursor-default select-none">🤔🌏</div>
+            </div>
+            
+            <div class="space-y-2">
+                <h1 class="text-7xl md:text-9xl font-heading text-slate-800 tracking-widest drop-shadow-sm">
+                    EMOJI GUESS
+                </h1>
+                <p class="text-slate-500 font-mono text-xl tracking-[0.5em] uppercase font-bold">English 1 Batam</p>
+            </div>
+
+            <button onclick="app.startGame()" class="group relative btn-3d btn-primary px-12 py-5 rounded-3xl font-heading text-4xl tracking-widest hover:brightness-110 hover:scale-105 transition-all mt-8 overflow-hidden">
+                <span class="relative z-10 flex items-center gap-3">
+                    PLAY <i data-lucide="play" class="w-8 h-8 fill-current"></i>
+                </span>
+            </button>
+            
+            <div class="mt-8 flex justify-center">
+                 <button onclick="app.showEditor()" class="text-slate-400 hover:text-slate-600 flex items-center gap-2 text-sm font-bold uppercase tracking-widest transition-colors bg-white/50 px-4 py-2 rounded-full">
+                    <i data-lucide="settings" class="w-4 h-4"></i> Setup Game
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GAME CONTAINER -->
+    <div id="game-view" class="flex flex-col min-h-screen hidden">
+        
+        <header class="w-full game-card-panel border-b border-transparent sticky top-0 z-40 transition-all duration-500 rounded-none md:rounded-b-[2rem] mt-0 md:mx-auto md:max-w-7xl md:mt-2">
+            <div class="px-6 h-20 flex items-center justify-between">
+                <div class="flex items-center gap-4 group cursor-pointer" onclick="app.showWelcome()">
+                    <div class="bg-gradient-to-br from-green to-blue w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-lg group-hover:rotate-12 transition-transform border-2 border-white">
+                        🤔
+                    </div>
+                    <div class="hidden sm:block">
+                        <h1 class="text-3xl font-heading tracking-widest text-slate-800 leading-none">EMOJI GUESS</h1>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-3 bg-white px-5 py-2 rounded-full border-2 border-slate-200 shadow-md">
+                    <span class="text-[10px] text-slate-500 uppercase font-bold tracking-widest hidden sm:inline">Question</span>
+                    <span id="progress-display" class="font-mono text-blue font-bold text-lg">1 / 15</span>
+                </div>
+
+                <div class="flex items-center gap-2 md:gap-3">
+                    <button id="sound-toggle" class="p-3 rounded-full hover:bg-slate-100 transition-all active:scale-95 text-slate-500">
+                        <i data-lucide="volume-2" class="w-5 h-5"></i>
+                    </button>
+                    
+                    <button onclick="app.showEditor()" class="btn-3d bg-white hover:bg-slate-50 text-slate-700 px-4 md:px-6 py-2 rounded-xl font-heading tracking-wider text-lg border-2 border-slate-200">
+                        SETUP
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-grow flex flex-col items-center justify-center p-4 md:p-6 w-full max-w-7xl mx-auto relative">
+            
+            <div id="game-card" class="w-full max-w-5xl aspect-[16/9] md:aspect-[21/9] game-card-panel flex flex-col items-center justify-center relative overflow-hidden transition-all duration-500 animate-pop">
+                
+                <div class="absolute top-6 left-6 md:top-8 md:left-8 z-20">
+                    <span id="category-display" class="bg-white/90 backdrop-blur text-orange border-2 border-orange/20 px-6 py-2 rounded-full text-sm font-bold font-mono uppercase tracking-widest shadow-lg flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-orange animate-pulse"></span>
+                        Category
+                    </span>
+                </div>
+
+                <div class="text-center z-10 w-full px-4 relative flex flex-col items-center justify-center h-full">
+                    <div id="emoji-container" class="transition-all duration-700 transform will-change-transform">
+                        <div id="emoji-display" class="emoji-renderer text-7xl md:text-9xl lg:text-[11rem] leading-none select-none animate-slide-up hover:scale-105 transition-transform duration-300 cursor-help text-slate-800" title="Guess the word!">
+                            <!-- Emojis go here -->
+                        </div>
+                    </div>
+
+                    <div id="answer-container" class="hidden animate-pop absolute inset-0 flex flex-col items-center justify-center bg-white/90 backdrop-blur-md z-30 rounded-[2rem]">
+                        <h2 class="text-slate-500 font-bold tracking-[0.6em] text-xs md:text-xs mb-4 uppercase animate-pulse">CORRECT ANSWER</h2>
+                        <h1 id="answer-text" class="text-5xl md:text-8xl lg:text-9xl font-heading text-slate-800 mb-8 tracking-wide drop-shadow-lg px-4 break-words max-w-full">
+                            Answer
+                        </h1>
+                        
+                        <div id="bonus-box" class="hidden max-w-2xl mx-auto bg-blue/5 border-l-4 border-yellow-400 p-6 rounded-r-2xl text-left shadow-xl border border-slate-200">
+                            <h3 class="text-yellow-600 font-bold flex items-center gap-2 mb-3 text-xs uppercase tracking-widest">
+                                <i data-lucide="star" class="w-4 h-4 fill-current"></i> Bonus Challenge
+                            </h3>
+                            <p class="text-slate-700 text-lg md:text-2xl font-body font-light leading-relaxed">
+                                "Make a sentence with <span class="text-yellow-600 font-bold border-b-2 border-yellow-400/50 px-1">the answer</span> using anything we've learned!"
+                            </p>
+                        </div>
+
+                        <button onclick="app.showBonus()" id="btn-show-bonus" class="mt-6 text-blue hover:text-blue-600 transition-all font-bold flex items-center justify-center gap-2 text-sm uppercase tracking-wider group hover:scale-105 bg-slate-100 px-6 py-2 rounded-full border border-slate-200">
+                            <i data-lucide="plus-circle" class="w-4 h-4 group-hover:rotate-90 transition-transform"></i> Show Bonus Challenge
+                        </button>
+                    </div>
+                </div>
+
+                <div class="absolute bottom-0 left-0 w-full h-4 bg-slate-100">
+                    <div id="timer-bar" class="h-full bg-green w-full transition-all ease-linear origin-left"></div>
+                </div>
+            </div>
+
+            <div class="w-full max-w-4xl mt-8 grid grid-cols-12 gap-3 md:gap-4">
+                <div class="col-span-3 flex gap-2">
+                    <button onclick="app.prevQuestion()" id="btn-prev" class="w-full btn-3d bg-white hover:bg-slate-50 text-slate-700 rounded-2xl flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed group border-2 border-slate-200" title="Previous">
+                        <i data-lucide="arrow-left" class="w-6 h-6 group-hover:-translate-x-1 transition-transform"></i>
+                    </button>
+                    <button onclick="app.startTimer()" id="btn-timer" class="w-full btn-3d bg-white hover:bg-slate-50 text-orange rounded-2xl flex items-center justify-center group border-2 border-slate-200" title="Start Timer">
+                        <i data-lucide="clock" class="w-6 h-6 group-hover:scale-110 transition-transform"></i>
+                    </button>
+                </div>
+
+                <button id="btn-reveal" onclick="app.revealAnswer()" class="col-span-6 btn-3d btn-primary text-white rounded-2xl font-heading text-3xl tracking-wider py-4 shadow-lg hover:brightness-110 hover:scale-[1.02] transition-transform">
+                    REVEAL
+                </button>
+                <button id="btn-next" onclick="app.nextQuestion()" class="hidden col-span-6 btn-3d btn-primary text-white rounded-2xl font-heading text-3xl tracking-wider py-4 shadow-lg hover:brightness-110 hover:scale-[1.02] transition-transform">
+                    NEXT
+                </button>
+
+                <button onclick="app.nextQuestion()" id="btn-skip" class="col-span-3 btn-3d bg-white hover:bg-slate-50 text-slate-700 rounded-2xl flex items-center justify-center group border-2 border-slate-200" title="Skip">
+                    <i data-lucide="arrow-right" class="w-6 h-6 group-hover:translate-x-1 transition-transform"></i>
+                </button>
+            </div>
+
+            <div class="mt-8 flex gap-8 text-slate-400 text-[10px] font-mono uppercase tracking-[0.2em] opacity-80">
+                <span class="flex items-center gap-2"><kbd class="border border-slate-400 rounded px-1">SPACE</kbd> Action</span>
+                <span class="flex items-center gap-2"><kbd class="border border-slate-400 rounded px-1">←</kbd> <kbd class="border border-slate-400 rounded px-1">→</kbd> Navigate</span>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- EDITOR MODAL -->
+    <div id="editor-modal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-md modal-enter hidden">
+        <div class="game-card-panel w-full max-w-4xl h-[85vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col border border-slate-200 bg-white">
+            
+            <div class="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                <div class="flex items-center gap-4">
+                    <div class="p-3 bg-blue/10 rounded-xl text-blue border border-blue/20">
+                        <i data-lucide="settings-2" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-2xl font-heading text-slate-800 tracking-wide">GAME SETUP</h2>
+                        <p class="text-xs text-slate-500 font-mono uppercase tracking-wider">Configure your questions</p>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200">
+                    <i data-lucide="clock" class="w-4 h-4 text-orange"></i>
+                    <span class="text-xs font-bold text-slate-500 uppercase">Timer:</span>
+                    <input type="number" id="timer-setting" value="10" min="5" max="60" class="w-12 bg-transparent text-slate-800 font-mono text-center outline-none border-b border-slate-300 focus:border-blue">
+                    <span class="text-xs text-slate-400">s</span>
+                </div>
+            </div>
+
+            <!-- New Preset Selector Row -->
+            <div class="px-6 py-4 border-b border-slate-200 bg-slate-100 flex justify-between items-center">
+                <label for="preset-selector" class="text-sm font-bold text-slate-600 uppercase tracking-wider">Load Preset:</label>
+                <select id="preset-selector" onchange="app.loadPreset(this.value)" class="p-2 border border-slate-300 rounded-lg bg-white text-slate-800 font-heading">
+                    <!-- Options injected by JS -->
+                </select>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-100" id="editor-list">
+                <!-- Rows injected here -->
+            </div>
+
+            <div class="p-6 border-t border-slate-200 bg-white flex gap-4 backdrop-blur-md">
+                <button onclick="app.addEditorRow()" class="px-6 py-4 border-2 border-dashed border-slate-300 text-slate-400 rounded-2xl hover:border-blue hover:text-blue hover:bg-blue/5 transition font-bold text-sm tracking-wide flex items-center justify-center gap-2 group">
+                    <i data-lucide="plus-circle" class="w-5 h-5 group-hover:scale-110 transition-transform"></i> NEW
+                </button>
+                <div class="flex-1"></div>
+                <!-- SAVE ONLY (No launch) -->
+                <button onclick="app.saveEditorData(false)" class="px-8 text-slate-500 hover:text-slate-800 font-bold text-sm hover:bg-slate-100 rounded-xl transition">
+                    SAVE
+                </button>
+                <!-- LAUNCH GAME BUTTON -->
+                <button onclick="app.launchGame()" class="btn-3d btn-primary px-10 rounded-xl font-bold tracking-wide shadow-lg flex items-center gap-2 text-xl hover:brightness-110">
+                    <i data-lucide="rocket" class="w-6 h-6"></i> LAUNCH GAME
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GAME OVER OVERLAY -->
+    <div id="game-over-view" class="fixed inset-0 z-[90] hidden flex flex-col items-center justify-center bg-white/95 backdrop-blur-xl animate-pop">
+        <div class="text-8xl mb-8 animate-bounce filter drop-shadow-[0_0_30px_rgba(255,215,0,0.5)]">🏆</div>
+        <h1 class="text-7xl md:text-9xl font-heading text-transparent bg-clip-text bg-gradient-to-r from-pink via-orange to-blue mb-6 tracking-wide">FANTASTIC!</h1>
+        <p class="text-slate-500 font-mono text-lg mb-12 uppercase tracking-widest border border-slate-300 px-6 py-2 rounded-full">You have completed all questions</p>
+        
+        <div class="flex gap-4">
+             <button onclick="app.showEditor()" class="btn-3d bg-slate-100 hover:bg-slate-200 text-slate-700 px-10 py-5 rounded-2xl font-heading text-2xl tracking-widest border border-slate-300">
+                <i data-lucide="settings" class="inline-block w-6 h-6 mr-2 mb-1"></i> SETUP
+            </button>
+            <button onclick="app.showWelcome()" class="btn-3d btn-primary px-12 py-5 rounded-2xl font-heading text-3xl tracking-widest hover:scale-105 transition shadow-xl">
+                FINISH
+            </button>
+        </div>
+        <canvas id="confetti-canvas" class="absolute inset-0 pointer-events-none"></canvas>
+    </div>
+    
+    <!-- CUSTOM CONFIRMATION MODAL -->
+    <div id="confirm-modal" class="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-md modal-enter hidden">
+        <div class="game-card-panel bg-white p-8 w-full max-w-sm rounded-2xl text-center">
+            <h3 class="text-xl font-heading text-slate-800 mb-6" id="confirm-message"></h3>
+            <div class="flex justify-center gap-4 mt-6">
+                <button id="confirm-no" class="btn-3d bg-slate-200 hover:bg-slate-300 text-slate-700 px-6 py-3 rounded-xl font-heading text-lg">
+                    Cancel
+                </button>
+                <button id="confirm-yes" class="btn-3d bg-pink text-white px-6 py-3 rounded-xl font-heading text-lg shadow-pink/30">
+                    Yes, Delete
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global reference for the confirmation callback
+        let confirmationCallback = null;
+        
+        // --- AUDIO ENGINE ---
+        let audioEnabled = true;
+        const AudioEngine = {
+            init: async () => { await Tone.start(); },
+            playPop: () => {
+                if(!audioEnabled) return;
+                const synth = new Tone.MembraneSynth().toDestination();
+                synth.triggerAttackRelease("C2", "16n");
+            },
+            playReveal: () => {
+                if(!audioEnabled) return;
+                const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+                synth.triggerAttackRelease(["C4", "E4", "G4", "B4"], "8n");
+            },
+            playWin: () => {
+                if(!audioEnabled) return;
+                const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+                const now = Tone.now();
+                synth.triggerAttackRelease(["C4", "E4", "G4", "C5"], "8n", now);
+                synth.triggerAttackRelease(["G4", "B4", "D5", "G5"], "8n", now + 0.2);
+                synth.triggerAttackRelease(["C5", "E5", "G5", "C6"], "2n", now + 0.4);
+            }
+        };
+
+        // --- DATA / PRESETS ---
+        const PRESETS = [
+            {
+                name: 'World Tour',
+                id: 'world',
+                // Removed spaces between emojis for a tight look
+                questions: [
+                    { category: 'NATIONS', answer: 'Australia', emojis: '🦘🐨🌊☀️' },
+                    { category: 'NATIONS', answer: 'Japan', emojis: '🍣👘🗻🚄' },
+                    { category: 'NATIONS', answer: 'Germany', emojis: '🍺🥨⚽🏰' },
+                    { category: 'NATIONS', answer: 'Morocco', emojis: '🐪🕌🏜️🍵' },
+                    { category: 'NATIONS', answer: 'Italy', emojis: '🍕🍝🍷🏛️' },
+                    { category: 'NATIONS', answer: 'Canada', emojis: '🍁🏒🥞🏞️' },
+                    { category: 'CITIES', answer: 'New York City', emojis: '🗽🚕🍎🏙️' },
+                    { category: 'CITIES', answer: 'Tokyo', emojis: '🗼🍜🎌🌃' },
+                    { category: 'CITIES', answer: 'Paris', emojis: '🥐🥖🍷🗼' },
+                    { category: 'BONUS', answer: 'United Kingdom', emojis: '☕👑🌧️🚌' },
+                ]
+            },
+            {
+                name: 'English Idioms',
+                id: 'idioms',
+                questions: [
+                    { category: 'IDIOMS', answer: 'Cold Feet', emojis: '🥶🦶' },
+                    { category: 'IDIOMS', answer: 'Break a Leg', emojis: '🔨🦵' },
+                    { category: 'IDIOMS', answer: 'Piece of Cake', emojis: '🍰😋' },
+                    { category: 'IDIOMS', answer: 'Hit the Books', emojis: '👊📚' },
+                    { category: 'IDIOMS', answer: 'Spill the Beans', emojis: '🍶🥗' },
+                    { category: 'IDIOMS', answer: 'Under the Weather', emojis: '⬇️🌧️' },
+                    { category: 'IDIOMS', answer: 'Bite the Bullet', emojis: '🦷🔩' },
+                    { category: 'IDIOMS', answer: 'The Ball is in Your Court', emojis: '🥎➡️🏟️' },
+                    { category: 'BONUS', answer: 'Cost an arm and a leg', emojis: '💰💪🦵' },
+                ]
+            },
+            {
+                name: 'Daily Actions',
+                id: 'actions',
+                questions: [
+                    { category: 'VERBS', answer: 'Wake Up', emojis: '⏰☀️' },
+                    { category: 'VERBS', answer: 'Eat Breakfast', emojis: '🍳☕' },
+                    { category: 'VERBS', answer: 'Go to School', emojis: '🚌🏫' },
+                    { category: 'VERBS', answer: 'Take a Shower', emojis: '🚿🧼' },
+                    { category: 'VERBS', answer: 'Study', emojis: '🧠📖' },
+                    { category: 'VERBS', answer: 'Play Games', emojis: '🎮😂' },
+                    { category: 'VERBS', answer: 'Read a Book', emojis: '📚🛋️' },
+                    { category: 'VERBS', answer: 'Do Homework', emojis: '✍️💡' },
+                    { category: 'VERBS', answer: 'Go to Sleep', emojis: '💤🌙' },
+                    { category: 'BONUS', answer: 'Wash the dishes', emojis: '🍽️💦🧴' },
+                ]
+            }
+        ];
+        
+        // --- APP LOGIC ---
+        const app = {
+            questions: [],
+            currentIndex: 0,
+            timerDuration: 10,
+            isTimerRunning: false,
+            activePresetId: 'world',
+            
+            init: function() {
+                const savedData = localStorage.getItem('emojiGameData_Custom');
+                const savedTimer = localStorage.getItem('emojiGameTimer');
+                const savedPresetId = localStorage.getItem('emojiGamePresetId') || 'world';
+
+                this.activePresetId = savedPresetId;
+                
+                if (savedData) {
+                    const customPreset = PRESETS.find(p => p.id === this.activePresetId);
+                    if (customPreset) {
+                        this.questions = JSON.parse(savedData);
+                    } else {
+                        this.questions = PRESETS[0].questions; 
+                        this.activePresetId = 'world';
+                    }
+                } else {
+                    const defaultPreset = PRESETS.find(p => p.id === this.activePresetId);
+                    this.questions = defaultPreset ? defaultPreset.questions : PRESETS[0].questions;
+                }
+
+                this.timerDuration = savedTimer ? parseInt(savedTimer) : 10;
+                
+                document.getElementById('timer-setting').value = this.timerDuration;
+                
+                lucide.createIcons();
+                this.setupKeyboard();
+                this.setupConfirmationListeners();
+                
+                document.getElementById('welcome-view').classList.remove('hidden');
+                this.showEditor();
+            },
+            
+            showConfirmation: function(message, callback) {
+                document.getElementById('confirm-message').textContent = message;
+                document.getElementById('confirm-modal').classList.remove('hidden');
+                confirmationCallback = callback;
+            },
+            
+            setupConfirmationListeners: function() {
+                const modal = document.getElementById('confirm-modal');
+                const btnYes = document.getElementById('confirm-yes');
+                const btnNo = document.getElementById('confirm-no');
+
+                btnYes.onclick = () => {
+                    modal.classList.add('hidden');
+                    if (confirmationCallback) {
+                        confirmationCallback(true);
+                        confirmationCallback = null;
+                    }
+                };
+
+                btnNo.onclick = () => {
+                    modal.classList.add('hidden');
+                    if (confirmationCallback) {
+                        confirmationCallback(false);
+                        confirmationCallback = null;
+                    }
+                };
+            },
+
+            loadPreset: function(presetId) {
+                const selectedPreset = PRESETS.find(p => p.id === presetId);
+                if (!selectedPreset) return;
+
+                this.showConfirmation(`Are you sure you want to load the "${selectedPreset.name}" preset? This will overwrite your current unsaved questions.`, (result) => {
+                    if (result) {
+                        this.activePresetId = presetId;
+                        this.questions = [...selectedPreset.questions];
+                        localStorage.setItem('emojiGamePresetId', presetId);
+                        localStorage.setItem('emojiGameData_Custom', JSON.stringify(this.questions));
+                        this.renderEditorRows();
+                    } else {
+                        document.getElementById('preset-selector').value = this.activePresetId;
+                    }
+                });
+            },
+
+            setupKeyboard: function() {
+                document.addEventListener('keydown', (e) => {
+                    if (document.getElementById('game-view').classList.contains('hidden')) return;
+
+                    const pressButton = (id) => {
+                        const btn = document.getElementById(id);
+                        if(btn) {
+                            btn.classList.add('active-press');
+                            setTimeout(() => btn.classList.remove('active-press'), 150);
+                        }
+                    };
+
+                    switch(e.code) {
+                        case 'ArrowRight': 
+                            pressButton('btn-skip');
+                            this.nextQuestion(); 
+                            break;
+                        case 'ArrowLeft': 
+                            pressButton('btn-prev');
+                            this.prevQuestion(); 
+                            break;
+                        case 'Space': 
+                        case 'Enter':
+                            e.preventDefault();
+                            const isRevealed = !document.getElementById('answer-container').classList.contains('hidden');
+                            if(!isRevealed) {
+                                pressButton('btn-reveal');
+                                this.revealAnswer();
+                            } else {
+                                pressButton('btn-next');
+                                this.nextQuestion();
+                            }
+                            break;
+                    }
+                });
+            },
+
+            showWelcome: function() {
+                document.getElementById('game-over-view').classList.add('hidden');
+                document.getElementById('game-view').classList.add('hidden');
+                document.getElementById('welcome-view').classList.remove('hidden');
+                document.getElementById('editor-modal').classList.add('hidden'); 
+            },
+
+            launchGame: function() {
+                this.saveEditorData(true);
+            },
+
+            startGame: function() {
+                document.getElementById('welcome-view').classList.add('hidden');
+                document.getElementById('game-view').classList.remove('hidden');
+                lucide.createIcons();
+                this.currentIndex = 0;
+                this.loadQuestion();
+            },
+
+            startTimer: function() {
+                if (this.isTimerRunning) return;
+                this.isTimerRunning = true;
+                
+                const bar = document.getElementById('timer-bar');
+                bar.style.transition = 'none';
+                bar.style.width = '100%';
+                bar.style.backgroundColor = '#00E676';
+                
+                void bar.offsetWidth;
+
+                bar.style.transition = `width ${this.timerDuration}s linear`;
+                bar.style.width = '0%';
+
+                const durationMs = this.timerDuration * 1000;
+                
+                setTimeout(() => { if(this.isTimerRunning) bar.style.backgroundColor = '#FF8C42'; }, durationMs * 0.5);
+                setTimeout(() => { if(this.isTimerRunning) bar.style.backgroundColor = '#FF6B95'; }, durationMs * 0.8);
+
+                const btn = document.getElementById('btn-timer');
+                btn.classList.add('opacity-50');
+                
+                setTimeout(() => {
+                    this.isTimerRunning = false;
+                    btn.classList.remove('opacity-50');
+                    AudioEngine.playPop();
+                }, durationMs);
+            },
+
+            resetTimerBar: function() {
+                const bar = document.getElementById('timer-bar');
+                bar.style.transition = 'none';
+                bar.style.width = '100%';
+                bar.style.backgroundColor = '#00E676';
+                this.isTimerRunning = false;
+                document.getElementById('btn-timer').classList.remove('opacity-50');
+            },
+
+            loadQuestion: function() {
+                if (this.currentIndex >= this.questions.length) {
+                    this.endGame();
+                    return;
+                }
+
+                const q = this.questions[this.currentIndex];
+                
+                document.getElementById('category-display').innerHTML = `<span class="w-2 h-2 rounded-full bg-orange animate-pulse"></span> ${q.category}`;
+                document.getElementById('emoji-display').innerText = q.emojis;
+                document.getElementById('answer-text').innerText = q.answer;
+                document.getElementById('progress-display').innerText = `${this.currentIndex + 1} / ${this.questions.length}`;
+
+                document.getElementById('answer-container').classList.add('hidden');
+                const emojiContainer = document.getElementById('emoji-container');
+                emojiContainer.style.transform = '';
+                emojiContainer.classList.remove('opacity-20', 'blur-sm', 'scale-90');
+                
+                document.getElementById('btn-reveal').classList.remove('hidden');
+                document.getElementById('btn-next').classList.add('hidden');
+                document.getElementById('bonus-box').classList.add('hidden');
+                document.getElementById('btn-show-bonus').classList.remove('hidden');
+                
+                this.resetTimerBar();
+                
+                const display = document.getElementById('emoji-display');
+                display.classList.remove('animate-slide-up');
+                void display.offsetWidth; 
+                display.classList.add('animate-slide-up');
+
+                document.getElementById('btn-prev').disabled = this.currentIndex === 0;
+            },
+
+            revealAnswer: function() {
+                AudioEngine.playReveal();
+                document.getElementById('answer-container').classList.remove('hidden');
+                document.getElementById('btn-reveal').classList.add('hidden');
+                document.getElementById('btn-next').classList.remove('hidden');
+
+                const emojiContainer = document.getElementById('emoji-container');
+                emojiContainer.classList.add('opacity-20', 'blur-sm', 'scale-90');
+                emojiContainer.style.transform = 'translateY(-20px)';
+            },
+
+            showBonus: function() {
+                AudioEngine.playPop();
+                document.getElementById('btn-show-bonus').classList.add('hidden');
+                document.getElementById('bonus-box').classList.remove('hidden');
+            },
+
+            nextQuestion: function() {
+                if (this.currentIndex < this.questions.length - 1) {
+                    this.currentIndex++;
+                    this.loadQuestion();
+                    AudioEngine.playPop();
+                } else {
+                    this.endGame();
+                }
+            },
+
+            prevQuestion: function() {
+                if (this.currentIndex > 0) {
+                    this.currentIndex--;
+                    this.loadQuestion();
+                    AudioEngine.playPop();
+                }
+            },
+
+            endGame: function() {
+                AudioEngine.playWin();
+                document.getElementById('game-over-view').classList.remove('hidden');
+                confetti({
+                    particleCount: 200,
+                    spread: 120,
+                    origin: { y: 0.6 },
+                    colors: ['#FF6B95', '#FF8C42', '#00E676', '#2979FF']
+                });
+            },
+
+            // --- EDITOR LOGIC ---
+            showEditor: function() {
+                document.getElementById('game-view').classList.add('hidden');
+                document.getElementById('game-over-view').classList.add('hidden');
+                
+                const welcome = document.getElementById('welcome-view');
+                welcome.classList.remove('hidden');
+                
+                document.getElementById('editor-modal').classList.remove('hidden');
+                this.renderEditorRows();
+                this.renderPresetSelector();
+            },
+
+            hideEditor: function() {
+                document.getElementById('editor-modal').classList.add('hidden');
+            },
+            
+            renderPresetSelector: function() {
+                const selector = document.getElementById('preset-selector');
+                selector.innerHTML = '';
+                
+                PRESETS.forEach(preset => {
+                    const option = document.createElement('option');
+                    option.value = preset.id;
+                    option.textContent = preset.name;
+                    selector.appendChild(option);
+                });
+                
+                selector.value = this.activePresetId;
+            },
+
+            renderEditorRows: function() {
+                const container = document.getElementById('editor-list');
+                container.innerHTML = '';
+                this.questions.forEach((q, index) => {
+                    const row = document.createElement('div');
+                    row.className = 'bg-white p-4 rounded-xl border border-slate-200 flex flex-col md:flex-row gap-4 items-start relative group hover:border-blue/30 transition-colors shadow-sm';
+                    row.innerHTML = `
+                        <div class="absolute -left-2 -top-2 w-6 h-6 bg-blue text-white rounded-full flex items-center justify-center font-bold text-xs shadow-md border-2 border-white">${index + 1}</div>
+                        
+                        <div class="flex-1 grid grid-cols-1 md:grid-cols-12 gap-4 w-full">
+                            <div class="md:col-span-3">
+                                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Category</label>
+                                <input type="text" value="${q.category}" onchange="app.updateQuestion(${index}, 'category', this.value)" 
+                                    class="w-full px-4 py-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-800 focus:border-blue focus:ring-1 focus:ring-blue outline-none text-sm font-mono uppercase transition-all">
+                            </div>
+                            <div class="md:col-span-5">
+                                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Answer</label>
+                                <input type="text" value="${q.answer}" onchange="app.updateQuestion(${index}, 'answer', this.value)"
+                                    class="w-full px-4 py-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-800 focus:border-green focus:ring-1 focus:ring-green outline-none font-bold text-lg transition-all">
+                            </div>
+                            <div class="md:col-span-4">
+                                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Emojis</label>
+                                <input type="text" value="${q.emojis}" onchange="app.updateQuestion(${index}, 'emojis', this.value)"
+                                    class="emoji-renderer w-full px-4 py-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-800 focus:border-orange focus:ring-1 focus:ring-orange outline-none text-2xl transition-all tracking-tight">
+                            </div>
+                        </div>
+                        
+                        <button onclick="app.removeQuestion(${index})" class="self-end md:self-center p-3 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Delete">
+                            <i data-lucide="trash-2" class="w-5 h-5"></i>
+                        </button>
+                    `;
+                    container.appendChild(row);
+                });
+                lucide.createIcons();
+            },
+
+            addEditorRow: function() {
+                this.questions.push({ category: 'CUSTOM', answer: '', emojis: '' });
+                this.renderEditorRows();
+                setTimeout(() => {
+                    const list = document.getElementById('editor-list');
+                    list.lastElementChild.scrollIntoView({ behavior: 'smooth' });
+                }, 100);
+            },
+
+            removeQuestion: function(index) {
+                this.showConfirmation(`Are you sure you want to delete question #${index + 1}? This action cannot be undone.`, (result) => {
+                    if (result) {
+                        this.questions.splice(index, 1);
+                        this.renderEditorRows();
+                    }
+                });
+            },
+
+            updateQuestion: function(index, field, value) {
+                if (field === 'emojis') {
+                   // Clean up user input: remove all whitespace characters
+                   value = value.replace(/\s/g, ''); 
+                }
+                this.questions[index][field] = value;
+            },
+
+            saveEditorData: function(launch = false) {
+                const timerVal = document.getElementById('timer-setting').value;
+                this.timerDuration = parseInt(timerVal);
+                localStorage.setItem('emojiGameTimer', this.timerDuration);
+
+                localStorage.setItem('emojiGameData_Custom', JSON.stringify(this.questions));
+                localStorage.setItem('emojiGamePresetId', this.activePresetId);
+                
+                this.currentIndex = 0; 
+                this.loadQuestion();
+                
+                if(launch) {
+                    this.hideEditor();
+                } else {
+                    const btn = event.target;
+                    const originalText = btn.innerText;
+                    btn.innerText = "SAVED!";
+                    setTimeout(() => btn.innerText = originalText, 1000);
+                }
+            }
+        };
+
+        // --- INIT ---
+        document.getElementById('sound-toggle').addEventListener('click', (e) => {
+            audioEnabled = !audioEnabled;
+            const icon = audioEnabled ? 'volume-2' : 'volume-x';
+            e.currentTarget.innerHTML = `<i data-lucide="${icon}" class="w-5 h-5"></i>`;
+            lucide.createIcons();
+            if(audioEnabled) AudioEngine.init();
+        });
+
+        document.body.addEventListener('click', () => {
+            if(Tone.context.state !== 'running') Tone.start();
+        }, { once: true });
+
+        window.onload = function() {
+            app.init();
+        };
+
+    </script>
+</body>
+</html>
