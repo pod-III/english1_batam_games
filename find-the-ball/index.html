@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Magic Cups - Find the Ball</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Magic Cups - Classroom Edition</title>
     
     <!-- External Libraries -->
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -11,10 +11,14 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+
     <!-- Theme Configuration -->
     <script>
         tailwind.config = {
-            darkMode: 'class',
             theme: {
                 extend: {
                     colors: {
@@ -22,86 +26,124 @@
                         orange: '#FF8C42',
                         green: '#00E676',
                         blue: '#2979FF',
-                        dark: '#0f172a',
-                        panel: '#1e293b',
-                        surface: '#334155'
+                        dark: '#1e293b', 
+                        surface: '#FFFFFF',
+                        border: '#cbd5e1',
                     },
                     fontFamily: {
-                        heading: ['Bebas Neue', 'sans-serif'],
+                        heading: ['Fredoka', 'sans-serif'], 
                         body: ['Nunito', 'sans-serif'],
                     },
                     animation: {
+                        'pop': 'pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
                         'float': 'float 3s ease-in-out infinite',
-                        'bounce-slow': 'bounce 2s infinite',
+                        'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
                     },
                     keyframes: {
+                        pop: {
+                            '0%': { transform: 'scale(0.9)', opacity: '0' },
+                            '100%': { transform: 'scale(1)', opacity: '1' },
+                        },
                         float: {
                             '0%, 100%': { transform: 'translateY(0)' },
                             '50%': { transform: 'translateY(-10px)' },
+                        },
+                        shake: {
+                            '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
+                            '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
+                            '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
+                            '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
                         }
+                    },
+                    boxShadow: {
+                        'hard': '4px 4px 0px 0px rgba(30, 41, 59, 1)',
+                        'hard-md': '6px 6px 0px 0px rgba(30, 41, 59, 1)',
+                        'hard-lg': '10px 10px 0px 0px rgba(30, 41, 59, 1)',
                     }
                 }
             }
         }
     </script>
-    
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
 
     <style>
         body { 
             font-family: 'Nunito', sans-serif;
-            background-color: #050b14;
-            color: white;
             overflow: hidden;
+            background-color: #F8FAFC;
+            /* Graph Paper Pattern */
+            background-image: 
+                linear-gradient(#E2E8F0 1px, transparent 1px),
+                linear-gradient(90deg, #E2E8F0 1px, transparent 1px);
+            background-size: 24px 24px;
+            color: #1e293b;
             user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        /* --- 3D ENVIRONMENT --- */
-        .scene {
-            position: absolute;
-            inset: 0;
-            z-index: 0;
-            perspective: 1200px;
-            pointer-events: none;
+        /* --- UI COMPONENTS (Neo-Brutalism) --- */
+        .game-console {
+            background: #FFFFFF;
+            border: 6px solid #1e293b;
+            border-radius: 2.5rem;
+            box-shadow: 14px 14px 0px rgba(30, 41, 59, 0.15);
+            display: flex;
+            flex-direction: column;
             overflow: hidden;
+            transition: transform 0.2s;
         }
 
-        .floor {
-            position: absolute;
-            bottom: -20%;
-            left: -10%;
-            width: 120%;
-            height: 80%;
-            background: radial-gradient(ellipse at center top, rgba(41, 121, 255, 0.1) 0%, transparent 60%),
-                        linear-gradient(to bottom, #1e293b 0%, #020617 100%);
-            transform: rotateX(25deg);
-            border-top: 2px solid rgba(255,255,255,0.05);
-        }
-
-        .spotlight {
-            position: absolute;
-            top: -30%; left: 20%;
-            width: 60%; height: 130%;
-            background: radial-gradient(ellipse at center, rgba(255,255,255,0.04) 0%, transparent 70%);
-            filter: blur(50px);
-            transform: rotate(5deg);
-        }
-
-        /* --- GAME CONTAINER --- */
-        #game-stage {
+        .btn-chunky {
+            transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateY(0);
             position: relative;
-            width: 100%;
-            max-width: 1100px;
-            height: 450px;
-            margin: 0 auto;
+            border: 3px solid #1e293b;
+            box-shadow: 0 6px 0 #1e293b;
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .btn-chunky:active:not(:disabled) {
+            transform: translateY(6px);
+            box-shadow: 0 0 0 #1e293b !important;
+            border-bottom-width: 3px;
+        }
+
+        .btn-chunky:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: translateY(3px);
+            box-shadow: 0 3px 0 #1e293b;
+            filter: grayscale(1);
+        }
+
+        /* --- LEGEND TAGS --- */
+        .role-tag {
+            border: 2px solid #1e293b;
+            box-shadow: 3px 3px 0 #1e293b;
+            transition: transform 0.2s;
+            position: relative;
+        }
+        .role-tag:hover { transform: translateY(-2px); }
+        /* Tape effect */
+        .role-tag::before {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%) rotate(-2deg);
+            width: 40%;
+            height: 12px;
+            background: rgba(255,255,255,0.4);
+            border: 1px solid rgba(0,0,0,0.1);
             z-index: 10;
         }
 
         /* --- CUP COMPONENTS --- */
         .cup-wrapper {
             position: absolute;
-            bottom: 15%; /* Position from bottom of stage */
+            top: 50%; 
             width: 140px;
             height: 200px; 
             cursor: pointer;
@@ -109,18 +151,20 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-end; /* Align bottom */
+            justify-content: flex-end;
             will-change: left, transform;
-            /* Transition is handled by JS for speed control */
+            transform: translateX(-50%) translateY(-40%); 
+            transition: filter 0.2s;
         }
+        .cup-wrapper:hover .cup-img { transform: scale(1.05); }
+        .cup-wrapper .cup-img { transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
         
         .cup-wrapper.small { width: 100px; height: 160px; }
 
-        /* The actual cup visual */
         .cup-body {
             position: relative;
             width: 100%;
-            height: 140px; /* Fixed height for the cup image part */
+            height: 140px; 
             z-index: 5;
             transform-origin: bottom center;
             transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -128,274 +172,284 @@
             flex-direction: column;
             align-items: center;
         }
-
         .cup-wrapper.small .cup-body { height: 100px; }
 
         .cup-img {
             width: 100%;
             height: 100%;
             object-fit: contain;
-            filter: drop-shadow(0 20px 20px rgba(0,0,0,0.6));
+            filter: drop-shadow(0 10px 10px rgba(30, 41, 59, 0.2));
             pointer-events: none;
             position: relative;
             z-index: 2;
         }
 
-        /* Labels - Now static relative to the wrapper, positioned below the ball/cup area */
+        /* Speech Bubble Labels */
         .cup-label {
-            position: absolute; /* Static relative to wrapper */
-            bottom: 0px; 
-            background: #f8fafc;
-            color: #0f172a;
-            padding: 4px 16px;
-            border-radius: 8px;
-            font-family: 'Bebas Neue', sans-serif;
-            font-size: 1.5rem; /* Bigger font */
-            letter-spacing: 1px;
+            position: absolute;
+            bottom: -45px; 
+            background: #FFFFFF;
+            color: #1e293b;
+            padding: 8px 18px;
+            border-radius: 12px;
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
+            font-size: 1.2rem;
             opacity: 0;
-            transition: opacity 0.3s ease;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-            border: 2px solid #2979FF;
+            transform: scale(0.8);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 4px 4px 0px #1e293b;
+            border: 2px solid #1e293b;
             white-space: nowrap;
             text-align: center;
-            min-width: 60px;
-            z-index: 15; /* Ensure it is above the floor */
+            min-width: 90px;
+            z-index: 30;
+        }
+        .cup-label::before { /* Triangle */
+            content: '';
+            position: absolute;
+            top: -8px; left: 50%; transform: translateX(-50%);
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 8px solid #1e293b;
+        }
+        .cup-label::after { /* Triangle inner */
+            content: '';
+            position: absolute;
+            top: -4px; left: 50%; transform: translateX(-50%);
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-bottom: 5px solid #FFFFFF;
         }
 
-        .show-labels .cup-label {
-            opacity: 1;
-        }
+        .show-labels .cup-label { opacity: 1; transform: scale(1); }
 
-        /* The Ball - Sits on the table */
+        /* The Ball */
         .ball {
             position: absolute;
-            bottom: 70px; /* Positioned relative to wrapper bottom, higher than the label */
+            bottom: 70px;
             left: 50%;
             transform: translateX(-50%);
-            width: 40px;
-            height: 40px;
-            background: radial-gradient(circle at 35% 35%, #86efac, #22c55e, #14532d);
+            width: 44px;
+            height: 44px;
+            background: radial-gradient(circle at 35% 35%, #86efac, #22c55e);
+            border: 3px solid #14532d;
             border-radius: 50%;
-            box-shadow: 0 0 15px #22c55e;
             z-index: 1; 
             opacity: 0; 
             transition: opacity 0.2s;
+            box-shadow: inset -4px -4px 0 rgba(0,0,0,0.1);
         }
-        
-        .cup-wrapper.small .ball { bottom: 60px; width: 30px; height: 30px; }
+        .cup-wrapper.small .ball { bottom: 60px; width: 34px; height: 34px; }
 
-        /* Lift Logic */
-        .cup-wrapper.lifted .cup-body {
-            transform: translateY(-120px) rotateX(10deg);
-        }
+        /* Animations */
+        .cup-wrapper.lifted .cup-body { transform: translateY(-130px) rotateX(10deg); }
+        .cup-wrapper.lifted.has-ball .ball, .cup-wrapper.reveal-all.has-ball .ball { opacity: 1; }
+        .cup-wrapper.reveal-all .cup-body { transform: translateY(-130px) rotateX(10deg); }
 
-        /* Show ball only when lifted AND has ball */
-        .cup-wrapper.lifted.has-ball .ball {
-            opacity: 1;
-        }
+        /* Flash Feedback Overlay */
+        #feedback-overlay { pointer-events: none; transition: background-color 0.3s ease; }
+        .feedback-correct { background-color: rgba(74, 222, 128, 0.2) !important; }
+        .feedback-wrong { background-color: rgba(244, 63, 94, 0.2) !important; }
 
-        /* Debug/Peek mode (show all balls) */
-        .cup-wrapper.reveal-all.has-ball .ball {
-            opacity: 1;
-        }
-        .cup-wrapper.reveal-all .cup-body {
-            transform: translateY(-120px) rotateX(10deg);
-        }
+        /* Custom Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar { height: 8px; width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; border: 2px solid #f8fafc; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-
-        /* --- UI ELEMENTS --- */
-        .glass {
-            background: rgba(15, 23, 42, 0.8);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .btn-push {
-            transition: all 0.1s;
-            border-bottom: 4px solid rgba(0,0,0,0.3);
-            transform: translateY(0);
-        }
-        .btn-push:active {
-            border-bottom-width: 0px;
-            transform: translateY(4px);
-        }
-        .btn-push.disabled {
-            filter: grayscale(1);
-            opacity: 0.6;
-            cursor: not-allowed;
-            pointer-events: none;
-        }
-
-        /* Range Slider */
-        input[type=range] {
-            -webkit-appearance: none;
-            background: transparent;
-        }
+        /* Slider */
+        input[type=range] { -webkit-appearance: none; background: transparent; }
         input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 20px; width: 20px;
-            border-radius: 50%;
-            background: #2979FF;
-            margin-top: -8px;
-            cursor: pointer;
-            box-shadow: 0 0 10px rgba(41,121,255,0.5);
+            -webkit-appearance: none; height: 26px; width: 26px; border-radius: 50%;
+            background: #2979FF; border: 3px solid #1e293b; margin-top: -9px; cursor: pointer;
+            box-shadow: 2px 2px 0px rgba(30,41,59,1);
         }
         input[type=range]::-webkit-slider-runnable-track {
-            width: 100%; height: 4px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 2px;
-        }
-
-        #start-overlay {
-            background: rgba(5, 11, 20, 0.95);
+            width: 100%; height: 10px; background: #e2e8f0; border: 2px solid #1e293b; border-radius: 99px;
         }
     </style>
 </head>
-<body class="h-screen w-screen flex flex-col bg-dark overflow-hidden">
+<body class="h-screen w-screen flex flex-col items-center justify-center p-2 md:p-6 overflow-hidden">
 
-    <!-- START OVERLAY (For Audio Context) -->
-    <div id="start-overlay" class="fixed inset-0 z-[100] flex flex-col items-center justify-center text-center p-4">
-        <h1 class="text-6xl font-heading text-transparent bg-clip-text bg-gradient-to-r from-pink to-blue mb-4 tracking-wide">Magic Cups</h1>
-        <p class="text-gray-400 mb-8 max-w-md font-body">Test your focus. Follow the ball. Find the prize.</p>
-        <button id="init-btn" class="btn-push px-10 py-4 bg-green text-dark font-heading text-2xl rounded-xl shadow-lg shadow-green/20">
-            START GAME
-        </button>
+    <!-- START OVERLAY -->
+    <div id="start-overlay" class="fixed inset-0 z-[100] flex flex-col items-center justify-center p-4 bg-slate-100/90 backdrop-blur-md">
+        <div class="game-console p-10 flex flex-col items-center max-w-sm w-full animate-pop border-4 border-dark bg-white shadow-hard-lg">
+            <div class="text-8xl mb-6 animate-float filter drop-shadow-md">🏆</div>
+            <h1 class="text-5xl font-heading text-dark mb-2 tracking-wide text-center leading-none">Magic<br><span class="text-blue">Cups</span></h1>
+            <p class="text-slate-400 mb-8 font-body font-bold text-center uppercase tracking-widest text-sm">Classroom Edition</p>
+            <button id="init-btn" class="btn-chunky bg-green text-dark px-10 py-4 rounded-xl text-2xl w-full font-heading hover:brightness-105">
+                PLAY
+            </button>
+        </div>
     </div>
 
-    <!-- HEADER -->
-    <header class="h-20 flex items-center justify-between px-6 z-50 border-b border-white/5 bg-dark/90 backdrop-blur">
-        <div class="flex items-center gap-4">
-            <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-pink to-orange flex items-center justify-center shadow-lg shadow-orange/20">
-                <i data-lucide="trophy" class="text-white w-6 h-6"></i>
-            </div>
-            <div>
-                <h1 class="font-heading text-3xl text-white tracking-wide leading-none">Magic Cups</h1>
-                <p class="text-[10px] text-gray-400 font-bold tracking-widest uppercase">English 1 Batam</p>
-            </div>
-        </div>
-        <div class="flex gap-3">
-            <button id="mute-btn" class="w-10 h-10 rounded-lg bg-surface hover:bg-white/10 text-gray-400 transition flex items-center justify-center border border-white/5">
-                <i data-lucide="volume-2" class="w-5 h-5"></i>
-            </button>
-            <button id="setup-btn" class="btn-push bg-blue hover:brightness-110 text-white px-6 py-2 rounded-lg font-bold text-sm tracking-wide shadow-lg shadow-blue/20">
-                SETUP
-            </button>
-        </div>
-    </header>
-
-    <!-- MAIN STAGE -->
-    <main class="flex-grow relative flex flex-col justify-center">
+    <!-- MAIN CONSOLE CONTAINER (Flexible size) -->
+    <div class="game-console w-full max-w-7xl h-full max-h-[95vh] relative">
         
-        <!-- Decoration -->
-        <div class="scene">
-            <div class="floor"></div>
-            <div class="spotlight"></div>
-        </div>
+        <!-- "Webcam" dot for tablet look -->
+        <div class="absolute top-3 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-slate-200 border-2 border-slate-300 z-50"></div>
 
-        <!-- Dynamic Status Text -->
-        <div class="absolute top-10 w-full text-center z-20 pointer-events-none">
-            <h2 id="status-display" class="text-6xl font-heading text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-400 drop-shadow-2xl tracking-widest animate-float opacity-90">
-                FIND THE BALL
-            </h2>
-        </div>
-
-        <!-- Game Area (Cups go here) -->
-        <div id="game-stage"></div>
-
-        <!-- Bottom Controls -->
-        <div class="absolute bottom-10 z-40 w-full max-w-md left-1/2 -translate-x-1/2 px-6 flex flex-col gap-4">
-            
-            <!-- Speed Control -->
-            <div class="glass p-3 rounded-xl flex flex-col gap-2">
-                <div class="flex justify-between text-[10px] font-bold uppercase text-gray-400">
-                    <span>Slow</span>
-                    <span id="speed-label" class="text-blue">Medium</span>
-                    <span>Fast</span>
+        <!-- TOP BAR -->
+        <div class="bg-slate-50 border-b-4 border-dark p-4 flex items-center justify-between shrink-0 h-20 md:h-24 relative z-40">
+            <div class="flex items-center gap-3 md:gap-4">
+                <div class="w-12 h-12 rounded-2xl bg-orange border-2 border-dark flex items-center justify-center shadow-hard-sm text-white rotate-[-3deg]">
+                    <i data-lucide="trophy" class="w-7 h-7"></i>
                 </div>
-                <input type="range" id="speed-slider" min="0" max="100" value="50">
+                <div class="leading-tight">
+                    <h1 class="font-heading text-xl md:text-3xl text-dark tracking-wide">Magic Cups</h1>
+                    <p class="text-[10px] md:text-xs text-slate-400 font-bold uppercase tracking-widest">English 1 Batam</p>
+                </div>
+            </div>
+
+            <!-- Dynamic Status Banner -->
+            <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:flex bg-white border-2 border-dark px-6 py-2 rounded-full shadow-hard-sm items-center gap-3 transition-transform hover:scale-105 cursor-default">
+                <span id="status-dot" class="w-3 h-3 rounded-full bg-slate-300"></span>
+                <h2 id="status-display" class="text-lg font-heading text-slate-400 tracking-wider">READY?</h2>
+            </div>
+            
+            <div class="flex gap-2 md:gap-3">
+                <button id="mute-btn" class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white text-slate-500 border-2 border-dark shadow-hard-sm flex items-center justify-center hover:bg-slate-50 transition-transform active:scale-95">
+                    <i data-lucide="volume-2" class="w-5 h-5 md:w-6 md:h-6"></i>
+                </button>
+                <button id="setup-btn" class="btn-chunky bg-white text-dark px-4 md:px-6 py-2 rounded-xl text-xs md:text-sm border-2">
+                    SETUP
+                </button>
+            </div>
+        </div>
+
+        <!-- MIDDLE: Legend Strip (Simplified & Always Visible) -->
+        <div id="concept-legend" class="bg-yellow-50 border-b-4 border-dark p-3 shrink-0 relative z-30 overflow-hidden">
+            <div id="role-legend-container" class="flex gap-4 px-2 overflow-x-auto custom-scrollbar min-w-max">
+                 <!-- Header to guide content -->
+                 <div class="font-heading text-slate-400 text-xs md:text-sm uppercase tracking-wider whitespace-nowrap sticky left-0 bg-yellow-50 z-10 flex items-center gap-2 pr-4">
+                    <i data-lucide="tag" class="w-4 h-4 inline"></i> CONCEPTS:
+                </div>
+                <!-- Tags injected here -->
+            </div>
+        </div>
+
+        <!-- GAME STAGE -->
+        <div class="flex-grow relative bg-slate-100 overflow-hidden w-full group touch-none">
+            <!-- Subtle Grid -->
+            <div class="absolute inset-0 opacity-5 pointer-events-none" 
+                 style="background-image: radial-gradient(#1e293b 2px, transparent 2px); background-size: 24px 24px;">
+            </div>
+            
+            <!-- Feedback Color Overlay -->
+            <div id="feedback-overlay" class="absolute inset-0 z-0"></div>
+
+            <!-- Mobile Status -->
+            <div class="md:hidden absolute top-4 left-0 right-0 flex justify-center z-20 pointer-events-none">
+                 <h2 id="status-display-mobile" class="text-lg font-heading text-slate-500 tracking-wide bg-white/90 backdrop-blur px-4 py-1.5 rounded-full border-2 border-slate-200 shadow-sm">
+                    READY?
+                </h2>
+            </div>
+
+            <!-- The Stage -->
+            <div id="game-stage" class="w-full h-full relative z-10"></div>
+        </div>
+
+        <!-- BOTTOM BAR -->
+        <div class="bg-white border-t-4 border-dark p-4 md:p-6 shrink-0 grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 items-center z-40">
+            <!-- Speed Control -->
+            <div class="col-span-12 md:col-span-4 flex items-center gap-4 px-4 py-3 bg-slate-50 rounded-2xl border-2 border-dark shadow-sm">
+                <i data-lucide="gauge" class="text-slate-400 w-5 h-5"></i>
+                <div class="flex-grow flex flex-col">
+                    <div class="flex justify-between text-[10px] font-bold uppercase text-slate-400 mb-1 font-heading">
+                        <span>Slow</span>
+                        <span id="speed-label" class="text-blue">Medium</span>
+                        <span>Fast</span>
+                    </div>
+                    <input type="range" id="speed-slider" min="0" max="100" value="50">
+                </div>
             </div>
 
             <!-- Main Button -->
-            <button id="action-btn" class="btn-push w-full bg-green text-dark py-4 rounded-xl font-heading text-3xl tracking-widest shadow-xl shadow-green/20">
+            <button id="action-btn" class="col-span-12 md:col-span-8 btn-chunky bg-green text-dark rounded-2xl text-2xl md:text-3xl tracking-widest py-4 md:py-5 hover:brightness-105 active:scale-[0.99] w-full">
                 SHUFFLE
             </button>
         </div>
-
-    </main>
+    </div>
 
     <!-- SETUP MODAL -->
-    <div id="setup-modal" class="fixed inset-0 z-[90] bg-black/90 backdrop-blur hidden flex items-center justify-center transition-opacity opacity-0">
-        <div id="setup-panel" class="glass w-full max-w-lg rounded-2xl p-6 transform scale-95 transition-all duration-300 border border-white/10">
-            <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
-                <h3 class="text-2xl font-heading text-white tracking-wide">Game Setup</h3>
-                <button id="close-setup" class="text-gray-400 hover:text-white"><i data-lucide="x"></i></button>
+    <div id="setup-modal" class="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm hidden p-4">
+        <div class="game-console w-full max-w-lg p-0 animate-pop border-4 border-dark bg-white max-h-[85vh] shadow-hard-lg">
+            <div class="bg-slate-50 p-5 border-b-4 border-dark flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-blue/10 rounded-lg text-blue border-2 border-blue/20">
+                        <i data-lucide="settings-2" class="w-6 h-6"></i>
+                    </div>
+                    <h3 class="text-xl md:text-2xl font-heading text-dark">Game Setup</h3>
+                </div>
+                <button id="close-setup" class="text-slate-400 hover:text-red-500 transition-colors p-1">
+                    <i data-lucide="x-circle" class="w-8 h-8"></i>
+                </button>
             </div>
 
-            <div class="space-y-6">
-                <!-- Cup Count -->
-                <div class="bg-surface/50 p-4 rounded-xl border border-white/5">
-                    <div class="flex justify-between items-center mb-2">
-                        <label class="text-xs font-bold text-gray-400 uppercase">Cups</label>
-                        <span id="cup-count-val" class="font-bold text-pink text-lg">3</span>
+            <div class="p-6 overflow-y-auto custom-scrollbar space-y-6">
+                <!-- Counters -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-white p-3 md:p-4 rounded-2xl border-2 border-dark shadow-hard-sm">
+                        <label class="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Total Cups</label>
+                        <div class="flex items-center justify-between">
+                            <button class="w-8 h-8 rounded-lg bg-slate-100 border-2 border-slate-300 font-bold hover:bg-red-50 hover:border-red-200" onclick="Game.updateSettings('cups', -1)">-</button>
+                            <span id="cup-count-val" class="font-heading text-pink text-3xl">3</span>
+                            <button class="w-8 h-8 rounded-lg bg-slate-100 border-2 border-slate-300 font-bold hover:bg-green-50 hover:border-green-200" onclick="Game.updateSettings('cups', 1)">+</button>
+                        </div>
                     </div>
-                    <div class="flex gap-2">
-                        <button class="flex-1 bg-dark hover:border-pink border border-white/10 text-white py-2 rounded font-bold" onclick="Game.updateSettings('cups', -1)">-</button>
-                        <button class="flex-1 bg-dark hover:border-green border border-white/10 text-white py-2 rounded font-bold" onclick="Game.updateSettings('cups', 1)">+</button>
-                    </div>
-                </div>
-
-                <!-- Ball Count -->
-                <div class="bg-surface/50 p-4 rounded-xl border border-white/5">
-                    <div class="flex justify-between items-center mb-2">
-                        <label class="text-xs font-bold text-gray-400 uppercase">Balls</label>
-                        <span id="ball-count-val" class="font-bold text-blue text-lg">1</span>
-                    </div>
-                    <div class="flex gap-2">
-                        <button class="flex-1 bg-dark hover:border-pink border border-white/10 text-white py-2 rounded font-bold" onclick="Game.updateSettings('balls', -1)">-</button>
-                        <button class="flex-1 bg-dark hover:border-green border border-white/10 text-white py-2 rounded font-bold" onclick="Game.updateSettings('balls', 1)">+</button>
+                    <div class="bg-white p-3 md:p-4 rounded-2xl border-2 border-dark shadow-hard-sm">
+                        <label class="text-[10px] md:text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 block">Balls</label>
+                        <div class="flex items-center justify-between">
+                            <button class="w-8 h-8 rounded-lg bg-slate-100 border-2 border-slate-300 font-bold hover:bg-red-50 hover:border-red-200" onclick="Game.updateSettings('balls', -1)">-</button>
+                            <span id="ball-count-val" class="font-heading text-blue text-3xl">1</span>
+                            <button class="w-8 h-8 rounded-lg bg-slate-100 border-2 border-slate-300 font-bold hover:bg-green-50 hover:border-green-200" onclick="Game.updateSettings('balls', 1)">+</button>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Custom Labels -->
-                <div class="max-h-[200px] overflow-y-auto pr-2">
-                    <label class="text-xs font-bold text-gray-400 uppercase mb-2 block">Cup Labels</label>
-                    <div id="label-container" class="grid grid-cols-2 gap-2">
-                        <!-- Inputs generated by JS -->
+                <!-- Config Inputs -->
+                <div>
+                    <div class="flex justify-between items-end mb-2">
+                        <label class="text-xs font-bold text-slate-400 uppercase tracking-wider">Cup Configuration</label>
+                        <span class="text-[10px] text-slate-500 bg-yellow-100 px-2 py-1 rounded border border-yellow-200 font-bold">Label · Role</span>
                     </div>
+                    <div id="label-container" class="space-y-3"></div>
                 </div>
-
-                <button id="save-settings" class="w-full btn-push bg-gradient-to-r from-blue to-pink text-white py-3 rounded-xl font-heading text-xl mt-2">
-                    APPLY & RESTART
+            </div>
+            
+            <div class="p-4 border-t-4 border-dark bg-slate-50">
+                <button id="save-settings" class="w-full btn-chunky bg-pink text-white py-3 md:py-4 rounded-xl text-lg md:text-xl shadow-none">
+                    APPLY CHANGES
                 </button>
             </div>
         </div>
     </div>
 
     <script>
-        // --- AUDIO SYSTEM ---
+        // --- AUDIO ENGINE ---
         const Sound = {
             enabled: true,
             ctx: null,
             fx: {},
             init: async () => {
-                if(Sound.ctx) return;
-                await Tone.start();
-                Sound.ctx = true;
+                if(Sound.ctx) return; 
+                try {
+                    await Tone.start();
+                    Sound.ctx = true;
+                } catch (e) { Sound.enabled = false; return; }
                 
-                // Shuffle sound (Wood/Table thud)
                 Sound.fx.shuffle = new Tone.MembraneSynth({
                     pitchDecay: 0.05, octaves: 4, oscillator: { type: "sine" },
                     envelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.5 }
                 }).toDestination();
-                Sound.fx.shuffle.volume.value = -10;
+                Sound.fx.shuffle.volume.value = -12;
 
-                // Win sound (Chime)
                 Sound.fx.win = new Tone.PolySynth(Tone.Synth, {
-                    volume: -5, oscillator: { type: "triangle" },
+                    volume: -6, oscillator: { type: "triangle" },
                     envelope: { attack: 0.02, decay: 0.1, sustain: 0.1, release: 1 }
                 }).toDestination();
 
-                // Fail sound (Dull metal)
                 Sound.fx.fail = new Tone.MetalSynth({
                     frequency: 200, envelope: { attack: 0.001, decay: 0.1, release: 0.01 },
                     harmonicity: 5.1, modulationIndex: 32, resonance: 4000, octaves: 1.5, volume: -10
@@ -408,30 +462,27 @@
                     if(type === 'lift') Sound.fx.shuffle.triggerAttackRelease("F2", "16n");
                     if(type === 'win') Sound.fx.win.triggerAttackRelease(["C5", "E5", "G5", "C6"], "16n");
                     if(type === 'fail') Sound.fx.fail.triggerAttackRelease("32n");
-                } catch(e) { console.log('Audio error', e); }
+                } catch(e) {}
             }
         };
 
-        // --- GAME LOGIC ---
+        // --- GAME ENGINE ---
         const Game = {
-            // State
             cups: [],
             isShuffling: false,
             canGuess: false,
-            
-            // Config
             cupCount: 3,
             ballCount: 1,
-            shuffleSpeed: 500, // ms
+            shuffleSpeed: 500,
             shuffleMoves: 10,
-            
+            cupSvgPlaceholder: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMzM0MTU1IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0xNyA4aC03LjJMNyAxOGgxMmwzLjhCbzgiLz48cGF0aCBkPSJNNiA4di0yYTIgMiAwIDAgMSAyLTJoOGEyIDIgMCAwIDEgMiAydjIiLz48L3N2Zz4=', // Kept for safety, though removed from HTML
+
             init: () => {
-                // Initialize default cups
                 Game.generateCups(3);
                 Game.renderCups();
+                Game.renderRoleLegend(); 
                 lucide.createIcons();
 
-                // Listeners
                 document.getElementById('init-btn').addEventListener('click', () => {
                     Sound.init();
                     document.getElementById('start-overlay').classList.add('hidden');
@@ -443,10 +494,8 @@
                 document.getElementById('save-settings').addEventListener('click', Game.saveSettings);
                 document.getElementById('mute-btn').addEventListener('click', UI.toggleMute);
                 
-                // Slider
                 const slider = document.getElementById('speed-slider');
                 slider.addEventListener('input', (e) => {
-                    // Invert: 100 value = 150ms (Fast), 0 value = 1000ms (Slow)
                     const val = parseInt(e.target.value);
                     const speed = 1000 - (val * 8.5);
                     Game.shuffleSpeed = Math.max(150, speed);
@@ -459,9 +508,10 @@
                 for(let i=0; i<n; i++) {
                     Game.cups.push({
                         id: i,
-                        label: `${i+1}`,
+                        label: `Cup ${i+1}`, 
+                        role: i === 0 ? 'Verb' : (i === 1 ? 'Adjective' : 'Noun'),
                         hasBall: false,
-                        pos: i // Logical position 0, 1, 2...
+                        pos: i
                     });
                 }
                 Game.cupCount = n;
@@ -470,24 +520,22 @@
             renderCups: () => {
                 const stage = document.getElementById('game-stage');
                 stage.innerHTML = '';
-                
                 const widthPct = 100 / Game.cupCount;
-                const isSmall = Game.cupCount > 4;
+                const isSmall = Game.cupCount > 4; 
 
                 Game.cups.forEach(cup => {
                     const el = document.createElement('div');
                     el.className = `cup-wrapper ${isSmall ? 'small' : ''}`;
                     el.id = `cup-${cup.id}`;
-                    el.style.left = `${(cup.pos * widthPct) + (widthPct/2)}%`; // Center in slot
-                    el.style.transform = 'translateX(-50%)'; // Center pivot
+                    el.style.left = `${(cup.pos * widthPct) + (widthPct/2)}%`; 
                     
-                    // Click Handler
                     el.onclick = () => Game.clickCup(cup.id);
 
                     el.innerHTML = `
                         <div class="ball"></div>
                         <div class="cup-body">
-                            <img src="./cup.png" class="cup-img" alt="Cup" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCI+PHBhdGggZD0iTTE3IDhoLTcuMkw3IDE4aDEybDIuOC0xMHoiLz48cGF0aCBkPSJNNiA4di0yYTIgMiAwIDAgMSAyLTJoOGEyIDIgMCAwIDEgMiAydjIiLz48L3N2Zz4';this.style.background='#334155';this.style.padding='20px';this.style.borderRadius='10px'">
+                            <!-- Using the local PNG file without an explicit JS onerror handler -->
+                            <img src="./cup.png" class="cup-img" alt="Cup">
                         </div>
                         <span class="cup-label">${cup.label}</span>
                     `;
@@ -495,139 +543,143 @@
                 });
             },
 
+            renderRoleLegend: () => {
+                const container = document.getElementById('role-legend-container');
+                container.innerHTML = '';
+                // Add the static header content here to avoid duplicating the sticky element
+                container.innerHTML += `
+                    <div class="font-heading text-slate-400 text-xs md:text-sm uppercase tracking-wider whitespace-nowrap sticky left-0 bg-yellow-50 z-10 flex items-center gap-2 pr-4">
+                        <i data-lucide="tag" class="w-4 h-4 inline"></i> CONCEPTS:
+                    </div>
+                `;
+                Game.cups.forEach((cup, idx) => {
+                    // Random light colors for "sticky note" effect
+                    const colors = ['bg-pink/10 border-pink', 'bg-blue/10 border-blue', 'bg-green/10 border-green', 'bg-orange/10 border-orange', 'bg-purple-100 border-purple-300', 'bg-cyan-100 border-cyan-300'];
+                    const style = colors[idx % colors.length];
+                    
+                    container.innerHTML += `
+                        <div class="role-tag flex items-center gap-2 px-3 py-1.5 rounded-lg border-2 ${style} bg-white shadow-sm min-w-fit">
+                            <span class="w-5 h-5 rounded-full bg-dark text-white text-[10px] flex items-center justify-center font-bold">${cup.id + 1}</span>
+                            <span class="font-heading text-sm font-bold text-dark uppercase tracking-wide">${cup.role}</span>
+                        </div>
+                    `;
+                });
+                lucide.createIcons();
+            },
+
+            randomizeLabels: () => {
+                const definitions = Game.cups.map(c => ({ label: c.label, role: c.role }));
+                definitions.sort(() => Math.random() - 0.5);
+                
+                Game.cups.forEach((c, i) => {
+                    c.label = definitions[i].label;
+                    c.role = definitions[i].role;
+                    // Silent DOM update
+                    const el = document.getElementById(`cup-${c.id}`);
+                    if(el) {
+                        const labelEl = el.querySelector('.cup-label');
+                        if(labelEl) labelEl.innerText = c.label;
+                    }
+                });
+                Game.renderRoleLegend();
+            },
+
+            assignBalls: () => {
+                Game.cups.forEach(c => c.hasBall = false);
+                let pool = [...Game.cups];
+                pool.sort(() => Math.random() - 0.5);
+                const targets = pool.slice(0, Game.ballCount);
+                targets.forEach(c => c.hasBall = true);
+                
+                const ballIds = targets.map(c => c.id + 1).sort();
+                if (ballIds.length === 1) UI.setStatus(`FIND CUP #${ballIds[0]}`, "text-blue");
+                else UI.setStatus(`FIND ONE OF: ${ballIds.join(', ')}`, "text-blue");
+            },
+
             handleAction: async () => {
                 const btn = document.getElementById('action-btn');
-                
-                // If button is in "RESET" mode (after a game)
-                if(btn.innerText === "RESET") {
-                    Game.resetRound();
-                    return;
-                }
-
-                // Start Shuffle Sequence
+                if(btn.innerText === "RESET") { Game.resetRound(); return; }
                 if(Game.isShuffling) return;
+
                 Game.isShuffling = true;
                 Game.canGuess = false;
                 
                 UI.setButtonState('loading');
                 UI.setStatus("WATCH CLOSELY...", "text-orange");
-                document.body.classList.remove('show-labels');
-
-                // 1. Assign Balls
-                Game.assignBalls();
                 
-                // 2. Reveal All (Lift)
+                // 1. Hide labels, randomize data, assign balls
+                document.body.classList.remove('show-labels');
+                Game.randomizeLabels();
+                Game.assignBalls(); 
+                
+                // 2. Reveal contents
                 document.querySelectorAll('.cup-wrapper').forEach(el => {
                     el.classList.add('reveal-all');
-                    // Ensure visual ball is there if data says so
                     const id = parseInt(el.id.split('-')[1]);
                     const cup = Game.cups.find(c => c.id === id);
                     if(cup.hasBall) el.classList.add('has-ball');
-                    else el.classList.remove('has-ball');
                 });
                 Sound.play('lift');
-                
                 await Game.wait(1500);
 
-                // 3. Hide (Drop)
+                // 3. Close and Shuffle
                 document.querySelectorAll('.cup-wrapper').forEach(el => el.classList.remove('reveal-all'));
-                Sound.play('lift'); // Sound for drop
+                Sound.play('lift');
                 await Game.wait(800);
 
-                // 4. Shuffle Loop
                 const totalMoves = Game.shuffleMoves + (Game.cupCount * 2);
-                for(let i=0; i<totalMoves; i++) {
-                    await Game.performSwap();
-                }
+                for(let i=0; i<totalMoves; i++) { await Game.performSwap(); }
 
-                // 5. Ready to Guess
                 Game.isShuffling = false;
                 Game.canGuess = true;
                 
                 document.body.classList.add('show-labels');
                 UI.setStatus("WHICH ONE?", "text-green");
-                UI.setButtonState('guessing'); // Enable Reset immediately for multiple selection
-            },
-
-            assignBalls: () => {
-                // Reset
-                Game.cups.forEach(c => c.hasBall = false);
-                // Random indices based on current positions
-                const currentPositions = Game.cups.map(c => c.pos);
-                // Shuffle positions array
-                const shuffledPos = [...currentPositions].sort(() => Math.random() - 0.5);
-                const targetPositions = shuffledPos.slice(0, Game.ballCount);
-                
-                Game.cups.forEach(c => {
-                    if(targetPositions.includes(c.pos)) c.hasBall = true;
-                });
+                UI.setButtonState('guessing'); 
             },
 
             performSwap: () => {
                 return new Promise(resolve => {
-                    // Select two random distinct positions
                     const p1 = Math.floor(Math.random() * Game.cupCount);
                     let p2 = Math.floor(Math.random() * Game.cupCount);
                     while(p1 === p2) p2 = Math.floor(Math.random() * Game.cupCount);
 
-                    // Find Cups at these positions
                     const cupA = Game.cups.find(c => c.pos === p1);
                     const cupB = Game.cups.find(c => c.pos === p2);
-                    
                     const elA = document.getElementById(`cup-${cupA.id}`);
                     const elB = document.getElementById(`cup-${cupB.id}`);
 
-                    // Calculation for positions
                     const wPct = 100 / Game.cupCount;
                     const leftA_End = (p2 * wPct) + (wPct/2);
                     const leftB_End = (p1 * wPct) + (wPct/2);
-
-                    // Z-Index logic: Randomly pick who is "front"
-                    const aFront = Math.random() > 0.5;
-                    
-                    // Apply Transition Speed
                     const ease = "cubic-bezier(0.45, 0, 0.55, 1)";
+                    const isFront = Math.random() > 0.5;
+
+                    // Apply Depth
+                    const scaleFront = "translateX(-50%) translateY(-35%) scale(1.15)";
+                    const scaleBack = "translateX(-50%) translateY(-45%) scale(0.9)";
+
                     elA.style.transition = `left ${Game.shuffleSpeed}ms ${ease}, transform ${Game.shuffleSpeed}ms ${ease}`;
                     elB.style.transition = `left ${Game.shuffleSpeed}ms ${ease}, transform ${Game.shuffleSpeed}ms ${ease}`;
+                    
+                    // Z-Index trick for crossing
+                    elA.style.zIndex = isFront ? 20 : 5;
+                    elB.style.zIndex = isFront ? 5 : 20;
 
-                    // START ANIMATION
-                    // Move Z-Index immediately? No, wait for midpoint to swap
-                    // Initial Z
-                    elA.style.zIndex = 10;
-                    elB.style.zIndex = 10;
-                    
-                    // Depth Scale effect
-                    const scaleFront = "translateX(-50%) scale(1.15)";
-                    const scaleBack = "translateX(-50%) scale(0.9)";
-                    
-                    // Start movement
                     requestAnimationFrame(() => {
                         elA.style.left = `${leftA_End}%`;
                         elB.style.left = `${leftB_End}%`;
-                        
-                        // Apply depth visual
-                        elA.style.transform = aFront ? scaleFront : scaleBack;
-                        elB.style.transform = aFront ? scaleBack : scaleFront;
-                        
-                        // Z-Index Swap at midpoint (halfway through transition)
-                        setTimeout(() => {
-                            elA.style.zIndex = aFront ? 20 : 5;
-                            elB.style.zIndex = aFront ? 5 : 20;
-                        }, Game.shuffleSpeed / 4); // Do it early in the move
+                        elA.style.transform = isFront ? scaleFront : scaleBack;
+                        elB.style.transform = isFront ? scaleBack : scaleFront;
                     });
 
                     Sound.play('shuffle');
 
-                    // Cleanup after move
                     setTimeout(() => {
-                        elA.style.zIndex = 10;
-                        elB.style.zIndex = 10;
-                        elA.style.transform = 'translateX(-50%) scale(1)';
-                        elB.style.transform = 'translateX(-50%) scale(1)';
-                        
-                        // Update Logic
-                        cupA.pos = p2;
-                        cupB.pos = p1;
+                        elA.style.zIndex = 10; elB.style.zIndex = 10;
+                        elA.style.transform = 'translateX(-50%) translateY(-40%) scale(1)';
+                        elB.style.transform = 'translateX(-50%) translateY(-40%) scale(1)';
+                        cupA.pos = p2; cupB.pos = p1;
                         resolve();
                     }, Game.shuffleSpeed);
                 });
@@ -635,62 +687,58 @@
 
             clickCup: (id) => {
                 if(!Game.canGuess) return;
-                
                 const cup = Game.cups.find(c => c.id === id);
                 const el = document.getElementById(`cup-${id}`);
                 
-                if(el.classList.contains('lifted')) return; // Already clicked
-
+                if(el.classList.contains('lifted')) return; 
                 el.classList.add('lifted');
                 Sound.play('lift');
-                UI.setButtonState('reset'); // Switch button to RESET immediately upon interaction
+                UI.setButtonState('reset'); 
 
                 if(cup.hasBall) {
-                    // WIN
                     Sound.play('win');
-                    UI.setStatus("FOUND IT!", "text-green");
-                    
-                    // Confetti
+                    UI.setStatus("CORRECT!", "text-green");
+                    Game.flashFeedback('correct');
                     const rect = el.getBoundingClientRect();
-                    const x = (rect.left + rect.width/2) / window.innerWidth;
-                    const y = (rect.top + rect.height/2) / window.innerHeight;
-                    confetti({ particleCount: 100, spread: 70, origin: { x, y } });
-
-                    // NOTE: Multiple selections are now allowed.
-                    
+                    confetti({ particleCount: 120, spread: 80, origin: { x: (rect.left + rect.width/2) / window.innerWidth, y: (rect.top + rect.height/2) / window.innerHeight } });
                 } else {
-                    // FAIL
                     Sound.play('fail');
-                    UI.setStatus("NOPE!", "text-pink");
-                    // Keep guessing - multiple options allowed
+                    Game.flashFeedback('wrong');
+                    // Shake effect
+                    el.style.animation = 'shake 0.5s';
+                    setTimeout(() => el.style.animation = '', 500);
+
+                    if (Game.cups.filter(c => c.hasBall && !document.getElementById(`cup-${c.id}`).classList.contains('lifted')).length > 0) {
+                        UI.setStatus("TRY AGAIN...", "text-pink");
+                    } else {
+                        UI.setStatus("WRONG!", "text-pink"); 
+                    }
                 }
+            },
+
+            flashFeedback: (type) => {
+                const overlay = document.getElementById('feedback-overlay');
+                overlay.className = `absolute inset-0 z-0 feedback-${type}`;
+                setTimeout(() => overlay.className = 'absolute inset-0 z-0', 400);
             },
 
             resetRound: () => {
                 Game.canGuess = false;
-                document.querySelectorAll('.cup-wrapper').forEach(el => {
-                    el.classList.remove('lifted', 'has-ball', 'reveal-all');
-                });
-                UI.setStatus("FIND THE BALL", "text-white");
+                document.querySelectorAll('.cup-wrapper').forEach(el => el.classList.remove('lifted', 'has-ball', 'reveal-all'));
+                UI.setStatus("READY?", "text-slate-400");
                 UI.setButtonState('idle');
             },
 
-            // --- SETTINGS LOGIC ---
             updateSettings: (type, dir) => {
                 if(type === 'cups') {
                     let n = Game.cupCount + dir;
                     if(n < 2) n = 2; if(n > 6) n = 6;
+                    const oldData = Game.cups.map(c => ({ label: c.label, role: c.role }));
                     Game.cupCount = n;
-                    // Reset ball count if it exceeds cups
-                    if(Game.ballCount >= n) Game.ballCount = n - 1;
-                    // Regenerate data structure internally so UI can map it
-                    // but don't render yet
-                    const oldLabels = Game.cups.map(c => c.label);
                     Game.generateCups(n);
-                    // Try to preserve labels
-                    Game.cups.forEach((c, i) => {
-                        if(oldLabels[i]) c.label = oldLabels[i];
-                    });
+                    if(Game.ballCount >= n) Game.ballCount = n - 1;
+                    if(Game.ballCount < 1) Game.ballCount = 1;
+                    Game.cups.forEach((c, i) => { if(oldData[i]) { c.label = oldData[i].label; c.role = oldData[i].role; } });
                 }
                 if(type === 'balls') {
                     let n = Game.ballCount + dir;
@@ -701,89 +749,94 @@
             },
 
             saveSettings: () => {
-                // Save inputs
-                const inputs = document.querySelectorAll('.label-input');
-                inputs.forEach(input => {
+                const container = document.getElementById('label-container');
+                container.querySelectorAll('.label-input').forEach(input => {
                     const id = parseInt(input.dataset.id);
                     const cup = Game.cups.find(c => c.id === id);
-                    if(cup) cup.label = input.value || `${id+1}`;
+                    if(cup) cup.label = input.value || `Cup ${id+1}`;
                 });
-                
+                container.querySelectorAll('.role-input').forEach(input => {
+                    const id = parseInt(input.dataset.id);
+                    const cup = Game.cups.find(c => c.id === id);
+                    if(cup) cup.role = input.value || `Concept`; 
+                });
                 Game.renderCups();
+                Game.renderRoleLegend();
                 Game.resetRound();
                 UI.closeSetup();
             },
-
             wait: (ms) => new Promise(r => setTimeout(r, ms))
         };
 
-        // --- UI MANAGER ---
+        // --- UI UTILITIES ---
         const UI = {
-            openSetup: () => {
-                const modal = document.getElementById('setup-modal');
-                modal.classList.remove('hidden');
-                setTimeout(() => modal.classList.remove('opacity-0'), 10);
-                document.getElementById('setup-panel').classList.remove('scale-95');
-                UI.refreshSetup();
-            },
-            closeSetup: () => {
-                const modal = document.getElementById('setup-modal');
-                modal.classList.add('opacity-0');
-                document.getElementById('setup-panel').classList.add('scale-95');
-                setTimeout(() => modal.classList.add('hidden'), 300);
-            },
+            openSetup: () => { document.getElementById('setup-modal').classList.remove('hidden'); UI.refreshSetup(); },
+            closeSetup: () => { document.getElementById('setup-modal').classList.add('hidden'); },
             refreshSetup: () => {
                 document.getElementById('cup-count-val').innerText = Game.cupCount;
                 document.getElementById('ball-count-val').innerText = Game.ballCount;
-                
                 const container = document.getElementById('label-container');
                 container.innerHTML = '';
                 Game.cups.forEach(c => {
                     container.innerHTML += `
-                        <input type="text" class="label-input bg-dark border border-white/20 rounded p-2 text-white text-sm text-center focus:border-blue outline-none" 
-                        data-id="${c.id}" value="${c.label}" placeholder="Cup ${c.id+1}">
+                        <div class="flex items-center gap-2 bg-white p-3 rounded-xl border-2 border-slate-100 shadow-sm">
+                            <div class="w-8 h-8 rounded-full bg-slate-100 border border-slate-300 flex items-center justify-center font-bold text-slate-500 text-xs shadow-sm">${c.id+1}</div>
+                            <input type="text" class="label-input flex-1 bg-transparent border-b-2 border-slate-100 p-1 text-sm font-bold text-dark focus:border-blue outline-none transition-colors" 
+                                data-id="${c.id}" value="${c.label}" placeholder="Label">
+                            <input type="text" class="role-input w-28 bg-yellow-50 border border-yellow-200 rounded-lg p-1.5 text-xs text-center font-bold text-dark focus:border-orange outline-none shadow-sm" 
+                                data-id="${c.id}" value="${c.role}" placeholder="Concept">
+                        </div>
                     `;
                 });
             },
             toggleMute: () => {
                 Sound.enabled = !Sound.enabled;
-                const btn = document.getElementById('mute-btn');
-                btn.innerHTML = `<i data-lucide="${Sound.enabled ? 'volume-2' : 'volume-x'}" class="w-5 h-5"></i>`;
+                document.getElementById('mute-btn').innerHTML = `<i data-lucide="${Sound.enabled ? 'volume-2' : 'volume-x'}" class="w-5 h-5 md:w-6 md:h-6"></i>`;
                 lucide.createIcons();
             },
             setStatus: (text, colorClass) => {
                 const el = document.getElementById('status-display');
-                el.innerText = text;
-                // clear old colors
-                el.className = `text-6xl font-heading text-transparent bg-clip-text bg-gradient-to-br drop-shadow-2xl tracking-widest animate-float opacity-90 transition-all duration-300`;
+                const dot = document.getElementById('status-dot');
+                const elMob = document.getElementById('status-display-mobile');
                 
-                if(colorClass === 'text-white') el.classList.add('from-white', 'to-gray-400');
-                else if(colorClass === 'text-orange') el.classList.add('from-orange', 'to-pink');
-                else if(colorClass === 'text-green') el.classList.add('from-green', 'to-blue');
-                else if(colorClass === 'text-pink') el.classList.add('from-pink', 'to-red-500');
+                el.innerText = text;
+                elMob.innerText = text;
+                el.className = `text-lg md:text-xl font-heading tracking-wide transition-colors duration-300`;
+                elMob.className = `text-lg font-heading tracking-wide bg-white/90 backdrop-blur px-6 py-2 rounded-full border-2 border-slate-200 shadow-sm transition-colors duration-300`;
+                
+                let color = 'text-slate-400';
+                let dotClass = 'bg-slate-300';
+                
+                if(colorClass === 'text-orange') { color = 'text-orange'; dotClass = 'bg-orange animate-bounce'; }
+                else if(colorClass === 'text-green') { color = 'text-green'; dotClass = 'bg-green animate-pulse'; }
+                else if(colorClass === 'text-pink') { color = 'text-pink'; dotClass = 'bg-pink'; }
+                else if(colorClass === 'text-blue') { color = 'text-blue'; dotClass = 'bg-blue animate-pulse'; }
+
+                el.classList.add(color);
+                elMob.classList.add(color);
+                dot.className = `w-3 h-3 rounded-full ${dotClass}`;
             },
             setButtonState: (state) => {
                 const btn = document.getElementById('action-btn');
-                btn.classList.remove('disabled', 'bg-green', 'bg-pink', 'bg-gray-600');
+                btn.className = "col-span-12 md:col-span-8 btn-chunky rounded-2xl text-2xl md:text-3xl tracking-widest py-4 md:py-5 hover:brightness-105 active:scale-[0.99] w-full transition-all";
                 
                 if(state === 'idle') {
                     btn.innerText = "SHUFFLE";
-                    btn.classList.add('bg-green');
+                    btn.classList.add('bg-green', 'text-dark', 'border-dark');
+                    btn.disabled = false;
                 } else if(state === 'loading') {
                     btn.innerText = "SHUFFLING...";
-                    btn.classList.add('disabled', 'bg-gray-600');
+                    btn.classList.add('bg-slate-200', 'text-slate-400', 'border-slate-300', 'shadow-none');
+                    btn.disabled = true;
                 } else if(state === 'guessing') {
                     btn.innerText = "RESET";
-                    btn.classList.add('bg-pink'); // Allows immediate reset
-                } else if(state === 'reset') {
-                    btn.innerText = "RESET";
-                    btn.classList.add('bg-pink');
-                }
+                    btn.classList.add('bg-pink', 'text-white', 'border-dark', 'shadow-[0_6px_0_#1e293b]');
+                    btn.disabled = false;
+                } 
             },
             updateSpeedLabel: (val) => {
                 let text = "Medium";
-                if(val < 25) text = "Slow";
-                if(val > 75) text = "Fast";
+                if(val < 25) text = "Slow"; if(val > 75) text = "Fast";
                 document.getElementById('speed-label').innerText = text;
             }
         };
