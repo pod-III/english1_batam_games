@@ -98,7 +98,8 @@
         input[type=range] { -webkit-appearance: none; background: transparent; }
         input[type=range]::-webkit-slider-thumb {
             -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%;
-            background: #2979FF; border: 3px solid #1e293b; margin-top: -7px; cursor: pointer;
+            /* Use a dark color for visibility on light backgrounds */
+            background: #1e293b; border: 3px solid #2979FF; margin-top: -7px; cursor: pointer;
             box-shadow: 2px 2px 0px rgba(30,41,59,1);
         }
         input[type=range]::-webkit-slider-runnable-track {
@@ -125,6 +126,18 @@
             background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
             background-size: 10px 10px;
         }
+        
+        /* Mobile Panel Toggle Style */
+        .hidden-panel-mobile {
+            transform: translateY(100%);
+            border-bottom-width: 0 !important;
+        }
+        @media (min-width: 768px) {
+            .hidden-panel-desktop {
+                margin-left: -24rem; /* Hides the w-96 panel */
+                border-right-width: 0 !important;
+            }
+        }
     </style>
 </head>
 <body class="h-screen w-screen flex flex-col items-center justify-center p-2 md:p-6 overflow-hidden">
@@ -133,7 +146,7 @@
     <div class="game-console w-full h-full relative flex-col md:flex-row">
         
         <!-- SIDEBAR: CONTROLS -->
-        <aside id="controls" class="w-full md:w-96 bg-white border-b-4 md:border-b-0 md:border-r-4 border-dark flex flex-col z-50 transition-transform duration-300 shadow-xl md:shadow-none h-[40%] md:h-full relative">
+        <aside id="controls" class="w-full md:w-96 bg-white border-b-4 md:border-b-0 md:border-r-4 border-dark flex flex-col z-50 transition-all duration-300 shadow-xl md:shadow-none h-[40%] md:h-full relative">
             
             <!-- Header -->
             <div class="p-5 border-b-4 border-dark bg-yellow-50 flex justify-between items-center">
@@ -143,28 +156,16 @@
                     </h1>
                     <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">English 1 Batam</p>
                 </div>
-                <!-- Mobile Toggle Button (Only visible on small screens usually, handled by layout here) -->
-                <button onclick="toggleMobileView()" class="md:hidden p-2 bg-white border-2 border-dark rounded-lg shadow-hard-sm active:translate-y-1 active:shadow-none transition-all">
-                    <i data-lucide="minimize-2" class="w-5 h-5 text-dark"></i>
+                <!-- Mobile Toggle Button (Close Button) -->
+                <button onclick="toggleControlPanel(true)" class="md:hidden p-2 bg-pink/20 text-pink border-2 border-dark rounded-lg shadow-hard-sm active:translate-y-1 active:shadow-none transition-all">
+                    <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
 
             <!-- Controls Body -->
             <div class="flex-1 p-5 overflow-y-auto custom-scrollbar space-y-5 bg-white relative">
                 
-                <!-- Speed Control -->
-                <div class="bg-slate-50 p-3 rounded-2xl border-2 border-dark shadow-hard-sm">
-                    <div class="flex justify-between items-center mb-2">
-                        <label class="text-xs font-bold text-slate-400 uppercase tracking-widest"><i data-lucide="gauge" class="w-3 h-3 inline mr-1"></i> Speed</label>
-                        <span id="speed-display" class="font-heading text-blue text-lg">1.5x</span>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <span class="text-xs">🐢</span>
-                        <!-- CHANGED MAX VALUE FROM 5 TO 20 -->
-                        <input type="range" id="speed-slider" min="0.5" max="20" step="0.5" value="1.5" oninput="updateSpeed(this.value)" class="flex-1">
-                        <span class="text-xs">🐇</span>
-                    </div>
-                </div>
+                <!-- NOTE: Speed Control REMOVED from here -->
 
                 <!-- NEW: CSV FORMATTER -->
                 <div class="space-y-2 pb-4 border-b-2 border-dashed border-slate-300">
@@ -237,7 +238,28 @@ Red, Blue, Green, Yellow, Purple</textarea>
                 </div>
             </div>
 
-            <!-- Floating Next Button -->
+            <!-- FLOATING CONTROLS GROUP (Top Left) -->
+            <div class="absolute top-4 left-4 z-20 flex flex-col md:flex-row gap-3">
+                <!-- Control Panel Toggle -->
+                <button onclick="toggleControlPanel(false)" class="p-2 bg-white border-2 border-dark rounded-lg shadow-hard-sm hover:translate-y-[-2px] transition-transform text-slate-400 hover:text-dark">
+                    <i data-lucide="settings" class="w-5 h-5"></i>
+                </button>
+
+                <!-- NEW: Speed Control (Moved from Sidebar) -->
+                <div id="speed-control-display" class="bg-white p-3 rounded-xl border-2 border-dark shadow-hard-sm w-50 transition-all">
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-xs font-bold text-slate-400 uppercase tracking-widest"><i data-lucide="gauge" class="w-3 h-3 inline mr-1"></i> Speed</label>
+                        <span id="speed-display" class="font-heading text-dark text-lg">1.5x</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="text-xs">🐢</span>
+                        <input type="range" id="speed-slider" min="0.5" max="20" step="0.5" value="1.5" oninput="updateSpeed(this.value)" class="flex-1">
+                        <span class="text-xs">🐇</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Floating Next Button (Bottom Right) -->
             <div class="absolute bottom-6 right-6 z-20">
                 <button id="next-round-btn" onclick="loadNextRound()" 
                     class="btn-chunky bg-pink text-white px-8 py-4 rounded-full text-xl flex items-center gap-3 hover:scale-105 active:scale-95">
@@ -245,17 +267,13 @@ Red, Blue, Green, Yellow, Purple</textarea>
                 </button>
             </div>
             
-            <!-- Fullscreen Toggle (Desktop) -->
-            <button onclick="toggleMobileView()" class="absolute top-4 left-4 z-20 p-2 bg-white border-2 border-dark rounded-lg shadow-hard-sm hover:translate-y-[-2px] transition-transform hidden md:block text-slate-400 hover:text-dark">
-                <i data-lucide="maximize" class="w-5 h-5"></i>
-            </button>
 
         </main>
     </div>
 
     <script>
         // --- LOCAL STORAGE KEY ---
-        const LS_KEY_WORDS = 'wordAnimatorData_v2'; // Updated key for new version
+        const LS_KEY_WORDS = 'wordAnimatorData_v2'; 
 
         let roundsData = [];
         let currentRoundIndex = -1;
@@ -294,15 +312,12 @@ Red, Blue, Green, Yellow, Purple</textarea>
         
         /**
          * Converts a single line of CSV (word1, word2, word3) into a multi-line,
-         * letter-separated format suitable for the Animator:
-         * W,O,R,D,1
-         * W,O,R,D,2
-         * W,O,R,D,3
+         * letter-separated format suitable for the Animator.
          */
         function formatList() {
             const csvInput = document.getElementById('csv-input').value;
             if (!csvInput.trim()) {
-                console.warn("CSV input is empty.");
+                document.getElementById("round-counter").innerHTML = "STATUS: <span class='text-pink'>ERROR - CSV Input Empty</span>";
                 return;
             }
 
@@ -382,7 +397,7 @@ Red, Blue, Green, Yellow, Purple</textarea>
                 
                 if(bounced) {
                     // Slight spin on bounce
-                    this.rotation = Math.floor(Math.random() * 20) - 10;
+                    this.rotation += (Math.random() - 0.5) * 5; // Slight random rotational change
                 }
 
                 this.updatePosition();
@@ -407,8 +422,7 @@ Red, Blue, Green, Yellow, Purple</textarea>
         function loadRound(index) {
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
             
-            // FIX: Don't wipe innerHTML, as it kills the "Waiting..." component.
-            // Instead, just remove the words and hide the message.
+            // Clear previous words
             const display = document.getElementById("word-display");
             display.querySelectorAll('.moving-word').forEach(el => el.remove());
             
@@ -420,7 +434,9 @@ Red, Blue, Green, Yellow, Purple</textarea>
             if (!roundsData.length) return;
             
             let nextIndex = index;
-            if (nextIndex >= roundsData.length) nextIndex = 0;
+            if (nextIndex >= roundsData.length) {
+                nextIndex = 0; // Loop back to the start
+            }
             currentRoundIndex = nextIndex;
 
             const words = roundsData[currentRoundIndex];
@@ -451,7 +467,7 @@ Red, Blue, Green, Yellow, Purple</textarea>
             
             // Auto collapse sidebar on mobile after load
             if(window.innerWidth < 768) {
-                toggleMobileView(true);
+                toggleControlPanel(true);
             }
             
             currentRoundIndex = -1;
@@ -466,45 +482,55 @@ Red, Blue, Green, Yellow, Purple</textarea>
             loadRound(currentRoundIndex + 1);
         }
 
-        // Collapse/Expand logic
-        function toggleMobileView(forceCollapse = false) {
+        // Toggles the control panel (Sidebar) visibility
+        // If forceHide is true, it will always hide it, regardless of current state.
+        function toggleControlPanel(forceHide = false) {
             const controls = document.getElementById('controls');
             
-            if(forceCollapse || !controls.classList.contains('hidden-panel')) {
-                controls.classList.add('hidden-panel');
-                if(window.innerWidth >= 768) {
-                    controls.style.marginLeft = '-24rem'; // Width of w-96
-                } else {
-                    controls.style.display = 'none'; // Mobile hide
-                }
+            // Determine if we should hide the panel
+            const isCurrentlyHidden = window.innerWidth >= 768 
+                ? controls.classList.contains('hidden-panel-desktop')
+                : controls.classList.contains('hidden-panel-mobile');
+
+            if(forceHide || !isCurrentlyHidden) {
+                // Hide
+                controls.classList.add('hidden-panel-mobile', 'hidden-panel-desktop');
             } else {
-                controls.classList.remove('hidden-panel');
-                if(window.innerWidth >= 768) {
-                    controls.style.marginLeft = '0';
-                } else {
-                    controls.style.display = 'flex';
-                }
+                // Show
+                controls.classList.remove('hidden-panel-mobile', 'hidden-panel-desktop');
             }
-            // Trigger resize for canvas calculation
-            setTimeout(() => window.dispatchEvent(new Event('resize')), 300);
+            
+            // Trigger resize for canvas calculation after the transition (300ms)
+            setTimeout(() => window.dispatchEvent(new Event('resize')), 350);
         }
 
         window.addEventListener('resize', () => {
-             // Reset layout styles if crossing breakpoint
+             // Ensure panels adapt correctly on breakpoint changes
              const controls = document.getElementById('controls');
+             // If desktop view is active and we resize, ensure desktop class handles visibility
              if(window.innerWidth >= 768) {
-                 controls.style.display = 'flex';
-                 if(!controls.classList.contains('hidden-panel')) controls.style.marginLeft = '0';
+                 controls.classList.remove('hidden-panel-mobile'); // Clean up mobile class
+                 // If the panel is meant to be hidden, the desktop class will handle it
              } else {
-                 controls.style.marginLeft = '0';
+                 controls.classList.remove('hidden-panel-desktop'); // Clean up desktop class
+                 // If the panel is meant to be hidden, the mobile class will handle it
              }
         });
 
         function init() {
             loadWords();
             wordInput.addEventListener('input', (e) => saveWords(e.target.value));
-            updateSpeed(document.getElementById('speed-slider').value);
+            
+            // Initialize speed display
+            const initialSpeed = document.getElementById('speed-slider').value;
+            updateSpeed(initialSpeed);
+            
             lucide.createIcons();
+            
+            // Initial hide of the panel on load if on mobile (default state)
+            if(window.innerWidth < 768) {
+                toggleControlPanel(true);
+            }
         }
         
         init();
