@@ -3,18 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Word Animator - Classroom Edition</title>
-    
-    <!-- External Libraries -->
+    <title>Hot Seat - Classroom Edition</title>
+
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Fonts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
 
-    <!-- Theme Configuration -->
+    <link rel="stylesheet" href="style.css">
+
     <script>
         tailwind.config = {
             theme: {
@@ -31,509 +32,276 @@
                     fontFamily: {
                         heading: ['Fredoka', 'sans-serif'], 
                         body: ['Nunito', 'sans-serif'],
-                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    animation: {
+                        'pop': 'pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                        'float': 'float 3s ease-in-out infinite',
+                        'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+                        'slide-up': 'slideUp 0.5s ease-out forwards',
+                    },
+                    keyframes: {
+                        pop: { '0%': { transform: 'scale(0.9)', opacity: '0' }, '100%': { transform: 'scale(1)', opacity: '1' } },
+                        slideUp: { '0%': { transform: 'translateY(20px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } },
+                        float: { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-10px)' } },
+                        shake: {
+                            '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
+                            '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
+                            '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
+                            '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
+                        }
                     },
                     boxShadow: {
                         'hard': '4px 4px 0px 0px rgba(30, 41, 59, 1)',
                         'hard-md': '6px 6px 0px 0px rgba(30, 41, 59, 1)',
                         'hard-lg': '10px 10px 0px 0px rgba(30, 41, 59, 1)',
-                        'hard-sm': '2px 2px 0px 0px rgba(30, 41, 59, 1)',
                     }
                 }
             }
         }
     </script>
-
-    <style>
-        body { 
-            font-family: 'Nunito', sans-serif;
-            overflow: hidden;
-            background-color: #F8FAFC;
-            /* Graph Paper Pattern */
-            background-image: 
-                linear-gradient(#E2E8F0 1px, transparent 1px),
-                linear-gradient(90deg, #E2E8F0 1px, transparent 1px);
-            background-size: 24px 24px;
-            color: #1e293b;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        /* --- UI COMPONENTS (Neo-Brutalism) --- */
-        .game-console {
-            background: #FFFFFF;
-            border: 6px solid #1e293b;
-            border-radius: 2.5rem;
-            box-shadow: 14px 14px 0px rgba(30, 41, 59, 0.15);
-            display: flex;
-            overflow: hidden;
-            transition: transform 0.2s;
-        }
-
-        .btn-chunky {
-            transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-            transform: translateY(0);
-            position: relative;
-            border: 3px solid #1e293b;
-            box-shadow: 0 6px 0 #1e293b;
-            font-family: 'Fredoka', sans-serif;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        
-        .btn-chunky:active:not(:disabled) {
-            transform: translateY(6px);
-            box-shadow: 0 0 0 #1e293b !important;
-            border-bottom-width: 3px;
-        }
-
-        /* Custom Scrollbar */
-        .custom-scrollbar::-webkit-scrollbar { height: 8px; width: 8px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; border: 2px solid #f8fafc; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
-        /* Slider */
-        input[type=range] { -webkit-appearance: none; background: transparent; }
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%;
-            /* Use a dark color for visibility on light backgrounds */
-            background: #1e293b; border: 3px solid #2979FF; margin-top: -7px; cursor: pointer;
-            box-shadow: 2px 2px 0px rgba(30,41,59,1);
-        }
-        input[type=range]::-webkit-slider-runnable-track {
-            width: 100%; height: 6px; background: #e2e8f0; border: 2px solid #1e293b; border-radius: 99px;
-        }
-
-        /* Word Animation Styles */
-        .moving-word {
-            position: absolute;
-            cursor: default;
-            user-select: none;
-            transition: opacity 0.5s;
-            white-space: nowrap;
-            will-change: transform;
-            top: 0;
-            left: 0;
-            /* Neo-Brutal Text Style */
-            -webkit-text-stroke: 2px #1e293b;
-            paint-order: stroke fill;
-            filter: drop-shadow(4px 4px 0px rgba(30, 41, 59, 0.2));
-        }
-
-        textarea {
-            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
-            background-size: 10px 10px;
-        }
-        
-        /* Mobile Panel Toggle Style */
-        .hidden-panel-mobile {
-            transform: translateY(100%);
-            border-bottom-width: 0 !important;
-        }
-        @media (min-width: 768px) {
-            .hidden-panel-desktop {
-                margin-left: -24rem; /* Hides the w-96 panel */
-                border-right-width: 0 !important;
-            }
-        }
-    </style>
 </head>
+
 <body class="h-screen w-screen flex flex-col items-center justify-center p-2 md:p-6 overflow-hidden">
 
-    <!-- MAIN CONSOLE CONTAINER (Flexible size) -->
-    <div class="game-console w-full h-full relative flex-col md:flex-row">
-        
-        <!-- SIDEBAR: CONTROLS -->
-        <aside id="controls" class="w-full md:w-96 bg-white border-b-4 md:border-b-0 md:border-r-4 border-dark flex flex-col z-50 transition-all duration-300 shadow-xl md:shadow-none h-[40%] md:h-full relative">
-            
-            <!-- Header -->
-            <div class="p-5 border-b-4 border-dark bg-yellow-50 flex justify-between items-center">
-                <div>
-                    <h1 class="text-2xl font-heading text-dark tracking-wide leading-none">
-                        WORD<span class="text-blue">ANIMATOR</span>
-                    </h1>
-                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">English 1 Batam</p>
+    <div id="view-setup" class="view-visible fixed inset-0 z-[100] flex flex-col items-center justify-center p-4 bg-slate-100/90 backdrop-blur-md">
+        <div class="game-console p-10 flex flex-col items-center max-w-sm w-full border-4 border-dark bg-white shadow-hard-lg relative">
+            <div class="absolute -top-6 -right-6 text-6xl animate-float" style="animation-delay: 0.5s">🔥</div>
+            <div class="absolute -bottom-4 -left-6 text-6xl animate-float">🎓</div>
+
+            <h1 class="text-6xl font-heading text-dark mb-1 tracking-wide text-center leading-none">
+                Hot<br><span class="text-orange">Seat</span></h1>
+            <p class="text-slate-400 mb-6 font-body font-bold text-center uppercase tracking-widest text-sm">English 1 Batam</p>
+
+            <div class="w-full space-y-4">
+                <div class="bg-slate-50 border-2 border-dark rounded-xl p-1.5 flex gap-2 shadow-hard-sm">
+                    <button onclick="setMode('classic')" id="btn-mode-classic" class="flex-1 py-3 rounded-lg font-heading text-dark text-sm transition-all border-2 border-transparent text-slate-400">CLASSIC RUN</button>
+                    <button onclick="setMode('single')" id="btn-mode-single" class="flex-1 py-3 rounded-lg font-heading text-dark text-sm transition-all border-2 border-transparent text-slate-400">QUICK FIRE</button>
                 </div>
-                <!-- Mobile Toggle Button (Close Button) -->
-                <button onclick="toggleControlPanel(true)" class="md:hidden p-2 bg-pink/20 text-pink border-2 border-dark rounded-lg shadow-hard-sm active:translate-y-1 active:shadow-none transition-all">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
 
-            <!-- Controls Body -->
-            <div class="flex-1 p-5 overflow-y-auto custom-scrollbar space-y-5 bg-white relative">
-                
-                <!-- NOTE: Speed Control REMOVED from here -->
-
-                <!-- NEW: CSV FORMATTER -->
-                <div class="space-y-2 pb-4 border-b-2 border-dashed border-slate-300">
-                    <div class="flex justify-between items-end">
-                        <label class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                            <i data-lucide="split" class="w-3 h-3"></i> CSV Formatter
-                        </label>
+                <div class="flex items-center gap-3 bg-slate-50 border-2 border-dark rounded-xl p-3 shadow-hard-sm">
+                    <div class="p-2 bg-blue/10 rounded-lg text-blue"><i data-lucide="clock" class="w-6 h-6"></i></div>
+                    <div class="flex-grow flex flex-col">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">Timer (Sec)</span>
+                        <input type="number" id="time-input" value="60" min="5" max="300" class="bg-transparent font-heading text-xl outline-none text-dark font-bold w-full">
                     </div>
-                    <textarea id="csv-input" spellcheck="false" rows="2"
-                        class="w-full p-2 bg-slate-50 text-dark font-mono text-sm border-2 border-dark rounded-xl focus:border-orange focus:ring-0 outline-none resize-none shadow-inner"
-                        placeholder="e.g. word1, word2, word3"
-                    >apple, banana, cherry</textarea>
-                    
-                    <button onclick="formatList()" 
-                        class="w-full btn-chunky bg-orange text-white py-3 rounded-xl text-sm tracking-wide flex items-center justify-center gap-2 hover:brightness-105 shadow-[0_4px_0_#1e293b]">
-                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i> FORMAT TO ANIMATOR INPUT
-                    </button>
-                    <p class="text-[10px] text-slate-400 mt-2 italic">Output goes directly into the "Word List" below.</p>
-                </div>
-                <!-- END NEW: CSV FORMATTER -->
-
-                <!-- Input -->
-                <div class="space-y-2 flex-1 flex flex-col">
-                    <div class="flex justify-between items-end">
-                        <label class="text-xs font-bold text-slate-400 uppercase tracking-widest">Word List (Rounds)</label>
-                        <span class="text-[10px] bg-green/10 text-green-600 px-2 py-0.5 rounded border border-green/20 font-bold">Auto-Saved</span>
-                    </div>
-                    <textarea id="word-input" spellcheck="false"
-                        class="w-full h-40 md:h-64 p-4 bg-slate-50 text-dark font-mono text-sm border-2 border-dark rounded-xl focus:border-blue focus:ring-0 outline-none resize-none shadow-inner"
-                        placeholder="Line 1: Words, for, round, 1&#10;Line 2: Words, for, round, 2"
-                    >Apple, Banana, Cheery
-Dog, Cat, Elephant
-Red, Blue, Green, Yellow, Purple</textarea>
                 </div>
 
-                <!-- Load Button -->
-                <button onclick="parseAndLoadRounds()" 
-                    class="w-full btn-chunky bg-green text-dark py-3 rounded-xl text-xl tracking-wide flex items-center justify-center gap-2 hover:brightness-105">
-                    <i data-lucide="play" class="w-5 h-5 fill-current"></i> LOAD & START
-                </button>
-
-            </div>
-            
-            <!-- Footer Status -->
-            <div class="p-3 border-t-4 border-dark bg-slate-100 text-center">
-                 <div id="round-counter" class="font-heading text-slate-400 text-lg">
-                    STATUS: <span class="text-slate-500">READY</span>
-                </div>
-            </div>
-        </aside>
-
-        <!-- MAIN DISPLAY AREA -->
-        <main class="flex-1 relative h-[60%] md:h-full bg-slate-50 overflow-hidden group">
-            
-            <!-- Subtle Grid Background -->
-            <div class="absolute inset-0 opacity-10 pointer-events-none" 
-                 style="background-image: radial-gradient(#1e293b 2px, transparent 2px); background-size: 24px 24px;">
-            </div>
-
-            <!-- "Webcam" dot -->
-            <div class="absolute top-4 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-slate-200 border-2 border-slate-300 z-10 hidden md:block"></div>
-
-            <!-- Canvas for words -->
-            <div id="word-display" class="w-full h-full relative overflow-hidden z-0">
-                <div id="initial-message" class="absolute inset-0 flex flex-col items-center justify-center text-slate-300 space-y-4">
-                    <div class="w-20 h-20 rounded-full border-4 border-slate-200 flex items-center justify-center animate-bounce">
-                        <i data-lucide="move" class="w-10 h-10"></i>
-                    </div>
-                    <p class="font-heading text-2xl tracking-widest opacity-70">WAITING FOR DATA...</p>
-                </div>
-            </div>
-
-            <!-- FLOATING CONTROLS GROUP (Top Left) -->
-            <div class="absolute top-4 left-4 z-20 flex flex-col md:flex-row gap-3">
-                <!-- Control Panel Toggle -->
-                <button onclick="toggleControlPanel(false)" class="p-2 bg-white border-2 border-dark rounded-lg shadow-hard-sm hover:translate-y-[-2px] transition-transform text-slate-400 hover:text-dark">
-                    <i data-lucide="settings" class="w-5 h-5"></i>
-                </button>
-
-                <!-- NEW: Speed Control (Moved from Sidebar) -->
-                <div id="speed-control-display" class="bg-white p-3 rounded-xl border-2 border-dark shadow-hard-sm w-50 transition-all">
-                    <div class="flex justify-between items-center mb-2">
-                        <label class="text-xs font-bold text-slate-400 uppercase tracking-widest"><i data-lucide="gauge" class="w-3 h-3 inline mr-1"></i> Speed</label>
-                        <span id="speed-display" class="font-heading text-dark text-lg">1.5x</span>
-                    </div>
+                <button onclick="toggleWords()" class="w-full flex items-center justify-between gap-3 bg-slate-50 border-2 border-dark rounded-xl p-3 shadow-hard-sm hover:bg-slate-100 transition-colors group">
                     <div class="flex items-center gap-3">
-                        <span class="text-xs">🐢</span>
-                        <input type="range" id="speed-slider" min="0.5" max="20" step="0.5" value="1.5" oninput="updateSpeed(this.value)" class="flex-1">
-                        <span class="text-xs">🐇</span>
+                        <div class="p-2 bg-pink/10 rounded-lg text-pink"><i data-lucide="list" class="w-6 h-6"></i></div>
+                        <div class="text-left">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase block">Word List</span>
+                            <span class="font-heading text-lg font-bold text-dark group-hover:text-pink transition-colors"><span id="word-count-display">0</span> Words</span>
+                        </div>
                     </div>
-                </div>
-            </div>
-
-            <!-- Floating Next Button (Bottom Right) -->
-            <div class="absolute bottom-6 right-6 z-20">
-                <button id="next-round-btn" onclick="loadNextRound()" 
-                    class="btn-chunky bg-pink text-white px-8 py-4 rounded-full text-xl flex items-center gap-3 hover:scale-105 active:scale-95">
-                    NEXT ROUND <i data-lucide="arrow-right" class="w-6 h-6"></i>
+                    <i data-lucide="chevron-right" class="w-5 h-5 text-slate-300"></i>
                 </button>
-            </div>
-            
 
-        </main>
+                <button onclick="startGame()" class="btn-chunky bg-green text-dark px-10 py-4 rounded-xl text-2xl w-full font-heading hover:brightness-105 mt-4">START GAME</button>
+            </div>
+        </div>
     </div>
 
-    <script>
-        // --- LOCAL STORAGE KEY ---
-        const LS_KEY_WORDS = 'wordAnimatorData_v2'; 
+    <div id="view-game" class="view-hidden game-console w-full max-w-7xl h-full max-h-[95vh] relative flex-col">
+        <div class="absolute top-3 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-slate-200 border-2 border-slate-300 z-50"></div>
 
-        let roundsData = [];
-        let currentRoundIndex = -1;
-        let activeBouncingWords = [];
-        let animationFrameId;
-        let globalSpeedMultiplier = 1.5; 
+        <div class="bg-slate-50 border-b-4 border-dark p-4 flex items-center justify-between shrink-0 h-20 md:h-24 relative z-40">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-pink to-orange border-2 border-dark flex items-center justify-center shadow-hard-sm text-white rotate-[-3deg]">
+                    <i data-lucide="flame" class="w-7 h-7"></i>
+                </div>
+                <div class="leading-tight">
+                    <h1 class="font-heading text-xl md:text-3xl text-dark tracking-wide">Hot Seat</h1>
+                    <div class="flex gap-2 items-center">
+                        <div class="w-2 h-2 rounded-full bg-green animate-pulse"></div>
+                        <p id="mode-badge" class="text-[10px] md:text-xs text-slate-400 font-bold uppercase tracking-widest">Classic Run</p>
+                    </div>
+                </div>
+            </div>
 
-        // Colors from theme
-        const colors = [
-            'text-pink', 'text-orange', 'text-green', 'text-blue', 'text-slate-800'
-        ];
-        
-        // Font Sizes
-        const fontSizes = ["text-5xl", "text-6xl", "text-7xl", "text-8xl"];
-        
-        const wordInput = document.getElementById("word-input");
-        const controlsPanel = document.getElementById("controls");
+            <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:flex bg-white border-2 border-dark px-6 py-2 rounded-full shadow-hard-sm items-center gap-3">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Score</span>
+                <span id="score-display" class="text-2xl font-heading text-dark">0</span>
+            </div>
 
-        // --- AUTOSAVE/LOAD ---
-        function saveWords(wordsString) {
-             try { localStorage.setItem(LS_KEY_WORDS, wordsString); } catch (e) {}
-        }
+            <button onclick="toggleExitModal()" class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white text-slate-400 border-2 border-dark shadow-hard-sm flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-transform active:scale-95">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
 
-        function loadWords() {
-            try {
-                const savedWords = localStorage.getItem(LS_KEY_WORDS);
-                if (savedWords) wordInput.value = savedWords;
-            } catch (e) {}
-        }
+        <div class="flex-grow relative bg-slate-100 overflow-hidden w-full flex flex-col p-4 md:p-8">
+            <div class="absolute inset-0 opacity-5 pointer-events-none" style="background-image: radial-gradient(#1e293b 2px, transparent 2px); background-size: 24px 24px;"></div>
+            <div id="bg-pulse" class="absolute inset-0 z-0 transition-colors duration-200 pointer-events-none"></div>
 
-        // --- CORE LOGIC ---
-        function updateSpeed(val) {
-            globalSpeedMultiplier = parseFloat(val);
-            document.getElementById('speed-display').innerText = globalSpeedMultiplier.toFixed(1) + 'x';
-        }
-        
-        /**
-         * Converts a single line of CSV (word1, word2, word3) into a multi-line,
-         * letter-separated format suitable for the Animator.
-         */
-        function formatList() {
-            const csvInput = document.getElementById('csv-input').value;
-            if (!csvInput.trim()) {
-                document.getElementById("round-counter").innerHTML = "STATUS: <span class='text-pink'>ERROR - CSV Input Empty</span>";
-                return;
-            }
+            <div class="w-full max-w-3xl mx-auto mb-4 md:mb-8 relative z-10">
+                <div class="flex justify-between text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider px-2">
+                    <span>Time Remaining</span>
+                    <span id="timer-text">60s</span>
+                </div>
+                <div class="timer-container">
+                    <div id="timer-bar" class="timer-fill"></div>
+                </div>
+            </div>
 
-            const words = csvInput.split(',')
-                .map(word => word.trim())
-                .filter(word => word.length > 0);
+            <div class="flex-grow flex items-center justify-center relative z-10 w-full">
+                <div class="md:hidden absolute top-0 right-0 bg-white border-2 border-dark px-4 py-1 rounded-full shadow-hard-sm">
+                    <span class="text-[10px] font-bold text-slate-400 uppercase mr-2">Score</span>
+                    <span id="score-display-mobile" class="text-xl font-heading text-dark">0</span>
+                </div>
 
-            // 1. Convert each word to uppercase, split into letters, and join with commas.
-            // 2. Join the resulting lines with a newline character.
-            const formattedText = words.map(word => {
-                // Remove spaces inside the word and convert to uppercase
-                const cleanedWord = word.replace(/\s/g, '').toUpperCase();
-                return cleanedWord.split('').join(',');
-            }).join('\n');
+                <div id="word-card" class="word-card p-8 md:p-16 w-full max-w-4xl flex items-center justify-center min-h-[200px] md:min-h-[300px] transition-colors duration-300">
+                    <div class="flex flex-col items-center">
+                        <div id="feedback-icon" class="hidden mb-4 animate-pop"></div>
+                        <h1 id="current-word" class="word-display font-heading text-dark text-center break-words leading-none">WORD</h1>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-            // Set the result back into the main word input box
-            wordInput.value = formattedText;
-            saveWords(formattedText); // Save the formatted data
-            
-            // Give visual feedback and prompt to load
-            document.getElementById("round-counter").innerHTML = "STATUS: <span class='text-orange'>FORMATTED! Click LOAD & START</span>";
-        }
+        <div class="bg-white border-t-4 border-dark p-4 md:p-6 shrink-0 z-40 relative min-h-[140px] flex items-center justify-center">
+            <div id="controls-standard" class="grid grid-cols-2 gap-4 md:gap-6 w-full">
+                <button onclick="handlePass()" class="btn-chunky bg-white text-pink border-2 border-dark rounded-2xl h-20 md:h-24 flex flex-col items-center justify-center gap-1 hover:bg-pink/5 group">
+                    <i data-lucide="x" class="w-8 h-8 group-active:scale-90 transition-transform"></i>
+                    <span class="text-lg md:text-2xl tracking-widest">PASS</span>
+                </button>
+                <button onclick="handleCorrect()" class="btn-chunky bg-green text-dark rounded-2xl h-20 md:h-24 flex flex-col items-center justify-center gap-1 hover:brightness-105 group">
+                    <i data-lucide="check" class="w-8 h-8 group-active:scale-90 transition-transform"></i>
+                    <span class="text-lg md:text-2xl tracking-widest">CORRECT</span>
+                </button>
+            </div>
+            <div id="controls-intermission" class="hidden w-full">
+                <button onclick="resumeQuickFire()" class="btn-chunky bg-blue text-white border-2 border-dark rounded-2xl h-20 md:h-24 flex items-center justify-center gap-3 w-full hover:brightness-110 group animate-pop">
+                    <span class="text-2xl md:text-3xl tracking-widest">NEXT WORD</span>
+                    <i data-lucide="arrow-right" class="w-8 h-8 group-hover:translate-x-1 transition-transform"></i>
+                </button>
+            </div>
+        </div>
+    </div>
 
-        class BouncingWord {
-            constructor(text, containerWidth, containerHeight) {
-                this.element = document.createElement("div");
-                this.element.textContent = text;
+    <div id="view-result" class="view-hidden fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4">
+        <div class="game-console w-full max-w-lg p-0 animate-slide-up border-4 border-dark bg-white shadow-hard-lg">
+            <div class="bg-slate-50 p-6 border-b-4 border-dark text-center relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-pink via-orange to-green"></div>
+                <h2 id="result-title" class="text-4xl md:text-5xl font-heading text-dark mb-1">TIME'S UP!</h2>
+                <p id="result-subtitle" class="text-slate-400 font-bold uppercase tracking-widest text-xs">Great Job!</p>
+            </div>
+            <div class="p-8 flex flex-col items-center gap-6">
+                <div class="text-center">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">Final Score</span>
+                    <div class="text-8xl font-heading text-dark leading-none drop-shadow-sm" id="final-score">0</div>
+                </div>
+                <div class="grid grid-cols-2 gap-4 w-full">
+                    <div class="bg-green/10 border-2 border-green rounded-xl p-3 text-center">
+                        <span class="block text-2xl font-bold text-green-600 font-heading" id="final-correct">0</span>
+                        <span class="text-[10px] uppercase font-bold text-green-700">Correct</span>
+                    </div>
+                    <div class="bg-pink/10 border-2 border-pink rounded-xl p-3 text-center">
+                        <span class="block text-2xl font-bold text-pink-600 font-heading" id="final-passed">0</span>
+                        <span class="text-[10px] uppercase font-bold text-pink-700">Passed</span>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 border-t-4 border-dark bg-slate-50 grid grid-cols-2 gap-4">
+                <button onclick="resetGame()" class="btn-chunky bg-white text-dark py-3 rounded-xl text-lg shadow-none border-2">MENU</button>
+                <button onclick="startGame()" class="btn-chunky bg-blue text-white py-3 rounded-xl text-lg shadow-none border-2">PLAY AGAIN</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-words" class="hidden fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+        <div class="game-console w-full max-w-7xl p-0 animate-pop border-4 border-dark bg-white h-[90vh] md:h-[85vh] shadow-hard-lg flex flex-col md:flex-row overflow-hidden">
+
+            <div class="w-full md:w-80 bg-slate-50 border-r-4 border-dark flex flex-col h-[30%] md:h-full shrink-0 z-20 relative">
+                <div class="p-4 border-b-2 border-slate-200 shrink-0 bg-slate-50">
+                    <h3 class="text-2xl font-heading text-dark">List Manager</h3>
+                </div>
+                <div class="p-4 pb-2 shrink-0 bg-slate-50">
+                    <div class="flex gap-2">
+                        <button id="tab-presets" onclick="showWordTab('presets')" class="tab-button bg-white text-dark py-2 px-4 rounded-lg text-sm font-heading border-2 border-dark shadow-sm">Presets</button>
+                        <button id="tab-custom" onclick="showWordTab('custom')" class="tab-button text-slate-500 py-2 px-4 rounded-lg text-sm font-heading hover:bg-slate-100 transition-colors">My Lists</button>
+                    </div>
+                </div>
+                <div id="content-presets" class="flex-grow overflow-y-auto custom-scrollbar p-4 pt-0 min-h-0">
+                    <p class="text-xs font-bold text-slate-400 uppercase mb-3 mt-2">Default Lists</p>
+                    <button onclick="loadDefault('easy')" class="w-full text-left flex items-center justify-between bg-white border-2 border-slate-200 hover:border-green hover:text-green px-3 py-3 rounded-xl text-dark transition-colors mb-2 group">
+                            <span class="font-bold">Default (Easy)</span> 
+                            <i data-lucide="chevron-right" class="w-5 h-5 text-slate-300 group-hover:text-green"></i>
+                    </button>
+                    <button onclick="loadDefault('hard')" class="w-full text-left flex items-center justify-between bg-white border-2 border-slate-200 hover:border-orange hover:text-orange px-3 py-3 rounded-xl text-dark transition-colors group">
+                            <span class="font-bold">Default (Hard)</span> 
+                            <i data-lucide="chevron-right" class="w-5 h-5 text-slate-300 group-hover:text-orange"></i>
+                    </button>
+                </div>
+                <div id="content-custom" class="hidden flex-grow overflow-y-auto custom-scrollbar p-4 pt-0 min-h-0">
+                    <p class="text-xs font-bold text-slate-400 uppercase mb-3 mt-2">Your Saved Lists</p>
+                    <div id="custom-list-container" class="space-y-2"></div>
+                    <p id="no-lists-message" class="text-sm text-slate-400 mt-4 hidden italic">No custom lists saved yet.</p>
+                </div>
+                <div class="p-4 border-t-2 border-slate-200 shrink-0 bg-white">
+                    <p class="text-xs font-bold text-slate-400 uppercase">Current List</p>
+                    <p id="active-list-name" class="font-heading text-xl text-dark truncate">Default (Easy)</p>
+                </div>
+            </div>
+
+            <div class="flex-1 flex flex-col h-[70%] md:h-full overflow-hidden relative bg-white z-10">
+                <div class="flex justify-between items-center p-5 border-b-2 border-slate-100 shrink-0">
+                    <h3 class="text-xl font-heading text-dark">Edit List Content</h3>
+                    <button onclick="toggleWords()" class="text-slate-400 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-slate-100">
+                        <i data-lucide="x-circle" class="w-8 h-8"></i>
+                    </button>
+                </div>
+                <div class="px-5 pt-4 pb-0 shrink-0">
+                    <div id="list-warning" class="bg-yellow-50 border-2 border-yellow-200 p-3 rounded-xl flex items-start gap-3">
+                        <i data-lucide="info" class="w-5 h-5 text-yellow-600 shrink-0 mt-0.5"></i>
+                        <p class="text-xs md:text-sm text-yellow-800 font-bold leading-tight">Separate words with commas or new lines. Save your list to apply changes to the game!</p>
+                    </div>
+                </div>
                 
-                const colorClass = colors[Math.floor(Math.random() * colors.length)];
-                const sizeClass = fontSizes[Math.floor(Math.random() * fontSizes.length)];
-                
-                // Add specific rotation for fun "sticker" look
-                const rotate = Math.floor(Math.random() * 20) - 10; // -10deg to 10deg
-                
-                this.element.className = `moving-word font-heading font-bold ${colorClass} ${sizeClass}`;
-                this.element.style.transform = `rotate(${rotate}deg)`; // Initial visual rotation
-                
-                // Opacity 0 initially
-                this.element.style.opacity = '0';
-                document.getElementById("word-display").appendChild(this.element);
-                
-                this.width = this.element.offsetWidth;
-                this.height = this.element.offsetHeight;
-                
-                // Physics Position
-                this.x = Math.random() * (containerWidth - this.width);
-                this.y = Math.random() * (containerHeight - this.height);
-                
-                // Velocity
-                const angle = Math.random() * Math.PI * 2;
-                this.vx = Math.cos(angle);
-                this.vy = Math.sin(angle);
-                
-                // Store rotation for render
-                this.rotation = rotate; 
+                <div class="flex-1 p-5 min-h-0 relative">
+                    <textarea id="word-input" 
+                        class="w-full h-full resize-none bg-slate-50 border-2 border-slate-200 rounded-xl p-5 text-dark font-body font-bold text-base focus:border-blue outline-none custom-scrollbar leading-relaxed block" 
+                        placeholder="Apple, Banana, Cat..."></textarea>
+                </div>
 
-                this.updatePosition();
-                
-                // Pop in
-                requestAnimationFrame(() => { 
-                    this.element.style.opacity = '1'; 
-                    this.element.style.transform = `translate(${this.x}px, ${this.y}px) rotate(${this.rotation}deg) scale(1)`;
-                });
-            }
+                <div class="p-5 border-t-2 border-slate-100 bg-slate-50 shrink-0 flex flex-col md:flex-row gap-3">
+                    <input type="text" id="save-list-name" placeholder="Name your list (e.g., Vocab Week 3)" class="flex-grow bg-white border-2 border-slate-200 rounded-xl p-3 text-dark font-body text-sm outline-none focus:border-blue font-bold">
+                    <div class="flex gap-2">
+                        <button onclick="saveCurrentList()" class="btn-chunky bg-orange text-white px-4 py-3 rounded-xl text-sm whitespace-nowrap shadow-none flex-1 md:flex-none">SAVE NEW</button>
+                        <button onclick="saveWords()" class="btn-chunky bg-green text-dark px-6 py-3 rounded-xl text-sm whitespace-nowrap shadow-none flex-1 md:flex-none">USE LIST</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-            update(containerWidth, containerHeight) {
-                this.x += this.vx * globalSpeedMultiplier;
-                this.y += this.vy * globalSpeedMultiplier;
+    <div id="modal-overwrite-warning" class="hidden fixed inset-0 z-[160] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+        <div class="game-console p-8 rounded-2xl text-center max-w-sm animate-pop border-4 border-dark bg-white">
+            <div class="w-16 h-16 rounded-full bg-orange/10 border-2 border-orange text-orange flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="alert-triangle" class="w-8 h-8"></i>
+            </div>
+            <h3 class="text-2xl font-heading mb-2 text-dark">Overwrite Custom List?</h3>
+            <p class="text-slate-500 mb-8 text-sm font-bold">Your current edits will be lost if you load the default preset.</p>
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="toggleOverwriteModal()" class="btn-chunky bg-white text-slate-500 text-sm border-2">CANCEL</button>
+                <button onclick="confirmLoadDefault()" class="btn-chunky bg-orange text-white text-sm shadow-none">OVERWRITE</button>
+            </div>
+        </div>
+    </div>
 
-                let bounced = false;
+    <div id="modal-confirm" class="hidden fixed inset-0 z-[160] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+        <div class="game-console p-8 rounded-2xl text-center max-w-sm animate-pop border-4 border-dark bg-white">
+            <div class="w-16 h-16 rounded-full bg-pink/10 border-2 border-pink text-pink flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="alert-circle" class="w-8 h-8"></i>
+            </div>
+            <h3 class="text-2xl font-heading mb-2 text-dark">Stop Game?</h3>
+            <p class="text-slate-400 mb-8 text-sm font-bold">Your current score will be lost.</p>
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="toggleExitModal()" class="btn-chunky bg-white text-slate-500 text-sm border-2">CANCEL</button>
+                <button onclick="confirmExit()" class="btn-chunky bg-pink text-white text-sm shadow-none">QUIT</button>
+            </div>
+        </div>
+    </div>
 
-                if (this.x <= 0) { this.x = 0; this.vx *= -1; bounced = true; }
-                else if (this.x + this.width >= containerWidth) { this.x = containerWidth - this.width; this.vx *= -1; bounced = true; }
-
-                if (this.y <= 0) { this.y = 0; this.vy *= -1; bounced = true; }
-                else if (this.y + this.height >= containerHeight) { this.y = containerHeight - this.height; this.vy *= -1; bounced = true; }
-                
-                if(bounced) {
-                    // Slight spin on bounce
-                    this.rotation += (Math.random() - 0.5) * 5; // Slight random rotational change
-                }
-
-                this.updatePosition();
-            }
-
-            updatePosition() {
-                // We combine translation and rotation
-                this.element.style.transform = `translate(${this.x}px, ${this.y}px) rotate(${this.rotation}deg)`;
-            }
-        }
-
-        function gameLoop() {
-            const container = document.getElementById("word-display");
-            if (!container) return; 
-            const w = container.clientWidth;
-            const h = container.clientHeight;
-
-            activeBouncingWords.forEach(word => word.update(w, h));
-            animationFrameId = requestAnimationFrame(gameLoop);
-        }
-
-        function loadRound(index) {
-            if (animationFrameId) cancelAnimationFrame(animationFrameId);
-            
-            // Clear previous words
-            const display = document.getElementById("word-display");
-            display.querySelectorAll('.moving-word').forEach(el => el.remove());
-            
-            const initialMsg = document.getElementById("initial-message");
-            if(initialMsg) initialMsg.style.display = 'none';
-
-            activeBouncingWords = [];
-            
-            if (!roundsData.length) return;
-            
-            let nextIndex = index;
-            if (nextIndex >= roundsData.length) {
-                nextIndex = 0; // Loop back to the start
-            }
-            currentRoundIndex = nextIndex;
-
-            const words = roundsData[currentRoundIndex];
-            
-            // Status update
-            const status = document.getElementById("round-counter");
-            status.innerHTML = `ROUND <span class="text-blue text-xl md:text-2xl ml-1">${currentRoundIndex + 1}</span> / ${roundsData.length}`;
-
-            words.forEach((text) => {
-                activeBouncingWords.push(new BouncingWord(text, display.clientWidth, display.clientHeight));
-            });
-
-            gameLoop();
-        }
-
-        function parseAndLoadRounds() {
-            const input = wordInput.value;
-            const lines = input.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
-            
-            roundsData = lines.map((line) =>
-                line.split(",").map((w) => w.trim()).filter((w) => w.length > 0)
-            ).filter((r) => r.length > 0);
-
-            if (!roundsData.length) {
-                document.getElementById("round-counter").innerHTML = "STATUS: <span class='text-pink'>ERROR - NO WORDS!</span>";
-                return;
-            }
-            
-            // Auto collapse sidebar on mobile after load
-            if(window.innerWidth < 768) {
-                toggleControlPanel(true);
-            }
-            
-            currentRoundIndex = -1;
-            loadNextRound();
-        }
-
-        function loadNextRound() {
-            if (!roundsData.length) {
-                document.getElementById("round-counter").innerHTML = "STATUS: <span class='text-pink'>EMPTY</span>";
-                return;
-            }
-            loadRound(currentRoundIndex + 1);
-        }
-
-        // Toggles the control panel (Sidebar) visibility
-        // If forceHide is true, it will always hide it, regardless of current state.
-        function toggleControlPanel(forceHide = false) {
-            const controls = document.getElementById('controls');
-            
-            // Determine if we should hide the panel
-            const isCurrentlyHidden = window.innerWidth >= 768 
-                ? controls.classList.contains('hidden-panel-desktop')
-                : controls.classList.contains('hidden-panel-mobile');
-
-            if(forceHide || !isCurrentlyHidden) {
-                // Hide
-                controls.classList.add('hidden-panel-mobile', 'hidden-panel-desktop');
-            } else {
-                // Show
-                controls.classList.remove('hidden-panel-mobile', 'hidden-panel-desktop');
-            }
-            
-            // Trigger resize for canvas calculation after the transition (300ms)
-            setTimeout(() => window.dispatchEvent(new Event('resize')), 350);
-        }
-
-        window.addEventListener('resize', () => {
-             // Ensure panels adapt correctly on breakpoint changes
-             const controls = document.getElementById('controls');
-             // If desktop view is active and we resize, ensure desktop class handles visibility
-             if(window.innerWidth >= 768) {
-                 controls.classList.remove('hidden-panel-mobile'); // Clean up mobile class
-                 // If the panel is meant to be hidden, the desktop class will handle it
-             } else {
-                 controls.classList.remove('hidden-panel-desktop'); // Clean up desktop class
-                 // If the panel is meant to be hidden, the mobile class will handle it
-             }
-        });
-
-        function init() {
-            loadWords();
-            wordInput.addEventListener('input', (e) => saveWords(e.target.value));
-            
-            // Initialize speed display
-            const initialSpeed = document.getElementById('speed-slider').value;
-            updateSpeed(initialSpeed);
-            
-            lucide.createIcons();
-            
-            // Initial hide of the panel on load if on mobile (default state)
-            if(window.innerWidth < 768) {
-                toggleControlPanel(true);
-            }
-        }
-        
-        init();
-    </script>
+    <script src="script.js"></script>
 </body>
 </html>
