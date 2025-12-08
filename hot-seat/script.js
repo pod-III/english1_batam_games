@@ -300,6 +300,10 @@ function startGame() {
     document.getElementById('score-display').innerText = '0';
     document.getElementById('score-display-mobile').innerText = '0';
 
+    // FIX: Ensure result view is hidden if restarting from there
+    document.getElementById('view-result').classList.remove('view-visible');
+    document.getElementById('view-result').classList.add('view-hidden');
+
     switchView('view-setup', 'view-game');
     document.getElementById('mode-badge').innerText = gameMode === 'classic' ? 'Classic Run' : 'Quick Fire';
     document.getElementById('bg-pulse').className = "absolute inset-0 z-0 transition-colors duration-200 pointer-events-none";
