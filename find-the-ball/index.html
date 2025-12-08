@@ -268,6 +268,34 @@
         input[type=range]::-webkit-slider-runnable-track {
             width: 100%; height: 10px; background: #e2e8f0; border: 2px solid #1e293b; border-radius: 99px;
         }
+
+        /* Cup Selectors in Setup Modal - for visual cue on dropdown */
+        .image-preview-btn {
+            width: 60px;
+            height: 60px;
+            padding: 5px;
+            border: 3px solid #1e293b;
+            border-radius: 12px;
+            background-color: #f1f5f9;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .image-preview-btn:hover:not(.selected) {
+            transform: scale(1.05);
+            box-shadow: 2px 2px 0 #1e293b;
+        }
+        .image-preview-btn.selected {
+            border: 5px solid #2979FF; /* Blue border for selection */
+            transform: scale(1.1);
+            box-shadow: 0 0 10px rgba(41, 121, 255, 0.5);
+        }
+        .image-preview-btn img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            pointer-events: none;
+            filter: drop-shadow(0 4px 4px rgba(30, 41, 59, 0.1));
+        }
+
     </style>
 </head>
 <body class="h-screen w-screen flex flex-col items-center justify-center p-2 md:p-6 overflow-hidden">
@@ -388,6 +416,15 @@
             </div>
 
             <div class="p-6 overflow-y-auto custom-scrollbar space-y-6">
+                
+                <!-- NEW: Cup Style Selector -->
+                <div class="pb-4 border-b border-slate-200">
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 block">Select Cup Style (for all cups)</label>
+                    <div id="cup-style-selector" class="flex flex-wrap gap-3 justify-center">
+                        <!-- Cup buttons injected here by UI.refreshSetup -->
+                    </div>
+                </div>
+
                 <!-- Counters -->
                 <div class="grid grid-cols-2 gap-4">
                     <div class="bg-white p-3 md:p-4 rounded-2xl border-2 border-dark shadow-hard-sm">
@@ -408,7 +445,7 @@
                     </div>
                 </div>
 
-                <!-- Config Inputs -->
+                <!-- Config Inputs (Now simplified) -->
                 <div>
                     <div class="flex justify-between items-end mb-2">
                         <label class="text-xs font-bold text-slate-400 uppercase tracking-wider">Cup Configuration</label>
@@ -475,7 +512,22 @@
             ballCount: 1,
             shuffleSpeed: 500,
             shuffleMoves: 10,
-            cupSvgPlaceholder: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMzM0MTU1IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0xNyA4aC03LjJMNyAxOGgxMmwzLjhCbzgiLz48cGF0aCBkPSJNNiA4di0yYTIgMiAwIDAgMSAyLTJoOGEyIDIgMCAwIDEgMiAydjIiLz48L3N2Zz4=', // Kept for safety, though removed from HTML
+            
+            // GLOBAL CUP STATE: The index of the image currently selected for all cups
+            selectedCupImageIndex: 1, 
+            
+            // Array for image indices (1 to 7)
+            availableCupImages: [1, 2, 3, 4, 5, 6], 
+            
+            // Helper function to generate the path
+            getCupImagePath: (index) => `./cups/cup-${index}.png`,
+            
+            // Placeholder URL with color coding for onerror
+            getPlaceholderUrl: (index) => {
+                const colors = ['FF6B95', '2979FF', '00E676', 'FF8C42', 'A78BFA', '06B6D4'];
+                const color = colors[(index - 1) % colors.length];
+                return `https://placehold.co/140x200/${color}/FFFFFF/png?text=Cup+${index}`;
+            },
 
             init: () => {
                 Game.generateCups(3);
@@ -512,9 +564,18 @@
                         role: i === 0 ? 'Verb' : (i === 1 ? 'Adjective' : 'Noun'),
                         hasBall: false,
                         pos: i
+                        // cupImageIndex removed from per-cup state
                     });
                 }
                 Game.cupCount = n;
+            },
+            
+            // NEW: Function to update the selected cup image
+            updateSelectedCupImage: (index) => {
+                Game.selectedCupImageIndex = index;
+                UI.refreshCupSelector(index);
+                // Immediately re-render cups so the user sees the change on the stage
+                Game.renderCups();
             },
 
             renderCups: () => {
@@ -522,6 +583,7 @@
                 stage.innerHTML = '';
                 const widthPct = 100 / Game.cupCount;
                 const isSmall = Game.cupCount > 4; 
+                const imageIndex = Game.selectedCupImageIndex; // Use global state
 
                 Game.cups.forEach(cup => {
                     const el = document.createElement('div');
@@ -534,8 +596,11 @@
                     el.innerHTML = `
                         <div class="ball"></div>
                         <div class="cup-body">
-                            <!-- Using the local PNG file without an explicit JS onerror handler -->
-                            <img src="./paper-cup.png" class="cup-img" alt="Cup">
+                            <!-- All cups use the globally selected image index -->
+                            <img src="${Game.getCupImagePath(imageIndex)}" 
+                                 class="cup-img" 
+                                 alt="Cup Image ${imageIndex}"
+                                 onerror="this.onerror=null; this.src='${Game.getPlaceholderUrl(imageIndex)}'; this.style.filter='none';">
                         </div>
                         <span class="cup-label">${cup.label}</span>
                     `;
@@ -554,7 +619,7 @@
                 `;
                 Game.cups.forEach((cup, idx) => {
                     // Random light colors for "sticky note" effect
-                    const colors = ['bg-pink/10 border-pink', 'bg-blue/10 border-blue', 'bg-green/10 border-green', 'bg-orange/10 border-orange', 'bg-purple-100 border-purple-300', 'bg-cyan-100 border-cyan-300'];
+                    const colors = ['bg-pink/10 border-pink', 'bg-blue/10 border-blue', 'bg-green/10 border-green', 'bg-orange/10 border-orange', 'bg-purple-100 border-purple-300', 'bg-cyan-100 border-cyan-300', 'bg-red-100 border-red-300'];
                     const style = colors[idx % colors.length];
                     
                     container.innerHTML += `
@@ -733,12 +798,21 @@
                 if(type === 'cups') {
                     let n = Game.cupCount + dir;
                     if(n < 2) n = 2; if(n > 6) n = 6;
-                    const oldData = Game.cups.map(c => ({ label: c.label, role: c.role }));
+                    
+                    const oldData = Game.cups.map(c => ({ label: c.label, role: c.role })); // No image index needed
                     Game.cupCount = n;
                     Game.generateCups(n);
+                    
                     if(Game.ballCount >= n) Game.ballCount = n - 1;
                     if(Game.ballCount < 1) Game.ballCount = 1;
-                    Game.cups.forEach((c, i) => { if(oldData[i]) { c.label = oldData[i].label; c.role = oldData[i].role; } });
+                    
+                    // Preserve old settings if available
+                    Game.cups.forEach((c, i) => { 
+                        if(oldData[i]) { 
+                            c.label = oldData[i].label; 
+                            c.role = oldData[i].role; 
+                        } 
+                    });
                 }
                 if(type === 'balls') {
                     let n = Game.ballCount + dir;
@@ -750,16 +824,23 @@
 
             saveSettings: () => {
                 const container = document.getElementById('label-container');
+                
+                // 1. Cup Image Index is already saved in Game.selectedCupImageIndex via UI.refreshCupSelector/Game.updateSelectedCupImage
+                
+                // 2. Save Label
                 container.querySelectorAll('.label-input').forEach(input => {
                     const id = parseInt(input.dataset.id);
                     const cup = Game.cups.find(c => c.id === id);
                     if(cup) cup.label = input.value || `Cup ${id+1}`;
                 });
+                
+                // 3. Save Role
                 container.querySelectorAll('.role-input').forEach(input => {
                     const id = parseInt(input.dataset.id);
                     const cup = Game.cups.find(c => c.id === id);
                     if(cup) cup.role = input.value || `Concept`; 
                 });
+                
                 Game.renderCups();
                 Game.renderRoleLegend();
                 Game.resetRound();
@@ -772,15 +853,47 @@
         const UI = {
             openSetup: () => { document.getElementById('setup-modal').classList.remove('hidden'); UI.refreshSetup(); },
             closeSetup: () => { document.getElementById('setup-modal').classList.add('hidden'); },
+            
+            // New function to update only the visual state of the selector
+            refreshCupSelector: (selectedIndex) => {
+                const container = document.getElementById('cup-style-selector');
+                container.querySelectorAll('.image-preview-btn').forEach(btn => {
+                    const index = parseInt(btn.dataset.index);
+                    btn.classList.toggle('selected', index === selectedIndex);
+                });
+            },
+
             refreshSetup: () => {
                 document.getElementById('cup-count-val').innerText = Game.cupCount;
                 document.getElementById('ball-count-val').innerText = Game.ballCount;
+                
                 const container = document.getElementById('label-container');
                 container.innerHTML = '';
+                
+                // Render Cup Style Selector Panel
+                const selectorContainer = document.getElementById('cup-style-selector');
+                selectorContainer.innerHTML = '';
+                
+                Game.availableCupImages.forEach(index => {
+                    selectorContainer.innerHTML += `
+                        <button class="image-preview-btn" 
+                                data-index="${index}" 
+                                onclick="Game.updateSelectedCupImage(${index})">
+                            <img src="${Game.getCupImagePath(index)}" 
+                                 alt="Cup Style ${index}"
+                                 onerror="this.onerror=null; this.src='${Game.getPlaceholderUrl(index)}'; this.style.filter='none';">
+                        </button>
+                    `;
+                });
+                
+                UI.refreshCupSelector(Game.selectedCupImageIndex);
+
+                // Render per-cup configuration inputs
                 Game.cups.forEach(c => {
                     container.innerHTML += `
                         <div class="flex items-center gap-2 bg-white p-3 rounded-xl border-2 border-slate-100 shadow-sm">
                             <div class="w-8 h-8 rounded-full bg-slate-100 border border-slate-300 flex items-center justify-center font-bold text-slate-500 text-xs shadow-sm">${c.id+1}</div>
+                            
                             <input type="text" class="label-input flex-1 bg-transparent border-b-2 border-slate-100 p-1 text-sm font-bold text-dark focus:border-blue outline-none transition-colors" 
                                 data-id="${c.id}" value="${c.label}" placeholder="Label">
                             <input type="text" class="role-input w-28 bg-yellow-50 border border-yellow-200 rounded-lg p-1.5 text-xs text-center font-bold text-dark focus:border-orange outline-none shadow-sm" 
