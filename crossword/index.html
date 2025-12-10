@@ -3,18 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Crossword Creator | English 1 Batam</title>
+    <title>Crossword | English 1 Batam</title>
     
-    <!-- Icons -->
+    <!-- Icons & Libraries -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    
-    <!-- Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;800&family=JetBrains+Mono:wght@500;800&display=swap" rel="stylesheet">
+
     <script>
         tailwind.config = {
-            darkMode: 'class',
             theme: {
                 extend: {
                     colors: {
@@ -22,25 +24,25 @@
                         orange: '#FF8C42',
                         green: '#00E676',
                         blue: '#2979FF',
-                        dark: '#0f172a',
-                        panel: '#1e293b',
-                        surface: '#334155'
+                        dark: '#1e293b', 
+                        surface: '#FFFFFF',
+                        border: '#cbd5e1',
                     },
                     fontFamily: {
-                        heading: ['Bebas Neue', 'sans-serif'],
+                        heading: ['Fredoka', 'sans-serif'], 
                         body: ['Nunito', 'sans-serif'],
                         mono: ['JetBrains Mono', 'monospace'],
                     },
+                    boxShadow: {
+                        'hard': '4px 4px 0px 0px rgba(30, 41, 59, 1)',
+                        'hard-md': '6px 6px 0px 0px rgba(30, 41, 59, 1)',
+                        'hard-sm': '2px 2px 0px 0px rgba(30, 41, 59, 1)',
+                        'inner-hard': 'inset 2px 2px 0px 0px rgba(30, 41, 59, 0.1)',
+                    },
                     animation: {
-                        'pop': 'pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
                         'shake': 'shake 0.4s cubic-bezier(.36,.07,.19,.97) both',
-                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                     },
                     keyframes: {
-                        pop: {
-                            '0%': { transform: 'scale(0.8)', opacity: '0.8' },
-                            '100%': { transform: 'scale(1)', opacity: '1' },
-                        },
                         shake: {
                             '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
                             '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
@@ -52,359 +54,386 @@
             }
         }
     </script>
-    
-    <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;700&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
 
     <style>
         body { 
             font-family: 'Nunito', sans-serif;
-            background-color: #0f172a;
+            background-color: #F8FAFC;
+            /* Neo-Brutalism Graph Paper */
             background-image: 
-                radial-gradient(at 0% 0%, rgba(41, 121, 255, 0.15) 0px, transparent 50%), 
-                radial-gradient(at 100% 100%, rgba(255, 107, 149, 0.1) 0px, transparent 50%);
-            background-attachment: fixed;
-            color: white;
-            overflow-x: hidden;
+                linear-gradient(#E2E8F0 1px, transparent 1px),
+                linear-gradient(90deg, #E2E8F0 1px, transparent 1px);
+            background-size: 24px 24px;
+            color: #1e293b;
+            overflow: hidden; 
             -webkit-tap-highlight-color: transparent;
+            user-select: none;
         }
 
-        /* Glassmorphism */
-        .glass-panel {
-            background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        /* --- NEO-BRUTALISM COMPONENTS --- */
+        .game-console {
+            background: #FFFFFF;
+            border: 6px solid #1e293b;
+            border-radius: 2rem;
+            box-shadow: 14px 14px 0px rgba(30, 41, 59, 0.15);
+            display: flex;
+            overflow: hidden;
+            transition: transform 0.2s;
         }
 
-        /* Grid System */
+        .btn-chunky {
+            transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateY(0);
+            position: relative;
+            border: 3px solid #1e293b;
+            box-shadow: 0 4px 0 #1e293b;
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .btn-chunky:active:not(:disabled) {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #1e293b !important;
+            border-bottom-width: 3px;
+        }
+
+        /* --- CROSSWORD GRID STYLES --- */
         #crossword-container {
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            scrollbar-width: thin;
-            scrollbar-color: #2979FF #1e293b;
-            padding: 20px;
             display: flex;
             align-items: center; 
             justify-content: center;
-            background: rgba(0,0,0,0.2);
+            overflow: auto;
             border-radius: 12px;
-            border: 1px solid rgba(255,255,255,0.05);
-        }
-
-        #crossword-grid {
-            display: grid;
-            gap: 4px; 
-            background: transparent;
-            margin: auto;
-            transform-origin: center center;
-            transition: transform 0.2s ease;
         }
 
         .cw-cell {
             position: relative;
             background: transparent;
-            min-width: 55px; 
-            min-height: 55px;
-            width: 55px;
-            height: 55px;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 8px;
             transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            user-select: none;
         }
 
-        /* Empty Cell */
-        .cw-cell.empty { opacity: 0; pointer-events: none; }
-
-        /* Active Letter Cell */
+        /* Filled Cell (Active Letter) */
         .cw-cell.filled {
-            background: #1e293b;
-            border: 2px solid rgba(255,255,255,0.1);
+            background: white;
+            border: 3px solid #1e293b;
+            border-radius: 8px; /* Slightly rounded */
             cursor: pointer;
-            box-shadow: 0 4px 0 rgba(0,0,0,0.2);
-        }
-        
-        /* Locked (Correct) Cell */
-        .cw-cell.locked {
-            background: #00E676 !important;
-            border-color: #00E676 !important;
-            box-shadow: none !important;
-            transform: scale(1);
-        }
-        .cw-cell.locked input { color: #004d26; pointer-events: none; }
-
-        /* The Input Box */
-        .cw-cell input {
-            width: 100%;
-            height: 100%;
-            background: transparent;
-            border: none;
-            text-align: center;
-            color: white;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 1.8rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            padding: 0;
-            outline: none;
-            z-index: 2;
-            cursor: pointer;
-            caret-color: #2979FF;
-            text-shadow: 0 2px 0 rgba(0,0,0,0.3);
+            box-shadow: 4px 4px 0px rgba(30,41,59,0.2);
+            touch-action: manipulation; /* Improves touch responsiveness */
         }
 
-        /* Small number in corner */
-        .cw-number {
-            position: absolute;
-            top: 2px;
-            left: 4px;
-            font-size: 0.75rem;
-            color: rgba(255,255,255,0.4);
-            font-family: 'Nunito', sans-serif;
-            z-index: 1;
-            pointer-events: none;
-            font-weight: bold;
+        .cw-cell.filled:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 6px 6px 0px rgba(30,41,59,0.2);
         }
 
-        /* --- STATE STYLES --- */
-        .cw-cell.word-highlight {
-            background: rgba(41, 121, 255, 0.15) !important;
-            border-color: rgba(41, 121, 255, 0.4) !important;
+        /* Focused Cell */
+        .cw-cell.cell-focused {
+            background: #2979FF !important;
+            border-color: #1e293b !important;
+            transform: scale(1.15) !important;
+            z-index: 10;
+            box-shadow: 8px 8px 0px rgba(30,41,59,0.4);
+        }
+        .cw-cell.cell-focused input { color: white; }
+        .cw-cell.cell-focused .cw-number { color: rgba(255,255,255,0.7); }
+
+        /* Highlighted Word (Related to focus) */
+        .cw-cell.word-highlight:not(.cell-focused) {
+            background: #E0F2FE !important; /* Light Blue */
             transform: scale(1.05);
             z-index: 5;
         }
 
-        .cw-cell.cell-focused {
-            background: #2979FF !important;
-            border-color: #2979FF !important;
-            transform: scale(1.15);
-            z-index: 10;
-            box-shadow: 0 10px 25px rgba(41, 121, 255, 0.5);
+        /* Locked/Correct Cell */
+        .cw-cell.locked {
+            background: #00E676 !important;
+            border-color: #1e293b !important;
+            transform: scale(1) !important;
+            box-shadow: 2px 2px 0px rgba(30,41,59,0.1) !important;
+        }
+        .cw-cell.locked input { color: #00442a; pointer-events: none; }
+
+        /* Error State */
+        .cw-cell.error { animation: shake 0.4s; background: #FF6B95 !important; }
+
+        /* Inputs */
+        .cw-cell input {
+            width: 100%; height: 100%;
+            background: transparent; border: none;
+            text-align: center; color: #1e293b;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.5rem; font-weight: 800;
+            text-transform: uppercase; padding: 0; outline: none;
+            cursor: pointer; caret-color: transparent;
         }
 
-        .cw-cell.error { animation: shake 0.4s; background: #FF6B95 !important; border-color: #FF6B95 !important; }
-        .cw-cell.reveal input { color: #FF6B95; }
+        .cw-number {
+            position: absolute; top: 2px; left: 4px;
+            font-size: 0.7rem; color: #94a3b8;
+            font-family: 'Nunito', sans-serif; font-weight: 800;
+            pointer-events: none;
+        }
 
-        /* Clue List */
+        /* --- CLUE LIST STYLES --- */
         .clue-item {
-            cursor: pointer;
+            cursor: pointer; padding: 8px 12px;
+            border-radius: 8px; border: 2px solid transparent;
+            font-size: 0.9rem; margin-bottom: 4px;
             transition: all 0.2s;
-            padding: 10px 14px;
-            border-radius: 8px;
-            border-left: 4px solid transparent;
-            font-size: 1rem;
-            margin-bottom: 6px;
-            background: rgba(255,255,255,0.02);
+            color: #475569;
         }
-        .clue-item:hover { background: rgba(255,255,255,0.05); }
+        .clue-item:hover { background: #F1F5F9; }
+        
         .clue-item.active { 
-            background: rgba(41, 121, 255, 0.15); 
-            color: white; 
-            border-left-color: #2979FF;
+            background: #2979FF; color: white; 
+            border: 2px solid #1e293b;
+            box-shadow: 4px 4px 0px rgba(30,41,59,0.2);
             font-weight: bold;
+            transform: translateX(4px);
         }
-        .clue-item.solved { opacity: 0.4; text-decoration: line-through; pointer-events: none; }
+        .clue-item.solved { opacity: 0.5; text-decoration: line-through; pointer-events: none; }
+
+        /* --- UTILS --- */
+        textarea {
+            /* Graph paper style inside text area */
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 10px 10px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar { height: 6px; width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .custom-scrollbar { scrollbar-color: #cbd5e1 transparent; }
+
+        /* Mobile Panel Toggle */
+        .hidden-panel-mobile { transform: translateY(100%); border-bottom-width: 0 !important; }
+        @media (min-width: 768px) {
+            .hidden-panel-desktop { margin-left: -24rem; border-right-width: 0 !important; }
+        }
 
         /* --- PRINT STYLES --- */
         @media print {
-            body { background: white; color: black; background-image: none; padding: 0; font-size: 11pt; }
-            .no-print { display: none !important; }
-            .print-only { display: block !important; }
+            body { background: white; padding: 0; overflow: visible; }
+            .no-print, .game-console, #controls, header { display: none !important; }
             
-            #game-container { box-shadow: none; border: none; background: none; display: block; }
-            #crossword-container { background: none; border: none; overflow: visible; display: block; width: 100%; padding: 0; }
-            #crossword-grid { width: 100% !important; transform: none !important; margin-bottom: 30px; gap: 0; border: 2px solid black; }
+            #print-area { display: block !important; width: 100%; height: 100%; }
+            
+            .print-grid { 
+                display: grid !important; 
+                border: 2px solid black; 
+                margin: 0 auto 30px auto; 
+                gap: 0 !important;
+            }
             
             .cw-cell.filled {
                 background: white !important;
                 border: 1px solid black !important;
                 border-radius: 0 !important;
                 box-shadow: none !important;
-                min-width: 40px; min-height: 40px; width: 40px; height: 40px;
+                width: 40px !important; height: 40px !important;
+                min-width: 40px !important; min-height: 40px !important;
                 transform: none !important;
             }
-            .cw-cell input { color: transparent; font-size: 16pt; }
-            .cw-number { color: black; font-weight: bold; font-size: 9pt; top: 1px; left: 2px; }
+            .cw-cell input { color: transparent; }
+            .cw-number { color: black; font-size: 8pt; top: 1px; left: 1px; }
 
-            .cw-cell.reveal-print input { color: black !important; font-weight: bold; }
-            
-            .clue-section { border: none !important; background: none !important; padding: 0 !important; page-break-inside: avoid; }
-            .clue-item { color: black !important; padding: 2px 0; border: none; font-size: 12pt; background: none !important; }
-            h3 { color: black !important; border-bottom: 2px solid black; margin-top: 20px; }
-            
             .print-columns { column-count: 2; column-gap: 40px; }
+            .print-clue { font-size: 12pt; margin-bottom: 5px; color: black; }
         }
     </style>
 </head>
-<body class="flex flex-col min-h-screen">
+<body class="h-screen w-screen flex flex-col items-center justify-center p-2 md:p-6">
 
-    <!-- Navbar -->
-    <header class="w-full glass-panel border-b border-white/10 sticky top-0 z-50 no-print">
-        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="bg-gradient-to-br from-blue to-pink w-10 h-10 rounded-lg flex items-center justify-center text-xl shadow-lg">
-                    <i data-lucide="pen-tool" class="text-white w-6 h-6"></i>
-                </div>
+    <!-- MAIN CONSOLE -->
+    <div class="game-console w-full h-full relative flex-col md:flex-row">
+        
+        <!-- SIDEBAR: CONTROLS (Setup) -->
+        <aside id="controls" class="w-full md:w-96 bg-white border-b-4 md:border-b-0 md:border-r-4 border-dark flex flex-col z-50 transition-all duration-300 shadow-xl md:shadow-none h-[50%] md:h-full relative shrink-0">
+            
+            <!-- Header -->
+            <div class="p-5 border-b-4 border-dark bg-yellow-50 flex justify-between items-center">
                 <div>
-                    <h1 class="text-2xl font-heading tracking-wider text-white leading-none">CROSSWORD</h1>
-                    <div class="text-[10px] font-mono text-gray-400 tracking-widest">ENGLISH 1 BATAM</div>
+                    <h1 class="text-2xl font-heading text-dark tracking-wide leading-none">
+                        CROSS<span class="text-blue">CREATOR</span>
+                    </h1>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">English 1 Batam</p>
                 </div>
+                <!-- Mobile Hide Button -->
+                <button onclick="toggleControlPanel(true)" class="md:hidden p-2 bg-pink/20 text-pink border-2 border-dark rounded-lg shadow-hard-sm active:translate-y-1 active:shadow-none transition-all">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
             </div>
 
-            <div class="flex items-center gap-3">
-                <button id="solution-btn" class="p-2 rounded-full hover:bg-white/10 transition-colors text-orange" title="Reveal Solution">
+            <!-- Scrollable Content -->
+            <div class="flex-1 p-5 overflow-y-auto custom-scrollbar space-y-5 bg-white">
+                
+                <!-- Density Controls -->
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-widest">Grid Density</label>
+                    <div class="flex gap-2">
+                         <!-- Default to 15x15 -->
+                         <button class="grid-btn flex-1 py-2 border-2 border-dark rounded-lg font-bold text-xs bg-slate-100 text-slate-400 hover:bg-white" data-size="12">12x12</button>
+                         <button class="grid-btn flex-1 py-2 border-2 border-dark rounded-lg font-bold text-xs bg-blue text-white shadow-hard-sm" data-size="15">15x15</button>
+                         <button class="grid-btn flex-1 py-2 border-2 border-dark rounded-lg font-bold text-xs bg-slate-100 text-slate-400 hover:bg-white" data-size="18">18x18</button>
+                    </div>
+                </div>
+
+                <!-- Word Input -->
+                <div class="space-y-2 flex-1 flex flex-col">
+                    <div class="flex justify-between items-end">
+                        <label class="text-xs font-bold text-slate-400 uppercase tracking-widest">Words & Clues (WORD : CLUE)</label>
+                        <span class="text-[10px] bg-green/10 text-green-600 px-2 py-0.5 rounded border border-green/20 font-bold">Auto-Saved</span>
+                    </div>
+                    <textarea id="word-input" spellcheck="false"
+                        class="w-full h-48 p-4 bg-slate-50 text-dark font-mono text-sm border-2 border-dark rounded-xl focus:border-blue focus:ring-0 outline-none resize-none shadow-inner-hard"
+                        placeholder="CAT : A small pet&#10;DOG : A loyal friend"
+                    ></textarea>
+                </div>
+
+                <!-- Generate Button -->
+                <button id="generate-btn" 
+                    class="w-full btn-chunky bg-green text-dark py-3 rounded-xl text-xl tracking-wide flex items-center justify-center gap-2 hover:brightness-105">
+                    <i data-lucide="layout-grid" class="w-5 h-5"></i> BUILD PUZZLE
+                </button>
+                
+                <!-- Presets -->
+                <div class="pt-4 border-t-2 border-dashed border-slate-300">
+                     <label class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Quick Presets</label>
+                     <div class="flex gap-2 flex-wrap">
+                        <button class="preset-btn px-3 py-1 bg-white border-2 border-dark rounded-full text-xs font-bold shadow-hard-sm hover:translate-y-[-1px] active:translate-y-[4px] active:shadow-none transition-all" 
+                            data-text="TEACHER : The person who teaches&#10;STUDENT : The person who learns&#10;PENCIL : Used for writing&#10;ERASER : Removes pencil marks&#10;BOOK : Has pages to read">
+                            Classroom
+                        </button>
+                        <button class="preset-btn px-3 py-1 bg-white border-2 border-dark rounded-full text-xs font-bold shadow-hard-sm hover:translate-y-[-1px] active:translate-y-[4px] active:shadow-none transition-all" 
+                            data-text="RED : The color of fire&#10;BLUE : The color of the sky&#10;GREEN : The color of grass&#10;YELLOW : The color of the sun">
+                            Colors
+                        </button>
+                        <button class="preset-btn px-3 py-1 bg-white border-2 border-dark rounded-full text-xs font-bold shadow-hard-sm hover:translate-y-[-1px] active:translate-y-[4px] active:shadow-none transition-all" 
+                            data-text="SUN : Big star in the day&#10;MOON : Appears at night&#10;STAR : Small light in the sky&#10;CLOUD : Holds the rain&#10;RAINBOW : Colors after rain">
+                            Nature
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Footer Actions: Only Print button remains -->
+            <div class="p-3 border-t-4 border-dark bg-slate-100 flex gap-2">
+                 <button onclick="window.print()" class="w-full btn-chunky bg-white text-dark py-2 rounded-lg text-sm border-2 border-dark flex items-center justify-center gap-2 hover:brightness-95">
+                    <i data-lucide="printer" class="w-4 h-4"></i> PRINT
+                 </button>
+            </div>
+        </aside>
+
+        <!-- MAIN DISPLAY AREA -->
+        <main class="flex-1 relative h-[50%] md:h-full bg-slate-50 flex flex-col lg:flex-row overflow-hidden group">
+            
+            <!-- Subtle Grid Background -->
+            <div class="absolute inset-0 opacity-10 pointer-events-none" 
+                 style="background-image: radial-gradient(#1e293b 2px, transparent 2px); background-size: 24px 24px;">
+            </div>
+
+            <!-- Floating Controls (Settings and Reveal) -->
+            <div class="absolute top-4 left-4 z-20 no-print flex gap-2">
+                <!-- Settings Button -->
+                <button onclick="toggleControlPanel(false)" class="p-2 bg-white border-2 border-dark rounded-lg shadow-hard-sm hover:translate-y-[-2px] transition-transform text-slate-700 hover:text-dark" title="Open Setup Panel">
+                    <i data-lucide="settings" class="w-5 h-5"></i>
+                </button>
+                <!-- Reveal Button (NEW LOCATION) -->
+                <button id="solution-btn" class="p-2 bg-white border-2 border-dark rounded-lg shadow-hard-sm hover:translate-y-[-2px] transition-transform text-orange hover:text-dark" title="Reveal Solution">
                     <i data-lucide="eye" class="w-5 h-5"></i>
                 </button>
-                <button onclick="window.print()" class="p-2 rounded-full hover:bg-white/10 transition-colors text-blue" title="Print Worksheet">
-                    <i data-lucide="printer" class="w-5 h-5"></i>
-                </button>
-                <button id="setup-btn" class="bg-pink text-white px-4 py-2 rounded-lg font-bold text-sm tracking-wide shadow-lg hover:brightness-110 transition">
-                    SETUP
-                </button>
             </div>
-        </div>
-    </header>
-
-    <!-- Print Header -->
-    <div class="print-only hidden w-full max-w-4xl mx-auto p-8 mb-4">
-        <div class="text-center mb-8 border-b-2 border-black pb-4">
-            <h1 class="text-4xl font-bold uppercase mb-2">Crossword Puzzle</h1>
-        </div>
-        <div class="flex justify-between text-lg mb-4">
-            <div>Name: <span class="border-b border-black w-48 inline-block"></span></div>
-            <div>Date: <span class="border-b border-black w-48 inline-block"></span></div>
-        </div>
-        <div class="flex justify-between text-lg mb-8">
-            <div>Class: <span class="border-b border-black w-48 inline-block"></span></div>
-            <div>Score: <span class="border-b border-black w-24 inline-block"></span></div>
-        </div>
-    </div>
-
-    <!-- Main Content -->
-    <main class="flex-grow p-4 md:p-8 flex justify-center h-full">
-        <div id="game-container" class="glass-panel w-full max-w-[1600px] rounded-2xl p-6 flex flex-col lg:flex-row gap-8 transition-opacity duration-500 min-h-[700px]">
             
-            <!-- Left: Grid Area -->
-            <div class="flex-[2] flex flex-col h-full min-h-[600px] relative">
-                <!-- Zoom Controls -->
-                <div class="flex justify-between items-center mb-4 px-2 no-print z-10">
-                    <div class="text-sm font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                        <i data-lucide="move" class="w-4 h-4"></i> Puzzle Grid
-                    </div>
-                    <div class="flex items-center gap-2 bg-black/20 rounded-lg p-1">
-                        <button id="zoom-out" class="p-2 hover:bg-white/10 rounded-md text-gray-300"><i data-lucide="minus" class="w-4 h-4"></i></button>
-                        <span class="text-xs font-mono text-gray-400 w-12 text-center">ZOOM</span>
-                        <button id="zoom-in" class="p-2 hover:bg-white/10 rounded-md text-gray-300"><i data-lucide="plus" class="w-4 h-4"></i></button>
+            <!-- Puzzle Grid Area -->
+            <div class="flex-1 h-full relative flex items-center justify-center p-4 overflow-hidden">
+                <div id="crossword-container" class="relative z-10 max-w-full max-h-full">
+                    <div id="crossword-grid" class="grid gap-1 transform transition-transform duration-200">
+                        <!-- Initial Empty State -->
+                        <div class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 opacity-50 pointer-events-none">
+                            <i data-lucide="arrow-left" class="w-12 h-12 mb-2 hidden md:block"></i>
+                            <i data-lucide="arrow-up" class="w-12 h-12 mb-2 md:hidden"></i>
+                            <p class="font-heading text-xl">Build a puzzle to start</p>
+                            <p class="text-xs font-mono mt-1">Press BUILD PUZZLE on the left.</p>
+                        </div>
                     </div>
                 </div>
+                
+                <!-- Zoom Controls -->
+                <div class="absolute bottom-4 right-4 z-20 flex gap-2 no-print">
+                    <button id="zoom-out" class="p-2 bg-white border-2 border-dark rounded-lg shadow-hard-sm hover:bg-slate-50 active:translate-y-1 active:shadow-none"><i data-lucide="minus" class="w-4 h-4"></i></button>
+                    <button id="zoom-in" class="p-2 bg-white border-2 border-dark rounded-lg shadow-hard-sm hover:bg-slate-50 active:translate-y-1 active:shadow-none"><i data-lucide="plus" class="w-4 h-4"></i></button>
+                </div>
+            </div>
 
-                <!-- Grid Container -->
-                <div id="crossword-container" class="flex-1 relative">
-                    <div id="crossword-grid">
-                         <!-- Empty State -->
-                         <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center text-gray-400">
-                            <i data-lucide="layout-grid" class="w-20 h-20 opacity-20 mb-4"></i>
-                            <p class="text-xl font-bold">No puzzle active.</p>
-                            <button onclick="document.getElementById('setup-btn').click()" class="text-blue hover:text-white underline mt-2 font-bold">Create New Puzzle</button>
+            <!-- Clues Panel (Right Side) -->
+            <div class="w-full lg:w-80 h-1/3 lg:h-full bg-white border-t-4 lg:border-t-0 lg:border-l-4 border-dark flex flex-col z-10 shadow-xl lg:shadow-none shrink-0">
+                <div class="p-3 bg-blue border-b-4 border-dark text-white font-heading text-lg tracking-wide flex items-center gap-2">
+                    <i data-lucide="list" class="w-5 h-5"></i> CLUES
+                </div>
+                <div class="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-6">
+                    <div>
+                        <h3 class="font-heading text-blue text-xl mb-2 flex items-center gap-2">
+                            <i data-lucide="arrow-right" class="w-5 h-5"></i> ACROSS
+                        </h3>
+                        <div id="clues-across" class="space-y-1">
+                            <p class="text-slate-400 text-sm">No words placed yet.</p>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="font-heading text-pink text-xl mb-2 flex items-center gap-2">
+                            <i data-lucide="arrow-down" class="w-5 h-5"></i> DOWN
+                        </h3>
+                        <div id="clues-down" class="space-y-1">
+                            <p class="text-slate-400 text-sm">No words placed yet.</p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Right: Clues -->
-            <div class="w-full lg:w-[400px] flex flex-col gap-4 h-auto lg:h-full overflow-hidden print-columns">
-                
-                <!-- Across -->
-                <div class="clue-section bg-surface/20 p-5 rounded-xl border border-white/5 flex flex-col flex-1 min-h-[250px]">
-                    <h3 class="text-blue font-bold uppercase tracking-wider mb-2 border-b border-white/10 pb-2 flex items-center gap-2 sticky top-0 bg-transparent text-lg">
-                        <i data-lucide="arrow-right" class="w-5 h-5"></i> Across
-                    </h3>
-                    <div id="clues-across" class="space-y-1 text-sm text-gray-300 overflow-y-auto pr-2 custom-scrollbar flex-1">
-                        <!-- Clues injected here -->
-                    </div>
-                </div>
+        </main>
+    </div>
 
-                <!-- Down -->
-                <div class="clue-section bg-surface/20 p-5 rounded-xl border border-white/5 flex flex-col flex-1 min-h-[250px]">
-                    <h3 class="text-pink font-bold uppercase tracking-wider mb-2 border-b border-white/10 pb-2 flex items-center gap-2 sticky top-0 bg-transparent text-lg">
-                        <i data-lucide="arrow-down" class="w-5 h-5"></i> Down
-                    </h3>
-                    <div id="clues-down" class="space-y-1 text-sm text-gray-300 overflow-y-auto pr-2 custom-scrollbar flex-1">
-                        <!-- Clues injected here -->
-                    </div>
-                </div>
-
-            </div>
-
+    <!-- PRINT LAYOUT (Hidden unless printing) -->
+    <div id="print-area" class="hidden">
+        <div class="text-center mb-8 border-b-2 border-black pb-4">
+            <h1 class="text-4xl font-bold uppercase mb-2">Crossword Puzzle</h1>
+            <div class="text-lg">English 1 Batam</div>
         </div>
-    </main>
-
-    <!-- SETUP MODAL -->
-    <div id="setup-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-pop">
-        <div class="glass-panel w-full max-w-xl rounded-2xl flex flex-col max-h-[90vh]">
-            <div class="p-6 border-b border-white/10 flex justify-between items-center bg-black/20">
-                <h2 class="text-2xl font-heading text-white tracking-wide">PUZZLE SETUP</h2>
-                <button id="close-setup" class="text-gray-400 hover:text-white transition"><i data-lucide="x" class="w-6 h-6"></i></button>
+        <div class="flex justify-between text-lg mb-4">
+            <div>Name: <span class="border-b border-black w-48 inline-block"></span></div>
+            <div>Date: <span class="border-b border-black w-48 inline-block"></span></div>
+        </div>
+        <!-- Grid and Clues injected here dynamically for print -->
+        <div id="print-grid-container" class="my-8"></div>
+        <div class="print-columns mt-8">
+            <div id="print-clues-across">
+                <h3 class="font-bold border-b border-black mb-2 uppercase">Across</h3>
             </div>
-            
-            <div class="p-6 overflow-y-auto space-y-6">
-                
-                <!-- Grid Size (Simplified) -->
-                <div>
-                     <label class="text-xs font-bold text-blue uppercase tracking-widest mb-2 block">Grid Density</label>
-                     <div class="flex gap-2">
-                         <button class="grid-btn px-4 py-2 bg-blue text-white rounded-lg font-bold text-xs shadow-lg" data-size="12">Compact (12x12)</button>
-                         <button class="grid-btn px-4 py-2 bg-surface text-gray-400 rounded-lg font-bold text-xs" data-size="15">Standard (15x15)</button>
-                         <button class="grid-btn px-4 py-2 bg-surface text-gray-400 rounded-lg font-bold text-xs" data-size="18">Large (18x18)</button>
-                     </div>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Word List (WORD : CLUE) (Auto-Saved)</label>
-                    <textarea id="word-input" 
-                        class="w-full h-48 bg-dark border border-white/10 rounded-xl p-4 font-mono text-sm text-white focus:border-pink focus:ring-1 focus:ring-pink outline-none resize-none placeholder-gray-600" 
-                        placeholder="CAT : A small pet&#10;DOG : A loyal friend"></textarea>
-                </div>
-                
-                <!-- Presets -->
-                <div>
-                     <label class="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 block">Quick Load</label>
-                     <div class="flex gap-2 flex-wrap">
-                        <button class="preset-btn px-3 py-1 bg-surface rounded-full text-xs text-gray-300 hover:text-white border border-white/10 transition-colors" 
-                            data-text="TEACHER : The person who teaches&#10;STUDENT : The person who learns&#10;PENCIL : Used for writing&#10;ERASER : Removes pencil marks&#10;BOOK : Has pages to read&#10;DESK : Where you sit&#10;BOARD : Teacher writes on this">
-                            <i data-lucide="monitor" class="w-3 h-3 inline-block mr-1"></i> Classroom
-                        </button>
-                        <button class="preset-btn px-3 py-1 bg-surface rounded-full text-xs text-gray-300 hover:text-white border border-white/10 transition-colors" 
-                            data-text="RED : The color of fire&#10;BLUE : The color of the sky&#10;GREEN : The color of grass&#10;YELLOW : The color of the sun&#10;PURPLE : The color of grapes">
-                            <i data-lucide="palette" class="w-3 h-3 inline-block mr-1"></i> Colors
-                        </button>
-                        <button class="preset-btn px-3 py-1 bg-surface rounded-full text-xs text-gray-300 hover:text-white border border-white/10 transition-colors" 
-                            data-text="CAT : Meows and chases mice&#10;DOG : Barks and chases cats&#10;BIRD : Flies in the sky&#10;FISH : Swims in the water&#10;LION : King of the jungle">
-                            <i data-lucide="paw-print" class="w-3 h-3 inline-block mr-1"></i> Animals
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="p-6 border-t border-white/10 bg-black/20">
-                <button id="generate-btn" class="w-full bg-gradient-to-r from-blue to-pink text-white py-3 rounded-xl font-bold text-lg shadow-lg hover:brightness-110 transition-transform active:scale-95">
-                    GENERATE PUZZLE
-                </button>
+            <div id="print-clues-down" class="mt-4">
+                <h3 class="font-bold border-b border-black mb-2 uppercase">Down</h3>
             </div>
         </div>
     </div>
 
-    <!-- AUDIO & LOGIC -->
     <script>
         lucide.createIcons();
+        const LS_KEY = 'crosswordNeoWords_v3';
         
-        // --- LOCAL STORAGE KEY ---
-        const LS_KEY_WORDS = 'crosswordWordsAndClues';
+        // --- STATE ---
+        let GRID_SIZE = 15;
+        let CELL_SIZE = 45; 
+        let grid = [];
+        let words = []; 
+        let currentFocus = { r: -1, c: -1 };
+        let currentDir = 'across'; 
 
-        // --- AUDIO ENGINE ---
+        // --- AUDIO ---
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const playTone = (freq, type, duration) => {
             if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -423,145 +452,81 @@
             type: () => playTone(800, 'sine', 0.05),
             back: () => playTone(600, 'sine', 0.05),
             click: () => playTone(400, 'triangle', 0.05),
-            success: () => { 
-                playTone(500, 'sine', 0.1); 
-                setTimeout(() => playTone(1000, 'sine', 0.2), 100); 
-                setTimeout(() => playTone(1500, 'sine', 0.4), 200); 
-            },
+            success: () => { playTone(500, 'sine', 0.1); setTimeout(() => playTone(1000, 'sine', 0.2), 100); },
             error: () => playTone(150, 'sawtooth', 0.2)
         };
 
-        // --- GAME STATE ---
-        let GRID_SIZE = 12;
-        let CELL_SIZE = 55; // Larger default
-        let grid = [];
-        let words = []; 
-        let currentFocus = { r: -1, c: -1 };
-        let currentDir = 'across'; 
-
+        // --- ELEMENTS ---
         const els = {
             grid: document.getElementById('crossword-grid'),
             across: document.getElementById('clues-across'),
             down: document.getElementById('clues-down'),
             input: document.getElementById('word-input'),
-            modal: document.getElementById('setup-modal'),
-            empty: document.getElementById('empty-state'),
-            setupBtn: document.getElementById('setup-btn')
+            controls: document.getElementById('controls')
         };
 
         // --- PERSISTENCE ---
-
         function saveWords(text) {
-             try {
-                localStorage.setItem(LS_KEY_WORDS, text);
-            } catch (e) {
-                console.error("Could not save words to local storage:", e);
-            }
+             try { localStorage.setItem(LS_KEY, text); } catch (e) { console.error("Could not save words:", e); }
         }
 
         function loadWords() {
             try {
-                const savedWords = localStorage.getItem(LS_KEY_WORDS);
-                if (savedWords) {
-                    els.input.value = savedWords;
-                }
-            } catch (e) {
-                console.error("Could not load words from local storage:", e);
-            }
+                const savedWords = localStorage.getItem(LS_KEY);
+                if (savedWords) els.input.value = savedWords;
+            } catch (e) { console.error("Could not load words:", e); }
         }
 
-        // --- HANDLERS ---
-        els.setupBtn.onclick = () => els.modal.classList.remove('hidden');
-        document.getElementById('close-setup').onclick = () => els.modal.classList.add('hidden');
-        
-        // Zoom Handlers
-        document.getElementById('zoom-in').onclick = () => {
-            CELL_SIZE = Math.min(CELL_SIZE + 5, 100);
-            updateGridSize();
-        };
-        document.getElementById('zoom-out').onclick = () => {
-            CELL_SIZE = Math.max(CELL_SIZE - 5, 30);
-            updateGridSize();
-        };
+        // --- UI & UTILS ---
+        function toggleControlPanel(forceHide = false) {
+            const isHidden = window.innerWidth >= 768 
+                ? els.controls.classList.contains('hidden-panel-desktop')
+                : els.controls.classList.contains('hidden-panel-mobile');
+            
+            if(forceHide || !isHidden) els.controls.classList.add('hidden-panel-mobile', 'hidden-panel-desktop');
+            else els.controls.classList.remove('hidden-panel-mobile', 'hidden-panel-desktop');
+        }
 
         function updateGridSize() {
-            document.querySelectorAll('.cw-cell').forEach(el => {
+            document.querySelectorAll('.cw-cell.filled').forEach(el => {
                 el.style.width = `${CELL_SIZE}px`;
                 el.style.height = `${CELL_SIZE}px`;
-                el.style.minWidth = `${CELL_SIZE}px`;
-                el.style.minHeight = `${CELL_SIZE}px`;
-                
-                const fontSize = Math.max(0.8, CELL_SIZE / 30);
-                const input = el.querySelector('input');
-                if(input) input.style.fontSize = `${fontSize}rem`;
+            });
+            // Also adjust input font size for zoom effect
+            document.querySelectorAll('.cw-cell input').forEach(input => {
+                const fontSize = Math.max(1.2, CELL_SIZE / 30);
+                input.style.fontSize = `${fontSize}rem`;
+            });
+            document.querySelectorAll('.cw-number').forEach(num => {
+                const numSize = Math.max(0.6, CELL_SIZE / 60);
+                num.style.fontSize = `${numSize}rem`;
             });
         }
         
-        document.querySelectorAll('.preset-btn').forEach(b => {
-            b.onclick = () => {
-                els.input.value = b.dataset.text;
-                saveWords(b.dataset.text); // Save preset on load
-            }
-        });
-
-        document.querySelectorAll('.grid-btn').forEach(b => {
-            b.onclick = (e) => {
-                document.querySelectorAll('.grid-btn').forEach(btn => {
-                    btn.classList.remove('bg-blue', 'text-white', 'shadow-lg');
-                    btn.classList.add('bg-surface', 'text-gray-400');
-                });
-                e.target.classList.remove('bg-surface', 'text-gray-400');
-                e.target.classList.add('bg-blue', 'text-white', 'shadow-lg');
-                GRID_SIZE = parseInt(e.target.dataset.size);
-            };
-        });
-
-        document.getElementById('generate-btn').onclick = () => {
-            const lines = els.input.value.split('\n').filter(l => l.includes(':'));
-            
-            // Ensure final save before generating
-            saveWords(els.input.value); 
-
-            if(lines.length < 2) { 
-                alert("Please add at least 2 words!"); 
-                return; 
-            }
-            
-            const inputData = lines.map(l => {
-                const [w, c] = l.split(':');
-                return { word: w.trim().toUpperCase().replace(/[^A-Z]/g, ''), clue: c.trim() };
-            }).sort((a,b) => b.word.length - a.word.length);
-
-            const success = generateLayout(inputData);
-            if(success) {
-                render();
-                els.modal.classList.add('hidden');
-                els.empty.classList.add('hidden');
-                confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 }, colors: ['#2979FF', '#FF6B95'] });
-            } else {
-                alert("Could not fit all words nicely. Try increasing Grid Density to Large.");
-            }
-        };
-
-        // --- LAYOUT ENGINE (Improved Spacing) ---
+        // --- LAYOUT ENGINE (Core Logic) ---
+        
         function generateLayout(inputWords) {
             grid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(null)); 
             words = [];
-            
             const first = inputWords[0];
-            const startR = Math.floor(GRID_SIZE/2);
-            const startC = Math.floor((GRID_SIZE - first.word.length)/2);
-            placeWord(first, startR, startC, 'across');
-
-            const remaining = inputWords.slice(1);
             
-            for(let pass = 0; pass < 20; pass++) {
+            // Check if grid size can even fit the longest word
+            if (first.word.length > GRID_SIZE) {
+                console.error("Longest word is too long for the current grid size.");
+                return false; 
+            }
+
+            // Place first word centered
+            placeWord(first, Math.floor(GRID_SIZE/2), Math.floor((GRID_SIZE - first.word.length)/2), 'across');
+            
+            const remaining = inputWords.slice(1);
+            let placedCount = 0;
+
+            for(let pass = 0; pass < 50; pass++) { 
+                remaining.forEach(item => {
+                    if(!item.placed) if(tryFitWord(item)) { item.placed = true; placedCount++; }
+                });
                 if(remaining.every(w => w.placed)) break;
-                for(let i = 0; i < remaining.length; i++) {
-                    const item = remaining[i];
-                    if(item.placed) continue;
-                    if(tryFitWord(item)) item.placed = true;
-                }
             }
 
             words = words.filter(w => w.placed || w === words[0]); 
@@ -569,10 +534,9 @@
             
             let num = 1;
             words.forEach((w, i) => {
-                const existing = words.slice(0, i).find(prev => prev.row === w.row && prev.col === w.col);
+                const existing = words.slice(0, i).find(prev => prev.row === w.row && prev.col === w.col && prev.dir !== w.dir);
                 w.num = existing ? existing.num : num++;
             });
-
             return words.length >= Math.min(inputWords.length, 2); 
         }
 
@@ -591,16 +555,8 @@
                 for(let r=0; r<GRID_SIZE; r++) {
                     for(let c=0; c<GRID_SIZE; c++) {
                         if(grid[r][c] === char) {
-                            // Try Down
-                            if(checkPlacement(item.word, r - i, c, 'down')) {
-                                placeWord(item, r - i, c, 'down');
-                                return true;
-                            }
-                            // Try Across
-                            if(checkPlacement(item.word, r, c - i, 'across')) {
-                                placeWord(item, r, c - i, 'across');
-                                return true;
-                            }
+                            if(checkPlacement(item.word, r - i, c, 'down')) { placeWord(item, r - i, c, 'down'); return true; }
+                            if(checkPlacement(item.word, r, c - i, 'across')) { placeWord(item, r, c - i, 'across'); return true; }
                         }
                     }
                 }
@@ -608,85 +564,120 @@
             return false;
         }
 
-        // IMPROVED: Checks for unwanted neighbors ("Clutter check")
         function checkPlacement(word, startR, startC, dir) {
             // 1. Bounds Check
             if(startR < 0 || startC < 0) return false;
             if(dir === 'across' && startC + word.length > GRID_SIZE) return false;
             if(dir === 'down' && startR + word.length > GRID_SIZE) return false;
 
-            // 2. Overlap & Neighbor Check
+            // 2. Overlap, Neighbor, and End Caps Check
             for(let i=0; i<word.length; i++) {
                 const r = dir === 'across' ? startR : startR + i;
                 const c = dir === 'across' ? startC + i : startC;
                 const currentVal = grid[r][c];
                 const char = word[i];
-
+                
                 // A. Direct Collision (Letter Mismatch)
                 if(currentVal !== null && currentVal !== char) return false;
+                
+                // B. Placing on an existing letter means it must be an intersection
+                if (currentVal === char) {
+                    // Check if placement continues parallel to an existing word (e.g., placing across word into another across word)
+                    if (dir === 'across') {
+                        // Check if left/right neighbors exist for an intersection point
+                        if((c > 0 && grid[r][c-1] !== null) || (c < GRID_SIZE - 1 && grid[r][c+1] !== null)) {
+                            // If intersection is NOT at the start/end of the existing word segment, reject (prevents 3-letter strings)
+                            if (grid[r][c-1] === null && grid[r][c+1] === null) {} // OK, isolated cell
+                            else if (grid[r][c-1] !== null && grid[r][c+1] !== null) return false; // Already middle of another across word
+                            else {
+                                // Must only place if the word continues in the opposite direction (down)
+                                // This is already handled by the logic; no need to check parallel here if it's an intersection
+                            }
+                        }
+                    }
+                    if (dir === 'down') {
+                        // Check if top/bottom neighbors exist for an intersection point
+                        if((r > 0 && grid[r-1][c] !== null) || (r < GRID_SIZE - 1 && grid[r+1][c] !== null)) {
+                            if (grid[r-1][c] === null && grid[r+1][c] === null) {}
+                            else if (grid[r-1][c] !== null && grid[r+1][c] !== null) return false; 
+                        }
+                    }
+                }
 
-                // B. "Social Distancing" (Avoid touching words parallel)
-                // If this cell is empty (we are placing a new letter here),
-                // ensure no parallel neighbors exist.
+
+                // C. Social Distancing (Avoid touching words parallel) for EMPTY cells
                 if(currentVal === null) {
                     if(dir === 'across') {
-                        // Check Top and Bottom neighbors
-                        if(r > 0 && grid[r-1][c] !== null) return false;
-                        if(r < GRID_SIZE-1 && grid[r+1][c] !== null) return false;
+                        if(r > 0 && grid[r-1][c] !== null) return false; // Top
+                        if(r < GRID_SIZE-1 && grid[r+1][c] !== null) return false; // Bottom
                     } else {
-                        // Check Left and Right neighbors
-                        if(c > 0 && grid[r][c-1] !== null) return false;
-                        if(c < GRID_SIZE-1 && grid[r][c+1] !== null) return false;
+                        if(c > 0 && grid[r][c-1] !== null) return false; // Left
+                        if(c < GRID_SIZE-1 && grid[r][c+1] !== null) return false; // Right
                     }
                 }
             }
 
             // 3. End Caps Check (Ensure word doesn't accidentally extend another word)
             if(dir === 'across') {
-                if(startC > 0 && grid[startR][startC-1] !== null) return false; // Left
-                if(startC + word.length < GRID_SIZE && grid[startR][startC + word.length] !== null) return false; // Right
+                if(startC > 0 && grid[startR][startC-1] !== null) return false; 
+                if(startC + word.length < GRID_SIZE && grid[startR][startC + word.length] !== null) return false; 
             } else {
-                if(startR > 0 && grid[startR-1][startC] !== null) return false; // Top
-                if(startR + word.length < GRID_SIZE && grid[startR + word.length][startC] !== null) return false; // Bottom
+                if(startR > 0 && grid[startR-1][startC] !== null) return false; 
+                if(startR + word.length < GRID_SIZE && grid[startR + word.length][startC] !== null) return false; 
             }
 
             return true;
         }
 
-        // --- RENDER & INTERACTION ---
+
+        // --- RENDER ---
         function render() {
             els.grid.innerHTML = '';
             els.grid.style.gridTemplateColumns = `repeat(${GRID_SIZE}, 1fr)`;
             
+            // Render Web Grid
             for(let r=0; r<GRID_SIZE; r++) {
                 for(let c=0; c<GRID_SIZE; c++) {
                     const cell = document.createElement('div');
                     cell.className = 'cw-cell ' + (grid[r][c] ? 'filled' : 'empty');
-                    cell.dataset.r = r;
-                    cell.dataset.c = c;
+                    cell.dataset.r = r; cell.dataset.c = c;
                     
+                    // Set cell size dynamically
                     cell.style.width = `${CELL_SIZE}px`;
                     cell.style.height = `${CELL_SIZE}px`;
-                    cell.style.minWidth = `${CELL_SIZE}px`;
-                    cell.style.minHeight = `${CELL_SIZE}px`;
 
                     if(grid[r][c]) {
-                        const startWord = words.find(w => w.row === r && w.col === c);
-                        if(startWord) {
+                        const startWord = words.find(w => w.row === r && w.col === c && (
+                            (w.dir === 'across' && (words.findIndex(other => other.row === r && other.col === c && other.dir === 'down') === -1)) ||
+                            (w.dir === 'down' && (words.findIndex(other => other.row === r && other.col === c && other.dir === 'across') === -1))
+                        ));
+                        
+                        // Check if this is the start of *any* word
+                        const isStart = words.some(w => w.row === r && w.col === c);
+
+                        // Only add number if it's the start of a word
+                        if(isStart) {
+                            const wordWithNum = words.find(w => w.row === r && w.col === c);
                             const num = document.createElement('span');
                             num.className = 'cw-number';
-                            num.innerText = startWord.num;
+                            num.innerText = wordWithNum.num;
                             cell.appendChild(num);
                         }
 
                         const input = document.createElement('input');
                         input.maxLength = 1;
-                        input.dataset.r = r;
-                        input.dataset.c = c;
-                        
+                        input.dataset.r = r; input.dataset.c = c;
                         input.addEventListener('mousedown', (e) => handleCellClick(e, r, c));
                         input.addEventListener('keydown', (e) => handleKeyDown(e, r, c));
-                        // input.addEventListener('input', (e) => handleInput(e, r, c)); // Handled manually in KeyDown for control
+                        input.addEventListener('focus', () => updateHighlights(r, c));
+                        input.addEventListener('blur', () => { 
+                             // Remove focus highlights when blurred, unless an arrow key re-focused it
+                             if(document.activeElement !== input) {
+                                document.querySelectorAll('.cell-focused').forEach(el => el.classList.remove('cell-focused'));
+                                document.querySelectorAll('.word-highlight').forEach(el => el.classList.remove('word-highlight'));
+                                document.querySelectorAll('.clue-item.active').forEach(el => el.classList.remove('active'));
+                             }
+                        });
                         
                         cell.appendChild(input);
                     }
@@ -694,28 +685,41 @@
                 }
             }
 
-            // Clues
-            els.across.innerHTML = '';
-            els.down.innerHTML = '';
-            words.forEach(w => {
-                const li = document.createElement('div');
-                li.className = 'clue-item';
-                li.id = `clue-${w.row}-${w.col}-${w.dir}`;
-                li.innerHTML = `<span class="font-bold opacity-50 mr-2">${w.num}.</span> ${w.clue}`;
-                li.onclick = () => selectWordByClue(w);
-                if(w.dir === 'across') els.across.appendChild(li);
-                else els.down.appendChild(li);
-            });
+            // Render Clues
+            els.across.innerHTML = ''; els.down.innerHTML = '';
+            if(words.length === 0) {
+                 els.across.innerHTML = '<p class="text-slate-400 text-sm">No words placed yet.</p>';
+                 els.down.innerHTML = '<p class="text-slate-400 text-sm">No words placed yet.</p>';
+            } else {
+                 words.filter(w => w.dir === 'across').forEach(w => {
+                    const li = document.createElement('div');
+                    li.className = 'clue-item';
+                    li.id = `clue-${w.num}-across`;
+                    li.innerHTML = `<span class="font-bold text-blue mr-2">${w.num}.</span> ${w.clue}`;
+                    li.onclick = () => selectWordByClue(w);
+                    els.across.appendChild(li);
+                });
+                words.filter(w => w.dir === 'down').forEach(w => {
+                    const li = document.createElement('div');
+                    li.className = 'clue-item';
+                    li.id = `clue-${w.num}-down`;
+                    li.innerHTML = `<span class="font-bold text-pink mr-2">${w.num}.</span> ${w.clue}`;
+                    li.onclick = () => selectWordByClue(w);
+                    els.down.appendChild(li);
+                });
+            }
             
-            updateGridSize(); 
+            updateGridSize();
+            preparePrintVersion();
         }
 
-        // --- NAVIGATION & REAL-TIME CHECK (IMPROVED) ---
+        // --- INTERACTION ---
         function handleCellClick(e, r, c) {
             Sound.click();
-            if(currentFocus.r === r && currentFocus.c === c) {
-                currentDir = currentDir === 'across' ? 'down' : 'across';
-            } else {
+            // If clicking the currently focused cell, switch direction
+            if(currentFocus.r === r && currentFocus.c === c) currentDir = currentDir === 'across' ? 'down' : 'across';
+            // Otherwise, determine preferred direction
+            else {
                 const hasAcross = words.some(w => w.dir === 'across' && r === w.row && c >= w.col && c < w.col + w.word.length);
                 const hasDown = words.some(w => w.dir === 'down' && c === w.col && r >= w.row && r < w.row + w.word.length);
                 if(hasAcross && !hasDown) currentDir = 'across';
@@ -729,154 +733,140 @@
             
             // Allow typing letters A-Z
             if (key.length === 1 && key >= 'A' && key <= 'Z') {
-                e.preventDefault(); // Stop default input to handle overwrite manually
+                e.preventDefault(); 
                 Sound.type();
+                // If cell is locked, do nothing
+                if (e.target.parentElement.classList.contains('locked')) return;
+                
                 e.target.value = key;
                 
+                // Immediately check word status after typing
                 checkCurrentWordCompletion(r, c);
                 
-                // Smart Move: Skip filled cells
+                // Smart Move
                 jumpToNextCell(r, c);
                 return;
             }
 
-            if(e.key === 'Backspace') {
-                e.preventDefault(); // Stop browser back
-                
-                // If current has value, clear it and stay (unless locked)
-                // If empty, move back and clear
-                if(e.target.value && !e.target.parentElement.classList.contains('locked')) {
-                     e.target.value = '';
-                     Sound.back();
-                } else {
-                     Sound.back();
-                     jumpToPrevCell(r, c);
+            if(e.key === 'Backspace' || e.key === 'Delete') {
+                e.preventDefault(); 
+                // If cell is locked, do nothing
+                if (e.target.parentElement.classList.contains('locked')) return;
+
+                if(e.target.value) {
+                     e.target.value = ''; Sound.back();
+                } else { 
+                     Sound.back(); 
+                     jumpToPrevCell(r, c); 
                 }
             } 
+            // Navigation
             else if(e.key === 'ArrowRight') focusCell(r, c+1);
             else if(e.key === 'ArrowLeft') focusCell(r, c-1);
             else if(e.key === 'ArrowDown') focusCell(r+1, c);
             else if(e.key === 'ArrowUp') focusCell(r-1, c);
+            
+            // Allow Enter to change direction
+            else if(e.key === 'Enter') {
+                e.preventDefault();
+                currentDir = currentDir === 'across' ? 'down' : 'across';
+                updateHighlights(r, c); // Re-highlight based on new direction
+            }
         }
-
+        
+        // Jumps to the next available (unlocked) cell in the current direction
         function jumpToNextCell(r, c) {
-            // Find active word to know bounds
-            const activeWord = words.find(w => 
-                w.dir === currentDir && 
-                (currentDir === 'across' ? (w.row === r && c >= w.col && c < w.col + w.word.length) 
-                                         : (w.col === c && r >= w.row && r < w.row + w.word.length))
-            );
-
-            if(!activeWord) return; // Should not happen
-
-            // Determine check direction
             const dr = currentDir === 'across' ? 0 : 1;
             const dc = currentDir === 'across' ? 1 : 0;
+            let nr = r + dr, nc = c + dc;
             
-            let nextR = r + dr;
-            let nextC = c + dc;
-
-            // Iterate until we find an empty cell OR end of word
-            for(let i=0; i<15; i++) {
-                 // Check if valid cell in grid
-                 const cell = document.querySelector(`.cw-cell[data-r="${nextR}"][data-c="${nextC}"]`);
+            for(let i=0; i<GRID_SIZE; i++) { // Max iterations to prevent infinite loop
+                 const cell = document.querySelector(`.cw-cell[data-r="${nr}"][data-c="${nc}"]`);
                  
-                 // If no cell, or cell not part of this word (simple bound check), stop
+                 // If we hit the boundary of the grid or an empty cell, stop
                  if(!cell || !cell.classList.contains('filled')) break;
-                 
+
                  const input = cell.querySelector('input');
                  
-                 // If cell is empty or NOT locked, focus here
-                 if(input && (!input.value || !cell.classList.contains('locked'))) {
-                     focusCell(nextR, nextC);
-                     return;
+                 // Found the next focusable cell if it's not locked
+                 if(input && !cell.classList.contains('locked')) { 
+                    focusCell(nr, nc); 
+                    return; 
                  }
                  
-                 // If cell is filled AND locked, loop again to next
-                 nextR += dr;
-                 nextC += dc;
+                 // Move to next cell
+                 nr += dr; nc += dc;
             }
             
-            // If we reached here, word is full/locked. Just focus the immediate neighbor to allow correction.
-            focusCell(r + dr, c + dc);
+            // If we finish the loop, we are at the end of the word/grid. Stay put.
         }
-
+        
+        // Jumps to the previous available (unlocked) cell in the current direction and clears it
         function jumpToPrevCell(r, c) {
              const dr = currentDir === 'across' ? 0 : -1;
              const dc = currentDir === 'across' ? -1 : 0;
-             
-             let prevR = r + dr;
-             let prevC = c + dc;
-             
-             // Simple move back, but skip locked cells
-             
-             const cell = document.querySelector(`.cw-cell[data-r="${prevR}"][data-c="${prevC}"]`);
-             if(cell) {
+             let pr = r + dr, pc = c + dc;
+
+             for(let i=0; i<GRID_SIZE; i++) {
+                 const cell = document.querySelector(`.cw-cell[data-r="${pr}"][data-c="${pc}"]`);
+                 
+                 if(!cell || !cell.classList.contains('filled')) break;
+                 
                  const input = cell.querySelector('input');
-                 if(input && !cell.classList.contains('locked')) {
-                     input.value = ''; // Clear it
-                     focusCell(prevR, prevC);
-                 } else if (cell.classList.contains('locked')) {
-                     // If locked, keep going back
-                     jumpToPrevCell(prevR, prevC);
-                 } else {
-                     focusCell(prevR, prevC);
+
+                 if (input && !cell.classList.contains('locked')) {
+                    input.value = '';
+                    focusCell(pr, pc);
+                    return;
                  }
+                 
+                 pr += dr; pc += dc;
              }
         }
 
         function checkCurrentWordCompletion(r, c) {
+            // Find the word that contains this cell in the current direction
             const activeWord = words.find(w => 
                 w.dir === currentDir && 
                 (currentDir === 'across' ? (w.row === r && c >= w.col && c < w.col + w.word.length) 
                                          : (w.col === c && r >= w.row && r < w.row + w.word.length))
             );
-
             if(!activeWord) return;
-
-            let currentGuess = "";
-            let isFull = true;
-            const inputElements = []; 
-
+            
+            let guess = "", isFull = true;
+            const els = [];
             for(let i=0; i<activeWord.word.length; i++) {
-                const checkR = activeWord.dir === 'across' ? activeWord.row : activeWord.row + i;
-                const checkC = activeWord.dir === 'across' ? activeWord.col + i : activeWord.col;
-                const cell = document.querySelector(`.cw-cell[data-r="${checkR}"][data-c="${checkC}"]`);
+                const cr = activeWord.dir === 'across' ? activeWord.row : activeWord.row + i;
+                const cc = activeWord.dir === 'across' ? activeWord.col + i : activeWord.col;
+                const cell = document.querySelector(`.cw-cell[data-r="${cr}"][data-c="${cc}"]`);
                 const val = cell.querySelector('input').value.toUpperCase();
                 
                 if(!val) { isFull = false; break; }
-                currentGuess += val;
-                inputElements.push(cell);
+                guess += val; els.push(cell);
             }
 
             if(isFull) {
-                if(currentGuess === activeWord.word) {
+                if(guess === activeWord.word) {
                     Sound.success();
                     confetti({ particleCount: 30, spread: 40, origin: { y: 0.7 } });
-                    
-                    inputElements.forEach(cell => {
-                        cell.classList.add('locked');
-                        cell.classList.remove('cell-focused', 'word-highlight'); 
-                    });
-                    
-                    const clueEl = document.getElementById(`clue-${activeWord.row}-${activeWord.col}-${activeWord.dir}`);
+                    // Lock cells
+                    els.forEach(cell => { cell.classList.add('locked'); cell.classList.remove('word-highlight', 'cell-focused'); });
+                    // Mark clue solved
+                    const clueEl = document.getElementById(`clue-${activeWord.num}-${activeWord.dir}`);
                     if(clueEl) clueEl.classList.add('solved');
-
                 } else {
                     Sound.error();
-                    inputElements.forEach(cell => {
-                        cell.classList.add('error');
-                        setTimeout(() => cell.classList.remove('error'), 400);
-                    });
+                    // Shake and highlight error
+                    els.forEach(cell => { cell.classList.add('error'); setTimeout(() => cell.classList.remove('error'), 400); });
                 }
             }
         }
 
         function focusCell(r, c) {
             const input = document.querySelector(`input[data-r="${r}"][data-c="${c}"]`);
-            if(input) {
-                input.focus();
-                updateHighlights(r, c);
+            if(input) { 
+                input.focus(); 
+                updateHighlights(r, c); 
             }
         }
 
@@ -888,6 +878,7 @@
 
         function updateHighlights(r, c) {
             currentFocus = { r, c };
+            // Clear previous
             document.querySelectorAll('.word-highlight').forEach(el => el.classList.remove('word-highlight'));
             document.querySelectorAll('.cell-focused').forEach(el => el.classList.remove('cell-focused'));
             document.querySelectorAll('.clue-item.active').forEach(el => el.classList.remove('active'));
@@ -895,6 +886,7 @@
             const focusedCell = document.querySelector(`.cw-cell[data-r="${r}"][data-c="${c}"]`);
             if(focusedCell) focusedCell.classList.add('cell-focused');
 
+            // Find the word that contains this cell in the current direction
             const activeWord = words.find(w => 
                 w.dir === currentDir && 
                 (currentDir === 'across' ? (w.row === r && c >= w.col && c < w.col + w.word.length) 
@@ -902,46 +894,123 @@
             );
 
             if(activeWord) {
+                // Highlight word cells
                 for(let i=0; i<activeWord.word.length; i++) {
                     const row = activeWord.dir === 'across' ? activeWord.row : activeWord.row + i;
                     const col = activeWord.dir === 'across' ? activeWord.col + i : activeWord.col;
                     const cell = document.querySelector(`.cw-cell[data-r="${row}"][data-c="${col}"]`);
-                    if(cell) cell.classList.add('word-highlight');
+                    if(cell && !cell.classList.contains('locked')) cell.classList.add('word-highlight');
                 }
-                const clueEl = document.getElementById(`clue-${activeWord.row}-${activeWord.col}-${activeWord.dir}`);
-                if(clueEl) {
-                    clueEl.classList.add('active');
-                    clueEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                // Highlight clue
+                const clue = document.getElementById(`clue-${activeWord.num}-${activeWord.dir}`);
+                if(clue) { 
+                    clue.classList.add('active'); 
+                    clue.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); 
                 }
             }
         }
 
+        function preparePrintVersion() {
+            // Replicates grid for print area
+            const printGrid = els.grid.cloneNode(true);
+            printGrid.id = "print-grid-clone";
+            printGrid.className = "print-grid";
+            printGrid.style.gridTemplateColumns = `repeat(${GRID_SIZE}, 40px)`;
+            
+            // Remove interactive/highlight classes for printing
+            printGrid.querySelectorAll('.cw-cell').forEach(cell => {
+                cell.classList.remove('cell-focused', 'word-highlight', 'locked', 'error');
+                // Clear inputs unless solution is revealed (not implemented in the print prep but good practice)
+                const input = cell.querySelector('input');
+                if(input) input.value = ''; 
+            });
+
+            document.getElementById('print-grid-container').innerHTML = '';
+            document.getElementById('print-grid-container').appendChild(printGrid);
+            
+            // Prepare Clues
+            const pa = document.getElementById('print-clues-across');
+            const pd = document.getElementById('print-clues-down');
+            pa.innerHTML = '<h3 class="font-bold border-b border-black mb-2 uppercase">Across</h3>';
+            pd.innerHTML = '<h3 class="font-bold border-b border-black mb-2 uppercase">Down</h3>';
+            
+            words.forEach(w => {
+                const div = document.createElement('div');
+                div.className = 'print-clue';
+                div.innerHTML = `<strong>${w.num}.</strong> ${w.clue}`;
+                if(w.dir === 'across') pa.appendChild(div); else pd.appendChild(div);
+            });
+        }
+
+
+        // --- INIT & EVENTS ---
+        document.getElementById('generate-btn').onclick = () => {
+            const lines = els.input.value.split('\n').filter(l => l.includes(':'));
+            saveWords(els.input.value);
+            
+            if(lines.length < 2) { console.error("Please add at least 2 words!"); return; }
+
+            const inputData = lines.map(l => {
+                const [w, c] = l.split(':');
+                return { word: w.trim().toUpperCase().replace(/[^A-Z]/g, ''), clue: c.trim() };
+            }).sort((a,b) => b.word.length - a.word.length);
+
+            if(generateLayout(inputData)) {
+                render();
+                if(window.innerWidth < 768) toggleControlPanel(true);
+                confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 }, colors: ['#2979FF', '#FF6B95'] });
+            } else { 
+                console.error("Could not fit all words. Try increasing grid size.");
+                // Provide visual feedback instead of an alert
+                document.getElementById('generate-btn').classList.add('bg-pink', 'animate-shake');
+                setTimeout(() => {
+                    document.getElementById('generate-btn').classList.remove('bg-pink', 'animate-shake');
+                }, 400);
+            }
+        };
+
         document.getElementById('solution-btn').onclick = () => {
-             document.querySelectorAll('input').forEach(inp => {
+            document.querySelectorAll('.cw-cell input').forEach(inp => {
                 const r = inp.dataset.r;
                 const c = inp.dataset.c;
                 inp.value = grid[r][c];
-                inp.parentElement.classList.add('reveal');
-                inp.parentElement.classList.add('reveal-print');
+                inp.parentElement.classList.add('locked');
             });
+            // Mark all clues solved when revealing
+            document.querySelectorAll('.clue-item').forEach(el => el.classList.add('solved'));
             Sound.success();
         };
 
-        // --- INITIALIZATION ---
+        document.querySelectorAll('.preset-btn').forEach(b => {
+            b.onclick = () => { els.input.value = b.dataset.text; saveWords(b.dataset.text); }
+        });
         
-        function initializeApplication() {
-            // 1. Load saved words into the input field
+        document.querySelectorAll('.grid-btn').forEach(b => {
+            b.onclick = (e) => {
+                document.querySelectorAll('.grid-btn').forEach(btn => {
+                    btn.classList.remove('bg-blue', 'text-white', 'shadow-hard-sm');
+                    btn.classList.add('bg-slate-100', 'text-slate-400');
+                });
+                e.target.classList.remove('bg-slate-100', 'text-slate-400');
+                e.target.classList.add('bg-blue', 'text-white', 'shadow-hard-sm');
+                GRID_SIZE = parseInt(e.target.dataset.size);
+            }
+        });
+
+        document.getElementById('zoom-in').onclick = () => { CELL_SIZE = Math.min(CELL_SIZE + 5, 80); updateGridSize(); };
+        document.getElementById('zoom-out').onclick = () => { CELL_SIZE = Math.max(CELL_SIZE - 5, 25); updateGridSize(); };
+        
+        // Initial setup
+        window.onload = () => {
             loadWords();
-            
-            // 2. Attach Auto-Save Hook
             els.input.addEventListener('input', (e) => saveWords(e.target.value));
+            
+            // Set default grid size button style
+            document.querySelector('.grid-btn[data-size="15"]').click();
 
-            // 3. Auto-open setup modal
-            els.setupBtn.click();
-        }
-
-        window.onload = initializeApplication;
-
+            // Auto-hide controls on mobile
+            if(window.innerWidth < 768) toggleControlPanel(true);
+        };
     </script>
 </body>
 </html>
