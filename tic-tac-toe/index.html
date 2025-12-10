@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Connect-N - Console Edition</title>
+    
+    <!-- External Libraries -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <!-- Theme Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        pink: '#FF6B95',
+                        orange: '#FF8C42',
+                        green: '#00E676',
+                        blue: '#2979FF',
+                        dark: '#1e293b', 
+                        surface: '#FFFFFF',
+                        border: '#cbd5e1',
+                    },
+                    fontFamily: {
+                        heading: ['Fredoka', 'sans-serif'], 
+                        body: ['Nunito', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'hard': '4px 4px 0px 0px rgba(30, 41, 59, 1)',
+                        'hard-md': '6px 6px 0px 0px rgba(30, 41, 59, 1)',
+                        'hard-sm': '2px 2px 0px 0px rgba(30, 41, 59, 1)',
+                    },
+                    animation: {
+                        'pop': 'pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    },
+                    keyframes: {
+                        pop: {
+                            '0%': { transform: 'scale(0.5)', opacity: '0' },
+                            '100%': { transform: 'scale(1)', opacity: '1' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { 
+            font-family: 'Nunito', sans-serif;
+            overflow: hidden;
+            background-color: #F8FAFC;
+            background-image: 
+                linear-gradient(#E2E8F0 1px, transparent 1px),
+                linear-gradient(90deg, #E2E8F0 1px, transparent 1px);
+            background-size: 24px 24px;
+            color: #1e293b;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* --- UI COMPONENTS --- */
+        .game-console {
+            background: #FFFFFF;
+            border: 6px solid #1e293b;
+            border-radius: 2.5rem;
+            box-shadow: 14px 14px 0px rgba(30, 41, 59, 0.15);
+            display: flex;
+            overflow: hidden;
+            transition: transform 0.2s;
+        }
+
+        .btn-chunky {
+            transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateY(0);
+            position: relative;
+            border: 3px solid #1e293b;
+            box-shadow: 0 4px 0 #1e293b;
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .btn-chunky:active:not(:disabled) {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #1e293b !important;
+            border-bottom-width: 3px;
+        }
+
+        .btn-chunky.selected {
+            background-color: #1e293b;
+            color: #FFFFFF;
+            border-color: #1e293b;
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #1e293b;
+        }
+
+        /* Grid Cell Styling */
+        .cell {
+            background-color: #FFFFFF;
+            border: 3px solid #1e293b;
+            border-radius: 1rem;
+            box-shadow: 4px 4px 0px 0px rgba(30, 41, 59, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.1s;
+            aspect-ratio: 1 / 1;
+        }
+        .cell:active {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px 0px rgba(30, 41, 59, 1);
+        }
+        .cell.taken { cursor: default; }
+        .cell.taken:active { transform: none; box-shadow: 4px 4px 0px 0px rgba(30, 41, 59, 1); }
+        
+        .cell-content {
+            animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.277) forwards;
+            line-height: 1;
+        }
+
+        .cell.winner {
+            background-color: #00E676;
+            border-color: #14532d;
+            animation: pulse-slow 2s infinite;
+        }
+
+        /* Mobile Panel Toggle Style */
+        .hidden-panel-mobile { transform: translateY(100%); border-bottom-width: 0 !important; }
+        @media (min-width: 768px) {
+            .hidden-panel-desktop { margin-left: -24rem; border-right-width: 0 !important; }
+        }
+        
+        /* Custom Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar { height: 8px; width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; border: 2px solid #f8fafc; }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col items-center justify-center p-2 md:p-6 overflow-hidden">
+
+    <!-- MAIN CONSOLE CONTAINER -->
+    <div class="game-console w-full h-full relative flex-col md:flex-row">
+        
+        <!-- SIDEBAR: CONTROLS -->
+        <aside id="controls" class="w-full md:w-96 bg-white border-b-4 md:border-b-0 md:border-r-4 border-dark flex flex-col z-50 transition-all duration-300 shadow-xl md:shadow-none h-[45%] md:h-full relative shrink-0">
+            
+            <!-- Header -->
+            <div class="p-5 border-b-4 border-dark bg-yellow-50 flex justify-between items-center shrink-0">
+                <div>
+                    <h1 class="text-2xl font-heading text-dark tracking-wide leading-none">
+                        CONNECT<span class="text-blue">N</span>
+                    </h1>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">English 1 Batam</p>
+                </div>
+                <button onclick="toggleControlPanel(true)" class="md:hidden p-2 bg-pink/20 text-pink border-2 border-dark rounded-lg shadow-hard-sm active:translate-y-1 active:shadow-none transition-all">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Controls Body -->
+            <div class="flex-1 p-5 overflow-y-auto custom-scrollbar space-y-6 bg-white relative">
+                
+                <!-- Grid Size Selector -->
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                        <i data-lucide="layout-grid" class="w-3 h-3"></i> Grid Size
+                    </label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="Game.setPendingSize(3)" id="btn-size-3" class="btn-chunky bg-slate-100 border-2 border-slate-300 text-slate-500 py-3 rounded-xl hover:bg-blue/10 text-sm">3x3</button>
+                        <button onclick="Game.setPendingSize(5)" id="btn-size-5" class="btn-chunky bg-slate-100 border-2 border-slate-300 text-slate-500 py-3 rounded-xl hover:bg-blue/10 text-sm">5x5</button>
+                        <button onclick="Game.setPendingSize(7)" id="btn-size-7" class="btn-chunky bg-slate-100 border-2 border-slate-300 text-slate-500 py-3 rounded-xl hover:bg-blue/10 text-sm">7x7</button>
+                    </div>
+                    <p id="win-desc" class="text-[10px] text-slate-400 italic text-center">Get 3 in a row to win</p>
+                </div>
+
+                <!-- Starting Player -->
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
+                        <i data-lucide="user" class="w-3 h-3"></i> First Player
+                    </label>
+                    <div class="flex gap-2">
+                        <button onclick="Game.setPendingPlayer('X')" id="btn-player-x" class="btn-chunky flex-1 py-3 rounded-xl bg-blue text-white border-dark text-sm">X</button>
+                        <button onclick="Game.setPendingPlayer('O')" id="btn-player-o" class="btn-chunky flex-1 py-3 rounded-xl bg-slate-100 text-slate-400 border-slate-300 text-sm">O</button>
+                    </div>
+                </div>
+
+                <!-- Action Button -->
+                <div class="pt-4 border-t-2 border-dashed border-slate-200">
+                    <button onclick="Game.applySettings()" 
+                        class="w-full btn-chunky bg-green text-dark py-4 rounded-xl text-xl tracking-wide flex items-center justify-center gap-2 hover:brightness-105">
+                        <i data-lucide="rotate-ccw" class="w-5 h-5 fill-current"></i> NEW GAME
+                    </button>
+                </div>
+
+                <!-- Scoreboard Mini (This is where the mini scoreboard used to be in the older version) -->
+                <div class="bg-slate-50 p-3 rounded-xl border-2 border-slate-200 hidden">
+                    <div class="flex justify-between text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">
+                        <span>Session Score</span>
+                    </div>
+                    <div class="flex justify-between items-center font-heading text-xl">
+                        <div class="text-blue">X: <span id="score-x">0</span></div>
+                        <div class="text-slate-300">|</div>
+                        <div class="text-pink">O: <span id="score-o">0</span></div>
+                    </div>
+                </div>
+
+            </div>
+            
+            <!-- Footer Status -->
+            <div class="p-3 border-t-4 border-dark bg-slate-100 text-center shrink-0">
+                 <div id="status-text" class="font-heading text-slate-400 text-lg">
+                    TURN: <span class="text-blue">PLAYER X</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN DISPLAY AREA -->
+        <main class="flex-1 relative h-[55%] md:h-full bg-slate-50 overflow-hidden group flex flex-col">
+            
+            <!-- Subtle Grid Background -->
+            <div class="absolute inset-0 opacity-10 pointer-events-none" 
+                 style="background-image: radial-gradient(#1e293b 2px, transparent 1px); background-size: 24px 24px;">
+            </div>
+
+            <!-- "Webcam" dot -->
+            <div class="absolute top-4 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-slate-200 border-2 border-slate-300 z-10 hidden md:block"></div>
+
+            <!-- Floating Controls Toggle (Top Left) -->
+            <div class="absolute top-4 left-4 z-20">
+                <button onclick="toggleControlPanel(false)" class="p-2 bg-white border-2 border-dark rounded-lg shadow-hard-sm hover:translate-y-[-2px] transition-transform text-slate-400 hover:text-dark">
+                    <i data-lucide="settings-2" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <!-- Score Display in Top Right Corner -->
+            <div class="absolute top-4 right-4 z-20 flex flex-col items-end">
+                <div class="bg-white border-2 border-dark px-4 py-2 rounded-xl shadow-hard-sm flex gap-4 font-heading text-xl">
+                    <span class="text-blue">X: <span id="score-x-top">0</span></span>
+                    <span class="text-slate-300">|</span>
+                    <span class="text-pink">O: <span id="score-o-top">0</span></span>
+                </div>
+            </div>
+
+
+            <!-- Game Grid Container -->
+            <div class="flex-1 flex items-center justify-center p-6 md:p-10 z-0">
+                <div class="w-full max-w-lg lg:max-w-xl aspect-square relative transition-all duration-300">
+                    <div id="game-grid" class="w-full h-full grid gap-2 md:gap-3 p-2">
+                        <!-- Cells injected by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Floating Restart/Next Game Button (Appears when game ends) -->
+            <div id="floating-action-container" class="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20 transition-opacity duration-300 opacity-0 pointer-events-none">
+                <button id="floating-action-btn" onclick="Game.startNewGame()" 
+                    class="btn-chunky bg-orange text-dark px-8 py-4 rounded-xl text-xl md:text-2xl tracking-widest flex items-center gap-3 hover:brightness-105 active:scale-[0.99]">
+                    <i data-lucide="rotate-ccw" class="w-5 h-5 fill-current"></i> PLAY AGAIN
+                </button>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        const Game = {
+            gridSize: 3,
+            winLength: 3,
+            currentPlayer: 'X',
+            board: [],
+            isActive: false,
+            scores: { X: 0, O: 0, Tie: 0 },
+            
+            // Pending settings (Sidebar State)
+            pendingSize: 3,
+            pendingPlayer: 'X',
+
+            init: () => {
+                lucide.createIcons();
+                Game.startNewGame();
+                UI.refreshSidebar();
+                
+                // Initial hide of sidebar on mobile
+                if(window.innerWidth < 768) {
+                    toggleControlPanel(true);
+                }
+            },
+
+            startNewGame: () => {
+                Game.board = Array(Game.gridSize * Game.gridSize).fill(null);
+                Game.isActive = true;
+                Game.currentPlayer = Game.pendingPlayer; // Start with selected player
+                
+                UI.renderGrid();
+                UI.updateStatus();
+                UI.updateScores(); // Ensure score is updated on new game start
+                UI.hideFloatingButton(); // Hide quick-restart button on start
+            },
+
+            handleMove: (index) => {
+                if (!Game.isActive || Game.board[index]) return;
+
+                Game.board[index] = Game.currentPlayer;
+                UI.updateCell(index, Game.currentPlayer);
+
+                if (Game.checkWin(index)) {
+                    Game.isActive = false;
+                    Game.scores[Game.currentPlayer]++;
+                    UI.updateScores();
+                    UI.showWin(Game.currentPlayer);
+                } else if (!Game.board.includes(null)) {
+                    Game.isActive = false;
+                    Game.scores.Tie++;
+                    UI.updateScores();
+                    UI.showDraw();
+                } else {
+                    Game.currentPlayer = Game.currentPlayer === 'X' ? 'O' : 'X';
+                    UI.updateStatus();
+                }
+            },
+
+            checkWin: (lastIndex) => {
+                const size = Game.gridSize;
+                const target = Game.winLength;
+                const player = Game.currentPlayer;
+                const row = Math.floor(lastIndex / size);
+                const col = lastIndex % size;
+
+                const directions = [{r: 0, c: 1}, {r: 1, c: 0}, {r: 1, c: 1}, {r: 1, c: -1}];
+                let winningPath = null;
+
+                for (let d of directions) {
+                    let path = [];
+                    for (let k = -(target - 1); k < target; k++) {
+                        const r = row + (k * d.r);
+                        const c = col + (k * d.c);
+                        if (r >= 0 && r < size && c >= 0 && c < size) {
+                            if (Game.board[r * size + c] === player) {
+                                path.push(r * size + c);
+                            } else {
+                                if (path.length >= target) break;
+                                path = [];
+                            }
+                        }
+                    }
+                    if (path.length >= target) {
+                        winningPath = path;
+                        break;
+                    }
+                }
+
+                if (winningPath) {
+                    UI.highlightWin(winningPath);
+                    return true;
+                }
+                return false;
+            },
+
+            // --- Sidebar Logic ---
+            setPendingSize: (size) => {
+                Game.pendingSize = size;
+                UI.refreshSidebar();
+            },
+            setPendingPlayer: (player) => {
+                Game.pendingPlayer = player;
+                UI.refreshSidebar();
+            },
+            applySettings: () => {
+                Game.gridSize = Game.pendingSize;
+                
+                // Win Condition Logic
+                if(Game.gridSize === 3) Game.winLength = 3;
+                else if(Game.gridSize === 5) Game.winLength = 4;
+                else if(Game.gridSize === 7) Game.winLength = 5;
+
+                // Close sidebar on mobile
+                if(window.innerWidth < 768) {
+                    toggleControlPanel(true);
+                }
+
+                Game.startNewGame();
+            }
+        };
+
+        const UI = {
+            gridEl: document.getElementById('game-grid'),
+            statusEl: document.getElementById('status-text'),
+            floatingActionContainer: document.getElementById('floating-action-container'),
+            floatingActionButton: document.getElementById('floating-action-btn'),
+
+            renderGrid: () => {
+                UI.gridEl.innerHTML = '';
+                UI.gridEl.style.gridTemplateColumns = `repeat(${Game.gridSize}, minmax(0, 1fr))`;
+                
+                // Big Fonts for Visibility
+                let fontSize = 'text-6xl md:text-7xl';
+                if(Game.gridSize === 5) fontSize = 'text-4xl md:text-5xl';
+                if(Game.gridSize === 7) fontSize = 'text-3xl md:text-4xl';
+
+                Game.board.forEach((cell, idx) => {
+                    const el = document.createElement('div');
+                    el.className = `cell ${fontSize} text-dark`;
+                    el.onclick = () => Game.handleMove(idx);
+                    el.id = `cell-${idx}`;
+                    UI.gridEl.appendChild(el);
+                });
+            },
+
+            updateCell: (index, player) => {
+                const el = document.getElementById(`cell-${index}`);
+                el.classList.add('taken');
+                const colorClass = player === 'X' ? 'text-blue' : 'text-pink';
+                el.innerHTML = `<span class="cell-content ${colorClass}">${player}</span>`;
+            },
+
+            updateStatus: () => {
+                const color = Game.currentPlayer === 'X' ? 'text-blue' : 'text-pink';
+                UI.statusEl.innerHTML = `TURN: <span class="${color}">PLAYER ${Game.currentPlayer}</span>`;
+            },
+
+            showWin: (winner) => {
+                const color = winner === 'X' ? 'text-blue' : 'text-pink';
+                UI.statusEl.innerHTML = `<span class="text-green">WINNER:</span> <span class="${color}">PLAYER ${winner}!</span>`;
+                
+                confetti({
+                    particleCount: 150,
+                    spread: 70,
+                    origin: { y: 0.6 },
+                    colors: ['#00E676', '#2979FF', '#FF6B95', '#FF8C42']
+                });
+                
+                UI.showFloatingButton('WIN');
+            },
+
+            showDraw: () => {
+                UI.statusEl.innerHTML = `<span class="text-slate-400">DRAW GAME!</span>`;
+                UI.showFloatingButton('DRAW');
+            },
+
+            highlightWin: (indices) => {
+                indices.forEach(idx => {
+                    const el = document.getElementById(`cell-${idx}`);
+                    const content = el.querySelector('.cell-content');
+                    if (content) {
+                        content.classList.remove('text-blue', 'text-pink');
+                        content.classList.add('text-dark'); 
+                    }
+                    el.classList.add('winner');
+                });
+            },
+
+            updateScores: () => {
+                // Update Top Bar Score
+                const scoreXTop = document.getElementById('score-x-top');
+                const scoreOTop = document.getElementById('score-o-top');
+                
+                // The error was here, scoreXTop and scoreOTop were null before they were added in this fix.
+                if (scoreXTop) scoreXTop.innerText = Game.scores.X;
+                if (scoreOTop) scoreOTop.innerText = Game.scores.O;
+                
+                // Update Sidebar Score (inside the sidebar body, which remains)
+                // Note: These elements still exist inside the hidden div for consistency, 
+                // but we check if they exist just in case of future layout changes.
+                const scoreXSide = document.getElementById('score-x');
+                const scoreOSide = document.getElementById('score-o');
+
+                if (scoreXSide) scoreXSide.innerText = Game.scores.X;
+                if (scoreOSide) scoreOSide.innerText = Game.scores.O;
+            },
+            
+            showFloatingButton: (result) => {
+                UI.floatingActionContainer.classList.remove('opacity-0', 'pointer-events-none');
+                
+                // Adjust button color based on result
+                if (result === 'WIN') {
+                    UI.floatingActionButton.classList.remove('bg-orange');
+                    UI.floatingActionButton.classList.add('bg-green');
+                } else if (result === 'DRAW') {
+                    UI.floatingActionButton.classList.remove('bg-green');
+                    UI.floatingActionButton.classList.add('bg-orange');
+                }
+            },
+            
+            hideFloatingButton: () => {
+                UI.floatingActionContainer.classList.add('opacity-0', 'pointer-events-none');
+                // Reset button color to default (orange/restart) for the next time it appears
+                UI.floatingActionButton.classList.remove('bg-green');
+                UI.floatingActionButton.classList.add('bg-orange');
+            },
+
+            refreshSidebar: () => {
+                // Update Size Buttons
+                [3, 5, 7].forEach(size => {
+                    const btn = document.getElementById(`btn-size-${size}`);
+                    if(size === Game.pendingSize) {
+                        btn.className = "btn-chunky bg-green text-dark border-dark py-3 rounded-xl text-sm selected";
+                    } else {
+                        btn.className = "btn-chunky bg-slate-100 border-slate-300 text-slate-500 py-3 rounded-xl hover:bg-green/10 text-sm";
+                    }
+                });
+
+                // Update Description
+                const k = sizeToWin(Game.pendingSize);
+                document.getElementById('win-desc').innerText = `Get ${k} in a row to win`;
+
+                // Update Player Buttons
+                const pX = document.getElementById('btn-player-x');
+                const pO = document.getElementById('btn-player-o');
+                
+                if(Game.pendingPlayer === 'X') {
+                    pX.className = "btn-chunky flex-1 py-3 rounded-xl bg-blue text-white border-dark text-sm selected";
+                    pO.className = "btn-chunky flex-1 py-3 rounded-xl bg-slate-100 text-slate-400 border-slate-300 text-sm";
+                } else {
+                    pO.className = "btn-chunky flex-1 py-3 rounded-xl bg-pink text-white border-dark text-sm selected";
+                    pX.className = "btn-chunky flex-1 py-3 rounded-xl bg-slate-100 text-slate-400 border-slate-300 text-sm";
+                }
+            }
+        };
+
+        // Helper
+        function sizeToWin(n) {
+            if(n === 3) return 3;
+            if(n === 5) return 4;
+            return 5;
+        }
+
+        // Toggle Sidebar (Same logic as Word Animator)
+        function toggleControlPanel(forceHide = false) {
+            const controls = document.getElementById('controls');
+            const isHidden = window.innerWidth >= 768 
+                ? controls.classList.contains('hidden-panel-desktop')
+                : controls.classList.contains('hidden-panel-mobile');
+
+            if(forceHide || !isHidden) {
+                controls.classList.add('hidden-panel-mobile', 'hidden-panel-desktop');
+            } else {
+                controls.classList.remove('hidden-panel-mobile', 'hidden-panel-desktop');
+            }
+            // Trigger resize for grid adjustment
+            setTimeout(() => window.dispatchEvent(new Event('resize')), 350);
+        }
+
+        window.addEventListener('resize', () => {
+             const controls = document.getElementById('controls');
+             if(window.innerWidth >= 768) {
+                 controls.classList.remove('hidden-panel-mobile');
+             } else {
+                 controls.classList.remove('hidden-panel-desktop');
+             }
+        });
+
+        window.onload = Game.init;
+    </script>
+</body>
+</html>
