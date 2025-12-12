@@ -109,7 +109,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 8px;
+            border-radius: 4px; /* Reduced radius for density */
             font-family: 'JetBrains Mono', monospace;
             font-weight: bold;
             position: relative;
@@ -186,16 +186,55 @@
                 padding: 0; 
                 -webkit-print-color-adjust: exact; 
                 print-color-adjust: exact;
+                /* Force A4 size and minimize margins */
+                margin: 0;
+                padding: 0;
             }
+            @page {
+                size: A4;
+                margin: 1cm; /* Standard A4 print margins */
+            }
+            
             .no-print { display: none !important; }
             .print-only { display: block !important; }
             
-            #game-container {
-                box-shadow: none; border: none; background: none; backdrop-filter: none;
+            main { 
+                padding: 0 !important; /* Removes top padding of MAIN element */
+                margin: 0 auto; /* Center on page */
+                width: 100%;
+                max-width: 100%;
             }
 
+            #game-container {
+                box-shadow: none; border: none; background: none; backdrop-filter: none;
+                /* Ensure it flows vertically for printing */
+                display: block; 
+                width: 100%;
+                padding: 0 !important;
+            }
+            
+            /* Print Header Styling */
+            .print-only {
+                padding: 0 0.5cm !important;
+                margin-bottom: 0.5cm; /* Reduced gap below header block */
+            }
+
+            /* Adjust Grid/Bank Layout for Vertical A4 Flow */
+            .lg\:flex-row { 
+                flex-direction: column !important; 
+                gap: 1.5rem !important; /* Space between grid and word bank */
+            }
+            .lg\:w-1\/3, .lg\:w-2\/3 { 
+                width: 100% !important; 
+            }
+            
+            /* Grid */
             #word-grid {
                 border: 2px solid black; gap: 0 !important; background: white;
+                max-width: 100% !important;
+                margin: 0 auto; /* Center the grid container */
+                width: 100%;
+                box-shadow: none;
             }
 
             .grid-cell {
@@ -203,6 +242,20 @@
                 border: 1px solid #ccc !important; border-radius: 0 !important;
                 box-shadow: none !important; animation: none !important;
                 font-size: 12pt !important;
+                padding: 0;
+            }
+
+            /* Word Bank */
+            #word-bank {
+                display: grid !important;
+                grid-template-columns: repeat(4, 1fr) !important; /* Force 4 columns for word list */
+                gap: 0.5rem !important;
+                margin-top: 1rem;
+            }
+            .word-tag {
+                border: none !important; color: black !important; background: none !important;
+                padding: 0 !important; font-weight: bold;
+                font-size: 10pt;
             }
 
             /* Solution Key for Teachers */
@@ -212,11 +265,6 @@
                 font-weight: 900 !important;
                 border-color: #9ca3af !important;
             }
-            
-            .word-tag {
-                border: none !important; color: black !important; background: none !important;
-                padding: 0 !important; font-weight: bold;
-            }
         }
     </style>
 </head>
@@ -224,7 +272,8 @@
 
     <!-- Header -->
     <header class="w-full glass-panel border-b border-white/10 sticky top-0 z-50 no-print">
-        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+        <!-- Increased max width to 8xl (1536px) for more desktop space -->
+        <div class="max-w-8xl mx-auto px-6 lg:px-12 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div class="bg-gradient-to-br from-blue to-pink w-10 h-10 rounded-lg flex items-center justify-center text-xl shadow-lg">
                     <i data-lucide="grid" class="text-white w-6 h-6"></i>
@@ -250,62 +299,81 @@
     </header>
 
     <!-- Print Header (Hidden on Screen) -->
-    <div class="print-only hidden w-full max-w-4xl mx-auto p-8 mb-4">
-        <div class="text-center mb-8 border-b-2 border-black pb-4">
-            <h1 class="text-4xl font-bold uppercase mb-2">Word Search Challenge</h1>
+    <!-- Removed p-8 and mb-4 classes from here, spacing is now handled purely in CSS media query -->
+    <div class="print-only hidden w-full max-w-4xl mx-auto">
+        <div class="text-center mb-3 border-b-2 border-black">
+            <h1 class="text-4xl font-bold uppercase">Word Search Challenge</h1>
         </div>
-        <div class="flex justify-between text-lg mb-4">
-            <div>Name: <span class="border-b border-black w-48 inline-block"></span></div>
+        <div class="flex justify-between text-lg">
+            <div>Name(s): <span class="border-b border-black w-48 inline-block"></span></div>
             <div>Date: <span class="border-b border-black w-48 inline-block"></span></div>
-        </div>
-        <div class="flex justify-between text-lg mb-8">
-            <div>Class: <span class="border-b border-black w-48 inline-block"></span></div>
-            <div>Score: <span class="border-b border-black w-24 inline-block"></span></div>
         </div>
     </div>
 
     <!-- Main Game Area -->
-    <main class="flex-grow flex flex-col items-center justify-center p-4 w-full max-w-5xl mx-auto">
+    <!-- Reduced vertical padding from lg:p-12 to lg:p-8 -->
+    <main class="flex-grow flex justify-center w-full p-4 lg:p-8">
         
-        <div id="game-container" class="glass-panel w-full p-6 rounded-2xl flex flex-col items-center gap-6 animate-fade-in">
+        <!-- Game Container max-w increased to 7xl and inner padding increased to lg:p-12 -->
+        <div id="game-container" class="glass-panel w-full max-w-7xl p-6 lg:p-12 rounded-2xl flex flex-col lg:flex-row items-start gap-6 lg:gap-10 animate-fade-in">
             
-            <!-- Interactive HUD -->
-            <div id="play-controls" class="hidden w-full flex justify-between items-center px-2 no-print">
-                <div class="flex items-center gap-2 font-mono text-sm">
-                    <span class="text-gray-400">FOUND:</span>
-                    <span id="found-count" class="text-green font-bold text-xl">0</span>
-                    <span class="text-gray-500">/</span>
-                    <span id="total-count" class="text-gray-400 text-lg">0</span>
+            <!-- LEFT COLUMN: Word Bank & Controls (Moved from bottom to left for desktop) -->
+            <div class="w-full lg:w-1/3 flex-none flex flex-col order-2 lg:order-1">
+                
+                <!-- Word Bank (Scrollable on desktop) -->
+                <div class="w-full border-t lg:border-t-0 pt-6 lg:pt-0 border-white/10">
+                    <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 text-center lg:text-left">VOCABULARY LIST</h3>
+                    <div id="word-bank" class="flex flex-wrap lg:grid lg:grid-cols-2 justify-center lg:justify-start gap-3 h-auto lg:max-h-[50vh] overflow-y-auto pr-2">
+                        <!-- Words injected here -->
+                    </div>
+                </div>
+
+                <!-- Interactive HUD -->
+                <div id="play-controls" class="hidden w-full flex-col mt-6 pt-6 border-t border-white/10 no-print">
+                    <div class="flex justify-between items-center mb-4">
+                        <div class="flex items-center gap-2 font-mono text-base">
+                            <span class="text-gray-400">FOUND:</span>
+                            <span id="found-count" class="text-green font-bold text-xl">0</span>
+                            <span class="text-gray-500">/</span>
+                            <span id="total-count" class="text-gray-400 text-lg">0</span>
+                        </div>
+                        <!-- Play Again Button (Hidden initially) -->
+                        <button id="play-again-btn" class="hidden btn-action bg-green text-white px-4 py-1.5 rounded-lg font-bold text-sm">
+                            PLAY AGAIN
+                        </button>
+                    </div>
+                    
+                    <!-- Dynamic Status Bar -->
+                    <div id="status-bar" class="text-center text-xs text-blue bg-blue/10 px-4 py-2 rounded-full border border-blue/20 animate-pulse-slow font-bold tracking-wide">
+                        TAP FIRST LETTER ➔ TAP LAST LETTER
+                    </div>
                 </div>
                 
-                <!-- Dynamic Status Bar -->
-                <div id="status-bar" class="text-xs text-blue bg-blue/10 px-4 py-2 rounded-full border border-blue/20 animate-pulse-slow font-bold tracking-wide">
-                    TAP FIRST LETTER ➔ TAP LAST LETTER
-                </div>
-
-                <!-- Play Again Button (Hidden initially) -->
-                <button id="play-again-btn" class="hidden btn-action bg-green text-white px-4 py-1 rounded-lg font-bold text-xs">
-                    PLAY AGAIN
-                </button>
-            </div>
-
-            <!-- The Grid -->
-            <div id="word-grid" class="grid gap-1 bg-surface/50 p-2 rounded-xl transition-all select-none touch-manipulation">
-                <!-- Empty State -->
-                <div id="empty-state" class="text-center py-12 text-gray-400 col-span-full w-full">
-                    <div class="mb-4 text-6xl opacity-20">ｧｩ</div>
+                <!-- Empty State CTA -->
+                <div id="empty-state-cta" class="text-center py-12 text-gray-400 w-full order-1 lg:order-none hidden">
+                    <!-- Updated the placeholder icon to a visible Lucide icon -->
+                    <div class="mb-4 text-6xl opacity-20 flex justify-center">
+                        <i data-lucide="search" class="w-16 h-16"></i>
+                    </div>
                     <p class="mb-6 text-lg">No puzzle active.</p>
                     <button onclick="document.getElementById('setup-btn').click()" class="text-blue hover:text-white underline font-bold">Create New Puzzle</button>
                 </div>
             </div>
 
-            <!-- Word Bank -->
-            <div class="w-full border-t border-white/10 pt-6">
-                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3 text-center">VOCABULARY LIST</h3>
-                <div id="word-bank" class="flex flex-wrap justify-center gap-3">
-                    <!-- Words injected here -->
+
+            <!-- RIGHT COLUMN: The Grid (Takes up 2/3 of space on desktop) -->
+            <div class="w-full lg:w-2/3 flex-none flex flex-col items-center order-1 lg:order-2">
+
+                <!-- The Grid -->
+                <!-- Removed fixed width to allow grid to fill container space -->
+                <div id="word-grid" class="grid gap-1 bg-surface/50 p-2 rounded-xl transition-all select-none touch-manipulation w-full max-w-full aspect-square">
+                    <!-- Placeholder for small screens -->
+                    <div id="empty-state" class="text-center py-12 text-gray-400 col-span-full w-full">
+                        <!-- This inner empty state is now hidden in favor of the outer CTA -->
+                    </div>
                 </div>
             </div>
+
 
         </div>
     </main>
@@ -453,7 +521,8 @@
                 confirm: document.getElementById('confirm-modal')
             },
             controls: document.getElementById('play-controls'),
-            emptyState: document.getElementById('empty-state')
+            emptyState: document.getElementById('empty-state'),
+            emptyStateCta: document.getElementById('empty-state-cta') // New CTA element
         };
         
         // --- PERSISTENCE ---
@@ -552,8 +621,9 @@
             });
             State.totalWords = placedWords.length;
             
-            // Hide empty state
+            // Hide empty state indicators
             DOM.emptyState.classList.add('hidden');
+            DOM.emptyStateCta.classList.add('hidden');
 
             // 2. Fill Empty
             const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -800,6 +870,9 @@
             endGame(false);
         };
 
+        document.getElementById('play-again-btn').onclick = () => document.getElementById('setup-btn').click();
+
+
         function endGame(won) {
             State.isActive = false;
             
@@ -827,7 +900,6 @@
 
             // Show Play Again
             DOM.playAgain.classList.remove('hidden');
-            DOM.playAgain.onclick = () => document.getElementById('setup-btn').click();
             
             clearSelection();
         }
@@ -837,11 +909,11 @@
             // 1. Load saved settings
             loadInputs();
             
-            // 2. Auto-open setup modal
+            // 2. Auto-open setup modal if no game is initialized
+            // We use the separate emptyStateCta to show the button on the left panel
+            DOM.emptyState.classList.add('hidden');
+            DOM.emptyStateCta.classList.remove('hidden');
             DOM.modals.setup.classList.remove('hidden');
-
-            // Ensure empty state is visible until puzzle is generated
-            DOM.emptyState.classList.remove('hidden');
         }
         
         window.onload = initializeApplication;
