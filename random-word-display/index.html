@@ -111,7 +111,8 @@
             position: absolute;
             cursor: default;
             user-select: none;
-            transition: opacity 0.5s;
+            /* Added font-size transition for smooth resize on Reveal */
+            transition: opacity 0.5s, font-size 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
             white-space: nowrap;
             will-change: transform;
             top: 0;
@@ -120,6 +121,7 @@
             -webkit-text-stroke: 2px #1e293b;
             paint-order: stroke fill;
             filter: drop-shadow(4px 4px 0px rgba(30, 41, 59, 0.2));
+            z-index: 10;
         }
 
         textarea {
@@ -165,8 +167,6 @@
             <!-- Controls Body -->
             <div class="flex-1 p-5 overflow-y-auto custom-scrollbar space-y-5 bg-white relative">
                 
-                <!-- NOTE: Speed Control REMOVED from here -->
-
                 <!-- NEW: CSV FORMATTER -->
                 <div class="space-y-2 pb-4 border-b-2 border-dashed border-slate-300">
                     <div class="flex justify-between items-end">
@@ -185,7 +185,6 @@
                     </button>
                     <p class="text-[10px] text-slate-400 mt-2 italic">Output goes directly into the "Word List" below.</p>
                 </div>
-                <!-- END NEW: CSV FORMATTER -->
 
                 <!-- Input -->
                 <div class="space-y-2 flex-1 flex flex-col">
@@ -196,9 +195,9 @@
                     <textarea id="word-input" spellcheck="false"
                         class="w-full h-40 md:h-64 p-4 bg-slate-50 text-dark font-mono text-sm border-2 border-dark rounded-xl focus:border-blue focus:ring-0 outline-none resize-none shadow-inner"
                         placeholder="Line 1: Words, for, round, 1&#10;Line 2: Words, for, round, 2"
-                    >Apple, Banana, Cheery
-Dog, Cat, Elephant
-Red, Blue, Green, Yellow, Purple</textarea>
+                    >A,P,P,L,E
+B,A,N,A,N,A
+C,A,T</textarea>
                 </div>
 
                 <!-- Load Button -->
@@ -245,7 +244,7 @@ Red, Blue, Green, Yellow, Purple</textarea>
                     <i data-lucide="settings" class="w-5 h-5"></i>
                 </button>
 
-                <!-- NEW: Speed Control (Moved from Sidebar) -->
+                <!-- Speed Control -->
                 <div id="speed-control-display" class="bg-white p-3 rounded-xl border-2 border-dark shadow-hard-sm w-50 transition-all">
                     <div class="flex justify-between items-center mb-2">
                         <label class="text-xs font-bold text-slate-400 uppercase tracking-widest"><i data-lucide="gauge" class="w-3 h-3 inline mr-1"></i> Speed</label>
@@ -259,11 +258,19 @@ Red, Blue, Green, Yellow, Purple</textarea>
                 </div>
             </div>
 
-            <!-- Floating Next Button (Bottom Right) -->
-            <div class="absolute bottom-6 right-6 z-20">
+            <!-- ACTION BAR (Bottom Right) -->
+            <div class="absolute bottom-6 right-6 z-20 flex gap-3 items-end">
+                
+                <!-- NEW: REVEAL BUTTON -->
+                <button id="reveal-btn" onclick="revealWord()" 
+                    class="hidden btn-chunky bg-blue text-white px-6 py-4 rounded-full text-xl flex items-center gap-3 hover:scale-105 active:scale-95 shadow-[4px_4px_0px_#1e293b]">
+                    <i data-lucide="eye" class="w-6 h-6"></i> REVEAL
+                </button>
+
+                <!-- NEXT ROUND BUTTON -->
                 <button id="next-round-btn" onclick="loadNextRound()" 
                     class="btn-chunky bg-pink text-white px-8 py-4 rounded-full text-xl flex items-center gap-3 hover:scale-105 active:scale-95">
-                    NEXT ROUND <i data-lucide="arrow-right" class="w-6 h-6"></i>
+                    NEXT <i data-lucide="arrow-right" class="w-6 h-6"></i>
                 </button>
             </div>
             
@@ -280,17 +287,19 @@ Red, Blue, Green, Yellow, Purple</textarea>
         let activeBouncingWords = [];
         let animationFrameId;
         let globalSpeedMultiplier = 1.5; 
+        let isRevealed = false; 
 
         // Colors from theme
         const colors = [
             'text-pink', 'text-orange', 'text-green', 'text-blue', 'text-slate-800'
         ];
         
-        // Font Sizes
+        // Font Sizes (Random pool)
         const fontSizes = ["text-5xl", "text-6xl", "text-7xl", "text-8xl"];
+        // The unified size we will use on reveal
+        const UNIFIED_SIZE_CLASS = "text-6xl";
         
         const wordInput = document.getElementById("word-input");
-        const controlsPanel = document.getElementById("controls");
 
         // --- AUTOSAVE/LOAD ---
         function saveWords(wordsString) {
@@ -310,10 +319,6 @@ Red, Blue, Green, Yellow, Purple</textarea>
             document.getElementById('speed-display').innerText = globalSpeedMultiplier.toFixed(1) + 'x';
         }
         
-        /**
-         * Converts a single line of CSV (word1, word2, word3) into a multi-line,
-         * letter-separated format suitable for the Animator.
-         */
         function formatList() {
             const csvInput = document.getElementById('csv-input').value;
             if (!csvInput.trim()) {
@@ -325,19 +330,14 @@ Red, Blue, Green, Yellow, Purple</textarea>
                 .map(word => word.trim())
                 .filter(word => word.length > 0);
 
-            // 1. Convert each word to uppercase, split into letters, and join with commas.
-            // 2. Join the resulting lines with a newline character.
+            // Convert each word to uppercase, split into letters, and join with commas.
             const formattedText = words.map(word => {
-                // Remove spaces inside the word and convert to uppercase
                 const cleanedWord = word.replace(/\s/g, '').toUpperCase();
                 return cleanedWord.split('').join(',');
             }).join('\n');
 
-            // Set the result back into the main word input box
             wordInput.value = formattedText;
-            saveWords(formattedText); // Save the formatted data
-            
-            // Give visual feedback and prompt to load
+            saveWords(formattedText);
             document.getElementById("round-counter").innerHTML = "STATUS: <span class='text-orange'>FORMATTED! Click LOAD & START</span>";
         }
 
@@ -350,13 +350,12 @@ Red, Blue, Green, Yellow, Purple</textarea>
                 const sizeClass = fontSizes[Math.floor(Math.random() * fontSizes.length)];
                 
                 // Add specific rotation for fun "sticker" look
-                const rotate = Math.floor(Math.random() * 20) - 10; // -10deg to 10deg
+                const rotate = Math.floor(Math.random() * 20) - 10; 
                 
                 this.element.className = `moving-word font-heading font-bold ${colorClass} ${sizeClass}`;
-                this.element.style.transform = `rotate(${rotate}deg)`; // Initial visual rotation
-                
-                // Opacity 0 initially
+                this.element.style.transform = `rotate(${rotate}deg)`; 
                 this.element.style.opacity = '0';
+                
                 document.getElementById("word-display").appendChild(this.element);
                 
                 this.width = this.element.offsetWidth;
@@ -366,48 +365,156 @@ Red, Blue, Green, Yellow, Purple</textarea>
                 this.x = Math.random() * (containerWidth - this.width);
                 this.y = Math.random() * (containerHeight - this.height);
                 
+                // Target Position (for Reveal)
+                this.targetX = 0;
+                this.targetY = 0;
+                
                 // Velocity
                 const angle = Math.random() * Math.PI * 2;
                 this.vx = Math.cos(angle);
                 this.vy = Math.sin(angle);
                 
-                // Store rotation for render
+                // State
                 this.rotation = rotate; 
+                this.currentRotation = rotate;
 
                 this.updatePosition();
                 
                 // Pop in
                 requestAnimationFrame(() => { 
                     this.element.style.opacity = '1'; 
-                    this.element.style.transform = `translate(${this.x}px, ${this.y}px) rotate(${this.rotation}deg) scale(1)`;
+                    this.element.style.transform = `translate(${this.x}px, ${this.y}px) rotate(${this.currentRotation}deg) scale(1)`;
                 });
             }
 
             update(containerWidth, containerHeight) {
-                this.x += this.vx * globalSpeedMultiplier;
-                this.y += this.vy * globalSpeedMultiplier;
+                if (isRevealed) {
+                    // --- REVEAL LOGIC: Move smoothly to target ---
+                    const ease = 0.1; 
+                    
+                    this.x += (this.targetX - this.x) * ease;
+                    this.y += (this.targetY - this.y) * ease;
+                    this.currentRotation += (0 - this.currentRotation) * ease;
 
-                let bounced = false;
+                    if (Math.abs(this.targetX - this.x) < 0.5 && Math.abs(this.targetY - this.y) < 0.5) {
+                        this.x = this.targetX;
+                        this.y = this.targetY;
+                        this.currentRotation = 0;
+                    }
+                } else {
+                    // --- BOUNCE LOGIC ---
+                    this.x += this.vx * globalSpeedMultiplier;
+                    this.y += this.vy * globalSpeedMultiplier;
 
-                if (this.x <= 0) { this.x = 0; this.vx *= -1; bounced = true; }
-                else if (this.x + this.width >= containerWidth) { this.x = containerWidth - this.width; this.vx *= -1; bounced = true; }
+                    let bounced = false;
 
-                if (this.y <= 0) { this.y = 0; this.vy *= -1; bounced = true; }
-                else if (this.y + this.height >= containerHeight) { this.y = containerHeight - this.height; this.vy *= -1; bounced = true; }
-                
-                if(bounced) {
-                    // Slight spin on bounce
-                    this.rotation += (Math.random() - 0.5) * 5; // Slight random rotational change
+                    if (this.x <= 0) { this.x = 0; this.vx *= -1; bounced = true; }
+                    else if (this.x + this.width >= containerWidth) { this.x = containerWidth - this.width; this.vx *= -1; bounced = true; }
+
+                    if (this.y <= 0) { this.y = 0; this.vy *= -1; bounced = true; }
+                    else if (this.y + this.height >= containerHeight) { this.y = containerHeight - this.height; this.vy *= -1; bounced = true; }
+                    
+                    if(bounced) {
+                        this.currentRotation += (Math.random() - 0.5) * 10; 
+                    }
                 }
 
                 this.updatePosition();
             }
 
             updatePosition() {
-                // We combine translation and rotation
-                this.element.style.transform = `translate(${this.x}px, ${this.y}px) rotate(${this.rotation}deg)`;
+                this.element.style.transform = `translate(${this.x}px, ${this.y}px) rotate(${this.currentRotation}deg)`;
             }
         }
+
+        // --- NEW REVEAL FUNCTIONALITY ---
+        function calculateRevealPositions() {
+            const container = document.getElementById("word-display");
+            const containerW = container.clientWidth;
+            const containerH = container.clientHeight;
+            const gap = 10; 
+
+            // Simulate flex-wrap layout manually
+            let currentLine = [];
+            let allLines = [];
+            let currentLineWidth = 0;
+            const maxLineWidth = containerW * 0.9; 
+
+            // 1. Organize words into lines
+            activeBouncingWords.forEach(wordObj => {
+                if (currentLineWidth + wordObj.width > maxLineWidth && currentLine.length > 0) {
+                    allLines.push({ words: currentLine, width: currentLineWidth - gap });
+                    currentLine = [];
+                    currentLineWidth = 0;
+                }
+                currentLine.push(wordObj);
+                currentLineWidth += wordObj.width + gap;
+            });
+            if (currentLine.length > 0) {
+                allLines.push({ words: currentLine, width: currentLineWidth - gap });
+            }
+
+            // 2. Calculate vertical centering
+            const maxLineHeight = activeBouncingWords.reduce((max, w) => Math.max(max, w.height), 0);
+            const totalBlockHeight = (allLines.length * maxLineHeight) + ((allLines.length - 1) * gap);
+            let startY = (containerH - totalBlockHeight) / 2;
+
+            // 3. Assign Targets
+            allLines.forEach(line => {
+                let startX = (containerW - line.width) / 2;
+                
+                line.words.forEach(wordObj => {
+                    wordObj.targetX = startX;
+                    wordObj.targetY = startY;
+                    startX += wordObj.width + gap;
+                });
+
+                startY += maxLineHeight + gap;
+            });
+        }
+
+        function revealWord() {
+            if (activeBouncingWords.length === 0) return;
+            
+            // Helper to measure dimensions of the unified size BEFORE applying it
+            const measureGhost = (text) => {
+                const span = document.createElement('div');
+                span.textContent = text;
+                // Match the exact classes used for display but with fixed size
+                span.className = `moving-word font-heading font-bold ${UNIFIED_SIZE_CLASS}`; 
+                span.style.visibility = 'hidden';
+                span.style.position = 'absolute';
+                document.body.appendChild(span);
+                const w = span.offsetWidth;
+                const h = span.offsetHeight;
+                document.body.removeChild(span);
+                return { w, h };
+            };
+
+            // 1. Calculate and update dimensions in memory first
+            activeBouncingWords.forEach(word => {
+                const dim = measureGhost(word.element.textContent);
+                word.width = dim.w;
+                word.height = dim.h;
+            });
+
+            // 2. Apply the visual class change (CSS Transition handles the look)
+            activeBouncingWords.forEach(word => {
+                // Remove all random sizes
+                fontSizes.forEach(fs => word.element.classList.remove(fs));
+                // Add unified size
+                word.element.classList.add(UNIFIED_SIZE_CLASS);
+            });
+
+            // 3. Trigger Movement
+            isRevealed = true;
+            calculateRevealPositions();
+            
+            // Disable UI
+            document.getElementById('reveal-btn').classList.add('opacity-50', 'pointer-events-none');
+            document.getElementById('speed-control-display').classList.add('opacity-50', 'pointer-events-none');
+        }
+        // --------------------------------
 
         function gameLoop() {
             const container = document.getElementById("word-display");
@@ -422,10 +529,9 @@ Red, Blue, Green, Yellow, Purple</textarea>
         function loadRound(index) {
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
             
-            // Clear previous words
+            // Clear previous
             const display = document.getElementById("word-display");
             display.querySelectorAll('.moving-word').forEach(el => el.remove());
-            
             const initialMsg = document.getElementById("initial-message");
             if(initialMsg) initialMsg.style.display = 'none';
 
@@ -434,14 +540,16 @@ Red, Blue, Green, Yellow, Purple</textarea>
             if (!roundsData.length) return;
             
             let nextIndex = index;
-            if (nextIndex >= roundsData.length) {
-                nextIndex = 0; // Loop back to the start
-            }
+            if (nextIndex >= roundsData.length) nextIndex = 0;
             currentRoundIndex = nextIndex;
 
             const words = roundsData[currentRoundIndex];
             
-            // Status update
+            // RESET STATES
+            isRevealed = false;
+            document.getElementById('reveal-btn').classList.remove('hidden', 'opacity-50', 'pointer-events-none');
+            document.getElementById('speed-control-display').classList.remove('opacity-50', 'pointer-events-none');
+            
             const status = document.getElementById("round-counter");
             status.innerHTML = `ROUND <span class="text-blue text-xl md:text-2xl ml-1">${currentRoundIndex + 1}</span> / ${roundsData.length}`;
 
@@ -465,7 +573,6 @@ Red, Blue, Green, Yellow, Purple</textarea>
                 return;
             }
             
-            // Auto collapse sidebar on mobile after load
             if(window.innerWidth < 768) {
                 toggleControlPanel(true);
             }
@@ -482,52 +589,40 @@ Red, Blue, Green, Yellow, Purple</textarea>
             loadRound(currentRoundIndex + 1);
         }
 
-        // Toggles the control panel (Sidebar) visibility
-        // If forceHide is true, it will always hide it, regardless of current state.
         function toggleControlPanel(forceHide = false) {
             const controls = document.getElementById('controls');
-            
-            // Determine if we should hide the panel
             const isCurrentlyHidden = window.innerWidth >= 768 
                 ? controls.classList.contains('hidden-panel-desktop')
                 : controls.classList.contains('hidden-panel-mobile');
 
             if(forceHide || !isCurrentlyHidden) {
-                // Hide
                 controls.classList.add('hidden-panel-mobile', 'hidden-panel-desktop');
             } else {
-                // Show
                 controls.classList.remove('hidden-panel-mobile', 'hidden-panel-desktop');
             }
-            
-            // Trigger resize for canvas calculation after the transition (300ms)
             setTimeout(() => window.dispatchEvent(new Event('resize')), 350);
         }
 
         window.addEventListener('resize', () => {
-             // Ensure panels adapt correctly on breakpoint changes
              const controls = document.getElementById('controls');
-             // If desktop view is active and we resize, ensure desktop class handles visibility
              if(window.innerWidth >= 768) {
-                 controls.classList.remove('hidden-panel-mobile'); // Clean up mobile class
-                 // If the panel is meant to be hidden, the desktop class will handle it
+                 controls.classList.remove('hidden-panel-mobile'); 
              } else {
-                 controls.classList.remove('hidden-panel-desktop'); // Clean up desktop class
-                 // If the panel is meant to be hidden, the mobile class will handle it
+                 controls.classList.remove('hidden-panel-desktop'); 
              }
+             
+             if(isRevealed) calculateRevealPositions();
         });
 
         function init() {
             loadWords();
             wordInput.addEventListener('input', (e) => saveWords(e.target.value));
             
-            // Initialize speed display
             const initialSpeed = document.getElementById('speed-slider').value;
             updateSpeed(initialSpeed);
             
             lucide.createIcons();
             
-            // Initial hide of the panel on load if on mobile (default state)
             if(window.innerWidth < 768) {
                 toggleControlPanel(true);
             }
