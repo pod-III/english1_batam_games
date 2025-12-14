@@ -3,22 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Word and Sentence Scrambler</title>
+    <title>Word Scrambler - Desktop Edition</title>
     
-    <!-- Icons -->
+    <!-- External Libraries -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Fonts: Bebas Neue (Headings), Inter (Body) -->
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+
+    <!-- Theme Configuration -->
     <script>
         tailwind.config = {
-            darkMode: 'class',
             theme: {
                 extend: {
                     colors: {
@@ -26,271 +24,418 @@
                         orange: '#FF8C42',
                         green: '#00E676',
                         blue: '#2979FF',
-                        dark: '#0f172a',
-                        panel: '#1e293b',
-                        surface: '#334155'
+                        dark: '#1e293b', 
+                        surface: '#FFFFFF',
+                        border: '#cbd5e1',
                     },
                     fontFamily: {
-                        heading: ['Bebas Neue', 'sans-serif'],
-                        body: ['Inter', 'sans-serif'],
+                        heading: ['Fredoka', 'sans-serif'], 
+                        body: ['Nunito', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    boxShadow: {
+                        'hard': '4px 4px 0px 0px rgba(30, 41, 59, 1)',
+                        'hard-lg': '8px 8px 0px 0px rgba(30, 41, 59, 1)',
+                        'hard-sm': '2px 2px 0px 0px rgba(30, 41, 59, 1)',
                     }
                 }
             }
         }
     </script>
-    
+
     <style>
-        /* Base Styling */
-        body {
-            font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, var(--color-dark) 0%, var(--color-panel) 100%);
-            min-height: 100vh;
-            color: white;
-            transition: background 0.5s, color 0.5s;
+        body { 
+            font-family: 'Nunito', sans-serif;
+            background-color: #F8FAFC;
+            /* Graph Paper Pattern */
+            background-image: 
+                linear-gradient(#E2E8F0 1px, transparent 1px),
+                linear-gradient(90deg, #E2E8F0 1px, transparent 1px);
+            background-size: 24px 24px;
+            color: #1e293b;
+            height: 100vh;
+            overflow: hidden;
         }
 
-        /* Dark Mode Background */
-        html.dark body {
-            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-        }
-        /* Light Mode Background */
-        html:not(.dark) body {
-            background: linear-gradient(135deg, #2979FF 0%, #FF6B95 100%);
+        /* --- UI COMPONENTS (Neo-Brutalism) --- */
+        .game-console {
+            background: #FFFFFF;
+            border: 4px solid #1e293b;
+            border-radius: 1.5rem;
+            box-shadow: 12px 12px 0px rgba(30, 41, 59, 0.15);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
 
-        /* Card Styles (Glass Effect for Light/Dark Consistency) */
-        .scrambler-card {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(0, 0, 0, 0.1);
-            color: #1f2937;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        .btn-chunky {
+            transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateY(0);
+            position: relative;
+            border: 3px solid #1e293b;
+            box-shadow: 0 4px 0 #1e293b;
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
         
-        html.dark .scrambler-card {
-            background: rgba(30, 41, 59, 0.9);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            color: white;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+        .btn-chunky:active:not(:disabled) {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #1e293b !important;
+            border-bottom-width: 3px;
+            /* Adjust positioning slightly to keep alignment */
+            margin-top: 4px; 
+            margin-bottom: -4px;
         }
 
-        /* Input Styles */
-        #text-input {
-            border-color: #2979FF; /* Blue border in light mode */
-            background-color: white;
-            color: #1f2937;
+        .btn-chunky-sm {
+            border: 2px solid #1e293b;
+            box-shadow: 0 2px 0 #1e293b;
         }
-        html.dark #text-input {
-            border-color: #00E676; /* Green accent in dark mode */
-            background-color: #111827;
-            color: white;
-        }
-        #text-input::placeholder {
-            color: #9ca3af;
+        .btn-chunky-sm:active {
+            transform: translateY(2px);
+            box-shadow: 0 0 0 #1e293b !important;
+            /* Adjust positioning slightly to keep alignment */
+            margin-top: 2px;
+            margin-bottom: -2px;
         }
 
-        /* Output Box Styles */
-        .output-box {
-            background-color: #f3f4f6;
-            border-color: #e5e7eb;
-        }
-        html.dark .output-box {
-            background-color: #0f172a;
-            border-color: #334155;
+        /* Inputs */
+        textarea {
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 10px 10px;
         }
 
-        .scrambled-text {
-            word-wrap: break-word;
-            white-space: pre-wrap;
-            min-height: 150px;
+        /* Custom Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; border: 2px solid #f8fafc; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* Mobile handling: Stack vertically if screen is small, but prioritize desktop layout */
+        @media (max-width: 768px) {
+            body { height: auto; overflow-y: auto; padding-bottom: 2rem; }
+            .game-console { height: auto; min-height: 90vh; border-radius: 1rem; border-width: 3px; }
+        }
+        
+        /* Layout Transition */
+        #content-grid {
+            transition: grid-template-columns 0.4s ease;
         }
     </style>
 </head>
-<body class="flex justify-center items-center min-h-screen p-4">
-    
-    <!-- Theme Toggle Button -->
-    <button id="theme-toggle" aria-label="Toggle theme" class="absolute top-4 right-4 z-10 p-2 rounded-full transition-colors text-white hover:bg-white/20 dark:text-yellow-400">
-        <i data-lucide="sun" id="sun-icon" class="w-6 h-6 hidden"></i>
-        <i data-lucide="moon" id="moon-icon" class="w-6 h-6"></i>
-    </button>
+<body class="flex justify-center items-center p-6 w-full h-screen">
 
-    <div class="scrambler-card p-8 rounded-3xl w-full max-w-2xl text-center transition-all duration-300">
-        <h1 class="font-heading text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue to-pink mb-2 tracking-widest">
-            WORD & SENTENCE SCRAMBLER
-        </h1>
-        <p class="text-gray-500 dark:text-gray-400 mb-6 font-body">
-            Enter words or sentences, separated by commas, to scramble their letters.
-        </p>
+    <!-- MAIN CONSOLE CONTAINER (Desktop Focused: Max Height/Width) -->
+    <div class="game-console w-full h-full max-w-[1600px] max-h-[95vh] relative z-10">
         
-        <!-- Input Textarea -->
-        <textarea id="text-input" 
-                  class="w-full p-4 border-2 rounded-2xl resize-y min-h-[150px] text-lg transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-blue/30 mb-4"
-                  placeholder="Type a word or sentence, separated by commas..."></textarea>
+        <!-- Header Bar -->
+        <header class="p-6 border-b-4 border-dark bg-yellow-50 flex justify-between items-center shrink-0">
+            <div>
+                <h1 class="text-3xl md:text-4xl font-heading text-dark tracking-wide leading-none">
+                    WORD<span class="text-blue">SCRAMBLER</span>
+                </h1>
+                <p class="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-1 ml-1">
+                    English 1 Batam • Desktop Dashboard
+                </p>
+            </div>
+            
+            <!-- Decorative dots (Desktop Aesthetic) -->
+            <div class="flex gap-3 items-center">
+                <div class="w-5 h-5 rounded-full bg-pink border-2 border-dark shadow-hard-sm"></div>
+                <div class="w-5 h-5 rounded-full bg-orange border-2 border-dark shadow-hard-sm"></div>
+                <div class="w-5 h-5 rounded-full bg-green border-2 border-dark shadow-hard-sm"></div>
+                
+                <!-- NEW: Input Panel Toggle Button (Desktop Only) -->
+                <button id="toggle-input-btn" onclick="toggleInputPanel()" 
+                    class="btn-chunky-sm bg-white hover:bg-slate-100 text-dark p-2.5 rounded-xl hidden md:flex items-center group transition-colors ml-4" 
+                    title="Hide Input Panel">
+                    <i data-lucide="panel-left-close" class="w-6 h-6 group-hover:text-blue transition-colors" id="toggle-icon"></i>
+                </button>
+            </div>
+        </header>
 
-        <!-- Scramble Button -->
-        <button id="scramble-btn" 
-                class="bg-gradient-to-r from-green to-blue text-white font-bold py-4 px-8 rounded-2xl shadow-lg shadow-green/30 transition-all duration-300 uppercase hover:shadow-xl hover:-translate-y-1">
-            <i data-lucide="shuffle" class="w-5 h-5 inline mr-2 -translate-y-[1px]"></i>
-            Scramble Text
-        </button>
-        
-        <!-- Scrambled Output -->
-        <div class="mt-8 p-4 rounded-2xl text-left output-box">
-            <h2 class="font-heading text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-pink to-orange mb-2 tracking-wide">
-                SCRAMBLED RESULT:
-            </h2>
-            <pre id="scrambled-output" class="scrambled-text text-lg text-gray-700 dark:text-gray-200 p-2"></pre>
+        <!-- Content Grid (Permanent 2-Column Split) -->
+        <div id="content-grid" class="flex-1 grid grid-cols-1 md:grid-cols-2 overflow-hidden bg-slate-100">
+            
+            <!-- LEFT PANEL: INPUT -->
+            <div id="input-panel" class="p-8 flex flex-col h-full border-b-4 md:border-b-0 md:border-r-4 border-dark bg-white relative">
+                
+                <div class="flex justify-between items-end mb-4">
+                    <label class="font-bold text-slate-400 text-sm uppercase tracking-widest flex items-center gap-2">
+                        <i data-lucide="keyboard" class="w-5 h-5 text-dark"></i> Input Source
+                    </label>
+                    <button onclick="clearInput()" class="btn-chunky-sm bg-white hover:bg-red-50 text-slate-400 hover:text-red-500 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i> CLEAR ALL
+                    </button>
+                </div>
+
+                <!-- PRESETS -->
+                <div class="mb-5">
+                    <div id="presets-container" class="flex flex-wrap gap-2">
+                        <!-- Presets injected via JS -->
+                    </div>
+                </div>
+                
+                <!-- TEXT AREA -->
+                <div class="flex-1 relative mb-6">
+                    <textarea id="text-input" 
+                        class="w-full h-full p-5 bg-slate-50 text-dark font-mono text-xl border-2 border-dark rounded-xl focus:border-blue focus:ring-0 outline-none resize-none shadow-inner custom-scrollbar"
+                        placeholder="Type or paste words here...&#10;Press ENTER to scramble!"></textarea>
+                </div>
+
+                <div class="text-center bg-slate-100 py-3 rounded-lg border-2 border-slate-200">
+                     <p class="text-xs text-slate-500 font-bold uppercase tracking-widest">
+                        Press <kbd class="bg-white border border-slate-300 rounded px-2 py-0.5 mx-1 shadow-sm text-dark">ENTER</kbd> to scramble
+                     </p>
+                </div>
+
+            </div>
+
+            <!-- RIGHT PANEL: OUTPUT -->
+            <div id="output-panel" class="p-8 flex flex-col h-full bg-slate-50 relative group">
+                
+                <div class="flex justify-between items-center mb-4">
+                    <label class="font-bold text-slate-400 text-sm uppercase tracking-widest flex items-center gap-2">
+                        <i data-lucide="sparkles" class="w-5 h-5 text-orange"></i> Scrambled Output
+                    </label>
+                    
+                    <div class="flex gap-3">
+                        <!-- CLEAR RESULT BUTTON -->
+                        <button onclick="clearOutput()" 
+                            class="btn-chunky btn-chunky-sm bg-white text-dark px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-pink hover:text-white transition-colors">
+                            <i data-lucide="eraser" class="w-4 h-4"></i> CLEAR
+                        </button>
+                        
+                        <!-- COPY BUTTON -->
+                        <button id="copy-btn" onclick="copyToClipboard()" 
+                            class="btn-chunky btn-chunky-sm bg-white text-dark px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-green hover:text-white transition-colors">
+                            <i data-lucide="copy" class="w-4 h-4"></i> COPY
+                        </button>
+                    </div>
+                </div>
+
+                <!-- OUTPUT CONTAINER -->
+                <div class="relative flex-1 rounded-xl overflow-hidden border-2 border-dashed border-slate-300 bg-white">
+                    
+                    <!-- Content -->
+                    <div id="output-container" class="absolute inset-0 overflow-y-auto p-8 custom-scrollbar">
+                        <pre id="scrambled-output" class="font-heading text-4xl md:text-5xl text-dark whitespace-pre-wrap leading-relaxed opacity-0 transition-opacity duration-300"></pre>
+                        
+                        <!-- Empty State -->
+                        <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center text-slate-300 select-none pointer-events-none">
+                            <div class="bg-slate-100 p-6 rounded-full border-2 border-slate-200 mb-4">
+                                <i data-lucide="type" class="w-12 h-12 opacity-30"></i>
+                            </div>
+                            <span class="text-sm font-bold uppercase tracking-widest opacity-60">Ready for Input</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-4 text-center">
+                     <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest opacity-75">
+                        Items are separated by commas
+                     </p>
+                </div>
+
+            </div>
+            
         </div>
     </div>
 
     <script>
         // --- LOCAL STORAGE KEY ---
-        const LS_KEY_TEXT = 'scramblerInputText';
+        const LS_KEY_TEXT = 'scramblerInputText_Desktop_v1';
         
-        // Get references to DOM elements
+        // DOM Elements
         const textInput = document.getElementById('text-input');
-        const scrambleBtn = document.getElementById('scramble-btn');
         const scrambledOutput = document.getElementById('scrambled-output');
-        const html = document.documentElement;
-        
-        // Theme Elements
-        const toggleBtn = document.getElementById('theme-toggle');
-        const sun = document.getElementById('sun-icon');
-        const moon = document.getElementById('moon-icon');
+        const emptyState = document.getElementById('empty-state');
+        const copyBtn = document.getElementById('copy-btn');
+        const inputPanel = document.getElementById('input-panel'); // Added ID
+        const contentGrid = document.getElementById('content-grid'); // Added ID
+        const toggleIcon = document.getElementById('toggle-icon'); // Added ID
 
-        /* --- THEME LOGIC --- */
+        // --- PRESET DATA (Theme Colors) ---
+        const PRESETS = [
+            { name: "Sentences", text: "The quick brown fox jumps over the lazy dog.", class: "bg-pink text-white border-pink" },
+            { name: "Vocab List", text: "Elephant, Classroom, Jakarta, Teacher, Student", class: "bg-green text-dark border-green" },
+            { name: "Punctuation", text: "What's wrong? I'm fine. Don't worry, friend.", class: "bg-orange text-white border-orange" },
+            { name: "Simple Words", text: "Code, Book, Tree, Apple, Word", class: "bg-white text-dark border-slate-200 hover:border-blue" }
+        ];
 
-        function updateThemeIcon() {
-            const isDark = html.classList.contains('dark');
-            sun.classList.toggle('hidden', !isDark);
-            moon.classList.toggle('hidden', isDark);
-        }
-
-        function initializeTheme() {
-            // Default to dark mode
-            html.classList.add('dark');
-            updateThemeIcon();
-        }
-
-        function toggleTheme() {
-            html.classList.toggle('dark');
-            updateThemeIcon();
-        }
-
-        toggleBtn.addEventListener('click', toggleTheme);
-        
-        /* --- PERSISTENCE --- */
-        
+        /* --- PERSISTENCE UTILS --- */
         function saveText(text) {
-             try {
-                localStorage.setItem(LS_KEY_TEXT, text);
-            } catch (e) {
-                console.error("Could not save text to local storage:", e);
-            }
+             try { 
+                localStorage.setItem(LS_KEY_TEXT, text); 
+            } catch(e) { console.error(e); }
+        }
+        
+        function loadText() {
+            try { return localStorage.getItem(LS_KEY_TEXT) || ''; } catch(e) { return ''; }
         }
 
-        function loadText() {
-            try {
-                const savedText = localStorage.getItem(LS_KEY_TEXT);
-                if (savedText) {
-                    textInput.value = savedText;
-                }
-            } catch (e) {
-                console.error("Could not load text from local storage:", e);
+        /* --- PRESET LOGIC --- */
+        function loadPreset(presetText) {
+            textInput.value = presetText;
+            saveText(presetText);
+            scrambleText();
+            textInput.focus();
+        }
+
+        function renderPresets() {
+            const container = document.getElementById('presets-container');
+            container.innerHTML = PRESETS.map((preset) => `
+                <button onclick="loadPreset('${preset.text.replace(/'/g, "\\'")}')" 
+                    class="btn-chunky-sm px-4 py-2 rounded-lg text-xs font-bold shadow-none hover:-translate-y-0.5 active:translate-y-0.5 transition-transform ${preset.class}">
+                    ${preset.name}
+                </button>
+            `).join('');
+        }
+        
+        /* --- UTILS --- */
+        function clearInput() {
+            textInput.value = '';
+            textInput.focus();
+            updateOutputDisplay('');
+            localStorage.removeItem(LS_KEY_TEXT);
+        }
+        
+        function clearOutput() {
+             updateOutputDisplay('');
+        }
+
+        function copyToClipboard() {
+            const text = scrambledOutput.textContent;
+            if(!text) return;
+            
+            const tempInput = document.createElement('textarea');
+            tempInput.value = text;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+
+            const originalHTML = copyBtn.innerHTML;
+            copyBtn.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i> COPIED!`;
+            copyBtn.classList.remove('bg-white', 'text-dark');
+            copyBtn.classList.add('bg-green', 'text-white');
+            
+            setTimeout(() => {
+                copyBtn.innerHTML = originalHTML;
+                copyBtn.classList.remove('bg-green', 'text-white');
+                copyBtn.classList.add('bg-white', 'text-dark');
+                lucide.createIcons();
+            }, 2000);
+        }
+
+        /* --- NEW: Input Panel Toggle Logic --- */
+        function toggleInputPanel() {
+            // Toggle visibility of the input panel
+            const isHidden = inputPanel.classList.toggle('hidden');
+            
+            // Adjust grid layout to maximize the output panel
+            if (isHidden) {
+                // Input hidden -> Output takes full width
+                contentGrid.classList.remove('md:grid-cols-2');
+                contentGrid.classList.add('md:grid-cols-1');
+                toggleIcon.setAttribute('data-lucide', 'panel-left-open');
+                document.getElementById('toggle-input-btn').title = "Show Input Panel";
+            } else {
+                // Input visible -> Split screen 1:1
+                contentGrid.classList.remove('md:grid-cols-1');
+                contentGrid.classList.add('md:grid-cols-2');
+                toggleIcon.setAttribute('data-lucide', 'panel-left-close');
+                document.getElementById('toggle-input-btn').title = "Hide Input Panel";
             }
+            lucide.createIcons();
         }
 
 
         /* --- SCRAMBLER LOGIC --- */
-
-        // Function to scramble the letters of a single word
         function scrambleWord(word) {
-            // Convert the word to an array of characters
             let charArray = word.split('');
-            // Use a simple Fisher-Yates shuffle to reorder the letters
             for (let i = charArray.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
                 [charArray[i], charArray[j]] = [charArray[j], charArray[i]];
             }
-            // Join the characters back into a string
             return charArray.join('');
         }
 
-        // Main function to handle the scrambling of the entire text
+        function updateOutputDisplay(text) {
+            scrambledOutput.style.opacity = '0';
+            
+            setTimeout(() => {
+                scrambledOutput.textContent = text;
+                
+                if(text && text.trim().length > 0) {
+                    emptyState.style.display = 'none';
+                    scrambledOutput.style.opacity = '1';
+                } else {
+                    emptyState.style.display = 'flex';
+                }
+            }, 100);
+        }
+
         function scrambleText() {
             const inputText = textInput.value;
-            
-            // Handle empty input
             if (inputText.trim() === '') {
-                scrambledOutput.textContent = 'Please enter some text to scramble.';
                 return;
             }
 
-            // Split the input text into individual comma-separated items
             const items = inputText.split(',');
-
-            // Scramble each item separately
             const scrambledItems = items.map(item => {
                 const trimmedItem = item.trim();
-                if (trimmedItem === '') {
-                    return '';
-                }
+                if (trimmedItem === '') return '';
 
-                // Split the item into words, preserving spaces and punctuation.
-                // Regex matches one or more whitespace characters (\s+) and keeps them as separate elements
                 const words = trimmedItem.split(/(\s+)/);
-                
-                // Scramble each word in the array
                 const scrambledWords = words.map(word => {
-                    // If the "word" is just whitespace, return it as is
-                    if (word.trim() === '') {
-                        return word;
-                    }
+                    if (word.trim() === '') return word;
                     
-                    // Regular expression to identify trailing punctuation
                     const trailingPunctuationMatch = word.match(/([.,!?;:]+)$/);
                     let punctuation = '';
                     let wordWithoutPunctuation = word;
                     
                     if (trailingPunctuationMatch) {
                         punctuation = trailingPunctuationMatch[0];
-                        // Remove punctuation from the end before scrambling
                         wordWithoutPunctuation = word.slice(0, -punctuation.length);
                     }
                     
-                    // Scramble the word and re-attach the punctuation
-                    const scrambled = scrambleWord(wordWithoutPunctuation);
-                    return scrambled + punctuation;
+                    return scrambleWord(wordWithoutPunctuation) + punctuation;
                 });
-                
-                // Join the scrambled words back into a single item
                 return scrambledWords.join('');
             });
 
-            // Join the scrambled items back into a single string with commas and spaces
-            scrambledOutput.textContent = scrambledItems.join(', ');
+            updateOutputDisplay(scrambledItems.join(', '));
         }
 
-        // Add event listener to the scramble button
-        scrambleBtn.addEventListener('click', scrambleText);
-        
-        // Auto-save on input
-        textInput.addEventListener('input', (e) => saveText(e.target.value));
+        // Events
+        textInput.addEventListener('input', (e) => {
+            const val = e.target.value;
+            saveText(val);
+            if(val.trim() === '') updateOutputDisplay('');
+        });
 
-        // Optional: Also trigger scrambling on 'Enter' key press in the textarea
         textInput.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter' && !event.shiftKey) { // Avoid scrambling on Shift+Enter
-                event.preventDefault(); // Prevent new line from being added
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
                 scrambleText();
             }
         });
 
-        // Initialize theme and icons on load
+        // Init
         window.onload = () => {
-            loadText(); // 1. Auto-load saved text
-            initializeTheme();
+            renderPresets();
+            
+            const savedText = loadText();
+            if (savedText) {
+                textInput.value = savedText;
+                scrambleText();
+            }
+            
             lucide.createIcons();
-            textInput.focus(); // Set focus on the input field
+            textInput.focus();
         }
     </script>
 </body>
