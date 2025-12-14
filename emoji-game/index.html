@@ -13,6 +13,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
+    <!-- Emoji Picker Library -->
+    <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@^1/index.js"></script>
+    
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,12 +30,12 @@
                         orange: '#FF8C42',
                         green: '#00E676',
                         blue: '#2979FF',
-                        dark: '#334155', // Used for main text/accents
+                        dark: '#334155', 
                         surface: '#FFFFFF',
                         border: '#E2E8F0',
                     },
                     fontFamily: {
-                        heading: ['Fredoka', 'sans-serif'], // Primary display font
+                        heading: ['Fredoka', 'sans-serif'], 
                         body: ['Nunito', 'sans-serif'],
                         mono: ['JetBrains Mono', 'monospace'],
                         emoji: ['"Apple Color Emoji"', '"Segoe UI Emoji"', '"Segoe UI Symbol"', '"Noto Color Emoji"', 'sans-serif'],
@@ -41,6 +44,8 @@
                         'pop': 'pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
                         'slide-up': 'slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
                         'float': 'float 6s ease-in-out infinite',
+                        'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'shimmer': 'shimmer 2.5s infinite',
                     },
                     keyframes: {
                         pop: {
@@ -48,12 +53,15 @@
                             '100%': { transform: 'scale(1)', opacity: '1' },
                         },
                         slideUp: {
-                            '0%': { transform: 'translateY(40px)', opacity: '0' },
+                            '0%': { transform: 'translateY(20px)', opacity: '0' },
                             '100%': { transform: 'translateY(0)', opacity: '1' },
                         },
                         float: {
                             '0%, 100%': { transform: 'translateY(0)' },
                             '50%': { transform: 'translateY(-10px)' },
+                        },
+                        shimmer: {
+                            '100%': { transform: 'translateX(100%)' },
                         }
                     }
                 }
@@ -62,7 +70,7 @@
     </script>
 
     <style>
-        /* --- BASE STYLES (Kid Theme Only) --- */
+        /* --- BASE STYLES --- */
         body { 
             font-family: 'Nunito', sans-serif;
             overflow: hidden;
@@ -76,83 +84,148 @@
             transition: none;
         }
         
-        /* Apply kid font globally for headers */
-        h1, h2, button { font-family: 'Fredoka', sans-serif; }
+        h1, h2, button, select, input { font-family: 'Fredoka', sans-serif; }
 
-        /* Game Card Styling (The "Sticker" Look) */
+        /* Game Card Styling */
         .game-card-panel {
             background: #FFFFFF;
             border: 4px solid #334155;
             box-shadow: 8px 8px 0px #334155;
             border-radius: 2rem;
+            transition: transform 0.2s;
         }
         
-        /* Button Primary Style */
         .btn-primary {
             background: #2979FF;
             color: white;
             border: 3px solid #1e3a8a;
             box-shadow: 0 4px 0 #1e3a8a;
         }
-
-        /* --- COMMON UTILS --- */
+        
+        /* 3D Button Effect */
         .btn-3d {
             transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
             transform: translateY(0);
             position: relative;
             overflow: hidden;
         }
-        
         .btn-3d:active, .btn-3d.active-press {
             transform: translateY(4px);
             box-shadow: none !important;
-            border-bottom: none !important;
+            border-bottom-width: 0px !important; 
+            /* Small adjustment to keep visual consistency */
+            margin-top: 4px; 
+            margin-bottom: -4px;
         }
 
-        /* EMOJI RENDERING (Clean, clear shadow) */
+        /* Emoji Renderer */
         .emoji-renderer {
             font-family: "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", "Android Emoji", sans-serif;
-            letter-spacing: -0.05em; /* Tighten up spacing slightly */
+            letter-spacing: -0.05em;
             line-height: 1.2;
             filter: drop-shadow(4px 4px 0px rgba(0, 0, 0, 0.1));
         }
 
-        #timer-bar { transition: width 0.1s linear, background-color 0.5s ease; }
-        .modal-enter { animation: modalPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        /* Sticky Note Style for Bonus */
+        .sticky-note {
+            background: #FEF3C7;
+            border: 2px solid #D97706;
+            box-shadow: 4px 4px 0px rgba(0,0,0,0.1);
+            transform: rotate(-1deg);
+        }
+
+        /* Emoji Picker Container Styling */
+        #emoji-picker-container {
+            position: fixed;
+            z-index: 150;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+            border-radius: 1rem;
+            background: white;
+            border: 4px solid #2979FF;
+            overflow: hidden;
+            display: flex;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.15s ease-out, transform 0.15s ease-out;
+            transform: scale(0.95);
+        }
+        #emoji-picker-container.active {
+            opacity: 1;
+            pointer-events: auto;
+            transform: scale(1);
+        }
         
+        /* Web Component Customization */
+        emoji-picker {
+            width: 350px;
+            height: 400px;
+            --background: #FFFFFF;
+            --border-color: #E2E8F0;
+            --font-family: 'Nunito', sans-serif;
+            --button-hover-background: #F0F9FF;
+            --indicator-color: #2979FF;
+            --outline-color: #2979FF;
+            --outline-size: 2px;
+        }
+
+        /* Custom Scrollbar for Editor */
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; border: 2px solid #f8fafc; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .modal-enter { animation: modalPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
         @keyframes modalPop {
-            0% { transform: scale(0.9); opacity: 0; }
+            0% { transform: scale(0.95); opacity: 0; }
             100% { transform: scale(1); opacity: 1; }
+        }
+        
+        /* Staggered animation for list items */
+        .list-item-enter {
+            animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            opacity: 0;
         }
     </style>
 </head>
 <body class="flex flex-col min-h-screen selection:bg-pink selection:text-white">
 
-    <!-- WELCOME VIEW (Title Screen) -->
+    <!-- WELCOME VIEW -->
     <div id="welcome-view" class="fixed inset-0 z-[40] flex flex-col items-center justify-center overflow-hidden hidden">
-        <div class="absolute inset-0 bg-white/90 backdrop-blur-sm z-0"></div>
+        <div class="absolute inset-0 bg-white/95 backdrop-blur-sm z-0"></div>
+        
+        <!-- Animated Background Elements -->
+        <div class="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
+            <div class="absolute top-10 left-10 text-6xl animate-float" style="animation-delay: 0s;">🤔</div>
+            <div class="absolute bottom-20 right-20 text-6xl animate-float" style="animation-delay: 1s;">💡</div>
+            <div class="absolute top-1/4 right-1/3 text-4xl animate-float" style="animation-delay: 2s;">🌏</div>
+            <div class="absolute bottom-1/3 left-1/4 text-5xl animate-float" style="animation-delay: 3s;">✨</div>
+        </div>
         
         <div class="relative z-10 text-center space-y-8 p-8 animate-pop">
-            <div class="inline-block p-8 rounded-[3rem] bg-white border-4 border-slate-800 shadow-2xl mb-4 animate-float">
-                <div class="text-8xl md:text-9xl filter drop-shadow-lg transform hover:scale-110 transition-transform duration-300 cursor-default select-none">🤔🌏</div>
+            <div class="inline-block p-10 rounded-[3rem] bg-white border-4 border-slate-800 shadow-[12px_12px_0px_rgba(30,41,59,1)] mb-6 animate-float">
+                <div class="text-8xl md:text-9xl filter drop-shadow-md transform hover:scale-110 transition-transform duration-300 cursor-default select-none">🤔🌏</div>
             </div>
             
-            <div class="space-y-2">
-                <h1 class="text-7xl md:text-9xl font-heading text-slate-800 tracking-widest drop-shadow-sm">
+            <div class="space-y-3">
+                <h1 class="text-6xl md:text-8xl font-heading text-slate-800 tracking-widest drop-shadow-sm">
                     EMOJI GUESS
                 </h1>
-                <p class="text-slate-500 font-mono text-xl tracking-[0.5em] uppercase font-bold">English 1 Batam</p>
+                <div class="inline-block bg-blue/10 px-4 py-1 rounded-full border border-blue/20">
+                    <p class="text-blue font-mono text-lg tracking-[0.3em] uppercase font-bold">English 1 Batam</p>
+                </div>
             </div>
 
-            <button onclick="app.startGame()" class="group relative btn-3d btn-primary px-12 py-5 rounded-3xl font-heading text-4xl tracking-widest hover:brightness-110 hover:scale-105 transition-all mt-8 overflow-hidden">
-                <span class="relative z-10 flex items-center gap-3">
-                    PLAY <i data-lucide="play" class="w-8 h-8 fill-current"></i>
+            <button onclick="app.startGame()" class="group relative btn-3d btn-primary px-16 py-6 rounded-3xl font-heading text-4xl tracking-widest hover:brightness-110 hover:scale-105 transition-all mt-10 overflow-hidden">
+                <span class="relative z-10 flex items-center gap-4">
+                    PLAY GAME <i data-lucide="play-circle" class="w-10 h-10 fill-current"></i>
                 </span>
+                <!-- Shimmer Effect -->
+                <div class="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:animate-shimmer"></div>
             </button>
             
-            <div class="mt-8 flex justify-center">
-                 <button onclick="app.showEditor()" class="text-slate-400 hover:text-slate-600 flex items-center gap-2 text-sm font-bold uppercase tracking-widest transition-colors bg-white/50 px-4 py-2 rounded-full">
-                    <i data-lucide="settings" class="w-4 h-4"></i> Setup Game
+            <div class="mt-12 flex justify-center">
+                 <button onclick="app.showEditor()" class="text-slate-400 hover:text-slate-700 flex items-center gap-2 text-sm font-bold uppercase tracking-widest transition-colors bg-white border border-slate-200 px-6 py-3 rounded-full hover:shadow-md hover:-translate-y-0.5 transform">
+                    <i data-lucide="settings" class="w-4 h-4"></i> Setup & Config
                 </button>
             </div>
         </div>
@@ -164,25 +237,25 @@
         <header class="w-full game-card-panel border-b border-transparent sticky top-0 z-40 transition-all duration-500 rounded-none md:rounded-b-[2rem] mt-0 md:mx-auto md:max-w-7xl md:mt-2">
             <div class="px-6 h-20 flex items-center justify-between">
                 <div class="flex items-center gap-4 group cursor-pointer" onclick="app.showWelcome()">
-                    <div class="bg-gradient-to-br from-green to-blue w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-lg group-hover:rotate-12 transition-transform border-2 border-white">
+                    <div class="bg-gradient-to-br from-green to-blue w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-md group-hover:rotate-12 transition-transform border-2 border-white">
                         🤔
                     </div>
                     <div class="hidden sm:block">
-                        <h1 class="text-3xl font-heading tracking-widest text-slate-800 leading-none">EMOJI GUESS</h1>
+                        <h1 class="text-3xl font-heading tracking-widest text-slate-800 leading-none group-hover:text-blue transition-colors">EMOJI GUESS</h1>
                     </div>
                 </div>
 
-                <div class="flex items-center gap-3 bg-white px-5 py-2 rounded-full border-2 border-slate-200 shadow-md">
-                    <span class="text-[10px] text-slate-500 uppercase font-bold tracking-widest hidden sm:inline">Question</span>
+                <div class="flex items-center gap-3 bg-slate-50 px-5 py-2 rounded-full border-2 border-slate-200 shadow-inner">
+                    <span class="text-[10px] text-slate-400 uppercase font-bold tracking-widest hidden sm:inline">Question</span>
                     <span id="progress-display" class="font-mono text-blue font-bold text-lg">1 / 15</span>
                 </div>
 
                 <div class="flex items-center gap-2 md:gap-3">
-                    <button id="sound-toggle" class="p-3 rounded-full hover:bg-slate-100 transition-all active:scale-95 text-slate-500">
+                    <button id="sound-toggle" class="p-3 rounded-full hover:bg-slate-100 transition-all active:scale-95 text-slate-500 border border-transparent hover:border-slate-200">
                         <i data-lucide="volume-2" class="w-5 h-5"></i>
                     </button>
                     
-                    <button onclick="app.showEditor()" class="btn-3d bg-white hover:bg-slate-50 text-slate-700 px-4 md:px-6 py-2 rounded-xl font-heading tracking-wider text-lg border-2 border-slate-200">
+                    <button onclick="app.showEditor()" class="btn-3d bg-white hover:bg-slate-50 text-slate-700 px-4 md:px-6 py-2 rounded-xl font-heading tracking-wider text-lg border-2 border-slate-200 shadow-sm">
                         SETUP
                     </button>
                 </div>
@@ -191,10 +264,11 @@
 
         <main class="flex-grow flex flex-col items-center justify-center p-4 md:p-6 w-full max-w-7xl mx-auto relative">
             
+            <!-- Main Game Card -->
             <div id="game-card" class="w-full max-w-5xl aspect-[16/9] md:aspect-[21/9] game-card-panel flex flex-col items-center justify-center relative overflow-hidden transition-all duration-500 animate-pop">
                 
                 <div class="absolute top-6 left-6 md:top-8 md:left-8 z-20">
-                    <span id="category-display" class="bg-white/90 backdrop-blur text-orange border-2 border-orange/20 px-6 py-2 rounded-full text-sm font-bold font-mono uppercase tracking-widest shadow-lg flex items-center gap-2">
+                    <span id="category-display" class="bg-white/90 backdrop-blur text-orange border-2 border-orange/20 px-6 py-2 rounded-full text-sm font-bold font-mono uppercase tracking-widest shadow-lg flex items-center gap-2 transform -rotate-1">
                         <span class="w-2 h-2 rounded-full bg-orange animate-pulse"></span>
                         Category
                     </span>
@@ -202,114 +276,134 @@
 
                 <div class="text-center z-10 w-full px-4 relative flex flex-col items-center justify-center h-full">
                     <div id="emoji-container" class="transition-all duration-700 transform will-change-transform">
-                        <div id="emoji-display" class="emoji-renderer text-7xl md:text-9xl lg:text-[11rem] leading-none select-none animate-slide-up hover:scale-105 transition-transform duration-300 cursor-help text-slate-800" title="Guess the word!">
+                        <div id="emoji-display" class="emoji-renderer text-7xl md:text-9xl lg:text-[11rem] leading-none select-none animate-slide-up hover:scale-105 transition-transform duration-300 cursor-help text-slate-800 drop-shadow-xl" title="Guess the word!">
                             <!-- Emojis go here -->
                         </div>
                     </div>
 
-                    <div id="answer-container" class="hidden animate-pop absolute inset-0 flex flex-col items-center justify-center bg-white/90 backdrop-blur-md z-30 rounded-[2rem]">
-                        <h2 class="text-slate-500 font-bold tracking-[0.6em] text-xs md:text-xs mb-4 uppercase animate-pulse">CORRECT ANSWER</h2>
+                    <!-- Answer Reveal Overlay -->
+                    <div id="answer-container" class="hidden animate-pop absolute inset-0 flex flex-col items-center justify-center bg-white/95 backdrop-blur-md z-30 rounded-[1.8rem]">
+                        <h2 class="text-slate-400 font-bold tracking-[0.6em] text-xs md:text-xs mb-6 uppercase animate-pulse">CORRECT ANSWER</h2>
                         <h1 id="answer-text" class="text-5xl md:text-8xl lg:text-9xl font-heading text-slate-800 mb-8 tracking-wide drop-shadow-lg px-4 break-words max-w-full">
                             Answer
                         </h1>
                         
-                        <div id="bonus-box" class="hidden max-w-2xl mx-auto bg-blue/5 border-l-4 border-yellow-400 p-6 rounded-r-2xl text-left shadow-xl border border-slate-200">
-                            <h3 class="text-yellow-600 font-bold flex items-center gap-2 mb-3 text-xs uppercase tracking-widest">
+                        <!-- Bonus Note -->
+                        <div id="bonus-box" class="hidden max-w-2xl mx-auto sticky-note p-8 rounded-xl text-left transform rotate-1 transition-transform hover:rotate-0 hover:scale-105 cursor-default relative">
+                            <!-- Pin Icon -->
+                            <div class="absolute -top-3 left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-red-500 shadow-md border border-red-700"></div>
+                            
+                            <h3 class="text-yellow-800 font-bold flex items-center gap-2 mb-3 text-xs uppercase tracking-widest border-b border-yellow-800/20 pb-2">
                                 <i data-lucide="star" class="w-4 h-4 fill-current"></i> Bonus Challenge
                             </h3>
-                            <p class="text-slate-700 text-lg md:text-2xl font-body font-light leading-relaxed">
-                                "Make a sentence with <span class="text-yellow-600 font-bold border-b-2 border-yellow-400/50 px-1">the answer</span> using anything we've learned!"
+                            <p class="text-slate-800 text-lg md:text-2xl font-body font-medium leading-relaxed">
+                                "Make a sentence with <span class="bg-yellow-400/30 px-1 rounded">the answer</span> using anything we've learned!"
                             </p>
                         </div>
 
-                        <button onclick="app.showBonus()" id="btn-show-bonus" class="mt-6 text-blue hover:text-blue-600 transition-all font-bold flex items-center justify-center gap-2 text-sm uppercase tracking-wider group hover:scale-105 bg-slate-100 px-6 py-2 rounded-full border border-slate-200">
+                        <button onclick="app.showBonus()" id="btn-show-bonus" class="mt-4 text-blue hover:text-blue-600 transition-all font-bold flex items-center justify-center gap-2 text-sm uppercase tracking-wider group hover:scale-105 bg-slate-50 px-6 py-3 rounded-full border border-slate-200 hover:shadow-md hover:border-blue/30">
                             <i data-lucide="plus-circle" class="w-4 h-4 group-hover:rotate-90 transition-transform"></i> Show Bonus Challenge
                         </button>
                     </div>
                 </div>
 
-                <div class="absolute bottom-0 left-0 w-full h-4 bg-slate-100">
-                    <div id="timer-bar" class="h-full bg-green w-full transition-all ease-linear origin-left"></div>
+                <!-- Timer Bar -->
+                <div class="absolute bottom-0 left-0 w-full h-3 bg-slate-100">
+                    <div id="timer-bar" class="h-full bg-green w-full transition-all ease-linear origin-left shadow-[0_-2px_6px_rgba(0,0,0,0.1)]"></div>
                 </div>
             </div>
 
-            <div class="w-full max-w-4xl mt-8 grid grid-cols-12 gap-3 md:gap-4">
+            <!-- Controls Grid -->
+            <div class="w-full max-w-4xl mt-6 grid grid-cols-12 gap-3 md:gap-4">
                 <div class="col-span-3 flex gap-2">
-                    <button onclick="app.prevQuestion()" id="btn-prev" class="w-full btn-3d bg-white hover:bg-slate-50 text-slate-700 rounded-2xl flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed group border-2 border-slate-200" title="Previous">
+                    <button onclick="app.prevQuestion()" id="btn-prev" class="w-full btn-3d bg-white hover:bg-slate-50 text-slate-700 rounded-2xl flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed group border-2 border-slate-200 shadow-sm" title="Previous">
                         <i data-lucide="arrow-left" class="w-6 h-6 group-hover:-translate-x-1 transition-transform"></i>
                     </button>
-                    <button onclick="app.startTimer()" id="btn-timer" class="w-full btn-3d bg-white hover:bg-slate-50 text-orange rounded-2xl flex items-center justify-center group border-2 border-slate-200" title="Start Timer">
+                    <button onclick="app.startTimer()" id="btn-timer" class="w-full btn-3d bg-white hover:bg-slate-50 text-orange rounded-2xl flex items-center justify-center group border-2 border-slate-200 shadow-sm" title="Start Timer">
                         <i data-lucide="clock" class="w-6 h-6 group-hover:scale-110 transition-transform"></i>
                     </button>
                 </div>
 
-                <button id="btn-reveal" onclick="app.revealAnswer()" class="col-span-6 btn-3d btn-primary text-white rounded-2xl font-heading text-3xl tracking-wider py-4 shadow-lg hover:brightness-110 hover:scale-[1.02] transition-transform">
-                    REVEAL
+                <button id="btn-reveal" onclick="app.revealAnswer()" class="col-span-6 btn-3d btn-primary text-white rounded-2xl font-heading text-3xl tracking-wider py-4 shadow-lg hover:brightness-110 hover:scale-[1.01] transition-transform overflow-hidden group">
+                    <span class="relative z-10">REVEAL</span>
+                    <div class="absolute top-0 left-0 w-full h-full bg-white/20 -translate-x-full group-hover:animate-shimmer"></div>
                 </button>
-                <button id="btn-next" onclick="app.nextQuestion()" class="hidden col-span-6 btn-3d btn-primary text-white rounded-2xl font-heading text-3xl tracking-wider py-4 shadow-lg hover:brightness-110 hover:scale-[1.02] transition-transform">
+                
+                <button id="btn-next" onclick="app.nextQuestion()" class="hidden col-span-6 btn-3d btn-primary text-white rounded-2xl font-heading text-3xl tracking-wider py-4 shadow-lg hover:brightness-110 hover:scale-[1.01] transition-transform">
                     NEXT
                 </button>
 
-                <button onclick="app.nextQuestion()" id="btn-skip" class="col-span-3 btn-3d bg-white hover:bg-slate-50 text-slate-700 rounded-2xl flex items-center justify-center group border-2 border-slate-200" title="Skip">
+                <button onclick="app.nextQuestion()" id="btn-skip" class="col-span-3 btn-3d bg-white hover:bg-slate-50 text-slate-700 rounded-2xl flex items-center justify-center group border-2 border-slate-200 shadow-sm" title="Skip">
                     <i data-lucide="arrow-right" class="w-6 h-6 group-hover:translate-x-1 transition-transform"></i>
                 </button>
             </div>
 
-            <div class="mt-8 flex gap-8 text-slate-400 text-[10px] font-mono uppercase tracking-[0.2em] opacity-80">
-                <span class="flex items-center gap-2"><kbd class="border border-slate-400 rounded px-1">SPACE</kbd> Action</span>
-                <span class="flex items-center gap-2"><kbd class="border border-slate-400 rounded px-1">←</kbd> <kbd class="border border-slate-400 rounded px-1">→</kbd> Navigate</span>
+            <!-- Helper Text -->
+            <div class="mt-8 flex gap-8 text-slate-400 text-[10px] font-mono uppercase tracking-[0.2em] opacity-80 select-none">
+                <span class="flex items-center gap-2"><kbd class="bg-white border border-slate-300 rounded px-1.5 py-0.5 font-bold text-slate-500 shadow-sm">SPACE</kbd> Action</span>
+                <span class="flex items-center gap-2"><kbd class="bg-white border border-slate-300 rounded px-1.5 py-0.5 font-bold text-slate-500 shadow-sm">← / →</kbd> Navigate</span>
             </div>
 
         </main>
     </div>
 
     <!-- EDITOR MODAL -->
-    <div id="editor-modal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-md modal-enter hidden">
-        <div class="game-card-panel w-full max-w-4xl h-[85vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col border border-slate-200 bg-white">
+    <div id="editor-modal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm modal-enter hidden">
+        <div class="game-card-panel w-full max-w-5xl h-[90vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col border border-slate-200 bg-white">
             
             <div class="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50">
                 <div class="flex items-center gap-4">
-                    <div class="p-3 bg-blue/10 rounded-xl text-blue border border-blue/20">
+                    <div class="p-3 bg-blue/10 rounded-2xl text-blue border border-blue/20 shadow-sm">
                         <i data-lucide="settings-2" class="w-6 h-6"></i>
                     </div>
                     <div>
-                        <h2 class="text-2xl font-heading text-slate-800 tracking-wide">GAME SETUP</h2>
-                        <p class="text-xs text-slate-500 font-mono uppercase tracking-wider">Configure your questions</p>
+                        <h2 class="text-2xl font-heading text-slate-800 tracking-wide leading-none">GAME CONFIG</h2>
+                        <p class="text-[11px] text-slate-500 font-mono uppercase tracking-widest mt-1">Customize Questions & Timer</p>
                     </div>
                 </div>
                 
-                <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200">
-                    <i data-lucide="clock" class="w-4 h-4 text-orange"></i>
-                    <span class="text-xs font-bold text-slate-500 uppercase">Timer:</span>
-                    <input type="number" id="timer-setting" value="10" min="5" max="60" class="w-12 bg-transparent text-slate-800 font-mono text-center outline-none border-b border-slate-300 focus:border-blue">
-                    <span class="text-xs text-slate-400">s</span>
+                <div class="flex items-center gap-3 bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm">
+                    <div class="w-8 h-8 rounded-full bg-orange/10 flex items-center justify-center">
+                         <i data-lucide="clock" class="w-4 h-4 text-orange"></i>
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wide leading-none">Timer</span>
+                        <div class="flex items-baseline gap-1">
+                            <input type="number" id="timer-setting" value="10" min="5" max="60" class="w-8 bg-transparent text-slate-800 font-heading text-lg font-bold text-center outline-none border-b-2 border-transparent focus:border-blue p-0">
+                            <span class="text-xs text-slate-400 font-bold">sec</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- New Preset Selector Row -->
-            <div class="px-6 py-4 border-b border-slate-200 bg-slate-100 flex justify-between items-center">
-                <label for="preset-selector" class="text-sm font-bold text-slate-600 uppercase tracking-wider">Load Preset:</label>
-                <select id="preset-selector" onchange="app.loadPreset(this.value)" class="p-2 border border-slate-300 rounded-lg bg-white text-slate-800 font-heading">
+            <!-- Preset Bar -->
+            <div class="px-6 py-4 border-b border-slate-200 bg-white flex justify-between items-center shadow-[0_4px_10px_rgba(0,0,0,0.03)] z-10">
+                <label for="preset-selector" class="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                    <i data-lucide="folder-open" class="w-4 h-4"></i> Load Preset:
+                </label>
+                <select id="preset-selector" onchange="app.loadPreset(this.value)" class="py-2 pl-3 pr-8 border-2 border-slate-200 rounded-lg bg-slate-50 text-slate-700 font-heading text-sm focus:border-blue focus:ring-0 outline-none cursor-pointer hover:bg-white transition-colors">
                     <!-- Options injected by JS -->
                 </select>
             </div>
 
-            <div class="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-100" id="editor-list">
+            <!-- Question List -->
+            <div class="flex-1 overflow-y-auto p-6 space-y-3 bg-slate-50/50 custom-scrollbar" id="editor-list">
                 <!-- Rows injected here -->
             </div>
 
-            <div class="p-6 border-t border-slate-200 bg-white flex gap-4 backdrop-blur-md">
-                <button onclick="app.addEditorRow()" class="px-6 py-4 border-2 border-dashed border-slate-300 text-slate-400 rounded-2xl hover:border-blue hover:text-blue hover:bg-blue/5 transition font-bold text-sm tracking-wide flex items-center justify-center gap-2 group">
-                    <i data-lucide="plus-circle" class="w-5 h-5 group-hover:scale-110 transition-transform"></i> NEW
+            <!-- Footer Actions -->
+            <div class="p-5 border-t border-slate-200 bg-white flex gap-4 backdrop-blur-md items-center">
+                <button onclick="app.addEditorRow()" class="px-5 py-3 border-2 border-dashed border-slate-300 text-slate-400 rounded-xl hover:border-blue hover:text-blue hover:bg-blue/5 transition font-bold text-sm tracking-wide flex items-center justify-center gap-2 group h-full">
+                    <i data-lucide="plus" class="w-5 h-5 group-hover:scale-110 transition-transform"></i> ADD NEW
                 </button>
-                <div class="flex-1"></div>
-                <!-- SAVE ONLY (No launch) -->
-                <button onclick="app.saveEditorData(false)" class="px-8 text-slate-500 hover:text-slate-800 font-bold text-sm hover:bg-slate-100 rounded-xl transition">
-                    SAVE
+                <div class="flex-1 text-center">
+                     <span id="save-status" class="text-xs font-bold text-green opacity-0 transition-opacity uppercase tracking-widest">Saved Successfully!</span>
+                </div>
+                <button onclick="app.saveEditorData(false)" class="px-6 py-3 text-slate-500 hover:text-slate-800 font-bold text-sm hover:bg-slate-100 rounded-xl transition border border-transparent hover:border-slate-200">
+                    SAVE CHANGES
                 </button>
-                <!-- LAUNCH GAME BUTTON -->
-                <button onclick="app.launchGame()" class="btn-3d btn-primary px-10 rounded-xl font-bold tracking-wide shadow-lg flex items-center gap-2 text-xl hover:brightness-110">
-                    <i data-lucide="rocket" class="w-6 h-6"></i> LAUNCH GAME
+                <button onclick="app.launchGame()" class="btn-3d btn-primary px-8 py-3 rounded-xl font-bold tracking-wide shadow-lg flex items-center gap-3 text-lg hover:brightness-110">
+                    LAUNCH GAME <i data-lucide="rocket" class="w-5 h-5"></i>
                 </button>
             </div>
         </div>
@@ -317,12 +411,16 @@
 
     <!-- GAME OVER OVERLAY -->
     <div id="game-over-view" class="fixed inset-0 z-[90] hidden flex flex-col items-center justify-center bg-white/95 backdrop-blur-xl animate-pop">
-        <div class="text-8xl mb-8 animate-bounce filter drop-shadow-[0_0_30px_rgba(255,215,0,0.5)]">🏆</div>
-        <h1 class="text-7xl md:text-9xl font-heading text-transparent bg-clip-text bg-gradient-to-r from-pink via-orange to-blue mb-6 tracking-wide">FANTASTIC!</h1>
-        <p class="text-slate-500 font-mono text-lg mb-12 uppercase tracking-widest border border-slate-300 px-6 py-2 rounded-full">You have completed all questions</p>
+        <div class="relative mb-8">
+             <div class="text-9xl animate-bounce filter drop-shadow-xl relative z-10">🏆</div>
+             <div class="absolute inset-0 bg-yellow-400 blur-[60px] opacity-20 animate-pulse"></div>
+        </div>
+       
+        <h1 class="text-7xl md:text-9xl font-heading text-transparent bg-clip-text bg-gradient-to-r from-pink via-orange to-blue mb-6 tracking-wide drop-shadow-sm">FANTASTIC!</h1>
+        <p class="text-slate-500 font-mono text-lg mb-12 uppercase tracking-widest border border-slate-300 px-8 py-2 rounded-full bg-white shadow-sm">You have completed all questions</p>
         
         <div class="flex gap-4">
-             <button onclick="app.showEditor()" class="btn-3d bg-slate-100 hover:bg-slate-200 text-slate-700 px-10 py-5 rounded-2xl font-heading text-2xl tracking-widest border border-slate-300">
+             <button onclick="app.showEditor()" class="btn-3d bg-slate-100 hover:bg-slate-200 text-slate-700 px-10 py-5 rounded-2xl font-heading text-2xl tracking-widest border border-slate-300 shadow-sm">
                 <i data-lucide="settings" class="inline-block w-6 h-6 mr-2 mb-1"></i> SETUP
             </button>
             <button onclick="app.showWelcome()" class="btn-3d btn-primary px-12 py-5 rounded-2xl font-heading text-3xl tracking-widest hover:scale-105 transition shadow-xl">
@@ -332,25 +430,36 @@
         <canvas id="confetti-canvas" class="absolute inset-0 pointer-events-none"></canvas>
     </div>
     
-    <!-- CUSTOM CONFIRMATION MODAL -->
-    <div id="confirm-modal" class="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-md modal-enter hidden">
-        <div class="game-card-panel bg-white p-8 w-full max-w-sm rounded-2xl text-center">
-            <h3 class="text-xl font-heading text-slate-800 mb-6" id="confirm-message"></h3>
-            <div class="flex justify-center gap-4 mt-6">
-                <button id="confirm-no" class="btn-3d bg-slate-200 hover:bg-slate-300 text-slate-700 px-6 py-3 rounded-xl font-heading text-lg">
+    <!-- CONFIRMATION MODAL -->
+    <div id="confirm-modal" class="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm modal-enter hidden">
+        <div class="game-card-panel bg-white p-8 w-full max-w-sm rounded-2xl text-center shadow-2xl">
+            <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500">
+                <i data-lucide="alert-circle" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-xl font-heading text-slate-800 mb-2">Are you sure?</h3>
+            <p class="text-sm text-slate-500 mb-6 leading-relaxed" id="confirm-message">This action cannot be undone.</p>
+            <div class="flex justify-center gap-3">
+                <button id="confirm-no" class="btn-3d bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-2 rounded-xl font-heading text-md border border-slate-200">
                     Cancel
                 </button>
-                <button id="confirm-yes" class="btn-3d bg-pink text-white px-6 py-3 rounded-xl font-heading text-lg shadow-pink/30">
-                    Yes, Delete
+                <button id="confirm-yes" class="btn-3d bg-pink text-white px-6 py-2 rounded-xl font-heading text-md shadow-lg shadow-pink/20 border border-pink">
+                    Yes, Confirm
                 </button>
             </div>
         </div>
     </div>
 
+    <!-- EMOJI PICKER CONTAINER -->
+    <div id="emoji-picker-container" class="hidden">
+         <emoji-picker class="light"></emoji-picker>
+    </div>
+
     <script>
-        // Global reference for the confirmation callback
+        // Global variables
         let confirmationCallback = null;
-        
+        let activeEmojiInput = null;
+        let activePickerButton = null;
+
         // --- AUDIO ENGINE ---
         let audioEnabled = true;
         const AudioEngine = {
@@ -374,13 +483,12 @@
                 synth.triggerAttackRelease(["C5", "E5", "G5", "C6"], "2n", now + 0.4);
             }
         };
-
+        
         // --- DATA / PRESETS ---
         const PRESETS = [
             {
                 name: 'World Tour',
                 id: 'world',
-                // Removed spaces between emojis for a tight look
                 questions: [
                     { category: 'NATIONS', answer: 'Australia', emojis: '🦘🐨🌊☀️' },
                     { category: 'NATIONS', answer: 'Japan', emojis: '🍣👘🗻🚄' },
@@ -443,30 +551,106 @@
                 this.activePresetId = savedPresetId;
                 
                 if (savedData) {
-                    const customPreset = PRESETS.find(p => p.id === this.activePresetId);
-                    if (customPreset) {
-                        this.questions = JSON.parse(savedData);
-                    } else {
-                        this.questions = PRESETS[0].questions; 
-                        this.activePresetId = 'world';
-                    }
+                    this.questions = JSON.parse(savedData);
                 } else {
                     const defaultPreset = PRESETS.find(p => p.id === this.activePresetId);
                     this.questions = defaultPreset ? defaultPreset.questions : PRESETS[0].questions;
                 }
 
                 this.timerDuration = savedTimer ? parseInt(savedTimer) : 10;
-                
                 document.getElementById('timer-setting').value = this.timerDuration;
                 
                 lucide.createIcons();
                 this.setupKeyboard();
                 this.setupConfirmationListeners();
                 
+                // Picker Logic
+                document.querySelector('emoji-picker').addEventListener('emoji-click', event => {
+                    this.insertEmoji(event.detail.unicode);
+                });
+                
                 document.getElementById('welcome-view').classList.remove('hidden');
                 this.showEditor();
             },
+
+            // --- UI HELPERS ---
+            showEmojiPicker: function(inputElement, pickerButton) {
+                if (activePickerButton === pickerButton && document.getElementById('emoji-picker-container').classList.contains('active')) {
+                    this.hideEmojiPicker();
+                    return;
+                }
+                
+                this.hideEmojiPicker();
+                activeEmojiInput = inputElement;
+                activePickerButton = pickerButton;
+                
+                const pickerContainer = document.getElementById('emoji-picker-container');
+                const rect = pickerButton.getBoundingClientRect();
+                
+                pickerContainer.style.left = `${rect.left}px`;
+                pickerContainer.style.top = `${rect.bottom + 8}px`;
+                pickerContainer.classList.remove('hidden');
+                
+                // Trigger animation
+                requestAnimationFrame(() => {
+                     pickerContainer.classList.add('active');
+                });
+
+                // Adjust position if off-screen
+                const pickerRect = pickerContainer.getBoundingClientRect();
+                if (pickerRect.right > window.innerWidth) {
+                    pickerContainer.style.left = `${window.innerWidth - pickerRect.width - 20}px`;
+                }
+                if (pickerRect.bottom > window.innerHeight) {
+                    pickerContainer.style.top = `${rect.top - pickerRect.height - 8}px`;
+                }
+
+                setTimeout(() => {
+                    document.addEventListener('click', this.hideEmojiPickerOutside, true);
+                }, 50);
+            },
             
+            hideEmojiPicker: function() {
+                const pickerContainer = document.getElementById('emoji-picker-container');
+                pickerContainer.classList.remove('active');
+                setTimeout(() => {
+                    if(!pickerContainer.classList.contains('active')) {
+                        pickerContainer.classList.add('hidden');
+                    }
+                }, 150);
+                
+                document.removeEventListener('click', this.hideEmojiPickerOutside, true);
+                activeEmojiInput = null;
+                activePickerButton = null;
+            },
+
+            hideEmojiPickerOutside: function(e) {
+                const pickerContainer = document.getElementById('emoji-picker-container');
+                if (pickerContainer && !pickerContainer.contains(e.target) && e.target !== activePickerButton) {
+                    app.hideEmojiPicker();
+                }
+            },
+            
+            insertEmoji: function(emoji) {
+                if (activeEmojiInput) {
+                    const startPos = activeEmojiInput.selectionStart;
+                    const endPos = activeEmojiInput.selectionEnd;
+                    const originalValue = activeEmojiInput.value;
+                    const newValue = originalValue.substring(0, startPos) + emoji + originalValue.substring(endPos);
+                    
+                    activeEmojiInput.value = newValue; 
+                    const index = parseInt(activeEmojiInput.id.split('-')[2]);
+                    if(!isNaN(index)) {
+                         app.updateQuestion(index, 'emojis', activeEmojiInput.value);
+                    }
+                    
+                    const newCursorPos = startPos + emoji.length;
+                    activeEmojiInput.setSelectionRange(newCursorPos, newCursorPos);
+                    activeEmojiInput.focus();
+                }
+            },
+            
+            // --- MODALS & ALERTS ---
             showConfirmation: function(message, callback) {
                 document.getElementById('confirm-message').textContent = message;
                 document.getElementById('confirm-modal').classList.remove('hidden');
@@ -480,29 +664,24 @@
 
                 btnYes.onclick = () => {
                     modal.classList.add('hidden');
-                    if (confirmationCallback) {
-                        confirmationCallback(true);
-                        confirmationCallback = null;
-                    }
+                    if (confirmationCallback) { confirmationCallback(true); confirmationCallback = null; }
                 };
 
                 btnNo.onclick = () => {
                     modal.classList.add('hidden');
-                    if (confirmationCallback) {
-                        confirmationCallback(false);
-                        confirmationCallback = null;
-                    }
+                    if (confirmationCallback) { confirmationCallback(false); confirmationCallback = null; }
                 };
             },
 
+            // --- GAMEPLAY ---
             loadPreset: function(presetId) {
                 const selectedPreset = PRESETS.find(p => p.id === presetId);
                 if (!selectedPreset) return;
 
-                this.showConfirmation(`Are you sure you want to load the "${selectedPreset.name}" preset? This will overwrite your current unsaved questions.`, (result) => {
+                this.showConfirmation(`Load "${selectedPreset.name}"? This will overwrite unsaved changes.`, (result) => {
                     if (result) {
                         this.activePresetId = presetId;
-                        this.questions = [...selectedPreset.questions];
+                        this.questions = JSON.parse(JSON.stringify(selectedPreset.questions));
                         localStorage.setItem('emojiGamePresetId', presetId);
                         localStorage.setItem('emojiGameData_Custom', JSON.stringify(this.questions));
                         this.renderEditorRows();
@@ -525,25 +704,14 @@
                     };
 
                     switch(e.code) {
-                        case 'ArrowRight': 
-                            pressButton('btn-skip');
-                            this.nextQuestion(); 
-                            break;
-                        case 'ArrowLeft': 
-                            pressButton('btn-prev');
-                            this.prevQuestion(); 
-                            break;
+                        case 'ArrowRight': pressButton('btn-skip'); this.nextQuestion(); break;
+                        case 'ArrowLeft': pressButton('btn-prev'); this.prevQuestion(); break;
                         case 'Space': 
                         case 'Enter':
                             e.preventDefault();
                             const isRevealed = !document.getElementById('answer-container').classList.contains('hidden');
-                            if(!isRevealed) {
-                                pressButton('btn-reveal');
-                                this.revealAnswer();
-                            } else {
-                                pressButton('btn-next');
-                                this.nextQuestion();
-                            }
+                            if(!isRevealed) { pressButton('btn-reveal'); this.revealAnswer(); } 
+                            else { pressButton('btn-next'); this.nextQuestion(); }
                             break;
                     }
                 });
@@ -576,6 +744,7 @@
                 bar.style.transition = 'none';
                 bar.style.width = '100%';
                 bar.style.backgroundColor = '#00E676';
+                bar.classList.remove('animate-pulse-fast');
                 
                 void bar.offsetWidth;
 
@@ -585,14 +754,19 @@
                 const durationMs = this.timerDuration * 1000;
                 
                 setTimeout(() => { if(this.isTimerRunning) bar.style.backgroundColor = '#FF8C42'; }, durationMs * 0.5);
-                setTimeout(() => { if(this.isTimerRunning) bar.style.backgroundColor = '#FF6B95'; }, durationMs * 0.8);
+                setTimeout(() => { 
+                    if(this.isTimerRunning) {
+                        bar.style.backgroundColor = '#FF6B95';
+                        bar.classList.add('animate-pulse-fast');
+                    }
+                }, durationMs * 0.8);
 
                 const btn = document.getElementById('btn-timer');
-                btn.classList.add('opacity-50');
+                btn.classList.add('opacity-50', 'pointer-events-none');
                 
                 setTimeout(() => {
                     this.isTimerRunning = false;
-                    btn.classList.remove('opacity-50');
+                    btn.classList.remove('opacity-50', 'pointer-events-none');
                     AudioEngine.playPop();
                 }, durationMs);
             },
@@ -602,8 +776,9 @@
                 bar.style.transition = 'none';
                 bar.style.width = '100%';
                 bar.style.backgroundColor = '#00E676';
+                bar.classList.remove('animate-pulse-fast');
                 this.isTimerRunning = false;
-                document.getElementById('btn-timer').classList.remove('opacity-50');
+                document.getElementById('btn-timer').classList.remove('opacity-50', 'pointer-events-none');
             },
 
             loadQuestion: function() {
@@ -689,10 +864,7 @@
             showEditor: function() {
                 document.getElementById('game-view').classList.add('hidden');
                 document.getElementById('game-over-view').classList.add('hidden');
-                
-                const welcome = document.getElementById('welcome-view');
-                welcome.classList.remove('hidden');
-                
+                document.getElementById('welcome-view').classList.remove('hidden');
                 document.getElementById('editor-modal').classList.remove('hidden');
                 this.renderEditorRows();
                 this.renderPresetSelector();
@@ -700,50 +872,72 @@
 
             hideEditor: function() {
                 document.getElementById('editor-modal').classList.add('hidden');
+                this.hideEmojiPicker();
             },
             
             renderPresetSelector: function() {
                 const selector = document.getElementById('preset-selector');
                 selector.innerHTML = '';
-                
                 PRESETS.forEach(preset => {
                     const option = document.createElement('option');
                     option.value = preset.id;
                     option.textContent = preset.name;
                     selector.appendChild(option);
                 });
-                
                 selector.value = this.activePresetId;
             },
 
             renderEditorRows: function() {
                 const container = document.getElementById('editor-list');
                 container.innerHTML = '';
+                
+                // Color cycle for rows
+                const colors = [
+                    'border-l-pink', 
+                    'border-l-orange', 
+                    'border-l-green', 
+                    'border-l-blue'
+                ];
+
                 this.questions.forEach((q, index) => {
                     const row = document.createElement('div');
-                    row.className = 'bg-white p-4 rounded-xl border border-slate-200 flex flex-col md:flex-row gap-4 items-start relative group hover:border-blue/30 transition-colors shadow-sm';
+                    const colorClass = colors[index % colors.length];
+                    const delay = index * 50; // Staggered animation
+                    
+                    row.className = `bg-white p-4 rounded-xl border border-slate-200 border-l-4 ${colorClass} flex flex-col md:flex-row gap-4 items-start relative group hover:shadow-md transition-all list-item-enter`;
+                    row.style.animationDelay = `${delay}ms`;
+                    
                     row.innerHTML = `
-                        <div class="absolute -left-2 -top-2 w-6 h-6 bg-blue text-white rounded-full flex items-center justify-center font-bold text-xs shadow-md border-2 border-white">${index + 1}</div>
+                        <div class="absolute -left-3 top-4 w-6 h-6 bg-white text-slate-400 border border-slate-300 rounded-full flex items-center justify-center font-bold text-xs shadow-sm z-10">${index + 1}</div>
                         
-                        <div class="flex-1 grid grid-cols-1 md:grid-cols-12 gap-4 w-full">
+                        <div class="flex-1 grid grid-cols-1 md:grid-cols-12 gap-4 w-full pl-2">
                             <div class="md:col-span-3">
                                 <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Category</label>
                                 <input type="text" value="${q.category}" onchange="app.updateQuestion(${index}, 'category', this.value)" 
-                                    class="w-full px-4 py-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-800 focus:border-blue focus:ring-1 focus:ring-blue outline-none text-sm font-mono uppercase transition-all">
+                                    class="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 focus:bg-white focus:border-blue focus:ring-1 focus:ring-blue outline-none text-sm font-mono uppercase transition-all">
                             </div>
                             <div class="md:col-span-5">
                                 <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Answer</label>
                                 <input type="text" value="${q.answer}" onchange="app.updateQuestion(${index}, 'answer', this.value)"
-                                    class="w-full px-4 py-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-800 focus:border-green focus:ring-1 focus:ring-green outline-none font-bold text-lg transition-all">
+                                    class="w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:border-green focus:ring-1 focus:ring-green outline-none font-bold text-lg transition-all">
                             </div>
-                            <div class="md:col-span-4">
+                            <div class="md:col-span-4 relative">
                                 <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Emojis</label>
-                                <input type="text" value="${q.emojis}" onchange="app.updateQuestion(${index}, 'emojis', this.value)"
-                                    class="emoji-renderer w-full px-4 py-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-800 focus:border-orange focus:ring-1 focus:ring-orange outline-none text-2xl transition-all tracking-tight">
+                                <div class="flex items-center gap-2">
+                                    <input type="text" id="emoji-input-${index}" value="${q.emojis}" 
+                                        oninput="app.updateQuestion(${index}, 'emojis', this.value)"
+                                        class="emoji-renderer w-full px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 text-slate-800 focus:bg-white focus:border-orange focus:ring-1 focus:ring-orange outline-none text-2xl transition-all tracking-tight">
+                                    
+                                    <button type="button" 
+                                        onclick="event.stopPropagation(); app.showEmojiPicker(document.getElementById('emoji-input-${index}'), this);"
+                                        class="shrink-0 p-2 bg-white hover:bg-yellow-50 text-slate-400 hover:text-yellow-500 rounded-lg border border-slate-200 hover:border-yellow-300 shadow-sm active:translate-y-0.5 active:shadow-none transition-all">
+                                        ✨
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         
-                        <button onclick="app.removeQuestion(${index})" class="self-end md:self-center p-3 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Delete">
+                        <button onclick="app.removeQuestion(${index})" class="self-end md:self-center p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition" title="Delete">
                             <i data-lucide="trash-2" class="w-5 h-5"></i>
                         </button>
                     `;
@@ -762,7 +956,7 @@
             },
 
             removeQuestion: function(index) {
-                this.showConfirmation(`Are you sure you want to delete question #${index + 1}? This action cannot be undone.`, (result) => {
+                this.showConfirmation(`Delete question #${index + 1}?`, (result) => {
                     if (result) {
                         this.questions.splice(index, 1);
                         this.renderEditorRows();
@@ -771,10 +965,7 @@
             },
 
             updateQuestion: function(index, field, value) {
-                if (field === 'emojis') {
-                   // Clean up user input: remove all whitespace characters
-                   value = value.replace(/\s/g, ''); 
-                }
+                if (field === 'emojis') { value = value.replace(/\s/g, ''); }
                 this.questions[index][field] = value;
             },
 
@@ -787,15 +978,14 @@
                 localStorage.setItem('emojiGamePresetId', this.activePresetId);
                 
                 this.currentIndex = 0; 
-                this.loadQuestion();
                 
                 if(launch) {
+                    this.loadQuestion();
                     this.hideEditor();
                 } else {
-                    const btn = event.target;
-                    const originalText = btn.innerText;
-                    btn.innerText = "SAVED!";
-                    setTimeout(() => btn.innerText = originalText, 1000);
+                    const status = document.getElementById('save-status');
+                    status.classList.remove('opacity-0');
+                    setTimeout(() => status.classList.add('opacity-0'), 2000);
                 }
             }
         };
