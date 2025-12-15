@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Unscramble - English 1</title>
+    <title>Unscramble - English 1 Batam</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,6 +12,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     
     <link rel="stylesheet" href="../styles.css">
 
@@ -36,6 +37,27 @@
                         'hard': '4px 4px 0px 0px rgba(30, 41, 59, 1)',
                         'hard-sm': '2px 2px 0px 0px rgba(30, 41, 59, 1)',
                         'hard-lg': '6px 6px 0px 0px rgba(30, 41, 59, 1)',
+                    },
+                    animation: {
+                        'float': 'float 6s ease-in-out infinite',
+                        'pop': 'pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                        'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        },
+                        pop: {
+                            '0%': { transform: 'scale(0.9)', opacity: '0' },
+                            '100%': { transform: 'scale(1)', opacity: '1' }
+                        },
+                        shake: {
+                            '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
+                            '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
+                            '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
+                            '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
+                        }
                     }
                 }
             }
@@ -43,7 +65,7 @@
     </script>
 
     <style>
-        /* Fallback Grid Background */
+        /* Hub Grid Background */
         body {
             background-color: #F8FAFC;
             background-image:
@@ -53,40 +75,11 @@
             color: #1e293b;
         }
 
-        /* Animations */
-        @keyframes popIn {
-            0% { transform: scale(0.9); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-        .animate-pop {
-            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-        }
-
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-6px); }
-        }
-        .animate-float {
-            animation: float 4s ease-in-out infinite;
-        }
-
-        /* Scrambled Text Styles */
-        .scramble-text {
-            /* Removed break-all to prevent word breaking */
-            letter-spacing: 0.05em;
-            text-shadow: 3px 3px 0px rgba(30, 41, 59, 0.1);
-            line-height: 1.3;
-        }
-
-        /* Mode Toggle Active State */
-        .mode-btn.active {
-            background-color: #1e293b; /* dark */
-            color: white;
-            border-color: #1e293b;
-        }
-        .mode-btn {
-            background-color: transparent;
-            color: #94a3b8; /* slate-400 */
+        /* Scrambled Text - Word Chunks */
+        .scramble-chunk {
+            display: inline-block;
+            white-space: nowrap;
+            margin: 0 0.2em; /* Spacing between scrambled words */
         }
 
         /* Chunky UI Elements */
@@ -94,7 +87,7 @@
             background: white;
             border: 4px solid #1e293b;
             border-radius: 1.5rem;
-            box-shadow: 6px 6px 0px #1e293b;
+            box-shadow: 8px 8px 0px #1e293b;
         }
 
         .btn-chunky {
@@ -111,119 +104,169 @@
             cursor: not-allowed;
             transform: translateY(4px);
             box-shadow: none;
+            background-color: #e2e8f0;
+            color: #94a3b8;
+            border-color: #cbd5e1;
+        }
+
+        /* Mode Toggle */
+        .mode-btn {
+            border: 2px solid transparent;
+            color: #94a3b8;
+        }
+        .mode-btn.active {
+            background-color: #1e293b;
+            color: white;
+            border-color: #1e293b;
+            box-shadow: 0 2px 0 rgba(0,0,0,0.2);
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col font-body overflow-x-hidden">
+<body class="min-h-screen flex flex-col font-body overflow-x-hidden pb-10">
 
     <header class="max-w-6xl mx-auto w-full mt-6 px-4 z-50">
         <div class="bg-white border-4 border-dark rounded-3xl p-4 shadow-hard flex flex-col md:flex-row justify-between items-center gap-4">
             
             <div class="flex items-center gap-4">
-                <div class="w-14 h-14 rounded-xl bg-blue border-3 border-dark flex items-center justify-center text-white shadow-hard-sm">
+                <div class="w-14 h-14 rounded-xl bg-blue border-3 border-dark flex items-center justify-center text-white shadow-hard-sm transform rotate-[-3deg]">
                     <i data-lucide="shuffle" class="w-8 h-8"></i>
                 </div>
                 <div>
-                    <h1 class="text-3xl font-heading text-dark leading-none">UNSCRAMBLE</h1>
-                    <p class="text-sm font-bold text-slate-400 tracking-wider">VOCAB & GRAMMAR</p>
+                    <h1 class="text-3xl font-heading text-dark leading-none tracking-tight">UNSCRAMBLE</h1>
+                    <div class="flex items-center gap-2 mt-1">
+                        <span class="text-xs font-bold bg-pink text-white px-2 py-0.5 rounded border border-dark uppercase">English 1</span>
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Batam</span>
+                    </div>
                 </div>
             </div>
 
             <div class="flex items-center gap-3">
-                <button onclick="exitGame()" class="btn-chunky bg-white text-dark px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-100 flex items-center gap-2">
+                <button onclick="toggleSound()" id="btn-sound" class="btn-chunky w-10 h-10 flex items-center justify-center rounded-xl bg-white text-dark hover:bg-slate-100" title="Toggle Sound">
+                    <i data-lucide="volume-2" class="w-5 h-5"></i>
+                </button>
+
+                <div class="w-px h-8 bg-slate-300 mx-1"></div>
+
+                <button onclick="exitGame()" class="btn-chunky bg-white text-dark px-5 py-2 rounded-xl text-sm font-bold hover:bg-slate-50 flex items-center gap-2">
                     <i data-lucide="settings" class="w-4 h-4"></i> SETUP
                 </button>
-                <a href="../index.html" class="btn-chunky bg-red-500 text-white w-10 h-10 flex items-center justify-center rounded-xl" title="Exit">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </a>
             </div>
         </div>
     </header>
 
-    <main class="flex-grow flex items-center justify-center p-4">
+    <main class="flex-grow flex items-center justify-center p-4 relative">
 
-        <div id="setup-panel" class="panel-chunky w-full max-w-2xl p-8 md:p-10 animate-pop">
-            <h2 class="text-3xl font-heading mb-4 flex items-center gap-2">
-                <i data-lucide="list" class="w-8 h-8 text-blue"></i> SETUP GAME
-            </h2>
+        <div id="setup-panel" class="panel-chunky w-full max-w-2xl p-8 md:p-10 animate-pop relative overflow-hidden">
+            <div class="absolute -top-6 -right-6 text-6xl opacity-20 rotate-12">🧩</div>
+
+            <div class="flex items-center gap-3 mb-6">
+                <div class="p-3 bg-blue/10 rounded-xl text-blue border-2 border-blue/20">
+                    <i data-lucide="gamepad-2" class="w-8 h-8"></i>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-heading text-dark">Game Setup</h2>
+                    <p class="text-slate-400 text-sm font-bold uppercase tracking-wider">Choose your mode</p>
+                </div>
+            </div>
             
-            <div class="bg-slate-50 border-2 border-dark rounded-xl p-1.5 flex gap-2 shadow-hard-sm mb-6">
-                <button onclick="setMode('word')" id="btn-mode-word" class="mode-btn active flex-1 py-3 rounded-lg font-heading text-sm transition-all border-2 border-transparent font-bold tracking-wide">
+            <div class="bg-slate-100 border-2 border-slate-200 rounded-xl p-1.5 flex gap-2 mb-6">
+                <button onclick="setMode('word')" id="btn-mode-word" class="mode-btn active flex-1 py-3 rounded-lg font-heading text-sm font-bold tracking-wide transition-all">
                     WORD MODE
                 </button>
-                <button onclick="setMode('sentence')" id="btn-mode-sentence" class="mode-btn flex-1 py-3 rounded-lg font-heading text-sm transition-all border-2 border-transparent font-bold tracking-wide">
+                <button onclick="setMode('sentence')" id="btn-mode-sentence" class="mode-btn flex-1 py-3 rounded-lg font-heading text-sm font-bold tracking-wide transition-all">
                     SENTENCE MODE
                 </button>
             </div>
 
-            <p class="text-slate-500 mb-2 font-bold" id="input-label">Enter words separated by commas:</p>
+            <div class="mb-2 flex justify-between items-end">
+                <label class="text-slate-500 font-bold text-sm uppercase tracking-wide" id="input-label">Word List</label>
+                <span class="text-xs font-bold text-pink bg-pink/10 px-2 py-1 rounded">Min 3 chars</span>
+            </div>
             
-            <div class="relative mb-6">
+            <div class="relative mb-8 group">
                 <textarea 
                     id="word-input" 
-                    class="w-full h-48 p-5 rounded-2xl border-3 border-slate-200 bg-slate-50 text-xl font-bold text-dark focus:border-blue focus:outline-none focus:bg-white transition-colors resize-none"
+                    class="w-full h-48 p-5 rounded-2xl border-3 border-slate-300 bg-white text-xl font-bold text-dark focus:border-blue focus:shadow-hard-sm focus:outline-none transition-all resize-none font-heading leading-relaxed"
                     placeholder="apple, banana, orange"
                 ></textarea>
+                <div class="absolute bottom-4 right-4 pointer-events-none opacity-50">
+                    <i data-lucide="edit-3" class="w-5 h-5 text-slate-400"></i>
+                </div>
             </div>
 
-            <div class="flex gap-4">
-                <button onclick="startGame()" class="flex-1 btn-chunky bg-green text-white py-4 rounded-xl text-2xl font-heading tracking-wider hover:brightness-110">
-                    START GAME
-                </button>
-            </div>
+            <button onclick="startGame()" class="w-full btn-chunky bg-green text-dark py-4 rounded-xl text-2xl font-heading tracking-wider hover:brightness-105 group relative overflow-hidden">
+                <span class="relative z-10 flex items-center justify-center gap-3">
+                    START GAME <i data-lucide="play" class="w-6 h-6 fill-current"></i>
+                </span>
+            </button>
         </div>
 
         <div id="game-panel" class="hidden w-full max-w-5xl">
             
-            <div class="flex justify-between items-end mb-4 px-4">
-                <div class="text-xl font-heading text-slate-400">Item <span id="current-count" class="text-dark text-3xl">1</span> / <span id="total-count">10</span></div>
-                <div class="flex gap-2">
-                    <span id="mode-badge" class="bg-blue text-white px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-widest border-2 border-dark">Word Mode</span>
+            <div class="flex justify-between items-end mb-6 px-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-dark text-white flex items-center justify-center font-heading text-xl border-2 border-slate-600 shadow-sm">
+                        <span id="current-count">1</span>
+                    </div>
+                    <div class="h-1 w-10 bg-slate-300 rounded-full"></div>
+                    <span class="text-xl font-heading text-slate-400 font-bold" id="total-count">10</span>
                 </div>
+                
+                <span id="mode-badge" class="bg-blue text-white px-4 py-1.5 rounded-xl text-xs font-bold uppercase tracking-widest border-2 border-dark shadow-hard-sm">Word Mode</span>
             </div>
 
-            <div class="panel-chunky bg-white p-8 md:p-16 text-center relative overflow-hidden min-h-[400px] flex flex-col justify-center">
+            <div id="main-card" class="panel-chunky bg-white p-8 md:p-16 text-center relative min-h-[400px] flex flex-col justify-center animate-float">
                 
-                <div class="absolute top-4 left-4 flex gap-2">
-                    <div class="w-3 h-3 rounded-full bg-pink border border-dark"></div>
-                    <div class="w-3 h-3 rounded-full bg-orange border border-dark"></div>
+                <div class="absolute top-5 left-5 flex gap-2">
+                    <div class="w-4 h-4 rounded-full bg-pink border-2 border-dark"></div>
+                    <div class="w-4 h-4 rounded-full bg-orange border-2 border-dark"></div>
+                    <div class="w-4 h-4 rounded-full bg-green border-2 border-dark"></div>
                 </div>
 
-                <div class="relative z-10 w-full flex flex-col items-center justify-center flex-grow">
-                    <h2 id="display-word" class="font-heading font-bold text-dark scramble-text animate-float px-4">
+                <div class="relative z-10 w-full flex flex-col items-center justify-center flex-grow py-8">
+                    <h2 id="display-word" class="font-heading font-bold text-dark px-4 transition-all duration-300">
                         LOADING...
                     </h2>
                     
-                    <div id="answer-reveal" class="hidden mt-8 transition-all duration-300">
-                        <div class="bg-green text-white text-2xl md:text-4xl font-heading px-8 py-3 rounded-xl border-3 border-dark shadow-hard-sm transform rotate-[-1deg] inline-block max-w-full">
-                            <span id="real-word" class="block break-words">ANSWER</span>
+                    <div id="answer-container" class="h-24 mt-8 flex items-center justify-center perspective-500">
+                        <div id="answer-reveal" class="hidden opacity-0 transform translate-y-4 transition-all duration-500 ease-out">
+                            <div class="bg-green text-dark text-2xl md:text-5xl font-heading px-8 py-4 rounded-2xl border-4 border-dark shadow-hard transform rotate-[-2deg] inline-block max-w-full relative">
+                                <span id="real-word" class="block break-words relative z-10">ANSWER</span>
+                                <div class="absolute -top-3 -right-3 text-3xl">✨</div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <p id="status-text" class="absolute bottom-4 left-0 w-full text-center text-slate-400 font-bold uppercase tracking-widest text-sm mt-4">
-                    Press <span class="bg-slate-200 px-2 py-0.5 rounded border border-slate-300 mx-1 text-dark">ENTER</span> to Reveal
-                </p>
+                <div class="absolute bottom-0 left-0 w-full p-4 border-t-2 border-slate-100 bg-slate-50 rounded-b-[1.2rem]">
+                    <p id="status-text" class="text-slate-400 font-bold uppercase tracking-widest text-xs md:text-sm">
+                        Press <kbd class="bg-white px-2 py-1 rounded border-2 border-slate-300 mx-1 text-dark font-sans shadow-sm text-xs">ENTER</kbd> to Reveal
+                    </p>
+                </div>
             </div>
 
-            <div class="flex justify-center gap-6 mt-8">
-                <button id="btn-reveal" onclick="revealWord()" class="btn-chunky bg-orange text-white px-8 py-4 rounded-xl text-2xl font-heading tracking-wide w-48 hover:brightness-110">
+            <div class="flex justify-center gap-4 md:gap-8 mt-10">
+                <button id="btn-reveal" onclick="revealWord()" class="btn-chunky bg-orange text-white px-8 py-5 rounded-2xl text-2xl font-heading tracking-wide w-48 md:w-64 hover:brightness-110 active:scale-95 transition-all">
                     REVEAL
                 </button>
-                <button id="btn-next" onclick="nextWord()" class="btn-chunky bg-blue text-white px-8 py-4 rounded-xl text-2xl font-heading tracking-wide w-48 hover:brightness-110" disabled>
+                <button id="btn-next" onclick="nextWord()" class="btn-chunky bg-blue text-white px-8 py-5 rounded-2xl text-2xl font-heading tracking-wide w-48 md:w-64 hover:brightness-110 active:scale-95 transition-all" disabled>
                     NEXT
                 </button>
             </div>
 
         </div>
 
-        <div id="end-panel" class="hidden panel-chunky w-full max-w-xl p-10 text-center animate-pop">
-            <div class="w-24 h-24 bg-yellow-400 rounded-full border-4 border-dark flex items-center justify-center mx-auto mb-6 shadow-hard">
-                <i data-lucide="trophy" class="w-12 h-12 text-white"></i>
+        <div id="end-panel" class="hidden panel-chunky w-full max-w-lg p-12 text-center animate-pop relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-4 bg-gradient-to-r from-pink via-orange to-blue"></div>
+            
+            <div class="w-28 h-28 bg-yellow-400 rounded-3xl border-4 border-dark flex items-center justify-center mx-auto mb-8 shadow-hard rotate-3">
+                <i data-lucide="trophy" class="w-14 h-14 text-dark"></i>
             </div>
-            <h2 class="text-5xl font-heading text-dark mb-4">GREAT JOB!</h2>
-            <p class="text-xl text-slate-500 font-bold mb-8">You've completed the set!</p>
-            <button onclick="resetGame()" class="btn-chunky bg-blue text-white px-8 py-3 rounded-xl text-xl font-heading tracking-wider hover:brightness-110">
+            
+            <h2 class="text-5xl font-heading text-dark mb-4 tracking-tight">GREAT JOB!</h2>
+            <p class="text-lg text-slate-500 font-bold mb-10">You've successfully unscrambled all items.</p>
+            
+            <button onclick="resetGame()" class="btn-chunky bg-blue text-white w-full py-4 rounded-xl text-xl font-heading tracking-wider hover:brightness-110 shadow-hard-sm">
                 PLAY AGAIN
             </button>
         </div>
@@ -231,7 +274,49 @@
     </main>
 
     <script>
-        // --- LOGIC ---
+        // --- AUDIO ENGINE (Tone.js) ---
+        let soundEnabled = true;
+        
+        const Audio = {
+            ctx: null,
+            init: () => {
+                if(!Audio.ctx) {
+                    Audio.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    Tone.start();
+                }
+            },
+            playReveal: () => {
+                if(!soundEnabled) return;
+                Audio.init();
+                const synth = new Tone.PolySynth(Tone.Synth).toDestination();
+                synth.volume.value = -5;
+                // Happy major chord
+                synth.triggerAttackRelease(["C4", "E4", "G4"], "8n");
+            },
+            playWin: () => {
+                if(!soundEnabled) return;
+                Audio.init();
+                const synth = new Tone.Synth().toDestination();
+                const now = Tone.now();
+                // Fanfare
+                synth.triggerAttackRelease("C4", "8n", now);
+                synth.triggerAttackRelease("E4", "8n", now + 0.1);
+                synth.triggerAttackRelease("G4", "8n", now + 0.2);
+                synth.triggerAttackRelease("C5", "2n", now + 0.3);
+            },
+            playClick: () => {
+                if(!soundEnabled) return;
+                Audio.init();
+                const player = new Tone.Player().toDestination();
+                // Simple noise burst mimicking a click
+                const noise = new Tone.Noise("white").toDestination();
+                noise.volume.value = -20;
+                noise.start();
+                noise.stop("+0.05");
+            }
+        };
+
+        // --- GAME LOGIC ---
         let items = [];
         let currentIndex = 0;
         let isRevealed = false;
@@ -250,7 +335,7 @@
         
         const elDisplay = document.getElementById('display-word');
         const elRealWord = document.getElementById('real-word');
-        const elAnswerBox = document.getElementById('answer-reveal');
+        const elAnswerReveal = document.getElementById('answer-reveal');
         
         const elCount = document.getElementById('current-count');
         const elTotal = document.getElementById('total-count');
@@ -261,11 +346,12 @@
         const btnNext = document.getElementById('btn-next');
         const btnModeWord = document.getElementById('btn-mode-word');
         const btnModeSentence = document.getElementById('btn-mode-sentence');
+        const mainCard = document.getElementById('main-card');
 
         // Init
         window.onload = () => {
             lucide.createIcons();
-            setMode('word'); // Load default
+            setMode('word'); 
             
             // Keyboard shortcuts
             document.addEventListener('keydown', (e) => {
@@ -278,8 +364,22 @@
             });
         };
 
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const btn = document.getElementById('btn-sound');
+            if(soundEnabled) {
+                btn.innerHTML = '<i data-lucide="volume-2" class="w-5 h-5"></i>';
+                btn.classList.remove('text-red-500');
+            } else {
+                btn.innerHTML = '<i data-lucide="volume-x" class="w-5 h-5"></i>';
+                btn.classList.add('text-red-500');
+            }
+            lucide.createIcons();
+        }
+
         function setMode(mode) {
             currentMode = mode;
+            Audio.playClick();
             
             // Update Buttons
             if(mode === 'word') {
@@ -287,7 +387,6 @@
                 btnModeSentence.classList.remove('active');
                 elInputLabel.innerText = "Enter words separated by commas:";
                 
-                // Load saved or default
                 const saved = localStorage.getItem('english1_scramble_words');
                 elInput.value = saved || DEFAULT_WORDS;
                 elInput.placeholder = "apple, banana, orange";
@@ -296,7 +395,6 @@
                 btnModeWord.classList.remove('active');
                 elInputLabel.innerText = "Enter sentences (one per line):";
                 
-                // Load saved or default
                 const saved = localStorage.getItem('english1_scramble_sentences');
                 elInput.value = saved || DEFAULT_SENTENCES;
                 elInput.placeholder = "The car was slightly dented\nI love ice cream";
@@ -304,6 +402,7 @@
         }
 
         function startGame() {
+            Audio.playClick();
             const raw = elInput.value;
             
             if(currentMode === 'word') {
@@ -343,26 +442,26 @@
             elCount.innerText = currentIndex + 1;
             elTotal.innerText = items.length;
             
-            // Text Sizing Logic
+            // Text Sizing & Scrambling Logic
             if(currentMode === 'word') {
-                elDisplay.className = "font-heading font-bold text-dark scramble-text animate-float px-4 text-7xl md:text-9xl";
+                elDisplay.className = "font-heading font-bold text-dark text-7xl md:text-9xl tracking-widest";
                 // Scramble Letters (Uppercase, Spaced)
-                elDisplay.innerText = scrambleLetters(currentItem);
+                elDisplay.innerHTML = scrambleLetters(currentItem);
             } else {
-                // Sentence Mode needs smaller text
+                // Sentence Mode needs specific chunking
                 const len = currentItem.length;
-                let sizeClass = "text-4xl md:text-6xl"; // Default
+                let sizeClass = "text-4xl md:text-6xl";
                 if(len > 30) sizeClass = "text-3xl md:text-5xl";
                 if(len > 60) sizeClass = "text-2xl md:text-4xl";
                 
-                elDisplay.className = `font-heading font-bold text-dark scramble-text animate-float px-4 leading-tight ${sizeClass}`;
-                
-                // Scramble Words internally
-                elDisplay.innerText = scrambleSentence(currentItem);
+                elDisplay.className = `font-heading font-bold text-dark leading-snug ${sizeClass}`;
+                elDisplay.innerHTML = scrambleSentence(currentItem);
             }
             
             // Hide Answer
-            elAnswerBox.classList.add('hidden');
+            elAnswerReveal.classList.add('hidden');
+            elAnswerReveal.classList.remove('opacity-100', 'translate-y-0');
+            elAnswerReveal.classList.add('opacity-0', 'translate-y-4');
             elRealWord.innerText = currentItem;
 
             // Reset Buttons
@@ -371,17 +470,22 @@
             btnReveal.classList.remove('opacity-50');
             btnNext.classList.add('opacity-50');
             
-            elStatus.innerHTML = 'Press <span class="bg-slate-200 px-2 py-0.5 rounded border border-slate-300 mx-1 text-dark">ENTER</span> to Reveal';
+            elStatus.innerHTML = 'Press <kbd class="bg-white px-2 py-1 rounded border-2 border-slate-300 mx-1 text-dark font-sans shadow-sm text-xs">ENTER</kbd> to Reveal';
         }
 
         function revealWord() {
             if(isRevealed) return;
             isRevealed = true;
+            Audio.playReveal();
             
-            elAnswerBox.classList.remove('hidden');
-            elAnswerBox.classList.add('animate-pop');
+            elAnswerReveal.classList.remove('hidden');
+            // Small delay to allow display block to render before opacity transition
+            setTimeout(() => {
+                elAnswerReveal.classList.remove('opacity-0', 'translate-y-4');
+                elAnswerReveal.classList.add('opacity-100', 'translate-y-0');
+            }, 10);
             
-            confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
+            confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 }, colors: ['#FF6B95', '#FF8C42', '#00E676', '#2979FF'] });
 
             btnReveal.disabled = true;
             btnReveal.classList.add('opacity-50');
@@ -389,29 +493,41 @@
             if(currentIndex < items.length - 1) {
                 btnNext.disabled = false;
                 btnNext.classList.remove('opacity-50');
-                elStatus.innerHTML = 'Press <span class="bg-slate-200 px-2 py-0.5 rounded border border-slate-300 mx-1 text-dark">ENTER</span> for Next';
+                elStatus.innerHTML = 'Press <kbd class="bg-white px-2 py-1 rounded border-2 border-slate-300 mx-1 text-dark font-sans shadow-sm text-xs">ENTER</kbd> for Next';
             } else {
                 btnNext.innerText = "FINISH";
                 btnNext.disabled = false;
                 btnNext.classList.remove('opacity-50');
                 btnNext.onclick = finishGame;
-                elStatus.innerHTML = 'Press <span class="bg-slate-200 px-2 py-0.5 rounded border border-slate-300 mx-1 text-dark">ENTER</span> to Finish';
+                elStatus.innerHTML = 'Press <kbd class="bg-white px-2 py-1 rounded border-2 border-slate-300 mx-1 text-dark font-sans shadow-sm text-xs">ENTER</kbd> to Finish';
             }
         }
 
         function nextWord() {
-            if(!isRevealed) return;
+            if(!isRevealed) {
+                // Shake effect if trying to skip
+                mainCard.classList.remove('animate-float');
+                mainCard.classList.add('animate-shake');
+                setTimeout(() => {
+                    mainCard.classList.remove('animate-shake');
+                    mainCard.classList.add('animate-float');
+                }, 500);
+                return;
+            }
+            Audio.playClick();
             currentIndex++;
             loadLevel();
         }
 
         function finishGame() {
+            Audio.playWin();
             elGame.classList.add('hidden');
             elEnd.classList.remove('hidden');
             confetti({ particleCount: 150, spread: 100, origin: { y: 0.6 } });
         }
 
         function resetGame() {
+            Audio.playClick();
             elEnd.classList.add('hidden');
             elSetup.classList.remove('hidden');
             btnNext.onclick = nextWord;
@@ -428,11 +544,9 @@
 
         // --- SCRAMBLE LOGIC ---
 
-        // For Word Mode: Scramble letters, force Uppercase, add spaces between letters
         function scrambleLetters(word) {
             const arr = word.toUpperCase().split('');
             let n = arr.length;
-            // Fisher-Yates
             for(let i = n - 1; i > 0; i--) {
                 let j = Math.floor(Math.random() * (i + 1));
                 [arr[i], arr[j]] = [arr[j], arr[i]];
@@ -440,30 +554,24 @@
             return arr.join(' '); 
         }
 
-        // For Sentence Mode: Scramble letters INSIDE each word, keep case, keep word order
         function scrambleSentence(sentence) {
-            // Split by space to get words
             const words = sentence.split(' ');
             
-            // Map each word to its scrambled version
-            const scrambledWords = words.map(word => {
-                // Keep punctuation attached if possible, or just scramble it all. 
-                // Logic: Scramble the entire token
+            // Map each word to a scrambled chunk wrapped in span
+            const scrambledChunks = words.map(word => {
                 const arr = word.split('');
                 let n = arr.length;
                 
-                // Shuffle letters within the word
                 for(let i = n - 1; i > 0; i--) {
                     let j = Math.floor(Math.random() * (i + 1));
                     [arr[i], arr[j]] = [arr[j], arr[i]];
                 }
                 
-                // Rejoin without extra spaces
-                return arr.join('');
+                // Wrap in inline-block span to prevent mid-word breaking
+                return `<span class="scramble-chunk">${arr.join('')}</span>`;
             });
 
-            // Join words with triple space for clarity
-            return scrambledWords.join('   '); 
+            return scrambledChunks.join(''); 
         }
 
     </script>
