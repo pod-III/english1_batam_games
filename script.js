@@ -366,7 +366,7 @@ const App = {
       AudioEngine.init(); // Ensure context is ready
     }
     lucide.createIcons();
-  }
+  },
 
   toggleInfo: () => {
     AudioEngine.click();
