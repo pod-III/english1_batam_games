@@ -36,57 +36,42 @@ const AudioEngine = {
   },
   hover: () => AudioEngine.playTone(400, 'sine', 0.1),
   click: () => AudioEngine.playTone(600, 'square', 0.15),
-  toggle: () => {
-    AudioEngine.muted = !AudioEngine.muted;
-    const icon = document.querySelector('#sound-btn i');
-    if (AudioEngine.muted) {
-      icon.setAttribute('data-lucide', 'volume-x');
-      icon.classList.replace('text-green', 'text-red-500');
-      icon.classList.replace('dark:text-green-400', 'dark:text-red-400');
-    } else {
-      icon.setAttribute('data-lucide', 'volume-2');
-      icon.classList.replace('text-red-500', 'text-green');
-      icon.classList.replace('dark:text-red-400', 'dark:text-green-400');
-      AudioEngine.init(); // Ensure context is ready
-    }
-    lucide.createIcons();
-  }
 };
 
-// --- GLOBAL TIMER LOGIC ---
-const Timer = {
-  interval: null,
-  seconds: 0,
-  isRunning: false,
-  toggle: () => {
-    if (Timer.isRunning) {
-      clearInterval(Timer.interval);
-      document.getElementById('timer-icon').setAttribute('data-lucide', 'play');
-    } else {
-      Timer.interval = setInterval(Timer.tick, 1000);
-      document.getElementById('timer-icon').setAttribute('data-lucide', 'pause');
-    }
-    Timer.isRunning = !Timer.isRunning;
-    lucide.createIcons();
-  },
-  tick: () => {
-    Timer.seconds++;
-    Timer.updateDisplay();
-  },
-  reset: () => {
-    clearInterval(Timer.interval);
-    Timer.seconds = 0;
-    Timer.isRunning = false;
-    document.getElementById('timer-icon').setAttribute('data-lucide', 'play');
-    Timer.updateDisplay();
-    lucide.createIcons();
-  },
-  updateDisplay: () => {
-    const mins = Math.floor(Timer.seconds / 60).toString().padStart(2, '0');
-    const secs = (Timer.seconds % 60).toString().padStart(2, '0');
-    document.getElementById('global-timer-display').innerText = `${mins}:${secs}`;
-  }
-};
+// // --- GLOBAL TIMER LOGIC ---
+// const Timer = {
+//   interval: null,
+//   seconds: 0,
+//   isRunning: false,
+//   toggle: () => {
+//     if (Timer.isRunning) {
+//       clearInterval(Timer.interval);
+//       document.getElementById('timer-icon').setAttribute('data-lucide', 'play');
+//     } else {
+//       Timer.interval = setInterval(Timer.tick, 1000);
+//       document.getElementById('timer-icon').setAttribute('data-lucide', 'pause');
+//     }
+//     Timer.isRunning = !Timer.isRunning;
+//     lucide.createIcons();
+//   },
+//   tick: () => {
+//     Timer.seconds++;
+//     Timer.updateDisplay();
+//   },
+//   reset: () => {
+//     clearInterval(Timer.interval);
+//     Timer.seconds = 0;
+//     Timer.isRunning = false;
+//     document.getElementById('timer-icon').setAttribute('data-lucide', 'play');
+//     Timer.updateDisplay();
+//     lucide.createIcons();
+//   },
+//   updateDisplay: () => {
+//     const mins = Math.floor(Timer.seconds / 60).toString().padStart(2, '0');
+//     const secs = (Timer.seconds % 60).toString().padStart(2, '0');
+//     document.getElementById('global-timer-display').innerText = `${mins}:${secs}`;
+//   }
+// };
 
 const Guides = {
   tool: "<ul class='list-disc pl-5 space-y-2'><li>Adjust settings using the on-screen controls.</li><li>Use fullscreen mode for better visibility in class.</li><li>Press <strong>Esc</strong> to close the activity quickly.</li></ul>",
@@ -366,6 +351,22 @@ const App = {
 
     window.location.hash = gameId;
   },
+
+  toggleSound: () => {
+    AudioEngine.muted = !AudioEngine.muted;
+    const icon = document.querySelector('#sound-btn i');
+    if (AudioEngine.muted) {
+      icon.setAttribute('data-lucide', 'volume-x');
+      icon.classList.replace('text-green', 'text-red-500');
+      icon.classList.replace('dark:text-green-400', 'dark:text-red-400');
+    } else {
+      icon.setAttribute('data-lucide', 'volume-2');
+      icon.classList.replace('text-red-500', 'text-green');
+      icon.classList.replace('dark:text-red-400', 'dark:text-green-400');
+      AudioEngine.init(); // Ensure context is ready
+    }
+    lucide.createIcons();
+  }
 
   toggleInfo: () => {
     AudioEngine.click();
