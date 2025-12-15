@@ -1,21 +1,21 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Word Unscramble (Simple Mode)</title>
+    <title>Unscramble - English 1</title>
     
-    <!-- Fonts from Activity Hub -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
     
-    <!-- Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <link rel="stylesheet" href="../styles.css">
 
     <script>
-        // Tailwind config copied from main index.html for consistent styling
         tailwind.config = {
             darkMode: 'class',
             theme: {
@@ -25,22 +25,17 @@
                         orange: '#FF8C42',
                         green: '#00E676',
                         blue: '#2979FF',
-                        dark: '#0f172a',
-                        panel: '#1e293b',
-                        surface: '#334155'
+                        dark: '#1e293b',
+                        surface: '#FFFFFF'
                     },
                     fontFamily: {
-                        heading: ['Bebas Neue', 'sans-serif'],
+                        heading: ['Fredoka', 'sans-serif'],
                         body: ['Nunito', 'sans-serif'],
                     },
-                    animation: {
-                        'fade-in': 'fadeIn 0.5s ease-out',
-                    },
-                    keyframes: {
-                        fadeIn: {
-                            '0%': { opacity: '0' },
-                            '100%': { opacity: '1' },
-                        }
+                    boxShadow: {
+                        'hard': '4px 4px 0px 0px rgba(30, 41, 59, 1)',
+                        'hard-sm': '2px 2px 0px 0px rgba(30, 41, 59, 1)',
+                        'hard-lg': '6px 6px 0px 0px rgba(30, 41, 59, 1)',
                     }
                 }
             }
@@ -48,316 +43,429 @@
     </script>
 
     <style>
-        /* Global styles matching the Activity Hub background and glass effect */
+        /* Fallback Grid Background */
         body {
-            background-color: #0f172a;
-            background-image: 
-                radial-gradient(at 0% 0%, rgba(41, 121, 255, 0.1) 0px, transparent 50%), 
-                radial-gradient(at 100% 100%, rgba(255, 107, 149, 0.1) 0px, transparent 50%);
-            background-attachment: fixed;
-            font-family: 'Nunito', sans-serif;
-            color: white;
-            text-align: center;
+            background-color: #F8FAFC;
+            background-image:
+                linear-gradient(#E2E8F0 1px, transparent 1px),
+                linear-gradient(90deg, #E2E8F0 1px, transparent 1px);
+            background-size: 24px 24px;
+            color: #1e293b;
         }
 
-        .glass-panel {
-            background: rgba(30, 41, 59, 0.6);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        /* Animations */
+        @keyframes popIn {
+            0% { transform: scale(0.9); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop {
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
         }
 
-        /* Specific styles for the game elements */
-        .message-box {
-            padding: 0.75rem 1.5rem;
-            border-radius: 9999px; /* rounded-full */
-            font-weight: 700;
-            transition: all 0.3s;
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+        }
+        .animate-float {
+            animation: float 4s ease-in-out infinite;
         }
 
-        .message-box.info {
-            background-color: #334155;
-            color: #94a3b8;
-        }
-
-        .message-box.win {
-            background-color: rgba(0, 230, 118, 0.2); /* green/20 */
-            color: #00E676; /* green */
-        }
-
-        .btn-base {
-            padding: 0.75rem 2rem;
-            border-radius: 0.75rem; /* rounded-xl */
-            font-family: 'Bebas Neue', sans-serif;
+        /* Scrambled Text Styles */
+        .scramble-text {
+            /* Removed break-all to prevent word breaking */
             letter-spacing: 0.05em;
-            transition: transform 0.1s, box-shadow 0.1s, background-color 0.1s;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-shadow: 3px 3px 0px rgba(30, 41, 59, 0.1);
+            line-height: 1.3;
         }
 
-        .btn-base:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 10px rgba(0, 0, 0, 0.2);
+        /* Mode Toggle Active State */
+        .mode-btn.active {
+            background-color: #1e293b; /* dark */
+            color: white;
+            border-color: #1e293b;
+        }
+        .mode-btn {
+            background-color: transparent;
+            color: #94a3b8; /* slate-400 */
         }
 
-        .btn-base:disabled {
+        /* Chunky UI Elements */
+        .panel-chunky {
+            background: white;
+            border: 4px solid #1e293b;
+            border-radius: 1.5rem;
+            box-shadow: 6px 6px 0px #1e293b;
+        }
+
+        .btn-chunky {
+            border: 3px solid #1e293b;
+            box-shadow: 0 4px 0 #1e293b;
+            transition: all 0.1s;
+        }
+        .btn-chunky:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #1e293b;
+        }
+        .btn-chunky:disabled {
             opacity: 0.5;
             cursor: not-allowed;
-        }
-
-        .btn-blue {
-            background-color: #2979FF; /* blue */
-            color: white;
-        }
-        .btn-blue:hover:not(:disabled) {
-            background-color: #5397FF;
-        }
-
-        .btn-orange {
-            background-color: #FF8C42; /* orange */
-            color: white;
-        }
-        .btn-orange:hover:not(:disabled) {
-            background-color: #FFa565;
-        }
-
-        /* Styling for the main unscrambled word display */
-        #scrambled-word-el {
-            font-family: 'Bebas Neue', sans-serif;
-            font-size: 8rem; /* Custom large size */
-            letter-spacing: 0.1em;
-            color: #FF6B95; /* pink */
-            text-shadow: 0 0 15px rgba(255, 107, 149, 0.4);
-        }
-
-        /* Input styling */
-        textarea {
-            resize: none;
-            border: 1px solid #334155;
-            background-color: #0f172a;
-            color: white;
-        }
-        textarea:focus {
-            outline: none;
-            border-color: #2979FF;
-            box-shadow: 0 0 0 2px rgba(41, 121, 255, 0.2);
+            transform: translateY(4px);
+            box-shadow: none;
         }
     </style>
 </head>
+<body class="min-h-screen flex flex-col font-body overflow-x-hidden">
 
-<body class="dark min-h-screen flex flex-col items-center justify-center py-12">
-    <div class="max-w-4xl w-full px-4">
-
-        <!-- Teacher Console Section -->
-        <div id="teacher-console-el" class="glass-panel rounded-2xl p-8 max-w-lg mx-auto shadow-2xl animate-fade-in">
-            <h1 class="text-3xl font-heading tracking-wider text-blue mb-4">Setup Simple Unscramble</h1>
-            <p class="text-gray-400 mb-6">Enter the words students will unscramble, separated by commas. (Min. 3 letters per word)</p>
-
-            <div class="mb-4">
-                <textarea id="word-list-input" rows="6" placeholder="e.g., apple, banana, chair, table, pencil"
-                    class="w-full p-4 rounded-xl text-lg transition-all"></textarea>
-            </div>
+    <header class="max-w-6xl mx-auto w-full mt-6 px-4 z-50">
+        <div class="bg-white border-4 border-dark rounded-3xl p-4 shadow-hard flex flex-col md:flex-row justify-between items-center gap-4">
             
-            <p id="console-message" class="text-sm text-center mb-6 text-gray-400">&nbsp;</p>
-
-            <button id="start-game-btn" class="btn-base btn-blue w-full">START GAME</button>
-        </div>
-
-        <!-- Game Section -->
-        <div id="game-section-el" class="glass-panel rounded-2xl p-8 shadow-2xl animate-fade-in" style="display: none;">
-            <h1 class="text-3xl font-heading tracking-wider mb-8 text-green">Unscramble the Word!</h1>
-
-            <!-- Message Box -->
-            <div class="mb-8">
-                <p id="message-box" class="message-box info mx-auto">Click 'Next Word' to begin.</p>
+            <div class="flex items-center gap-4">
+                <div class="w-14 h-14 rounded-xl bg-blue border-3 border-dark flex items-center justify-center text-white shadow-hard-sm">
+                    <i data-lucide="shuffle" class="w-8 h-8"></i>
+                </div>
+                <div>
+                    <h1 class="text-3xl font-heading text-dark leading-none">UNSCRAMBLE</h1>
+                    <p class="text-sm font-bold text-slate-400 tracking-wider">VOCAB & GRAMMAR</p>
+                </div>
             </div>
 
-            <!-- Scrambled Word Display -->
-            <div class="mb-10 p-4 min-h-[140px] flex items-center justify-center">
-                <h2 id="scrambled-word-el" class="text-8xl font-bold uppercase select-none"></h2>
-            </div>
-
-            <!-- Button Controls -->
-            <div class="flex flex-col md:flex-row gap-4">
-                <button id="reveal-btn" class="btn-base btn-orange flex-1" disabled>REVEAL ANSWER</button>
-                <button id="next-btn" class="btn-base btn-blue flex-1">NEXT WORD</button>
+            <div class="flex items-center gap-3">
+                <button onclick="exitGame()" class="btn-chunky bg-white text-dark px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-100 flex items-center gap-2">
+                    <i data-lucide="settings" class="w-4 h-4"></i> SETUP
+                </button>
+                <a href="../index.html" class="btn-chunky bg-red-500 text-white w-10 h-10 flex items-center justify-center rounded-xl" title="Exit">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </a>
             </div>
         </div>
-    </div>
+    </header>
+
+    <main class="flex-grow flex items-center justify-center p-4">
+
+        <div id="setup-panel" class="panel-chunky w-full max-w-2xl p-8 md:p-10 animate-pop">
+            <h2 class="text-3xl font-heading mb-4 flex items-center gap-2">
+                <i data-lucide="list" class="w-8 h-8 text-blue"></i> SETUP GAME
+            </h2>
+            
+            <div class="bg-slate-50 border-2 border-dark rounded-xl p-1.5 flex gap-2 shadow-hard-sm mb-6">
+                <button onclick="setMode('word')" id="btn-mode-word" class="mode-btn active flex-1 py-3 rounded-lg font-heading text-sm transition-all border-2 border-transparent font-bold tracking-wide">
+                    WORD MODE
+                </button>
+                <button onclick="setMode('sentence')" id="btn-mode-sentence" class="mode-btn flex-1 py-3 rounded-lg font-heading text-sm transition-all border-2 border-transparent font-bold tracking-wide">
+                    SENTENCE MODE
+                </button>
+            </div>
+
+            <p class="text-slate-500 mb-2 font-bold" id="input-label">Enter words separated by commas:</p>
+            
+            <div class="relative mb-6">
+                <textarea 
+                    id="word-input" 
+                    class="w-full h-48 p-5 rounded-2xl border-3 border-slate-200 bg-slate-50 text-xl font-bold text-dark focus:border-blue focus:outline-none focus:bg-white transition-colors resize-none"
+                    placeholder="apple, banana, orange"
+                ></textarea>
+            </div>
+
+            <div class="flex gap-4">
+                <button onclick="startGame()" class="flex-1 btn-chunky bg-green text-white py-4 rounded-xl text-2xl font-heading tracking-wider hover:brightness-110">
+                    START GAME
+                </button>
+            </div>
+        </div>
+
+        <div id="game-panel" class="hidden w-full max-w-5xl">
+            
+            <div class="flex justify-between items-end mb-4 px-4">
+                <div class="text-xl font-heading text-slate-400">Item <span id="current-count" class="text-dark text-3xl">1</span> / <span id="total-count">10</span></div>
+                <div class="flex gap-2">
+                    <span id="mode-badge" class="bg-blue text-white px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-widest border-2 border-dark">Word Mode</span>
+                </div>
+            </div>
+
+            <div class="panel-chunky bg-white p-8 md:p-16 text-center relative overflow-hidden min-h-[400px] flex flex-col justify-center">
+                
+                <div class="absolute top-4 left-4 flex gap-2">
+                    <div class="w-3 h-3 rounded-full bg-pink border border-dark"></div>
+                    <div class="w-3 h-3 rounded-full bg-orange border border-dark"></div>
+                </div>
+
+                <div class="relative z-10 w-full flex flex-col items-center justify-center flex-grow">
+                    <h2 id="display-word" class="font-heading font-bold text-dark scramble-text animate-float px-4">
+                        LOADING...
+                    </h2>
+                    
+                    <div id="answer-reveal" class="hidden mt-8 transition-all duration-300">
+                        <div class="bg-green text-white text-2xl md:text-4xl font-heading px-8 py-3 rounded-xl border-3 border-dark shadow-hard-sm transform rotate-[-1deg] inline-block max-w-full">
+                            <span id="real-word" class="block break-words">ANSWER</span>
+                        </div>
+                    </div>
+                </div>
+
+                <p id="status-text" class="absolute bottom-4 left-0 w-full text-center text-slate-400 font-bold uppercase tracking-widest text-sm mt-4">
+                    Press <span class="bg-slate-200 px-2 py-0.5 rounded border border-slate-300 mx-1 text-dark">ENTER</span> to Reveal
+                </p>
+            </div>
+
+            <div class="flex justify-center gap-6 mt-8">
+                <button id="btn-reveal" onclick="revealWord()" class="btn-chunky bg-orange text-white px-8 py-4 rounded-xl text-2xl font-heading tracking-wide w-48 hover:brightness-110">
+                    REVEAL
+                </button>
+                <button id="btn-next" onclick="nextWord()" class="btn-chunky bg-blue text-white px-8 py-4 rounded-xl text-2xl font-heading tracking-wide w-48 hover:brightness-110" disabled>
+                    NEXT
+                </button>
+            </div>
+
+        </div>
+
+        <div id="end-panel" class="hidden panel-chunky w-full max-w-xl p-10 text-center animate-pop">
+            <div class="w-24 h-24 bg-yellow-400 rounded-full border-4 border-dark flex items-center justify-center mx-auto mb-6 shadow-hard">
+                <i data-lucide="trophy" class="w-12 h-12 text-white"></i>
+            </div>
+            <h2 class="text-5xl font-heading text-dark mb-4">GREAT JOB!</h2>
+            <p class="text-xl text-slate-500 font-bold mb-8">You've completed the set!</p>
+            <button onclick="resetGame()" class="btn-chunky bg-blue text-white px-8 py-3 rounded-xl text-xl font-heading tracking-wider hover:brightness-110">
+                PLAY AGAIN
+            </button>
+        </div>
+
+    </main>
 
     <script>
-        // --- LOCAL STORAGE KEY ---
-        const LS_KEY_WORDS = 'unscrambleWordList';
+        // --- LOGIC ---
+        let items = [];
+        let currentIndex = 0;
+        let isRevealed = false;
+        let currentMode = 'word'; // 'word' or 'sentence'
+        
+        // Defaults
+        const DEFAULT_WORDS = "elephant, giraffe, computer, backpack, school, teacher, student, pencil, window, garden";
+        const DEFAULT_SENTENCES = "The car was slightly dented\nI like to play football\nThe cat is sleeping\nWhere is the library\nI am happy today\nCan I help you";
 
         // DOM Elements
-        const teacherConsoleEl = document.getElementById('teacher-console-el');
-        const gameSectionEl = document.getElementById('game-section-el');
-        const wordListInputEl = document.getElementById('word-list-input');
-        const startGameBtn = document.getElementById('start-game-btn');
-        const consoleMessageEl = document.getElementById('console-message');
-
-        const scrambledWordEl = document.getElementById('scrambled-word-el');
-        const messageBoxEl = document.getElementById('message-box');
-        const revealBtn = document.getElementById('reveal-btn');
-        const nextBtn = document.getElementById('next-btn');
-
-        // Game State
-        let words = [];
-        let currentWordIndex = -1;
-        let currentWord = '';
-        let gameActive = false;
-
-        // --- PERSISTENCE ---
-
-        function saveWords(text) {
-             try {
-                localStorage.setItem(LS_KEY_WORDS, text);
-            } catch (e) {
-                console.error("Could not save words to local storage:", e);
-            }
-        }
-
-        function loadWords() {
-            try {
-                const savedWords = localStorage.getItem(LS_KEY_WORDS);
-                if (savedWords) {
-                    wordListInputEl.value = savedWords;
-                }
-            } catch (e) {
-                console.error("Could not load words from local storage:", e);
-            }
-        }
-
-
-        // Utility: Shuffles an array (Fisher-Yates)
-        function shuffleArray(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
-            }
-        }
-
-        // Utility: Scrambles a single word
-        function scrambleWord(word) {
-            // Convert the word to an array of characters
-            let chars = word.split('');
-            let scrambled = '';
-            
-            // Loop until the scrambled word is different from the original
-            while (scrambled === word || scrambled.length === 0) {
-                // Shuffle the characters
-                shuffleArray(chars);
-                scrambled = chars.join('');
-            }
-            return scrambled;
-        }
-
-        // Starts a new round
-        function startRound() {
-            if (words.length === 0) {
-                // If the word list is exhausted, go back to the console
-                scrambledWordEl.textContent = 'GAME OVER';
-                messageBoxEl.textContent = 'All words used! Click START GAME to play again.';
-                messageBoxEl.className = 'message-box win';
-                
-                revealBtn.disabled = true;
-                nextBtn.disabled = true;
-
-                // Return to console for quick restart
-                setTimeout(() => {
-                    gameSectionEl.style.display = 'none';
-                    teacherConsoleEl.style.display = 'block';
-                    // Re-enable the start button and clear console message
-                    startGameBtn.disabled = false;
-                    consoleMessageEl.textContent = '\u00a0';
-                    consoleMessageEl.className = 'text-sm text-center mb-6 text-gray-400';
-                }, 2000); 
-
-                return;
-            }
-
-            // Get the next word (always take from index 0 after shuffle/splice)
-            currentWord = words.splice(0, 1)[0];
-            const scrambled = scrambleWord(currentWord);
-
-            scrambledWordEl.textContent = scrambled.toUpperCase();
-            
-            messageBoxEl.textContent = `${words.length + 1} words remaining. Unscramble the word!`;
-            messageBoxEl.className = 'message-box info';
-
-            revealBtn.disabled = false;
-            nextBtn.disabled = true;
-            gameActive = true;
-        }
-
-        // Reveals the correct answer
-        function revealAnswer() {
-            if (!gameActive) return;
-
-            scrambledWordEl.textContent = currentWord.toUpperCase();
-
-            // Update messages and button states
-            messageBoxEl.textContent = `The correct word is: ${currentWord.toUpperCase()}`;
-            messageBoxEl.className = 'message-box win';
-
-            revealBtn.disabled = true;
-            nextBtn.disabled = false;
-            gameActive = false;
-        }
-
-        // Event listeners for the game
-        revealBtn.addEventListener('click', revealAnswer);
+        const elSetup = document.getElementById('setup-panel');
+        const elGame = document.getElementById('game-panel');
+        const elEnd = document.getElementById('end-panel');
+        const elInput = document.getElementById('word-input');
+        const elInputLabel = document.getElementById('input-label');
         
-        nextBtn.addEventListener('click', () => {
-            startRound();
-        });
-
-        // Event listener for the teacher console
-        startGameBtn.addEventListener('click', () => {
-            // Filter out empty strings and words shorter than 3 letters
-            const rawWords = wordListInputEl.value.split(',').map(word => word.trim().toLowerCase()).filter(word => word.length >= 3);
-            
-            if (rawWords.length === 0) {
-                consoleMessageEl.textContent = 'Please enter at least one word with 3 or more letters.';
-                consoleMessageEl.className = 'text-sm text-center mb-6 text-pink'; /* Use pink for error */
-                return;
-            }
-
-            words = rawWords;
-            shuffleArray(words); // Shuffle the words array
-            
-            // Hide the console and show the game
-            teacherConsoleEl.style.display = 'none';
-            gameSectionEl.style.display = 'block';
-            startGameBtn.disabled = true;
-
-            // Reset console message on success
-            consoleMessageEl.className = 'text-sm text-center mb-6 text-gray-400';
-            consoleMessageEl.textContent = '\u00a0'; // non-breaking space to keep height
-
-            startRound();
-        });
-
-        // --- INITIALIZATION ---
+        const elDisplay = document.getElementById('display-word');
+        const elRealWord = document.getElementById('real-word');
+        const elAnswerBox = document.getElementById('answer-reveal');
         
-        function initializeApplication() {
-            // 1. Load saved words into the input field
-            loadWords();
-            
-            // 2. Attach Auto-Save Hook to the input event
-            wordListInputEl.addEventListener('input', (e) => saveWords(e.target.value));
+        const elCount = document.getElementById('current-count');
+        const elTotal = document.getElementById('total-count');
+        const elStatus = document.getElementById('status-text');
+        const elBadge = document.getElementById('mode-badge');
+        
+        const btnReveal = document.getElementById('btn-reveal');
+        const btnNext = document.getElementById('btn-next');
+        const btnModeWord = document.getElementById('btn-mode-word');
+        const btnModeSentence = document.getElementById('btn-mode-sentence');
 
-            // 3. Auto-open setup: The teacher console is already visible by default, 
-            // so we just ensure the game is hidden and the console is ready.
-            gameSectionEl.style.display = 'none';
-            teacherConsoleEl.style.display = 'block';
-        }
-
-        window.onload = function() {
+        // Init
+        window.onload = () => {
             lucide.createIcons();
-            initializeApplication();
+            setMode('word'); // Load default
+            
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if(elGame.classList.contains('hidden')) return;
+                
+                if(e.key === 'Enter' || e.code === 'Space') {
+                    if(!isRevealed) revealWord();
+                    else nextWord();
+                }
+            });
         };
 
-    </script>
+        function setMode(mode) {
+            currentMode = mode;
+            
+            // Update Buttons
+            if(mode === 'word') {
+                btnModeWord.classList.add('active');
+                btnModeSentence.classList.remove('active');
+                elInputLabel.innerText = "Enter words separated by commas:";
+                
+                // Load saved or default
+                const saved = localStorage.getItem('english1_scramble_words');
+                elInput.value = saved || DEFAULT_WORDS;
+                elInput.placeholder = "apple, banana, orange";
+            } else {
+                btnModeSentence.classList.add('active');
+                btnModeWord.classList.remove('active');
+                elInputLabel.innerText = "Enter sentences (one per line):";
+                
+                // Load saved or default
+                const saved = localStorage.getItem('english1_scramble_sentences');
+                elInput.value = saved || DEFAULT_SENTENCES;
+                elInput.placeholder = "The car was slightly dented\nI love ice cream";
+            }
+        }
 
+        function startGame() {
+            const raw = elInput.value;
+            
+            if(currentMode === 'word') {
+                localStorage.setItem('english1_scramble_words', raw);
+                items = raw.split(',').map(w => w.trim()).filter(w => w.length >= 2);
+            } else {
+                localStorage.setItem('english1_scramble_sentences', raw);
+                items = raw.split('\n').map(s => s.trim()).filter(s => s.length >= 3);
+            }
+
+            if(items.length === 0) {
+                alert(currentMode === 'word' ? "Please enter words!" : "Please enter sentences!");
+                return;
+            }
+
+            // Shuffle items order
+            items.sort(() => Math.random() - 0.5);
+
+            currentIndex = 0;
+            
+            // Switch Screens
+            elSetup.classList.add('hidden');
+            elEnd.classList.add('hidden');
+            elGame.classList.remove('hidden');
+            elGame.classList.add('animate-pop');
+
+            elBadge.innerText = currentMode === 'word' ? "Word Mode" : "Sentence Mode";
+
+            loadLevel();
+        }
+
+        function loadLevel() {
+            isRevealed = false;
+            const currentItem = items[currentIndex];
+            
+            // UI Updates
+            elCount.innerText = currentIndex + 1;
+            elTotal.innerText = items.length;
+            
+            // Text Sizing Logic
+            if(currentMode === 'word') {
+                elDisplay.className = "font-heading font-bold text-dark scramble-text animate-float px-4 text-7xl md:text-9xl";
+                // Scramble Letters (Uppercase, Spaced)
+                elDisplay.innerText = scrambleLetters(currentItem);
+            } else {
+                // Sentence Mode needs smaller text
+                const len = currentItem.length;
+                let sizeClass = "text-4xl md:text-6xl"; // Default
+                if(len > 30) sizeClass = "text-3xl md:text-5xl";
+                if(len > 60) sizeClass = "text-2xl md:text-4xl";
+                
+                elDisplay.className = `font-heading font-bold text-dark scramble-text animate-float px-4 leading-tight ${sizeClass}`;
+                
+                // Scramble Words internally
+                elDisplay.innerText = scrambleSentence(currentItem);
+            }
+            
+            // Hide Answer
+            elAnswerBox.classList.add('hidden');
+            elRealWord.innerText = currentItem;
+
+            // Reset Buttons
+            btnReveal.disabled = false;
+            btnNext.disabled = true;
+            btnReveal.classList.remove('opacity-50');
+            btnNext.classList.add('opacity-50');
+            
+            elStatus.innerHTML = 'Press <span class="bg-slate-200 px-2 py-0.5 rounded border border-slate-300 mx-1 text-dark">ENTER</span> to Reveal';
+        }
+
+        function revealWord() {
+            if(isRevealed) return;
+            isRevealed = true;
+            
+            elAnswerBox.classList.remove('hidden');
+            elAnswerBox.classList.add('animate-pop');
+            
+            confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
+
+            btnReveal.disabled = true;
+            btnReveal.classList.add('opacity-50');
+            
+            if(currentIndex < items.length - 1) {
+                btnNext.disabled = false;
+                btnNext.classList.remove('opacity-50');
+                elStatus.innerHTML = 'Press <span class="bg-slate-200 px-2 py-0.5 rounded border border-slate-300 mx-1 text-dark">ENTER</span> for Next';
+            } else {
+                btnNext.innerText = "FINISH";
+                btnNext.disabled = false;
+                btnNext.classList.remove('opacity-50');
+                btnNext.onclick = finishGame;
+                elStatus.innerHTML = 'Press <span class="bg-slate-200 px-2 py-0.5 rounded border border-slate-300 mx-1 text-dark">ENTER</span> to Finish';
+            }
+        }
+
+        function nextWord() {
+            if(!isRevealed) return;
+            currentIndex++;
+            loadLevel();
+        }
+
+        function finishGame() {
+            elGame.classList.add('hidden');
+            elEnd.classList.remove('hidden');
+            confetti({ particleCount: 150, spread: 100, origin: { y: 0.6 } });
+        }
+
+        function resetGame() {
+            elEnd.classList.add('hidden');
+            elSetup.classList.remove('hidden');
+            btnNext.onclick = nextWord;
+            btnNext.innerText = "NEXT";
+        }
+
+        function exitGame() {
+            if(confirm("Exit to setup? Progress will be lost.")) {
+                elGame.classList.add('hidden');
+                elEnd.classList.add('hidden');
+                elSetup.classList.remove('hidden');
+            }
+        }
+
+        // --- SCRAMBLE LOGIC ---
+
+        // For Word Mode: Scramble letters, force Uppercase, add spaces between letters
+        function scrambleLetters(word) {
+            const arr = word.toUpperCase().split('');
+            let n = arr.length;
+            // Fisher-Yates
+            for(let i = n - 1; i > 0; i--) {
+                let j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr.join(' '); 
+        }
+
+        // For Sentence Mode: Scramble letters INSIDE each word, keep case, keep word order
+        function scrambleSentence(sentence) {
+            // Split by space to get words
+            const words = sentence.split(' ');
+            
+            // Map each word to its scrambled version
+            const scrambledWords = words.map(word => {
+                // Keep punctuation attached if possible, or just scramble it all. 
+                // Logic: Scramble the entire token
+                const arr = word.split('');
+                let n = arr.length;
+                
+                // Shuffle letters within the word
+                for(let i = n - 1; i > 0; i--) {
+                    let j = Math.floor(Math.random() * (i + 1));
+                    [arr[i], arr[j]] = [arr[j], arr[i]];
+                }
+                
+                // Rejoin without extra spaces
+                return arr.join('');
+            });
+
+            // Join words with triple space for clarity
+            return scrambledWords.join('   '); 
+        }
+
+    </script>
 </body>
 </html>
