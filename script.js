@@ -123,17 +123,21 @@ const AudioEngine = {
       this.ctx = new AudioContext();
 
       this.muted = Storage.get(CONFIG.storageKeys.sound, false);
-
       this.updateUI();
     } catch (error) {
       console.warn('Web Audio API not supported:', error);
     }
   },
+
   playTone(freq, type, duration) {
     if (this.muted || !this.ctx) return;
+
+    try {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+
       osc.type = type;
       osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-
 
       gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
@@ -173,9 +177,13 @@ const AudioEngine = {
     Storage.set(CONFIG.storageKeys.sound, this.muted);
     this.updateUI();
   },
+
+  updateUI() {
+    const btn = document.getElementById('sound-btn');
+    if (!btn) return;
+
     const icon = btn.querySelector('i');
     if (!icon) return;
-
 
     if (this.muted) {
       icon.setAttribute('data-lucide', 'volume-x');
@@ -186,6 +194,30 @@ const AudioEngine = {
     }
 
     lucide.createIcons();
+  }
+};
+
+// --- THEME MANAGER ---
+const Theme = {
+  load() {
+    const saved = Storage.get(CONFIG.storageKeys.theme);
+
+    if (saved === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else if (saved === 'light') {
+      document.documentElement.classList.remove('dark');
+    } else {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (prefersDark) {
+        document.documentElement.classList.add('dark');
+      }
+    }
+  },
+
+  toggle() {
+    const isDark = document.documentElement.classList.toggle('dark');
+    Storage.set(CONFIG.storageKeys.theme, isDark ? 'dark' : 'light');
+    AudioEngine.click();
   }
 };
 
