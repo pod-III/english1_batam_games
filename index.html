@@ -9,8 +9,9 @@
   <link rel="icon" type="image/x-icon" href="./media/icon.ico" />
   <link rel="apple-touch-icon" href="./media/icon.png" />
   <!-- External Libraries -->
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest" defer></script>
+  <script src="https://cdn.tailwindcss.com"></script> <!-- Keep blocking -->
+  <link rel="stylesheet" href="./styles.css">
 
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -21,10 +22,14 @@
 
   <!-- Theme Configuration -->
   <script>
+    // Tailwind Configuration
+    // See: https://tailwindcss.com/docs/configuration
     tailwind.config = {
       darkMode: 'class',
+
       theme: {
         extend: {
+          // Custom Colors
           colors: {
             pink: '#FF6B95',
             orange: '#FF8C42',
@@ -32,33 +37,33 @@
             blue: '#2979FF',
             dark: '#1e293b',
             chalk: '#f8fafc',
-            surface: '#FFFFFF',
-            border: '#cbd5e1',
-            paper: '#F8FAFC',
-            // Standardizing palette
-            red: { 500: '#ef4444' },
-            yellow: { 500: '#f59e0b' }
           },
+
+          // Typography
           fontFamily: {
             heading: ['Fredoka', 'sans-serif'],
             body: ['Nunito', 'sans-serif'],
           },
+
+          // Effects
           boxShadow: {
             'hard-sm': '2px 2px 0px 0px rgba(30, 41, 59, 1)',
             'hard': '4px 4px 0px 0px rgba(30, 41, 59, 1)',
             'hard-md': '6px 6px 0px 0px rgba(30, 41, 59, 1)',
             'hard-lg': '8px 8px 0px 0px rgba(30, 41, 59, 1)',
             'hard-xl': '12px 12px 0px 0px rgba(30, 41, 59, 1)',
-            // Dark mode shadows
             'neon-sm': '2px 2px 0px 0px rgba(0, 0, 0, 0.5)',
             'neon': '4px 4px 0px 0px rgba(0, 0, 0, 0.5)',
           },
+
+          // Animations
           animation: {
             'bounce-slight': 'bounce-slight 2s infinite',
             'pop-in': 'pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
             'slide-down': 'slide-down 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards',
             'float': 'float 20s infinite linear',
           },
+
           keyframes: {
             'bounce-slight': {
               '0%, 100%': { transform: 'translateY(-3%)' },
@@ -81,7 +86,7 @@
       }
     }
   </script>
- <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./styles.css">
 </head>
 
 <body class="min-h-screen p-4 md:p-8 xl:px-16 pb-20 selection:bg-pink selection:text-white">
@@ -123,13 +128,13 @@
 
         <!-- Toggle Group -->
         <div class="flex gap-2">
-          <button onclick="App.toggleTheme()"
+          <button data-action="toggleTheme"
             class="w-12 h-12 bg-white dark:bg-slate-800 border-3 border-dark dark:border-slate-400 rounded-xl flex items-center justify-center shadow-hard dark:shadow-black hover:translate-y-[-2px] transition-transform"
             title="Toggle Blackboard Mode">
             <i data-lucide="moon" class="w-5 h-5 text-dark dark:hidden"></i>
             <i data-lucide="sun" class="w-5 h-5 text-yellow-400 hidden dark:block"></i>
           </button>
-          <button onclick="App.toggleSound()" id="sound-btn"
+          <button data-action="toggleSound" id="sound-btn"
             class="w-12 h-12 bg-white dark:bg-slate-800 border-3 border-dark dark:border-slate-400 rounded-xl flex items-center justify-center shadow-hard dark:shadow-black hover:translate-y-[-2px] transition-transform"
             title="Toggle Sound">
             <i data-lucide="volume-2" class="w-5 h-5 text-green dark:text-green-400"></i>
@@ -137,9 +142,11 @@
         </div>
 
         <div class="relative flex-1 sm:w-64 group">
+          <label for="search-input" class="sr-only">Search activities</label>
           <input type="text" id="search-input" placeholder="Find activity... (/)"
+            aria-label="Search activities by name or category" role="searchbox"
             class="w-full bg-slate-50 input-chunky px-4 py-3 pl-12 font-bold placeholder-slate-400 group-focus-within:bg-white transition-colors">
-          <i data-lucide="search"
+          <i data-lucide="search" aria-hidden="true"
             class="absolute left-4 top-4 w-5 h-5 text-slate-400 group-focus-within:text-blue transition-colors"></i>
         </div>
       </div>
@@ -152,7 +159,7 @@
           <i data-lucide="zap" class="w-4 h-4 text-white"></i>
         </div>
         <h3 class="font-heading text-xl text-dark dark:text-white">QUICK LAUNCH</h3>
-        <button onclick="App.clearRecent()"
+        <button data-action="clearRecent"
           class="text-xs font-bold text-slate-400 hover:text-red-500 ml-auto uppercase tracking-wider border-b-2 border-transparent hover:border-red-500 transition-colors">Clear
           History</button>
       </div>
@@ -165,12 +172,12 @@
     <div
       class="flex flex-col sm:flex-row justify-between items-end gap-4 border-b-4 border-dark/10 dark:border-white/10 pb-6">
       <nav class="flex flex-wrap gap-3" id="filters">
-        <button onclick="filterGames('all')"
-          class="filter-btn btn-chunky active bg-white text-dark px-6 py-2 rounded-xl" data-category="all">ALL</button>
-        <button onclick="filterGames('game')" class="filter-btn btn-chunky bg-white text-dark px-6 py-2 rounded-xl"
-          data-category="game">GAMES</button>
-        <button onclick="filterGames('tool')" class="filter-btn btn-chunky bg-white text-dark px-6 py-2 rounded-xl"
-          data-category="tool">TOOLS</button>
+        <button data-action="filterGames" data-param="all" data-category="all" aria-pressed="true"
+          class="filter-btn btn-chunky active bg-white text-dark px-6 py-2 rounded-xl">ALL</button>
+        <button data-action="filterGames" data-param="game" data-category="game" aria-pressed="false"
+          class="filter-btn btn-chunky bg-white text-dark px-6 py-2 rounded-xl">GAMES</button>
+        <button button data-action="filterGames" data-param="tool" data-category="tool" aria-pressed="false"
+          class="filter-btn btn-chunky bg-white text-dark px-6 py-2 rounded-xl">TOOLS</button>
       </nav>
       <div
         class="text-sm font-bold text-slate-400 font-heading tracking-widest bg-white dark:bg-slate-800 border-2 border-dark/20 dark:border-slate-600 px-3 py-1 rounded-lg">
@@ -208,35 +215,20 @@
       class="floating-stick absolute top-4 left-4 z-[60] flex items-center gap-2 p-2 bg-white border-4 border-dark rounded-2xl shadow-hard-lg hover:scale-105 transition-transform">
 
       <!-- Close -->
-      <button onclick="App.closeGame()" class="stick-btn bg-red-500 text-white hover:bg-red-600 border-red-700"
+      <button data-action="closeGame" class="stick-btn bg-red-500 text-white hover:bg-red-600 border-red-700"
         title="Exit Activity">
         <i data-lucide="log-out" class="w-6 h-6 ml-0.5"></i>
       </button>
 
-      <!-- <div class="w-1 h-8 bg-slate-200 rounded-full mx-1"></div>
-
-            Global Timer Section
-            <div class="flex items-center gap-1 bg-slate-100 rounded-lg px-2 py-1 border-2 border-slate-200">
-                <div id="global-timer-display" class="font-mono font-bold text-lg text-dark w-[60px] text-center">00:00</div>
-                <button onclick="Timer.toggle()" class="w-8 h-8 rounded-lg bg-white border border-slate-300 flex items-center justify-center hover:bg-blue hover:text-white hover:border-blue transition-colors">
-                    <i id="timer-icon" data-lucide="play" class="w-3 h-3 fill-current"></i>
-                </button>
-                <button onclick="Timer.reset()" class="w-8 h-8 rounded-lg bg-white border border-slate-300 flex items-center justify-center hover:bg-orange hover:text-white hover:border-orange transition-colors">
-                    <i data-lucide="rotate-ccw" class="w-3 h-3"></i>
-                </button>
-            </div> -->
-
       <div class="w-1 h-8 bg-slate-200 rounded-full mx-1"></div>
 
       <!-- Reload -->
-      <button onclick="document.getElementById('game-frame').contentWindow.location.reload()"
-        class="stick-btn hover:bg-slate-50" title="Restart">
+      <button data-action="reloadGame" class="stick-btn hover:bg-slate-50" title="Restart">
         <i data-lucide="rotate-cw" class="w-6 h-6"></i>
       </button>
 
       <!-- Info -->
-      <button onclick="App.toggleInfo()" class="stick-btn text-blue hover:text-white hover:bg-blue"
-        title="Instructions">
+      <button data-action="toggleInfo" class="stick-btn text-blue hover:text-white hover:bg-blue" title="Instructions">
         <i data-lucide="help-circle" class="w-6 h-6"></i>
       </button>
     </div>
@@ -256,7 +248,7 @@
       class="absolute inset-0 z-[70] hidden flex-col items-center justify-center bg-dark/90 backdrop-blur-sm p-6 animate-pop-in">
       <div
         class="bg-white border-4 border-dark rounded-[2rem] max-w-2xl w-full p-8 shadow-hard-xl relative overflow-hidden">
-        <button onclick="App.toggleInfo()"
+        <button data-action="toggleInfo"
           class="absolute top-6 right-6 p-2 rounded-xl hover:bg-slate-100 transition-colors border-2 border-transparent hover:border-dark">
           <i data-lucide="x" class="w-8 h-8 text-dark"></i>
         </button>
@@ -279,7 +271,7 @@
           </h3>
           <div id="info-content" class="text-slate-700 text-lg leading-relaxed space-y-3 font-medium"></div>
         </div>
-        <button onclick="App.toggleInfo()"
+        <button data-action="toggleInfo"
           class="btn-chunky bg-green text-dark w-full py-4 rounded-xl flex items-center justify-center gap-3 text-xl hover:brightness-105">
           <span>RETURN TO GAME</span> <i data-lucide="arrow-right" class="w-6 h-6"></i>
         </button>
