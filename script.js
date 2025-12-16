@@ -287,7 +287,7 @@ const UI = {
       
   //     container.appendChild(shape);
   //   }
-  }
+  // }
 };
 
 // --- RECENT GAMES MANAGER ---
