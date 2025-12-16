@@ -122,13 +122,20 @@ const AudioEngine = {
       const AudioContext = window.AudioContext || window.webkitAudioContext;
       this.ctx = new AudioContext();
 
-      this.muted = Storage.get(CONFIG.storageKeys.sound, false);
+      // Ensure storage is checked during init
+      this.muted = typeof Storage !== 'undefined' ? Storage.get(CONFIG.storageKeys.sound, false) : false;
       this.updateUI();
     } catch (error) {
       console.warn('Web Audio API not supported:', error);
     }
   },
 
+  /**
+   * Plays a synthesized tone.
+   * @param {number} freq - Frequency in Hz (e.g., 440)
+   * @param {string} type - Oscillator type ('sine', 'square', 'sawtooth', 'triangle')
+   * @param {number} duration - Length in seconds
+   */
   playTone(freq, type, duration) {
     if (this.muted || !this.ctx) return;
 
@@ -139,42 +146,47 @@ const AudioEngine = {
       osc.type = type;
       osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
 
+      // Simple Envelope: Prevents "popping" by ramping down to 0
       gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+      gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
 
       osc.connect(gain);
       gain.connect(this.ctx.destination);
 
       osc.start();
       osc.stop(this.ctx.currentTime + duration);
+
+      // Cleanup: Disconnect nodes after sound ends to free resources
+      osc.onended = () => {
+        osc.disconnect();
+        gain.disconnect();
+      };
     } catch (error) {
       console.warn('Audio playback error:', error);
     }
   },
 
-  // hover() {
-  //   this.playTone(400, 'sine', 0.1);
-  // },
-
   click() {
-    this.playTone(600, 'square', 0.15);
+    this.playTone(600, 'square', 0.1);
   },
 
-  toggle() {
-    // 1. Initialize if missing (your original logic)
-    if (!this.ctx) {
-      this.init();
+  async toggle() {
+    // 1. Initialize if context doesn't exist
+    if (!this.ctx) this.init();
+
+    // 2. Resume if suspended (browser security requirement)
+    if (this.ctx && this.ctx.state === 'suspended') {
+      await this.ctx.resume();
     }
 
-    // 2. IMPORTANT: Wake up the Audio Engine if it is suspended!
-    // This must happen inside a user-triggered event (like this click).
-    if (this.ctx.state === 'suspended') {
-      this.ctx.resume();
-    }
-
-    // 3. Flip the mute state
+    // 3. Update State
     this.muted = !this.muted;
-    Storage.set(CONFIG.storageKeys.sound, this.muted);
+    
+    // Save to storage if utility exists
+    if (typeof Storage !== 'undefined') {
+      Storage.set(CONFIG.storageKeys.sound, this.muted);
+    }
+    
     this.updateUI();
   },
 
@@ -185,39 +197,19 @@ const AudioEngine = {
     const icon = btn.querySelector('i');
     if (!icon) return;
 
+    // Use Lucide's data attribute and Tailwind classes
     if (this.muted) {
       icon.setAttribute('data-lucide', 'volume-x');
-      icon.className = 'w-5 h-5 text-red-500 dark:text-red-400';
+      icon.className = 'w-5 h-5 text-red-500';
     } else {
       icon.setAttribute('data-lucide', 'volume-2');
-      icon.className = 'w-5 h-5 text-green dark:text-green-400';
+      icon.className = 'w-5 h-5 text-green-500';
     }
 
-    lucide.createIcons();
-  }
-};
-
-// --- THEME MANAGER ---
-const Theme = {
-  load() {
-    const saved = Storage.get(CONFIG.storageKeys.theme);
-
-    if (saved === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else if (saved === 'light') {
-      document.documentElement.classList.remove('dark');
-    } else {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      if (prefersDark) {
-        document.documentElement.classList.add('dark');
-      }
+    // Refresh Lucide icons to swap the SVG
+    if (typeof lucide !== 'undefined') {
+      lucide.createIcons();
     }
-  },
-
-  toggle() {
-    const isDark = document.documentElement.classList.toggle('dark');
-    Storage.set(CONFIG.storageKeys.theme, isDark ? 'dark' : 'light');
-    AudioEngine.click();
   }
 };
 
