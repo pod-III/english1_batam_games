@@ -26,52 +26,52 @@ const State = {
     difficulty: 'all',
     tags: []
   },
-  
+
   setGames(gamesData) {
     // Handle both old and new JSON format
     const gamesList = gamesData.games || gamesData;
     this.games = gamesList.sort((a, b) => a.title.localeCompare(b.title));
-    
+
     // Store metadata if available
     if (gamesData.metadata) {
       this.metadata = gamesData.metadata;
     }
   },
-  
+
   getFilteredGames() {
     return this.games.filter(game => {
       // Category filter
-      const matchesCategory = this.filters.category === 'all' || 
-                              game.category === this.filters.category;
-      
+      const matchesCategory = this.filters.category === 'all' ||
+        game.category === this.filters.category;
+
       // Search filter
       const searchLower = this.filters.searchTerm.toLowerCase();
-      const matchesSearch = !this.filters.searchTerm || 
-                           game.title.toLowerCase().includes(searchLower) ||
-                           game.description.toLowerCase().includes(searchLower) ||
-                           game.category.toLowerCase().includes(searchLower) ||
-                           (game.tags && game.tags.some(tag => tag.toLowerCase().includes(searchLower)));
-      
+      const matchesSearch = !this.filters.searchTerm ||
+        game.title.toLowerCase().includes(searchLower) ||
+        game.description.toLowerCase().includes(searchLower) ||
+        game.category.toLowerCase().includes(searchLower) ||
+        (game.tags && game.tags.some(tag => tag.toLowerCase().includes(searchLower)));
+
       // Difficulty filter
       const matchesDifficulty = this.filters.difficulty === 'all' ||
-                                !game.difficulty ||
-                                game.difficulty === this.filters.difficulty;
-      
+        !game.difficulty ||
+        game.difficulty === this.filters.difficulty;
+
       // Tags filter (if any tags selected)
       const matchesTags = this.filters.tags.length === 0 ||
-                         (game.tags && this.filters.tags.some(tag => game.tags.includes(tag)));
-      
+        (game.tags && this.filters.tags.some(tag => game.tags.includes(tag)));
+
       // Active filter (hide inactive games)
       const isActive = game.active !== false;
-      
+
       return matchesCategory && matchesSearch && matchesDifficulty && matchesTags && isActive;
     });
   },
-  
+
   getGameById(id) {
     return this.games.find(g => g.id === id);
   },
-  
+
   getFeaturedGames() {
     return this.games.filter(g => g.featured === true);
   }
@@ -88,7 +88,7 @@ const Storage = {
       return fallback;
     }
   },
-  
+
   set(key, value) {
     try {
       localStorage.setItem(key, JSON.stringify(value));
@@ -98,7 +98,7 @@ const Storage = {
       return false;
     }
   },
-  
+
   remove(key) {
     try {
       localStorage.removeItem(key);
@@ -114,69 +114,77 @@ const Storage = {
 const AudioEngine = {
   ctx: null,
   muted: false,
-  
+
   init() {
     if (this.ctx) return;
-    
+
     try {
       const AudioContext = window.AudioContext || window.webkitAudioContext;
       this.ctx = new AudioContext();
-      
+
       this.muted = Storage.get(CONFIG.storageKeys.sound, false);
       this.updateUI();
     } catch (error) {
       console.warn('Web Audio API not supported:', error);
     }
   },
-  
+
   playTone(freq, type, duration) {
     if (this.muted || !this.ctx) return;
-    
+
     try {
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
-      
+
       osc.type = type;
       osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-      
+
       gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
-      
+
       osc.connect(gain);
       gain.connect(this.ctx.destination);
-      
+
       osc.start();
       osc.stop(this.ctx.currentTime + duration);
     } catch (error) {
       console.warn('Audio playback error:', error);
     }
   },
-  
-  hover() {
-    this.playTone(400, 'sine', 0.1);
-  },
-  
+
+  // hover() {
+  //   this.playTone(400, 'sine', 0.1);
+  // },
+
   click() {
     this.playTone(600, 'square', 0.15);
   },
-  
+
   toggle() {
+    // 1. Initialize if missing (your original logic)
+    if (!this.ctx) {
+      this.init();
+    }
+
+    // 2. IMPORTANT: Wake up the Audio Engine if it is suspended!
+    // This must happen inside a user-triggered event (like this click).
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+
+    // 3. Flip the mute state
     this.muted = !this.muted;
     Storage.set(CONFIG.storageKeys.sound, this.muted);
     this.updateUI();
-    
-    if (!this.muted && !this.ctx) {
-      this.init();
-    }
   },
-  
+
   updateUI() {
     const btn = document.getElementById('sound-btn');
     if (!btn) return;
-    
+
     const icon = btn.querySelector('i');
     if (!icon) return;
-    
+
     if (this.muted) {
       icon.setAttribute('data-lucide', 'volume-x');
       icon.className = 'w-5 h-5 text-red-500 dark:text-red-400';
@@ -184,7 +192,7 @@ const AudioEngine = {
       icon.setAttribute('data-lucide', 'volume-2');
       icon.className = 'w-5 h-5 text-green dark:text-green-400';
     }
-    
+
     lucide.createIcons();
   }
 };
@@ -193,7 +201,7 @@ const AudioEngine = {
 const Theme = {
   load() {
     const saved = Storage.get(CONFIG.storageKeys.theme);
-    
+
     if (saved === 'dark') {
       document.documentElement.classList.add('dark');
     } else if (saved === 'light') {
@@ -205,7 +213,7 @@ const Theme = {
       }
     }
   },
-  
+
   toggle() {
     const isDark = document.documentElement.classList.toggle('dark');
     Storage.set(CONFIG.storageKeys.theme, isDark ? 'dark' : 'light');
@@ -217,25 +225,25 @@ const Theme = {
 const UI = {
   updateGreeting() {
     const hour = new Date().getHours();
-    const greeting = hour < 12 ? "Good Morning" : 
-                     hour < 18 ? "Good Afternoon" : 
-                     "Good Evening";
-    
+    const greeting = hour < 12 ? "Good Morning" :
+      hour < 18 ? "Good Afternoon" :
+        "Good Evening";
+
     const greetingEl = document.getElementById("greeting-display");
     if (greetingEl) greetingEl.textContent = `${greeting}!`;
-    
+
     const dateEl = document.getElementById("date-display");
     if (dateEl) {
       const options = { weekday: "long", month: "short", day: "numeric" };
       dateEl.textContent = new Date().toLocaleDateString("en-US", options);
     }
   },
-  
+
   updateCount(count) {
     const badge = document.getElementById('count-badge');
     if (badge) badge.textContent = count;
   },
-  
+
   showError(message) {
     const grid = document.getElementById('games-grid');
     if (grid) {
@@ -250,7 +258,7 @@ const UI = {
       lucide.createIcons();
     }
   },
-  
+
   showLoading() {
     const grid = document.getElementById('games-grid');
     if (grid) {
@@ -262,17 +270,17 @@ const UI = {
       `;
     }
   },
-  
+
   // initLivingBackground() {
   //   const container = document.querySelector('.living-bg');
   //   if (!container) return;
-    
+
   //   const colors = ['#FF6B95', '#FF8C42', '#00E676', '#2979FF'];
-    
+
   //   for (let i = 0; i < 15; i++) {
   //     const shape = document.createElement('div');
   //     shape.className = 'shape';
-      
+
   //     const size = Math.random() * 40 + 20;
   //     shape.style.cssText = `
   //       width: ${size}px;
@@ -284,7 +292,7 @@ const UI = {
   //       animation-duration: ${Math.random() * 20 + 20}s;
   //       animation-delay: -${Math.random() * 20}s;
   //     `;
-      
+
   //     container.appendChild(shape);
   //   }
   // }
@@ -295,7 +303,7 @@ const RecentGames = {
   get() {
     return Storage.get(CONFIG.storageKeys.recent, []);
   },
-  
+
   add(gameId) {
     let recent = this.get().filter(id => id !== gameId);
     recent.unshift(gameId);
@@ -303,34 +311,34 @@ const RecentGames = {
     Storage.set(CONFIG.storageKeys.recent, recent);
     this.render();
   },
-  
+
   clear() {
     Storage.remove(CONFIG.storageKeys.recent);
     this.render();
     AudioEngine.click();
   },
-  
+
   render() {
     const recentIds = this.get();
     const container = document.getElementById("recent-list");
     const section = document.getElementById("recent-section");
-    
+
     if (!container || !section) return;
-    
+
     if (recentIds.length === 0) {
       section.classList.add('hidden');
       return;
     }
-    
+
     section.classList.remove('hidden');
-    
+
     const html = recentIds.map(id => {
       const game = State.getGameById(id);
       if (!game) return '';
-      
+
       const colorName = game.color.replace('text-', '');
       const bgClass = this.getColorClass(colorName);
-      
+
       return `
         <button 
           data-action="openGame" 
@@ -348,11 +356,11 @@ const RecentGames = {
         </button>
       `;
     }).join('');
-    
+
     container.innerHTML = html;
     lucide.createIcons();
   },
-  
+
   getColorClass(colorName) {
     const colorMap = {
       'pink': 'bg-pink',
@@ -371,11 +379,11 @@ const GameGrid = {
   render(games = null) {
     const gamesToRender = games || State.getFilteredGames();
     const grid = document.getElementById('games-grid');
-    
+
     if (!grid) return;
-    
+
     UI.updateCount(gamesToRender.length);
-    
+
     if (gamesToRender.length === 0) {
       grid.innerHTML = `
         <div class="col-span-full text-center p-10">
@@ -387,17 +395,17 @@ const GameGrid = {
       lucide.createIcons();
       return;
     }
-    
+
     const html = gamesToRender.map(game => {
       const colorName = game.color.replace('text-', '');
       const baseColor = colorName.includes('-') ? colorName.split('-')[0] : colorName;
       const bgClass = `bg-${baseColor}/10`;
-      
+
       // Difficulty badge (if available)
-      const difficultyBadge = game.difficulty ? 
-        `<span class="text-[8px] font-bold px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400 uppercase">${game.difficulty}</span>` 
+      const difficultyBadge = game.difficulty ?
+        `<span class="text-[8px] font-bold px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400 uppercase">${game.difficulty}</span>`
         : '';
-      
+
       return `
         <article 
           class="hub-card group cursor-pointer dark:bg-slate-800 dark:border-slate-500" 
@@ -435,30 +443,30 @@ const GameGrid = {
         </article>
       `;
     }).join('');
-    
+
     grid.innerHTML = html;
     lucide.createIcons();
     this.initCardEffects();
   },
-  
+
   getGuideText(game) {
     if (!game.guide) {
       // Fallback to default guides
-      return game.category === 'tool' ? 
+      return game.category === 'tool' ?
         "<ul class='list-disc pl-5 space-y-2'><li>Adjust settings using the on-screen controls.</li><li>Use fullscreen mode for better visibility.</li></ul>" :
         "<ul class='list-disc pl-5 space-y-2'><li>Follow the on-screen prompts to start.</li><li>Customize words in setup if available.</li></ul>";
     }
-    
+
     // Handle new format (object with steps)
     if (typeof game.guide === 'object' && game.guide.steps) {
       const steps = game.guide.steps.map(step => `<li>${step}</li>`).join('');
       return `<ul class='list-disc pl-5 space-y-2'>${steps}</ul>`;
     }
-    
+
     // Handle old format (HTML string)
     return game.guide;
   },
-  
+
   initCardEffects() {
     document.querySelectorAll('.hub-card').forEach(card => {
       card.addEventListener('mousemove', (e) => this.tiltCard(e, card));
@@ -466,7 +474,7 @@ const GameGrid = {
         card.style.transform = 'perspective(1000px) rotateX(0) rotateY(0)';
       });
       card.addEventListener('mouseenter', () => AudioEngine.hover());
-      
+
       card.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
@@ -475,17 +483,17 @@ const GameGrid = {
       });
     });
   },
-  
+
   tiltCard(e, card) {
     const rect = card.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     const centerX = rect.width / 2;
     const centerY = rect.height / 2;
-    
+
     const rotateX = ((y - centerY) / centerY) * -5;
     const rotateY = ((x - centerX) / centerX) * 5;
-    
+
     card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
   }
 };
@@ -498,22 +506,22 @@ const Filters = {
     this.updateUI();
     GameGrid.render();
   },
-  
+
   setSearch(term) {
     State.filters.searchTerm = term.toLowerCase();
     GameGrid.render();
   },
-  
+
   setDifficulty(difficulty) {
     AudioEngine.click();
     State.filters.difficulty = difficulty;
     GameGrid.render();
   },
-  
+
   updateUI() {
     document.querySelectorAll('.filter-btn').forEach(btn => {
       const isActive = btn.dataset.category === State.filters.category;
-      
+
       if (isActive) {
         btn.classList.add('active', 'bg-dark', 'text-white');
         btn.classList.remove('bg-white', 'text-dark');
@@ -531,130 +539,130 @@ const Filters = {
 const GameModal = {
   open(gameId) {
     AudioEngine.click();
-    
+
     const game = State.getGameById(gameId);
     if (!game) {
       console.error(`Game not found: ${gameId}`);
       return;
     }
-    
+
     State.activeGame = game;
     RecentGames.add(gameId);
-    
+
     const modal = document.getElementById('game-modal');
     const iframe = document.getElementById('game-frame');
     const spinner = document.getElementById('loading-spinner');
-    
+
     if (!modal || !iframe || !spinner) return;
-    
+
     modal.classList.remove('hidden');
     modal.classList.add('flex');
     modal.setAttribute('aria-hidden', 'false');
-    
+
     iframe.src = game.path;
     spinner.classList.remove('hidden');
-    
+
     iframe.onload = () => {
       spinner.classList.add('hidden');
       iframe.focus();
     };
-    
+
     window.location.hash = gameId;
     this.trapFocus(modal);
   },
-  
+
   close() {
     AudioEngine.click();
-    
+
     const modal = document.getElementById('game-modal');
     const iframe = document.getElementById('game-frame');
     const infoOverlay = document.getElementById('info-overlay');
-    
+
     if (!modal || !iframe) return;
-    
+
     modal.classList.add('hidden');
     modal.classList.remove('flex');
     modal.setAttribute('aria-hidden', 'true');
-    
+
     iframe.src = "";
-    
+
     if (infoOverlay) {
       infoOverlay.classList.add('hidden');
       infoOverlay.classList.remove('flex');
     }
-    
+
     State.activeGame = null;
-    
+
     history.pushState("", document.title, window.location.pathname + window.location.search);
-    
+
     document.querySelector('[data-action="openGame"]')?.focus();
   },
-  
+
   reload() {
     const iframe = document.getElementById('game-frame');
     if (iframe?.contentWindow) {
       iframe.contentWindow.location.reload();
     }
   },
-  
+
   toggleInfo() {
     AudioEngine.click();
-    
+
     const overlay = document.getElementById('info-overlay');
     if (!overlay) return;
-    
+
     const isHidden = overlay.classList.contains('hidden');
-    
+
     if (isHidden) {
       if (!State.activeGame) return;
-      
+
       this.renderInfo(State.activeGame);
       overlay.classList.remove('hidden');
       overlay.classList.add('flex');
-      
+
       overlay.querySelector('button')?.focus();
     } else {
       overlay.classList.add('hidden');
       overlay.classList.remove('flex');
-      
+
       document.getElementById('game-frame')?.focus();
     }
   },
-  
+
   renderInfo(game) {
     const colorName = game.color.replace('text-', '');
     const bgClass = colorName.includes('-') ? colorName : `bg-${colorName}`;
-    
+
     const iconEl = document.getElementById('info-icon');
     const titleEl = document.getElementById('info-title-display');
     const categoryEl = document.getElementById('info-category');
     const contentEl = document.getElementById('info-content');
-    
+
     if (iconEl) {
       iconEl.className = `w-24 h-24 rounded-2xl border-4 border-dark flex items-center justify-center text-white shadow-hard shrink-0 ${bgClass}`;
       iconEl.innerHTML = `<i data-lucide="${game.icon}" class="w-10 h-10" aria-hidden="true"></i>`;
     }
-    
+
     if (titleEl) titleEl.textContent = game.title.toUpperCase();
     if (categoryEl) categoryEl.textContent = game.category.toUpperCase();
-    
+
     const guideText = GameGrid.getGuideText(game);
     if (contentEl) contentEl.innerHTML = guideText;
-    
+
     lucide.createIcons();
   },
-  
+
   trapFocus(modal) {
     const focusableElements = modal.querySelectorAll(
       'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
     );
-    
+
     const firstElement = focusableElements[0];
     const lastElement = focusableElements[focusableElements.length - 1];
-    
+
     const handleTabKey = (e) => {
       if (e.key !== 'Tab') return;
-      
+
       if (e.shiftKey) {
         if (document.activeElement === firstElement) {
           e.preventDefault();
@@ -667,7 +675,7 @@ const GameModal = {
         }
       }
     };
-    
+
     modal.addEventListener('keydown', handleTabKey);
   }
 };
@@ -677,7 +685,7 @@ const Search = {
   setup() {
     const input = document.getElementById('search-input');
     if (!input) return;
-    
+
     let debounceTimer;
     input.addEventListener('input', (e) => {
       clearTimeout(debounceTimer);
@@ -693,38 +701,38 @@ const DataLoader = {
   async loadGames() {
     try {
       const response = await fetch(CONFIG.dataSource);
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: Failed to load games data`);
       }
-      
+
       const data = await response.json();
-      
+
       // Validate data structure
       if (!this.validateData(data)) {
         throw new Error('Invalid games data structure');
       }
-      
+
       return data;
-      
+
     } catch (error) {
       console.error('Data loading error:', error);
       throw error;
     }
   },
-  
+
   validateData(data) {
     // Handle both old and new format
     const games = data.games || data;
-    
+
     if (!Array.isArray(games)) {
       console.error('Games data must be an array');
       return false;
     }
-    
+
     // Validate each game has required fields
     const requiredFields = ['id', 'title', 'category', 'path', 'icon', 'color'];
-    
+
     for (const game of games) {
       for (const field of requiredFields) {
         if (!game[field]) {
@@ -733,7 +741,7 @@ const DataLoader = {
         }
       }
     }
-    
+
     return true;
   }
 };
@@ -746,45 +754,45 @@ const App = {
       UI.updateGreeting();
       // UI.initLivingBackground();
       UI.showLoading();
-      
+
       const data = await DataLoader.loadGames();
       State.setGames(data);
-      
+
       GameGrid.render();
       RecentGames.render();
       Search.setup();
-      
+
       document.body.addEventListener('click', () => {
         AudioEngine.init();
       }, { once: true });
-      
+
       this.setupKeyboardShortcuts();
       this.setupEventDelegation();
-      
+
       const hash = window.location.hash.substring(1);
       if (hash) {
         GameModal.open(hash);
       }
-      
+
       lucide.createIcons();
-      
+
     } catch (error) {
       console.error('Initialization error:', error);
       UI.showError('Failed to load activities. Please refresh the page.');
     }
   },
-  
+
   setupKeyboardShortcuts() {
     document.addEventListener('keydown', (e) => {
       if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
         e.preventDefault();
         document.getElementById('search-input')?.focus();
       }
-      
+
       if (e.key === 'Escape') {
         const infoOverlay = document.getElementById('info-overlay');
         const gameModal = document.getElementById('game-modal');
-        
+
         if (infoOverlay && !infoOverlay.classList.contains('hidden')) {
           GameModal.toggleInfo();
         } else if (gameModal && gameModal.classList.contains('flex')) {
@@ -793,15 +801,15 @@ const App = {
       }
     });
   },
-  
+
   setupEventDelegation() {
     document.addEventListener('click', (e) => {
       const target = e.target.closest('[data-action]');
       if (!target) return;
-      
+
       const action = target.dataset.action;
       const param = target.dataset.param;
-      
+
       switch (action) {
         case 'toggleTheme':
           Theme.toggle();
