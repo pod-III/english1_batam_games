@@ -263,31 +263,31 @@ const UI = {
     }
   },
   
-  initLivingBackground() {
-    const container = document.querySelector('.living-bg');
-    if (!container) return;
+  // initLivingBackground() {
+  //   const container = document.querySelector('.living-bg');
+  //   if (!container) return;
     
-    const colors = ['#FF6B95', '#FF8C42', '#00E676', '#2979FF'];
+  //   const colors = ['#FF6B95', '#FF8C42', '#00E676', '#2979FF'];
     
-    for (let i = 0; i < 15; i++) {
-      const shape = document.createElement('div');
-      shape.className = 'shape';
+  //   for (let i = 0; i < 15; i++) {
+  //     const shape = document.createElement('div');
+  //     shape.className = 'shape';
       
-      const size = Math.random() * 40 + 20;
-      shape.style.cssText = `
-        width: ${size}px;
-        height: ${size}px;
-        left: ${Math.random() * 100}vw;
-        top: ${Math.random() * 100}vh;
-        background-color: ${colors[Math.floor(Math.random() * colors.length)]};
-        border-radius: ${Math.random() > 0.5 ? '50%' : '0'};
-        animation-duration: ${Math.random() * 20 + 20}s;
-        animation-delay: -${Math.random() * 20}s;
-      `;
+  //     const size = Math.random() * 40 + 20;
+  //     shape.style.cssText = `
+  //       width: ${size}px;
+  //       height: ${size}px;
+  //       left: ${Math.random() * 100}vw;
+  //       top: ${Math.random() * 100}vh;
+  //       background-color: ${colors[Math.floor(Math.random() * colors.length)]};
+  //       border-radius: ${Math.random() > 0.5 ? '50%' : '0'};
+  //       animation-duration: ${Math.random() * 20 + 20}s;
+  //       animation-delay: -${Math.random() * 20}s;
+  //     `;
       
-      container.appendChild(shape);
-    }
-  }
+  //     container.appendChild(shape);
+  //   }
+  // }
 };
 
 // --- RECENT GAMES MANAGER ---
@@ -744,7 +744,7 @@ const App = {
     try {
       Theme.load();
       UI.updateGreeting();
-      UI.initLivingBackground();
+      // UI.initLivingBackground();
       UI.showLoading();
       
       const data = await DataLoader.loadGames();
