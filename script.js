@@ -910,7 +910,11 @@ const TabManager = {
     }
 
     // Update URL hash
-    window.location.hash = tab.gameId;
+    if (window.location.hash !== `#${tab.gameId}`) {
+        // Use replaceState if you don't want every tab click in history
+        // Or pushState if you DO want back button navigation between tabs
+        history.pushState(null, null, `#${tab.gameId}`);
+    }
 
     // Scroll tab icon into view
     if (tab.iconElement) {
@@ -1347,30 +1351,40 @@ const DataLoader = {
 };
 
 // --- MAIN APP CONTROLLER ---
+// --- MAIN APP CONTROLLER ---
 const App = {
   async init() {
     try {
       Theme.load();
       UI.updateGreeting();
-      // UI.initLivingBackground();
       UI.showLoading();
 
+      // 1. Load Data
       const data = await DataLoader.loadGames();
       State.setGames(data);
 
+      // 2. Render Base UI
       GameGrid.render();
       RecentGames.render();
       Search.setup();
 
+      // 3. Initialize Audio (On first user interaction)
       document.body.addEventListener('click', () => {
         AudioEngine.init();
       }, { once: true });
 
+      // 4. Initialize Tabs (CRITICAL FIX: This was missing)
+      TabManager.init();
+
+      // 5. Setup Event Listeners
       this.setupKeyboardShortcuts();
       this.setupEventDelegation();
+      this.setupHistoryListener(); // FIX: Handle back button
 
+      // 6. Handle Initial URL Hash (Deep linking)
+      // Only open if it's NOT already handled by TabManager restoration
       const hash = window.location.hash.substring(1);
-      if (hash) {
+      if (hash && !TabManager.tabs.find(t => t.gameId === hash)) {
         GameModal.open(hash);
       }
 
@@ -1382,27 +1396,59 @@ const App = {
     }
   },
 
+  // FIX: Add listener for Browser Back/Forward buttons
+  setupHistoryListener() {
+    window.addEventListener('hashchange', () => {
+      const hash = window.location.hash.substring(1);
+
+      if (!hash) {
+        // If hash is empty, close modal (return home)
+        TabManager.returnToHome();
+      } else {
+        // If hash exists, try to switch to that tab
+        const existingTab = TabManager.tabs.find(t => t.gameId === hash);
+        if (existingTab) {
+          TabManager.switchToTab(existingTab.id);
+          // Ensure modal is visible
+          document.getElementById('game-modal')?.classList.remove('hidden');
+        } else {
+          // If tab doesn't exist (e.g. shared link), try to open it
+          GameModal.open(hash);
+        }
+      }
+    });
+  },
+
   setupKeyboardShortcuts() {
     document.addEventListener('keydown', (e) => {
+      // Search shortcut
       if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
         e.preventDefault();
         document.getElementById('search-input')?.focus();
       }
 
+      // Escape shortcut
       if (e.key === 'Escape') {
         const infoOverlay = document.getElementById('info-overlay');
-        const gameModal = document.getElementById('game-modal');
 
+        // Priority 1: Close Info Overlay
         if (infoOverlay && !infoOverlay.classList.contains('hidden')) {
           GameModal.toggleInfo();
-        } else if (gameModal && gameModal.classList.contains('flex')) {
-          GameModal.close();
+          return;
+        }
+
+        // Priority 2: Return to Home (Minimise Tabs)
+        // Only if modal is currently visible
+        const modal = document.getElementById('game-modal');
+        if (modal && !modal.classList.contains('hidden') && modal.style.display !== 'none') {
+          TabManager.returnToHome();
         }
       }
     });
   },
 
   setupEventDelegation() {
+    // ... (Keep your existing setupEventDelegation code exactly as is) ...
     document.addEventListener('click', (e) => {
       const target = e.target.closest('[data-action]');
       if (!target) return;
@@ -1411,61 +1457,23 @@ const App = {
       const param = target.dataset.param;
 
       switch (action) {
-        case 'toggleTheme':
-          Theme.toggle();
-          break;
-
-        case 'toggleSound':
-          AudioEngine.toggle();
-          break;
-
-        case 'openGame':
-          GameModal.open(param);
-          break;
-
-        case 'returnToHome':
-          TabManager.returnToHome();
-          break;
-
-        case 'closeAllTabs':
-          TabManager.confirmCloseAllTabs(); // Show confirmation modal
-          break;
-
-        case 'confirmDelete':
-          TabManager.closeAllTabsConfirmed(); // Actually close
-          break;
-
-        case 'confirmCancel':
-          TabManager.cancelConfirmation(); // Cancel
-          break;
-
-        case 'closeCurrentTab':
-          TabManager.closeCurrentTab();
-          break;
-
-        case 'reloadGame':
-          TabManager.reloadCurrentTab();
-          break;
-
-        case 'toggleInfo':
-          GameModal.toggleInfo();
-          break;
-
-        case 'filterGames':
-          Filters.setCategory(param);
-          break;
-
-        case 'clearRecent':
-          RecentGames.clear();
-          break;
-
-        case 'openFeedback':
-          window.open(CONFIG.helpUrl, '_blank');
-          break;
+        case 'toggleTheme': Theme.toggle(); break;
+        case 'toggleSound': AudioEngine.toggle(); break;
+        case 'openGame': GameModal.open(param); break;
+        case 'returnToHome': TabManager.returnToHome(); break;
+        case 'closeAllTabs': TabManager.confirmCloseAllTabs(); break;
+        case 'confirmDelete': TabManager.closeAllTabsConfirmed(); break;
+        case 'confirmCancel': TabManager.cancelConfirmation(); break;
+        case 'closeCurrentTab': TabManager.closeCurrentTab(); break;
+        case 'reloadGame': TabManager.reloadCurrentTab(); break;
+        case 'toggleInfo': GameModal.toggleInfo(); break;
+        case 'filterGames': Filters.setCategory(param); break;
+        case 'clearRecent': RecentGames.clear(); break;
+        case 'openFeedback': window.open(CONFIG.helpUrl, '_blank'); break;
       }
     });
   }
-};
+};;
 
 // --- GLOBAL EXPORTS (for HTML compatibility during transition) ---
 window.App = App;
