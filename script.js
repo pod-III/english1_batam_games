@@ -152,9 +152,9 @@ const AudioEngine = {
     }
   },
 
-  // hover() {
-  //   this.playTone(400, 'sine', 0.1);
-  // },
+  hover() {
+    this.playTone(400, 'sine', 0.1);
+  },
 
   click() {
     this.playTone(600, 'square', 0.15);
