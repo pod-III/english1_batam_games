@@ -31,7 +31,7 @@
             
             // Init Clock
             initClockFace();
-            setInterval(() => {updateClock();}, 100);
+            setInterval(() => {updateClock();}, 500);
             updateClock();
 
             // Init Calendar
