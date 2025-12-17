@@ -648,42 +648,39 @@ const TabManager = {
     return this.createTabSilent(game, tabId, true);
   },
 
+  // Create tab without switching (for loading from storage)
   createTabSilent(game, tabId = null, switchTo = false) {
-    // 1. Determine the ID (Use existing or create new)
-    const finalTabId = tabId || `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    if (!tabId) {
+      tabId = `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    }
 
-    // 2. Build the UI elements (Always needed for DOM)
-    const iconElement = this.createTabIcon(game, finalTabId);
-    const panel = this.createTabPanel(game, finalTabId);
-
+    // Create tab object
     const tab = {
-      id: finalTabId,
+      id: tabId,
       gameId: game.id,
-      game: game,
-      iconElement: iconElement,
-      panel: panel,
-      iframe: panel.querySelector('iframe')
+      title: game.title,
+      icon: game.icon,
+      color: game.color,
+      loading: true
     };
 
+    // Create DOM elements
+    this.createTabIcon(tab);
+    this.createTabPanel(tab);
+
+    // Add to array
     this.tabs.push(tab);
 
+    // Switch to new tab if requested
     if (switchTo) {
-      this.switchToTab(finalTabId);
+      this.switchToTab(tabId);
     }
 
+    // Start loading game
     this.loadGame(tab, game.path);
 
-    // --- SMART STORAGE CHECK ---
-    // Get current storage state
-    const savedData = Storage.get(this.storageKey) || { tabs: [] };
-
-    // Check if this specific tab ID is already recorded in storage
-    const existsInStorage = savedData.tabs.some(t => t.id === finalTabId);
-
-    // ONLY save if it's NOT already there (prevents overwriting during page refresh loop)
-    if (!existsInStorage) {
-      this.saveTabsToStorage();
-    }
+    // Save to storage
+    this.saveTabsToStorage();
 
     return tab;
   },
