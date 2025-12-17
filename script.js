@@ -561,14 +561,7 @@ const Filters = {
   }
 };
 
-// ============================================
-// SIDE PANEL TAB MANAGER
-// ============================================
-
-// ============================================
-// SIDE PANEL TAB MANAGER - FIXED VERSION 2
-// Replace the entire TabManager module
-// ============================================
+// SIDE PANEL MANAGER
 
 const TabManager = {
   tabs: [],
@@ -655,39 +648,42 @@ const TabManager = {
     return this.createTabSilent(game, tabId, true);
   },
 
-  // Create tab without switching (for loading from storage)
   createTabSilent(game, tabId = null, switchTo = false) {
-    if (!tabId) {
-      tabId = `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    }
+    // 1. Determine the ID (Use existing or create new)
+    const finalTabId = tabId || `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-    // Create tab object
+    // 2. Build the UI elements (Always needed for DOM)
+    const iconElement = this.createTabIcon(game, finalTabId);
+    const panel = this.createTabPanel(game, finalTabId);
+
     const tab = {
-      id: tabId,
+      id: finalTabId,
       gameId: game.id,
-      title: game.title,
-      icon: game.icon,
-      color: game.color,
-      loading: true
+      game: game,
+      iconElement: iconElement,
+      panel: panel,
+      iframe: panel.querySelector('iframe')
     };
 
-    // Create DOM elements
-    this.createTabIcon(tab);
-    this.createTabPanel(tab);
-
-    // Add to array
     this.tabs.push(tab);
 
-    // Switch to new tab if requested
     if (switchTo) {
-      this.switchToTab(tabId);
+      this.switchToTab(finalTabId);
     }
 
-    // Start loading game
     this.loadGame(tab, game.path);
 
-    // Save to storage
-    this.saveTabsToStorage();
+    // --- SMART STORAGE CHECK ---
+    // Get current storage state
+    const savedData = Storage.get(this.storageKey) || { tabs: [] };
+
+    // Check if this specific tab ID is already recorded in storage
+    const existsInStorage = savedData.tabs.some(t => t.id === finalTabId);
+
+    // ONLY save if it's NOT already there (prevents overwriting during page refresh loop)
+    if (!existsInStorage) {
+      this.saveTabsToStorage();
+    }
 
     return tab;
   },
