@@ -7,54 +7,58 @@
     
     <!-- External Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
-    <!-- Fonts: Fredoka (Heading), Nunito (Body), JetBrains Mono (Code/Input) -->
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue:wght@400;700&family=Nunito:wght@400;700;900&family=Fredoka:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;700;900&family=Fredoka:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
     
     <script>
-        // Tailwind Configuration for Neo-Brutalist Style
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        pink: '#FF6B95', // Error / Warning 5s
-                        orange: '#FF8C42', // Accent / Warning 10s
-                        green: '#00E676', // Success / Primary Button
-                        blue: '#2979FF', // Action / Pause Button
-                        dark: '#1e293b', // Primary Text/Border Color
-                        surface: '#F8FAFC', // Light Background
-                        slate100: '#f1f5f9', // Added for subtle backgrounds
+                        pink: '#FF6B95', 
+                        orange: '#FF8C42',
+                        green: '#00E676',
+                        blue: '#2979FF',
+                        dark: '#1e293b', 
+                        surface: '#F8FAFC',
+                        slate100: '#f1f5f9',
                     },
                     fontFamily: {
                         heading: ['Fredoka', 'sans-serif'],
                         body: ['Nunito', 'sans-serif'],
                         mono: ['JetBrains Mono', 'monospace'],
+                        bebas: ['Bebas Neue', 'cursive'],
+                    },
+                    boxShadow: {
+                        'hard-xl': '16px 16px 0px 0px #1e293b',
+                        'hard-lg': '10px 10px 0px 0px #1e293b',
+                        'hard-md': '6px 6px 0px 0px #1e293b',
+                        'hard-sm': '3px 3px 0px 0px #1e293b',
+                        'hard-xs': '2px 2px 0px 0px #1e293b',
+                        'inner-hard': 'inset 4px 4px 0px 0px #0f172a',
                     },
                     animation: {
                         'pop-in': 'popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
-                        'word-slide': 'wordSlide 0.5s ease-out forwards',
+                        'slide-up': 'slideUp 0.5s ease-out forwards',
+                        'bounce-slight': 'bounceSlight 2s infinite',
                     },
                     keyframes: {
                         popIn: {
-                            '0%': { transform: 'scale(0.8)', opacity: '0' },
+                            '0%': { transform: 'scale(0.9)', opacity: '0' },
                             '100%': { transform: 'scale(1)', opacity: '1' }
                         },
-                        wordSlide: {
-                            '0%': { transform: 'translateY(10px)', opacity: '0' },
+                        slideUp: {
+                            '0%': { transform: 'translateY(20px)', opacity: '0' },
                             '100%': { transform: 'translateY(0)', opacity: '1' }
                         },
-                        'pulse-shadow': {
-                            '0%, 100%': { boxShadow: '0 6px 0 #1e293b' },
-                            '50%': { boxShadow: '0 6px 0 2px #00E676' }, // Subtle pulse effect 
+                        bounceSlight: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-5px)' }
                         }
-                    },
-                    boxShadow: {
-                        'hard-lg': '12px 12px 0px 0px #1e293b',
-                        'hard-md': '6px 6px 0px 0px #1e293b',
-                        'hard-sm': '4px 4px 0px 0px #1e293b',
-                        'hard-text': '6px 6px 0px #FF8C42', // New shadow for game word
                     }
                 }
             }
@@ -65,724 +69,647 @@
             font-family: 'Nunito', sans-serif;
             color: #1e293b;
             background-color: #F8FAFC;
-            /* Graph Paper Pattern */
             background-image: 
-                linear-gradient(#E2E8F0 1px, transparent 1px),
-                linear-gradient(90deg, #E2E8F0 1px, transparent 1px);
-            background-size: 24px 24px;
-            
+                radial-gradient(#CBD5E1 2px, transparent 2px),
+                radial-gradient(#CBD5E1 2px, transparent 2px);
+            background-size: 32px 32px;
+            background-position: 0 0, 16px 16px;
+            min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
-            margin: 0;
             padding: 1rem;
-            box-sizing: border-box;
         }
 
-        /* --- UI COMPONENTS (Neo-Brutalism) --- */
-        .game-console {
+        /* --- Custom Scrollbar for Textarea --- */
+        textarea::-webkit-scrollbar {
+            width: 12px;
+        }
+        textarea::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-left: 2px solid #1e293b;
+        }
+        textarea::-webkit-scrollbar-thumb {
+            background-color: #1e293b;
+            border: 2px solid #f1f5f9;
+            border-radius: 6px;
+        }
+
+        /* --- Component Styles --- */
+        .card-brutal {
             background: #FFFFFF;
-            /* Thick border for the chunky look */
-            border: 6px solid #1e293b; 
+            border: 4px solid #1e293b;
+            box-shadow: 10px 10px 0px 0px #1e293b;
         }
 
-        .btn-chunky {
-            transition: all 0.1s;
-            transform: translateY(0);
-            position: relative;
+        .btn-brutal {
             border: 3px solid #1e293b;
-            /* Large shadow that shifts */
-            box-shadow: 0 6px 0 #1e293b; 
-            font-family: 'Fredoka', sans-serif;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        
-        .btn-chunky:hover:not(:disabled) {
-            filter: brightness(1.05); /* Slight lift on hover */
-        }
-        
-        .btn-chunky:active:not(:disabled) {
-            transform: translateY(6px);
-            /* Shadow disappears when pressed */
-            box-shadow: 0 0 0 #1e293b !important; 
-            border-bottom-width: 3px;
-        }
-
-        /* Animation for the start button */
-        .btn-start-pulse {
-            animation: pulse-shadow 2.5s infinite ease-in-out;
-        }
-
-
-        /* Styling for the text input to look like the new theme */
-        textarea, input[type="number"], select {
-            /* Using slate100 for a slight texture/non-pure white input field */
-            background-color: #f1f5f9; /* slate100 */
-            border: 4px solid #1e293b !important;
             box-shadow: 4px 4px 0px 0px #1e293b;
-            font-family: 'JetBrains Mono', monospace;
-            color: #1e293b;
-            transition: box-shadow 0.15s ease, border-color 0.15s ease;
+            transition: all 0.1s ease;
+            position: relative;
+            top: 0;
+            left: 0;
         }
         
-        /* New focus style for better UX/UI clarity */
-        textarea:focus, input[type="number"]:focus, select:focus {
-            outline: none;
-            border-color: #2979FF !important; /* Blue border on focus */
-            box-shadow: 6px 6px 0px 0px #2979FF; /* Blue chunky shadow on focus */
-        }
-        
-        /* Select element override for the font */
-        select {
-             font-family: 'Nunito', sans-serif !important;
-        }
-
-
-        /* Style for the massive word text (Dynamic Text Shadow) */
-        .game-word-text {
-            color: #1e293b; /* dark */
-            text-shadow: 6px 6px 0px #FF8C42; /* orange shadow */
-            transition: text-shadow 0.3s ease, color 0.3s ease;
-        }
-        .game-word-text.is-paused {
-            color: #FF6B95; /* pink when paused */
-            text-shadow: 6px 6px 0px #1e293b; /* dark shadow when paused */
-        }
-
-        /* --- Custom Timer Look --- */
-        .timer-bg {
-            display: inline-block;
-            padding: 0.5rem 1rem;
-            border-radius: 0.75rem; /* rounded-xl */
-            border: 4px solid #1e293b; /* Always show the border */
-            box-shadow: 0 0 0 transparent;
-            transition: all 0.2s ease-in-out;
-            line-height: 1; /* prevents height jump */
-            background-color: #f1f5f9; /* slate100 default background */
-        }
-
-        /* Timer states applied via JS classes */
-        .timer-orange {
-            background-color: #FF8C42; /* orange */
-            color: #1e293b; /* dark text */
-            border-color: #1e293b;
+        .btn-brutal:hover:not(:disabled) {
+            transform: translate(-2px, -2px);
             box-shadow: 6px 6px 0px 0px #1e293b;
         }
+        
+        .btn-brutal:active:not(:disabled) {
+            transform: translate(2px, 2px);
+            box-shadow: 0px 0px 0px 0px #1e293b;
+        }
 
-        .timer-pink {
-            background-color: #FF6B95; /* pink */
-            color: white; 
-            border-color: #1e293b;
-            box-shadow: 8px 8px 0px 0px #1e293b;
-            transform: scale(1.05); /* Subtle pulse on final seconds */
+        .btn-brutal:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            box-shadow: none;
+            border-style: dashed;
+        }
+
+        .input-brutal {
+            background-color: #f8fafc;
+            border: 3px solid #1e293b;
+            box-shadow: 4px 4px 0px 0px #cbd5e1;
+            transition: all 0.2s;
+        }
+        .input-brutal:focus {
+            outline: none;
+            box-shadow: 4px 4px 0px 0px #2979FF;
+            border-color: #2979FF;
+        }
+
+        /* --- Dynamic Text & Progress --- */
+        .word-display {
+            text-shadow: 4px 4px 0px #cbd5e1;
+            -webkit-text-stroke: 2px #1e293b;
+            color: white; /* Fill color */
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        
+        .word-display.prep {
+            color: #FF8C42; /* Orange fill for prep */
+            text-shadow: 4px 4px 0px #1e293b;
+            -webkit-text-stroke: 0px;
+        }
+
+        .word-display.active {
+            color: #1e293b;
+            -webkit-text-stroke: 0px;
+            text-shadow: 6px 6px 0px #00E676; /* Green shadow */
+        }
+        
+        .word-display.paused {
+            color: #FF6B95;
+            text-shadow: 6px 6px 0px #1e293b;
+        }
+
+        /* Progress Bar Animation */
+        .progress-bar {
+            transition: width 1s linear;
+        }
+        
+        /* Badge */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            border: 2px solid #1e293b;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-weight: 800;
+            font-size: 0.85rem;
+            box-shadow: 2px 2px 0px 0px #1e293b;
         }
     </style>
 </head>
 <body>
 
-    <!-- Main Console Container (Chunky Style) -->
-    <div class="game-console p-6 sm:p-10 rounded-3xl shadow-hard-lg w-full max-w-4xl bg-white animate-pop-in">
+    <!-- Main Application Container -->
+    <div class="card-brutal w-full max-w-4xl rounded-2xl overflow-hidden animate-pop-in relative">
         
-        <!-- HEADER (Added bg-slate100 for visual break) -->
-        <div class="flex items-center gap-3 border-b-4 border-dark pb-4 mb-8 bg-slate100 p-2 rounded-t-xl -m-2">
-            <!-- CUSTOM SVG ICON (Chunky Clock) -->
-            <div class="w-10 h-10 rounded-xl bg-blue flex items-center justify-center shadow-hard-sm ml-2">
-                <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
-                    <circle cx="12" cy="12" r="10" />
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2" />
+        <!-- Decoration Dots (Mac window style but brutal) -->
+        <div class="absolute top-4 right-4 flex gap-2 z-10">
+            <div class="w-4 h-4 rounded-full border-2 border-dark bg-pink"></div>
+            <div class="w-4 h-4 rounded-full border-2 border-dark bg-orange"></div>
+            <div class="w-4 h-4 rounded-full border-2 border-dark bg-green"></div>
+        </div>
+
+        <!-- Header -->
+        <div class="bg-slate100 border-b-4 border-dark p-6 flex items-center gap-4">
+            <div class="w-12 h-12 bg-blue border-2 border-dark shadow-hard-sm flex items-center justify-center rounded-lg animate-bounce-slight">
+                <svg class="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
             </div>
-            <h1 class="text-3xl font-heading tracking-wide text-dark">VOCABULARY TIMER</h1>
+            <div>
+                <h1 class="font-heading text-3xl sm:text-4xl text-dark leading-none">VOCAB TIMER</h1>
+                <p class="text-xs sm:text-sm font-bold text-slate-500 tracking-wider">TEACHER'S COMPANION</p>
+            </div>
         </div>
 
-        <!-- Teacher Console -->
-        <div id="teacher-console" class="flex flex-col gap-6">
-            <p class="text-dark">Input a list of words for your students to define, spell, or use in a sentence before the timer runs out. Ideal for quick synonym review.</p>
+        <!-- 1. CONFIGURATION SCREEN -->
+        <div id="teacher-console" class="p-6 sm:p-10 flex flex-col gap-8">
             
-            <!-- WORD MANAGEMENT GROUPING -->
-            <div class="p-4 bg-slate100 rounded-xl border-4 border-dark shadow-hard-md flex flex-col gap-4">
-                <h3 class="font-heading text-xl text-dark border-b-2 border-dark/30 pb-2">Word List Manager</h3>
+            <div class="bg-blue/5 border-2 border-blue border-dashed p-4 rounded-xl">
+                <p class="text-dark font-bold text-sm">
+                    💡 <span class="text-blue">Tip:</span> Use spacebar to Pause/Resume and Right Arrow to Skip during the game.
+                </p>
+            </div>
 
-                <!-- WORD LIST PRESETS SECTION -->
-                <!-- Removed: flex items-end gap-3 wrapper -->
-                <div class="input-group">
-                    <label for="word-presets-select" class="block font-body font-bold text-dark mb-2">Load <span class="text-blue">Saved List</span>:</label>
-                    <select id="word-presets-select" class="w-full rounded-xl p-4 text-lg appearance-none cursor-pointer font-body">
-                        <!-- Options will be injected by JavaScript -->
+            <!-- List Manager -->
+            <div class="flex flex-col gap-2">
+                <div class="flex justify-between items-end mb-1">
+                    <label class="font-heading text-xl text-dark">Word List</label>
+                    <select id="word-presets-select" class="font-bold text-sm bg-white border-2 border-dark rounded-lg px-2 py-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue">
+                        <!-- Populated by JS -->
                     </select>
                 </div>
-                <!-- END WORD LIST PRESETS SECTION -->
-                
-                <div class="input-group">
-                    <label for="word-list-input" class="block font-body font-bold text-dark mb-2">Current Word List (<span class="text-blue">Auto-Saved</span>):</label>
-                    <textarea id="word-list-input" rows="5" class="w-full rounded-xl p-4 text-lg transition resize-y" placeholder="e.g., ADJECTIVE, SYNONYM, METAPHOR, ONOMATOPOEIA"></textarea>
-                    <p class="text-xs text-slate-500 mt-2">Separate words with commas or new lines.</p>
-                </div>
-            </div>
-            <!-- END WORD MANAGEMENT GROUPING -->
-            
-            <div class="grid sm:grid-cols-2 gap-4">
-                <div class="input-group">
-                    <label for="round-duration-input" class="block font-body font-bold text-dark mb-2">Time per word (<span class="text-green">seconds</span>):</label>
-                    <input type="number" id="round-duration-input" value="30" min="10" class="w-full rounded-xl p-4 text-lg transition">
-                </div>
-                <div class="input-group">
-                    <label for="prep-time-input" class="block font-body font-bold text-dark mb-2">Prep time (<span class="text-orange">seconds</span>):</label>
-                    <input type="number" id="prep-time-input" value="5" min="0" class="w-full rounded-xl p-4 text-lg transition">
+                <textarea id="word-list-input" rows="4" class="input-brutal w-full rounded-xl p-4 text-lg font-mono text-dark placeholder-slate-400 resize-y" placeholder="PASTE WORDS HERE...&#10;Noun&#10;Verb&#10;Adjective"></textarea>
+                <div class="flex justify-between text-xs font-bold text-slate-500 px-1">
+                    <span>Separate with commas or new lines</span>
+                    <span id="word-count-badge">0 words</span>
                 </div>
             </div>
 
-            <!-- Start button with pulse animation -->
-            <button id="start-game-btn" class="btn-chunky bg-green text-dark py-4 rounded-xl font-black text-xl hover:bg-green/90 shadow-hard-md btn-start-pulse">
-                START FLASHCARDS
-            </button>
-        </div>
+            <!-- Settings Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div>
+                    <label class="block font-heading text-xl text-dark mb-2">Duration (Seconds)</label>
+                    <div class="relative">
+                        <input type="number" id="round-duration-input" value="30" min="5" class="input-brutal w-full rounded-xl p-3 pl-4 text-2xl font-mono">
+                        <div class="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400 pointer-events-none">SEC</div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block font-heading text-xl text-dark mb-2">Prep Time</label>
+                    <div class="relative">
+                        <input type="number" id="prep-time-input" value="5" min="0" class="input-brutal w-full rounded-xl p-3 pl-4 text-2xl font-mono">
+                        <div class="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400 pointer-events-none">SEC</div>
+                    </div>
+                </div>
+            </div>
 
-        <!-- Game Screen -->
-        <div id="game-screen" class="hidden">
-            <div id="game-content" class="text-center">
-                <p id="current-task" class="text-dark text-lg font-bold mb-6">Prepare for the next word...</p>
-                <!-- Word uses dark text as primary focus, with new CSS text shadow class -->
-                <div id="game-word" class="text-5xl sm:text-7xl font-heading tracking-wider mb-8 game-word-text animate-word-slide">WORD</div>
-                
-                <!-- Timer Display with new background wrapper -->
-                <div class="timer-bg" id="timer-wrapper">
-                    <div id="timer-display" class="text-6xl font-heading tracking-widest text-dark">30</div>
-                </div>
-                <p class="text-slate-500 mt-4 mb-8">seconds remaining</p>
-                
-                <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                    <!-- Pause/Resume Button: Blue as default, Green when resuming -->
-                    <button id="pause-resume-btn" class="btn-chunky bg-blue text-white py-3 px-6 rounded-xl font-bold hover:bg-blue/90 shadow-hard-sm">
-                        PAUSE ⏸️
-                    </button>
-                    <!-- Existing Skip Button: Orange for immediate action -->
-                    <button id="skip-word-btn" class="btn-chunky bg-orange text-white py-3 px-6 rounded-xl font-bold hover:bg-orange/90 shadow-hard-sm">
-                        SKIP WORD ⏭️
-                    </button>
-                </div>
+            <!-- Action Area -->
+            <div class="pt-4">
+                <button id="start-game-btn" class="btn-brutal w-full bg-green text-dark py-5 rounded-xl font-heading text-2xl sm:text-3xl tracking-wide hover:bg-[#00c965]">
+                    START SESSION 🚀
+                </button>
             </div>
         </div>
 
-        <!-- Final Results Screen -->
-        <div id="results-screen" class="hidden text-center">
-            <h2 class="text-3xl font-heading tracking-wide text-green mb-4">SESSION COMPLETE!</h2>
-            <p class="text-dark mb-6">Review the words covered in this session:</p>
+        <!-- 2. GAME SCREEN -->
+        <div id="game-screen" class="hidden relative">
+            <!-- Progress Bar Container -->
+            <div class="h-4 w-full bg-slate-200 border-b-4 border-dark flex justify-start">
+                <div id="time-progress-bar" class="h-full bg-green transition-all duration-1000 ease-linear w-full"></div>
+            </div>
 
-            <div class="flex flex-wrap gap-3 justify-center bg-slate100 p-4 rounded-xl border-4 border-dark shadow-hard-md">
-                <ul id="final-synonym-list" class="flex flex-wrap gap-3 justify-center">
+            <div class="p-8 sm:p-12 text-center flex flex-col items-center justify-center min-h-[400px]">
+                
+                <!-- Status Badge -->
+                <div class="mb-8 flex items-center justify-center gap-3">
+                    <span id="game-phase-badge" class="badge bg-yellow-300 text-dark">PREPARE</span>
+                    <span id="word-counter-badge" class="badge bg-white text-dark">1 / 10</span>
+                </div>
+
+                <!-- THE WORD -->
+                <div class="relative w-full mb-8">
+                    <div id="game-word" class="word-display text-5xl sm:text-7xl md:text-8xl font-black break-words leading-tight px-4 py-8">
+                        WORD
+                    </div>
+                </div>
+
+                <!-- Timer Circle -->
+                <div class="relative mb-10 group cursor-pointer" id="timer-container">
+                    <div class="w-32 h-32 rounded-full border-4 border-dark flex items-center justify-center bg-white shadow-hard-md transition-all group-hover:shadow-hard-lg">
+                        <span id="timer-display" class="font-mono text-5xl font-bold text-dark">30</span>
+                    </div>
+                    <!-- Play/Pause Overlay Hint -->
+                    <div id="pause-overlay" class="absolute inset-0 rounded-full bg-dark/80 flex items-center justify-center opacity-0 transition-opacity">
+                        <span class="text-white font-black text-xs uppercase">Paused</span>
+                    </div>
+                </div>
+
+                <!-- Controls -->
+                <div class="grid grid-cols-2 gap-4 w-full max-w-md">
+                    <button id="pause-resume-btn" class="btn-brutal bg-blue text-white py-3 rounded-lg font-bold text-lg uppercase tracking-wider flex items-center justify-center gap-2">
+                        <span>Pause</span> <span class="text-xs bg-white/20 px-1 rounded">SPC</span>
+                    </button>
+                    <button id="skip-word-btn" class="btn-brutal bg-orange text-white py-3 rounded-lg font-bold text-lg uppercase tracking-wider flex items-center justify-center gap-2">
+                        <span>Skip</span> <span class="text-xs bg-white/20 px-1 rounded">→</span>
+                    </button>
+                </div>
+                
+                <div class="mt-8">
+                    <button id="abort-btn" class="text-xs font-bold text-slate-400 hover:text-pink transition-colors underline decoration-2 decoration-dotted">
+                        End Session Early
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. RESULTS SCREEN -->
+        <div id="results-screen" class="hidden p-8 sm:p-12 text-center animate-slide-up">
+            <h2 class="font-heading text-4xl sm:text-5xl text-dark mb-2">SESSION COMPLETE!</h2>
+            <p class="font-bold text-slate-500 mb-8">Great job! Here's what we covered:</p>
+
+            <div class="bg-slate100 border-4 border-dark rounded-xl p-6 mb-8 max-h-[40vh] overflow-y-auto shadow-inner-hard">
+                <div id="final-synonym-list" class="flex flex-wrap gap-3 justify-center">
                     <!-- Words injected here -->
-                </ul>
+                </div>
             </div>
             
-            <!-- Restart Button: Pink for final action -->
-            <button id="restart-game-btn" class="mt-8 btn-chunky bg-pink text-white py-3 px-6 rounded-xl font-bold hover:bg-pink/90 shadow-hard-sm">
-                START NEW SETUP
-            </button>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <button id="restart-game-btn" class="btn-brutal bg-pink text-white py-4 px-10 rounded-xl font-heading text-2xl hover:bg-pink/90">
+                    NEW SETUP
+                </button>
+                <button id="replay-same-btn" class="btn-brutal bg-white text-dark py-4 px-10 rounded-xl font-heading text-2xl hover:bg-slate-50">
+                    REPLAY SAME
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Toast Notification (Hidden by default) -->
+    <div id="toast" class="fixed bottom-6 right-6 transform translate-y-24 transition-transform duration-300 z-50">
+        <div class="bg-dark text-white px-6 py-4 rounded-xl shadow-hard-sm border-2 border-white flex items-center gap-3">
+            <span class="text-2xl">⚠️</span>
+            <span id="toast-msg" class="font-bold font-body">Notification</span>
         </div>
     </div>
 
     <script>
-        // --- LOCAL STORAGE KEY ---
-        const LS_KEY_WORDS = 'vocabTimerWordList'; // Unique key for this app
-        const LS_KEY_DURATION = 'vocabTimerDuration';
-        const LS_KEY_PREP = 'vocabTimerPrep';
-        const LS_KEY_WORD_PRESETS = 'vocabTimerWordPresets'; // Key for word lists
-
-        // --- PRESETS DATA STRUCTURES ---
-        
-        let WORD_PRESETS = {
-            // Renamed 'last_used' to 'current_session' since auto-save handles the rest
-            'current_session': { name: 'Current List (Auto-Saved)', words: 'ADJECTIVE, SYNONYM, METAPHOR' },
-            'academic_verbs': { name: 'Academic Verbs (10 words)', words: 'ANALYZE, SYNTHESIZE, EVALUATE, INFER, CRITIQUE, JUSTIFY, ARTICULATE, DIFFERENTIATE, IMPLEMENT, RELATE' },
-            'literary_devices': { name: 'Literary Devices (8 words)', words: 'ALLUSION, OXYMORON, HYPERBOLE, PERSONIFICATION, SIMILE, METAPHOR, ALLITERATION, ONOMATOPOEIA' }
+        // --- CONSTANTS & CONFIG ---
+        const STORAGE_KEYS = {
+            WORDS: 'vocab_words',
+            DURATION: 'vocab_duration',
+            PREP: 'vocab_prep',
+            PRESETS: 'vocab_presets'
         };
 
-        // DOM elements
-        const teacherConsoleEl = document.getElementById('teacher-console');
-        const wordListInput = document.getElementById('word-list-input');
-        const roundDurationInput = document.getElementById('round-duration-input');
-        const prepTimeInput = document.getElementById('prep-time-input'); 
-        const startGameBtn = document.getElementById('start-game-btn');
-        const skipWordBtn = document.getElementById('skip-word-btn');
-        const pauseResumeBtn = document.getElementById('pause-resume-btn');
-        const wordPresetsSelect = document.getElementById('word-presets-select'); 
-        // Removed: const saveWordsBtn = document.getElementById('save-words-btn'); 
-        
-        const gameScreenEl = document.getElementById('game-screen');
-        const currentTaskEl = document.getElementById('current-task');
-        const gameWordEl = document.getElementById('game-word');
-        const timerWrapperEl = document.getElementById('timer-wrapper'); 
-        const timerDisplayEl = document.getElementById('timer-display');
-        
-        const resultsScreenEl = document.getElementById('results-screen');
-        const finalSynonymListEl = document.getElementById('final-synonym-list');
-        const restartGameBtn = document.getElementById('restart-game-btn');
-
-        // Game state variables
-        let teacherWords = [];
-        let currentWordIndex = 0;
-        let timerId = null; 
-        let timeLeft;
-        let isPrepPhase = false; 
-        let isPaused = false; 
-
-        // --- UTILITY FUNCTIONS ---
-
-        // Helper to remove all custom timer classes
-        function resetTimerVisuals() {
-            timerWrapperEl.classList.remove('timer-orange', 'timer-pink');
-            timerDisplayEl.classList.remove('text-dark', 'text-white');
-            timerDisplayEl.classList.add('text-dark'); // Default text color
-            timerWrapperEl.style.transform = 'scale(1)';
-        }
-        
-        // --- PERSISTENCE AND DATA LOADING FUNCTIONS ---
-        
-        function saveInputs() {
-             try {
-                // Save inputs directly without preset checks
-                localStorage.setItem(LS_KEY_WORDS, wordListInput.value);
-                localStorage.setItem(LS_KEY_DURATION, roundDurationInput.value);
-                localStorage.setItem(LS_KEY_PREP, prepTimeInput.value);
-                
-                // Update the "Current Session" preset with the latest data
-                WORD_PRESETS['current_session'].words = wordListInput.value;
-                saveWordPresetsToLS();
-            } catch (e) {
-                console.error("Could not save inputs to local storage:", e);
+        const PRESETS = {
+            'academic_verbs': { 
+                name: 'Academic Verbs', 
+                words: 'ANALYZE, SYNTHESIZE, EVALUATE, INFER, CRITIQUE, JUSTIFY, ARTICULATE, DIFFERENTIATE' 
+            },
+            'literary': { 
+                name: 'Literary Devices', 
+                words: 'ALLUSION, OXYMORON, HYPERBOLE, PERSONIFICATION, SIMILE, METAPHOR, ALLITERATION' 
+            },
+            'debating': {
+                name: 'Debate Terms',
+                words: 'REBUTTAL, PREMISE, FALLACY, MOTION, STATUS QUO, ASSERTION, CONTENTION'
             }
-        }
+        };
 
-        function loadInputs() {
-            try {
-                const savedWords = localStorage.getItem(LS_KEY_WORDS);
-                const savedDuration = localStorage.getItem(LS_KEY_DURATION);
-                const savedPrep = localStorage.getItem(LS_KEY_PREP);
+        // --- STATE MANAGEMENT ---
+        const state = {
+            words: [],
+            currentIndex: 0,
+            timerId: null,
+            timeLeft: 0,
+            duration: 30,
+            prepTime: 5,
+            isPaused: false,
+            isPrep: false,
+            audioCtx: null
+        };
 
-                if (savedWords) wordListInput.value = savedWords;
-                if (savedDuration) roundDurationInput.value = savedDuration;
-                if (savedPrep) prepTimeInput.value = savedPrep;
-                
-            } catch (e) {
-                console.error("Could not load inputs from local storage:", e);
+        // --- DOM ELEMENTS ---
+        const dom = {
+            console: document.getElementById('teacher-console'),
+            game: document.getElementById('game-screen'),
+            results: document.getElementById('results-screen'),
+            inputs: {
+                list: document.getElementById('word-list-input'),
+                duration: document.getElementById('round-duration-input'),
+                prep: document.getElementById('prep-time-input'),
+                presets: document.getElementById('word-presets-select')
+            },
+            gameUI: {
+                word: document.getElementById('game-word'),
+                timer: document.getElementById('timer-display'),
+                timerContainer: document.getElementById('timer-container'),
+                progressBar: document.getElementById('time-progress-bar'),
+                phaseBadge: document.getElementById('game-phase-badge'),
+                countBadge: document.getElementById('word-counter-badge'),
+                pauseOverlay: document.getElementById('pause-overlay')
+            },
+            buttons: {
+                start: document.getElementById('start-game-btn'),
+                pause: document.getElementById('pause-resume-btn'),
+                skip: document.getElementById('skip-word-btn'),
+                restart: document.getElementById('restart-game-btn'),
+                replay: document.getElementById('replay-same-btn'),
+                abort: document.getElementById('abort-btn')
+            },
+            finalList: document.getElementById('final-synonym-list'),
+            wordCountBadge: document.getElementById('word-count-badge'),
+            toast: {
+                el: document.getElementById('toast'),
+                msg: document.getElementById('toast-msg')
             }
-        }
-        
-        function saveWordPresetsToLS() {
-            try {
-                // Only save the current_session preset to mimic persistence since custom lists are removed
-                const persistencePreset = {
-                     'current_session': WORD_PRESETS['current_session']
-                };
-                localStorage.setItem(LS_KEY_WORD_PRESETS, JSON.stringify(persistencePreset));
-            } catch (e) {
-                console.error("Could not save word presets to local storage:", e);
-            }
-        }
+        };
 
-        function loadWordPresetsFromLS() {
-            try {
-                const savedPresets = localStorage.getItem(LS_KEY_WORD_PRESETS);
-                if (savedPresets) {
-                    const parsedPresets = JSON.parse(savedPresets);
-                    // Merge saved current_session over the default structure
-                    WORD_PRESETS = { ...WORD_PRESETS, ...parsedPresets };
-                }
-            } catch (e) {
-                console.error("Could not load word presets from local storage:", e);
-            }
-        }
-        
-        // --- WORD LIST PRESET FUNCTIONS ---
-
-        function populateWordPresets() {
-            wordPresetsSelect.innerHTML = '';
-            // Add a default instruction option
-             const instructionOption = document.createElement('option');
-             instructionOption.value = '';
-             instructionOption.textContent = '-- Load a List --';
-             instructionOption.disabled = true;
-             instructionOption.selected = true;
-             wordPresetsSelect.appendChild(instructionOption);
-
-
-            // Only iterate over the built-in lists now (excluding 'current_session' which is auto-loaded)
-            Object.keys(WORD_PRESETS).filter(key => key !== 'current_session').forEach(key => {
-                const preset = WORD_PRESETS[key];
-                const option = document.createElement('option');
-                option.value = key;
-                // Truncate the words list for the display name if too long
-                const wordsSnippet = preset.words.length > 30 ? 
-                    preset.words.substring(0, 30).trim() + '...' : preset.words;
-                option.textContent = `${preset.name} (${wordsSnippet})`;
-                wordPresetsSelect.appendChild(option);
-            });
-        }
-
-        function applyWordPreset(presetKey) {
-            const preset = WORD_PRESETS[presetKey];
-            if (preset) {
-                wordListInput.value = preset.words;
-                // Trigger auto-save to persist this loaded list as the new "Current Session"
-                saveInputs(); 
-            }
-        }
-
-        // --- AUDIO ENGINE (Simple Click/Ding) ---
-        const Audio = {
-            ctx: null,
+        // --- AUDIO ENGINE ---
+        const AudioEngine = {
             init: () => {
-                if(!Audio.ctx) {
-                    try {
-                        // Initialize and resume AudioContext if necessary
-                        Audio.ctx = new (window.AudioContext || window.webkitAudioContext)();
-                        if (Audio.ctx.state === 'suspended') {
-                            Audio.ctx.resume();
-                        }
-                    } catch (e) {
-                        console.error("AudioContext initialization failed:", e);
-                    }
+                if (!state.audioCtx) {
+                    state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (state.audioCtx.state === 'suspended') {
+                    state.audioCtx.resume();
                 }
             },
-            playTick: () => {
-                if (!Audio.ctx) return;
-                const osc = Audio.ctx.createOscillator();
-                const gain = Audio.ctx.createGain();
-                osc.type = 'sine';
-                osc.frequency.value = 440;
-                gain.gain.setValueAtTime(0.05, Audio.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.00001, Audio.ctx.currentTime + 0.1);
-                osc.connect(gain).connect(Audio.ctx.destination);
-                osc.start();
-                osc.stop(Audio.ctx.currentTime + 0.1);
-            },
-            playDing: () => {
-                if (!Audio.ctx) return;
-                const osc = Audio.ctx.createOscillator();
-                const gain = Audio.ctx.createGain();
-                osc.type = 'triangle';
-                osc.frequency.value = 880;
-                gain.gain.setValueAtTime(0.1, Audio.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.00001, Audio.ctx.currentTime + 0.3);
-                osc.connect(gain).connect(Audio.ctx.destination);
-                osc.start();
-                osc.stop(Audio.ctx.currentTime + 0.3);
+            play: (type) => {
+                if (!state.audioCtx) return;
+                const osc = state.audioCtx.createOscillator();
+                const gain = state.audioCtx.createGain();
+                
+                if (type === 'tick') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(800, state.audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.05, state.audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, state.audioCtx.currentTime + 0.05);
+                    osc.start();
+                    osc.stop(state.audioCtx.currentTime + 0.05);
+                } else if (type === 'ding') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(523.25, state.audioCtx.currentTime); // C5
+                    osc.frequency.exponentialRampToValueAtTime(1046.5, state.audioCtx.currentTime + 0.1); // C6
+                    gain.gain.setValueAtTime(0.2, state.audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, state.audioCtx.currentTime + 0.5);
+                    osc.start();
+                    osc.stop(state.audioCtx.currentTime + 0.5);
+                }
+                osc.connect(gain).connect(state.audioCtx.destination);
             }
         };
 
-        // --- CORE GAME LOGIC ---
-        
-        // Start a new session
-        startGameBtn.addEventListener('click', () => {
-            Audio.init(); 
+        // --- UTILS ---
+        const showToast = (msg) => {
+            dom.toast.msg.textContent = msg;
+            dom.toast.el.classList.remove('translate-y-24');
+            setTimeout(() => dom.toast.el.classList.add('translate-y-24'), 3000);
+        };
 
-            const words = wordListInput.value.split(/[,|\n]/)
-                .map(word => word.trim().toUpperCase())
-                .filter(word => word.length > 0);
+        const updateWordCount = () => {
+            const txt = dom.inputs.list.value;
+            const count = txt.split(/[,|\n]/).filter(w => w.trim().length > 0).length;
+            dom.wordCountBadge.textContent = `${count} words`;
+        };
 
-            if (words.length < 1) {
-                showErrorModal("Input Error", "Please enter at least one word in the word list.");
-                return;
+        const loadPersistedData = () => {
+            dom.inputs.list.value = localStorage.getItem(STORAGE_KEYS.WORDS) || '';
+            dom.inputs.duration.value = localStorage.getItem(STORAGE_KEYS.DURATION) || 30;
+            dom.inputs.prep.value = localStorage.getItem(STORAGE_KEYS.PREP) || 5;
+            updateWordCount();
+        };
+
+        const savePersistedData = () => {
+            localStorage.setItem(STORAGE_KEYS.WORDS, dom.inputs.list.value);
+            localStorage.setItem(STORAGE_KEYS.DURATION, dom.inputs.duration.value);
+            localStorage.setItem(STORAGE_KEYS.PREP, dom.inputs.prep.value);
+        };
+
+        // --- CORE LOGIC ---
+
+        const initPresets = () => {
+            dom.inputs.presets.innerHTML = '<option value="" disabled selected>Load Preset...</option>';
+            Object.keys(PRESETS).forEach(key => {
+                const opt = document.createElement('option');
+                opt.value = key;
+                opt.textContent = PRESETS[key].name;
+                dom.inputs.presets.appendChild(opt);
+            });
+            
+            dom.inputs.presets.addEventListener('change', (e) => {
+                const preset = PRESETS[e.target.value];
+                if (preset) {
+                    dom.inputs.list.value = preset.words;
+                    updateWordCount();
+                    savePersistedData();
+                    e.target.value = ''; // Reset select
+                }
+            });
+        };
+
+        const updateGameUI = () => {
+            // Update Timer Text
+            dom.gameUI.timer.textContent = state.timeLeft;
+            
+            // Update Progress Bar
+            const totalTime = state.isPrep ? state.prepTime : state.duration;
+            const pct = (state.timeLeft / totalTime) * 100;
+            dom.gameUI.progressBar.style.width = `${pct}%`;
+            
+            // Colors based on state and time
+            if (state.isPrep) {
+                dom.gameUI.progressBar.className = 'h-full w-full transition-all duration-1000 linear bg-orange';
+                dom.gameUI.phaseBadge.textContent = "GET READY";
+                dom.gameUI.phaseBadge.className = "badge bg-orange text-white";
+                dom.gameUI.word.className = "word-display prep text-5xl sm:text-7xl md:text-8xl font-black break-words leading-tight px-4 py-8";
+                dom.gameUI.word.textContent = "COMING UP...";
+            } else {
+                dom.gameUI.phaseBadge.textContent = "ACTIVE";
+                dom.gameUI.phaseBadge.className = "badge bg-green text-dark";
+                
+                // Urgency colors
+                if (state.timeLeft <= 5) {
+                    dom.gameUI.progressBar.className = 'h-full w-full transition-all duration-1000 linear bg-pink';
+                    dom.gameUI.timerContainer.classList.add('animate-pulse');
+                    dom.gameUI.timer.classList.add('text-pink');
+                } else if (state.timeLeft <= 10) {
+                    dom.gameUI.progressBar.className = 'h-full w-full transition-all duration-1000 linear bg-yellow-400';
+                    dom.gameUI.timer.classList.remove('text-pink');
+                    dom.gameUI.timerContainer.classList.remove('animate-pulse');
+                } else {
+                    dom.gameUI.progressBar.className = 'h-full w-full transition-all duration-1000 linear bg-green';
+                    dom.gameUI.timer.classList.remove('text-pink');
+                    dom.gameUI.timerContainer.classList.remove('animate-pulse');
+                }
+
+                dom.gameUI.word.className = "word-display active text-5xl sm:text-7xl md:text-8xl font-black break-words leading-tight px-4 py-8";
+                dom.gameUI.word.textContent = state.words[state.currentIndex];
             }
-            if (parseInt(roundDurationInput.value, 10) < 5) {
-                showErrorModal("Input Error", "Time per word must be at least 5 seconds.");
-                return;
+
+            // Pause UI
+            if (state.isPaused) {
+                dom.buttons.pause.innerHTML = '<span>Resume</span> <span class="text-xs bg-white/20 px-1 rounded">SPC</span>';
+                dom.buttons.pause.className = 'btn-brutal bg-green text-dark py-3 rounded-lg font-bold text-lg uppercase tracking-wider flex items-center justify-center gap-2';
+                dom.gameUI.word.classList.add('paused');
+                dom.gameUI.progressBar.classList.add('opacity-50');
+                dom.gameUI.pauseOverlay.classList.remove('opacity-0');
+            } else {
+                dom.buttons.pause.innerHTML = '<span>Pause</span> <span class="text-xs bg-white/20 px-1 rounded">SPC</span>';
+                dom.buttons.pause.className = 'btn-brutal bg-blue text-white py-3 rounded-lg font-bold text-lg uppercase tracking-wider flex items-center justify-center gap-2';
+                dom.gameUI.word.classList.remove('paused');
+                dom.gameUI.progressBar.classList.remove('opacity-50');
+                dom.gameUI.pauseOverlay.classList.add('opacity-0');
             }
 
-            // Update "Current Session" preset and save
-            WORD_PRESETS['current_session'].words = wordListInput.value;
-            saveWordPresetsToLS();
-            saveInputs();
+            // Counter
+            dom.gameUI.countBadge.textContent = `${state.currentIndex + 1} / ${state.words.length}`;
+        };
 
-            teacherWords = words;
-            currentWordIndex = 0;
-            isPaused = false; 
-            
-            teacherConsoleEl.style.display = 'none';
-            resultsScreenEl.style.display = 'none';
-            gameScreenEl.style.display = 'block';
+        const tick = () => {
+            if (state.isPaused) return;
 
-            // Reset pause button state for the new session
-            pauseResumeBtn.textContent = 'PAUSE ⏸️';
-            pauseResumeBtn.classList.remove('bg-green', 'text-dark');
-            pauseResumeBtn.classList.add('bg-blue', 'text-white');
-
-            startPrepPhase();
-        });
-
-        // Start the preparation phase
-        function startPrepPhase() {
-            clearInterval(timerId);
-            timerId = null;
-            
-            isPrepPhase = true;
-            timeLeft = parseInt(prepTimeInput.value, 10) || 0; 
-            
-            if (timeLeft <= 0) {
-                 isPrepPhase = false;
-                 nextWord();
-                 return;
+            state.timeLeft--;
+            if (!state.isPrep && state.timeLeft <= 5) {
+                AudioEngine.play('tick');
             }
+            updateGameUI();
 
-            currentTaskEl.textContent = "GET READY!";
-            currentTaskEl.className = 'text-dark text-2xl font-bold mb-6 animate-word-slide';
+            if (state.timeLeft < 0) {
+                clearInterval(state.timerId);
+                AudioEngine.play('ding');
+                
+                if (state.isPrep) {
+                    startWord();
+                } else {
+                    nextWord();
+                }
+            }
+        };
+
+        const startWord = () => {
+            state.isPrep = false;
+            state.timeLeft = state.duration;
+            state.timerId = setInterval(tick, 1000);
+            updateGameUI();
+        };
+
+        const startPrep = () => {
+            clearInterval(state.timerId);
+            state.isPrep = true;
+            state.timeLeft = state.prepTime;
             
-            // Set up word display
-            gameWordEl.textContent = "STARTING SOON";
-            gameWordEl.classList.remove('is-paused');
-            gameWordEl.classList.add('game-word-text', 'animate-word-slide');
+            if (state.prepTime === 0) {
+                startWord();
+            } else {
+                state.timerId = setInterval(tick, 1000);
+                updateGameUI();
+            }
+        };
 
-            // Initial timer state for prep (no background)
-            resetTimerVisuals();
-            timerDisplayEl.textContent = timeLeft;
+        const nextWord = () => {
+            clearInterval(state.timerId);
+            state.currentIndex++;
             
-            skipWordBtn.disabled = true;
-            skipWordBtn.classList.add('opacity-50');
-
-            resumeTimer(true);
-        }
-
-        // Move to the next word
-        function nextWord() {
-            clearInterval(timerId);
-            timerId = null;
-
-            if (currentWordIndex >= teacherWords.length) {
+            if (state.currentIndex >= state.words.length) {
                 endGame();
+            } else {
+                startPrep();
+            }
+        };
+
+        const startGame = (wordsList = null) => {
+            AudioEngine.init();
+            
+            if (!wordsList) {
+                // Fresh Start
+                const raw = dom.inputs.list.value;
+                state.words = raw.split(/[,|\n]/)
+                    .map(w => w.trim().toUpperCase())
+                    .filter(w => w.length > 0);
+            } else {
+                // Replay
+                state.words = wordsList;
+            }
+
+            if (state.words.length === 0) {
+                showToast('Please enter at least one word!');
                 return;
             }
+
+            state.duration = parseInt(dom.inputs.duration.value) || 30;
+            state.prepTime = parseInt(dom.inputs.prep.value) || 0;
+            state.currentIndex = 0;
+            state.isPaused = false;
             
-            skipWordBtn.disabled = false;
-            skipWordBtn.classList.remove('opacity-50');
+            // Switch Screens
+            dom.console.classList.add('hidden');
+            dom.results.classList.add('hidden');
+            dom.game.classList.remove('hidden');
 
-            const currentWord = teacherWords[currentWordIndex].toUpperCase();
+            savePersistedData();
+            startPrep();
+        };
 
-            timeLeft = parseInt(roundDurationInput.value, 10);
+        const togglePause = () => {
+            state.isPaused = !state.isPaused;
+            updateGameUI();
+        };
 
-            // Set up UI
-            currentTaskEl.textContent = `Word ${currentWordIndex + 1} of ${teacherWords.length}:`;
-            currentTaskEl.className = 'text-dark text-lg font-bold mb-6 animate-word-slide';
-            
-            // Set up word display
-            gameWordEl.textContent = currentWord;
-            gameWordEl.classList.remove('is-paused');
-            gameWordEl.classList.add('game-word-text');
-            
-            // Initial timer state for active word (no background)
-            resetTimerVisuals();
-            timerDisplayEl.textContent = timeLeft;
-            
-            // Reset animation to re-trigger on word change
-            gameWordEl.classList.remove('animate-word-slide');
-            void gameWordEl.offsetWidth; 
-            gameWordEl.classList.add('animate-word-slide');
-
-            resumeTimer(false);
-        }
-
-        // Logic to start or continue the countdown
-        function resumeTimer(isPrep) {
-            // FIX APPLIED HERE: Remove the check for `isPaused` in the guard clause.
-            // If the function is called, it means the user clicked Resume, so we only need to prevent double-running the interval.
-            if (timerId !== null) return; 
-
-            isPaused = false;
-            // Update button UI to 'PAUSE' (Blue)
-            pauseResumeBtn.textContent = 'PAUSE ⏸️';
-            pauseResumeBtn.classList.remove('bg-green', 'text-dark');
-            pauseResumeBtn.classList.add('bg-blue', 'text-white');
-            
-            // Remove paused state from word display
-            gameWordEl.classList.remove('is-paused');
-
-            // Apply correct visuals if resuming from a warning state
-            if (!isPrep) {
-                if (timeLeft <= 10 && timeLeft > 5) {
-                    resetTimerVisuals();
-                    timerWrapperEl.classList.add('timer-orange');
-                    timerDisplayEl.classList.add('text-dark');
-                } else if (timeLeft <= 5) {
-                    resetTimerVisuals();
-                    timerWrapperEl.classList.add('timer-pink');
-                    timerDisplayEl.classList.add('text-white');
-                } else {
-                    resetTimerVisuals();
-                }
-            } else {
-                resetTimerVisuals();
-            }
-
-            timerId = setInterval(() => {
-                timeLeft--;
-                timerDisplayEl.textContent = timeLeft;
-                Audio.playTick();
-
-                // Apply warning colors during the active word phase
-                if (!isPrep) {
-                    if (timeLeft === 10) {
-                        resetTimerVisuals();
-                        timerWrapperEl.classList.add('timer-orange');
-                        timerDisplayEl.classList.add('text-dark');
-                    }
-                    if (timeLeft === 5) {
-                        resetTimerVisuals();
-                        timerWrapperEl.classList.add('timer-pink');
-                        timerDisplayEl.classList.add('text-white');
-                    }
-                }
-
-                if (timeLeft <= 0) {
-                    clearInterval(timerId);
-                    timerId = null;
-                    Audio.playDing();
-                    resetTimerVisuals(); // Clear visuals on end
-                    
-                    if (isPrepPhase) {
-                        isPrepPhase = false;
-                        nextWord();
-                    } else {
-                        currentWordIndex++;
-                        nextWord();
-                    }
-                }
-            }, 1000);
-        }
-
-        // Logic to stop the countdown
-        function pauseTimer() {
-            clearInterval(timerId);
-            timerId = null;
-            isPaused = true;
-
-            // Update button UI to 'RESUME' (Green with dark text)
-            pauseResumeBtn.textContent = 'RESUME ▶️';
-            pauseResumeBtn.classList.remove('bg-blue', 'text-white');
-            pauseResumeBtn.classList.add('bg-green', 'text-dark');
-            
-            // Show the Paused state visually
-            currentTaskEl.textContent = "TIMER PAUSED";
-            currentTaskEl.classList.remove('text-dark');
-            currentTaskEl.classList.add('text-pink');
-
-            // Apply paused style to the word display
-            gameWordEl.classList.add('is-paused');
-        }
-
-        // Toggle handler
-        pauseResumeBtn.addEventListener('click', () => {
-            if (isPaused) {
-                resumeTimer(isPrepPhase);
-                // Restore task message based on phase
-                if (isPrepPhase) {
-                    currentTaskEl.textContent = "GET READY!";
-                    currentTaskEl.classList.remove('text-pink');
-                    currentTaskEl.classList.add('text-dark');
-                } else {
-                    currentTaskEl.textContent = `Word ${currentWordIndex + 1} of ${teacherWords.length}:`;
-                    currentTaskEl.classList.remove('text-pink');
-                    currentTaskEl.classList.add('text-dark');
-                }
-            } else {
-                pauseTimer();
-            }
-        });
-
-
-        // Skip button functionality
-        skipWordBtn.addEventListener('click', () => {
-            if (skipWordBtn.disabled) return; 
-            
-            if (isPaused) {
-                isPaused = false;
-            }
-            clearInterval(timerId);
-            timerId = null;
-            Audio.playDing();
-            currentWordIndex++;
+        const skipWord = () => {
+            if (state.isPaused) state.isPaused = false;
+            AudioEngine.play('ding');
             nextWord();
-        });
+        };
 
-
-        // End the entire session
-        function endGame() {
-            clearInterval(timerId);
-            timerId = null;
-            skipWordBtn.disabled = true; 
-            isPaused = false;
-            resetTimerVisuals();
-            gameWordEl.classList.remove('is-paused');
-
-            // Show all words from the session
-            finalSynonymListEl.innerHTML = '';
-            teacherWords.forEach(word => {
-                const li = document.createElement('li');
-                li.textContent = word;
-                // List items match the chunky style
-                li.className = "text-center p-3 bg-slate100 rounded-xl text-dark font-body text-sm border-2 border-dark shadow-hard-sm";
-                finalSynonymListEl.appendChild(li);
+        const endGame = () => {
+            clearInterval(state.timerId);
+            dom.game.classList.add('hidden');
+            dom.results.classList.remove('hidden');
+            
+            // Populate Result List
+            dom.finalList.innerHTML = '';
+            state.words.forEach(word => {
+                const badge = document.createElement('span');
+                badge.className = "inline-block bg-white border-2 border-dark rounded-lg px-3 py-1 text-sm font-bold shadow-hard-xs";
+                badge.textContent = word;
+                dom.finalList.appendChild(badge);
             });
 
-            gameScreenEl.style.display = 'none';
-            resultsScreenEl.style.display = 'block';
-        }
+            // Confetti Effect
+            confetti({
+                particleCount: 150,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ['#FF6B95', '#FF8C42', '#00E676', '#2979FF']
+            });
+        };
 
-        // Error Modal (Updated to chunky style)
-        function showErrorModal(title, message) {
-            const dialog = document.createElement('div');
-            dialog.className = 'fixed inset-0 bg-dark/70 overflow-y-auto h-full w-full flex items-center justify-center z-50 animate-pop-in';
-            dialog.innerHTML = `
-                <div class="game-console p-8 rounded-xl shadow-hard-md w-full max-w-sm border-pink border-4 bg-white text-center">
-                    <h3 class="text-2xl font-heading text-pink mb-4">${title}</h3>
-                    <p class="mb-6 text-dark">${message}</p>
-                    <button class="btn-chunky bg-pink text-white py-2 px-6 rounded-xl font-bold hover:bg-pink/90 shadow-hard-sm" onclick="this.closest('.fixed').remove()">OK</button>
-                </div>
-            `;
-            document.body.appendChild(dialog);
-        }
+        const resetToConsole = () => {
+            dom.results.classList.add('hidden');
+            dom.console.classList.remove('hidden');
+        };
 
+        // --- EVENT LISTENERS ---
 
-        // Event listener for restart button
-        restartGameBtn.addEventListener('click', () => {
-            resultsScreenEl.style.display = 'none';
-            teacherConsoleEl.style.display = 'flex';
-            wordListInput.focus();
-        });
+        dom.buttons.start.addEventListener('click', () => startGame());
+        dom.buttons.pause.addEventListener('click', togglePause);
+        dom.buttons.skip.addEventListener('click', skipWord);
+        dom.buttons.restart.addEventListener('click', resetToConsole);
+        dom.buttons.replay.addEventListener('click', () => startGame(state.words)); // Re-pass current words
+        dom.buttons.abort.addEventListener('click', endGame);
 
-        // Event listener for word list preset changes
-        wordPresetsSelect.addEventListener('change', (e) => {
-            if (e.target.value) {
-                applyWordPreset(e.target.value);
-                // Reset the dropdown after loading so the user can load another immediately
-                e.target.value = ''; 
+        // Input Auto-Save Listeners
+        dom.inputs.list.addEventListener('input', () => { updateWordCount(); savePersistedData(); });
+        dom.inputs.duration.addEventListener('input', savePersistedData);
+        dom.inputs.prep.addEventListener('input', savePersistedData);
+        
+        // Keyboard Controls
+        document.addEventListener('keydown', (e) => {
+            // Only active if game screen is visible
+            if (dom.game.classList.contains('hidden')) return;
+
+            if (e.code === 'Space') {
+                e.preventDefault(); // Prevent scrolling
+                togglePause();
+            } else if (e.code === 'ArrowRight') {
+                skipWord();
             }
         });
-        
-        // --- INITIALIZATION ---
-        
-        function initializeApplication() {
-            // LOAD DATA: Ensure data loading functions are called first.
-            loadInputs();
-            loadWordPresetsFromLS(); 
-            
-            // Setup word preset options
-            populateWordPresets();
-            
-            // Attach Auto-Save Hooks to all input fields
-            wordListInput.addEventListener('input', saveInputs);
-            roundDurationInput.addEventListener('input', saveInputs);
-            prepTimeInput.addEventListener('input', saveInputs);
-            
-            gameScreenEl.style.display = 'none';
-            resultsScreenEl.style.display = 'none';
-            teacherConsoleEl.style.display = 'flex';
-            wordListInput.focus();
-        }
 
-        window.onload = initializeApplication;
+        // Initialize
+        window.addEventListener('load', () => {
+            initPresets();
+            loadPersistedData();
+        });
 
     </script>
 </body>
