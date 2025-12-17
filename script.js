@@ -296,6 +296,34 @@ const UI = {
   //     container.appendChild(shape);
   //   }
   // }
+
+  showGameModal() {
+    const modal = document.getElementById('game-modal');
+    if (!modal) return;
+
+    modal.classList.remove('hidden');
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+  },
+
+  hideGameModal() {
+    const modal = document.getElementById('game-modal');
+    if (!modal) return;
+
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+  },
+
+  updateActiveTabUI() {
+    this.tabs.forEach(tab => {
+      tab.iconElement?.setAttribute(
+        'aria-selected',
+        tab.id === this.activeTabId
+      );
+    });
+  }
+
 };
 
 // --- RECENT GAMES MANAGER ---
@@ -343,7 +371,6 @@ const RecentGames = {
         <button 
           data-action="openGame" 
           data-param="${game.id}"
-          onmouseenter="AudioEngine.hover()"
           class="recent-pill bg-white dark:bg-slate-800 flex items-center gap-3 px-3 py-2 rounded-xl shrink-0 min-w-[150px] group hover:bg-slate-50 dark:hover:bg-slate-700 border-2 border-dark dark:border-slate-500 shadow-hard-sm"
           aria-label="Resume ${game.title}">
           <div class="w-10 h-10 rounded-lg ${bgClass} flex items-center justify-center text-white border-2 border-dark dark:border-slate-300 shadow-sm">
@@ -473,7 +500,6 @@ const GameGrid = {
       card.addEventListener('mouseleave', () => {
         card.style.transform = 'perspective(1000px) rotateX(0) rotateY(0)';
       });
-      card.addEventListener('mouseenter', () => AudioEngine.hover());
 
       card.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -537,17 +563,75 @@ const Filters = {
 
 // ============================================
 // SIDE PANEL TAB MANAGER
-// Replace the old TabManager with this version
+// ============================================
+
+// ============================================
+// SIDE PANEL TAB MANAGER - FIXED VERSION 2
+// Replace the entire TabManager module
 // ============================================
 
 const TabManager = {
   tabs: [],
   activeTabId: null,
   maxTabs: 8,
+  storageKey: 'openTabs',
 
   init() {
     this.setupKeyboardShortcuts();
-    this.renderEmptyState();
+    this.loadTabsFromStorage();
+  },
+
+  // Save tabs to localStorage
+  saveTabsToStorage() {
+    const tabsData = this.tabs.map(tab => ({
+      id: tab.id,
+      gameId: tab.gameId,
+      title: tab.title,
+      icon: tab.icon,
+      color: tab.color
+    }));
+
+    Storage.set(this.storageKey, {
+      tabs: tabsData,
+      activeTabId: this.activeTabId
+    });
+  },
+
+  // Load tabs from localStorage
+  loadTabsFromStorage() {
+    const savedData = Storage.get(this.storageKey);
+
+    if (!savedData || !savedData.tabs || savedData.tabs.length === 0) {
+      return; // Don't show anything if no tabs
+    }
+
+    // Show modal
+    const modal = document.getElementById('game-modal');
+    if (modal) {
+      modal.style.display = 'block';
+      modal.classList.remove('hidden');
+      modal.setAttribute('aria-hidden', 'false');
+    }
+
+    // Recreate tabs
+    savedData.tabs.forEach((tabData) => {
+      const game = State.getGameById(tabData.gameId);
+      if (game) {
+        this.createTabSilent(game, tabData.id);
+      }
+    });
+
+    // Switch to the previously active tab
+    if (savedData.activeTabId && this.tabs.find(t => t.id === savedData.activeTabId)) {
+      this.switchToTab(savedData.activeTabId);
+    } else if (this.tabs.length > 0) {
+      this.switchToTab(this.tabs[0].id);
+    }
+  },
+
+  // Clear storage
+  clearStorage() {
+    Storage.remove(this.storageKey);
   },
 
   // Create a new tab for a game
@@ -568,6 +652,15 @@ const TabManager = {
     // Generate unique tab ID
     const tabId = `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
+    return this.createTabSilent(game, tabId, true);
+  },
+
+  // Create tab without switching (for loading from storage)
+  createTabSilent(game, tabId = null, switchTo = false) {
+    if (!tabId) {
+      tabId = `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    }
+
     // Create tab object
     const tab = {
       id: tabId,
@@ -585,14 +678,16 @@ const TabManager = {
     // Add to array
     this.tabs.push(tab);
 
-    // Remove empty state
-    this.removeEmptyState();
-
-    // Switch to new tab
-    this.switchToTab(tabId);
+    // Switch to new tab if requested
+    if (switchTo) {
+      this.switchToTab(tabId);
+    }
 
     // Start loading game
     this.loadGame(tab, game.path);
+
+    // Save to storage
+    this.saveTabsToStorage();
 
     return tab;
   },
@@ -621,21 +716,35 @@ const TabManager = {
       <i data-lucide="${tab.icon}" class="side-panel-tab-icon" aria-hidden="true"></i>
       <button 
         class="side-panel-tab-close" 
-        data-action="closeTab" 
         data-tab-id="${tab.id}"
         aria-label="Close ${tab.title}"
-        onclick="event.stopPropagation()">
+        type="button">
         <i data-lucide="x" aria-hidden="true"></i>
       </button>
     `;
 
-    // Tab click handler
+    // Tab click handler - Switch to tab
     tabIcon.addEventListener('click', (e) => {
       // Don't switch if clicking close button
-      if (e.target.closest('.side-panel-tab-close')) return;
+      if (e.target.closest('.side-panel-tab-close')) {
+        return;
+      }
       this.switchToTab(tab.id);
       AudioEngine.click();
     });
+
+    // Close button click handler - Must be separate!
+    const closeBtn = tabIcon.querySelector('.side-panel-tab-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const tabIdToClose = closeBtn.dataset.tabId;
+        if (tabIdToClose) {
+          this.closeTab(tabIdToClose);
+        }
+      });
+    }
 
     sidePanelTabs.appendChild(tabIcon);
     lucide.createIcons();
@@ -679,9 +788,14 @@ const TabManager = {
   loadGame(tab, path) {
     if (!tab.iframe) return;
 
+    console.log(`Loading game: ${tab.title} from path: ${path}`);
+
+    // Set iframe src
     tab.iframe.src = path;
 
+    // Set up load handler
     tab.iframe.onload = () => {
+      console.log(`Game loaded successfully: ${tab.title}`);
       tab.loading = false;
       tab.panel.classList.add('loaded');
 
@@ -696,9 +810,10 @@ const TabManager = {
       }
     };
 
-    tab.iframe.onerror = () => {
+    // Set up error handler
+    tab.iframe.onerror = (error) => {
+      console.error(`Failed to load game: ${tab.title}`, error);
       tab.loading = false;
-      console.error(`Failed to load game: ${tab.title}`);
 
       // Show error in panel
       const loadingDiv = tab.panel.querySelector('.tab-loading');
@@ -706,6 +821,7 @@ const TabManager = {
         loadingDiv.innerHTML = `
           <i data-lucide="alert-circle" style="width: 4rem; height: 4rem; color: #ef4444;"></i>
           <div class="loading-text" style="color: #ef4444;">FAILED TO LOAD</div>
+          <p style="color: #ef4444; font-size: 0.875rem; margin-top: 1rem;">Path: ${path}</p>
           <button 
             class="btn-chunky bg-blue text-white px-6 py-3 rounded-xl mt-4"
             onclick="TabManager.retryLoad('${tab.id}')">
@@ -716,6 +832,18 @@ const TabManager = {
         lucide.createIcons();
       }
     };
+
+    // Timeout fallback - sometimes onload doesn't fire
+    setTimeout(() => {
+      if (tab.loading) {
+        console.warn(`Loading timeout for ${tab.title}, marking as loaded anyway`);
+        tab.loading = false;
+        tab.panel.classList.add('loaded');
+        if (tab.iconElement) {
+          tab.iconElement.classList.remove('loading');
+        }
+      }
+    }, 5000); // 5 second timeout
   },
 
   // Retry loading a failed tab
@@ -795,6 +923,9 @@ const TabManager = {
     if (tab.iconElement) {
       tab.iconElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
+
+    // Save to storage
+    this.saveTabsToStorage();
   },
 
   // Close a specific tab
@@ -805,10 +936,9 @@ const TabManager = {
     const tab = this.tabs[tabIndex];
     const wasActive = this.activeTabId === tabId;
 
-    // Remove DOM elements with animation
+    // Remove DOM elements
     if (tab.iconElement) {
-      tab.iconElement.style.animation = 'slide-in-left 0.3s reverse';
-      setTimeout(() => tab.iconElement.remove(), 300);
+      tab.iconElement.remove();
     }
 
     if (tab.panel) {
@@ -818,17 +948,20 @@ const TabManager = {
     // Remove from array
     this.tabs.splice(tabIndex, 1);
 
+    // If no tabs left, close modal completely
+    if (this.tabs.length === 0) {
+      this.closeModal();
+      return;
+    }
+
+    // Save to storage
+    this.saveTabsToStorage();
+
     // If closed tab was active, switch to another tab
-    if (wasActive) {
-      if (this.tabs.length > 0) {
-        // Switch to the tab that's now at the same index (or last tab)
-        const newIndex = Math.min(tabIndex, this.tabs.length - 1);
-        this.switchToTab(this.tabs[newIndex].id);
-      } else {
-        // No tabs left, show empty state and close modal
-        this.renderEmptyState();
-        this.closeAllTabs();
-      }
+    if (wasActive && this.tabs.length > 0) {
+      // Switch to the tab that's now at the same index (or last tab)
+      const newIndex = Math.min(tabIndex, this.tabs.length - 1);
+      this.switchToTab(this.tabs[newIndex].id);
     }
 
     AudioEngine.click();
@@ -841,40 +974,95 @@ const TabManager = {
     }
   },
 
-  // Close all tabs
-  closeAllTabs() {
-    // Remove all DOM elements
-    const sidePanelTabs = document.getElementById('side-panel-tabs');
-    const tabContentArea = document.getElementById('tab-content-area');
+  // Return to home (close modal completely)
+  returnToHome() {
+    this.closeModal();
+    AudioEngine.click();
+  },
 
-    if (sidePanelTabs) sidePanelTabs.innerHTML = '';
-    if (tabContentArea) tabContentArea.innerHTML = '';
-
-    // Clear arrays
-    this.tabs = [];
-    this.activeTabId = null;
-    State.activeGame = null;
-
-    // Close modal
+  // Close modal and clean up
+  closeModal() {
     const modal = document.getElementById('game-modal');
     const infoOverlay = document.getElementById('info-overlay');
 
+    // Hide modal
     if (modal) {
       modal.style.display = 'none';
       modal.classList.add('hidden');
       modal.setAttribute('aria-hidden', 'true');
     }
 
+    // Hide info overlay
     if (infoOverlay) {
       infoOverlay.classList.add('hidden');
       infoOverlay.classList.remove('flex');
     }
 
+    // Clear active state
+    this.activeTabId = null;
+    State.activeGame = null;
+
     // Clear hash
     history.pushState("", document.title, window.location.pathname + window.location.search);
 
-    // Render empty state for next time
-    this.renderEmptyState();
+    // Save state (tabs remain, just not active)
+    this.saveTabsToStorage();
+  },
+
+  // Show confirmation modal for closing all tabs
+  confirmCloseAllTabs() {
+    if (this.tabs.length === 0) return;
+
+    const confirmModal = document.getElementById('confirm-modal');
+    const countSpan = document.getElementById('confirm-count');
+
+    if (!confirmModal) return;
+
+    // Update count
+    if (countSpan) {
+      countSpan.textContent = this.tabs.length;
+    }
+
+    // Show modal
+    confirmModal.classList.remove('hidden');
+    confirmModal.classList.add('flex');
+
+    // Reinitialize icons
+    lucide.createIcons();
+  },
+
+  // Cancel confirmation
+  cancelConfirmation() {
+    const confirmModal = document.getElementById('confirm-modal');
+    if (confirmModal) {
+      confirmModal.classList.add('hidden');
+      confirmModal.classList.remove('flex');
+    }
+  },
+
+  // Actually close all tabs (after confirmation)
+  closeAllTabsConfirmed() {
+    // Hide confirmation modal
+    this.cancelConfirmation();
+
+    if (this.tabs.length === 0) return;
+
+    // Remove all DOM elements
+    this.tabs.forEach(tab => {
+      if (tab.iconElement) tab.iconElement.remove();
+      if (tab.panel) tab.panel.remove();
+    });
+
+    // Clear arrays
+    this.tabs = [];
+    this.activeTabId = null;
+    State.activeGame = null;
+
+    // Clear storage
+    this.clearStorage();
+
+    // Close modal
+    this.closeModal();
 
     AudioEngine.click();
   },
@@ -904,30 +1092,6 @@ const TabManager = {
     return this.tabs.find(t => t.id === this.activeTabId);
   },
 
-  // Show empty state
-  renderEmptyState() {
-    const tabContentArea = document.getElementById('tab-content-area');
-    if (!tabContentArea || this.tabs.length > 0) return;
-
-    tabContentArea.innerHTML = `
-      <div class="side-panel-empty">
-        <i data-lucide="game-controller-icon" class="w-24 h-24"></i>
-        <div class="empty-title">No Games Open</div>
-        <div class="empty-text">Select a game from the hub to get started</div>
-      </div>
-    `;
-
-    lucide.createIcons();
-  },
-
-  // Remove empty state
-  removeEmptyState() {
-    const emptyState = document.querySelector('.side-panel-empty');
-    if (emptyState) {
-      emptyState.remove();
-    }
-  },
-
   // Show max tabs warning
   showMaxTabsWarning() {
     // Remove existing warning if any
@@ -947,6 +1111,7 @@ const TabManager = {
     setTimeout(() => {
       warning.style.opacity = '0';
       warning.style.transform = 'translateX(-50%) translateY(-20px)';
+      warning.style.transition = 'all 0.3s ease';
       setTimeout(() => warning.remove(), 300);
     }, 3000);
   },
@@ -979,8 +1144,16 @@ const TabManager = {
         }
       }
 
-      // Ctrl+R or Cmd+R: Reload (let it work naturally)
-      // F5: Reload (let it work naturally)
+      // Escape: Return to home
+      if (e.key === 'Escape') {
+        // Check if info overlay is open first
+        const infoOverlay = document.getElementById('info-overlay');
+        if (infoOverlay && !infoOverlay.classList.contains('hidden')) {
+          GameModal.toggleInfo();
+        } else {
+          this.returnToHome();
+        }
+      }
     });
   },
 
@@ -989,6 +1162,7 @@ const TabManager = {
     if (this.tabs.length === 0) return;
 
     const currentIndex = this.tabs.findIndex(t => t.id === this.activeTabId);
+
     if (currentIndex === -1) {
       // No active tab, switch to first
       this.switchToTab(this.tabs[0].id);
@@ -1009,7 +1183,11 @@ const TabManager = {
   }
 };
 
-// --- GAME MODAL MANAGER ---
+// ============================================
+// UPDATED GAMEMODAL MODULE
+// Replace entire GameModal with this:
+// ============================================
+
 const GameModal = {
   open(gameId) {
     AudioEngine.click();
@@ -1036,7 +1214,8 @@ const GameModal = {
   },
 
   close() {
-    TabManager.closeAllTabs();
+    // Close modal completely (same as home button)
+    TabManager.returnToHome();
   },
 
   reload() {
@@ -1106,6 +1285,7 @@ const GameModal = {
     lucide.createIcons();
   }
 };
+
 
 // --- SEARCH MANAGER ---
 const Search = {
@@ -1241,38 +1421,33 @@ const App = {
         case 'toggleTheme':
           Theme.toggle();
           break;
+
         case 'toggleSound':
           AudioEngine.toggle();
           break;
+
         case 'openGame':
           GameModal.open(param);
           break;
-        case 'closeGame':
-          GameModal.close();
+
+        case 'returnToHome':
+          TabManager.returnToHome();
           break;
-        case 'reloadGame':
-          GameModal.reload();
-          break;
-        case 'toggleInfo':
-          GameModal.toggleInfo();
-          break;
-        case 'filterGames':
-          Filters.setCategory(param);
-          break;
-        case 'clearRecent':
-          RecentGames.clear();
-          break;
+
         case 'closeAllTabs':
-          TabManager.closeAllTabs();
+          TabManager.confirmCloseAllTabs(); // Show confirmation modal
+          break;
+
+        case 'confirmDelete':
+          TabManager.closeAllTabsConfirmed(); // Actually close
+          break;
+
+        case 'confirmCancel':
+          TabManager.cancelConfirmation(); // Cancel
           break;
 
         case 'closeCurrentTab':
           TabManager.closeCurrentTab();
-          break;
-
-        case 'closeTab':
-          const tabId = target.dataset.tabId;
-          if (tabId) TabManager.closeTab(tabId);
           break;
 
         case 'reloadGame':
@@ -1282,6 +1457,15 @@ const App = {
         case 'toggleInfo':
           GameModal.toggleInfo();
           break;
+
+        case 'filterGames':
+          Filters.setCategory(param);
+          break;
+
+        case 'clearRecent':
+          RecentGames.clear();
+          break;
+
         case 'openFeedback':
           window.open(CONFIG.helpUrl, '_blank');
           break;
