@@ -3,250 +3,597 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>English 1 Rapid Presenter</title>
+    <title>English 1 | Rapid Presenter</title>
+    
+    <!-- External Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+
     <script>
         tailwind.config = {
+            darkMode: 'class',
             theme: {
                 extend: {
+                    fontFamily: {
+                        heading: ['Fredoka', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                    },
                     colors: {
-                        e1pink: '#FF69B4',
-                        e1orange: '#FFA500',
-                        e1green: '#4CAF50',
-                        e1blue: '#2196F3',
-                        e1dark: '#333333',
+                        brand: {
+                            pink: '#FF6B95',
+                            orange: '#FF8C42',
+                            green: '#00E676',
+                            blue: '#2979FF',
+                            dark: '#1e293b',
+                            bg: '#F8FAFC',
+                        }
+                    },
+                    boxShadow: {
+                        'hard': '4px 4px 0px 0px #1e293b',
+                        'hard-sm': '2px 2px 0px 0px #1e293b',
                     }
                 }
             }
         }
     </script>
+
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap');
-        
         body {
-            font-family: 'Poppins', sans-serif;
-            background-color: #f0f2f5;
+            background-color: #F8FAFC;
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 24px 24px;
         }
 
-        /* Presentation Mode */
-        #presentation-mode {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: 50;
-            display: none; /* Hidden by default */
-            align-items: center;
-            justify-content: center;
-            outline: none;
+        /* Custom Scrollbar */
+        .custom-scroll::-webkit-scrollbar {
+            width: 12px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: #e2e8f0;
+            border-radius: 6px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 6px;
+            border: 2px solid #e2e8f0;
         }
 
-        /* Big animated text in presentation */
-        .slide-text {
-            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        /* Animations */
+        .slide-enter {
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
         @keyframes popIn {
-            from { transform: scale(0.5); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
+            0% { transform: scale(0.9) translateY(20px); opacity: 0; }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+
+        .btn-chunky {
+            transition: all 0.1s ease;
+        }
+        .btn-chunky:active {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px 0px #1e293b;
+        }
+
+        #presentation-mode {
+            scrollbar-width: none; 
+        }
+        #presentation-mode::-webkit-scrollbar { 
+            display: none; 
+        }
+
+        .text-huge { font-size: clamp(4rem, 12vw, 15rem); }
+        .text-medium { font-size: clamp(2rem, 6vw, 5rem); }
+        
+        /* Slide Card Transitions */
+        .slide-card {
+            transition: all 0.2s ease;
+        }
+        .slide-card:hover {
+            transform: translateY(-2px);
         }
     </style>
 </head>
-<body class="h-screen flex flex-col items-center justify-center text-e1dark p-6">
+<body class="font-body text-brand-dark min-h-screen flex flex-col overflow-hidden">
 
-    <div class="max-w-2xl w-full bg-white rounded-2xl shadow-xl overflow-hidden">
-        <!-- Header -->
-        <div class="bg-gray-50 p-6 border-b border-gray-100 flex items-center justify-between">
+    <!-- Navbar -->
+    <nav class="w-full bg-white border-b-4 border-brand-dark px-6 py-4 sticky top-0 z-40 flex-none">
+        <div class="max-w-6xl mx-auto flex justify-between items-center w-full">
             <div class="flex items-center gap-3">
-                <div class="flex gap-1">
-                    <div class="w-3 h-3 rounded-full bg-e1pink"></div>
-                    <div class="w-3 h-3 rounded-full bg-e1orange"></div>
-                    <div class="w-3 h-3 rounded-full bg-e1green"></div>
-                    <div class="w-3 h-3 rounded-full bg-e1blue"></div>
+                <div class="w-10 h-10 bg-brand-pink border-2 border-brand-dark rounded-lg flex items-center justify-center shadow-hard-sm">
+                    <i data-lucide="monitor-play" class="text-white w-6 h-6"></i>
                 </div>
-                <h1 class="text-xl font-bold text-gray-800">Rapid<span class="text-e1blue">Presenter</span></h1>
+                <h1 class="font-heading font-bold text-2xl tracking-wide">Rapid<span class="text-brand-blue">Presenter</span></h1>
             </div>
-            <div class="text-xs text-gray-400 font-medium tracking-wide uppercase">Simple Mode</div>
+            <button onclick="document.getElementById('help-modal').classList.remove('hidden')" class="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+                <i data-lucide="help-circle" class="w-6 h-6"></i>
+            </button>
         </div>
+    </nav>
 
-        <!-- Input Area -->
-        <div class="p-8">
-            <label class="block text-gray-700 font-bold mb-2 text-lg">
-                Enter your content
-            </label>
-            <p class="text-gray-500 text-sm mb-4">
-                Separate items with a semicolon (e.g. <span class="font-mono bg-gray-100 px-1 rounded">Apple; Banana; Cat; Dog</span>).
-            </p>
+    <!-- Main Content -->
+    <main class="flex-grow flex items-stretch justify-center p-4 sm:p-6 h-[calc(100vh-80px)]">
+        <div class="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
             
-            <textarea 
-                id="word-input" 
-                class="w-full h-48 p-4 border-2 border-gray-200 rounded-xl focus:border-e1blue focus:ring-4 focus:ring-blue-50 transition-all text-lg font-medium resize-none text-gray-700 placeholder-gray-300"
-                placeholder="Paste your list here (semicolon separated)..."
-            ></textarea>
+            <!-- Left: Controls (Fixed) -->
+            <div class="lg:col-span-3 flex flex-col gap-4 h-full overflow-y-auto pr-2 custom-scroll">
+                
+                <!-- Stats Card -->
+                <div class="bg-white border-4 border-brand-dark rounded-2xl p-5 shadow-hard flex flex-col gap-4">
+                    <h2 class="font-heading font-bold text-lg border-b-2 border-gray-100 pb-2">Session Info</h2>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-brand-bg border-2 border-brand-dark rounded-xl p-2 text-center">
+                            <span class="block text-gray-500 text-[10px] font-bold uppercase">Slides</span>
+                            <span id="stat-count" class="font-heading text-xl font-bold text-brand-blue">0</span>
+                        </div>
+                        <div class="bg-brand-bg border-2 border-brand-dark rounded-xl p-2 text-center">
+                            <span class="block text-gray-500 text-[10px] font-bold uppercase">Est. Time</span>
+                            <span id="stat-time" class="font-heading text-xl font-bold text-brand-orange">0m</span>
+                        </div>
+                    </div>
+                </div>
 
-            <div class="mt-6 flex gap-3">
-                <button onclick="app.startPresentation()" class="flex-1 bg-e1blue hover:bg-blue-600 text-white font-bold py-4 px-6 rounded-xl shadow-lg hover:shadow-xl transition transform hover:-translate-y-0.5 flex items-center justify-center gap-2 text-lg">
-                    <i class="fas fa-play"></i> Start Presentation
+                <!-- Main Actions -->
+                <button onclick="app.addSlide()" 
+                    class="btn-chunky w-full py-3 bg-brand-blue border-4 border-brand-dark rounded-xl text-white font-heading font-bold text-lg shadow-hard flex items-center justify-center gap-2 hover:brightness-105">
+                    <i data-lucide="plus-circle" class="w-5 h-5"></i> ADD SLIDE
                 </button>
-                <button onclick="app.clear()" class="px-6 py-4 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition font-semibold">
-                    Clear
+
+                <button onclick="app.startPresentation()" 
+                    class="btn-chunky w-full py-4 bg-brand-green border-4 border-brand-dark rounded-xl text-white font-heading font-bold text-xl shadow-hard flex items-center justify-center gap-3 hover:brightness-105 mt-auto">
+                    <i data-lucide="play" class="w-6 h-6 fill-current"></i> START
+                </button>
+                
+                <button onclick="app.clear()" 
+                    class="btn-chunky w-full py-3 bg-white border-4 border-brand-dark rounded-xl text-brand-dark font-heading font-bold text-lg shadow-hard flex items-center justify-center gap-2 hover:bg-gray-50">
+                    <i data-lucide="trash-2" class="w-5 h-5"></i> CLEAR ALL
                 </button>
             </div>
-        </div>
-    </div>
 
-    <!-- Presentation Mode Overlay -->
-    <div id="presentation-mode" tabindex="0">
-        <div id="slide-content" class="text-center p-10 max-w-full">
-            <h1 id="display-word" class="text-white font-bold slide-text break-words" style="font-size: 8vw; line-height: 1.2;">
+            <!-- Right: Slide Deck Builder (Scrollable) -->
+            <div class="lg:col-span-9 bg-brand-bg border-4 border-brand-dark rounded-2xl shadow-hard flex flex-col overflow-hidden h-full">
+                <!-- Header -->
+                <div class="bg-white border-b-4 border-brand-dark px-6 py-4 flex justify-between items-center flex-none z-10">
+                    <span class="font-heading font-bold text-lg text-brand-dark">Slide Deck</span>
+                    <span class="text-xs font-bold bg-brand-pink text-white px-3 py-1 rounded-full border-2 border-brand-dark">Auto-Saved</span>
+                </div>
+
+                <!-- Slide List Container & Empty State Wrapper -->
+                <div id="deck-viewport" class="flex-grow overflow-y-auto p-6 custom-scroll relative">
+                    
+                    <!-- Empty State (Sibling, not child of slides-container) -->
+                    <div id="empty-state" class="hidden absolute inset-0 flex flex-col items-center justify-center text-gray-400 opacity-60 z-0">
+                        <i data-lucide="layers" class="w-16 h-16 mb-4"></i>
+                        <p class="font-heading text-xl">No slides yet</p>
+                        <p class="text-sm">Click "Add Slide" to begin</p>
+                    </div>
+
+                    <!-- Slides Container -->
+                    <div id="slides-container" class="space-y-4 relative z-10 min-h-full">
+                        <!-- Slides will be injected here via JS -->
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Presentation Overlay -->
+    <div id="presentation-mode" class="hidden fixed inset-0 z-50 flex flex-col items-center justify-center cursor-pointer transition-colors duration-500 ease-in-out select-none overflow-hidden bg-brand-dark">
+        
+        <!-- Controls -->
+        <div class="absolute top-6 right-6 flex gap-3 z-50 opacity-50 hover:opacity-100 transition-opacity">
+            <div class="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full border-2 border-white/40 text-white font-heading font-bold">
+                <span id="slide-number">1</span> / <span id="total-slides">10</span>
+            </div>
+            <button onclick="app.exitPresentation(event)" class="bg-white text-brand-dark p-2 rounded-full border-2 border-brand-dark hover:bg-gray-100 shadow-hard-sm">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+
+        <!-- Slide Content Container -->
+        <div id="slide-display-container" class="w-full h-full flex flex-col items-center justify-center px-8 relative z-10 gap-8">
+            <!-- Text Part -->
+            <h1 id="display-word" class="font-heading font-bold text-white leading-tight drop-shadow-md break-words text-center transition-all duration-300">
                 Word
             </h1>
+            <!-- Image Part -->
+            <img id="display-image" src="" alt="Slide Image" class="hidden max-h-[70vh] max-w-full rounded-2xl border-4 border-white shadow-2xl object-contain">
         </div>
-        
-        <!-- Controls Hint -->
-        <div class="absolute bottom-8 left-0 w-full text-center pointer-events-none">
-            <div class="inline-block bg-black bg-opacity-40 text-white px-4 py-2 rounded-full text-sm backdrop-blur-sm">
-                <span class="opacity-75">Slide <span id="slide-number">1</span> / <span id="total-slides">1</span></span>
-                <span class="mx-2 opacity-50">|</span>
-                <span class="opacity-75">Use Arrow Keys or Click</span>
-            </div>
+
+        <!-- Progress -->
+        <div class="absolute bottom-0 left-0 w-full h-3 bg-black/10">
+            <div id="progress-bar" class="h-full bg-white/80 transition-all duration-300" style="width: 0%"></div>
         </div>
-        
-        <!-- Close Button -->
-        <button onclick="app.stopPresentation()" class="absolute top-6 right-6 text-white text-opacity-60 hover:text-opacity-100 p-2 text-2xl z-50">
-            <i class="fas fa-times"></i>
-        </button>
     </div>
 
+    <!-- Help Modal -->
+    <div id="help-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+        <div class="bg-white border-4 border-brand-dark rounded-2xl p-6 shadow-hard max-w-md w-full relative">
+            <button onclick="document.getElementById('help-modal').classList.add('hidden')" class="absolute top-4 right-4 text-gray-400 hover:text-brand-dark">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+            <h3 class="font-heading font-bold text-2xl mb-4">Quick Guide</h3>
+            <p class="mb-4 text-gray-600">The Deck Builder makes creating slides easier.</p>
+            <ul class="space-y-3 font-medium text-gray-700 text-sm">
+                <li class="flex gap-2">
+                    <span class="font-bold text-brand-blue">1. Add:</span> Click "Add Slide" to create a new card.
+                </li>
+                <li class="flex gap-2">
+                    <span class="font-bold text-brand-pink">2. Text:</span> Type the word/phrase in the top box.
+                </li>
+                <li class="flex gap-2">
+                    <span class="font-bold text-brand-orange">3. Images:</span> Click the upload box to add a picture.
+                </li>
+                <li class="flex gap-2">
+                    <span class="font-bold text-brand-green">4. Arrange:</span> Use arrows to move slides up/down.
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Hidden Canvas for Image Compression -->
+    <canvas id="compression-canvas" class="hidden"></canvas>
+
     <script>
+        // Init Icons
+        lucide.createIcons();
+
         const app = {
-            words: [],
+            slides: [], // Array of { id: number, text: string, image: string|null }
             currentIndex: 0,
-            colors: ['#FF69B4', '#FFA500', '#4CAF50', '#2196F3'], // Pink, Orange, Green, Blue
+            colors: ['#FF6B95', '#FF8C42', '#00E676', '#2979FF'], 
             
             init() {
-                // Auto-load saved text
-                const saved = localStorage.getItem('e1_rapid_text');
+                // Load from LocalStorage
+                const saved = localStorage.getItem('e1_rapid_slides_v2');
                 if (saved) {
-                    document.getElementById('word-input').value = saved;
+                    try {
+                        this.slides = JSON.parse(saved);
+                    } catch (e) {
+                        console.error("Save format error:", e);
+                        this.slides = [];
+                    }
                 }
 
-                // Keyboard listeners
-                window.addEventListener('keydown', (e) => {
+                // If empty (first time or reset), add one empty slide
+                if (this.slides.length === 0) {
+                    if (document.getElementById('slides-container')) {
+                        this.addSlide();
+                    } else {
+                        console.warn("DOM not fully loaded, skipping initial slide add.");
+                    }
+                } else {
+                    this.renderEditor();
+                }
+
+                // Keyboard Nav
+                document.addEventListener('keydown', (e) => {
                     if (document.getElementById('presentation-mode').style.display === 'flex') {
-                        if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') this.nextSlide();
-                        if (e.key === 'ArrowLeft') this.prevSlide();
-                        if (e.key === 'Escape') this.stopPresentation();
+                        if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') {
+                            e.preventDefault();
+                            this.nextSlide();
+                        } else if (e.key === 'ArrowLeft') {
+                            this.prevSlide();
+                        } else if (e.key === 'Escape') {
+                            this.exitPresentation();
+                        }
                     }
                 });
 
-                // Click to advance
+                // Click Nav
                 document.getElementById('presentation-mode').addEventListener('click', (e) => {
-                    // Don't trigger if clicking the close button
-                    if(!e.target.closest('button')) {
-                        this.nextSlide();
-                    }
-                });
-                
-                // Auto-save on typing
-                document.getElementById('word-input').addEventListener('input', (e) => {
-                    localStorage.setItem('e1_rapid_text', e.target.value);
+                    if (!e.target.closest('button')) this.nextSlide();
                 });
             },
 
-            parseInput() {
-                const raw = document.getElementById('word-input').value;
-                if (!raw.trim()) return ['Please enter words'];
-                
-                // Split by semicolon, trim whitespace, remove empty entries
-                return raw.split(';')
-                    .map(w => w.trim())
-                    .filter(w => w.length > 0);
+            save() {
+                localStorage.setItem('e1_rapid_slides_v2', JSON.stringify(this.slides));
+                this.updateStats();
             },
 
-            startPresentation() {
-                this.words = this.parseInput();
-                if (this.words.length === 0) {
-                    this.words = ["Enter words first!"];
+            updateStats() {
+                const statCount = document.getElementById('stat-count');
+                const statTime = document.getElementById('stat-time');
+
+                if (statCount) {
+                    statCount.innerText = this.slides.length;
                 }
+                if (statTime) {
+                    const minutes = Math.ceil((this.slides.length * 3) / 60); 
+                    statTime.innerText = minutes + "m";
+                }
+            },
+
+            addSlide() {
+                console.log("Adding new slide...");
+                this.slides.push({
+                    id: Date.now(),
+                    text: '',
+                    image: null
+                });
+                this.renderEditor();
+                this.save();
                 
-                this.currentIndex = 0;
-                const overlay = document.getElementById('presentation-mode');
-                overlay.style.display = 'flex';
-                overlay.focus();
-                
-                // Try Fullscreen
-                try {
-                    if (document.documentElement.requestFullscreen) {
-                        document.documentElement.requestFullscreen().catch(() => {});
+                // Scroll to bottom
+                setTimeout(() => {
+                    const container = document.getElementById('deck-viewport');
+                    if (container) {
+                        container.scrollTop = container.scrollHeight;
                     }
-                } catch(e) {}
+                }, 50);
+            },
+
+            deleteSlide(index) {
+                if (this.slides.length <= 1) {
+                    this.slides[0].text = '';
+                    this.slides[0].image = null;
+                } else {
+                    this.slides.splice(index, 1);
+                }
+                this.renderEditor();
+                this.save();
+            },
+
+            moveSlide(index, direction) {
+                if (direction === -1 && index > 0) {
+                    // Move Up
+                    [this.slides[index], this.slides[index - 1]] = [this.slides[index - 1], this.slides[index]];
+                } else if (direction === 1 && index < this.slides.length - 1) {
+                    // Move Down
+                    [this.slides[index], this.slides[index + 1]] = [this.slides[index + 1], this.slides[index]];
+                }
+                this.renderEditor();
+                this.save();
+            },
+
+            updateSlideText(index, value) {
+                this.slides[index].text = value;
+                this.save();
+            },
+
+            triggerImageUpload(index) {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (evt) => {
+                            const img = new Image();
+                            img.onload = () => {
+                                const compressed = this.compressImage(img);
+                                this.slides[index].image = compressed;
+                                this.renderEditor();
+                                this.save();
+                            };
+                            img.src = evt.target.result;
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                };
+                input.click();
+            },
+
+            removeImage(index) {
+                this.slides[index].image = null;
+                this.renderEditor();
+                this.save();
+            },
+
+            compressImage(img) {
+                const canvas = document.getElementById('compression-canvas');
+                const ctx = canvas.getContext('2d');
+                const MAX_WIDTH = 1024;
+                const MAX_HEIGHT = 1024;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                } else {
+                    if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                ctx.drawImage(img, 0, 0, width, height);
+                return canvas.toDataURL('image/jpeg', 0.7);
+            },
+
+            // --- UI Rendering ---
+            renderEditor() {
+                const container = document.getElementById('slides-container');
+                const emptyState = document.getElementById('empty-state');
+
+                if (!container || !emptyState) {
+                    console.error("DOM Error: Slides container or empty state element missing.");
+                    return;
+                }
+
+                try {
+                    // Handle Empty State Visibility
+                    if (this.slides.length === 0) {
+                        container.innerHTML = ''; // Ensure no slide cards
+                        emptyState.classList.remove('hidden');
+                        this.updateStats();
+                        return;
+                    }
+                    
+                    emptyState.classList.add('hidden');
+                    container.innerHTML = ''; // Clear current list
+
+                    this.slides.forEach((slide, index) => {
+                        const slideEl = document.createElement('div');
+                        slideEl.className = 'slide-card bg-white border-2 border-brand-dark rounded-xl p-4 shadow-sm hover:shadow-md flex gap-4 items-start animate-fade-in';
+                        
+                        // HTML Structure for a Slide Card
+                        slideEl.innerHTML = `
+                            <!-- Number & Drag Handles -->
+                            <div class="flex flex-col items-center gap-1 pt-2 text-gray-400">
+                                <button onclick="app.moveSlide(${index}, -1)" class="hover:text-brand-blue ${index === 0 ? 'opacity-20 pointer-events-none' : ''}"><i data-lucide="chevron-up" class="w-5 h-5"></i></button>
+                                <span class="font-heading font-bold text-lg text-brand-dark">${index + 1}</span>
+                                <button onclick="app.moveSlide(${index}, 1)" class="hover:text-brand-blue ${index === this.slides.length - 1 ? 'opacity-20 pointer-events-none' : ''}"><i data-lucide="chevron-down" class="w-5 h-5"></i></button>
+                            </div>
+
+                            <!-- Content Area -->
+                            <div class="flex-grow grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <!-- Text Input -->
+                                <div class="md:col-span-2">
+                                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Text Content</label>
+                                    <textarea 
+                                        oninput="app.updateSlideText(${index}, this.value)"
+                                        class="w-full h-24 p-3 rounded-lg border-2 border-gray-200 focus:border-brand-blue focus:outline-none resize-none font-medium text-lg"
+                                        placeholder="Enter word or phrase...">${slide.text}</textarea>
+                                </div>
+
+                                <!-- Image Area -->
+                                <div class="md:col-span-1">
+                                    <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Visual</label>
+                                    ${slide.image 
+                                        ? `
+                                        <div class="relative group h-24 w-full rounded-lg border-2 border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center">
+                                            <img src="${slide.image}" class="h-full w-full object-contain p-1">
+                                            <div class="absolute inset-0 bg-black/50 hidden group-hover:flex items-center justify-center gap-2 transition-opacity">
+                                                <button onclick="app.removeImage(${index})" class="text-white hover:text-red-400 p-1 bg-brand-dark rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                                            </div>
+                                        </div>
+                                        ` 
+                                        : `
+                                        <button onclick="app.triggerImageUpload(${index})" class="w-full h-24 rounded-lg border-2 border-dashed border-gray-300 hover:border-brand-blue hover:bg-blue-50 flex flex-col items-center justify-center gap-1 text-gray-400 hover:text-brand-blue transition-colors">
+                                            <i data-lucide="image-plus" class="w-6 h-6"></i>
+                                            <span class="text-xs font-bold">Add Image</span>
+                                        </button>
+                                        `
+                                    }
+                                </div>
+                            </div>
+
+                            <!-- Delete Button -->
+                            <button onclick="app.deleteSlide(${index})" class="text-gray-300 hover:text-red-500 pt-2 transition-colors" title="Delete Slide">
+                                <i data-lucide="x-circle" class="w-6 h-6"></i>
+                            </button>
+                        `;
+                        container.appendChild(slideEl);
+                    });
+
+                    // Refresh Icons
+                    lucide.createIcons();
+                    this.updateStats();
+
+                } catch (error) {
+                    console.error("Error during slide rendering (renderEditor):", error);
+                    container.innerHTML = `<div class="p-6 text-red-600 font-heading">
+                        <p>A critical error occurred while displaying the slides.</p>
+                        <p class="font-body text-sm text-red-500">Check the Console (F12) for details.</p>
+                    </div>`;
+                }
+            },
+
+
+            // --- Presentation Logic ---
+            startPresentation() {
+                const validSlides = this.slides.filter(s => s.text.trim() !== "" || s.image !== null);
+
+                if (validSlides.length === 0) {
+                    console.error("Presentation failed: No content to display.");
+                    alert("Please add some content first!");
+                    return;
+                }
+
+                this.presentationSlides = validSlides; 
+                this.currentIndex = 0;
+                
+                const overlay = document.getElementById('presentation-mode');
+                overlay.classList.remove('hidden');
+                overlay.style.display = 'flex';
+                
+                if (document.documentElement.requestFullscreen) {
+                    document.documentElement.requestFullscreen().catch(e => console.log(e));
+                }
 
                 this.renderSlide();
             },
 
-            stopPresentation() {
+            exitPresentation(e) {
+                if(e) e.stopPropagation();
                 const overlay = document.getElementById('presentation-mode');
+                overlay.classList.add('hidden');
                 overlay.style.display = 'none';
                 
-                try {
-                    if (document.exitFullscreen && document.fullscreenElement) {
-                        document.exitFullscreen().catch(() => {});
-                    }
-                } catch(e) {}
+                if (document.exitFullscreen) {
+                    document.exitFullscreen().catch(e => console.log(e));
+                }
             },
 
             nextSlide() {
-                if (this.currentIndex < this.words.length - 1) {
-                    this.currentIndex++;
-                    this.renderSlide();
-                } else {
-                    // Loop back to start
-                    this.currentIndex = 0; 
-                    this.renderSlide();
-                }
+                this.currentIndex++;
+                if (this.currentIndex >= this.presentationSlides.length) this.currentIndex = 0;
+                this.renderSlide();
             },
 
             prevSlide() {
-                if (this.currentIndex > 0) {
-                    this.currentIndex--;
-                    this.renderSlide();
-                } else {
-                    this.currentIndex = this.words.length - 1;
-                    this.renderSlide();
-                }
+                this.currentIndex--;
+                if (this.currentIndex < 0) this.currentIndex = this.presentationSlides.length - 1;
+                this.renderSlide();
             },
 
             renderSlide() {
-                const display = document.getElementById('display-word');
+                const slide = this.presentationSlides[this.currentIndex];
+                
+                const container = document.getElementById('slide-display-container');
+                const textDisplay = document.getElementById('display-word');
+                const imgDisplay = document.getElementById('display-image');
                 const overlay = document.getElementById('presentation-mode');
                 const numDisplay = document.getElementById('slide-number');
                 const totalDisplay = document.getElementById('total-slides');
+                const progressBar = document.getElementById('progress-bar');
 
-                // Update text
-                display.innerText = this.words[this.currentIndex];
-                
-                // Re-trigger animation
-                display.classList.remove('slide-text');
-                void display.offsetWidth; // trigger reflow
-                display.classList.add('slide-text');
+                container.classList.remove('slide-enter');
+                void container.offsetWidth; 
+                container.classList.add('slide-enter');
 
-                // Update Background Color (Cycle through palette)
+                if (slide.image) {
+                    imgDisplay.src = slide.image;
+                    imgDisplay.classList.remove('hidden');
+                    
+                    if (slide.text && slide.text.trim() !== "") {
+                        textDisplay.innerText = slide.text;
+                        textDisplay.classList.remove('hidden', 'text-huge');
+                        textDisplay.classList.add('text-medium');
+                    } else {
+                        textDisplay.classList.add('hidden');
+                    }
+                } else {
+                    imgDisplay.classList.add('hidden');
+                    imgDisplay.src = "";
+                    textDisplay.innerText = slide.text;
+                    textDisplay.classList.remove('hidden', 'text-medium');
+                    textDisplay.classList.add('text-huge');
+                }
+
                 const colorIndex = this.currentIndex % this.colors.length;
                 overlay.style.backgroundColor = this.colors[colorIndex];
 
-                // Update counters
                 numDisplay.innerText = this.currentIndex + 1;
-                totalDisplay.innerText = this.words.length;
+                totalDisplay.innerText = this.presentationSlides.length;
+                
+                const percent = ((this.currentIndex + 1) / this.presentationSlides.length) * 100;
+                progressBar.style.width = `${percent}%`;
             },
 
             clear() {
-                if(confirm("Clear text?")) {
-                    document.getElementById('word-input').value = "";
-                    localStorage.removeItem('e1_rapid_text');
-                    document.getElementById('word-input').focus();
+                if (window.confirm("Delete all slides?")) {
+                    this.slides = [];
+                    this.addSlide();
+                    this.save();
                 }
             }
         };
