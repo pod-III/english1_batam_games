@@ -1,255 +1,942 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Memory Match | English 1 Batam</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Memory Match | English 1 Batam</title>
+    
+    <!-- External Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-
-  <link
-    href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;700;800&display=swap"
-    rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
-
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            pink: '#FF6B95',
-            orange: '#FF8C42',
-            green: '#00E676',
-            blue: '#2979FF',
-            dark: '#1e293b',
-          },
-          fontFamily: {
-            heading: ['Fredoka', 'sans-serif'],
-            body: ['Nunito', 'sans-serif'],
-          }
+    <!-- Configuration & Styles -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        pink: '#FF6B95',
+                        orange: '#FF8C42',
+                        green: '#00E676',
+                        blue: '#2979FF',
+                        dark: '#1e293b',
+                        surface: '#F8FAFC',
+                    },
+                    fontFamily: {
+                        heading: ['Fredoka', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    boxShadow: {
+                        'hard': '4px 4px 0px 0px #1e293b',
+                        'hard-lg': '8px 8px 0px 0px #1e293b',
+                        'hard-sm': '2px 2px 0px 0px #1e293b',
+                    },
+                    animation: {
+                        'pop': 'pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                        'bounce-slight': 'bounceSlight 2s infinite',
+                    },
+                    keyframes: {
+                        pop: {
+                            '0%': { transform: 'scale(0.9)', opacity: '0' },
+                            '100%': { transform: 'scale(1)', opacity: '1' }
+                        },
+                        bounceSlight: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-5px)' }
+                        }
+                    }
+                }
+            }
         }
-      }
-    }
-  </script>
+    </script>
+
+    <style>
+        /* --- Base & Scrollbar --- */
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #F8FAFC;
+            background-image: radial-gradient(#CBD5E1 2px, transparent 2px);
+            background-size: 24px 24px;
+            color: #1e293b;
+        }
+
+        ::-webkit-scrollbar { width: 10px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 5px; border: 2px solid #F8FAFC; }
+
+        /* --- Neo-Brutalist Components --- */
+        .btn-brutal {
+            border: 3px solid #1e293b;
+            box-shadow: 4px 4px 0px 0px #1e293b;
+            transition: all 0.1s ease;
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 600;
+        }
+        .btn-brutal:hover:not(:disabled) {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0px 0px #1e293b;
+        }
+        .btn-brutal:active:not(:disabled) {
+            transform: translate(2px, 2px);
+            box-shadow: 0px 0px 0px 0px #1e293b;
+        }
+        .btn-brutal:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            border-style: dashed;
+            box-shadow: none;
+        }
+
+        .input-brutal {
+            border: 3px solid #1e293b;
+            box-shadow: 3px 3px 0px 0px #cbd5e1;
+            transition: all 0.2s;
+        }
+        .input-brutal:focus {
+            outline: none;
+            border-color: #2979FF;
+            box-shadow: 3px 3px 0px 0px #2979FF;
+        }
+
+        .card-panel {
+            background: white;
+            border: 3px solid #1e293b;
+            box-shadow: 8px 8px 0px 0px #1e293b;
+            border-radius: 1rem;
+        }
+
+        /* --- Game Card 3D Flip --- */
+        .game-card {
+            perspective: 1000px;
+            cursor: pointer;
+            aspect-ratio: 3/4;
+            position: relative;
+        }
+
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);
+            transform-style: preserve-3d;
+            border-radius: 0.75rem;
+            border: 3px solid #1e293b;
+            box-shadow: 4px 4px 0px 0px #1e293b;
+        }
+
+        .game-card.flipped .card-inner,
+        .game-card.matched .card-inner {
+            transform: rotateY(180deg);
+            box-shadow: 2px 2px 0px 0px #1e293b; /* Lower shadow when flipped */
+        }
+        
+        .game-card.matched .card-inner {
+            border-color: #00E676;
+        }
+
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .card-front {
+            background-color: #2979FF;
+            /* Striped pattern for card back */
+            background-image: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 10px,
+                rgba(255,255,255,0.1) 10px,
+                rgba(255,255,255,0.1) 20px
+            );
+        }
+
+        .card-back {
+            background-color: #ffffff;
+            color: #1e293b;
+            transform: rotateY(180deg);
+            padding: 0.5rem;
+        }
+
+        /* Drag Zone */
+        .drag-zone {
+            border: 3px dashed #cbd5e1;
+            transition: all 0.2s;
+        }
+        .drag-zone.drag-over {
+            border-color: #2979FF;
+            background-color: #EFF6FF;
+        }
+
+        /* --- Custom Tab Styles --- */
+        .tab-btn {
+            padding: 0.5rem 1rem;
+            font-weight: 700;
+            color: #64748b;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+        .tab-btn.active {
+            color: #2979FF;
+            border-bottom-color: #2979FF;
+        }
+
+        /* --- Custom Checkbox Toggle --- */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #2979FF;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #2979FF;
+        }
+        .toggle-checkbox:checked + .toggle-label:before {
+            transform: translateX(100%);
+        }
+        
+        /* Utils */
+        .text-fluid {
+            container-type: inline-size;
+        }
+        
+    </style>
 </head>
+<body class="min-h-screen p-4 sm:p-6 flex flex-col items-center">
 
-<body class="p-4 md:p-8 transition-colors duration-300">
-
-  <div class="max-w-5xl mx-auto space-y-6">
-
-    <header class="panel p-4 md:p-6 flex flex-col md:flex-row justify-between items-center gap-4">
-      <div class="flex items-center gap-4">
-        <div
-          class="w-14 h-14 bg-orange rounded-xl border-3 border-dark dark:border-slate-400 flex items-center justify-center text-white shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transform -rotate-3">
-          <i data-lucide="layers" class="w-7 h-7"></i>
+    <!-- Navbar / Header -->
+    <header class="w-full max-w-6xl flex justify-between items-center mb-8">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-orange border-2 border-dark rounded-lg shadow-hard-sm flex items-center justify-center animate-bounce-slight">
+                <i data-lucide="brain-circuit" class="text-white w-6 h-6"></i>
+            </div>
+            <div>
+                <h1 class="font-heading text-2xl text-dark leading-none">MEMORY MATCH</h1>
+                <p class="text-xs font-bold text-slate-500 tracking-wider">ENGLISH 1 BATAM</p>
+            </div>
         </div>
-        <div>
-          <h1 class="text-3xl font-heading font-bold uppercase tracking-tight text-dark dark:text-white">
-            Memory<span class="text-blue">Match</span>
-          </h1>
-          <div class="flex gap-2 text-xs font-bold uppercase tracking-widest text-slate-400">
-            <span>Vocab Builder</span>
-          </div>
-        </div>
-      </div>
-
-      <div class="flex items-center gap-3">
-        <button id="sound-toggle"
-          class="btn-brutal w-12 h-12 bg-white dark:bg-slate-700 rounded-xl flex items-center justify-center">
-          <i data-lucide="volume-2" class="w-5 h-5 text-green"></i>
+        <button id="teacher-mode-btn" class="btn-brutal px-4 py-2 bg-white text-xs sm:text-sm flex items-center gap-2 rounded-lg">
+            <i data-lucide="settings-2" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">Teacher Console</span>
         </button>
-        <button id="settings-btn"
-          class="btn-brutal px-6 h-12 bg-blue text-white font-heading font-bold rounded-xl flex items-center gap-2">
-          <i data-lucide="settings" class="w-5 h-5"></i>
-          <span>SETUP</span>
-        </button>
-      </div>
     </header>
 
-    <div id="game-stats" class="hidden grid grid-cols-3 gap-3 md:gap-6">
-      <div class="panel p-2 md:p-3 flex flex-col items-center">
-        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Time</span>
-        <span id="timer-display" class="font-heading text-xl md:text-2xl font-bold text-blue">00:00</span>
-      </div>
-      <div class="panel p-2 md:p-3 flex flex-col items-center">
-        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Moves</span>
-        <span id="moves-display" class="font-heading text-xl md:text-2xl font-bold text-orange">0</span>
-      </div>
-      <div class="panel p-2 md:p-3 flex flex-col items-center">
-        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pairs</span>
-        <span id="pairs-display" class="font-heading text-xl md:text-2xl font-bold text-green">0/0</span>
-      </div>
-    </div>
+    <!-- MAIN CONTAINER -->
+    <main class="w-full max-w-6xl relative">
 
-    <div id="empty-grid-msg"
-      class="panel p-12 text-center flex flex-col items-center justify-center gap-4 min-h-[400px]">
-      <div
-        class="w-24 h-24 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center border-4 border-slate-200 dark:border-slate-600 animate-bounce">
-        <i data-lucide="gamepad-2" class="w-10 h-10 text-slate-400"></i>
-      </div>
-      <h2 class="text-3xl font-heading font-bold text-dark dark:text-white">Ready to Play?</h2>
-      <p class="text-slate-500 font-bold max-w-xs">Load a preset or create your own custom cards in the setup
-        menu.</p>
-      <button onclick="document.getElementById('settings-btn').click()"
-        class="mt-4 text-blue font-bold hover:underline text-lg">Open Settings</button>
-    </div>
-
-    <div id="game-grid" class="grid gap-3 md:gap-4 perspective-1000 pb-10">
-    </div>
-
-  </div>
-
-  <div id="setup-modal"
-    class="fixed inset-0 z-50 hidden bg-dark/80 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="panel w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden relative animate-[pop-in_0.3s_ease-out]">
-
-      <div
-        class="bg-slate-50 dark:bg-slate-800 p-6 border-b-3 border-dark dark:border-slate-600 flex justify-between items-center shrink-0">
-        <h2 class="text-2xl font-heading font-bold flex items-center gap-3 text-dark dark:text-white">
-          <i data-lucide="pencil-ruler" class="text-pink"></i> Game Setup
-        </h2>
-        <button id="close-setup" class="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition">
-          <i data-lucide="x" class="w-6 h-6 text-dark dark:text-white"></i>
-        </button>
-      </div>
-
-      <div class="flex-1 overflow-hidden flex flex-col md:flex-row">
-        <div
-          class="w-full md:w-1/2 p-6 overflow-y-auto border-b-3 md:border-b-0 md:border-r-3 border-dark dark:border-slate-600 bg-white dark:bg-slate-900">
-          <div
-            class="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border-2 border-slate-300 dark:border-slate-600 mb-6">
-            <button onclick="switchSetupTab('simple')" id="tab-simple"
-              class="flex-1 py-2 rounded-lg text-xs font-bold transition-all text-slate-500">Simple</button>
-            <button onclick="switchSetupTab('word-def')" id="tab-word-def"
-              class="flex-1 py-2 rounded-lg text-xs font-bold transition-all text-slate-500">Definitions</button>
-            <button onclick="switchSetupTab('word-image')" id="tab-word-image"
-              class="flex-1 py-2 rounded-lg text-xs font-bold transition-all text-slate-500">Img/Txt</button>
-            <button onclick="switchSetupTab('image-image')" id="tab-image-image"
-              class="flex-1 py-2 rounded-lg text-xs font-bold transition-all text-slate-500">Img/Img</button>
-          </div>
-
-          <div id="simple-panel" class="setup-panel space-y-4">
-            <label class="block text-xs font-bold text-slate-500 uppercase">Words (Comma Separated)</label>
-            <textarea id="simple-word-input"
-              class="w-full h-32 p-4 bg-slate-50 dark:bg-slate-800 border-3 border-slate-300 dark:border-slate-600 rounded-xl focus:border-blue outline-none font-bold text-dark dark:text-white resize-none"></textarea>
-            <div class="space-y-2">
-              <p class="text-xs font-bold text-slate-400 uppercase">Presets:</p>
-              <div id="simple-presets" class="flex flex-wrap gap-2"></div>
+        <!-- 1. TEACHER CONSOLE (SETUP) -->
+        <div id="teacher-console" class="card-panel p-6 sm:p-8 animate-pop">
+            <div class="flex justify-between items-start mb-6 border-b-2 border-slate-200 pb-4">
+                <div>
+                    <h2 class="font-heading text-2xl text-dark">Game Setup</h2>
+                    <p class="text-slate-500 text-sm">Choose a mode to add pairs.</p>
+                </div>
+                <div class="flex gap-2">
+                     <button onclick="app.loadPreset('animals')" class="text-xs font-bold text-blue hover:underline">Load Preset</button>
+                </div>
             </div>
-          </div>
 
-          <div id="word-def-panel" class="setup-panel hidden space-y-4">
-            <div class="space-y-3">
-              <input type="text" id="def-input-match-key"
-                class="enter-trigger w-full p-3 bg-slate-50 dark:bg-slate-800 border-3 border-slate-300 dark:border-slate-600 rounded-xl focus:border-blue outline-none font-bold dark:text-white"
-                placeholder="Word (e.g. Volcano)">
-              <input type="text" id="def-input-content"
-                class="enter-trigger w-full p-3 bg-slate-50 dark:bg-slate-800 border-3 border-slate-300 dark:border-slate-600 rounded-xl focus:border-blue outline-none font-bold dark:text-white"
-                placeholder="Definition (e.g. Mountain with lava)">
-              <button id="add-def-pair-btn"
-                class="btn-brutal w-full py-3 bg-slate-800 dark:bg-slate-700 text-white rounded-xl font-bold">Add
-                Pair</button>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Left: Input Methods (Tabs) -->
+                <div class="space-y-4">
+                    
+                    <!-- Tabs Header -->
+                    <div class="flex border-b-2 border-slate-200 gap-2 overflow-x-auto">
+                        <button class="tab-btn active" onclick="app.switchTab('text')">Text Pairs</button>
+                        <button class="tab-btn" onclick="app.switchTab('mixed')">Text ↔ Img</button>
+                        <button class="tab-btn" onclick="app.switchTab('image')">Img ↔ Img</button>
+                    </div>
+
+                    <!-- TAB 1: TEXT PAIRS (Default) -->
+                    <div id="tab-text" class="tab-content block">
+                        <div class="bg-surface border-2 border-slate-200 rounded-xl p-5">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center gap-2">
+                                    <div class="bg-pink text-white p-1.5 rounded-md border-2 border-dark shadow-hard-sm">
+                                        <i data-lucide="type" class="w-4 h-4"></i>
+                                    </div>
+                                    <h3 class="font-bold text-dark">Word Pairs</h3>
+                                </div>
+                            </div>
+
+                            <!-- TOGGLE SWITCH for Input Mode -->
+                            <div class="mb-4 bg-white p-2 rounded-lg border-2 border-slate-200 shadow-sm">
+                                <label class="flex items-center cursor-pointer gap-3">
+                                    <div class="relative">
+                                        <input type="checkbox" id="single-word-mode" class="sr-only peer" onchange="app.toggleInputMode()">
+                                        <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full border-2 border-slate-400 peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue peer-checked:border-blue"></div>
+                                    </div>
+                                    <span class="text-xs font-bold text-dark select-none">Same Word Mode (Word ↔ Word)</span>
+                                </label>
+                            </div>
+                            
+                            <p id="text-input-helper" class="text-xs text-slate-500 mb-2">Format: <code>Word, Translation</code> or <code>Term, Definition</code></p>
+                            <textarea id="simple-input" rows="4" class="input-brutal w-full rounded-lg p-3 font-mono text-sm mb-2" placeholder="Dog, Anjing&#10;Happy, Feeling or showing pleasure"></textarea>
+                            <button onclick="app.addTextPairs()" class="btn-brutal bg-white text-dark w-full py-2 rounded-lg text-sm hover:bg-slate-50">
+                                Add Pairs
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- TAB 2: MIXED (Text - Image) -->
+                    <div id="tab-mixed" class="tab-content hidden">
+                        <div class="bg-surface border-2 border-slate-200 rounded-xl p-5">
+                            <div class="flex items-center gap-2 mb-3">
+                                <div class="bg-blue text-white p-1.5 rounded-md border-2 border-dark shadow-hard-sm">
+                                    <i data-lucide="image-plus" class="w-4 h-4"></i>
+                                </div>
+                                <h3 class="font-bold text-dark">Text to Image</h3>
+                            </div>
+                            
+                            <div class="flex flex-col gap-3">
+                                <div>
+                                    <label class="text-xs font-bold text-slate-500">The Text</label>
+                                    <input type="text" id="mixed-text-input" class="input-brutal w-full rounded-lg p-2 font-mono text-sm" placeholder="e.g., Apple">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-bold text-slate-500">The Image</label>
+                                    <input type="file" id="mixed-img-input" accept="image/*" class="input-brutal w-full rounded-lg p-2 text-sm bg-white file:mr-4 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-blue file:text-white hover:file:bg-blue/90">
+                                </div>
+                                <button onclick="app.addMixedPair()" class="btn-brutal bg-white text-dark w-full py-2 rounded-lg text-sm hover:bg-slate-50 mt-2">
+                                    Add Mixed Pair
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 3: IMAGE PAIRS -->
+                    <div id="tab-image" class="tab-content hidden">
+                        <div class="bg-surface border-2 border-slate-200 rounded-xl p-5">
+                            <div class="flex items-center gap-2 mb-3">
+                                <div class="bg-green text-white p-1.5 rounded-md border-2 border-dark shadow-hard-sm">
+                                    <i data-lucide="copy" class="w-4 h-4"></i>
+                                </div>
+                                <h3 class="font-bold text-dark">Image Matching</h3>
+                            </div>
+                            <div id="drop-zone" class="drag-zone w-full h-32 rounded-lg flex flex-col items-center justify-center cursor-pointer relative bg-white">
+                                <input type="file" id="img-input" multiple accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer">
+                                <i data-lucide="upload-cloud" class="w-8 h-8 text-slate-400 mb-2"></i>
+                                <span class="text-xs font-bold text-slate-500">Drop images here</span>
+                                <span class="text-[10px] text-slate-400 mt-1">(Auto-pairs identical images)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Active Pairs List -->
+                <div class="flex flex-col h-full">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="font-bold text-dark flex items-center gap-2">
+                            Active Pairs 
+                            <span id="pair-count" class="bg-dark text-white text-[10px] px-2 py-0.5 rounded-full">0</span>
+                        </h3>
+                        <button onclick="app.clearPairs()" class="text-xs text-red-500 font-bold hover:underline">Clear All</button>
+                    </div>
+                    
+                    <div class="flex-1 bg-surface border-2 border-dark rounded-xl p-4 overflow-y-auto max-h-[400px] shadow-inner" id="pairs-list">
+                        <!-- Pair Items will be injected here -->
+                    </div>
+
+                    <!-- Play Button -->
+                    <button id="start-game-btn" class="btn-brutal w-full bg-blue text-white py-4 rounded-xl mt-6 text-xl tracking-wide flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-400">
+                        START GAME <i data-lucide="play-circle" class="w-6 h-6"></i>
+                    </button>
+                </div>
             </div>
-            <div class="pt-4 border-t-2 border-slate-100 dark:border-slate-700">
-              <div id="word-def-presets" class="flex flex-wrap gap-2"></div>
-            </div>
-          </div>
+        </div>
 
-          <div id="word-image-panel" class="setup-panel hidden space-y-4">
-            <div class="space-y-3">
-              <input type="text" id="word-image-input-match-key"
-                class="enter-trigger w-full p-3 bg-slate-50 dark:bg-slate-800 border-3 border-dark dark:border-slate-600 rounded-xl focus:border-blue outline-none font-bold dark:text-white"
-                placeholder="Word (e.g. Cat)">
-
-              <div class="flex gap-2">
-                <input type="text" id="word-image-input-filename"
-                  class="enter-trigger flex-1 p-3 bg-slate-50 dark:bg-slate-800 border-3 border-dark dark:border-slate-600 rounded-xl focus:border-blue outline-none font-bold dark:text-white text-sm"
-                  placeholder="Image URL or Upload ->">
-
-                <button onclick="document.getElementById('word-img-single-picker').click()"
-                  class="btn-brutal w-14 bg-pink text-white rounded-xl flex items-center justify-center shrink-0"
-                  title="Upload Image">
-                  <i data-lucide="upload" class="w-6 h-6"></i>
+        <!-- 2. GAME BOARD (PLAY) -->
+        <div id="game-screen" class="hidden">
+            <!-- Stats Bar -->
+            <div class="flex justify-between items-center mb-6 bg-white border-3 border-dark p-4 rounded-xl shadow-hard-sm">
+                <div class="flex gap-6">
+                    <div>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Time</span>
+                        <div id="timer" class="font-mono text-2xl font-bold text-dark leading-none">00:00</div>
+                    </div>
+                    <div>
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Moves</span>
+                        <div id="moves" class="font-mono text-2xl font-bold text-dark leading-none">0</div>
+                    </div>
+                </div>
+                <button id="restart-btn" class="btn-brutal bg-orange text-white p-2 rounded-lg" title="Restart">
+                    <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
                 </button>
-
-                <input type="file" id="word-img-single-picker" accept="image/*" class="hidden">
-              </div>
-
-              <button id="add-word-image-pair-btn"
-                class="btn-brutal w-full py-3 bg-slate-800 dark:bg-slate-700 text-white rounded-xl font-bold">Add
-                Pair</button>
             </div>
-          </div>
 
-          <div id="image-image-panel" class="setup-panel hidden space-y-4">
-            <div id="image-upload-zone"
-              class="drag-zone h-40 rounded-xl flex flex-col items-center justify-center text-center p-4 cursor-pointer"
-              onclick="document.getElementById('image-file-input').click()">
-              <i data-lucide="upload-cloud" class="w-10 h-10 text-blue mb-2"></i>
-              <span class="text-sm font-bold text-dark dark:text-white">Click or Drop Images Here</span>
-              <input type="file" id="image-file-input" multiple accept="image/*" class="hidden">
+            <!-- Grid -->
+            <div id="game-grid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-4 lg:grid-cols-6 gap-3 sm:gap-4 mx-auto perspective-1000">
+                <!-- Cards injected here -->
             </div>
-          </div>
         </div>
 
-        <div class="w-full md:w-1/2 bg-slate-50 dark:bg-slate-950 p-6 overflow-y-auto flex flex-col">
-          <div class="flex justify-between items-center mb-4">
-            <h3 class="font-bold text-slate-500 uppercase text-xs tracking-wider">Staged Pairs</h3>
-            <button id="clear-all-pairs-btn" class="text-xs font-bold text-pink hover:underline uppercase">Clear
-              All</button>
-          </div>
-          <div id="pair-list" class="space-y-2 flex-1"></div>
-        </div>
-      </div>
+        <!-- 3. WIN MODAL overlay -->
+        <div id="win-modal" class="fixed inset-0 bg-dark/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-white border-4 border-dark rounded-2xl p-8 max-w-sm w-full text-center shadow-hard animate-pop relative overflow-hidden">
+                <!-- Decorative Top Bar -->
+                <div class="absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-pink via-orange to-green"></div>
+                
+                <div class="w-20 h-20 bg-yellow-300 border-3 border-dark rounded-full flex items-center justify-center mx-auto mb-6 shadow-hard-sm">
+                    <i data-lucide="trophy" class="w-10 h-10 text-dark"></i>
+                </div>
+                
+                <h2 class="font-heading text-3xl text-dark mb-2">YOU WON!</h2>
+                <p class="text-slate-500 font-bold mb-6 text-sm">Amazing memory skills!</p>
+                
+                <div class="grid grid-cols-2 gap-3 mb-6">
+                    <div class="bg-slate-100 p-3 rounded-lg border-2 border-slate-200">
+                        <div class="text-[10px] uppercase font-bold text-slate-400">Time</div>
+                        <div id="final-time" class="font-mono text-xl font-bold text-blue">00:00</div>
+                    </div>
+                    <div class="bg-slate-100 p-3 rounded-lg border-2 border-slate-200">
+                        <div class="text-[10px] uppercase font-bold text-slate-400">Moves</div>
+                        <div id="final-moves" class="font-mono text-xl font-bold text-orange">0</div>
+                    </div>
+                </div>
 
-      <div
-        class="p-6 bg-white dark:bg-slate-900 border-t-3 border-dark dark:border-slate-600 shrink-0 flex justify-end">
-        <button id="start-game-btn"
-          class="btn-brutal px-8 py-3 bg-green text-dark text-xl font-heading font-bold rounded-xl flex items-center gap-2">
-          <i data-lucide="play"></i> START GAME
-        </button>
-      </div>
+                <div class="flex flex-col gap-3">
+                    <button onclick="app.restartGame()" class="btn-brutal bg-green text-dark py-3 rounded-xl w-full">Play Again</button>
+                    <button onclick="app.showConsole()" class="font-bold text-slate-400 text-sm hover:text-dark underline">Back to Setup</button>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-6 right-6 transition-all duration-300 transform translate-y-24 opacity-0 z-50">
+        <div class="bg-dark text-white px-5 py-3 rounded-lg shadow-hard border-2 border-white flex items-center gap-3">
+            <i data-lucide="info" class="w-5 h-5 text-blue"></i>
+            <span id="toast-msg" class="font-bold text-sm">Notification</span>
+        </div>
     </div>
-  </div>
 
-  <div id="win-modal"
-    class="fixed inset-0 z-50 hidden bg-dark/90 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="panel max-w-md w-full text-center p-8 relative overflow-hidden animate-bounce-slight">
-      <div class="absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-pink via-orange to-blue"></div>
+    <!-- Logic -->
+    <script>
+        // --- 1. AUDIO ENGINE ---
+        const AudioEngine = {
+            ctx: null,
+            init: function() {
+                if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            },
+            playTone: function(freq, type, duration, vol=0.1) {
+                if (!this.ctx) this.init();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            },
+            playFlip: function() { this.playTone(400, 'sine', 0.1, 0.05); },
+            playMatch: function() { 
+                this.playTone(600, 'triangle', 0.1, 0.1); 
+                setTimeout(() => this.playTone(800, 'triangle', 0.2, 0.1), 100); 
+            },
+            playWin: function() {
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((n, i) => setTimeout(() => this.playTone(n, 'square', 0.3, 0.1), i * 150));
+            },
+        };
 
-      <div
-        class="w-24 h-24 bg-yellow-300 rounded-full border-3 border-dark mx-auto mb-6 flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
-        <i data-lucide="trophy" class="w-12 h-12 text-dark"></i>
-      </div>
+        // --- 2. DATABASE ---
+        const DB_NAME = 'English1MemoryDB_V2';
+        const STORE_NAME = 'Configs';
+        
+        const dbPromise = new Promise((resolve, reject) => {
+            const req = indexedDB.open(DB_NAME, 1);
+            req.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME);
+            };
+            req.onsuccess = (e) => resolve(e.target.result);
+            req.onerror = () => resolve(null);
+        });
 
-      <h2 class="text-4xl font-heading font-bold text-dark dark:text-white mb-2">YOU WON!</h2>
+        async function dbSave(key, val) {
+            try {
+                const db = await dbPromise;
+                if(db) {
+                    const tx = db.transaction(STORE_NAME, 'readwrite');
+                    tx.objectStore(STORE_NAME).put(val, key);
+                } else {
+                    localStorage.setItem(key, JSON.stringify(val));
+                }
+            } catch(e) { console.error("Save Failed:", e); }
+        }
 
-      <div class="grid grid-cols-2 gap-4 my-8">
-        <div class="bg-slate-100 dark:bg-slate-700 p-4 rounded-xl border-2 border-slate-200 dark:border-slate-600">
-          <div class="text-[10px] font-bold text-slate-400 uppercase">Time</div>
-          <div id="final-time" class="text-2xl font-heading font-bold text-blue">00:00</div>
-        </div>
-        <div class="bg-slate-100 dark:bg-slate-700 p-4 rounded-xl border-2 border-slate-200 dark:border-slate-600">
-          <div class="text-[10px] font-bold text-slate-400 uppercase">Moves</div>
-          <div id="final-moves" class="text-2xl font-heading font-bold text-orange">0</div>
-        </div>
-      </div>
+        async function dbGet(key) {
+            try {
+                const db = await dbPromise;
+                if (db) {
+                    return new Promise(resolve => {
+                        const req = db.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).get(key);
+                        req.onsuccess = () => resolve(req.result);
+                        req.onerror = () => resolve(null);
+                    });
+                } else {
+                    const data = localStorage.getItem(key);
+                    return data ? JSON.parse(data) : null;
+                }
+            } catch(e) { return null; }
+        }
 
-      <button id="restart-btn"
-        class="btn-brutal w-full py-4 bg-blue text-white font-heading font-bold text-xl rounded-xl">
-        PLAY AGAIN
-      </button>
-    </div>
-  </div>
+        // --- 3. APP LOGIC ---
+        const app = {
+            pairs: [],
+            gameState: {
+                active: false,
+                flipped: [],
+                matched: [],
+                moves: 0,
+                startTime: null,
+                timerInterval: null
+            },
+            
+            init: async function() {
+                lucide.createIcons();
+                
+                // Load saved pairs
+                const saved = await dbGet('pairs_v2');
+                if (saved) {
+                    this.pairs = saved;
+                    this.renderPairList();
+                }
+                
+                this.setupEventListeners();
+                this.toggleInputMode(); // Initialize helper text
+            },
 
-  <div id="toast-container" class="fixed bottom-6 right-6 z-[60] flex flex-col gap-2 pointer-events-none"></div>
+            setupEventListeners: function() {
+                // Drag & Drop
+                const dropZone = document.getElementById('drop-zone');
+                const fileInput = document.getElementById('img-input');
 
-  <script src="script.js"></script>
+                dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+                dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+                dropZone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    dropZone.classList.remove('drag-over');
+                    this.handleImagePairs(e.dataTransfer.files);
+                });
+                fileInput.addEventListener('change', (e) => this.handleImagePairs(e.target.files));
+
+                // Buttons
+                document.getElementById('start-game-btn').onclick = () => this.startGame();
+                document.getElementById('teacher-mode-btn').onclick = () => this.showConsole();
+                document.getElementById('restart-btn').onclick = () => this.restartGame();
+            },
+
+            switchTab: function(tabName) {
+                // UI Toggles
+                document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.add('hidden'));
+                
+                // Activate
+                // Find the specific button that triggered this change
+                const targetButton = document.querySelector(`.tab-btn[onclick*="app.switchTab('${tabName}')"]`);
+                if (targetButton) {
+                    targetButton.classList.add('active');
+                }
+                document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+            },
+
+            // --- DATA MANAGEMENT ---
+
+            toggleInputMode: function() {
+                const isSingle = document.getElementById('single-word-mode').checked;
+                const input = document.getElementById('simple-input');
+                const helper = document.getElementById('text-input-helper');
+                
+                if (isSingle) {
+                    helper.innerHTML = 'Format: One word per line (Auto-pairs with itself)';
+                    input.placeholder = 'Dog\nCat\nElephant';
+                } else {
+                    helper.innerHTML = 'Format: <code>Word, Translation</code> or <code>Term, Definition</code>';
+                    input.placeholder = 'Dog, Anjing\nHappy, Feeling or showing pleasure';
+                }
+            },
+
+            // Mode 1: Text-Text (or Text-Definition)
+            addTextPairs: function() {
+                const input = document.getElementById('simple-input');
+                const isSingleMode = document.getElementById('single-word-mode').checked;
+                const lines = input.value.split('\n').filter(l => l.trim());
+                
+                if (lines.length === 0) return;
+                
+                let addedCount = 0;
+                lines.forEach(line => {
+                    if (this.pairs.length >= 12) return;
+                    
+                    let val1, val2;
+                    
+                    if (isSingleMode) {
+                        // Same Word Mode: Treat the whole line as one word
+                        val1 = line.trim();
+                        val2 = val1;
+                    } else {
+                        // Standard Pair Mode: Split by comma
+                        const parts = line.split(',');
+                        val1 = parts[0].trim();
+                        // If no comma, default to self (failsafe), but user intends definition
+                        val2 = parts[1] ? parts[1].trim() : val1; 
+                    }
+                    
+                    this.pairs.push({
+                        id: Date.now() + Math.random(),
+                        type: 'text-text',
+                        item1: { type: 'text', content: val1 },
+                        item2: { type: 'text', content: val2 }
+                    });
+                    addedCount++;
+                });
+
+                if (addedCount > 0) {
+                    input.value = '';
+                    this.saveAndRender();
+                    this.toast(`Added ${addedCount} text pairs!`);
+                } else {
+                    this.toast("Limit reached or empty.");
+                }
+            },
+
+            // Mode 2: Text-Image
+            addMixedPair: function() {
+                if (this.pairs.length >= 12) return this.toast("Max 12 pairs allowed!");
+
+                const txtInput = document.getElementById('mixed-text-input');
+                const imgInput = document.getElementById('mixed-img-input');
+                const textVal = txtInput.value.trim();
+                const file = imgInput.files[0];
+
+                if (!textVal || !file) return this.toast("Please provide both text and image.");
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    this.pairs.push({
+                        id: Date.now() + Math.random(),
+                        type: 'text-image',
+                        item1: { type: 'text', content: textVal },
+                        item2: { type: 'image', content: e.target.result }
+                    });
+                    
+                    // Reset
+                    txtInput.value = '';
+                    imgInput.value = '';
+                    this.saveAndRender();
+                    this.toast("Mixed pair added!");
+                };
+                reader.readAsDataURL(file);
+            },
+
+            // Mode 3: Image-Image (Self Match)
+            handleImagePairs: function(files) {
+                if (this.pairs.length >= 12) return this.toast("Max 12 pairs allowed!");
+                
+                Array.from(files).forEach(file => {
+                    if (!file.type.startsWith('image/')) return;
+                    if (this.pairs.length >= 12) return;
+
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        this.pairs.push({
+                            id: Date.now() + Math.random(),
+                            type: 'image-image',
+                            item1: { type: 'image', content: e.target.result },
+                            item2: { type: 'image', content: e.target.result } // Matches self
+                        });
+                        this.saveAndRender();
+                    };
+                    reader.readAsDataURL(file);
+                });
+            },
+
+            clearPairs: function() {
+                // FIX: Removed the unreliable confirm() call and executed the clear action directly.
+                this.pairs = [];
+                this.saveAndRender();
+                this.toast("All pairs have been cleared!");
+            },
+
+            loadPreset: function(type) {
+                if (type === 'animals') {
+                    const list = "Cat, Kucing\nDog, Anjing\nBird, Burung\nFish, Ikan";
+                    document.getElementById('simple-input').value = list;
+                    this.switchTab('text');
+                    
+                    // Ensure standard mode for definitions
+                    document.getElementById('single-word-mode').checked = false;
+                    this.toggleInputMode();
+                    
+                    this.addTextPairs();
+                }
+            },
+
+            saveAndRender: function() {
+                dbSave('pairs_v2', this.pairs);
+                this.renderPairList();
+                document.getElementById('start-game-btn').disabled = this.pairs.length < 2;
+            },
+
+            renderPairList: function() {
+                const container = document.getElementById('pairs-list');
+                const countBadge = document.getElementById('pair-count');
+                container.innerHTML = '';
+                countBadge.innerText = this.pairs.length;
+
+                if (this.pairs.length === 0) {
+                    container.innerHTML = `<div class="text-center text-slate-400 py-10 italic text-sm">No pairs added yet.<br>Add some to start playing!</div>`;
+                    return;
+                }
+
+                this.pairs.forEach((pair, idx) => {
+                    const div = document.createElement('div');
+                    div.className = 'flex items-center justify-between bg-white p-3 rounded-lg border-2 border-slate-100 mb-2 shadow-sm';
+                    
+                    let previewHTML = '';
+                    
+                    // Helper to render tiny preview
+                    const renderItem = (item) => {
+                        if (item.type === 'text') return `<span class="bg-slate-100 px-2 py-0.5 rounded text-xs font-mono font-bold text-dark truncate max-w-[80px]">${item.content}</span>`;
+                        return `<img src="${item.content}" class="w-8 h-8 rounded object-cover border border-dark">`;
+                    };
+
+                    const icon = pair.type === 'text-text' ? 'type' : pair.type === 'image-image' ? 'copy' : 'image-plus';
+                    const color = pair.type === 'text-text' ? 'text-pink' : pair.type === 'image-image' ? 'text-green' : 'text-blue';
+
+                    previewHTML = `
+                        <div class="flex items-center gap-3">
+                            <i data-lucide="${icon}" class="w-4 h-4 ${color}"></i>
+                            <div class="flex items-center gap-2">
+                                ${renderItem(pair.item1)}
+                                <span class="text-slate-300">↔</span>
+                                ${renderItem(pair.item2)}
+                            </div>
+                        </div>
+                    `;
+
+                    div.innerHTML = `
+                        ${previewHTML}
+                        <button onclick="app.removePair(${idx})" class="text-red-400 hover:text-red-600"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    `;
+                    container.appendChild(div);
+                });
+                lucide.createIcons();
+            },
+
+            removePair: function(idx) {
+                this.pairs.splice(idx, 1);
+                this.saveAndRender();
+            },
+
+            // --- GAME LOGIC ---
+
+            startGame: function() {
+                if (this.pairs.length < 2) return this.toast("Need at least 2 pairs!");
+                
+                // Switch Screens
+                document.getElementById('teacher-console').classList.add('hidden');
+                document.getElementById('game-screen').classList.remove('hidden');
+                document.getElementById('teacher-mode-btn').classList.add('invisible');
+                
+                // Generate Cards
+                let cards = [];
+                this.pairs.forEach(pair => {
+                    // Card A
+                    cards.push({ 
+                        id: pair.id + '_1', 
+                        matchId: pair.id, 
+                        type: pair.item1.type, 
+                        content: pair.item1.content 
+                    });
+                    // Card B
+                    cards.push({ 
+                        id: pair.id + '_2', 
+                        matchId: pair.id, 
+                        type: pair.item2.type, 
+                        content: pair.item2.content 
+                    });
+                });
+                
+                // Shuffle
+                cards.sort(() => Math.random() - 0.5);
+
+                // Render Grid
+                const grid = document.getElementById('game-grid');
+                grid.innerHTML = '';
+                
+                // Adjust grid cols based on count
+                if (cards.length <= 12) grid.className = "grid grid-cols-3 sm:grid-cols-4 gap-3 sm:gap-4 mx-auto max-w-lg";
+                else grid.className = "grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4 mx-auto";
+
+                cards.forEach((card, index) => {
+                    const el = document.createElement('div');
+                    el.className = 'game-card';
+                    el.dataset.index = index;
+                    el.dataset.matchId = card.matchId;
+                    
+                    let innerContent = '';
+                    if (card.type === 'image') {
+                        innerContent = `<img src="${card.content}" class="w-full h-full object-cover">`;
+                    } else {
+                        // Adaptive Text Sizing
+                        const len = card.content.length;
+                        const sizeClass = len > 50 ? 'text-[10px]' : len > 15 ? 'text-xs' : len > 8 ? 'text-sm' : 'text-base';
+                        innerContent = `<div class="w-full h-full flex items-center justify-center p-2"><span class="${sizeClass} font-bold leading-tight break-words">${card.content}</span></div>`;
+                    }
+
+                    el.innerHTML = `
+                        <div class="card-inner">
+                            <div class="card-front">
+                                <i data-lucide="help-circle" class="text-white/50 w-8 h-8"></i>
+                            </div>
+                            <div class="card-back border-2 border-slate-100 bg-white overflow-hidden rounded-lg">
+                                ${innerContent}
+                            </div>
+                        </div>
+                    `;
+                    
+                    el.onclick = () => this.handleCardClick(index);
+                    grid.appendChild(el);
+                });
+
+                lucide.createIcons();
+
+                // Reset Stats
+                this.gameState = {
+                    active: true,
+                    flipped: [], 
+                    matched: [], 
+                    moves: 0,
+                    startTime: Date.now(),
+                    timerInterval: setInterval(() => this.updateTimer(), 1000)
+                };
+                this.updateUI();
+                
+                // Init Audio
+                AudioEngine.init();
+            },
+
+            handleCardClick: function(index) {
+                const { flipped, matched, active } = this.gameState;
+                const cardEl = document.querySelector(`.game-card[data-index="${index}"]`);
+
+                if (!active) return;
+                if (flipped.includes(index)) return; 
+                if (cardEl.classList.contains('matched')) return; 
+                if (flipped.length >= 2) return; 
+
+                // Flip it
+                AudioEngine.playFlip();
+                cardEl.classList.add('flipped');
+                flipped.push(index);
+
+                if (flipped.length === 2) {
+                    this.gameState.moves++;
+                    this.updateUI();
+                    this.checkMatch();
+                }
+            },
+
+            checkMatch: function() {
+                const [idx1, idx2] = this.gameState.flipped;
+                const card1 = document.querySelector(`.game-card[data-index="${idx1}"]`);
+                const card2 = document.querySelector(`.game-card[data-index="${idx2}"]`);
+                
+                const match1 = card1.dataset.matchId;
+                const match2 = card2.dataset.matchId;
+
+                if (match1 === match2) {
+                    AudioEngine.playMatch();
+                    card1.classList.add('matched');
+                    card2.classList.add('matched');
+                    this.gameState.matched.push(match1);
+                    this.gameState.flipped = [];
+
+                    if (this.gameState.matched.length === this.pairs.length) {
+                        this.handleWin();
+                    }
+                } else {
+                    setTimeout(() => {
+                        card1.classList.remove('flipped');
+                        card2.classList.remove('flipped');
+                        this.gameState.flipped = [];
+                        AudioEngine.playFlip(); 
+                    }, 1000);
+                }
+            },
+
+            handleWin: function() {
+                clearInterval(this.gameState.timerInterval);
+                AudioEngine.playWin();
+                
+                const finalTimeStr = document.getElementById('timer').innerText;
+                document.getElementById('final-time').innerText = finalTimeStr;
+                document.getElementById('final-moves').innerText = this.gameState.moves;
+                
+                confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#FF6B95', '#FF8C42', '#00E676', '#2979FF'] });
+                
+                setTimeout(() => {
+                    document.getElementById('win-modal').classList.remove('hidden');
+                }, 500);
+            },
+
+            updateTimer: function() {
+                const diff = Math.floor((Date.now() - this.gameState.startTime) / 1000);
+                const m = Math.floor(diff / 60).toString().padStart(2, '0');
+                const s = (diff % 60).toString().padStart(2, '0');
+                document.getElementById('timer').innerText = `${m}:${s}`;
+            },
+
+            updateUI: function() {
+                document.getElementById('moves').innerText = this.gameState.moves;
+            },
+
+            restartGame: function() {
+                document.getElementById('win-modal').classList.add('hidden');
+                clearInterval(this.gameState.timerInterval);
+                this.startGame();
+            },
+
+            showConsole: function() {
+                document.getElementById('win-modal').classList.add('hidden');
+                document.getElementById('game-screen').classList.add('hidden');
+                document.getElementById('teacher-console').classList.remove('hidden');
+                document.getElementById('teacher-mode-btn').classList.remove('invisible');
+                clearInterval(this.gameState.timerInterval);
+            },
+
+            toast: function(msg) {
+                const el = document.getElementById('toast');
+                const txt = document.getElementById('toast-msg');
+                txt.innerText = msg;
+                el.classList.remove('opacity-0', 'translate-y-24');
+                setTimeout(() => el.classList.add('opacity-0', 'translate-y-24'), 3000);
+            }
+        };
+
+        window.addEventListener('load', () => app.init());
+
+    </script>
 </body>
-
 </html>
