@@ -296,6 +296,34 @@ const UI = {
   //     container.appendChild(shape);
   //   }
   // }
+
+  showGameModal() {
+    const modal = document.getElementById('game-modal');
+    if (!modal) return;
+
+    modal.classList.remove('hidden');
+    modal.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+  },
+
+  hideGameModal() {
+    const modal = document.getElementById('game-modal');
+    if (!modal) return;
+
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+  },
+
+  updateActiveTabUI() {
+    this.tabs.forEach(tab => {
+      tab.iconElement?.setAttribute(
+        'aria-selected',
+        tab.id === this.activeTabId
+      );
+    });
+  }
+
 };
 
 // --- RECENT GAMES MANAGER ---
@@ -343,7 +371,6 @@ const RecentGames = {
         <button 
           data-action="openGame" 
           data-param="${game.id}"
-          onmouseenter="AudioEngine.hover()"
           class="recent-pill bg-white dark:bg-slate-800 flex items-center gap-3 px-3 py-2 rounded-xl shrink-0 min-w-[150px] group hover:bg-slate-50 dark:hover:bg-slate-700 border-2 border-dark dark:border-slate-500 shadow-hard-sm"
           aria-label="Resume ${game.title}">
           <div class="w-10 h-10 rounded-lg ${bgClass} flex items-center justify-center text-white border-2 border-dark dark:border-slate-300 shadow-sm">
@@ -473,7 +500,6 @@ const GameGrid = {
       card.addEventListener('mouseleave', () => {
         card.style.transform = 'perspective(1000px) rotateX(0) rotateY(0)';
       });
-      card.addEventListener('mouseenter', () => AudioEngine.hover());
 
       card.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -535,7 +561,633 @@ const Filters = {
   }
 };
 
-// --- GAME MODAL MANAGER ---
+// ============================================
+// SIDE PANEL TAB MANAGER
+// ============================================
+
+// ============================================
+// SIDE PANEL TAB MANAGER - FIXED VERSION 2
+// Replace the entire TabManager module
+// ============================================
+
+const TabManager = {
+  tabs: [],
+  activeTabId: null,
+  maxTabs: 8,
+  storageKey: 'openTabs',
+
+  init() {
+    this.setupKeyboardShortcuts();
+    this.loadTabsFromStorage();
+  },
+
+  // Save tabs to localStorage
+  saveTabsToStorage() {
+    const tabsData = this.tabs.map(tab => ({
+      id: tab.id,
+      gameId: tab.gameId,
+      title: tab.title,
+      icon: tab.icon,
+      color: tab.color
+    }));
+
+    Storage.set(this.storageKey, {
+      tabs: tabsData,
+      activeTabId: this.activeTabId
+    });
+  },
+
+  // Load tabs from localStorage
+  loadTabsFromStorage() {
+    const savedData = Storage.get(this.storageKey);
+
+    if (!savedData || !savedData.tabs || savedData.tabs.length === 0) {
+      return; // Don't show anything if no tabs
+    }
+
+    // Show modal
+    const modal = document.getElementById('game-modal');
+    if (modal) {
+      modal.style.display = 'block';
+      modal.classList.remove('hidden');
+      modal.setAttribute('aria-hidden', 'false');
+    }
+
+    // Recreate tabs
+    savedData.tabs.forEach((tabData) => {
+      const game = State.getGameById(tabData.gameId);
+      if (game) {
+        this.createTabSilent(game, tabData.id);
+      }
+    });
+
+    // Switch to the previously active tab
+    if (savedData.activeTabId && this.tabs.find(t => t.id === savedData.activeTabId)) {
+      this.switchToTab(savedData.activeTabId);
+    } else if (this.tabs.length > 0) {
+      this.switchToTab(this.tabs[0].id);
+    }
+  },
+
+  // Clear storage
+  clearStorage() {
+    Storage.remove(this.storageKey);
+  },
+
+  // Create a new tab for a game
+  createTab(game) {
+    // Check if game already has a tab open
+    const existingTab = this.tabs.find(tab => tab.gameId === game.id);
+    if (existingTab) {
+      this.switchToTab(existingTab.id);
+      return existingTab;
+    }
+
+    // Check max tabs
+    if (this.tabs.length >= this.maxTabs) {
+      this.showMaxTabsWarning();
+      return null;
+    }
+
+    // Generate unique tab ID
+    const tabId = `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    return this.createTabSilent(game, tabId, true);
+  },
+
+  // Create tab without switching (for loading from storage)
+  createTabSilent(game, tabId = null, switchTo = false) {
+    if (!tabId) {
+      tabId = `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    }
+
+    // Create tab object
+    const tab = {
+      id: tabId,
+      gameId: game.id,
+      title: game.title,
+      icon: game.icon,
+      color: game.color,
+      loading: true
+    };
+
+    // Create DOM elements
+    this.createTabIcon(tab);
+    this.createTabPanel(tab);
+
+    // Add to array
+    this.tabs.push(tab);
+
+    // Switch to new tab if requested
+    if (switchTo) {
+      this.switchToTab(tabId);
+    }
+
+    // Start loading game
+    this.loadGame(tab, game.path);
+
+    // Save to storage
+    this.saveTabsToStorage();
+
+    return tab;
+  },
+
+  // Create tab icon in side panel
+  createTabIcon(tab) {
+    const sidePanelTabs = document.getElementById('side-panel-tabs');
+    if (!sidePanelTabs) return;
+
+    const tabIcon = document.createElement('button');
+    tabIcon.id = `tab-icon-${tab.id}`;
+    tabIcon.className = 'side-panel-tab';
+    tabIcon.dataset.tabId = tab.id;
+    tabIcon.dataset.color = tab.color;
+    tabIcon.title = tab.title;
+    tabIcon.setAttribute('role', 'tab');
+    tabIcon.setAttribute('aria-selected', 'false');
+    tabIcon.setAttribute('aria-label', `Switch to ${tab.title}`);
+
+    // Add loading class
+    if (tab.loading) {
+      tabIcon.classList.add('loading');
+    }
+
+    tabIcon.innerHTML = `
+      <i data-lucide="${tab.icon}" class="side-panel-tab-icon" aria-hidden="true"></i>
+      <button 
+        class="side-panel-tab-close" 
+        data-tab-id="${tab.id}"
+        aria-label="Close ${tab.title}"
+        type="button">
+        <i data-lucide="x" aria-hidden="true"></i>
+      </button>
+    `;
+
+    // Tab click handler - Switch to tab
+    tabIcon.addEventListener('click', (e) => {
+      // Don't switch if clicking close button
+      if (e.target.closest('.side-panel-tab-close')) {
+        return;
+      }
+      this.switchToTab(tab.id);
+      AudioEngine.click();
+    });
+
+    // Close button click handler - Must be separate!
+    const closeBtn = tabIcon.querySelector('.side-panel-tab-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const tabIdToClose = closeBtn.dataset.tabId;
+        if (tabIdToClose) {
+          this.closeTab(tabIdToClose);
+        }
+      });
+    }
+
+    sidePanelTabs.appendChild(tabIcon);
+    lucide.createIcons();
+
+    tab.iconElement = tabIcon;
+  },
+
+  // Create tab panel (iframe container)
+  createTabPanel(tab) {
+    const tabContentArea = document.getElementById('tab-content-area');
+    if (!tabContentArea) return;
+
+    const panel = document.createElement('div');
+    panel.id = `tab-panel-${tab.id}`;
+    panel.className = 'tab-panel';
+    panel.setAttribute('role', 'tabpanel');
+    panel.setAttribute('aria-labelledby', `tab-icon-${tab.id}`);
+
+    // Loading spinner
+    panel.innerHTML = `
+      <div class="tab-loading">
+        <div class="spinner"></div>
+        <div class="loading-text">Loading ${tab.title.toUpperCase()}...</div>
+      </div>
+    `;
+
+    // Create iframe
+    const iframe = document.createElement('iframe');
+    iframe.id = `iframe-${tab.id}`;
+    iframe.title = tab.title;
+    iframe.setAttribute('aria-label', `${tab.title} game content`);
+
+    panel.appendChild(iframe);
+    tabContentArea.appendChild(panel);
+
+    tab.panel = panel;
+    tab.iframe = iframe;
+  },
+
+  // Load game in iframe
+  loadGame(tab, path) {
+    if (!tab.iframe) return;
+
+    console.log(`Loading game: ${tab.title} from path: ${path}`);
+
+    // Set iframe src
+    tab.iframe.src = path;
+
+    // Set up load handler
+    tab.iframe.onload = () => {
+      console.log(`Game loaded successfully: ${tab.title}`);
+      tab.loading = false;
+      tab.panel.classList.add('loaded');
+
+      // Remove loading class from tab icon
+      if (tab.iconElement) {
+        tab.iconElement.classList.remove('loading');
+      }
+
+      // Focus iframe if this is active tab
+      if (this.activeTabId === tab.id) {
+        tab.iframe.focus();
+      }
+    };
+
+    // Set up error handler
+    tab.iframe.onerror = (error) => {
+      console.error(`Failed to load game: ${tab.title}`, error);
+      tab.loading = false;
+
+      // Show error in panel
+      const loadingDiv = tab.panel.querySelector('.tab-loading');
+      if (loadingDiv) {
+        loadingDiv.innerHTML = `
+          <i data-lucide="alert-circle" style="width: 4rem; height: 4rem; color: #ef4444;"></i>
+          <div class="loading-text" style="color: #ef4444;">FAILED TO LOAD</div>
+          <p style="color: #ef4444; font-size: 0.875rem; margin-top: 1rem;">Path: ${path}</p>
+          <button 
+            class="btn-chunky bg-blue text-white px-6 py-3 rounded-xl mt-4"
+            onclick="TabManager.retryLoad('${tab.id}')">
+            <i data-lucide="rotate-cw" class="w-5 h-5 inline mr-2"></i>
+            RETRY
+          </button>
+        `;
+        lucide.createIcons();
+      }
+    };
+
+    // Timeout fallback - sometimes onload doesn't fire
+    setTimeout(() => {
+      if (tab.loading) {
+        console.warn(`Loading timeout for ${tab.title}, marking as loaded anyway`);
+        tab.loading = false;
+        tab.panel.classList.add('loaded');
+        if (tab.iconElement) {
+          tab.iconElement.classList.remove('loading');
+        }
+      }
+    }, 5000); // 5 second timeout
+  },
+
+  // Retry loading a failed tab
+  retryLoad(tabId) {
+    const tab = this.tabs.find(t => t.id === tabId);
+    if (!tab) return;
+
+    const game = State.getGameById(tab.gameId);
+    if (!game) return;
+
+    tab.loading = true;
+    if (tab.iconElement) {
+      tab.iconElement.classList.add('loading');
+    }
+
+    // Reset panel
+    tab.panel.classList.remove('loaded');
+    tab.panel.innerHTML = `
+      <div class="tab-loading">
+        <div class="spinner"></div>
+        <div class="loading-text">Loading ${tab.title.toUpperCase()}...</div>
+      </div>
+    `;
+
+    const iframe = document.createElement('iframe');
+    iframe.id = `iframe-${tab.id}`;
+    iframe.title = tab.title;
+
+    tab.panel.appendChild(iframe);
+    tab.iframe = iframe;
+
+    this.loadGame(tab, game.path);
+  },
+
+  // Switch to a specific tab
+  switchToTab(tabId) {
+    const tab = this.tabs.find(t => t.id === tabId);
+    if (!tab) return;
+
+    // Update active tab ID
+    this.activeTabId = tabId;
+
+    // Update tab icons
+    this.tabs.forEach(t => {
+      if (t.iconElement) {
+        if (t.id === tabId) {
+          t.iconElement.classList.add('active');
+          t.iconElement.setAttribute('aria-selected', 'true');
+        } else {
+          t.iconElement.classList.remove('active');
+          t.iconElement.setAttribute('aria-selected', 'false');
+        }
+      }
+    });
+
+    // Update tab panels
+    this.tabs.forEach(t => {
+      if (t.panel) {
+        if (t.id === tabId) {
+          t.panel.classList.add('active');
+        } else {
+          t.panel.classList.remove('active');
+        }
+      }
+    });
+
+    // Update State.activeGame
+    const game = State.getGameById(tab.gameId);
+    if (game) {
+      State.activeGame = game;
+    }
+
+    // Update URL hash
+    window.location.hash = tab.gameId;
+
+    // Scroll tab icon into view
+    if (tab.iconElement) {
+      tab.iconElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    // Save to storage
+    this.saveTabsToStorage();
+  },
+
+  // Close a specific tab
+  closeTab(tabId) {
+    const tabIndex = this.tabs.findIndex(t => t.id === tabId);
+    if (tabIndex === -1) return;
+
+    const tab = this.tabs[tabIndex];
+    const wasActive = this.activeTabId === tabId;
+
+    // Remove DOM elements
+    if (tab.iconElement) {
+      tab.iconElement.remove();
+    }
+
+    if (tab.panel) {
+      tab.panel.remove();
+    }
+
+    // Remove from array
+    this.tabs.splice(tabIndex, 1);
+
+    // If no tabs left, close modal completely
+    if (this.tabs.length === 0) {
+      this.closeModal();
+      return;
+    }
+
+    // Save to storage
+    this.saveTabsToStorage();
+
+    // If closed tab was active, switch to another tab
+    if (wasActive && this.tabs.length > 0) {
+      // Switch to the tab that's now at the same index (or last tab)
+      const newIndex = Math.min(tabIndex, this.tabs.length - 1);
+      this.switchToTab(this.tabs[newIndex].id);
+    }
+
+    AudioEngine.click();
+  },
+
+  // Close current active tab
+  closeCurrentTab() {
+    if (this.activeTabId) {
+      this.closeTab(this.activeTabId);
+    }
+  },
+
+  // Return to home (close modal completely)
+  returnToHome() {
+    this.closeModal();
+    AudioEngine.click();
+  },
+
+  // Close modal and clean up
+  closeModal() {
+    const modal = document.getElementById('game-modal');
+    const infoOverlay = document.getElementById('info-overlay');
+
+    // Hide modal
+    if (modal) {
+      modal.style.display = 'none';
+      modal.classList.add('hidden');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+
+    // Hide info overlay
+    if (infoOverlay) {
+      infoOverlay.classList.add('hidden');
+      infoOverlay.classList.remove('flex');
+    }
+
+    // Clear active state
+    this.activeTabId = null;
+    State.activeGame = null;
+
+    // Clear hash
+    history.pushState("", document.title, window.location.pathname + window.location.search);
+
+    // Save state (tabs remain, just not active)
+    this.saveTabsToStorage();
+  },
+
+  // Show confirmation modal for closing all tabs
+  confirmCloseAllTabs() {
+    if (this.tabs.length === 0) return;
+
+    const confirmModal = document.getElementById('confirm-modal');
+    const countSpan = document.getElementById('confirm-count');
+
+    if (!confirmModal) return;
+
+    // Update count
+    if (countSpan) {
+      countSpan.textContent = this.tabs.length;
+    }
+
+    // Show modal
+    confirmModal.classList.remove('hidden');
+    confirmModal.classList.add('flex');
+
+    // Reinitialize icons
+    lucide.createIcons();
+  },
+
+  // Cancel confirmation
+  cancelConfirmation() {
+    const confirmModal = document.getElementById('confirm-modal');
+    if (confirmModal) {
+      confirmModal.classList.add('hidden');
+      confirmModal.classList.remove('flex');
+    }
+  },
+
+  // Actually close all tabs (after confirmation)
+  closeAllTabsConfirmed() {
+    // Hide confirmation modal
+    this.cancelConfirmation();
+
+    if (this.tabs.length === 0) return;
+
+    // Remove all DOM elements
+    this.tabs.forEach(tab => {
+      if (tab.iconElement) tab.iconElement.remove();
+      if (tab.panel) tab.panel.remove();
+    });
+
+    // Clear arrays
+    this.tabs = [];
+    this.activeTabId = null;
+    State.activeGame = null;
+
+    // Clear storage
+    this.clearStorage();
+
+    // Close modal
+    this.closeModal();
+
+    AudioEngine.click();
+  },
+
+  // Reload current tab's game
+  reloadCurrentTab() {
+    const tab = this.tabs.find(t => t.id === this.activeTabId);
+    if (!tab || !tab.iframe) return;
+
+    tab.loading = true;
+    if (tab.iconElement) {
+      tab.iconElement.classList.add('loading');
+    }
+
+    tab.iframe.contentWindow.location.reload();
+
+    setTimeout(() => {
+      tab.loading = false;
+      if (tab.iconElement) {
+        tab.iconElement.classList.remove('loading');
+      }
+    }, 1000);
+  },
+
+  // Get current active tab
+  getCurrentTab() {
+    return this.tabs.find(t => t.id === this.activeTabId);
+  },
+
+  // Show max tabs warning
+  showMaxTabsWarning() {
+    // Remove existing warning if any
+    const existingWarning = document.querySelector('.max-tabs-warning');
+    if (existingWarning) existingWarning.remove();
+
+    const warning = document.createElement('div');
+    warning.className = 'max-tabs-warning';
+    warning.innerHTML = `
+      <i data-lucide="alert-triangle" class="w-5 h-5 inline mr-2"></i>
+      Maximum ${this.maxTabs} tabs open. Close a tab to open another.
+    `;
+
+    document.body.appendChild(warning);
+    lucide.createIcons();
+
+    setTimeout(() => {
+      warning.style.opacity = '0';
+      warning.style.transform = 'translateX(-50%) translateY(-20px)';
+      warning.style.transition = 'all 0.3s ease';
+      setTimeout(() => warning.remove(), 300);
+    }, 3000);
+  },
+
+  // Keyboard shortcuts
+  setupKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+      // Only work when modal is open
+      const modal = document.getElementById('game-modal');
+      if (!modal || modal.style.display === 'none') return;
+
+      // Ctrl+Tab or Cmd+Tab: Next tab
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Tab' && !e.altKey) {
+        e.preventDefault();
+        this.switchToNextTab(e.shiftKey ? -1 : 1);
+      }
+
+      // Ctrl+W or Cmd+W: Close current tab
+      if ((e.ctrlKey || e.metaKey) && e.key === 'w') {
+        e.preventDefault();
+        this.closeCurrentTab();
+      }
+
+      // Alt+1 to Alt+8: Switch to tab by number
+      if (e.altKey && e.key >= '1' && e.key <= '8') {
+        e.preventDefault();
+        const index = parseInt(e.key) - 1;
+        if (this.tabs[index]) {
+          this.switchToTab(this.tabs[index].id);
+        }
+      }
+
+      // Escape: Return to home
+      if (e.key === 'Escape') {
+        // Check if info overlay is open first
+        const infoOverlay = document.getElementById('info-overlay');
+        if (infoOverlay && !infoOverlay.classList.contains('hidden')) {
+          GameModal.toggleInfo();
+        } else {
+          this.returnToHome();
+        }
+      }
+    });
+  },
+
+  // Switch to next/previous tab
+  switchToNextTab(direction = 1) {
+    if (this.tabs.length === 0) return;
+
+    const currentIndex = this.tabs.findIndex(t => t.id === this.activeTabId);
+
+    if (currentIndex === -1) {
+      // No active tab, switch to first
+      this.switchToTab(this.tabs[0].id);
+      return;
+    }
+
+    let newIndex = currentIndex + direction;
+
+    // Wrap around
+    if (newIndex >= this.tabs.length) {
+      newIndex = 0;
+    } else if (newIndex < 0) {
+      newIndex = this.tabs.length - 1;
+    }
+
+    this.switchToTab(this.tabs[newIndex].id);
+    AudioEngine.click();
+  }
+};
+
+// ============================================
+// UPDATED GAMEMODAL MODULE
+// Replace entire GameModal with this:
+// ============================================
+
 const GameModal = {
   open(gameId) {
     AudioEngine.click();
@@ -546,63 +1198,28 @@ const GameModal = {
       return;
     }
 
-    State.activeGame = game;
+    // Add to recent games
     RecentGames.add(gameId);
 
+    // Show modal if not already visible
     const modal = document.getElementById('game-modal');
-    const iframe = document.getElementById('game-frame');
-    const spinner = document.getElementById('loading-spinner');
+    if (modal) {
+      modal.style.display = 'block';
+      modal.classList.remove('hidden');
+      modal.setAttribute('aria-hidden', 'false');
+    }
 
-    if (!modal || !iframe || !spinner) return;
-
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    modal.setAttribute('aria-hidden', 'false');
-
-    iframe.src = game.path;
-    spinner.classList.remove('hidden');
-
-    iframe.onload = () => {
-      spinner.classList.add('hidden');
-      iframe.focus();
-    };
-
-    window.location.hash = gameId;
-    this.trapFocus(modal);
+    // Create new tab
+    TabManager.createTab(game);
   },
 
   close() {
-    AudioEngine.click();
-
-    const modal = document.getElementById('game-modal');
-    const iframe = document.getElementById('game-frame');
-    const infoOverlay = document.getElementById('info-overlay');
-
-    if (!modal || !iframe) return;
-
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
-    modal.setAttribute('aria-hidden', 'true');
-
-    iframe.src = "";
-
-    if (infoOverlay) {
-      infoOverlay.classList.add('hidden');
-      infoOverlay.classList.remove('flex');
-    }
-
-    State.activeGame = null;
-
-    history.pushState("", document.title, window.location.pathname + window.location.search);
-
-    document.querySelector('[data-action="openGame"]')?.focus();
+    // Close modal completely (same as home button)
+    TabManager.returnToHome();
   },
 
   reload() {
-    const iframe = document.getElementById('game-frame');
-    if (iframe?.contentWindow) {
-      iframe.contentWindow.location.reload();
-    }
+    TabManager.reloadCurrentTab();
   },
 
   toggleInfo() {
@@ -614,9 +1231,13 @@ const GameModal = {
     const isHidden = overlay.classList.contains('hidden');
 
     if (isHidden) {
-      if (!State.activeGame) return;
+      const currentTab = TabManager.getCurrentTab();
+      if (!currentTab) return;
 
-      this.renderInfo(State.activeGame);
+      const game = State.getGameById(currentTab.gameId);
+      if (!game) return;
+
+      this.renderInfo(game);
       overlay.classList.remove('hidden');
       overlay.classList.add('flex');
 
@@ -625,60 +1246,46 @@ const GameModal = {
       overlay.classList.add('hidden');
       overlay.classList.remove('flex');
 
-      document.getElementById('game-frame')?.focus();
+      const currentTab = TabManager.getCurrentTab();
+      if (currentTab && currentTab.iframe) {
+        currentTab.iframe.focus();
+      }
     }
   },
 
   renderInfo(game) {
     const colorName = game.color.replace('text-', '');
-    const bgClass = colorName.includes('-') ? colorName : `bg-${colorName}`;
+    const baseColor = colorName.includes('-') ? colorName.split('-')[0] : colorName;
+    const bgClass = `bg-${baseColor}`;
 
     const iconEl = document.getElementById('info-icon');
     const titleEl = document.getElementById('info-title-display');
     const categoryEl = document.getElementById('info-category');
+    const difficultyEl = document.getElementById('info-difficulty');
     const contentEl = document.getElementById('info-content');
 
     if (iconEl) {
-      iconEl.className = `w-24 h-24 rounded-2xl border-4 border-dark flex items-center justify-center text-white shadow-hard shrink-0 ${bgClass}`;
-      iconEl.innerHTML = `<i data-lucide="${game.icon}" class="w-10 h-10" aria-hidden="true"></i>`;
+      iconEl.className = `w-24 h-24 rounded-2xl border-4 border-dark dark:border-slate-500 flex items-center justify-center text-white shadow-hard dark:shadow-neon shrink-0 ${bgClass}`;
+      iconEl.innerHTML = `<i data-lucide="${game.icon}" class="w-12 h-12" aria-hidden="true"></i>`;
     }
 
     if (titleEl) titleEl.textContent = game.title.toUpperCase();
     if (categoryEl) categoryEl.textContent = game.category.toUpperCase();
 
+    if (difficultyEl && game.difficulty) {
+      difficultyEl.textContent = game.difficulty.toUpperCase();
+      difficultyEl.style.display = 'inline-block';
+    } else if (difficultyEl) {
+      difficultyEl.style.display = 'none';
+    }
+
     const guideText = GameGrid.getGuideText(game);
     if (contentEl) contentEl.innerHTML = guideText;
 
     lucide.createIcons();
-  },
-
-  trapFocus(modal) {
-    const focusableElements = modal.querySelectorAll(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    );
-
-    const firstElement = focusableElements[0];
-    const lastElement = focusableElements[focusableElements.length - 1];
-
-    const handleTabKey = (e) => {
-      if (e.key !== 'Tab') return;
-
-      if (e.shiftKey) {
-        if (document.activeElement === firstElement) {
-          e.preventDefault();
-          lastElement.focus();
-        }
-      } else {
-        if (document.activeElement === lastElement) {
-          e.preventDefault();
-          firstElement.focus();
-        }
-      }
-    };
-
-    modal.addEventListener('keydown', handleTabKey);
   }
 };
+
 
 // --- SEARCH MANAGER ---
 const Search = {
@@ -814,27 +1421,51 @@ const App = {
         case 'toggleTheme':
           Theme.toggle();
           break;
+
         case 'toggleSound':
           AudioEngine.toggle();
           break;
+
         case 'openGame':
           GameModal.open(param);
           break;
-        case 'closeGame':
-          GameModal.close();
+
+        case 'returnToHome':
+          TabManager.returnToHome();
           break;
+
+        case 'closeAllTabs':
+          TabManager.confirmCloseAllTabs(); // Show confirmation modal
+          break;
+
+        case 'confirmDelete':
+          TabManager.closeAllTabsConfirmed(); // Actually close
+          break;
+
+        case 'confirmCancel':
+          TabManager.cancelConfirmation(); // Cancel
+          break;
+
+        case 'closeCurrentTab':
+          TabManager.closeCurrentTab();
+          break;
+
         case 'reloadGame':
-          GameModal.reload();
+          TabManager.reloadCurrentTab();
           break;
+
         case 'toggleInfo':
           GameModal.toggleInfo();
           break;
+
         case 'filterGames':
           Filters.setCategory(param);
           break;
+
         case 'clearRecent':
           RecentGames.clear();
           break;
+
         case 'openFeedback':
           window.open(CONFIG.helpUrl, '_blank');
           break;
