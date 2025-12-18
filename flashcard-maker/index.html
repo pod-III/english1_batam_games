@@ -138,7 +138,10 @@
 
         .image-container { width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
         .text-container { width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-        .image-preview { width: 100%; height: 100%; object-fit: contain; }
+        .image-preview { width: 100%; height: 100%; }
+        /* Default to contain for partial sizes, cover for FULL */
+        .image-preview.contain { object-fit: contain; }
+        .image-preview.cover { object-fit: cover; }
     </style>
 </head>
 <body class="flex min-h-screen">
@@ -299,18 +302,31 @@
         }
 
         function updateCardDisplay() {
+            const isFull = state.imgHeight === 100;
+
             document.querySelectorAll('.image-container').forEach(c => {
                 c.style.height = `${state.imgHeight}%`;
             });
             document.querySelectorAll('.text-container').forEach(c => {
                 c.style.height = `${100 - state.imgHeight}%`;
-                c.style.display = state.imgHeight === 100 ? 'none' : 'flex';
+                c.style.display = isFull ? 'none' : 'flex';
             });
             document.querySelectorAll('[contenteditable]').forEach(t => {
                 t.style.fontSize = `${state.fontSize}rem`;
             });
             document.querySelectorAll('.brutalist-card').forEach(card => {
-                card.style.padding = state.imgHeight === 100 ? '0' : '10px';
+                card.style.padding = isFull ? '0' : '10px';
+            });
+
+            // Update image fit mode
+            document.querySelectorAll('.image-preview').forEach(img => {
+                if (isFull) {
+                    img.classList.remove('contain');
+                    img.classList.add('cover');
+                } else {
+                    img.classList.remove('cover');
+                    img.classList.add('contain');
+                }
             });
         }
 
@@ -376,7 +392,9 @@
                 const card = document.createElement('div');
                 card.className = 'brutalist-card group';
                 card.style.backgroundColor = state.color;
-                card.style.padding = state.imgHeight === 100 ? '0' : '10px';
+                
+                const isFull = state.imgHeight === 100;
+                card.style.padding = isFull ? '0' : '10px';
 
                 const savedCard = state.cards[i] || { text: '', img: '' };
 
@@ -392,7 +410,7 @@
                 imgContainer.onclick = (e) => { if (e.target.tagName !== 'INPUT') document.getElementById(`file-${i}`).click(); };
 
                 const img = document.createElement('img');
-                img.className = `image-preview ${savedCard.img ? '' : 'hidden'}`;
+                img.className = `image-preview ${isFull ? 'cover' : 'contain'} ${savedCard.img ? '' : 'hidden'}`;
                 img.id = `img-${i}`;
                 img.src = savedCard.img || '';
 
@@ -404,7 +422,7 @@
                 const textContainer = document.createElement('div');
                 textContainer.className = 'text-container';
                 textContainer.style.height = `${100 - state.imgHeight}%`;
-                textContainer.style.display = state.imgHeight === 100 ? 'none' : 'flex';
+                textContainer.style.display = isFull ? 'none' : 'flex';
 
                 const text = document.createElement('div');
                 text.contentEditable = true;
