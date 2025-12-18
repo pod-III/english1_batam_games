@@ -179,18 +179,15 @@ const AudioEngine = {
   },
 
   updateUI() {
-    const btn = document.getElementById('sound-btn');
-    if (!btn) return;
-
-    const icon = btn.querySelector('i');
-    if (!icon) return;
+    const icon = document.getElementById('sound-btn-icon');
+    if (!icon) console.log("not found the button icon");
 
     if (this.muted) {
       icon.setAttribute('data-lucide', 'volume-x');
-      icon.className = 'w-5 h-5 text-red-500 dark:text-red-400';
+      icon.style="color:rgb(248 113 113)";
     } else {
       icon.setAttribute('data-lucide', 'volume-2');
-      icon.className = 'w-5 h-5 text-green dark:text-green-400';
+      icon.style="color:rgb(74 222 128)";
     }
 
     lucide.createIcons();
