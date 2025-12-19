@@ -3,394 +3,531 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Secret Agent Decoder</title>
+    <title>Secret Code: Caesar Shift | English 1</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Google Fonts: Fredoka -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Fredoka', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            pink: '#FF8FAB',    /* Soft Pink */
+                            orange: '#FFB347',  /* Pastel Orange */
+                            green: '#98FB98',   /* Pale Green */
+                            blue: '#87CEEB',    /* Sky Blue */
+                            dark: '#2D3748',
+                            light: '#F7FAFC'
+                        }
+                    },
+                    animation: {
+                        'slide-up': 'slideUp 0.5s ease-out',
+                        'pop': 'pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+                    },
+                    keyframes: {
+                        slideUp: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' }
+                        },
+                        pop: {
+                            '0%': { transform: 'scale(0.8)', opacity: '0' },
+                            '100%': { transform: 'scale(1)', opacity: '1' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;700&family=VT323&display=swap');
-
-        /* English 1 Colors */
-        :root {
-            --theme-pink: #FF6B95;
-            --theme-orange: #FF8C42;
-            --theme-green: #00E676;
-            --theme-blue: #2979FF;
-        }
-
         body {
-            font-family: 'Noto Sans', sans-serif;
-            background-color: #f3f4f6;
+            background-color: #f0f4f8;
+            background-image: 
+                linear-gradient(45deg, #e2e8f0 25%, transparent 25%), 
+                linear-gradient(-45deg, #e2e8f0 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #e2e8f0 75%), 
+                linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
+            background-size: 40px 40px;
+            background-position: 0 0, 0 20px, 20px -20px, -20px 0px;
         }
 
-        .font-mono-spy {
-            font-family: 'VT323', monospace;
+        .letter-tile {
+            transition: all 0.3s ease;
         }
-
-        /* Scanline effect for the console */
-        .scanlines {
-            background: linear-gradient(
-                to bottom,
-                rgba(255,255,255,0),
-                rgba(255,255,255,0) 50%,
-                rgba(0,0,0,0.1) 50%,
-                rgba(0,0,0,0.1)
-            );
-            background-size: 100% 4px;
-            pointer-events: none;
+        .letter-tile:hover {
+            transform: translateY(-5px);
         }
-
-        .btn-game {
-            transition: all 0.1s;
+        
+        /* Custom Scrollbar for textarea */
+        textarea::-webkit-scrollbar {
+            width: 8px;
         }
-        .btn-game:active {
-            transform: translateY(2px);
-            box-shadow: none;
+        textarea::-webkit-scrollbar-track {
+            background: #f1f1f1;
         }
-
-        .reveal-btn {
-            box-shadow: 0 4px 0 rgb(180, 20, 60); /* Adjusted for pink theme */
-        }
-        .reveal-btn:active {
-            box-shadow: none;
-            transform: translateY(4px);
+        textarea::-webkit-scrollbar-thumb {
+            background: #cbd5e0;
+            border-radius: 4px;
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-center p-4 bg-gray-100">
+<body class="text-gray-800 min-h-screen flex flex-col font-sans overflow-x-hidden">
 
-    <!-- Game Container -->
-    <div class="w-full max-w-3xl bg-white rounded-xl shadow-2xl overflow-hidden border-4 border-gray-800 relative flex flex-col">
-        
-        <!-- Header -->
-        <header class="bg-gray-900 text-white p-4 flex justify-between items-center border-b-4 border-gray-800">
+    <!-- Header -->
+    <header class="bg-white shadow-lg border-b-4 border-brand-blue sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
             <div class="flex items-center gap-3">
-                <div class="bg-[var(--theme-orange)] text-black p-2 rounded-full">
-                    <i class="fas fa-user-secret text-2xl"></i>
+                <!-- Header Icon changed from E1 to a Lock -->
+                <div class="w-12 h-12 bg-brand-orange rounded-2xl flex items-center justify-center text-white shadow-sm rotate-3 transform hover:rotate-0 transition-transform">
+                    <i data-lucide="lock" class="w-7 h-7"></i>
                 </div>
                 <div>
-                    <h1 class="text-xl font-bold uppercase tracking-widest font-mono-spy">Cipher Terminal</h1>
-                    <p class="text-xs text-gray-400">CLEARANCE: TOP SECRET</p>
+                    <h1 class="text-2xl font-bold text-gray-700 tracking-tight leading-none">Secret Code</h1>
+                    <p class="text-xs text-brand-blue font-bold tracking-widest uppercase">Caesar Decoder</p>
                 </div>
             </div>
-            <div class="text-right">
-                <div class="text-[var(--theme-green)] font-mono-spy text-2xl">SCORE: <span id="scoreDisplay">0</span></div>
+            
+            <div class="flex gap-2">
+                <button onclick="window.history.back()" class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-4 py-2 rounded-xl font-bold transition-colors flex items-center gap-2">
+                    <i data-lucide="arrow-left" class="w-5 h-5"></i> <span class="hidden sm:inline">Back</span>
+                </button>
             </div>
-        </header>
+        </div>
+    </header>
 
-        <!-- Main Content -->
-        <main class="p-6 space-y-6 flex-grow">
+    <!-- Main Content -->
+    <main class="flex-grow p-4 md:p-8 max-w-6xl mx-auto w-full flex flex-col gap-8">
 
-            <!-- Instructions Panel (Decryption Key) -->
-            <div class="bg-gray-800 text-gray-300 p-4 rounded-lg border-2 border-gray-600 shadow-inner flex justify-between items-center">
-                <div>
-                    <h3 class="font-bold text-[var(--theme-orange)] uppercase text-sm tracking-wider mb-1">
-                        <i class="fas fa-key"></i> Decryption Key
+        <!-- Decoder Section (The Key) -->
+        <section class="bg-white rounded-3xl shadow-xl border-4 border-brand-blue animate-slide-up relative overflow-hidden">
+            <div class="bg-brand-blue/10 p-4 border-b-2 border-brand-blue/20 flex justify-between items-center flex-wrap gap-4">
+                <div class="flex items-center gap-2">
+                    <div class="bg-brand-blue p-2 rounded-lg text-white">
+                        <i data-lucide="key" class="w-6 h-6"></i>
+                    </div>
+                    <h2 class="text-xl font-bold text-gray-700">Decoder Key</h2>
+                </div>
+                
+                <!-- Shift Control -->
+                <div class="flex items-center bg-white rounded-xl shadow-sm border border-brand-blue/30 px-2 py-1">
+                    <span class="text-sm font-bold text-gray-500 mr-2 uppercase tracking-wider">Shift:</span>
+                    <button onclick="changeShift(-1)" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-brand-blue transition-colors">
+                        <i data-lucide="minus" class="w-5 h-5"></i>
+                    </button>
+                    <span id="shiftValue" class="w-10 text-center font-bold text-xl text-brand-dark">3</span>
+                    <button onclick="changeShift(1)" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 text-brand-blue transition-colors">
+                        <i data-lucide="plus" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Grid-based Decoder Key (No scrolling) -->
+            <div class="p-6">
+                <div class="grid grid-cols-5 sm:grid-cols-7 md:grid-cols-9 gap-4" id="decoderStrip">
+                    <!-- JS will populate this with 3 rows on desktop -->
+                </div>
+            </div>
+            
+            <div class="bg-gray-50 p-3 text-center text-xs text-gray-400 font-semibold italic border-t border-gray-100">
+                Find the letter in the <span class="text-brand-orange">ORANGE</span> box to see what the <span class="text-brand-pink">PINK</span> letter really means!
+            </div>
+        </section>
+
+        <!-- Puzzle Section -->
+        <section class="bg-white rounded-3xl shadow-xl border-4 border-brand-green flex-grow flex flex-col animate-slide-up" style="animation-delay: 0.1s;">
+            <!-- Controls -->
+            <div class="p-4 border-b border-gray-100 flex flex-col sm:flex-row justify-between items-center bg-gray-50 rounded-t-3xl gap-4">
+                <div class="flex items-center gap-4">
+                    <h3 class="font-bold text-gray-500 flex items-center gap-2">
+                        <i data-lucide="message-square" class="w-5 h-5"></i> Current Puzzle
                     </h3>
-                    <p class="text-xs font-mono">CAESAR CIPHER</p>
-                </div>
-                
-                <!-- Visual Guide -->
-                <div class="flex gap-2 md:gap-4 text-center font-mono-spy text-xl md:text-2xl">
-                    <div class="bg-gray-900 p-2 rounded border border-gray-600">
-                        <span class="text-[var(--theme-pink)]">B</span> &rarr; <span class="text-[var(--theme-blue)]">A</span>
-                    </div>
-                    <div class="bg-gray-900 p-2 rounded border border-gray-600">
-                        <span class="text-[var(--theme-pink)]">C</span> &rarr; <span class="text-[var(--theme-blue)]">B</span>
-                    </div>
-                    <div class="bg-gray-900 p-2 rounded border border-gray-600 hidden sm:block">
-                        <span class="text-[var(--theme-pink)]">D</span> &rarr; <span class="text-[var(--theme-blue)]">C</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Terminal / Message Area -->
-            <div class="bg-black p-6 rounded-lg border-4 border-gray-700 shadow-lg relative overflow-hidden min-h-[350px] flex flex-col justify-center items-center">
-                <div class="scanlines absolute inset-0 z-10"></div>
-                
-                <!-- Status Line -->
-                <div class="w-full flex justify-between mb-8 font-mono-spy text-lg border-b border-gray-800 pb-2 relative z-20">
-                    <span id="missionStatus" class="text-[var(--theme-pink)] animate-pulse">AWAITING INPUT...</span>
-                    <span class="text-gray-500">FREQ: 98.4MHz</span>
-                </div>
-
-                <!-- Main Display -->
-                <div class="text-center mb-10 relative z-20 w-full">
-                    <div id="mainDisplay" class="font-mono-spy text-5xl md:text-7xl text-gray-500 tracking-widest drop-shadow-[0_0_10px_rgba(255,140,0,0.6)] break-words leading-tight transition-colors duration-300">
-                        AWAITING DATA
-                    </div>
-                    <div class="text-gray-600 text-sm mt-4 font-mono" id="hintText">SYSTEM READY</div>
-                </div>
-
-                <!-- ACTION AREA: Swaps between Input (Admin) and Button (Game) -->
-                <div id="actionArea" class="w-full max-w-md relative z-20 flex flex-col gap-4">
                     
-                    <!-- ADMIN INPUT (Visible initially) -->
-                    <div id="adminInputGroup" class="flex flex-col gap-2">
-                        <label class="text-[var(--theme-green)] font-mono-spy text-xl">> ENTER_PHRASES:</label>
-                        <div class="flex gap-2">
-                            <input type="text" id="adminInput" autocomplete="off" 
-                                class="flex-1 bg-gray-900 border-b-2 border-[var(--theme-green)] text-[var(--theme-green)] font-mono-spy text-2xl p-2 focus:outline-none uppercase placeholder-gray-700"
-                                placeholder="WORD1, WORD2..." autofocus>
-                            <button id="adminSubmitBtn" class="btn-game bg-[var(--theme-blue)] hover:bg-blue-600 text-white font-bold font-mono-spy text-xl py-2 px-6 rounded">
-                                LOAD
-                            </button>
-                        </div>
-                        <p class="text-xs text-gray-500 font-mono text-center mt-2">SEPARATE WORDS WITH COMMAS</p>
+                    <!-- Round Indicator -->
+                    <div id="roundControls" class="hidden items-center bg-white border border-gray-200 rounded-lg p-1 shadow-sm">
+                        <button onclick="changeRound(-1)" id="prevRoundBtn" class="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 disabled:opacity-30">
+                            <i data-lucide="chevron-left" class="w-5 h-5"></i>
+                        </button>
+                        <span id="roundIndicator" class="px-3 text-sm font-bold text-brand-orange">1 / 5</span>
+                        <button onclick="changeRound(1)" id="nextRoundBtn" class="w-8 h-8 flex items-center justify-center rounded hover:bg-gray-100 text-gray-600 disabled:opacity-30">
+                            <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                        </button>
                     </div>
+                </div>
 
-                    <!-- GAME BUTTON (Hidden initially) -->
-                    <button id="revealBtn" class="hidden w-full bg-[var(--theme-pink)] hover:bg-pink-600 text-white font-bold font-mono-spy text-3xl py-4 rounded-lg reveal-btn uppercase tracking-wider">
-                        <i class="fas fa-search mr-2"></i> REVEAL MESSAGE
+                <div class="flex gap-2 w-full sm:w-auto">
+                    <button onclick="openModal()" class="flex-1 sm:flex-none justify-center bg-brand-green hover:brightness-95 text-white shadow-[0_4px_0_#86ef86] active:shadow-none active:translate-y-1 px-4 sm:px-6 py-2 rounded-xl font-bold transition-all flex items-center gap-2 text-sm sm:text-base">
+                        <i data-lucide="plus-circle" class="w-5 h-5"></i> New Secret
                     </button>
-                    
-                     <!-- NEXT BUTTON (Hidden initially) -->
-                     <button id="nextBtn" class="hidden w-full bg-[var(--theme-green)] hover:bg-green-600 text-white font-bold font-mono-spy text-3xl py-4 rounded-lg reveal-btn uppercase tracking-wider">
-                        <i class="fas fa-forward mr-2"></i> NEXT MISSION
+                    <button id="revealBtn" onclick="toggleReveal()" class="flex-1 sm:flex-none justify-center bg-brand-pink hover:brightness-95 text-white shadow-[0_4px_0_rgb(244,114,182)] active:shadow-none active:translate-y-1 px-4 sm:px-6 py-2 rounded-xl font-bold transition-all flex items-center gap-2 text-sm sm:text-base">
+                        <i data-lucide="eye" class="w-5 h-5"></i> <span id="revealText">Reveal Answer</span>
                     </button>
+                </div>
+            </div>
 
+            <!-- The Puzzle Board -->
+            <div class="flex-grow p-8 sm:p-12 bg-[url('https://www.transparenttextures.com/patterns/graphy.png')] bg-fixed flex flex-col items-center justify-center min-h-[300px]">
+                
+                <!-- Encrypted Message Display -->
+                <div id="puzzleContainer" class="flex flex-wrap justify-center gap-x-12 gap-y-10 mb-10 w-full transition-opacity duration-300">
+                    <div class="text-gray-400 text-xl font-medium italic text-center w-full">
+                        Press "New Secret" to start a mission!
+                    </div>
+                </div>
+
+                <!-- Answer Reveal Display -->
+                <div id="answerContainer" class="hidden transition-all duration-500 ease-out transform translate-y-4 opacity-0">
+                    <div class="relative bg-white border-2 border-brand-orange px-10 py-4 rounded-full shadow-lg text-center">
+                        <span class="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-brand-orange text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                            Solution
+                        </span>
+                        <span id="revealedText" class="text-3xl sm:text-5xl font-bold text-brand-dark tracking-widest">
+                            HELLO
+                        </span>
+                    </div>
                 </div>
 
             </div>
+        </section>
 
-        </main>
+    </main>
 
-        <!-- Footer -->
-        <footer class="bg-gray-100 p-4 border-t border-gray-300 flex justify-between items-center">
-            <button onclick="resetGame()" class="text-gray-500 hover:text-black text-sm font-bold font-mono-spy border border-gray-400 px-3 py-1 rounded">
-                <i class="fas fa-redo"></i> RESET SYSTEM
-            </button>
-            <div class="text-gray-400 text-xs font-mono">
-                SECURE CONNECTION ESTABLISHED v3.0
+    <!-- Modal for New Secret -->
+    <div id="inputModal" class="fixed inset-0 bg-brand-dark/60 z-50 hidden flex items-center justify-center backdrop-blur-sm opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-lg shadow-2xl transform scale-95 transition-transform duration-300 mx-4 border-4 border-brand-blue" id="modalContent">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-bold text-gray-800">New Secret Mission</h3>
+                <button onclick="closeModal()" class="bg-gray-100 hover:bg-gray-200 rounded-full p-2 transition-colors">
+                    <i data-lucide="x" class="w-6 h-6 text-gray-500"></i>
+                </button>
             </div>
-        </footer>
+            
+            <div class="space-y-6">
+                <div>
+                    <label class="block text-gray-600 font-bold mb-2 ml-1">Message(s) to Encrypt:</label>
+                    <textarea id="secretInput" 
+                        class="w-full bg-gray-50 border-2 border-gray-200 rounded-xl px-4 py-4 text-xl font-bold text-gray-700 focus:outline-none focus:border-brand-blue focus:ring-4 focus:ring-brand-blue/20 transition-all placeholder-gray-300 uppercase resize-none h-40"
+                        placeholder="ENTER ONE MESSAGE PER LINE&#10;EXAMPLE: HELLO&#10;EXAMPLE: WORLD"
+                        autocomplete="off"></textarea>
+                    <p class="text-xs text-gray-400 mt-2 ml-1 font-semibold flex items-center gap-1">
+                        <i data-lucide="info" class="w-3 h-3"></i> 
+                        Tip: Enter multiple lines to create a multi-round game!
+                    </p>
+                </div>
+
+                <div>
+                    <label class="block text-gray-600 font-bold mb-2 ml-1">Difficulty (Shift Amount):</label>
+                    <div class="flex gap-2 overflow-x-auto pb-2 custom-scroll">
+                        <button type="button" onclick="setModalShift(1)" class="shift-option flex-1 py-3 px-4 rounded-xl border-2 border-gray-200 hover:border-brand-orange hover:bg-orange-50 font-bold text-gray-600 transition-all focus:ring-2 ring-brand-orange whitespace-nowrap">1 (Easy)</button>
+                        <button type="button" onclick="setModalShift(3)" class="shift-option flex-1 py-3 px-4 rounded-xl border-2 border-brand-orange bg-orange-50 font-bold text-brand-orange transition-all focus:ring-2 ring-brand-orange whitespace-nowrap">3 (Normal)</button>
+                        <button type="button" onclick="setModalShift(5)" class="shift-option flex-1 py-3 px-4 rounded-xl border-2 border-gray-200 hover:border-brand-orange hover:bg-orange-50 font-bold text-gray-600 transition-all focus:ring-2 ring-brand-orange whitespace-nowrap">5 (Hard)</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-8">
+                <button onclick="closeModal()" class="px-6 py-3 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-colors">
+                    Cancel
+                </button>
+                <button onclick="setSecret()" class="bg-brand-blue hover:brightness-95 text-white shadow-[0_4px_0_rgb(96,165,250)] active:shadow-none active:translate-y-1 px-8 py-3 rounded-xl font-bold transition-all w-full sm:w-auto">
+                    Encrypt & Play
+                </button>
+            </div>
+        </div>
     </div>
 
-    <!-- JavaScript Logic -->
-    <script>
-        // --- LOCAL STORAGE KEY ---
-        const LS_KEY_WORDS = 'decoderMissionPhrases';
+    <!-- Celebration Confetti -->
+    <canvas id="confettiCanvas" class="fixed inset-0 pointer-events-none z-50 hidden"></canvas>
 
-        // --- GAME STATE ---
-        let missionQueue = []; 
-        let currentPhrase = "";
-        let score = 0;
+    <script>
+        // --- Game Logic ---
+        const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        let currentShift = 3;
+        
+        // Multi-Round State
+        let secretList = [];
+        let currentRoundIndex = 0;
         let isRevealed = false;
 
-        // --- DOM ELEMENTS ---
-        const mainDisplayEl = document.getElementById('mainDisplay');
-        const missionStatusEl = document.getElementById('missionStatus');
-        const hintTextEl = document.getElementById('hintText');
-        const scoreEl = document.getElementById('scoreDisplay');
-        
-        // Input Groups
-        const adminInputGroup = document.getElementById('adminInputGroup');
-        const adminInput = document.getElementById('adminInput');
-        const adminSubmitBtn = document.getElementById('adminSubmitBtn');
-        
-        // Action Buttons
+        // Initialize Icons
+        lucide.createIcons();
+
+        // DOM Elements
+        const decoderStrip = document.getElementById('decoderStrip');
+        const puzzleContainer = document.getElementById('puzzleContainer');
+        const answerContainer = document.getElementById('answerContainer');
+        const revealedText = document.getElementById('revealedText');
+        const modal = document.getElementById('inputModal');
+        const modalContent = document.getElementById('modalContent');
+        const secretInput = document.getElementById('secretInput');
         const revealBtn = document.getElementById('revealBtn');
-        const nextBtn = document.getElementById('nextBtn');
+        const revealTextSpan = document.getElementById('revealText');
+        const shiftValueDisplay = document.getElementById('shiftValue');
+        const shiftOptions = document.querySelectorAll('.shift-option');
+        
+        // Navigation Elements
+        const roundControls = document.getElementById('roundControls');
+        const roundIndicator = document.getElementById('roundIndicator');
+        const prevRoundBtn = document.getElementById('prevRoundBtn');
+        const nextRoundBtn = document.getElementById('nextRoundBtn');
 
-        // --- AUTOSAVE/LOAD FUNCTIONS ---
+        // Caesar Cipher Helper
+        function getCipherLetter(char, shift) {
+            const idx = alphabet.indexOf(char);
+            if (idx === -1) return char; // Return spaces/symbols as is
+            const newIdx = (idx + shift) % 26;
+            return alphabet[newIdx];
+        }
 
-        function saveWords(wordsString) {
-             try {
-                localStorage.setItem(LS_KEY_WORDS, wordsString);
-            } catch (e) {
-                console.error("Could not save words to local storage:", e);
+        // 1. Render Decoder Strip (Grid based)
+        function renderDecoder() {
+            decoderStrip.innerHTML = '';
+            shiftValueDisplay.textContent = currentShift;
+
+            for (let i = 0; i < alphabet.length; i++) {
+                const plainChar = alphabet[i];
+                const cipherChar = getCipherLetter(plainChar, currentShift);
+                
+                const pair = document.createElement('div');
+                pair.className = 'flex items-center gap-2 bg-gray-50 p-1.5 rounded-xl border border-gray-100 group hover:border-brand-blue/30 transition-all';
+                
+                pair.innerHTML = `
+                    <div class="w-9 h-9 sm:w-10 sm:h-10 bg-brand-pink text-white rounded-lg flex items-center justify-center font-bold text-lg shadow-sm group-hover:scale-105 transition-transform">
+                        ${cipherChar}
+                    </div>
+                    <div class="text-gray-300 font-bold text-xs">→</div>
+                    <div class="w-9 h-9 sm:w-10 sm:h-10 bg-brand-orange text-white rounded-lg flex items-center justify-center font-bold text-lg shadow-sm group-hover:scale-105 transition-transform">
+                        ${plainChar}
+                    </div>
+                `;
+                decoderStrip.appendChild(pair);
             }
         }
 
-        function loadWords() {
-            try {
-                const savedWords = localStorage.getItem(LS_KEY_WORDS);
-                if (savedWords) {
-                    adminInput.value = savedWords;
+        // Change Shift via UI buttons
+        function changeShift(amount) {
+            currentShift = (currentShift + amount + 26) % 26;
+            // Avoid 0 shift
+            if (currentShift === 0) currentShift = amount > 0 ? 1 : 25;
+            
+            renderDecoder();
+            if (secretList.length > 0) {
+                renderPuzzle(secretList[currentRoundIndex]); 
+            }
+        }
+
+        // Modal Shift Selection
+        function setModalShift(val) {
+            currentShift = val;
+            shiftOptions.forEach(btn => {
+                if (btn.innerText.startsWith(val.toString())) {
+                    btn.classList.add('border-brand-orange', 'bg-orange-50', 'text-brand-orange');
+                    btn.classList.remove('border-gray-200', 'text-gray-600');
+                } else {
+                    btn.classList.remove('border-brand-orange', 'bg-orange-50', 'text-brand-orange');
+                    btn.classList.add('border-gray-200', 'text-gray-600');
                 }
-            } catch (e) {
-                console.error("Could not load words from local storage:", e);
-            }
-        }
-
-        // --- LOGIC ---
-
-        function encrypt(text, shift = 1) {
-            return text.toUpperCase().replace(/[A-Z]/g, char => {
-                const code = char.charCodeAt(0);
-                return String.fromCharCode(((code - 65 + shift) % 26) + 65);
             });
         }
 
-        // ADMIN: Load words
-        function handleAdminInput() {
-            const val = adminInput.value.toUpperCase().trim();
-            if (!val) {
-                shakeInput();
+        // 2. Set New Secret
+        function setSecret() {
+            const rawInput = secretInput.value.toUpperCase();
+            secretList = rawInput.split('\n')
+                .map(s => s.replace(/[^A-Z\s]/g, '').trim())
+                .filter(s => s.length > 0);
+            
+            if (secretList.length === 0) {
+                alert("Please enter at least one secret word!");
                 return;
             }
 
-            const inputs = val.split(',').map(s => s.trim()).filter(s => s.length > 0);
-            
-            if (inputs.length > 0) {
-                missionQueue = inputs;
-                // Switch UI to Game Mode
-                adminInputGroup.classList.add('hidden');
-                loadNextMission();
+            currentRoundIndex = 0;
+            renderDecoder();
+            loadRound();
+            closeModal();
+            secretInput.value = '';
+        }
+
+        function loadRound() {
+            if (secretList.length === 0) return;
+            resetRevealState(true); 
+            renderPuzzle(secretList[currentRoundIndex]);
+            updateNavControls();
+        }
+        
+        function changeRound(delta) {
+            const newIndex = currentRoundIndex + delta;
+            if (newIndex >= 0 && newIndex < secretList.length) {
+                currentRoundIndex = newIndex;
+                loadRound();
+            }
+        }
+        
+        function updateNavControls() {
+            if (secretList.length > 1) {
+                roundControls.classList.remove('hidden');
+                roundControls.classList.add('flex');
+                roundIndicator.textContent = `${currentRoundIndex + 1} / ${secretList.length}`;
+                prevRoundBtn.disabled = currentRoundIndex === 0;
+                nextRoundBtn.disabled = currentRoundIndex === secretList.length - 1;
             } else {
-                shakeInput();
+                roundControls.classList.add('hidden');
+                roundControls.classList.remove('flex');
             }
         }
 
-        function loadNextMission() {
+        // 3. Render Puzzle
+        function renderPuzzle(text) {
+            puzzleContainer.innerHTML = '';
+            puzzleContainer.style.opacity = '0';
+            
+            setTimeout(() => {
+                puzzleContainer.style.opacity = '1';
+                const words = text.split(' ');
+    
+                words.forEach((word) => {
+                    const wordDiv = document.createElement('div');
+                    wordDiv.className = 'flex gap-2 flex-wrap justify-center';
+                    
+                    for (let char of word) {
+                        const encryptedChar = getCipherLetter(char, currentShift);
+                        const charDiv = document.createElement('div');
+                        charDiv.className = 'flex flex-col items-center animate-pop';
+                        charDiv.innerHTML = `
+                            <div class="relative group cursor-pointer">
+                                <div class="w-16 h-20 md:w-20 md:h-24 bg-brand-pink text-white rounded-xl shadow-[0_6px_0_#db7093] border-2 border-pink-400 flex items-center justify-center text-4xl font-bold mb-3 transition-transform active:translate-y-1 active:shadow-none">
+                                    ${encryptedChar}
+                                </div>
+                            </div>
+                            <div class="w-16 md:w-20 h-2 bg-gray-200 rounded-full mt-1"></div>
+                        `;
+                        wordDiv.appendChild(charDiv);
+                    }
+                    puzzleContainer.appendChild(wordDiv);
+                });
+            }, 50);
+            revealedText.textContent = text;
+        }
+
+        // 4. Toggle Reveal
+        function toggleReveal() {
+            if (secretList.length === 0) return;
+            isRevealed = !isRevealed;
+            if (isRevealed) {
+                answerContainer.classList.remove('hidden');
+                void answerContainer.offsetWidth;
+                answerContainer.classList.remove('opacity-0', 'translate-y-4');
+                answerContainer.classList.add('opacity-100', 'translate-y-0');
+                revealTextSpan.textContent = "Hide Answer";
+                revealBtn.classList.remove('bg-brand-pink', 'shadow-[0_4px_0_rgb(244,114,182)]');
+                revealBtn.classList.add('bg-gray-500', 'shadow-[0_4px_0_rgb(107,114,128)]');
+                fireConfetti();
+            } else {
+                resetRevealState(false);
+            }
+        }
+
+        function resetRevealState(instant = false) {
             isRevealed = false;
-            
-            if (missionQueue.length > 0) {
-                currentPhrase = missionQueue.shift();
-                const encrypted = encrypt(currentPhrase, 1);
-                
-                // UI Updates
-                missionStatusEl.textContent = `ENCRYPTED TRANSMISSION (${missionQueue.length + 1} REMAINING)`;
-                missionStatusEl.className = "text-[var(--theme-orange)] animate-pulse";
-                
-                hintTextEl.textContent = "IDENTITY CONCEALED";
-                
-                // Show Encrypted
-                animateText(encrypted, "text-[var(--theme-orange)]");
-                
-                // Button States
-                revealBtn.classList.remove('hidden');
-                nextBtn.classList.add('hidden');
-                
+            const canvas = document.getElementById('confettiCanvas');
+            canvas.classList.add('hidden');
+
+            if (instant) {
+                answerContainer.classList.add('hidden');
+                answerContainer.classList.remove('opacity-100', 'translate-y-0');
+                answerContainer.classList.add('opacity-0', 'translate-y-4');
             } else {
-                finishGame();
+                answerContainer.classList.remove('opacity-100', 'translate-y-0');
+                answerContainer.classList.add('opacity-0', 'translate-y-4');
+                setTimeout(() => {
+                    if(!isRevealed) answerContainer.classList.add('hidden');
+                }, 300);
             }
+            revealTextSpan.textContent = "Reveal Answer";
+            revealBtn.classList.remove('bg-gray-500', 'shadow-[0_4px_0_rgb(107,114,128)]');
+            revealBtn.classList.add('bg-brand-pink', 'shadow-[0_4px_0_rgb(244,114,182)]');
         }
 
-        function revealAnswer() {
-            if (isRevealed) return;
-            isRevealed = true;
-
-            // Play Success Effect
-            missionStatusEl.textContent = "DECRYPTION SUCCESSFUL";
-            missionStatusEl.className = "text-[var(--theme-green)]";
-            
-            hintTextEl.textContent = "IDENTITY VERIFIED";
-
-            // Show Plain Text
-            mainDisplayEl.textContent = currentPhrase;
-            mainDisplayEl.classList.remove("text-[var(--theme-orange)]");
-            mainDisplayEl.classList.add("text-[var(--theme-green)]");
-
-            // Update Score
-            score += 100;
-            scoreEl.textContent = score;
-
-            // Switch Buttons
-            revealBtn.classList.add('hidden');
-            nextBtn.classList.remove('hidden');
-            
-            // Focus next button for easy keyboard nav
-            nextBtn.focus();
+        // Modal Logic
+        function openModal() {
+            modal.classList.remove('hidden');
+            void modal.offsetWidth;
+            modal.classList.remove('opacity-0');
+            modalContent.classList.remove('scale-95');
+            modalContent.classList.add('scale-100');
+            secretInput.focus();
+            setModalShift(currentShift);
         }
 
-        function finishGame() {
-            mainDisplayEl.textContent = "ALL MISSIONS COMPLETE";
-            mainDisplayEl.className = "font-mono-spy text-4xl text-[var(--theme-blue)]";
-            
-            missionStatusEl.textContent = "SYSTEM STANDBY";
-            missionStatusEl.className = "text-gray-500";
-            hintTextEl.textContent = "";
-
-            revealBtn.classList.add('hidden');
-            nextBtn.classList.add('hidden');
+        function closeModal() {
+            modal.classList.add('opacity-0');
+            modalContent.classList.remove('scale-100');
+            modalContent.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
         }
-
-        function resetGame() {
-            score = 0;
-            scoreEl.textContent = "0";
-            missionQueue = [];
-            
-            // Show Admin Input
-            adminInputGroup.classList.remove('hidden');
-            revealBtn.classList.add('hidden');
-            nextBtn.classList.add('hidden');
-            
-            // Reset Text
-            mainDisplayEl.textContent = "AWAITING DATA";
-            mainDisplayEl.className = "font-mono-spy text-5xl md:text-7xl text-gray-500 tracking-widest";
-            missionStatusEl.textContent = "ADMIN MODE";
-            missionStatusEl.className = "text-[var(--theme-green)]";
-            hintTextEl.textContent = "ENTER WORDS TO BEGIN";
-            
-            // Reload saved words into the input field
-            loadWords();
-            adminInput.focus();
-        }
-
-        // --- EFFECTS ---
-
-        function animateText(finalText, colorClass) {
-            let iterations = 0;
-            const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-            
-            // Reset classes
-            mainDisplayEl.className = `font-mono-spy text-5xl md:text-7xl ${colorClass} tracking-widest drop-shadow-[0_0_10px_rgba(255,140,0,0.6)] break-words leading-tight`;
-
-            const interval = setInterval(() => {
-                mainDisplayEl.innerText = finalText
-                .split("")
-                .map((letter, index) => {
-                    if(letter === " ") return " ";
-                    if(index < iterations) return finalText[index];
-                    return letters[Math.floor(Math.random() * 26)]
-                })
-                .join("");
-                
-                if(iterations >= finalText.length) clearInterval(interval);
-                iterations += 1 / 3;
-            }, 30);
-        }
-
-        function shakeInput() {
-            adminInput.classList.add('border-[var(--theme-pink)]');
-            setTimeout(() => adminInput.classList.remove('border-[var(--theme-pink)]'), 500);
-        }
-
-        // --- EVENT LISTENERS ---
-        adminSubmitBtn.addEventListener('click', handleAdminInput);
-        adminInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') handleAdminInput();
-        });
         
-        revealBtn.addEventListener('click', revealAnswer);
-        nextBtn.addEventListener('click', loadNextMission);
-        
-        // Auto-save on input for persistence
-        adminInput.addEventListener('input', (e) => {
-            saveWords(e.target.value);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
         });
 
-        // --- INITIALIZATION ---
-        
-        function initializeApplication() {
-            // 1. Load saved words into the input field right away
-            loadWords();
-            
-            // 2. Set UI to Admin Mode, ready for the user to press LOAD.
-            // This is crucial to prevent auto-starting the game.
-            adminInputGroup.classList.remove('hidden');
-            revealBtn.classList.add('hidden');
-            nextBtn.classList.add('hidden');
-            mainDisplayEl.textContent = "AWAITING DATA";
-            mainDisplayEl.className = "font-mono-spy text-5xl md:text-7xl text-gray-500 tracking-widest";
-            missionStatusEl.textContent = "ADMIN MODE";
-            missionStatusEl.className = "text-[var(--theme-green)]";
-            hintTextEl.textContent = "ENTER WORDS TO BEGIN";
-            adminInput.focus();
+        // Confetti
+        function fireConfetti() {
+            const canvas = document.getElementById('confettiCanvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            canvas.classList.remove('hidden');
+            const particles = [];
+            const colors = ['#FF8FAB', '#FFB347', '#98FB98', '#87CEEB'];
+            for(let i=0; i<150; i++) {
+                particles.push({
+                    x: canvas.width / 2,
+                    y: canvas.height / 2,
+                    vx: (Math.random() - 0.5) * 25,
+                    vy: (Math.random() - 0.5) * 25,
+                    size: Math.random() * 12 + 6,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    life: 150
+                });
+            }
+            function animate() {
+                if (!isRevealed) {
+                    canvas.classList.add('hidden');
+                    return;
+                }
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                let active = false;
+                particles.forEach(p => {
+                    if (p.life > 0) {
+                        active = true;
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        p.vy += 0.4;
+                        p.vx *= 0.95;
+                        p.life--;
+                        p.size *= 0.96;
+                        ctx.fillStyle = p.color;
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                });
+                if (active) requestAnimationFrame(animate);
+                else canvas.classList.add('hidden');
+            }
+            animate();
         }
 
-        window.onload = initializeApplication;
-
+        renderDecoder();
     </script>
 </body>
 </html>
