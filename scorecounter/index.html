@@ -1,37 +1,22 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scoreboard - English 1</title>
+    <title>Score Counter - English 1 Batam</title>
+    
+    <!-- External Libraries -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-    
-    <!-- Libraries -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    
-    <!-- THEME INIT (Default: Dark) -->
-    <script>
-        (function() {
-            const savedTheme = localStorage.getItem('theme');
-            // Logic: If saved as 'light', go light. Otherwise (null or 'dark'), go DARK.
-            if (savedTheme === 'light') {
-                document.documentElement.classList.remove('dark');
-            } else {
-                document.documentElement.classList.add('dark');
-            }
-        })();
-    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
 
+    <!-- Theme Configuration -->
     <script>
         tailwind.config = {
-            darkMode: 'class',
             theme: {
                 extend: {
                     colors: {
@@ -39,25 +24,18 @@
                         orange: '#FF8C42',
                         green: '#00E676',
                         blue: '#2979FF',
-                        dark: '#0f172a',
+                        dark: '#1e293b', 
+                        surface: '#FFFFFF',
+                        border: '#cbd5e1',
+                        background: '#F8FAFC',
                     },
                     fontFamily: {
-                        heading: ['Bebas Neue', 'sans-serif'],
+                        heading: ['Fredoka', 'sans-serif'], 
                         body: ['Nunito', 'sans-serif'],
                     },
-                    animation: {
-                        'pop': 'pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-                        'float': 'float 3s ease-in-out infinite',
-                    },
-                    keyframes: {
-                        pop: {
-                            '0%': { transform: 'scale(0.9)', opacity: '0' },
-                            '100%': { transform: 'scale(1)', opacity: '1' },
-                        },
-                        float: {
-                            '0%, 100%': { transform: 'translateY(0)' },
-                            '50%': { transform: 'translateY(-15px) rotate(5deg)' },
-                        }
+                    boxShadow: {
+                        'card': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                        'float': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
                     }
                 }
             }
@@ -67,469 +45,436 @@
     <style>
         body {
             font-family: 'Nunito', sans-serif;
-            transition: background-color 0.5s ease, color 0.5s ease;
+            background-color: #F8FAFC;
+            /* Grid Background */
+            background-image: 
+                linear-gradient(to right, #e2e8f0 1px, transparent 1px),
+                linear-gradient(to bottom, #e2e8f0 1px, transparent 1px);
+            background-size: 40px 40px;
+            overflow-x: hidden;
         }
 
-        /* --- BACKGROUNDS --- */
-        .dark body {
-            background-color: #0f172a;
-            background-image: 
-                radial-gradient(at 0% 0%, rgba(41, 121, 255, 0.15) 0px, transparent 50%), 
-                radial-gradient(at 100% 100%, rgba(255, 107, 149, 0.1) 0px, transparent 50%);
-            background-attachment: fixed;
+        /* Interactive Elements */
+        .btn-press {
+            transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        body {
-            background-color: #f1f5f9; /* Slate 100 */
-            background-image: 
-                radial-gradient(at 0% 0%, rgba(41, 121, 255, 0.05) 0px, transparent 50%), 
-                radial-gradient(at 100% 100%, rgba(255, 107, 149, 0.05) 0px, transparent 50%);
-            background-attachment: fixed;
-        }
-
-        /* --- GLASS PANELS --- */
-        .glass-panel {
-            backdrop-filter: blur(16px);
-            transition: all 0.3s ease;
+        .btn-press:active {
+            transform: scale(0.95);
         }
         
-        .dark .glass-panel {
-            background: rgba(30, 41, 59, 0.7);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+        .card-enter {
+            animation: slideIn 0.3s ease-out forwards;
         }
-
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.9); /* High opacity for Light Mode */
-            border: 1px solid rgba(255, 255, 255, 1);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-        }
-
-        /* --- SCORE CARD STATES --- */
-        .score-card {
-            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s, border-color 0.2s;
-            border: 2px solid transparent; 
-        }
-        .score-card:hover { transform: translateY(-4px); }
         
-        /* Leader State - Yellow Ring */
-        .score-card.is-leader {
-            border-color: #FACC15; 
-            box-shadow: 0 0 0 4px rgba(250, 204, 21, 0.3);
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
-        /* --- TYPOGRAPHY --- */
-        .score-text {
+        .confetti {
+            position: fixed;
+            width: 12px;
+            height: 12px;
+            z-index: 100;
+            border-radius: 4px;
+            pointer-events: none;
+        }
+        
+        /* Input styling */
+        .team-name-input {
+            background: transparent;
+            border: 2px solid transparent;
+            border-radius: 12px;
+            transition: all 0.2s;
+        }
+        .team-name-input:hover {
+            border-color: #cbd5e1;
+            background: #F1F5F9;
+        }
+        .team-name-input:focus {
+            border-color: #2979FF;
+            background: #FFFFFF;
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(41, 121, 255, 0.1);
+        }
+        
+        /* Score Number Font */
+        .score-display {
+            font-family: 'Fredoka', sans-serif;
             font-variant-numeric: tabular-nums;
-            transition: color 0.1s ease, transform 0.1s;
         }
-        .score-text.pop-green { color: #00E676 !important; transform: scale(1.2); text-shadow: 0 0 30px #00E676; }
-        .score-text.pop-pink { color: #FF6B95 !important; transform: scale(1.2); text-shadow: 0 0 30px #FF6B95; }
 
-        .score-text { text-shadow: 2px 2px 0px rgba(0,0,0,0.05); }
-        .dark .score-text { text-shadow: 0 0 20px rgba(255,255,255,0.1); }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        /* Modal Transitions */
+        #customModal {
+            transition: opacity 0.2s ease-out;
+        }
+        #customModal.hidden {
+            display: none;
+            opacity: 0;
+        }
+        #modalContent {
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transform: scale(0.9);
+        }
+        #customModal:not(.hidden) #modalContent {
+            transform: scale(1);
+        }
     </style>
 </head>
-<body class="min-h-screen flex flex-col text-slate-800 dark:text-slate-100 selection:bg-pink/30 selection:text-pink-900 dark:selection:text-white">
+<body class="h-screen flex flex-col text-dark overflow-hidden">
 
-    <!-- HEADER -->
-    <header class="sticky top-0 z-50 glass-panel border-b border-slate-200 dark:border-white/5 transition-all duration-300">
-        <div class="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
-            
-            <!-- Logo Area -->
-            <div class="flex items-center gap-4 group cursor-default">
-                <div class="bg-gradient-to-br from-green to-blue w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-lg shadow-blue/20 group-hover:scale-105 transition-transform duration-300">
-                    🏆
-                </div>
-                <div class="flex flex-col">
-                    <h1 class="text-3xl font-heading tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-green to-blue drop-shadow-sm">SCOREBOARD</h1>
-                    <span class="text-[10px] font-bold uppercase tracking-[0.3em] text-slate-400 dark:text-slate-500">English 1 Batam</span>
+    <!-- Header -->
+    <header class="bg-surface/90 backdrop-blur-md border-b border-border z-50 flex-none sticky top-0">
+        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-pink rounded-xl flex items-center justify-center text-white shadow-sm rotate-[-3deg]">
+                        <i data-lucide="trophy" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-heading font-bold text-dark leading-none">Score Counter</h1>
+                        <p class="text-[10px] text-slate-500 font-extrabold tracking-[0.1em] uppercase">Batam Activity Hub</p>
+                    </div>
                 </div>
             </div>
-
-            <!-- Global Controls -->
-            <div class="flex items-center gap-2 md:gap-3">
-                
-                <!-- Quick Add Input -->
-                <div class="hidden md:flex items-center bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-lg p-1 mr-2 focus-within:border-blue focus-within:ring-2 focus-within:ring-blue/20 transition-all shadow-sm">
-                    <input type="text" id="quick-add-input" placeholder="New Team Name..." 
-                        class="bg-transparent border-none outline-none text-sm px-3 py-1 w-48 text-slate-700 dark:text-white placeholder-slate-400 font-bold"
-                        onkeypress="if(event.key === 'Enter') addTeam()">
-                    <button onclick="addTeam()" class="bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-white p-1.5 rounded-md transition-colors" title="Add Team">
-                        <i data-lucide="plus" class="w-4 h-4"></i>
-                    </button>
-                </div>
-
-                <div class="h-8 w-px bg-slate-200 dark:bg-white/10 mx-1 hidden md:block"></div>
-                
-                <button id="sound-toggle" class="p-2.5 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 transition-colors text-slate-400" title="Toggle Sound">
+            
+            <div class="flex items-center gap-3">
+                <button onclick="toggleSound()" id="soundBtn" class="w-10 h-10 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors" title="Toggle Sound">
                     <i data-lucide="volume-2" class="w-5 h-5"></i>
                 </button>
-                
-                <!-- Theme Button -->
-                <button onclick="toggleTheme()" class="p-2.5 rounded-full hover:bg-slate-100 dark:hover:bg-white/10 transition-colors text-slate-500 dark:text-yellow-400" title="Toggle Theme">
-                    <i data-lucide="sun" class="w-5 h-5 hidden dark:block"></i>
-                    <i data-lucide="moon" class="w-5 h-5 block dark:hidden"></i>
-                </button>
-
-                <div class="relative group">
-                    <button onclick="resetScores()" class="p-2.5 rounded-full hover:bg-blue/10 transition-colors text-blue border border-transparent" title="Reset All Scores">
-                        <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
-                    </button>
-                </div>
-                
-                <div class="relative group">
-                    <button onclick="wipeAll()" class="p-2.5 rounded-full hover:bg-red-500/10 transition-colors text-red-500 border border-transparent" title="DELETE All Teams">
-                        <i data-lucide="trash-2" class="w-5 h-5"></i>
-                    </button>
-                </div>
             </div>
         </div>
     </header>
 
-    <!-- MAIN BOARD -->
-    <main class="flex-grow p-4 md:p-8 overflow-y-auto">
-        
-        <!-- Empty State -->
-        <div id="empty-state" class="flex flex-col items-center justify-center h-[60vh] text-center animate-pop">
-            <div class="w-24 h-24 bg-white dark:bg-slate-800 rounded-full flex items-center justify-center mb-6 shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-white/5">
-                <i data-lucide="bar-chart-2" class="w-10 h-10 text-slate-300 dark:text-slate-600"></i>
-            </div>
-            <h2 class="text-4xl font-heading text-slate-800 dark:text-white mb-2 tracking-wide">Ready to Keep Score?</h2>
-            <p class="text-slate-500 dark:text-slate-400 mb-8 max-w-md text-lg">Add teams or students to start tracking points. Use the input above or the button below.</p>
-            <button onclick="document.getElementById('quick-add-input').focus()" class="bg-gradient-to-r from-blue to-green text-white dark:text-slate-900 font-extrabold px-8 py-4 rounded-xl shadow-lg hover:shadow-green/30 hover:scale-105 transition transform flex items-center gap-2">
-                <i data-lucide="plus-circle" class="w-5 h-5"></i> CREATE FIRST TEAM
+    <!-- Toolbar -->
+    <div class="flex-none py-6 px-4 flex justify-center">
+        <div class="bg-surface border border-border shadow-float rounded-full p-1.5 flex items-center gap-1">
+            <button onclick="addTeam()" class="bg-blue hover:bg-blue/90 text-white px-6 py-2.5 rounded-full font-heading font-bold btn-press flex items-center gap-2 shadow-sm">
+                <i data-lucide="user-plus" class="w-5 h-5"></i> Add Team
+            </button>
+            
+            <div class="w-px h-8 bg-border mx-2"></div>
+            
+            <button onclick="resetScores()" class="text-slate-600 hover:text-orange hover:bg-orange/10 px-4 py-2.5 rounded-full font-heading font-semibold btn-press flex items-center gap-2 transition-colors">
+                <i data-lucide="refresh-cw" class="w-4 h-4"></i> Reset
+            </button>
+            
+            <button onclick="celebrate()" class="text-slate-600 hover:text-pink hover:bg-pink/10 px-4 py-2.5 rounded-full font-heading font-semibold btn-press flex items-center gap-2 transition-colors">
+                <i data-lucide="trophy" class="w-4 h-4"></i> Celebrate
+            </button>
+
+            <div class="w-px h-8 bg-border mx-2"></div>
+
+            <button onclick="deleteAllTeams()" class="text-slate-400 hover:text-red-500 hover:bg-red-50 px-4 py-2.5 rounded-full font-heading font-semibold btn-press flex items-center gap-2 transition-colors">
+                <i data-lucide="trash-2" class="w-4 h-4"></i> Clear All
             </button>
         </div>
-
-        <!-- Score Grid -->
-        <!-- pb-20 adds space at bottom for scrolling past the floating crown if needed -->
-        <div id="score-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-10 hidden pb-20"></div>
-    </main>
-    
-    <!-- FOOTER CONTROLS (Mobile) -->
-    <div class="md:hidden fixed bottom-6 right-6 z-40">
-        <button onclick="document.getElementById('quick-add-input').scrollIntoView({ behavior: 'smooth', block: 'center' }); document.getElementById('quick-add-input').focus();" class="bg-blue hover:bg-blue/90 text-white w-14 h-14 rounded-full shadow-xl shadow-blue/30 flex items-center justify-center border border-white/20">
-            <i data-lucide="plus" class="w-8 h-8"></i>
-        </button>
     </div>
-    
-    <!-- CONFIRMATION MODAL -->
-    <div id="confirmation-modal" class="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 transition-opacity animate-fade-in">
-        <div class="glass-panel bg-white/95 dark:bg-slate-800/95 rounded-2xl w-full max-w-sm p-8 animate-pop shadow-2xl border border-slate-200 dark:border-white/10">
-            <div id="modal-icon-container" class="w-12 h-12 rounded-full flex items-center justify-center mb-4 mx-auto">
-                <i id="modal-icon" data-lucide="alert-triangle" class="w-6 h-6"></i>
+
+    <!-- Main Content -->
+    <main class="flex-grow p-6 overflow-y-auto flex items-start justify-center custom-scrollbar">
+        <!-- Score Grid -->
+        <div id="scoreGrid" class="w-full max-w-7xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 pb-32">
+            <!-- Team cards will be injected here -->
+        </div>
+    </main>
+
+    <!-- Custom Modal Popup -->
+    <div id="customModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-dark/30 backdrop-blur-sm">
+        <div id="modalContent" class="bg-white rounded-[2rem] shadow-float max-w-md w-full p-8 flex flex-col items-center text-center border border-border">
+            <div id="modalIconContainer" class="w-16 h-16 rounded-2xl flex items-center justify-center mb-6">
+                <i id="modalIcon" data-lucide="alert-circle" class="w-8 h-8"></i>
             </div>
-            <h3 id="modal-title" class="text-2xl font-heading text-slate-800 dark:text-white mb-2 tracking-wide text-center"></h3>
-            <p id="modal-message" class="text-slate-500 dark:text-slate-400 mb-8 text-center leading-relaxed"></p>
-            
-            <div class="flex flex-col gap-3">
-                <button id="modal-confirm-btn" onclick="handleConfirm()" class="w-full font-bold px-4 py-3 rounded-xl transition-all shadow-lg transform active:scale-95 flex items-center justify-center gap-2">
-                    Confirm Action
-                </button>
-                <button onclick="closeModal()" class="w-full bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 font-semibold px-4 py-3 rounded-xl transition-colors">
+            <h3 id="modalTitle" class="text-2xl font-heading font-bold text-dark mb-2">Are you sure?</h3>
+            <p id="modalMessage" class="text-slate-500 font-semibold mb-8">This action cannot be undone.</p>
+            <div class="flex gap-3 w-full">
+                <button id="modalCancel" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 py-3 rounded-2xl font-heading font-bold btn-press transition-colors">
                     Cancel
+                </button>
+                <button id="modalConfirm" class="flex-1 bg-orange hover:opacity-90 text-white py-3 rounded-2xl font-heading font-bold btn-press transition-colors shadow-lg shadow-orange/20">
+                    Yes, Do it!
                 </button>
             </div>
         </div>
     </div>
 
     <script>
-        // --- CONFIG ---
-        const PALETTE = [
-            { name: 'Pink', hex: '#FF6B95' },
-            { name: 'Orange', hex: '#FF8C42' },
-            { name: 'Green', hex: '#00E676' },
-            { name: 'Blue', hex: '#2979FF' }
+        // State
+        let teams = [
+            { id: 1, name: "Team 1", score: 0, color: "blue" },
+            { id: 2, name: "Team 2", score: 0, color: "pink" }
         ];
-
-        let teams = [];
         let soundEnabled = true;
-        let colorCycle = 0;
-        let pendingAction = null;
 
-        // --- AUDIO ENGINE ---
-        const AudioEngine = {
-            init: async () => { await Tone.start(); },
-            playPointUp: (pitch = "C5") => {
-                if(!soundEnabled) return;
-                const synth = new Tone.PolySynth(Tone.Synth).toDestination();
-                synth.volume.value = -5;
-                synth.triggerAttackRelease([pitch], "16n");
-            },
-            playPointDown: () => {
-                if(!soundEnabled) return;
-                const synth = new Tone.MembraneSynth().toDestination();
-                synth.volume.value = -10;
-                synth.triggerAttackRelease("C2", "32n");
-            },
-            playWin: () => {
-                if(!soundEnabled) return;
-                const synth = new Tone.PolySynth().toDestination();
-                const now = Tone.now();
-                synth.triggerAttackRelease(["C4", "E4", "G4", "C5"], "8n", now);
-                synth.triggerAttackRelease(["E4", "G4", "B4", "E5"], "8n", now + 0.15);
-                synth.triggerAttackRelease(["G4", "B4", "D5", "G5"], "4n", now + 0.3);
-            }
-        };
+        // Color rotation for new teams
+        const colors = ["blue", "pink", "green", "orange"];
 
-        // --- PERSISTENCE ---
-        function saveData() {
-            localStorage.setItem('english1_scoreboard_teams', JSON.stringify(teams));
+        // Initialization
+        document.addEventListener('DOMContentLoaded', () => {
+            renderGrid();
+        });
+
+        // --- Custom Modal Logic ---
+        function showModal({ title, message, confirmText, type = 'warning' }) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('customModal');
+                const titleEl = document.getElementById('modalTitle');
+                const messageEl = document.getElementById('modalMessage');
+                const confirmBtn = document.getElementById('modalConfirm');
+                const cancelBtn = document.getElementById('modalCancel');
+                const iconContainer = document.getElementById('modalIconContainer');
+                const iconEl = document.getElementById('modalIcon');
+
+                // Setup visual type
+                if (type === 'danger') {
+                    iconContainer.className = 'w-16 h-16 rounded-2xl flex items-center justify-center mb-6 bg-red-50 text-red-500';
+                    confirmBtn.className = 'flex-1 bg-red-500 hover:opacity-90 text-white py-3 rounded-2xl font-heading font-bold btn-press transition-colors shadow-lg shadow-red-500/20';
+                    iconEl.setAttribute('data-lucide', 'trash-2');
+                } else {
+                    iconContainer.className = 'w-16 h-16 rounded-2xl flex items-center justify-center mb-6 bg-orange/10 text-orange';
+                    confirmBtn.className = 'flex-1 bg-orange hover:opacity-90 text-white py-3 rounded-2xl font-heading font-bold btn-press transition-colors shadow-lg shadow-orange/20';
+                    iconEl.setAttribute('data-lucide', 'alert-circle');
+                }
+
+                titleEl.textContent = title;
+                messageEl.textContent = message;
+                confirmBtn.textContent = confirmText || 'Confirm';
+
+                lucide.createIcons();
+                modal.classList.remove('hidden');
+
+                const cleanup = (value) => {
+                    modal.classList.add('hidden');
+                    confirmBtn.onclick = null;
+                    cancelBtn.onclick = null;
+                    resolve(value);
+                };
+
+                confirmBtn.onclick = () => cleanup(true);
+                cancelBtn.onclick = () => cleanup(false);
+            });
         }
 
-        function loadData() {
-            const data = localStorage.getItem('english1_scoreboard_teams');
-            if (data) {
-                teams = JSON.parse(data);
-                // Ensure color index exists for legacy data support
-                teams.forEach((t, i) => { if(t.colorIndex === undefined) t.colorIndex = i % 4; });
-                // Reset cycle counter
-                colorCycle = teams.length;
-                render();
-            }
-        }
-
-        // --- CUSTOM MODAL LOGIC ---
-        function showConfirmationModal(title, message, actionCallback, type = 'danger') {
-            const modal = document.getElementById('confirmation-modal');
-            const confirmBtn = document.getElementById('modal-confirm-btn');
-            const iconContainer = document.getElementById('modal-icon-container');
-            const icon = document.getElementById('modal-icon');
+        // Toggle Sound
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const btn = document.getElementById('soundBtn');
+            const iconName = soundEnabled ? 'volume-2' : 'volume-x';
+            const bgClass = soundEnabled ? 'bg-slate-100 text-slate-600' : 'bg-red-50 text-red-500';
             
-            document.getElementById('modal-title').innerText = title;
-            document.getElementById('modal-message').innerText = message;
-            
-            if (type === 'danger') {
-                confirmBtn.className = "w-full bg-red-500 hover:bg-red-600 text-white font-bold px-4 py-3 rounded-xl transition-all shadow-lg shadow-red-500/30 transform active:scale-95";
-                iconContainer.className = "w-16 h-16 rounded-full flex items-center justify-center mb-4 mx-auto bg-red-100 dark:bg-red-500/20";
-                icon.className = "w-8 h-8 text-red-500";
-                icon.setAttribute('data-lucide', 'alert-triangle');
-            } else {
-                confirmBtn.className = "w-full bg-blue hover:bg-blue-600 text-white font-bold px-4 py-3 rounded-xl transition-all shadow-lg shadow-blue/30 transform active:scale-95";
-                iconContainer.className = "w-16 h-16 rounded-full flex items-center justify-center mb-4 mx-auto bg-blue/10";
-                icon.className = "w-8 h-8 text-blue";
-                icon.setAttribute('data-lucide', 'info');
-            }
-
-            pendingAction = actionCallback; 
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
+            btn.innerHTML = `<i data-lucide="${iconName}" class="w-5 h-5"></i>`;
+            btn.className = `w-10 h-10 rounded-full ${bgClass} hover:opacity-90 flex items-center justify-center transition-colors`;
             lucide.createIcons();
         }
 
-        function closeModal() {
-            const modal = document.getElementById('confirmation-modal');
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-            pendingAction = null; 
+        // Simple Audio Context Beep
+        function playBeep(freq = 440, type = 'sine', duration = 0.1) {
+            if (!soundEnabled) return;
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                gain.gain.setValueAtTime(0.04, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + duration);
+            } catch (e) {}
         }
 
-        function handleConfirm() {
-            if (pendingAction) pendingAction();
-            closeModal();
+        function playSuccess() {
+            if (!soundEnabled) return;
+            playBeep(523.25, 'sine', 0.1); // C5
+            setTimeout(() => playBeep(659.25, 'sine', 0.1), 100); // E5
+            setTimeout(() => playBeep(783.99, 'sine', 0.2), 200); // G5
         }
 
-        // --- LOGIC ---
-        function addTeam(customName = null) {
-            if (Tone.context.state !== 'running') Tone.start();
-            const input = document.getElementById('quick-add-input');
-            const name = customName || input.value.trim();
-            if (!name) return;
-
-            const newTeam = {
-                id: Date.now(),
-                name: name,
-                score: 0,
-                colorIndex: colorCycle % PALETTE.length
-            };
-
-            teams.push(newTeam);
-            input.value = '';
-            colorCycle++;
-            saveData();
-            render();
-            AudioEngine.playPointUp("G5");
-        }
-
-        function removeTeam(id) {
-            showConfirmationModal("Remove Team?", "This action cannot be undone.", () => {
-                teams = teams.filter(t => t.id !== id);
-                saveData();
-                render();
-                AudioEngine.playPointDown();
-            }, 'danger');
-        }
-
-        function updateScore(id, delta) {
-            const team = teams.find(t => t.id === id);
-            if (!team) return;
-            team.score += delta;
-            
-            if (delta > 0) AudioEngine.playPointUp(delta > 1 ? "E5" : "C5");
-            else AudioEngine.playPointDown();
-
-            const scoreEl = document.getElementById(`score-${id}`);
-            if (scoreEl) {
-                // Add pop class
-                scoreEl.classList.add(delta > 0 ? 'pop-green' : 'pop-pink');
-                setTimeout(() => {
-                    scoreEl.classList.remove('pop-green', 'pop-pink');
-                }, 200);
-                scoreEl.innerText = team.score;
-            }
-            saveData();
-            checkLeader();
-        }
-        
-        function resetScores() {
-            showConfirmationModal("Reset Scores?", "All team scores will be set back to zero.", () => {
-                teams.forEach(t => t.score = 0);
-                saveData();
-                render();
-                AudioEngine.playPointDown();
-            }, 'info');
-        }
-        
-        function wipeAll() {
-            showConfirmationModal("Delete Everything?", "Permanently delete all teams and scores.", () => {
-                teams = [];
-                localStorage.removeItem('english1_scoreboard_teams');
-                render();
-                AudioEngine.playPointDown();
-            }, 'danger');
-        }
-
-        function checkLeader() {
-            if (teams.length < 2) return;
-            const maxScore = Math.max(...teams.map(t => t.score));
-            
-            teams.forEach(t => {
-                const crown = document.getElementById(`crown-${t.id}`);
-                const card = document.getElementById(`card-${t.id}`);
-                
-                if (t.score === maxScore && t.score > 0) {
-                    crown.classList.remove('hidden');
-                    card.classList.add('is-leader'); 
-                } else {
-                    crown.classList.add('hidden');
-                    card.classList.remove('is-leader');
-                }
-            });
-        }
-
-        function celebrate(id) {
-            const team = teams.find(t => t.id === id);
-            if(!team) return;
-            AudioEngine.playWin();
-            
-            const card = document.getElementById(`card-${id}`);
-            const rect = card.getBoundingClientRect();
-            const x = (rect.left + rect.width / 2) / window.innerWidth;
-            const y = (rect.top + rect.height / 2) / window.innerHeight;
-
-            confetti({
-                particleCount: 100, spread: 70, origin: { x, y },
-                colors: [PALETTE[team.colorIndex].hex, '#FFD700']
-            });
-        }
-
-        function render() {
-            const grid = document.getElementById('score-grid');
-            const empty = document.getElementById('empty-state');
-
-            if (teams.length === 0) {
-                grid.classList.add('hidden');
-                empty.classList.remove('hidden');
-                return;
-            }
-
-            grid.classList.remove('hidden');
-            empty.classList.add('hidden');
+        // Render the grid
+        function renderGrid() {
+            const grid = document.getElementById('scoreGrid');
             grid.innerHTML = '';
 
-            teams.forEach(team => {
-                const color = PALETTE[team.colorIndex];
+            if (teams.length === 0) {
+                 grid.innerHTML = `
+                    <div class="col-span-full flex flex-col items-center justify-center text-slate-400 mt-24">
+                        <div class="bg-white p-8 rounded-3xl border border-dashed border-slate-300 mb-6 group hover:border-blue transition-colors">
+                             <i data-lucide="users" class="w-16 h-16 opacity-30 group-hover:opacity-50 group-hover:text-blue transition-all"></i>
+                        </div>
+                        <p class="font-heading font-bold text-2xl text-slate-700">Ready to start?</p>
+                        <p class="text-slate-500 font-semibold">Click "Add Team" to begin the activity.</p>
+                    </div>
+                 `;
+                 lucide.createIcons();
+                 return;
+            }
+
+            teams.forEach((team, index) => {
+                const textColors = { 'blue': 'text-blue', 'pink': 'text-pink', 'green': 'text-green', 'orange': 'text-orange' };
+                const bgColors = { 'blue': 'bg-blue', 'pink': 'bg-pink', 'green': 'bg-green', 'orange': 'bg-orange' };
+                const shadowColors = { 'blue': 'shadow-blue/20', 'pink': 'shadow-pink/20', 'green': 'shadow-green/20', 'orange': 'shadow-orange/20' };
+
+                const textColor = textColors[team.color];
+                const bgColor = bgColors[team.color];
+                const shadowColor = shadowColors[team.color];
                 
-                // IMPORTANT: overflow-visible allowed here for Crown to pop out
-                // rounded-2xl handles the card corners
                 const card = document.createElement('div');
-                card.id = `card-${team.id}`;
-                card.className = `score-card glass-panel rounded-2xl p-6 flex flex-col items-center justify-between min-h-[320px] animate-pop relative group overflow-visible`;
+                card.className = `bg-surface border border-slate-200 rounded-[2rem] shadow-card p-6 flex flex-col items-center relative group select-none card-enter hover:shadow-xl hover:border-slate-300 transition-all duration-300`;
                 
-                // Top Color Bar - Manually rounded top to match card
-                const topBar = document.createElement('div');
-                topBar.className = `absolute top-0 left-0 w-full h-1.5 rounded-t-2xl`;
-                topBar.style.backgroundColor = color.hex;
-                card.appendChild(topBar);
-
-                card.innerHTML += `
-                    <!-- Header -->
-                    <div class="w-full flex justify-between items-start mb-4 z-10">
-                        <div class="flex-1 min-w-0">
-                            <h2 class="text-2xl font-bold font-heading tracking-wider truncate text-slate-800 dark:text-white group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-blue group-hover:to-green transition-all">${team.name}</h2>
-                            <div class="flex items-center gap-2 mt-1">
-                                <span class="w-2 h-2 rounded-full" style="background-color: ${color.hex}"></span>
-                                <span class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Player</span>
-                            </div>
-                        </div>
-                        <div class="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
-                             <button onclick="celebrate(${team.id})" class="p-2 rounded-lg hover:bg-yellow-50 dark:hover:bg-yellow-400/10 text-slate-400 hover:text-yellow-500 transition-colors">
-                                <i data-lucide="party-popper" class="w-4 h-4"></i>
-                            </button>
-                            <button onclick="removeTeam(${team.id})" class="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-slate-400 hover:text-red-500 transition-colors">
-                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                            </button>
-                        </div>
+                card.innerHTML = `
+                    <div class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-all transform translate-y-1 group-hover:translate-y-0">
+                        <button onclick="removeTeam(${team.id})" class="w-9 h-9 rounded-xl bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 flex items-center justify-center transition-colors shadow-sm" title="Remove Team">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
                     </div>
 
-                    <!-- Score Display -->
-                    <div class="flex-1 flex flex-col items-center justify-center relative w-full my-4 z-10">
-                        <!-- Crown Positioned absolutely relative to this container, floating OUTSIDE -->
-                        <div id="crown-${team.id}" class="leader-crown hidden absolute -top-14 text-5xl animate-float drop-shadow-lg filter z-50">👑</div>
+                    <div class="w-full mb-2 mt-2">
+                        <input type="text" 
+                            value="${team.name}" 
+                            onchange="updateName(${team.id}, this.value)"
+                            class="team-name-input w-full text-center text-2xl font-heading font-bold text-slate-700 py-1.5 px-3"
+                            spellcheck="false"
+                        >
+                    </div>
+
+                    <div class="flex-grow flex items-center justify-center my-6 h-32 w-full">
+                        <span class="score-display text-[6.5rem] font-bold ${textColor} tracking-tight transition-transform duration-200" id="score-${team.id}">${team.score}</span>
+                    </div>
+
+                    <div class="flex items-center gap-6 w-full justify-center mt-2">
+                        <button onclick="updateScore(${team.id}, -1)" 
+                            class="w-14 h-14 rounded-2xl bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800 flex items-center justify-center btn-press transition-colors border border-slate-200/50">
+                            <i data-lucide="minus" class="w-7 h-7"></i>
+                        </button>
                         
-                        <div id="score-${team.id}" class="score-text text-[7rem] lg:text-[8rem] font-bold text-slate-800 dark:text-white leading-none select-none">
-                            ${team.score}
-                        </div>
-                    </div>
-
-                    <!-- Controls -->
-                    <div class="w-full grid grid-cols-4 gap-2 mt-auto z-10">
-                        <button onclick="updateScore(${team.id}, -1)" class="col-span-1 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 rounded-lg py-3 flex items-center justify-center font-mono font-bold border border-slate-200 dark:border-white/5 transition-colors active:scale-95">-1</button>
-                        <button onclick="updateScore(${team.id}, 1)" class="col-span-2 bg-gradient-to-r from-blue to-green hover:brightness-110 text-white dark:text-slate-900 rounded-lg py-3 flex items-center justify-center font-mono font-bold text-xl shadow-lg shadow-blue/20 transition-all active:scale-95 transform">+1</button>
-                        <button onclick="updateScore(${team.id}, 5)" class="col-span-1 bg-slate-100 hover:bg-slate-200 dark:bg-white/5 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300 rounded-lg py-3 flex items-center justify-center font-mono font-bold border border-slate-200 dark:border-white/5 transition-colors active:scale-95">+5</button>
+                        <button onclick="updateScore(${team.id}, 1)" 
+                            class="w-20 h-20 rounded-3xl ${bgColor} text-white shadow-lg ${shadowColor} flex items-center justify-center btn-press transform hover:scale-105 transition-all">
+                            <i data-lucide="plus" class="w-10 h-10 font-bold"></i>
+                        </button>
                     </div>
                 `;
                 grid.appendChild(card);
             });
-
-            checkLeader();
+            
             lucide.createIcons();
         }
 
-        // --- THEME ENGINE ---
-        function toggleTheme() {
-            const html = document.documentElement;
-            if (html.classList.contains('dark')) {
-                html.classList.remove('dark');
-                localStorage.setItem('theme', 'light');
-            } else {
-                html.classList.add('dark');
-                localStorage.setItem('theme', 'dark');
+        function addTeam() {
+            const nextId = teams.length > 0 ? Math.max(...teams.map(t => t.id)) + 1 : 1;
+            const nextColor = colors[teams.length % colors.length];
+            teams.push({
+                id: nextId,
+                name: `Team ${teams.length + 1}`,
+                score: 0,
+                color: nextColor
+            });
+            playBeep(440, 'triangle', 0.1);
+            renderGrid();
+        }
+
+        async function removeTeam(id) {
+            const confirmed = await showModal({
+                title: 'Delete Team?',
+                message: 'Are you sure you want to remove this team?',
+                confirmText: 'Yes, Delete',
+                type: 'danger'
+            });
+            if (confirmed) {
+                teams = teams.filter(t => t.id !== id);
+                renderGrid();
             }
         }
 
-        document.getElementById('sound-toggle').addEventListener('click', (e) => {
-            soundEnabled = !soundEnabled;
-            const icon = soundEnabled ? 'volume-2' : 'volume-x';
-            e.currentTarget.innerHTML = `<i data-lucide="${icon}" class="w-5 h-5"></i>`;
-            lucide.createIcons();
-        });
+        async function deleteAllTeams() {
+            const confirmed = await showModal({
+                title: 'Clear Everything?',
+                message: 'This will remove all teams and reset the board.',
+                confirmText: 'Clear All',
+                type: 'danger'
+            });
+            if (confirmed) {
+                teams = [];
+                playBeep(220, 'sawtooth', 0.2);
+                renderGrid();
+            }
+        }
 
-        // Init
-        window.onload = () => {
-            loadData();
-            lucide.createIcons();
-        };
+        function updateName(id, newName) {
+            const team = teams.find(t => t.id === id);
+            if(team) team.name = newName;
+        }
+
+        function updateScore(id, delta) {
+            const team = teams.find(t => t.id === id);
+            if(team) {
+                team.score += delta;
+                if(team.score < 0) team.score = 0;
+                
+                const scoreEl = document.getElementById(`score-${id}`);
+                scoreEl.textContent = team.score;
+                
+                scoreEl.classList.remove('scale-125');
+                void scoreEl.offsetWidth; 
+                scoreEl.classList.add('scale-125');
+                setTimeout(() => scoreEl.classList.remove('scale-125'), 150);
+
+                if(delta > 0) playBeep(600 + (Math.min(team.score, 20) * 15), 'sine', 0.1);
+                else playBeep(260, 'sawtooth', 0.1);
+            }
+        }
+
+        async function resetScores() {
+            const confirmed = await showModal({
+                title: 'Reset Scores?',
+                message: 'All team scores will go back to zero.',
+                confirmText: 'Reset Now',
+                type: 'warning'
+            });
+            if (confirmed) {
+                teams.forEach(t => t.score = 0);
+                playBeep(330, 'square', 0.1);
+                renderGrid();
+            }
+        }
+
+        function celebrate() {
+            playSuccess();
+            const duration = 3000;
+            const end = Date.now() + duration;
+
+            (function frame() {
+                for(let i=0; i<8; i++) {
+                    const el = document.createElement('div');
+                    el.classList.add('confetti');
+                    el.style.left = Math.random() * 100 + 'vw';
+                    el.style.top = '-20px';
+                    const colors = ['#FF6B95', '#FF8C42', '#00E676', '#2979FF', '#FFD700'];
+                    el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                    el.style.animation = `fall ${Math.random() * 2 + 1.5}s linear forwards`;
+                    el.style.transform = `rotate(${Math.random() * 360}deg)`;
+                    document.body.appendChild(el);
+                    setTimeout(() => el.remove(), 4000);
+                }
+                if (Date.now() < end) requestAnimationFrame(frame);
+            }());
+        }
+        
+        const style = document.createElement('style');
+        style.innerHTML = `@keyframes fall { to { transform: translateY(100vh) rotate(720deg); } }`;
+        document.head.appendChild(style);
     </script>
 </body>
 </html>
