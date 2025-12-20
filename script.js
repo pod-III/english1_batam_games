@@ -1,6 +1,6 @@
 // ============================================
 // REFACTORED script.js - English 1 Batam Hub
-// Enhanced with advanced features
+// Optimized for performance, reduced redundancy
 // ============================================
 
 // --- CONSTANTS & CONFIG ---
@@ -8,11 +8,43 @@ const CONFIG = {
   helpUrl: "https://forms.gle/VRqg4f3KFHoJXFUu9",
   dataSource: "games.json",
   maxRecentGames: 5,
+  maxTabs: 8,
+  debounceDelay: 300,
+  loadTimeout: 5000,
   storageKeys: {
     theme: "theme",
     recent: "recentGameIds",
     sound: "soundMuted",
-    favorites: "favoriteGames"
+    favorites: "favoriteGames",
+    tabs: "openTabs"
+  }
+};
+
+// --- UTILITIES ---
+const Utils = {
+  debounce(fn, delay) {
+    let timer;
+    return function(...args) {
+      clearTimeout(timer);
+      timer = setTimeout(() => fn.apply(this, args), delay);
+    };
+  },
+
+  getColorClass(colorName, prefix = 'bg') {
+    const baseColor = colorName.replace('text-', '').split('-')[0];
+    const colorMap = {
+      pink: `${prefix}-pink`,
+      orange: `${prefix}-orange`,
+      green: `${prefix}-green`,
+      blue: `${prefix}-blue`,
+      red: `${prefix}-red-500`,
+      slate: `${prefix}-slate-500`
+    };
+    return colorMap[baseColor] || `${prefix}-dark dark:${prefix}-slate-700`;
+  },
+
+  refreshIcons() {
+    window.lucide?.createIcons?.();
   }
 };
 
@@ -20,71 +52,48 @@ const CONFIG = {
 const State = {
   games: [],
   activeGame: null,
-  filters: {
-    category: 'all',
-    searchTerm: '',
-    difficulty: 'all',
-    tags: []
-  },
+  metadata: null,
+  filters: { category: 'all', searchTerm: '', difficulty: 'all', tags: [] },
 
-  setGames(gamesData) {
-    // Handle both old and new JSON format
-    const gamesList = gamesData.games || gamesData;
+  setGames(data) {
+    const gamesList = data.games || data;
     this.games = gamesList.sort((a, b) => a.title.localeCompare(b.title));
-
-    // Store metadata if available
-    if (gamesData.metadata) {
-      this.metadata = gamesData.metadata;
-    }
+    if (data.metadata) this.metadata = data.metadata;
   },
 
   getFilteredGames() {
     return this.games.filter(game => {
-      // Category filter
-      const matchesCategory = this.filters.category === 'all' ||
-        game.category === this.filters.category;
+      if (game.active === false) return false;
 
-      // Search filter
-      const searchLower = this.filters.searchTerm.toLowerCase();
-      const matchesSearch = !this.filters.searchTerm ||
-        game.title.toLowerCase().includes(searchLower) ||
-        game.description.toLowerCase().includes(searchLower) ||
-        game.category.toLowerCase().includes(searchLower) ||
-        (game.tags && game.tags.some(tag => tag.toLowerCase().includes(searchLower)));
+      const { category, searchTerm, difficulty, tags } = this.filters;
+      const matchesCategory = category === 'all' || game.category === category;
+      const matchesDifficulty = difficulty === 'all' || !game.difficulty || game.difficulty === difficulty;
+      
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch = !searchTerm || 
+        [game.title, game.description, game.category].some(field => 
+          field.toLowerCase().includes(searchLower)
+        ) || game.tags?.some(tag => tag.toLowerCase().includes(searchLower));
+      
+      const matchesTags = tags.length === 0 || game.tags?.some(tag => tags.includes(tag));
 
-      // Difficulty filter
-      const matchesDifficulty = this.filters.difficulty === 'all' ||
-        !game.difficulty ||
-        game.difficulty === this.filters.difficulty;
-
-      // Tags filter (if any tags selected)
-      const matchesTags = this.filters.tags.length === 0 ||
-        (game.tags && this.filters.tags.some(tag => game.tags.includes(tag)));
-
-      // Active filter (hide inactive games)
-      const isActive = game.active !== false;
-
-      return matchesCategory && matchesSearch && matchesDifficulty && matchesTags && isActive;
+      return matchesCategory && matchesSearch && matchesDifficulty && matchesTags;
     });
   },
 
   getGameById(id) {
     return this.games.find(g => g.id === id);
-  },
-
-  getFeaturedGames() {
-    return this.games.filter(g => g.featured === true);
   }
 };
 
-// --- STORAGE UTILITIES ---
+// --- STORAGE ---
 const Storage = {
   get(key, fallback = null) {
     try {
       const item = localStorage.getItem(key);
       return item ? JSON.parse(item) : fallback;
     } catch (error) {
-      console.warn(`Storage read error for key "${key}":`, error);
+      console.warn(`Storage read error for "${key}":`, error);
       return fallback;
     }
   },
@@ -94,7 +103,7 @@ const Storage = {
       localStorage.setItem(key, JSON.stringify(value));
       return true;
     } catch (error) {
-      console.error(`Storage write error for key "${key}":`, error);
+      console.error(`Storage write error for "${key}":`, error);
       return false;
     }
   },
@@ -102,10 +111,8 @@ const Storage = {
   remove(key) {
     try {
       localStorage.removeItem(key);
-      return true;
     } catch (error) {
-      console.error(`Storage remove error for key "${key}":`, error);
-      return false;
+      console.error(`Storage remove error for "${key}":`, error);
     }
   }
 };
@@ -117,11 +124,9 @@ const AudioEngine = {
 
   init() {
     if (this.ctx) return;
-
     try {
       const AudioContext = window.AudioContext || window.webkitAudioContext;
       this.ctx = new AudioContext();
-
       this.muted = Storage.get(CONFIG.storageKeys.sound, false);
       this.updateUI();
     } catch (error) {
@@ -131,48 +136,27 @@ const AudioEngine = {
 
   playTone(freq, type, duration) {
     if (this.muted || !this.ctx) return;
-
     try {
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
-
       osc.type = type;
       osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-
       gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
-
-      osc.connect(gain);
-      gain.connect(this.ctx.destination);
-
+      osc.connect(gain).connect(this.ctx.destination);
       osc.start();
       osc.stop(this.ctx.currentTime + duration);
     } catch (error) {
-      console.warn('Audio playback error:', error);
+      console.warn('Audio error:', error);
     }
   },
 
-  hover() {
-    this.playTone(400, 'sine', 0.1);
-  },
-
-  click() {
-    this.playTone(600, 'square', 0.15);
-  },
+  hover() { this.playTone(400, 'sine', 0.1); },
+  click() { this.playTone(600, 'square', 0.15); },
 
   toggle() {
-    // 1. Initialize if missing (your original logic)
-    if (!this.ctx) {
-      this.init();
-    }
-
-    // 2. IMPORTANT: Wake up the Audio Engine if it is suspended!
-    // This must happen inside a user-triggered event (like this click).
-    if (this.ctx.state === 'suspended') {
-      this.ctx.resume();
-    }
-
-    // 3. Flip the mute state
+    if (!this.ctx) this.init();
+    if (this.ctx.state === 'suspended') this.ctx.resume();
     this.muted = !this.muted;
     Storage.set(CONFIG.storageKeys.sound, this.muted);
     this.updateUI();
@@ -180,35 +164,22 @@ const AudioEngine = {
 
   updateUI() {
     const icon = document.getElementById('sound-btn-icon');
-    if (!icon) console.log("not found the button icon");
-
-    if (this.muted) {
-      icon.setAttribute('data-lucide', 'volume-x');
-      icon.style="color:rgb(248 113 113)";
-    } else {
-      icon.setAttribute('data-lucide', 'volume-2');
-      icon.style="color:rgb(74 222 128)";
-    }
-
-    lucide.createIcons();
+    if (!icon) return;
+    const config = this.muted 
+      ? { icon: 'volume-x', color: 'rgb(248 113 113)' }
+      : { icon: 'volume-2', color: 'rgb(74 222 128)' };
+    icon.setAttribute('data-lucide', config.icon);
+    icon.style.color = config.color;
+    Utils.refreshIcons();
   }
 };
 
-// --- THEME MANAGER ---
+// --- THEME ---
 const Theme = {
   load() {
     const saved = Storage.get(CONFIG.storageKeys.theme);
-
-    if (saved === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else if (saved === 'light') {
-      document.documentElement.classList.remove('dark');
-    } else {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      if (prefersDark) {
-        document.documentElement.classList.add('dark');
-      }
-    }
+    const isDark = saved === 'dark' || (saved !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.classList.toggle('dark', isDark);
   },
 
   toggle() {
@@ -218,21 +189,19 @@ const Theme = {
   }
 };
 
-// --- UI UTILITIES ---
+// --- UI ---
 const UI = {
   updateGreeting() {
     const hour = new Date().getHours();
-    const greeting = hour < 12 ? "Good Morning" :
-      hour < 18 ? "Good Afternoon" :
-        "Good Evening";
-
+    const greeting = hour < 12 ? "Good Morning" : hour < 18 ? "Good Afternoon" : "Good Evening";
     const greetingEl = document.getElementById("greeting-display");
     if (greetingEl) greetingEl.textContent = `${greeting}!`;
 
     const dateEl = document.getElementById("date-display");
     if (dateEl) {
-      const options = { weekday: "long", month: "short", day: "numeric" };
-      dateEl.textContent = new Date().toLocaleDateString("en-US", options);
+      dateEl.textContent = new Date().toLocaleDateString("en-US", { 
+        weekday: "long", month: "short", day: "numeric" 
+      });
     }
   },
 
@@ -243,97 +212,47 @@ const UI = {
 
   showError(message) {
     const grid = document.getElementById('games-grid');
-    if (grid) {
-      grid.innerHTML = `
-        <div class="col-span-full text-center p-10">
-          <div class="inline-block bg-red-100 dark:bg-red-900 border-4 border-red-500 rounded-2xl p-8">
-            <i data-lucide="alert-circle" class="w-16 h-16 text-red-500 mx-auto mb-4"></i>
-            <p class="text-xl font-bold text-red-700 dark:text-red-300">${message}</p>
-          </div>
+    if (!grid) return;
+    grid.innerHTML = `
+      <div class="col-span-full text-center p-10">
+        <div class="inline-block bg-red-100 dark:bg-red-900 border-4 border-red-500 rounded-2xl p-8">
+          <i data-lucide="alert-circle" class="w-16 h-16 text-red-500 mx-auto mb-4"></i>
+          <p class="text-xl font-bold text-red-700 dark:text-red-300">${message}</p>
         </div>
-      `;
-      lucide.createIcons();
-    }
+      </div>
+    `;
+    Utils.refreshIcons();
   },
 
   showLoading() {
     const grid = document.getElementById('games-grid');
-    if (grid) {
-      grid.innerHTML = `
-        <div class="col-span-full text-center p-10">
-          <div class="w-16 h-16 border-4 border-slate-300 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
-          <p class="text-lg font-bold text-slate-400">Loading activities...</p>
-        </div>
-      `;
-    }
+    if (!grid) return;
+    grid.innerHTML = `
+      <div class="col-span-full text-center p-10">
+        <div class="w-16 h-16 border-4 border-slate-300 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
+        <p class="text-lg font-bold text-slate-400">Loading activities...</p>
+      </div>
+    `;
   },
 
-  // initLivingBackground() {
-  //   const container = document.querySelector('.living-bg');
-  //   if (!container) return;
-
-  //   const colors = ['#FF6B95', '#FF8C42', '#00E676', '#2979FF'];
-
-  //   for (let i = 0; i < 15; i++) {
-  //     const shape = document.createElement('div');
-  //     shape.className = 'shape';
-
-  //     const size = Math.random() * 40 + 20;
-  //     shape.style.cssText = `
-  //       width: ${size}px;
-  //       height: ${size}px;
-  //       left: ${Math.random() * 100}vw;
-  //       top: ${Math.random() * 100}vh;
-  //       background-color: ${colors[Math.floor(Math.random() * colors.length)]};
-  //       border-radius: ${Math.random() > 0.5 ? '50%' : '0'};
-  //       animation-duration: ${Math.random() * 20 + 20}s;
-  //       animation-delay: -${Math.random() * 20}s;
-  //     `;
-
-  //     container.appendChild(shape);
-  //   }
-  // }
-
-  showGameModal() {
-    const modal = document.getElementById('game-modal');
+  toggleModal(modalId, show) {
+    const modal = document.getElementById(modalId);
     if (!modal) return;
-
-    modal.classList.remove('hidden');
-    modal.style.display = 'block';
-    document.body.style.overflow = 'hidden';
-  },
-
-  hideGameModal() {
-    const modal = document.getElementById('game-modal');
-    if (!modal) return;
-
-    modal.classList.add('hidden');
-    modal.style.display = 'none';
-    document.body.style.overflow = '';
-  },
-
-  updateActiveTabUI() {
-    this.tabs.forEach(tab => {
-      tab.iconElement?.setAttribute(
-        'aria-selected',
-        tab.id === this.activeTabId
-      );
-    });
+    modal.classList.toggle('hidden', !show);
+    modal.style.display = show ? 'block' : 'none';
+    modal.setAttribute('aria-hidden', String(!show));
+    if (modalId === 'game-modal') document.body.style.overflow = show ? 'hidden' : '';
   }
-
 };
 
-// --- RECENT GAMES MANAGER ---
+// --- RECENT GAMES ---
 const RecentGames = {
-  get() {
-    return Storage.get(CONFIG.storageKeys.recent, []);
-  },
+  get() { return Storage.get(CONFIG.storageKeys.recent, []); },
 
   add(gameId) {
     let recent = this.get().filter(id => id !== gameId);
     recent.unshift(gameId);
-    recent = recent.slice(0, CONFIG.maxRecentGames);
-    Storage.set(CONFIG.storageKeys.recent, recent);
+    Storage.set(CONFIG.storageKeys.recent, recent.slice(0, CONFIG.maxRecentGames));
     this.render();
   },
 
@@ -347,31 +266,20 @@ const RecentGames = {
     const recentIds = this.get();
     const container = document.getElementById("recent-list");
     const section = document.getElementById("recent-section");
-
     if (!container || !section) return;
 
-    if (recentIds.length === 0) {
-      section.classList.add('hidden');
-      return;
-    }
+    section.classList.toggle('hidden', recentIds.length === 0);
+    if (recentIds.length === 0) return;
 
-    section.classList.remove('hidden');
-
-    const html = recentIds.map(id => {
+    container.innerHTML = recentIds.map(id => {
       const game = State.getGameById(id);
       if (!game) return '';
-
-      const colorName = game.color.replace('text-', '');
-      const bgClass = this.getColorClass(colorName);
-
       return `
-        <button 
-          data-action="openGame" 
-          data-param="${game.id}"
+        <button data-action="openGame" data-param="${game.id}"
           class="recent-pill bg-white dark:bg-slate-800 flex items-center gap-3 px-3 py-2 rounded-xl shrink-0 min-w-[150px] group hover:bg-slate-50 dark:hover:bg-slate-700 border-2 border-dark dark:border-slate-500 shadow-hard-sm"
           aria-label="Resume ${game.title}">
-          <div class="w-10 h-10 rounded-lg ${bgClass} flex items-center justify-center text-white border-2 border-dark dark:border-slate-300 shadow-sm">
-            <i data-lucide="${game.icon}" class="w-5 h-5" aria-hidden="true"></i>
+          <div class="w-10 h-10 rounded-lg ${Utils.getColorClass(game.color)} flex items-center justify-center text-white border-2 border-dark dark:border-slate-300 shadow-sm">
+            <i data-lucide="${game.icon}" class="w-5 h-5"></i>
           </div>
           <div class="text-left">
             <div class="text-xs font-bold text-dark dark:text-white truncate w-24">${game.title}</div>
@@ -380,30 +288,15 @@ const RecentGames = {
         </button>
       `;
     }).join('');
-
-    container.innerHTML = html;
-    lucide.createIcons();
-  },
-
-  getColorClass(colorName) {
-    const colorMap = {
-      'pink': 'bg-pink',
-      'orange': 'bg-orange',
-      'green': 'bg-green',
-      'blue': 'bg-blue',
-      'red-500': 'bg-red-500',
-      'slate-500': 'bg-slate-500'
-    };
-    return colorMap[colorName] || 'bg-dark dark:bg-slate-700';
+    Utils.refreshIcons();
   }
 };
 
-// --- GAME GRID RENDERER ---
+// --- GAME GRID ---
 const GameGrid = {
   render(games = null) {
     const gamesToRender = games || State.getFilteredGames();
     const grid = document.getElementById('games-grid');
-
     if (!grid) return;
 
     UI.updateCount(gamesToRender.length);
@@ -416,78 +309,60 @@ const GameGrid = {
           <p class="text-sm text-slate-400 dark:text-slate-600 mt-2">Try adjusting your filters</p>
         </div>
       `;
-      lucide.createIcons();
+      Utils.refreshIcons();
       return;
     }
 
-    const html = gamesToRender.map(game => {
-      const colorName = game.color.replace('text-', '');
-      const baseColor = colorName.includes('-') ? colorName.split('-')[0] : colorName;
-      const bgClass = `bg-${baseColor}/10`;
-
-      // Difficulty badge (if available)
-      const difficultyBadge = game.difficulty ?
-        `<span class="text-[8px] font-bold px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400 uppercase">${game.difficulty}</span>`
-        : '';
-
-      return `
-        <article 
-          class="hub-card group cursor-pointer dark:bg-slate-800 dark:border-slate-500" 
-          data-action="openGame" 
-          data-param="${game.id}"
-          role="button"
-          tabindex="0"
-          aria-label="Launch ${game.title}: ${game.description}">
-          
-          <div class="${bgClass} p-6 border-b-4 border-dark dark:border-slate-500 h-40 flex items-center justify-center relative overflow-hidden group-hover:${bgClass.replace('/10', '/20')} transition-colors">
-            <div class="absolute inset-0 opacity-10" style="background-image: radial-gradient(#000 2px, transparent 2px); background-size: 12px 12px;"></div>
-            <i data-lucide="${game.icon}" class="absolute -right-6 -bottom-6 w-36 h-36 ${game.color} opacity-20 rotate-12 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300" aria-hidden="true"></i>
-            <div class="bg-white dark:bg-slate-700 p-4 rounded-2xl border-2 border-dark dark:border-slate-400 shadow-hard dark:shadow-neon-sm relative z-10 group-hover:scale-110 transition-transform duration-300">
-              <i data-lucide="${game.icon}" class="w-10 h-10 ${game.color} dark:text-white" aria-hidden="true"></i>
-            </div>
-          </div>
-
-          <div class="p-6 flex-1 flex flex-col bg-white dark:bg-slate-800">
-            <div class="flex justify-between items-start mb-3">
-              <h2 class="text-2xl font-heading text-dark dark:text-white leading-none tracking-tight">${game.title}</h2>
-              <div class="flex flex-col gap-1 items-end">
-                <span class="sticker ${game.color.replace('text-', 'bg-')} text-white text-[10px] font-bold px-2 py-1 rounded-md transform ${Math.random() > 0.5 ? 'rotate-2' : '-rotate-2'}">
-                  ${game.category.toUpperCase()}
-                </span>
-                ${difficultyBadge}
-              </div>
-            </div>
-            <p class="text-slate-500 dark:text-slate-400 font-bold text-sm mb-6 flex-1 leading-relaxed">
-              ${game.description}
-            </p>
-            <button class="btn-chunky ${game.color.replace('text-', 'bg-')} text-white w-full py-3 rounded-xl flex items-center justify-center gap-2 text-lg group-hover:brightness-105" tabindex="-1">
-              <i data-lucide="play" class="w-5 h-5 fill-current" aria-hidden="true"></i> LAUNCH
-            </button>
-          </div>
-        </article>
-      `;
-    }).join('');
-
-    grid.innerHTML = html;
-    lucide.createIcons();
+    grid.innerHTML = gamesToRender.map(game => this.createCard(game)).join('');
+    Utils.refreshIcons();
     this.initCardEffects();
+  },
+
+  createCard(game) {
+    const baseColor = game.color.replace('text-', '').split('-')[0];
+    const bgClass = `bg-${baseColor}/10`;
+    const btnClass = game.color.replace('text-', 'bg-');
+    const difficultyBadge = game.difficulty 
+      ? `<span class="text-[8px] font-bold px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400 uppercase">${game.difficulty}</span>`
+      : '';
+
+    return `
+      <article class="hub-card group cursor-pointer dark:bg-slate-800 dark:border-slate-500" 
+        data-action="openGame" data-param="${game.id}" role="button" tabindex="0"
+        aria-label="Launch ${game.title}: ${game.description}">
+        <div class="${bgClass} p-6 border-b-4 border-dark dark:border-slate-500 h-40 flex items-center justify-center relative overflow-hidden group-hover:${bgClass.replace('/10', '/20')} transition-colors">
+          <div class="absolute inset-0 opacity-10" style="background-image:radial-gradient(#000 2px,transparent 2px);background-size:12px 12px"></div>
+          <i data-lucide="${game.icon}" class="absolute -right-6 -bottom-6 w-36 h-36 ${game.color} opacity-20 rotate-12 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300"></i>
+          <div class="bg-white dark:bg-slate-700 p-4 rounded-2xl border-2 border-dark dark:border-slate-400 shadow-hard dark:shadow-neon-sm relative z-10 group-hover:scale-110 transition-transform duration-300">
+            <i data-lucide="${game.icon}" class="w-10 h-10 ${game.color} dark:text-white"></i>
+          </div>
+        </div>
+        <div class="p-6 flex-1 flex flex-col bg-white dark:bg-slate-800">
+          <div class="flex justify-between items-start mb-3">
+            <h2 class="text-2xl font-heading text-dark dark:text-white leading-none tracking-tight">${game.title}</h2>
+            <div class="flex flex-col gap-1 items-end">
+              <span class="sticker ${btnClass} text-white text-[10px] font-bold px-2 py-1 rounded-md transform ${Math.random()>0.5?'rotate-2':'-rotate-2'}">${game.category.toUpperCase()}</span>
+              ${difficultyBadge}
+            </div>
+          </div>
+          <p class="text-slate-500 dark:text-slate-400 font-bold text-sm mb-6 flex-1 leading-relaxed">${game.description}</p>
+          <button class="btn-chunky ${btnClass} text-white w-full py-3 rounded-xl flex items-center justify-center gap-2 text-lg group-hover:brightness-105" tabindex="-1">
+            <i data-lucide="play" class="w-5 h-5 fill-current"></i> LAUNCH
+          </button>
+        </div>
+      </article>
+    `;
   },
 
   getGuideText(game) {
     if (!game.guide) {
-      // Fallback to default guides
-      return game.category === 'tool' ?
-        "<ul class='list-disc pl-5 space-y-2'><li>Adjust settings using the on-screen controls.</li><li>Use fullscreen mode for better visibility.</li></ul>" :
-        "<ul class='list-disc pl-5 space-y-2'><li>Follow the on-screen prompts to start.</li><li>Customize words in setup if available.</li></ul>";
+      return game.category === 'tool'
+        ? "<ul class='list-disc pl-5 space-y-2'><li>Adjust settings using the on-screen controls.</li><li>Use fullscreen mode for better visibility.</li></ul>"
+        : "<ul class='list-disc pl-5 space-y-2'><li>Follow the on-screen prompts to start.</li><li>Customize words in setup if available.</li></ul>";
     }
-
-    // Handle new format (object with steps)
     if (typeof game.guide === 'object' && game.guide.steps) {
-      const steps = game.guide.steps.map(step => `<li>${step}</li>`).join('');
-      return `<ul class='list-disc pl-5 space-y-2'>${steps}</ul>`;
+      return `<ul class='list-disc pl-5 space-y-2'>${game.guide.steps.map(s => `<li>${s}</li>`).join('')}</ul>`;
     }
-
-    // Handle old format (HTML string)
     return game.guide;
   },
 
@@ -497,7 +372,6 @@ const GameGrid = {
       card.addEventListener('mouseleave', () => {
         card.style.transform = 'perspective(1000px) rotateX(0) rotateY(0)';
       });
-
       card.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
@@ -511,17 +385,13 @@ const GameGrid = {
     const rect = card.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
-
-    const rotateX = ((y - centerY) / centerY) * -5;
-    const rotateY = ((x - centerX) / centerX) * 5;
-
+    const rotateX = ((y - rect.height/2) / (rect.height/2)) * -5;
+    const rotateY = ((x - rect.width/2) / (rect.width/2)) * 5;
     card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
   }
 };
 
-// --- FILTER MANAGER ---
+// --- FILTERS ---
 const Filters = {
   setCategory(category) {
     AudioEngine.click();
@@ -530,10 +400,10 @@ const Filters = {
     GameGrid.render();
   },
 
-  setSearch(term) {
+  setSearch: Utils.debounce(function(term) {
     State.filters.searchTerm = term.toLowerCase();
     GameGrid.render();
-  },
+  }, CONFIG.debounceDelay),
 
   setDifficulty(difficulty) {
     AudioEngine.click();
@@ -544,205 +414,112 @@ const Filters = {
   updateUI() {
     document.querySelectorAll('.filter-btn').forEach(btn => {
       const isActive = btn.dataset.category === State.filters.category;
-
-      if (isActive) {
-        btn.classList.add('active', 'bg-dark', 'text-white');
-        btn.classList.remove('bg-white', 'text-dark');
-        btn.setAttribute('aria-pressed', 'true');
-      } else {
-        btn.classList.remove('active', 'bg-dark', 'text-white');
-        btn.classList.add('bg-white', 'text-dark');
-        btn.setAttribute('aria-pressed', 'false');
-      }
+      btn.classList.toggle('active', isActive);
+      btn.classList.toggle('bg-dark', isActive);
+      btn.classList.toggle('text-white', isActive);
+      btn.classList.toggle('bg-white', !isActive);
+      btn.classList.toggle('text-dark', !isActive);
+      btn.setAttribute('aria-pressed', String(isActive));
     });
   }
 };
 
-// SIDE PANEL MANAGER
-
+// --- TAB MANAGER ---
 const TabManager = {
   tabs: [],
   activeTabId: null,
-  maxTabs: 8,
-  storageKey: 'openTabs',
 
   init() {
     this.setupKeyboardShortcuts();
     this.loadTabsFromStorage();
   },
 
-  // Save tabs to localStorage
   saveTabsToStorage() {
-    const tabsData = this.tabs.map(tab => ({
-      id: tab.id,
-      gameId: tab.gameId,
-      title: tab.title,
-      icon: tab.icon,
-      color: tab.color
-    }));
-
-    Storage.set(this.storageKey, {
-      tabs: tabsData,
-      activeTabId: this.activeTabId
-    });
+    const tabsData = this.tabs.map(({id, gameId, title, icon, color}) => ({id, gameId, title, icon, color}));
+    Storage.set(CONFIG.storageKeys.tabs, {tabs: tabsData, activeTabId: this.activeTabId});
   },
 
-  // Load tabs from localStorage
   loadTabsFromStorage() {
-    const savedData = Storage.get(this.storageKey);
+    const savedData = Storage.get(CONFIG.storageKeys.tabs);
+    if (!savedData?.tabs?.length) return;
 
-    if (!savedData || !savedData.tabs || savedData.tabs.length === 0) {
-      return; // Don't show anything if no tabs
-    }
-
-    // Show modal
-    const modal = document.getElementById('game-modal');
-    if (modal) {
-      modal.style.display = 'block';
-      modal.classList.remove('hidden');
-      modal.setAttribute('aria-hidden', 'false');
-    }
-
-    // Recreate tabs
-    savedData.tabs.forEach((tabData) => {
+    UI.toggleModal('game-modal', true);
+    savedData.tabs.forEach(tabData => {
       const game = State.getGameById(tabData.gameId);
-      if (game) {
-        this.createTabSilent(game, tabData.id);
-      }
+      if (game) this.createTabSilent(game, tabData.id);
     });
 
-    // Switch to the previously active tab
-    if (savedData.activeTabId && this.tabs.find(t => t.id === savedData.activeTabId)) {
-      this.switchToTab(savedData.activeTabId);
-    } else if (this.tabs.length > 0) {
-      this.switchToTab(this.tabs[0].id);
-    }
+    const targetTab = (savedData.activeTabId && this.tabs.find(t => t.id === savedData.activeTabId))
+      ? savedData.activeTabId : this.tabs[0]?.id;
+    if (targetTab) this.switchToTab(targetTab);
   },
 
-  // Clear storage
-  clearStorage() {
-    Storage.remove(this.storageKey);
-  },
-
-  // Create a new tab for a game
   createTab(game) {
-    // Check if game already has a tab open
     const existingTab = this.tabs.find(tab => tab.gameId === game.id);
     if (existingTab) {
       this.switchToTab(existingTab.id);
       return existingTab;
     }
-
-    // Check max tabs
-    if (this.tabs.length >= this.maxTabs) {
+    if (this.tabs.length >= CONFIG.maxTabs) {
       this.showMaxTabsWarning();
       return null;
     }
-
-    // Generate unique tab ID
     const tabId = `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
     return this.createTabSilent(game, tabId, true);
   },
 
-  // Create tab without switching (for loading from storage)
-  createTabSilent(game, tabId = null, switchTo = false) {
-    if (!tabId) {
-      tabId = `tab-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    }
-
-    // Create tab object
-    const tab = {
-      id: tabId,
-      gameId: game.id,
-      title: game.title,
-      icon: game.icon,
-      color: game.color,
-      loading: true
-    };
-
-    // Create DOM elements
+  createTabSilent(game, tabId, switchTo = false) {
+    const tab = {id: tabId, gameId: game.id, title: game.title, icon: game.icon, color: game.color, loading: true};
     this.createTabIcon(tab);
     this.createTabPanel(tab);
-
-    // Add to array
     this.tabs.push(tab);
-
-    // Switch to new tab if requested
-    if (switchTo) {
-      this.switchToTab(tabId);
-    }
-
-    // Start loading game
+    if (switchTo) this.switchToTab(tabId);
     this.loadGame(tab, game.path);
-
-    // Save to storage
     this.saveTabsToStorage();
-
     return tab;
   },
 
-  // Create tab icon in side panel
   createTabIcon(tab) {
     const sidePanelTabs = document.getElementById('side-panel-tabs');
     if (!sidePanelTabs) return;
 
     const tabIcon = document.createElement('button');
     tabIcon.id = `tab-icon-${tab.id}`;
-    tabIcon.className = 'side-panel-tab';
+    tabIcon.className = `side-panel-tab${tab.loading?' loading':''}`;
     tabIcon.dataset.tabId = tab.id;
     tabIcon.dataset.color = tab.color;
     tabIcon.title = tab.title;
     tabIcon.setAttribute('role', 'tab');
     tabIcon.setAttribute('aria-selected', 'false');
     tabIcon.setAttribute('aria-label', `Switch to ${tab.title}`);
-
-    // Add loading class
-    if (tab.loading) {
-      tabIcon.classList.add('loading');
-    }
-
     tabIcon.innerHTML = `
-      <i data-lucide="${tab.icon}" class="side-panel-tab-icon" aria-hidden="true"></i>
-      <button 
-        class="side-panel-tab-close" 
-        data-tab-id="${tab.id}"
-        aria-label="Close ${tab.title}"
-        type="button">
-        <i data-lucide="x" aria-hidden="true"></i>
+      <i data-lucide="${tab.icon}" class="side-panel-tab-icon"></i>
+      <button class="side-panel-tab-close" data-tab-id="${tab.id}" aria-label="Close ${tab.title}" type="button">
+        <i data-lucide="x"></i>
       </button>
     `;
 
-    // Tab click handler - Switch to tab
     tabIcon.addEventListener('click', (e) => {
-      // Don't switch if clicking close button
-      if (e.target.closest('.side-panel-tab-close')) {
-        return;
+      if (!e.target.closest('.side-panel-tab-close')) {
+        this.switchToTab(tab.id);
+        AudioEngine.click();
       }
-      this.switchToTab(tab.id);
-      AudioEngine.click();
     });
 
-    // Close button click handler - Must be separate!
     const closeBtn = tabIcon.querySelector('.side-panel-tab-close');
     if (closeBtn) {
       closeBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        const tabIdToClose = closeBtn.dataset.tabId;
-        if (tabIdToClose) {
-          this.closeTab(tabIdToClose);
-        }
+        this.closeTab(closeBtn.dataset.tabId);
       });
     }
 
     sidePanelTabs.appendChild(tabIcon);
-    lucide.createIcons();
-
+    Utils.refreshIcons();
     tab.iconElement = tabIcon;
   },
 
-  // Create tab panel (iframe container)
   createTabPanel(tab) {
     const tabContentArea = document.getElementById('tab-content-area');
     if (!tabContentArea) return;
@@ -752,8 +529,6 @@ const TabManager = {
     panel.className = 'tab-panel';
     panel.setAttribute('role', 'tabpanel');
     panel.setAttribute('aria-labelledby', `tab-icon-${tab.id}`);
-
-    // Loading spinner
     panel.innerHTML = `
       <div class="tab-loading">
         <div class="spinner"></div>
@@ -761,7 +536,6 @@ const TabManager = {
       </div>
     `;
 
-    // Create iframe
     const iframe = document.createElement('iframe');
     iframe.id = `iframe-${tab.id}`;
     iframe.title = tab.title;
@@ -769,87 +543,53 @@ const TabManager = {
 
     panel.appendChild(iframe);
     tabContentArea.appendChild(panel);
-
     tab.panel = panel;
     tab.iframe = iframe;
   },
 
-  // Load game in iframe
   loadGame(tab, path) {
     if (!tab.iframe) return;
 
-    console.log(`Loading game: ${tab.title} from path: ${path}`);
-
-    // Set iframe src
     tab.iframe.src = path;
-
-    // Set up load handler
     tab.iframe.onload = () => {
-      console.log(`Game loaded successfully: ${tab.title}`);
       tab.loading = false;
       tab.panel.classList.add('loaded');
-
-      // Remove loading class from tab icon
-      if (tab.iconElement) {
-        tab.iconElement.classList.remove('loading');
-      }
-
-      // Focus iframe if this is active tab
-      if (this.activeTabId === tab.id) {
-        tab.iframe.focus();
-      }
+      tab.iconElement?.classList.remove('loading');
+      if (this.activeTabId === tab.id) tab.iframe.focus();
     };
 
-    // Set up error handler
-    tab.iframe.onerror = (error) => {
-      console.error(`Failed to load game: ${tab.title}`, error);
+    tab.iframe.onerror = () => {
       tab.loading = false;
-
-      // Show error in panel
       const loadingDiv = tab.panel.querySelector('.tab-loading');
       if (loadingDiv) {
         loadingDiv.innerHTML = `
-          <i data-lucide="alert-circle" style="width: 4rem; height: 4rem; color: #ef4444;"></i>
-          <div class="loading-text" style="color: #ef4444;">FAILED TO LOAD</div>
-          <p style="color: #ef4444; font-size: 0.875rem; margin-top: 1rem;">Path: ${path}</p>
-          <button 
-            class="btn-chunky bg-blue text-white px-6 py-3 rounded-xl mt-4"
-            onclick="TabManager.retryLoad('${tab.id}')">
-            <i data-lucide="rotate-cw" class="w-5 h-5 inline mr-2"></i>
-            RETRY
+          <i data-lucide="alert-circle" style="width:4rem;height:4rem;color:#ef4444"></i>
+          <div class="loading-text" style="color:#ef4444">FAILED TO LOAD</div>
+          <p style="color:#ef4444;font-size:0.875rem;margin-top:1rem">Path: ${path}</p>
+          <button class="btn-chunky bg-blue text-white px-6 py-3 rounded-xl mt-4" onclick="TabManager.retryLoad('${tab.id}')">
+            <i data-lucide="rotate-cw" class="w-5 h-5 inline mr-2"></i>RETRY
           </button>
         `;
-        lucide.createIcons();
+        Utils.refreshIcons();
       }
     };
 
-    // Timeout fallback - sometimes onload doesn't fire
     setTimeout(() => {
       if (tab.loading) {
-        console.warn(`Loading timeout for ${tab.title}, marking as loaded anyway`);
         tab.loading = false;
         tab.panel.classList.add('loaded');
-        if (tab.iconElement) {
-          tab.iconElement.classList.remove('loading');
-        }
+        tab.iconElement?.classList.remove('loading');
       }
-    }, 5000); // 5 second timeout
+    }, CONFIG.loadTimeout);
   },
 
-  // Retry loading a failed tab
   retryLoad(tabId) {
     const tab = this.tabs.find(t => t.id === tabId);
-    if (!tab) return;
-
-    const game = State.getGameById(tab.gameId);
-    if (!game) return;
+    const game = tab && State.getGameById(tab.gameId);
+    if (!tab || !game) return;
 
     tab.loading = true;
-    if (tab.iconElement) {
-      tab.iconElement.classList.add('loading');
-    }
-
-    // Reset panel
+    tab.iconElement?.classList.add('loading');
     tab.panel.classList.remove('loaded');
     tab.panel.innerHTML = `
       <div class="tab-loading">
@@ -861,68 +601,34 @@ const TabManager = {
     const iframe = document.createElement('iframe');
     iframe.id = `iframe-${tab.id}`;
     iframe.title = tab.title;
-
     tab.panel.appendChild(iframe);
     tab.iframe = iframe;
-
     this.loadGame(tab, game.path);
   },
 
-  // Switch to a specific tab
   switchToTab(tabId) {
     const tab = this.tabs.find(t => t.id === tabId);
     if (!tab) return;
 
-    // Update active tab ID
     this.activeTabId = tabId;
-
-    // Update tab icons
     this.tabs.forEach(t => {
-      if (t.iconElement) {
-        if (t.id === tabId) {
-          t.iconElement.classList.add('active');
-          t.iconElement.setAttribute('aria-selected', 'true');
-        } else {
-          t.iconElement.classList.remove('active');
-          t.iconElement.setAttribute('aria-selected', 'false');
-        }
-      }
+      const isActive = t.id === tabId;
+      t.iconElement?.classList.toggle('active', isActive);
+      t.iconElement?.setAttribute('aria-selected', String(isActive));
+      t.panel?.classList.toggle('active', isActive);
     });
 
-    // Update tab panels
-    this.tabs.forEach(t => {
-      if (t.panel) {
-        if (t.id === tabId) {
-          t.panel.classList.add('active');
-        } else {
-          t.panel.classList.remove('active');
-        }
-      }
-    });
-
-    // Update State.activeGame
     const game = State.getGameById(tab.gameId);
-    if (game) {
-      State.activeGame = game;
-    }
+    if (game) State.activeGame = game;
 
-    // Update URL hash
     if (window.location.hash !== `#${tab.gameId}`) {
-        // Use replaceState if you don't want every tab click in history
-        // Or pushState if you DO want back button navigation between tabs
-        history.pushState(null, null, `#${tab.gameId}`);
+      history.pushState(null, null, `#${tab.gameId}`);
     }
 
-    // Scroll tab icon into view
-    if (tab.iconElement) {
-      tab.iconElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-
-    // Save to storage
+    tab.iconElement?.scrollIntoView({behavior: 'smooth', block: 'nearest'});
     this.saveTabsToStorage();
   },
 
-  // Close a specific tab
   closeTab(tabId) {
     const tabIndex = this.tabs.findIndex(t => t.id === tabId);
     if (tabIndex === -1) return;
@@ -930,102 +636,56 @@ const TabManager = {
     const tab = this.tabs[tabIndex];
     const wasActive = this.activeTabId === tabId;
 
-    // Remove DOM elements
-    if (tab.iconElement) {
-      tab.iconElement.remove();
-    }
-
-    if (tab.panel) {
-      tab.panel.remove();
-    }
-
-    // Remove from array
+    tab.iconElement?.remove();
+    tab.panel?.remove();
     this.tabs.splice(tabIndex, 1);
 
-    // If no tabs left, close modal completely
     if (this.tabs.length === 0) {
       this.closeModal();
       return;
     }
 
-    // Save to storage
     this.saveTabsToStorage();
-
-    // If closed tab was active, switch to another tab
-    if (wasActive && this.tabs.length > 0) {
-      // Switch to the tab that's now at the same index (or last tab)
+    if (wasActive) {
       const newIndex = Math.min(tabIndex, this.tabs.length - 1);
       this.switchToTab(this.tabs[newIndex].id);
     }
-
     AudioEngine.click();
   },
 
-  // Close current active tab
   closeCurrentTab() {
-    if (this.activeTabId) {
-      this.closeTab(this.activeTabId);
-    }
+    if (this.activeTabId) this.closeTab(this.activeTabId);
   },
 
-  // Return to home (close modal completely)
   returnToHome() {
     this.closeModal();
     AudioEngine.click();
   },
 
-  // Close modal and clean up
   closeModal() {
-    const modal = document.getElementById('game-modal');
+    UI.toggleModal('game-modal', false);
     const infoOverlay = document.getElementById('info-overlay');
-
-    // Hide modal
-    if (modal) {
-      modal.style.display = 'none';
-      modal.classList.add('hidden');
-      modal.setAttribute('aria-hidden', 'true');
-    }
-
-    // Hide info overlay
     if (infoOverlay) {
       infoOverlay.classList.add('hidden');
       infoOverlay.classList.remove('flex');
     }
-
-    // Clear active state
     this.activeTabId = null;
     State.activeGame = null;
-
-    // Clear hash
     history.pushState("", document.title, window.location.pathname + window.location.search);
-
-    // Save state (tabs remain, just not active)
     this.saveTabsToStorage();
   },
 
-  // Show confirmation modal for closing all tabs
   confirmCloseAllTabs() {
     if (this.tabs.length === 0) return;
-
     const confirmModal = document.getElementById('confirm-modal');
     const countSpan = document.getElementById('confirm-count');
-
     if (!confirmModal) return;
-
-    // Update count
-    if (countSpan) {
-      countSpan.textContent = this.tabs.length;
-    }
-
-    // Show modal
+    if (countSpan) countSpan.textContent = this.tabs.length;
     confirmModal.classList.remove('hidden');
     confirmModal.classList.add('flex');
-
-    // Reinitialize icons
-    lucide.createIcons();
+    Utils.refreshIcons();
   },
 
-  // Cancel confirmation
   cancelConfirmation() {
     const confirmModal = document.getElementById('confirm-modal');
     if (confirmModal) {
@@ -1034,73 +694,46 @@ const TabManager = {
     }
   },
 
-  // Actually close all tabs (after confirmation)
   closeAllTabsConfirmed() {
-    // Hide confirmation modal
     this.cancelConfirmation();
-
     if (this.tabs.length === 0) return;
-
-    // Remove all DOM elements
     this.tabs.forEach(tab => {
-      if (tab.iconElement) tab.iconElement.remove();
-      if (tab.panel) tab.panel.remove();
+      tab.iconElement?.remove();
+      tab.panel?.remove();
     });
-
-    // Clear arrays
     this.tabs = [];
     this.activeTabId = null;
     State.activeGame = null;
-
-    // Clear storage
-    this.clearStorage();
-
-    // Close modal
+    Storage.remove(CONFIG.storageKeys.tabs);
     this.closeModal();
-
     AudioEngine.click();
   },
 
-  // Reload current tab's game
   reloadCurrentTab() {
     const tab = this.tabs.find(t => t.id === this.activeTabId);
-    if (!tab || !tab.iframe) return;
-
+    if (!tab?.iframe) return;
     tab.loading = true;
-    if (tab.iconElement) {
-      tab.iconElement.classList.add('loading');
-    }
-
+    tab.iconElement?.classList.add('loading');
     tab.iframe.contentWindow.location.reload();
-
     setTimeout(() => {
       tab.loading = false;
-      if (tab.iconElement) {
-        tab.iconElement.classList.remove('loading');
-      }
+      tab.iconElement?.classList.remove('loading');
     }, 1000);
   },
 
-  // Get current active tab
   getCurrentTab() {
     return this.tabs.find(t => t.id === this.activeTabId);
   },
 
-  // Show max tabs warning
   showMaxTabsWarning() {
-    // Remove existing warning if any
     const existingWarning = document.querySelector('.max-tabs-warning');
     if (existingWarning) existingWarning.remove();
 
     const warning = document.createElement('div');
     warning.className = 'max-tabs-warning';
-    warning.innerHTML = `
-      <i data-lucide="alert-triangle" class="w-5 h-5 inline mr-2"></i>
-      Maximum ${this.maxTabs} tabs open. Close a tab to open another.
-    `;
-
+    warning.innerHTML = `<i data-lucide="alert-triangle" class="w-5 h-5 inline mr-2"></i>Maximum ${CONFIG.maxTabs} tabs open. Close a tab to open another.`;
     document.body.appendChild(warning);
-    lucide.createIcons();
+    Utils.refreshIcons();
 
     setTimeout(() => {
       warning.style.opacity = '0';
@@ -1110,37 +743,25 @@ const TabManager = {
     }, 3000);
   },
 
-  // Keyboard shortcuts
   setupKeyboardShortcuts() {
     document.addEventListener('keydown', (e) => {
-      // Only work when modal is open
       const modal = document.getElementById('game-modal');
       if (!modal || modal.style.display === 'none') return;
 
-      // Ctrl+Tab or Cmd+Tab: Next tab
       if ((e.ctrlKey || e.metaKey) && e.key === 'Tab' && !e.altKey) {
         e.preventDefault();
         this.switchToNextTab(e.shiftKey ? -1 : 1);
       }
-
-      // Ctrl+W or Cmd+W: Close current tab
       if ((e.ctrlKey || e.metaKey) && e.key === 'w') {
         e.preventDefault();
         this.closeCurrentTab();
       }
-
-      // Alt+1 to Alt+8: Switch to tab by number
       if (e.altKey && e.key >= '1' && e.key <= '8') {
         e.preventDefault();
         const index = parseInt(e.key) - 1;
-        if (this.tabs[index]) {
-          this.switchToTab(this.tabs[index].id);
-        }
+        if (this.tabs[index]) this.switchToTab(this.tabs[index].id);
       }
-
-      // Escape: Return to home
       if (e.key === 'Escape') {
-        // Check if info overlay is open first
         const infoOverlay = document.getElementById('info-overlay');
         if (infoOverlay && !infoOverlay.classList.contains('hidden')) {
           GameModal.toggleInfo();
@@ -1151,64 +772,33 @@ const TabManager = {
     });
   },
 
-  // Switch to next/previous tab
   switchToNextTab(direction = 1) {
     if (this.tabs.length === 0) return;
-
     const currentIndex = this.tabs.findIndex(t => t.id === this.activeTabId);
-
     if (currentIndex === -1) {
-      // No active tab, switch to first
       this.switchToTab(this.tabs[0].id);
       return;
     }
-
     let newIndex = currentIndex + direction;
-
-    // Wrap around
-    if (newIndex >= this.tabs.length) {
-      newIndex = 0;
-    } else if (newIndex < 0) {
-      newIndex = this.tabs.length - 1;
-    }
-
+    if (newIndex >= this.tabs.length) newIndex = 0;
+    else if (newIndex < 0) newIndex = this.tabs.length - 1;
     this.switchToTab(this.tabs[newIndex].id);
     AudioEngine.click();
   }
 };
 
-// ============================================
-// UPDATED GAMEMODAL MODULE
-// Replace entire GameModal with this:
-// ============================================
-
+// --- GAME MODAL ---
 const GameModal = {
   open(gameId) {
     AudioEngine.click();
-
     const game = State.getGameById(gameId);
-    if (!game) {
-      console.error(`Game not found: ${gameId}`);
-      return;
-    }
-
-    // Add to recent games
+    if (!game) return console.error(`Game not found: ${gameId}`);
     RecentGames.add(gameId);
-
-    // Show modal if not already visible
-    const modal = document.getElementById('game-modal');
-    if (modal) {
-      modal.style.display = 'block';
-      modal.classList.remove('hidden');
-      modal.setAttribute('aria-hidden', 'false');
-    }
-
-    // Create new tab
+    UI.toggleModal('game-modal', true);
     TabManager.createTab(game);
   },
 
   close() {
-    // Close modal completely (same as home button)
     TabManager.returnToHome();
   },
 
@@ -1218,38 +808,28 @@ const GameModal = {
 
   toggleInfo() {
     AudioEngine.click();
-
     const overlay = document.getElementById('info-overlay');
     if (!overlay) return;
 
     const isHidden = overlay.classList.contains('hidden');
-
     if (isHidden) {
       const currentTab = TabManager.getCurrentTab();
-      if (!currentTab) return;
-
-      const game = State.getGameById(currentTab.gameId);
+      const game = currentTab && State.getGameById(currentTab.gameId);
       if (!game) return;
-
       this.renderInfo(game);
       overlay.classList.remove('hidden');
       overlay.classList.add('flex');
-
       overlay.querySelector('button')?.focus();
     } else {
       overlay.classList.add('hidden');
       overlay.classList.remove('flex');
-
       const currentTab = TabManager.getCurrentTab();
-      if (currentTab && currentTab.iframe) {
-        currentTab.iframe.focus();
-      }
+      if (currentTab?.iframe) currentTab.iframe.focus();
     }
   },
 
   renderInfo(game) {
-    const colorName = game.color.replace('text-', '');
-    const baseColor = colorName.includes('-') ? colorName.split('-')[0] : colorName;
+    const baseColor = game.color.replace('text-', '').split('-')[0];
     const bgClass = `bg-${baseColor}`;
 
     const iconEl = document.getElementById('info-icon');
@@ -1260,80 +840,45 @@ const GameModal = {
 
     if (iconEl) {
       iconEl.className = `w-24 h-24 rounded-2xl border-4 border-dark dark:border-slate-500 flex items-center justify-center text-white shadow-hard dark:shadow-neon shrink-0 ${bgClass}`;
-      iconEl.innerHTML = `<i data-lucide="${game.icon}" class="w-12 h-12" aria-hidden="true"></i>`;
+      iconEl.innerHTML = `<i data-lucide="${game.icon}" class="w-12 h-12"></i>`;
     }
-
     if (titleEl) titleEl.textContent = game.title.toUpperCase();
     if (categoryEl) categoryEl.textContent = game.category.toUpperCase();
-
-    if (difficultyEl && game.difficulty) {
-      difficultyEl.textContent = game.difficulty.toUpperCase();
-      difficultyEl.style.display = 'inline-block';
-    } else if (difficultyEl) {
-      difficultyEl.style.display = 'none';
+    if (difficultyEl) {
+      difficultyEl.textContent = game.difficulty?.toUpperCase() || '';
+      difficultyEl.style.display = game.difficulty ? 'inline-block' : 'none';
     }
-
-    const guideText = GameGrid.getGuideText(game);
-    if (contentEl) contentEl.innerHTML = guideText;
-
-    lucide.createIcons();
+    if (contentEl) contentEl.innerHTML = GameGrid.getGuideText(game);
+    Utils.refreshIcons();
   }
 };
 
-
-// --- SEARCH MANAGER ---
+// --- SEARCH ---
 const Search = {
   setup() {
     const input = document.getElementById('search-input');
     if (!input) return;
-
-    let debounceTimer;
-    input.addEventListener('input', (e) => {
-      clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => {
-        Filters.setSearch(e.target.value);
-      }, 300); // Debounce for better performance
-    });
+    input.addEventListener('input', (e) => Filters.setSearch(e.target.value));
   }
 };
 
 // --- DATA LOADER ---
 const DataLoader = {
   async loadGames() {
-    try {
-      const response = await fetch(CONFIG.dataSource);
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: Failed to load games data`);
-      }
-
-      const data = await response.json();
-
-      // Validate data structure
-      if (!this.validateData(data)) {
-        throw new Error('Invalid games data structure');
-      }
-
-      return data;
-
-    } catch (error) {
-      console.error('Data loading error:', error);
-      throw error;
-    }
+    const response = await fetch(CONFIG.dataSource);
+    if (!response.ok) throw new Error(`HTTP ${response.status}: Failed to load games data`);
+    const data = await response.json();
+    if (!this.validateData(data)) throw new Error('Invalid games data structure');
+    return data;
   },
 
   validateData(data) {
-    // Handle both old and new format
     const games = data.games || data;
-
     if (!Array.isArray(games)) {
       console.error('Games data must be an array');
       return false;
     }
-
-    // Validate each game has required fields
     const requiredFields = ['id', 'title', 'category', 'path', 'icon', 'color'];
-
     for (const game of games) {
       for (const field of requiredFields) {
         if (!game[field]) {
@@ -1342,13 +887,11 @@ const DataLoader = {
         }
       }
     }
-
     return true;
   }
 };
 
-// --- MAIN APP CONTROLLER ---
-// --- MAIN APP CONTROLLER ---
+// --- APP CONTROLLER ---
 const App = {
   async init() {
     try {
@@ -1356,60 +899,43 @@ const App = {
       UI.updateGreeting();
       UI.showLoading();
 
-      // 1. Load Data
       const data = await DataLoader.loadGames();
       State.setGames(data);
 
-      // 2. Render Base UI
       GameGrid.render();
       RecentGames.render();
       Search.setup();
 
-      // 3. Initialize Audio (On first user interaction)
-      document.body.addEventListener('click', () => {
-        AudioEngine.init();
-      }, { once: true });
+      document.body.addEventListener('click', () => AudioEngine.init(), { once: true });
 
-      // 4. Initialize Tabs (CRITICAL FIX: This was missing)
       TabManager.init();
-
-      // 5. Setup Event Listeners
       this.setupKeyboardShortcuts();
       this.setupEventDelegation();
-      this.setupHistoryListener(); // FIX: Handle back button
+      this.setupHistoryListener();
 
-      // 6. Handle Initial URL Hash (Deep linking)
-      // Only open if it's NOT already handled by TabManager restoration
       const hash = window.location.hash.substring(1);
       if (hash && !TabManager.tabs.find(t => t.gameId === hash)) {
         GameModal.open(hash);
       }
 
-      lucide.createIcons();
-
+      Utils.refreshIcons();
     } catch (error) {
       console.error('Initialization error:', error);
       UI.showError('Failed to load activities. Please refresh the page.');
     }
   },
 
-  // FIX: Add listener for Browser Back/Forward buttons
   setupHistoryListener() {
     window.addEventListener('hashchange', () => {
       const hash = window.location.hash.substring(1);
-
       if (!hash) {
-        // If hash is empty, close modal (return home)
         TabManager.returnToHome();
       } else {
-        // If hash exists, try to switch to that tab
         const existingTab = TabManager.tabs.find(t => t.gameId === hash);
         if (existingTab) {
           TabManager.switchToTab(existingTab.id);
-          // Ensure modal is visible
           document.getElementById('game-modal')?.classList.remove('hidden');
         } else {
-          // If tab doesn't exist (e.g. shared link), try to open it
           GameModal.open(hash);
         }
       }
@@ -1418,24 +944,17 @@ const App = {
 
   setupKeyboardShortcuts() {
     document.addEventListener('keydown', (e) => {
-      // Search shortcut
       if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
         e.preventDefault();
         document.getElementById('search-input')?.focus();
       }
 
-      // Escape shortcut
       if (e.key === 'Escape') {
         const infoOverlay = document.getElementById('info-overlay');
-
-        // Priority 1: Close Info Overlay
         if (infoOverlay && !infoOverlay.classList.contains('hidden')) {
           GameModal.toggleInfo();
           return;
         }
-
-        // Priority 2: Return to Home (Minimise Tabs)
-        // Only if modal is currently visible
         const modal = document.getElementById('game-modal');
         if (modal && !modal.classList.contains('hidden') && modal.style.display !== 'none') {
           TabManager.returnToHome();
@@ -1445,42 +964,37 @@ const App = {
   },
 
   setupEventDelegation() {
-    // ... (Keep your existing setupEventDelegation code exactly as is) ...
+    const actions = {
+      toggleTheme: () => Theme.toggle(),
+      toggleSound: () => AudioEngine.toggle(),
+      openGame: (param) => GameModal.open(param),
+      returnToHome: () => TabManager.returnToHome(),
+      closeAllTabs: () => TabManager.confirmCloseAllTabs(),
+      confirmDelete: () => TabManager.closeAllTabsConfirmed(),
+      confirmCancel: () => TabManager.cancelConfirmation(),
+      closeCurrentTab: () => TabManager.closeCurrentTab(),
+      reloadGame: () => TabManager.reloadCurrentTab(),
+      toggleInfo: () => GameModal.toggleInfo(),
+      filterGames: (param) => Filters.setCategory(param),
+      clearRecent: () => RecentGames.clear(),
+      openFeedback: () => window.open(CONFIG.helpUrl, '_blank')
+    };
+
     document.addEventListener('click', (e) => {
       const target = e.target.closest('[data-action]');
       if (!target) return;
-
-      const action = target.dataset.action;
-      const param = target.dataset.param;
-
-      switch (action) {
-        case 'toggleTheme': Theme.toggle(); break;
-        case 'toggleSound': AudioEngine.toggle(); break;
-        case 'openGame': GameModal.open(param); break;
-        case 'returnToHome': TabManager.returnToHome(); break;
-        case 'closeAllTabs': TabManager.confirmCloseAllTabs(); break;
-        case 'confirmDelete': TabManager.closeAllTabsConfirmed(); break;
-        case 'confirmCancel': TabManager.cancelConfirmation(); break;
-        case 'closeCurrentTab': TabManager.closeCurrentTab(); break;
-        case 'reloadGame': TabManager.reloadCurrentTab(); break;
-        case 'toggleInfo': GameModal.toggleInfo(); break;
-        case 'filterGames': Filters.setCategory(param); break;
-        case 'clearRecent': RecentGames.clear(); break;
-        case 'openFeedback': window.open(CONFIG.helpUrl, '_blank'); break;
-      }
+      const action = actions[target.dataset.action];
+      if (action) action(target.dataset.param);
     });
   }
-};;
+};
 
-// --- GLOBAL EXPORTS (for HTML compatibility during transition) ---
+// --- EXPORTS & INITIALIZATION ---
 window.App = App;
 window.AudioEngine = AudioEngine;
-// --- GLOBAL EXPORTS (for HTML compatibility during transition) ---
-window.App = App;
-window.AudioEngine = AudioEngine;
+window.TabManager = TabManager;
 window.filterGames = (category) => Filters.setCategory(category);
 
-// --- INITIALIZE ---
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => App.init());
 } else {
