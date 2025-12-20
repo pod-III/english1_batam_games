@@ -133,15 +133,65 @@
         .btn-chunky:active { transform: translate(1px, 1px); box-shadow: 0px 0px 0px #1e293b; }
         .btn-chunky.active { @apply bg-dark text-white shadow-none translate-x-[1px] translate-y-[1px]; }
 
-        [contenteditable] { outline: none; font-family: 'Fredoka', sans-serif; font-weight: 700; text-transform: uppercase; width: 100%; padding: 0 0.5rem; word-break: break-word; }
+        [contenteditable] { 
+            outline: none; 
+            font-family: 'Fredoka', sans-serif; 
+            font-weight: 700; 
+            text-transform: uppercase; 
+            width: 100%; 
+            padding: 0 0.5rem; 
+            word-break: break-word;
+            line-height: 1.1;
+        }
         [contenteditable]:empty:before { content: "TEXT"; color: #cbd5e1; }
 
         .image-container { width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
-        .text-container { width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .text-container { 
+            width: 100%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            overflow: hidden; 
+            position: relative;
+        }
         .image-preview { width: 100%; height: 100%; }
-        /* Default to contain for partial sizes, cover for FULL */
         .image-preview.contain { object-fit: contain; }
         .image-preview.cover { object-fit: cover; }
+
+        /* Custom Toggle Switch Style */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #f1f5f9;
+            padding: 0.75rem 1rem;
+            border: 2px solid #1e293b;
+            border-radius: 12px;
+            cursor: pointer;
+        }
+        .toggle-switch {
+            width: 44px;
+            height: 24px;
+            background: #cbd5e1;
+            border-radius: 12px;
+            position: relative;
+            transition: background 0.2s;
+            border: 2px solid #1e293b;
+        }
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.2s;
+            border: 2px solid #1e293b;
+        }
+        .toggle-container.active .toggle-switch { background: #00E676; }
+        .toggle-container.active .toggle-switch::after { transform: translateX(20px); }
     </style>
 </head>
 <body class="flex min-h-screen">
@@ -190,21 +240,27 @@
 
             <section>
                 <label class="text-xs font-bold text-slate-400 uppercase mb-2 block tracking-widest">Image Height</label>
-                <div class="grid grid-cols-4 gap-2">
-                    <button id="img-25" onclick="setImageSize(25)" class="btn-chunky py-2 rounded-xl bg-white">25%</button>
-                    <button id="img-50" onclick="setImageSize(50)" class="btn-chunky py-2 rounded-xl bg-white">50%</button>
-                    <button id="img-75" onclick="setImageSize(75)" class="btn-chunky py-2 rounded-xl bg-white">75%</button>
-                    <button id="img-100" onclick="setImageSize(100)" class="btn-chunky py-2 rounded-xl bg-white">FULL</button>
+                <div class="grid grid-cols-5 gap-1.5">
+                    <button id="img-0" onclick="setImageSize(0)" class="btn-chunky py-2 rounded-xl bg-white text-[10px]">0%</button>
+                    <button id="img-25" onclick="setImageSize(25)" class="btn-chunky py-2 rounded-xl bg-white text-[10px]">25%</button>
+                    <button id="img-50" onclick="setImageSize(50)" class="btn-chunky py-2 rounded-xl bg-white text-[10px]">50%</button>
+                    <button id="img-75" onclick="setImageSize(75)" class="btn-chunky py-2 rounded-xl bg-white text-[10px]">75%</button>
+                    <button id="img-100" onclick="setImageSize(100)" class="btn-chunky py-2 rounded-xl bg-white text-[10px]">100%</button>
                 </div>
             </section>
 
             <section>
                 <label class="text-xs font-bold text-slate-400 uppercase mb-2 block tracking-widest">Font Size</label>
-                <div class="grid grid-cols-4 gap-2">
+                <div class="grid grid-cols-4 gap-2 mb-3">
                     <button id="font-1.2" onclick="setFontSize(1.2)" class="btn-chunky py-2 rounded-xl bg-white">S</button>
                     <button id="font-2" onclick="setFontSize(2)" class="btn-chunky py-2 rounded-xl bg-white">M</button>
                     <button id="font-3.5" onclick="setFontSize(3.5)" class="btn-chunky py-2 rounded-xl bg-white">L</button>
                     <button id="font-5" onclick="setFontSize(5)" class="btn-chunky py-2 rounded-xl bg-white">XL</button>
+                </div>
+                
+                <div id="toggleAutoFit" onclick="toggleAutoFit()" class="toggle-container group">
+                    <span class="text-xs font-bold text-dark uppercase tracking-tight">Auto-Fit Text</span>
+                    <div class="toggle-switch"></div>
                 </div>
             </section>
 
@@ -248,6 +304,7 @@
             color: '#FFFFFF',
             imgHeight: 50,
             fontSize: 2,
+            autoFit: false,
             cards: []
         };
 
@@ -260,8 +317,9 @@
                     inputRows.value = state.gridRows || 3;
                     setOrientation(state.orientation, false);
                     setGlobalColor(state.color, false);
-                    setImageSize(state.imgHeight || 50, false);
+                    setImageSize(state.imgHeight ?? 50, false);
                     setFontSize(state.fontSize || 2, false);
+                    updateAutoFitUI();
                 } catch (e) { console.error(e); }
             }
             updateGrid(false);
@@ -283,7 +341,7 @@
 
         function setImageSize(size, shouldSave = true) {
             state.imgHeight = size;
-            [25, 50, 75, 100].forEach(b => {
+            [0, 25, 50, 75, 100].forEach(b => {
                 const btn = document.getElementById(`img-${b}`);
                 if (btn) btn.classList.toggle('active', b === size);
             });
@@ -293,34 +351,79 @@
 
         function setFontSize(size, shouldSave = true) {
             state.fontSize = size;
-            [1.2, 2, 3.5, 5].forEach(b => {
-                const btn = document.getElementById(`font-${b}`);
-                if (btn) btn.classList.toggle('active', b === parseFloat(size));
+            const sizes = [1.2, 2, 3.5, 5];
+            sizes.forEach(s => {
+                const btn = document.getElementById(`font-${s}`);
+                if (btn) btn.classList.toggle('active', s === parseFloat(size));
             });
             updateCardDisplay();
             if (shouldSave) saveState();
         }
 
+        function toggleAutoFit() {
+            state.autoFit = !state.autoFit;
+            updateAutoFitUI();
+            updateCardDisplay();
+            saveState();
+        }
+
+        function updateAutoFitUI() {
+            const container = document.getElementById('toggleAutoFit');
+            container.classList.toggle('active', state.autoFit);
+        }
+
+        function autoFitText(element) {
+            if (!state.autoFit) return;
+            
+            const container = element.parentElement;
+            if (!container || container.clientHeight === 0) return;
+
+            let minSize = 0.5;
+            let maxSize = 15; 
+            let fontSize = maxSize;
+            
+            // Binary search for perfect fit within container limits
+            while (maxSize - minSize > 0.05) {
+                fontSize = (minSize + maxSize) / 2;
+                element.style.fontSize = fontSize + 'rem';
+                
+                if (element.scrollHeight > container.clientHeight || element.scrollWidth > container.clientWidth) {
+                    maxSize = fontSize;
+                } else {
+                    minSize = fontSize;
+                }
+            }
+            element.style.fontSize = minSize + 'rem';
+        }
+
         function updateCardDisplay() {
-            const isFull = state.imgHeight === 100;
+            const isFullImg = state.imgHeight === 100;
+            const isNoImg = state.imgHeight === 0;
 
             document.querySelectorAll('.image-container').forEach(c => {
                 c.style.height = `${state.imgHeight}%`;
+                c.style.display = isNoImg ? 'none' : 'flex';
             });
+            
             document.querySelectorAll('.text-container').forEach(c => {
                 c.style.height = `${100 - state.imgHeight}%`;
-                c.style.display = isFull ? 'none' : 'flex';
-            });
-            document.querySelectorAll('[contenteditable]').forEach(t => {
-                t.style.fontSize = `${state.fontSize}rem`;
-            });
-            document.querySelectorAll('.brutalist-card').forEach(card => {
-                card.style.padding = isFull ? '0' : '10px';
+                c.style.display = isFullImg ? 'none' : 'flex';
             });
 
-            // Update image fit mode
+            document.querySelectorAll('[contenteditable]').forEach(t => {
+                if (state.autoFit) {
+                    autoFitText(t);
+                } else {
+                    t.style.fontSize = `${state.fontSize}rem`;
+                }
+            });
+
+            document.querySelectorAll('.brutalist-card').forEach(card => {
+                card.style.padding = (isFullImg || isNoImg) ? '0' : '10px';
+            });
+
             document.querySelectorAll('.image-preview').forEach(img => {
-                if (isFull) {
+                if (isFullImg) {
                     img.classList.remove('contain');
                     img.classList.add('cover');
                 } else {
@@ -393,8 +496,9 @@
                 card.className = 'brutalist-card group';
                 card.style.backgroundColor = state.color;
                 
-                const isFull = state.imgHeight === 100;
-                card.style.padding = isFull ? '0' : '10px';
+                const isFullImg = state.imgHeight === 100;
+                const isNoImg = state.imgHeight === 0;
+                card.style.padding = (isFullImg || isNoImg) ? '0' : '10px';
 
                 const savedCard = state.cards[i] || { text: '', img: '' };
 
@@ -407,10 +511,11 @@
                 const imgContainer = document.createElement('div');
                 imgContainer.className = 'image-container cursor-pointer';
                 imgContainer.style.height = `${state.imgHeight}%`;
+                imgContainer.style.display = isNoImg ? 'none' : 'flex';
                 imgContainer.onclick = (e) => { if (e.target.tagName !== 'INPUT') document.getElementById(`file-${i}`).click(); };
 
                 const img = document.createElement('img');
-                img.className = `image-preview ${isFull ? 'cover' : 'contain'} ${savedCard.img ? '' : 'hidden'}`;
+                img.className = `image-preview ${isFullImg ? 'cover' : 'contain'} ${savedCard.img ? '' : 'hidden'}`;
                 img.id = `img-${i}`;
                 img.src = savedCard.img || '';
 
@@ -422,14 +527,26 @@
                 const textContainer = document.createElement('div');
                 textContainer.className = 'text-container';
                 textContainer.style.height = `${100 - state.imgHeight}%`;
-                textContainer.style.display = isFull ? 'none' : 'flex';
+                textContainer.style.display = isFullImg ? 'none' : 'flex';
 
                 const text = document.createElement('div');
                 text.contentEditable = true;
                 text.className = 'outline-none text-dark';
-                text.style.fontSize = `${state.fontSize}rem`;
                 text.innerText = savedCard.text || '';
-                text.oninput = () => saveState();
+                
+                // Use a small delay for auto-fit to ensure the container height is calculated by the browser
+                setTimeout(() => {
+                    if (state.autoFit) {
+                        autoFitText(text);
+                    } else {
+                        text.style.fontSize = `${state.fontSize}rem`;
+                    }
+                }, 0);
+
+                text.oninput = () => {
+                    if (state.autoFit) autoFitText(text);
+                    saveState();
+                };
 
                 const fileInput = document.createElement('input');
                 fileInput.type = 'file';
@@ -480,6 +597,11 @@
         }
 
         window.onload = loadState;
+        window.onresize = () => {
+            if (state.autoFit) {
+                document.querySelectorAll('[contenteditable]').forEach(autoFitText);
+            }
+        };
     </script>
 </body>
 </html>
