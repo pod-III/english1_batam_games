@@ -63,9 +63,11 @@
             background-size: 24px 24px;
             flex: 1;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
+            align-items: center;
             padding: 40px;
             overflow-y: auto;
+            gap: 40px; 
         }
 
         .sidebar {
@@ -80,6 +82,10 @@
             z-index: 1000;
         }
 
+        .page-wrapper {
+            position: relative;
+        }
+
         .a4-page {
             background: white;
             display: grid;
@@ -88,6 +94,8 @@
             box-sizing: border-box;
             border: 5px solid #1e293b;
             box-shadow: 12px 12px 0px rgba(30, 41, 59, 0.15);
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
         }
 
         .a4-portrait { width: 210mm; height: 297mm; }
@@ -97,8 +105,28 @@
             @page { size: auto; margin: 0; }
             body, html { background: white !important; margin: 0 !important; padding: 0 !important; display: block !important; }
             .no-print { display: none !important; }
-            .preview-area { padding: 0 !important; display: block !important; background: none !important; }
-            .a4-page { margin: 0 !important; box-shadow: none !important; border: none !important; position: absolute; top: 0; left: 0; }
+            .preview-area { padding: 0 !important; display: block !important; background: none !important; gap: 0 !important; }
+            
+            .page-wrapper {
+                break-after: page;
+                page-break-after: always;
+                margin-bottom: 0 !important;
+            }
+
+            .a4-page { 
+                margin: 0 !important; 
+                box-shadow: none !important; 
+                border: none !important; 
+                position: relative !important; 
+                width: 100% !important;
+                height: 100vh !important; 
+            }
+            
+            .page-wrapper:last-child {
+                break-after: auto;
+                page-break-after: auto;
+            }
+
             [contenteditable]:empty:before { content: "" !important; }
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
@@ -115,6 +143,28 @@
             z-index: 10;
             overflow: hidden;
         }
+
+        /* Top Left Input Style */
+        .card-label-input {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            min-width: 24px;
+            padding: 2px 6px;
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
+            font-size: 11px;
+            background: rgba(30, 41, 59, 0.05);
+            color: #1e293b;
+            border-radius: 4px;
+            z-index: 60;
+            text-align: center;
+            border: 1px dashed transparent;
+            transition: all 0.2s;
+        }
+        .card-label-input:hover { background: rgba(30, 41, 59, 0.1); border-color: #1e293b; }
+        .card-label-input:focus { background: white; border: 1.5px solid #1e293b; outline: none; box-shadow: 2px 2px 0px #1e293b; }
+        .card-label-input:empty:before { content: "#"; opacity: 0.3; }
 
         .guide-line {
             position: absolute;
@@ -158,7 +208,6 @@
         .image-preview.contain { object-fit: contain; }
         .image-preview.cover { object-fit: cover; }
 
-        /* Custom Toggle Switch Style */
         .toggle-container {
             display: flex;
             align-items: center;
@@ -192,6 +241,35 @@
         }
         .toggle-container.active .toggle-switch { background: #00E676; }
         .toggle-container.active .toggle-switch::after { transform: translateX(20px); }
+
+        .page-number {
+            position: absolute;
+            top: -30px;
+            left: 0;
+            font-weight: 800;
+            color: #94a3b8;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        
+        .delete-page-btn {
+            position: absolute;
+            top: -35px;
+            right: 0;
+            background: #ef4444;
+            color: white;
+            border: 2px solid #1e293b;
+            padding: 4px 12px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 12px;
+            cursor: pointer;
+            box-shadow: 2px 2px 0px #1e293b;
+            transition: all 0.1s;
+        }
+        .delete-page-btn:hover { transform: scale(1.05); }
+        .delete-page-btn:active { transform: translate(1px, 1px); box-shadow: 0 0 0; }
     </style>
 </head>
 <body class="flex min-h-screen">
@@ -206,6 +284,12 @@
 
         <div class="space-y-5 flex-1 overflow-y-auto pr-1">
             <section>
+                <button onclick="addNewPage()" class="w-full btn-chunky bg-blue text-white py-3 rounded-xl flex items-center justify-center gap-2 mb-4">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i> Add New Page
+                </button>
+            </section>
+
+            <section>
                 <label class="text-xs font-bold text-slate-400 uppercase mb-2 block tracking-widest">Orientation</label>
                 <div class="flex gap-2">
                     <button id="btnPortrait" onclick="setOrientation('portrait')" class="flex-1 btn-chunky py-2 rounded-xl bg-white active">Portrait</button>
@@ -216,7 +300,7 @@
             <section>
                 <div class="flex justify-between items-center mb-2">
                     <label class="text-xs font-bold text-slate-400 uppercase tracking-widest">Grid Layout</label>
-                    <span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded font-bold text-slate-500 uppercase">Custom</span>
+                    <span class="text-[10px] bg-slate-100 px-2 py-0.5 rounded font-bold text-slate-500 uppercase">All Pages</span>
                 </div>
                 <div class="grid grid-cols-2 gap-3 mb-3">
                     <div class="relative">
@@ -239,6 +323,16 @@
             </section>
 
             <section>
+                <label class="text-xs font-bold text-slate-400 uppercase mb-2 block tracking-widest">General Options</label>
+                <div class="space-y-2">
+                    <div id="toggleAutoFit" onclick="toggleAutoFit()" class="toggle-container group">
+                        <span class="text-xs font-bold text-dark uppercase tracking-tight">Auto-Fit Text</span>
+                        <div class="toggle-switch"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section>
                 <label class="text-xs font-bold text-slate-400 uppercase mb-2 block tracking-widest">Image Height</label>
                 <div class="grid grid-cols-5 gap-1.5">
                     <button id="img-0" onclick="setImageSize(0)" class="btn-chunky py-2 rounded-xl bg-white text-[10px]">0%</button>
@@ -251,16 +345,11 @@
 
             <section>
                 <label class="text-xs font-bold text-slate-400 uppercase mb-2 block tracking-widest">Font Size</label>
-                <div class="grid grid-cols-4 gap-2 mb-3">
+                <div class="grid grid-cols-4 gap-2">
                     <button id="font-1.2" onclick="setFontSize(1.2)" class="btn-chunky py-2 rounded-xl bg-white">S</button>
                     <button id="font-2" onclick="setFontSize(2)" class="btn-chunky py-2 rounded-xl bg-white">M</button>
                     <button id="font-3.5" onclick="setFontSize(3.5)" class="btn-chunky py-2 rounded-xl bg-white">L</button>
                     <button id="font-5" onclick="setFontSize(5)" class="btn-chunky py-2 rounded-xl bg-white">XL</button>
-                </div>
-                
-                <div id="toggleAutoFit" onclick="toggleAutoFit()" class="toggle-container group">
-                    <span class="text-xs font-bold text-dark uppercase tracking-tight">Auto-Fit Text</span>
-                    <div class="toggle-switch"></div>
                 </div>
             </section>
 
@@ -278,7 +367,7 @@
 
         <div class="mt-4 space-y-2">
             <button onclick="window.print()" class="w-full btn-chunky bg-green py-3 rounded-2xl text-lg flex items-center justify-center gap-2">
-                <i data-lucide="printer"></i> PRINT TO A4
+                <i data-lucide="printer"></i> PRINT ALL
             </button>
             <button onclick="resetTool()" class="w-full py-1 text-[10px] font-bold text-slate-400 hover:text-red-500 transition-colors flex items-center justify-center gap-2 uppercase tracking-tighter">
                 <i data-lucide="trash-2" class="w-3 h-3"></i> Clear Workspace
@@ -286,12 +375,12 @@
         </div>
     </aside>
 
-    <main class="preview-area">
-        <div id="a4Page" class="a4-page a4-portrait"></div>
+    <main id="pagesContainer" class="preview-area">
+        <!-- Pages will be generated here -->
     </main>
 
     <script>
-        const a4Page = document.getElementById('a4Page');
+        const pagesContainer = document.getElementById('pagesContainer');
         const gridSelect = document.getElementById('gridSelect');
         const inputCols = document.getElementById('inputCols');
         const inputRows = document.getElementById('inputRows');
@@ -305,38 +394,72 @@
             imgHeight: 50,
             fontSize: 2,
             autoFit: false,
-            cards: []
+            pages: [ [] ] 
         };
 
         function loadState() {
-            const saved = localStorage.getItem('flashcard_batam_state_v2');
+            const saved = localStorage.getItem('flashcard_batam_state_v4');
             if (saved) {
                 try {
-                    state = JSON.parse(saved);
+                    const parsed = JSON.parse(saved);
+                    state = { ...state, ...parsed };
+                    
                     inputCols.value = state.gridCols || 3;
                     inputRows.value = state.gridRows || 3;
+                    
                     setOrientation(state.orientation, false);
                     setGlobalColor(state.color, false);
                     setImageSize(state.imgHeight ?? 50, false);
                     setFontSize(state.fontSize || 2, false);
-                    updateAutoFitUI();
+                    updateToggleUI();
                 } catch (e) { console.error(e); }
             }
-            updateGrid(false);
+            if (!state.pages || state.pages.length === 0) {
+                state.pages = [[]];
+            }
+            renderAllPages(false);
             lucide.createIcons();
         }
 
         function saveState() {
-            const cardElements = document.querySelectorAll('.brutalist-card');
-            cardElements.forEach((card, i) => {
-                const textElement = card.querySelector('[contenteditable]');
-                const text = textElement ? textElement.innerText : '';
-                const imgElement = card.querySelector('.image-preview');
-                const imgSrc = imgElement ? imgElement.src : '';
-                const isHidden = imgElement ? imgElement.classList.contains('hidden') : true;
-                state.cards[i] = { text: text, img: isHidden ? '' : imgSrc };
+            const pageWrappers = document.querySelectorAll('.page-wrapper');
+            
+            state.pages = Array.from(pageWrappers).map((wrapper) => {
+                const cards = [];
+                const cardElements = wrapper.querySelectorAll('.brutalist-card');
+                
+                cardElements.forEach((card) => {
+                    const labelElement = card.querySelector('.card-label-input');
+                    const label = labelElement ? labelElement.innerText : '';
+
+                    const textElement = card.querySelector('[contenteditable]:not(.card-label-input)');
+                    const text = textElement ? textElement.innerText : '';
+                    
+                    const imgElement = card.querySelector('.image-preview');
+                    const imgSrc = imgElement ? imgElement.src : '';
+                    const isHidden = imgElement ? imgElement.classList.contains('hidden') : true;
+                    
+                    cards.push({ text: text, img: isHidden ? '' : imgSrc, label: label });
+                });
+                return cards;
             });
-            localStorage.setItem('flashcard_batam_state_v2', JSON.stringify(state));
+
+            localStorage.setItem('flashcard_batam_state_v4', JSON.stringify(state));
+        }
+
+        function addNewPage() {
+            saveState();
+            state.pages.push([]);
+            renderAllPages();
+        }
+
+        function deletePage(index) {
+            if (state.pages.length <= 1) return;
+            if (confirm(`Delete Page ${index + 1}?`)) {
+                saveState();
+                state.pages.splice(index, 1);
+                renderAllPages();
+            }
         }
 
         function setImageSize(size, shouldSave = true) {
@@ -362,31 +485,23 @@
 
         function toggleAutoFit() {
             state.autoFit = !state.autoFit;
-            updateAutoFitUI();
+            updateToggleUI();
             updateCardDisplay();
             saveState();
         }
 
-        function updateAutoFitUI() {
-            const container = document.getElementById('toggleAutoFit');
-            container.classList.toggle('active', state.autoFit);
+        function updateToggleUI() {
+            document.getElementById('toggleAutoFit').classList.toggle('active', state.autoFit);
         }
 
         function autoFitText(element) {
-            if (!state.autoFit) return;
-            
+            if (!state.autoFit || element.classList.contains('card-label-input')) return;
             const container = element.parentElement;
             if (!container || container.clientHeight === 0) return;
-
-            let minSize = 0.5;
-            let maxSize = 15; 
-            let fontSize = maxSize;
-            
-            // Binary search for perfect fit within container limits
+            let minSize = 0.5, maxSize = 15, fontSize = maxSize;
             while (maxSize - minSize > 0.05) {
                 fontSize = (minSize + maxSize) / 2;
                 element.style.fontSize = fontSize + 'rem';
-                
                 if (element.scrollHeight > container.clientHeight || element.scrollWidth > container.clientWidth) {
                     maxSize = fontSize;
                 } else {
@@ -410,16 +525,14 @@
                 c.style.display = isFullImg ? 'none' : 'flex';
             });
 
-            document.querySelectorAll('[contenteditable]').forEach(t => {
-                if (state.autoFit) {
-                    autoFitText(t);
-                } else {
-                    t.style.fontSize = `${state.fontSize}rem`;
-                }
+            document.querySelectorAll('[contenteditable]:not(.card-label-input)').forEach(t => {
+                if (state.autoFit) autoFitText(t);
+                else t.style.fontSize = `${state.fontSize}rem`;
             });
 
             document.querySelectorAll('.brutalist-card').forEach(card => {
                 card.style.padding = (isFullImg || isNoImg) ? '0' : '10px';
+                card.style.backgroundColor = state.color;
             });
 
             document.querySelectorAll('.image-preview').forEach(img => {
@@ -438,9 +551,9 @@
             const isP = type === 'portrait';
             document.getElementById('btnPortrait').classList.toggle('active', isP);
             document.getElementById('btnLandscape').classList.toggle('active', !isP);
-            a4Page.className = `a4-page a4-${type}`;
+            document.querySelectorAll('.a4-page').forEach(page => page.className = `a4-page a4-${type}`);
             printStyle.innerHTML = `@page { size: ${type}; margin: 0; }`;
-            if (shouldSave) { saveState(); updateGrid(false); }
+            if (shouldSave) saveState();
         }
 
         function setGlobalColor(color, shouldSave = true) {
@@ -450,107 +563,116 @@
         }
 
         function handleCustomGrid() {
+            saveState();
             state.gridCols = parseInt(inputCols.value) || 1;
             state.gridRows = parseInt(inputRows.value) || 1;
             gridSelect.value = ""; 
-            updateGrid();
+            renderAllPages();
         }
 
         function syncFromPreset() {
+            saveState();
             const [cols, rows] = gridSelect.value.split(',').map(Number);
             inputCols.value = cols;
             inputRows.value = rows;
             state.gridCols = cols;
             state.gridRows = rows;
-            updateGrid();
+            renderAllPages();
         }
 
-        function removeImage(index) {
-            const img = document.getElementById(`img-${index}`);
-            const icon = document.getElementById(`icon-${index}`);
-            const delBtn = document.getElementById(`del-${index}`);
-            if (img) {
-                img.src = '';
-                img.classList.add('hidden');
-            }
-            if(icon) icon.classList.remove('hidden');
-            if(delBtn) delBtn.classList.add('hidden');
+        function removeImage(pageIndex, cardIndex) {
+            const uid = `${pageIndex}-${cardIndex}`;
+            const img = document.getElementById(`img-${uid}`);
+            const icon = document.getElementById(`icon-${uid}`);
+            const delBtn = document.getElementById(`del-${uid}`);
+            if (img) { img.src = ''; img.classList.add('hidden'); }
+            if (icon) icon.classList.remove('hidden');
+            if (delBtn) delBtn.classList.add('hidden');
             saveState();
         }
 
-        function updateGrid(shouldSave = true) {
-            const cols = state.gridCols;
-            const rows = state.gridRows;
-            a4Page.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-            a4Page.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
-            generateContent(cols, rows);
+        function renderAllPages(shouldSave = true) {
+            pagesContainer.innerHTML = '';
+            state.pages.forEach((pageData, pageIndex) => {
+                renderSinglePage(pageIndex, pageData);
+            });
+            setOrientation(state.orientation, false);
+            setGlobalColor(state.color, false);
+            updateCardDisplay();
             if (shouldSave) saveState();
         }
 
-        function generateContent(cols, rows) {
-            a4Page.innerHTML = '';
-            const totalCards = cols * rows;
+        function renderSinglePage(pageIndex, pageData) {
+            const cols = state.gridCols;
+            const rows = state.gridRows;
+            const wrapper = document.createElement('div');
+            wrapper.className = 'page-wrapper no-break-inside';
+            
+            const pageLabel = document.createElement('div');
+            pageLabel.className = 'page-number no-print';
+            pageLabel.innerText = `Page ${pageIndex + 1}`;
+            wrapper.appendChild(pageLabel);
 
-            for (let i = 0; i < totalCards; i++) {
+            if (state.pages.length > 1) {
+                const delBtn = document.createElement('button');
+                delBtn.className = 'delete-page-btn no-print';
+                delBtn.innerHTML = `DELETE PAGE ${pageIndex + 1}`;
+                delBtn.onclick = () => deletePage(pageIndex);
+                wrapper.appendChild(delBtn);
+            }
+
+            const a4Page = document.createElement('div');
+            a4Page.className = `a4-page a4-${state.orientation}`;
+            a4Page.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+            a4Page.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+
+            const totalCardsPerPage = cols * rows;
+            for (let i = 0; i < totalCardsPerPage; i++) {
                 const card = document.createElement('div');
                 card.className = 'brutalist-card group';
-                card.style.backgroundColor = state.color;
-                
-                const isFullImg = state.imgHeight === 100;
-                const isNoImg = state.imgHeight === 0;
-                card.style.padding = (isFullImg || isNoImg) ? '0' : '10px';
+                const savedCard = (pageData && pageData[i]) ? pageData[i] : { text: '', img: '', label: '' };
+                const uid = `${pageIndex}-${i}`;
 
-                const savedCard = state.cards[i] || { text: '', img: '' };
+                // Manual Label Input (Top Left)
+                const labelInput = document.createElement('div');
+                labelInput.className = 'card-label-input';
+                labelInput.contentEditable = true;
+                labelInput.innerText = savedCard.label || '';
+                labelInput.onblur = () => saveState();
+                card.appendChild(labelInput);
 
                 const delBtn = document.createElement('button');
-                delBtn.id = `del-${i}`;
+                delBtn.id = `del-${uid}`;
                 delBtn.className = `no-print absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 border-2 border-dark shadow-sm z-50 hover:scale-110 transition-transform ${savedCard.img ? '' : 'hidden'}`;
                 delBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="M18 6L6 18M6 6l12 12"/></svg>`;
-                delBtn.onclick = (e) => { e.stopPropagation(); removeImage(i); };
+                delBtn.onclick = (e) => { e.stopPropagation(); removeImage(pageIndex, i); };
 
                 const imgContainer = document.createElement('div');
                 imgContainer.className = 'image-container cursor-pointer';
-                imgContainer.style.height = `${state.imgHeight}%`;
-                imgContainer.style.display = isNoImg ? 'none' : 'flex';
-                imgContainer.onclick = (e) => { if (e.target.tagName !== 'INPUT') document.getElementById(`file-${i}`).click(); };
+                imgContainer.onclick = (e) => { if (e.target.tagName !== 'INPUT') document.getElementById(`file-${uid}`).click(); };
 
                 const img = document.createElement('img');
-                img.className = `image-preview ${isFullImg ? 'cover' : 'contain'} ${savedCard.img ? '' : 'hidden'}`;
-                img.id = `img-${i}`;
+                img.className = `image-preview ${savedCard.img ? '' : 'hidden'}`;
+                img.id = `img-${uid}`;
                 img.src = savedCard.img || '';
 
                 const icon = document.createElement('div');
                 icon.className = `no-print opacity-20 group-hover:opacity-100 ${savedCard.img ? 'hidden' : ''}`;
-                icon.id = `icon-${i}`;
+                icon.id = `icon-${uid}`;
                 icon.innerHTML = `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
 
                 const textContainer = document.createElement('div');
                 textContainer.className = 'text-container';
-                textContainer.style.height = `${100 - state.imgHeight}%`;
-                textContainer.style.display = isFullImg ? 'none' : 'flex';
-
                 const text = document.createElement('div');
                 text.contentEditable = true;
                 text.className = 'outline-none text-dark';
                 text.innerText = savedCard.text || '';
-                
-                // Use a small delay for auto-fit to ensure the container height is calculated by the browser
-                setTimeout(() => {
-                    if (state.autoFit) {
-                        autoFitText(text);
-                    } else {
-                        text.style.fontSize = `${state.fontSize}rem`;
-                    }
-                }, 0);
-
-                text.oninput = () => {
-                    if (state.autoFit) autoFitText(text);
-                    saveState();
-                };
+                text.oninput = () => { if (state.autoFit) autoFitText(text); };
+                text.onblur = () => saveState();
 
                 const fileInput = document.createElement('input');
                 fileInput.type = 'file';
-                fileInput.id = `file-${i}`;
+                fileInput.id = `file-${uid}`;
                 fileInput.className = 'hidden';
                 fileInput.accept = 'image/*';
                 fileInput.onchange = (e) => {
@@ -558,7 +680,7 @@
                     if (file) {
                         const reader = new FileReader();
                         reader.onload = (re) => {
-                            img.src = re.target.result;
+                            img.src = reader.result;
                             img.classList.remove('hidden');
                             icon.classList.add('hidden');
                             delBtn.classList.remove('hidden');
@@ -574,7 +696,6 @@
                 a4Page.appendChild(card);
             }
 
-            // Cutting Guides
             for (let i = 1; i < cols; i++) {
                 const line = document.createElement('div');
                 line.className = 'guide-line guide-v';
@@ -587,20 +708,21 @@
                 line.style.top = `${(i / rows) * 100}%`;
                 a4Page.appendChild(line);
             }
+
+            wrapper.appendChild(a4Page);
+            pagesContainer.appendChild(wrapper);
         }
 
         function resetTool() {
-            if(confirm("Clear current workspace?")) {
-                localStorage.removeItem('flashcard_batam_state_v2');
+            if(confirm("Clear everything?")) {
+                localStorage.removeItem('flashcard_batam_state_v4');
                 location.reload();
             }
         }
 
         window.onload = loadState;
         window.onresize = () => {
-            if (state.autoFit) {
-                document.querySelectorAll('[contenteditable]').forEach(autoFitText);
-            }
+            if (state.autoFit) document.querySelectorAll('[contenteditable]:not(.card-label-input)').forEach(autoFitText);
         };
     </script>
 </body>
