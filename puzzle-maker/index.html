@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Puzzle Maker Pro - English 1 Batam</title>
+    
+    <!-- External Libraries -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        pink: '#FF6B95',
+                        orange: '#FF8C42',
+                        green: '#00E676',
+                        blue: '#2979FF',
+                        dark: '#1e293b',
+                        chalk: '#f8fafc',
+                    },
+                    fontFamily: {
+                        heading: ['Fredoka', 'sans-serif'], 
+                        body: ['Nunito', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+
+    <style type="text/tailwindcss">
+        /* ============================================
+           BASE STYLES
+           ============================================ */
+        :root {
+            --color-pink: #FF6B95;
+            --color-orange: #FF8C42;
+            --color-green: #00E676;
+            --color-blue: #2979FF;
+            --color-dark: #1e293b;
+            --color-chalk: #f8fafc;
+            --bg-primary: #F8FAFC;
+            --bg-secondary: #FFFFFF;
+            --text-primary: #1e293b;
+            --border-primary: #1e293b;
+            --border-width-medium: 4px; 
+            --border-width-thick: 6px;
+            --grid-color: #E2E8F0;
+            --grid-size: 24px;
+            --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-bounce: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        body { 
+            font-family: 'Nunito', sans-serif;
+            background-color: var(--bg-primary);
+            background-image: 
+                linear-gradient(var(--grid-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: var(--grid-size) var(--grid-size);
+            color: var(--text-primary);
+            overflow: hidden;
+        }
+
+        /* --- Chunky Buttons --- */
+        .btn-chunky {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border: var(--border-width-medium) solid var(--border-primary);
+            box-shadow: 0 4px 0 var(--border-primary);
+            cursor: pointer;
+            user-select: none;
+            transition: all var(--transition-fast);
+            transform: translateY(0);
+            @apply rounded-xl px-4 py-3;
+        }
+
+        .btn-chunky:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 0 var(--border-primary);
+        }
+
+        .btn-chunky:active:not(:disabled) {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 var(--border-primary);
+        }
+
+        .btn-chunky:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            box-shadow: 0 2px 0 var(--border-primary);
+            background-color: #e2e8f0;
+            color: #94a3b8;
+        }
+
+        .sidebar {
+            width: 380px;
+            background: var(--bg-secondary);
+            border-right: var(--border-width-thick) solid var(--border-primary);
+            padding: 1.5rem;
+            height: 100vh;
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 4px 0 0 rgba(30, 41, 59, 0.05);
+        }
+
+        .main-area {
+            flex: 1;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            overflow: auto;
+        }
+
+        #game-container {
+            position: relative;
+            box-shadow: 12px 12px 0px rgba(30, 41, 59, 0.1);
+            border: var(--border-width-thick) solid var(--border-primary);
+            border-radius: 28px;
+            background: #fff;
+            display: none;
+            overflow: hidden;
+            transition: transform var(--transition-bounce);
+        }
+
+        canvas { display: block; cursor: pointer; }
+
+        .input-label { 
+            @apply text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2; 
+        }
+
+        /* --- Toggle Style Improvements --- */
+        .toggle-btn {
+            @apply flex items-center justify-between p-4 rounded-xl border-4 border-dark bg-white transition-all cursor-pointer;
+            box-shadow: 4px 4px 0 var(--border-primary);
+        }
+        
+        .toggle-btn:hover {
+            @apply bg-slate-50;
+        }
+
+        .toggle-btn:active {
+            transform: translate(2px, 2px);
+            box-shadow: 0px 0px 0 var(--border-primary);
+        }
+
+        .toggle-btn.active { 
+            @apply bg-blue text-white border-blue; 
+            box-shadow: 4px 4px 0 var(--color-dark);
+        }
+
+        .toggle-btn .toggle-icon {
+            @apply transition-transform duration-300;
+        }
+        .toggle-btn.active .toggle-icon {
+            @apply scale-110;
+        }
+
+        @keyframes pop-in {
+            0% { opacity: 0; transform: scale(0.9) translateY(10px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .modal-overlay {
+            @apply fixed inset-0 flex items-center justify-center z-[100] opacity-0 pointer-events-none transition-opacity duration-300;
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(8px);
+        }
+        .modal-overlay.active { @apply opacity-100 pointer-events-auto; }
+
+        .modal-content {
+            @apply bg-white p-10 rounded-[32px] border-4 border-dark w-[90%] max-w-[440px] text-center;
+            box-shadow: 12px 12px 0px rgba(0,0,0,0.2);
+        }
+        
+        .modal-overlay.active .modal-content {
+            animation: pop-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        #thumb-preview {
+            @apply absolute top-6 right-6 w-32 border-4 border-dark rounded-xl z-10 hidden bg-white p-1;
+            box-shadow: 8px 8px 0px rgba(0,0,0,0.1);
+        }
+
+        /* --- Toast Notification --- */
+        #toast {
+            @apply fixed top-6 left-1/2 -translate-x-1/2 bg-dark text-white px-6 py-3 rounded-full shadow-xl transform -translate-y-24 transition-transform duration-300 z-[200] flex items-center gap-3 font-bold;
+        }
+        #toast.active { @apply translate-y-0; }
+
+        /* --- PRINT STYLES --- */
+        #print-area { display: none; }
+
+        @media print {
+            @page {
+                size: A4;
+                margin: 0; 
+            }
+            body, html {
+                margin: 0;
+                padding: 0;
+                width: 100%;
+                height: 100%;
+                background: white;
+                overflow: visible;
+            }
+            
+            .sidebar, .main-area, .modal-overlay, #thumb-preview, #liveStats, #toast { 
+                display: none !important; 
+            }
+
+            #print-area {
+                display: block !important;
+                width: 100%;
+                height: 100%;
+            }
+
+            .print-page {
+                width: 210mm;
+                height: 297mm;
+                page-break-after: always;
+                position: relative;
+                padding: 0; 
+                margin: 0;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                box-sizing: border-box;
+                overflow: hidden;
+            }
+
+            .print-page:last-child {
+                page-break-after: auto;
+            }
+
+            .print-full-img {
+                width: 100%;
+                height: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0;
+                margin: 0;
+            }
+
+            .print-full-img img {
+                width: 100%;
+                height: 100%;
+                object-fit: contain; 
+                border: none;
+            }
+
+            .print-page-ref {
+                padding: 10mm;
+                justify-content: flex-start;
+            }
+
+            .print-header {
+                width: 100%;
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-end;
+                border-bottom: 3px solid #000;
+                padding-bottom: 20px;
+                margin-bottom: 40px;
+            }
+        }
+    </style>
+</head>
+<body class="flex min-h-screen">
+
+    <!-- Toast -->
+    <div id="toast">
+        <i data-lucide="save" class="w-4 h-4 text-green"></i>
+        <span>Game Saved</span>
+    </div>
+
+    <!-- Modal: Print Options -->
+    <div id="printModal" class="modal-overlay">
+        <div class="modal-content w-[500px] max-w-[95%]">
+            <div class="w-20 h-20 bg-green/10 rounded-2xl flex items-center justify-center mx-auto mb-6 border-4 border-green -rotate-3" style="box-shadow: 4px 4px 0 var(--color-green)">
+                <i data-lucide="printer" class="text-green w-10 h-10"></i>
+            </div>
+            <h3 class="font-heading text-3xl mb-2 text-dark">Print Settings</h3>
+            <p class="text-slate-500 mb-8 font-body">Configure your worksheet layout.</p>
+            
+            <div class="space-y-4 mb-8 text-left">
+                <!-- Option 1 -->
+                <div class="p-4 rounded-xl border-4 border-slate-100 hover:border-blue/30 transition-colors flex items-center justify-between cursor-pointer" onclick="togglePrintOpt('puzzle')">
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 bg-blue rounded-lg flex items-center justify-center text-white">
+                            <i data-lucide="puzzle" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-dark font-heading">Puzzle Worksheet</h4>
+                            <p class="text-xs text-slate-400 font-bold uppercase">Page 1 (Edge-to-Edge)</p>
+                        </div>
+                    </div>
+                    <div class="w-6 h-6 rounded-full bg-blue flex items-center justify-center">
+                        <i data-lucide="check" class="w-4 h-4 text-white"></i>
+                    </div>
+                </div>
+
+                <!-- Option 2 -->
+                <div id="opt-reference" class="p-4 rounded-xl border-4 border-slate-100 hover:border-orange/30 transition-colors flex items-center justify-between cursor-pointer" onclick="togglePrintOpt('reference')">
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 bg-orange rounded-lg flex items-center justify-center text-white">
+                            <i data-lucide="image" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-dark font-heading">Reference Image</h4>
+                            <p class="text-xs text-slate-400 font-bold uppercase">Page 2 (Answer Key)</p>
+                        </div>
+                    </div>
+                    <div id="check-reference" class="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center"></div>
+                </div>
+            </div>
+
+            <div class="flex gap-4">
+                <button onclick="closeModal('printModal')" class="flex-1 btn-chunky bg-white text-slate-500 border-slate-300 shadow-none">
+                    CANCEL
+                </button>
+                <button onclick="executePrint()" class="flex-1 btn-chunky bg-green text-dark">
+                    PRINT NOW <i data-lucide="printer" class="w-5 h-5 ml-2"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Win -->
+    <div id="winnerModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="w-24 h-24 bg-green/10 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-green animate-bounce">
+                <i data-lucide="trophy" class="text-green w-12 h-12"></i>
+            </div>
+            <h3 class="font-heading text-4xl mb-2 text-dark">AMAZING!</h3>
+            <p class="text-slate-500 mb-8 font-body text-lg">You finished the puzzle!</p>
+            
+            <div class="flex gap-4 mb-8">
+                <div class="flex-1 bg-slate-50 p-4 rounded-2xl border-2 border-dark">
+                    <span class="block text-[10px] font-black text-slate-400 uppercase">Time</span>
+                    <span id="finalTime" class="text-2xl font-heading text-dark">00:00</span>
+                </div>
+                <div class="flex-1 bg-slate-50 p-4 rounded-2xl border-2 border-dark">
+                    <span class="block text-[10px] font-black text-slate-400 uppercase">Moves</span>
+                    <span id="finalMoves" class="text-2xl font-heading text-dark">0</span>
+                </div>
+            </div>
+
+            <div class="flex gap-4">
+                <button onclick="scramblePuzzle()" class="flex-1 btn-chunky bg-orange text-white">
+                    <i data-lucide="rotate-ccw" class="w-4 h-4 mr-2"></i> REPLAY
+                </button>
+                <button onclick="closeModal('winnerModal')" class="flex-1 btn-chunky bg-white text-slate-500 border-slate-300 shadow-none">
+                    CLOSE
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar no-print">
+        <header class="mb-10">
+            <div class="inline-flex items-center gap-4">
+                <div class="w-14 h-14 bg-pink border-4 border-dark rounded-2xl flex items-center justify-center text-white" style="box-shadow: 4px 4px 0 var(--color-dark)">
+                    <i data-lucide="puzzle" class="w-7 h-7"></i>
+                </div>
+                <div class="text-left">
+                    <h1 class="text-2xl font-heading font-bold text-dark leading-none mb-1">Puzzle<span class="text-blue">Maker</span></h1>
+                    <p class="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]">English 1 Hub</p>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex-1 space-y-8 overflow-y-auto pr-2 custom-scrollbar">
+            <!-- Step 1: Upload -->
+            <section>
+                <label class="input-label"><i data-lucide="image" class="w-3 h-3"></i> 1. Choose Image</label>
+                <div class="relative group">
+                    <button onclick="document.getElementById('fileInput').click()" class="w-full btn-chunky bg-blue text-white h-16 text-lg">
+                        <i data-lucide="upload-cloud" class="w-6 h-6 mr-3"></i> 
+                        <span>Select File</span>
+                    </button>
+                    <div class="absolute -z-10 top-2 left-2 w-full h-full bg-dark rounded-xl opacity-20 transition-all"></div>
+                </div>
+                <input type="file" id="fileInput" class="hidden" accept="image/*" onchange="handleImageUpload(event)">
+            </section>
+
+            <!-- Step 2: Grid -->
+            <section class="space-y-4">
+                <label class="input-label"><i data-lucide="grid" class="w-3 h-3"></i> 2. Grid Size</label>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <span class="text-[10px] font-bold text-slate-500 uppercase ml-1">Cols</span>
+                        <div class="flex items-center border-2 border-dark rounded-xl bg-white overflow-hidden shadow-[2px_2px_0px_#1e293b]">
+                            <button onclick="adjustGrid('cols', -1)" class="w-10 h-10 hover:bg-slate-100 font-bold border-r-2 border-slate-100 transition-colors">-</button>
+                            <span id="displayCols" class="flex-1 text-center font-heading font-bold text-lg text-dark">3</span>
+                            <button onclick="adjustGrid('cols', 1)" class="w-10 h-10 hover:bg-slate-100 font-bold border-l-2 border-slate-100 transition-colors">+</button>
+                        </div>
+                    </div>
+                    <div class="space-y-2">
+                        <span class="text-[10px] font-bold text-slate-500 uppercase ml-1">Rows</span>
+                        <div class="flex items-center border-2 border-dark rounded-xl bg-white overflow-hidden shadow-[2px_2px_0px_#1e293b]">
+                            <button onclick="adjustGrid('rows', -1)" class="w-10 h-10 hover:bg-slate-100 font-bold border-r-2 border-slate-100 transition-colors">-</button>
+                            <span id="displayRows" class="number-display flex-1 text-center font-heading font-bold text-lg text-dark">3</span>
+                            <button onclick="adjustGrid('rows', 1)" class="w-10 h-10 hover:bg-slate-100 font-bold border-l-2 border-slate-100 transition-colors">+</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="setPreset(2)" class="text-[10px] font-black border-2 border-dark rounded-lg py-2 bg-white shadow-[2px_2px_0_#1e293b] text-dark">EASY</button>
+                    <button onclick="setPreset(4)" class="text-[10px] font-black border-2 border-dark rounded-lg py-2 bg-white shadow-[2px_2px_0_#1e293b] text-dark">MID</button>
+                    <button onclick="setPreset(6)" class="text-[10px] font-black border-2 border-dark rounded-lg py-2 bg-white shadow-[2px_2px_0_#1e293b] text-dark">HARD</button>
+                </div>
+            </section>
+
+            <!-- Step 3: Options -->
+            <section class="space-y-4">
+                <label class="input-label"><i data-lucide="sliders" class="w-3 h-3"></i> 3. Style Options</label>
+                <div onclick="togglePuzzleStyle()" class="toggle-btn" id="styleToggleBtn">
+                    <span class="text-xs font-black uppercase tracking-wider">Jigsaw Edges</span>
+                    <i data-lucide="puzzle" class="w-6 h-6 toggle-icon" id="styleIcon"></i>
+                </div>
+                <div onclick="toggleHints()" class="toggle-btn" id="hintToggleBtn">
+                    <span class="text-xs font-black uppercase tracking-wider">Number Hints</span>
+                    <i data-lucide="circle-dot" class="w-6 h-6 toggle-icon" id="hintIcon"></i>
+                </div>
+            </section>
+
+            <!-- Step 4: Play -->
+            <section class="space-y-3 pt-6 border-t-2 border-slate-100">
+                <button onclick="scramblePuzzle()" id="btnScramble" class="w-full btn-chunky bg-orange text-white h-12" disabled>
+                    <i data-lucide="shuffle" class="w-4 h-4 mr-2"></i> SCRAMBLE & PLAY
+                </button>
+                <button onclick="toggleSolve()" id="btnSolve" class="w-full btn-chunky bg-white text-dark h-12" disabled>
+                    <i data-lucide="eye" class="w-4 h-4 mr-2"></i> REVEAL HINT
+                </button>
+            </section>
+
+            <!-- Step 5: Print -->
+            <section class="pt-6">
+                <button onclick="openPrintModal()" id="btnPrint" class="w-full btn-chunky bg-green text-dark h-14" disabled>
+                    <i data-lucide="printer" class="w-5 h-5 mr-3"></i> PRINT OPTIONS
+                </button>
+            </section>
+        </div>
+
+        <button onclick="clearStorage()" class="mt-8 py-3 text-[11px] font-black text-slate-300 hover:text-pink uppercase flex items-center justify-center gap-2 border-t-2 border-dashed border-slate-200 w-full">
+            <i data-lucide="trash-2" class="w-3 h-3"></i> RESET APP
+        </button>
+    </aside>
+
+    <!-- Main Area -->
+    <main class="main-area">
+        <div id="placeholder" class="text-center p-16 bg-white border-4 border-dark rounded-[48px] max-w-sm" style="box-shadow: 16px 16px 0 rgba(30, 41, 59, 0.1)">
+            <div class="w-24 h-24 bg-orange/10 border-4 border-orange rounded-3xl flex items-center justify-center mx-auto mb-8 -rotate-6" style="box-shadow: 4px 4px 0 var(--color-orange)">
+                <i data-lucide="image" class="text-orange w-12 h-12"></i>
+            </div>
+            <h2 class="font-heading text-3xl font-bold text-dark mb-4">Ready to Play?</h2>
+            <p class="text-slate-500 font-body mb-10 text-lg">Upload an image to transform it into a classroom puzzle activity!</p>
+            <button onclick="document.getElementById('fileInput').click()" class="btn-chunky bg-blue text-white mx-auto text-lg px-8">
+                SELECT IMAGE
+            </button>
+        </div>
+
+        <!-- Hint Overlay -->
+        <img id="thumb-preview" src="" alt="Hint">
+
+        <div id="game-container">
+            <canvas id="puzzleCanvas"></canvas>
+        </div>
+
+        <div id="liveStats" class="hidden fixed bottom-10 left-1/2 -translate-x-1/2 flex gap-4 no-print z-40">
+            <div class="bg-white border-4 border-dark px-6 py-3 rounded-2xl flex items-center gap-3 shadow-[6px_6px_0_rgba(0,0,0,0.2)]">
+                <i data-lucide="timer" class="text-blue w-6 h-6"></i>
+                <span id="timerDisplay" class="font-heading font-bold text-2xl text-dark">00:00</span>
+            </div>
+            <div class="bg-white border-4 border-dark px-6 py-3 rounded-2xl flex items-center gap-3 shadow-[6px_6px_0_rgba(0,0,0,0.2)]">
+                <i data-lucide="mouse-pointer-2" class="text-orange w-6 h-6"></i>
+                <span id="movesDisplay" class="font-heading font-bold text-2xl text-dark">0</span>
+            </div>
+        </div>
+    </main>
+
+    <div id="print-area"></div>
+
+    <script>
+        const state = {
+            img: null,
+            cols: 3,
+            rows: 3,
+            tiles: [],
+            edges: { h: [], v: [] },
+            puzzleStyle: 'jigsaw',
+            showHints: false,
+            selectedIdx: -1,
+            isActive: false,
+            moves: 0,
+            start: 0,
+            timer: null,
+            tabSize: 0.18,
+            printReference: false,
+            secondsElapsed: 0
+        };
+
+        const STORAGE_KEY = 'english1_puzzle_state_v3'; 
+        const canvas = document.getElementById('puzzleCanvas');
+        const ctx = canvas.getContext('2d');
+        const printModal = document.getElementById('printModal');
+        const gameContainer = document.getElementById('game-container');
+        const placeholder = document.getElementById('placeholder');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const movesDisplay = document.getElementById('movesDisplay');
+        const thumb = document.getElementById('thumb-preview');
+        const stats = document.getElementById('liveStats');
+        const toast = document.getElementById('toast');
+
+        // --- PERSISTENCE LOGIC ---
+        function saveState() {
+            try {
+                const data = {
+                    cols: state.cols,
+                    rows: state.rows,
+                    puzzleStyle: state.puzzleStyle,
+                    showHints: state.showHints,
+                    moves: state.moves,
+                    isActive: state.isActive,
+                    secondsElapsed: state.secondsElapsed,
+                    tiles: state.tiles,
+                    edges: state.edges,
+                    imgData: state.img ? state.img.src : null
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+                showToast();
+            } catch (e) {
+                console.warn("Storage quota exceeded. Image likely too large.");
+            }
+        }
+
+        function showToast() {
+            toast.classList.add('active');
+            setTimeout(() => toast.classList.remove('active'), 2000);
+        }
+
+        function loadState() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (!saved) return;
+                const data = JSON.parse(saved);
+
+                state.cols = data.cols || 3;
+                state.rows = data.rows || 3;
+                state.puzzleStyle = data.puzzleStyle || 'jigsaw';
+                state.showHints = data.showHints || false;
+                state.moves = data.moves || 0;
+                state.isActive = data.isActive || false;
+                state.secondsElapsed = data.secondsElapsed || 0;
+                state.tiles = data.tiles || [];
+                state.edges = data.edges || { h: [], v: [] };
+
+                // UI Updates
+                document.getElementById('displayCols').textContent = state.cols;
+                document.getElementById('displayRows').textContent = state.rows;
+                updateStyleUI();
+                updateHintUI();
+                movesDisplay.textContent = state.moves;
+
+                if (data.imgData) {
+                    const img = new Image();
+                    img.onload = () => {
+                        state.img = img;
+                        thumb.src = img.src;
+                        restoreGame();
+                    };
+                    img.src = data.imgData;
+                }
+            } catch (e) {
+                console.error("Error loading saved state:", e);
+                localStorage.removeItem(STORAGE_KEY); 
+            }
+        }
+
+        function clearStorage() {
+            localStorage.removeItem(STORAGE_KEY);
+            location.reload();
+        }
+
+        function updateStyleUI() {
+            const btn = document.getElementById('styleToggleBtn');
+            const icon = document.getElementById('styleIcon');
+            if (state.puzzleStyle === 'jigsaw') {
+                btn.classList.add('active');
+                icon.innerHTML = lucide.icons['puzzle'].toSvg({ strokeWidth: 3 });
+            } else {
+                btn.classList.remove('active');
+                icon.innerHTML = lucide.icons['grid'].toSvg({ strokeWidth: 2 });
+            }
+        }
+
+        function updateHintUI() {
+            const btn = document.getElementById('hintToggleBtn');
+            const icon = document.getElementById('hintIcon');
+            if (state.showHints) {
+                btn.classList.add('active');
+                icon.innerHTML = lucide.icons['check-circle-2'].toSvg({ strokeWidth: 3 });
+            } else {
+                btn.classList.remove('active');
+                icon.innerHTML = lucide.icons['circle'].toSvg({ strokeWidth: 2 });
+            }
+        }
+
+        function handleImageUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                // COMPRESSION STEP
+                const tempImg = new Image();
+                tempImg.onload = () => {
+                    const maxDim = 1200; // Resize to max 1200px
+                    let w = tempImg.width;
+                    let h = tempImg.height;
+                    
+                    if (w > maxDim || h > maxDim) {
+                        const ratio = Math.min(maxDim / w, maxDim / h);
+                        w *= ratio;
+                        h *= ratio;
+                    }
+                    
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = w;
+                    tempCanvas.height = h;
+                    const tempCtx = tempCanvas.getContext('2d');
+                    tempCtx.drawImage(tempImg, 0, 0, w, h);
+                    
+                    // Compress to JPEG 0.8 to save space for localStorage
+                    const compressedDataUrl = tempCanvas.toDataURL('image/jpeg', 0.8);
+                    
+                    const finalImg = new Image();
+                    finalImg.onload = () => {
+                        state.img = finalImg;
+                        thumb.src = finalImg.src;
+                        state.moves = 0;
+                        state.secondsElapsed = 0;
+                        state.isActive = false;
+                        initGame();
+                        saveState();
+                    };
+                    finalImg.src = compressedDataUrl;
+                };
+                tempImg.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function initGame() {
+            placeholder.style.display = 'none';
+            gameContainer.style.display = 'block';
+            ['btnScramble', 'btnSolve', 'btnPrint'].forEach(id => document.getElementById(id).disabled = false);
+            resize();
+            refreshTiles();
+        }
+
+        function restoreGame() {
+            placeholder.style.display = 'none';
+            gameContainer.style.display = 'block';
+            ['btnScramble', 'btnSolve', 'btnPrint'].forEach(id => document.getElementById(id).disabled = false);
+            
+            if (state.isActive) {
+                stats.classList.remove('hidden');
+                state.start = Date.now() - (state.secondsElapsed * 1000);
+                state.timer = setInterval(updTimer, 1000);
+            }
+            
+            resize();
+            draw();
+        }
+
+        function refreshTiles() {
+            state.tiles = [];
+            state.edges.h = [];
+            state.edges.v = [];
+
+            for (let r = 0; r < state.rows; r++) {
+                const row = [];
+                for (let c = 0; c < state.cols - 1; c++) row.push(Math.random() < 0.5 ? 1 : -1);
+                state.edges.h.push(row);
+            }
+            for (let r = 0; r < state.rows - 1; r++) {
+                const row = [];
+                for (let c = 0; c < state.cols; c++) row.push(Math.random() < 0.5 ? 1 : -1);
+                state.edges.v.push(row);
+            }
+
+            for (let r = 0; r < state.rows; r++) {
+                for (let c = 0; c < state.cols; c++) {
+                    state.tiles.push({ c, r, curC: c, curR: r, id: r * state.cols + c + 1 });
+                }
+            }
+            draw();
+        }
+
+        function drawTileShape(ctx, c, r, w, h, x, y) {
+            const ts = Math.min(w, h) * state.tabSize;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+
+            if (r === 0 || state.puzzleStyle === 'grid') ctx.lineTo(x + w, y);
+            else drawEdge(ctx, x, y, x + w, y, state.edges.v[r - 1][c], ts);
+
+            if (c === state.cols - 1 || state.puzzleStyle === 'grid') ctx.lineTo(x + w, y + h);
+            else drawEdge(ctx, x + w, y, x + w, y + h, state.edges.h[r][c], ts);
+
+            if (r === state.rows - 1 || state.puzzleStyle === 'grid') ctx.lineTo(x, y + h);
+            else drawEdge(ctx, x + w, y + h, x, y + h, -state.edges.v[r][c], ts);
+
+            if (c === 0 || state.puzzleStyle === 'grid') ctx.lineTo(x, y);
+            else drawEdge(ctx, x, y + h, x, y, -state.edges.h[r][c - 1], ts);
+
+            ctx.closePath();
+        }
+
+        function drawEdge(ctx, x1, y1, x2, y2, side, ts) {
+            const cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
+            const dx = x2 - x1, dy = y2 - y1;
+            const nx = -dy / Math.sqrt(dx * dx + dy * dy), ny = dx / Math.sqrt(dx * dx + dy * dy);
+            const p1x = x1 + dx * 0.35, p1y = y1 + dy * 0.35;
+            const p2x = x1 + dx * 0.35 + nx * ts * side, p2y = y1 + dy * 0.35 + ny * ts * side;
+            const p3x = x1 + dx * 0.65 + nx * ts * side, p3y = y1 + dy * 0.65 + ny * ts * side;
+            const p4x = x1 + dx * 0.65, p4y = y1 + dy * 0.65;
+            ctx.lineTo(p1x, p1y); ctx.bezierCurveTo(p2x, p2y, p3x, p3y, p4x, p4y); ctx.lineTo(x2, y2);
+        }
+
+        function draw() {
+            if (!state.img) return;
+            const tw = canvas.width / state.cols, th = canvas.height / state.rows;
+            const iw = state.img.width / state.cols, ih = state.img.height / state.rows;
+            const bleed = Math.min(tw, th) * state.tabSize;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            state.tiles.forEach((t, i) => {
+                const dx = t.curC * tw, dy = t.curR * th;
+                const sx = t.c * iw, sy = t.r * ih;
+                ctx.save();
+                drawTileShape(ctx, t.curC, t.curR, tw, th, dx, dy);
+                ctx.clip();
+                ctx.drawImage(state.img, sx - (iw * state.tabSize), sy - (ih * state.tabSize), iw + (iw * state.tabSize * 2), ih + (ih * state.tabSize * 2), dx - bleed, dy - bleed, tw + bleed * 2, th + bleed * 2);
+                ctx.restore();
+                ctx.save();
+                drawTileShape(ctx, t.curC, t.curR, tw, th, dx, dy);
+                ctx.lineWidth = 4; 
+                ctx.strokeStyle = state.isActive ? 'rgba(255,255,255,0.8)' : 'rgba(30,41,59,0.3)';
+                ctx.stroke();
+                if (i === state.selectedIdx) { 
+                    ctx.strokeStyle = '#2979FF'; 
+                    ctx.lineWidth = 6; 
+                    ctx.stroke(); 
+                    ctx.fillStyle = 'rgba(41, 121, 255, 0.2)'; 
+                    ctx.fill(); 
+                }
+                ctx.restore();
+                if (state.showHints) {
+                    ctx.fillStyle = state.isActive ? 'rgba(255,255,255,0.95)' : 'rgba(30,41,59,0.5)';
+                    ctx.font = `bold ${Math.min(tw, th) * 0.35}px Fredoka`;
+                    ctx.textAlign = 'center';
+                    ctx.fillText(t.id, dx + tw/2, dy + th/2 + 10);
+                }
+            });
+        }
+
+        canvas.addEventListener('click', (e) => {
+            if (!state.isActive) return;
+            const rect = canvas.getBoundingClientRect();
+            const sx = canvas.width / rect.width, sy = canvas.height / rect.height;
+            const x = (e.clientX - rect.left) * sx, y = (e.clientY - rect.top) * sy;
+            const c = Math.floor(x / (canvas.width / state.cols)), r = Math.floor(y / (canvas.height / state.rows));
+            const idx = state.tiles.findIndex(t => t.curC === c && t.curR === r);
+            if (idx === -1) return;
+            if (state.selectedIdx === -1) state.selectedIdx = idx;
+            else if (state.selectedIdx === idx) state.selectedIdx = -1;
+            else {
+                const t1 = state.tiles[state.selectedIdx], t2 = state.tiles[idx];
+                [t1.curC, t2.curC] = [t2.curC, t1.curC];
+                [t1.curR, t2.curR] = [t2.curR, t1.curR];
+                state.selectedIdx = -1; state.moves++; movesDisplay.textContent = state.moves;
+                checkWin();
+                saveState();
+            }
+            draw();
+        });
+
+        function checkWin() {
+            if (state.tiles.every(t => t.c === t.curC && t.r === t.curR)) {
+                state.isActive = false; clearInterval(state.timer);
+                document.getElementById('finalTime').textContent = timerDisplay.textContent;
+                document.getElementById('finalMoves').textContent = state.moves;
+                setTimeout(() => document.getElementById('winnerModal').classList.add('active'), 400);
+                saveState();
+            }
+        }
+
+        function scramblePuzzle() {
+            const pos = [];
+            for (let r=0; r<state.rows; r++) for (let c=0; c<state.cols; c++) pos.push({c,r});
+            pos.sort(() => Math.random() - 0.5);
+            state.tiles.forEach((t, i) => { t.curC = pos[i].c; t.curR = pos[i].r; });
+            state.isActive = true; state.selectedIdx = -1; state.moves = 0;
+            movesDisplay.textContent = '0'; stats.classList.remove('hidden');
+            clearInterval(state.timer); 
+            state.secondsElapsed = 0;
+            state.start = Date.now();
+            state.timer = setInterval(updTimer, 1000);
+            draw();
+            saveState();
+        }
+
+        function toggleSolve() {
+            if (!state.img) return;
+            const isShown = thumb.style.display === 'block';
+            thumb.style.display = isShown ? 'none' : 'block';
+        }
+
+        function updTimer() {
+            state.secondsElapsed = Math.floor((Date.now() - state.start) / 1000);
+            const d = state.secondsElapsed;
+            timerDisplay.textContent = `${Math.floor(d/60).toString().padStart(2,'0')}:${(d%60).toString().padStart(2,'0')}`;
+            if (d % 5 === 0) saveState(); 
+        }
+
+        function adjustGrid(k, v) {
+            if (state.isActive) return;
+            state[k] = Math.max(2, Math.min(10, state[k] + v));
+            document.getElementById(k === 'cols' ? 'displayCols' : 'displayRows').textContent = state[k];
+            refreshTiles(); 
+            saveState();
+        }
+
+        function setPreset(n) {
+            if (state.isActive) return;
+            state.cols = n; state.rows = n;
+            document.getElementById('displayCols').textContent = n;
+            document.getElementById('displayRows').textContent = n;
+            refreshTiles();
+            saveState();
+        }
+
+        function togglePuzzleStyle() {
+            state.puzzleStyle = state.puzzleStyle === 'jigsaw' ? 'grid' : 'jigsaw';
+            updateStyleUI();
+            draw();
+            saveState();
+        }
+
+        function toggleHints() {
+            state.showHints = !state.showHints;
+            updateHintUI();
+            draw();
+            saveState();
+        }
+
+        function openPrintModal() { printModal.classList.add('active'); }
+
+        function togglePrintOpt(opt) {
+            if (opt === 'reference') {
+                state.printReference = !state.printReference;
+                const box = document.getElementById('opt-reference');
+                const check = document.getElementById('check-reference');
+                if (state.printReference) {
+                    box.classList.add('border-orange');
+                    check.classList.add('bg-orange');
+                    check.innerHTML = lucide.icons['check'].toSvg({color: "white", width: 16});
+                } else {
+                    box.classList.remove('border-orange');
+                    check.classList.remove('bg-orange');
+                    check.innerHTML = '';
+                }
+            }
+        }
+
+        function executePrint() {
+            const printArea = document.getElementById('print-area');
+            printArea.innerHTML = '';
+
+            const puzzlePage = document.createElement('div');
+            puzzlePage.className = 'print-page';
+            const imgContainer = document.createElement('div');
+            imgContainer.className = 'print-full-img';
+            const pImg = document.createElement('img');
+            pImg.src = canvas.toDataURL(); 
+            imgContainer.appendChild(pImg);
+            puzzlePage.appendChild(imgContainer);
+            printArea.appendChild(puzzlePage);
+
+            if (state.printReference && state.img) {
+                const refPage = document.createElement('div');
+                refPage.className = 'print-page print-page-ref';
+                refPage.innerHTML = `
+                    <div class="print-header">
+                        <div>
+                            <h1 class="text-3xl font-heading font-bold text-dark">Answer Key</h1>
+                            <p class="text-xs font-bold uppercase tracking-widest text-slate-400 mt-1">Reference Image</p>
+                        </div>
+                    </div>
+                `;
+                const refContainer = document.createElement('div');
+                refContainer.style.width = '100%';
+                refContainer.style.flex = '1';
+                refContainer.style.display = 'flex';
+                refContainer.style.justifyContent = 'center';
+                refContainer.style.alignItems = 'flex-start';
+                const rImg = document.createElement('img');
+                rImg.src = state.img.src;
+                rImg.style.maxWidth = '100%';
+                rImg.style.maxHeight = '220mm';
+                rImg.style.objectFit = 'contain';
+                rImg.style.border = '2px solid #000';
+                refContainer.appendChild(rImg);
+                refPage.appendChild(refContainer);
+                printArea.appendChild(refPage);
+            }
+
+            lucide.createIcons();
+            setTimeout(() => {
+                window.print();
+                printModal.classList.remove('active');
+            }, 500);
+        }
+
+        function resize() {
+            if (!state.img) return;
+            const mw = window.innerWidth - 440, mh = window.innerHeight - 180;
+            const r = Math.min(mw / state.img.width, mh / state.img.height);
+            canvas.width = state.img.width * r; canvas.height = state.img.height * r;
+            gameContainer.style.width = canvas.width + 'px';
+            gameContainer.style.height = canvas.height + 'px';
+            draw();
+        }
+
+        window.onresize = resize;
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+        
+        window.onload = () => {
+            loadState(); // Load first to populate state.img
+            lucide.createIcons(); // Initialize icons
+        };
+    </script>
+</body>
+</html>
