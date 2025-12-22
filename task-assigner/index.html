@@ -3,262 +3,285 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Task Assigner | English 1 Games</title>
+    <title>Task Assigner: English 1 Edition</title>
+    
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
     <script>
         tailwind.config = {
+            darkMode: 'class',
             theme: {
                 extend: {
-                    fontFamily: {
-                        sans: ['Fredoka', 'sans-serif'],
-                    },
                     colors: {
-                        brand: {
-                            pink: '#EC4899',
-                            orange: '#F97316',
-                            green: '#22C55E',
-                            blue: '#3B82F6',
-                            purple: '#A855F7',
-                        }
+                        pink: '#FF6B95',
+                        orange: '#FF8C42',
+                        green: '#00E676',
+                        blue: '#2979FF',
+                        dark: '#1e293b',
+                        chalk: '#f8fafc',
+                    },
+                    fontFamily: {
+                        heading: ['Fredoka', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'neo': '4px 4px 0px 0px rgba(30, 41, 59, 1)',
+                        'neo-sm': '2px 2px 0px 0px rgba(30, 41, 59, 1)',
+                        'neo-lg': '8px 8px 0px 0px rgba(30, 41, 59, 1)',
                     },
                     animation: {
-                        'bounce-in': 'bounceIn 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards',
-                        'float': 'float 6s ease-in-out infinite',
-                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'pop': 'pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                        'shake': 'shake 0.4s cubic-bezier(.36,.07,.19,.97) both',
+                    },
+                    keyframes: {
+                        pop: {
+                            '0%': { transform: 'scale(0.8)', opacity: '0' },
+                            '100%': { transform: 'scale(1)', opacity: '1' },
+                        },
+                        shake: {
+                            '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
+                            '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
+                            '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
+                            '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
+                        }
                     }
                 }
             }
         }
     </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
+
     <style>
-        body {
-            background-color: #f0f9ff;
-            /* Subtle dot pattern for texture */
-            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+        body { 
+            font-family: 'Nunito', sans-serif;
+            background-color: #f8fafc; /* Chalk */
+            color: #1e293b; /* Dark */
+            /* Graph Paper Pattern */
+            background-image: 
+                linear-gradient(rgba(30, 41, 59, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(30, 41, 59, 0.1) 1px, transparent 1px);
             background-size: 20px 20px;
-            overflow: hidden;
+            min-height: 100vh;
+        }
+
+        /* Neo-Brutal Component Base */
+        .neo-card {
+            background: white;
+            border: 3px solid #1e293b;
+            box-shadow: 4px 4px 0px 0px rgba(30, 41, 59, 1);
+            border-radius: 1rem;
+        }
+
+        /* Button Logic */
+        .btn-neo {
+            border: 3px solid #1e293b;
+            box-shadow: 4px 4px 0px 0px rgba(30, 41, 59, 1);
+            transition: all 0.1s;
+            transform: translate(0, 0);
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+        .btn-neo:hover:not(:disabled) {
+            transform: translate(-1px, -1px);
+            box-shadow: 5px 5px 0px 0px rgba(30, 41, 59, 1);
+        }
+        .btn-neo:active:not(:disabled) {
+            transform: translate(4px, 4px);
+            box-shadow: 0px 0px 0px 0px rgba(30, 41, 59, 1);
+        }
+        .btn-neo.active {
+            background-color: #2979FF; /* Blue */
+            color: white;
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px 0px rgba(30, 41, 59, 1);
+        }
+
+        /* Inputs */
+        textarea {
+            resize: none;
+            outline: none;
+            border: 3px solid #1e293b;
+            transition: all 0.2s;
+            font-family: 'Nunito', sans-serif;
+            font-weight: 700;
+        }
+        textarea:focus {
+            box-shadow: 4px 4px 0px 0px rgba(41, 121, 255, 0.3);
+            border-color: #2979FF;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; border-left: 2px solid #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border: 2px solid #1e293b; border-radius: 6px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        /* Dashed Divider for Tickets */
+        .ticket-divider {
+            border-right: 3px dashed #1e293b;
+            position: relative;
+        }
+        .ticket-divider::before {
+            content: '';
+            position: absolute;
+            top: -12px;
+            right: -10px;
+            width: 20px;
+            height: 20px;
+            background-color: #f8fafc; /* Matches body bg */
+            border-radius: 50%;
+            border: 3px solid #1e293b; /* Maintain border visual */
+            border-top-color: transparent;
+            border-left-color: transparent; 
+            transform: rotate(45deg);
+        }
+        .ticket-divider::after {
+            content: '';
+            position: absolute;
+            bottom: -12px;
+            right: -10px;
+            width: 20px;
+            height: 20px;
+            background-color: #f8fafc;
+            border-radius: 50%;
+            border: 3px solid #1e293b;
+            border-bottom-color: transparent;
+            border-right-color: transparent;
+            transform: rotate(45deg);
         }
         
-        /* Custom Scrollbar */
-        .custom-scroll::-webkit-scrollbar {
-            width: 8px;
+        /* Fix for overlaying the hole borders seamlessly */
+        .ticket-hole-top {
+             position: absolute; top: -18px; right: -9px; width: 18px; height: 18px; 
+             background: #f8fafc; border-radius: 50%; border: 3px solid #1e293b; z-index: 10;
         }
-        .custom-scroll::-webkit-scrollbar-track {
-            background: rgba(0,0,0,0.02);
-        }
-        .custom-scroll::-webkit-scrollbar-thumb {
-            background: #cbd5e1; 
-            border-radius: 10px;
-        }
-        .custom-scroll::-webkit-scrollbar-thumb:hover {
-            background-color: #94a3b8; 
+        .ticket-hole-bottom {
+             position: absolute; bottom: -18px; right: -9px; width: 18px; height: 18px; 
+             background: #f8fafc; border-radius: 50%; border: 3px solid #1e293b; z-index: 10;
         }
 
-        /* Ambient Blobs */
-        .blob {
-            position: absolute;
-            border-radius: 50%;
-            filter: blur(80px);
-            z-index: -1;
-            opacity: 0.5;
-            animation: float 10s infinite ease-in-out;
-        }
-        @keyframes float {
-            0%, 100% { transform: translate(0, 0); }
-            50% { transform: translate(20px, -20px); }
-        }
-
-        @keyframes bounceIn {
-            0% { opacity: 0; transform: scale(0.9) translateY(20px); }
-            60% { opacity: 1; transform: scale(1.02); }
-            80% { transform: scale(0.98); }
-            100% { transform: scale(1); }
-        }
-
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.1);
-        }
-
-        .kid-input {
-            background-color: #ffffff;
-            border: 2px solid #e2e8f0;
-            transition: all 0.2s ease;
-        }
-        .kid-input:focus {
-            border-color: #3B82F6;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
-            outline: none;
-            transform: translateY(-1px);
-        }
-
-        /* Group Buttons */
-        .group-btn {
-            transition: all 0.2s;
-            border: 2px solid transparent;
-        }
-        .group-btn.active {
-            background-color: white;
-            color: #3B82F6;
-            border-color: #e2e8f0;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            transform: scale(1.05);
-        }
-        .group-btn:hover:not(.active) {
-            background-color: rgba(255,255,255,0.5);
-            color: #475569;
-        }
     </style>
 </head>
-<body class="h-screen w-screen flex flex-col text-slate-800 font-sans selection:bg-brand-pink selection:text-white">
 
-    <!-- Background Decoration -->
-    <div class="fixed inset-0 pointer-events-none overflow-hidden">
-        <div class="blob bg-brand-pink/40 w-96 h-96 top-0 left-0 -translate-x-1/2 -translate-y-1/2"></div>
-        <div class="blob bg-brand-blue/30 w-[500px] h-[500px] bottom-0 right-0 translate-x-1/3 translate-y-1/3 delay-1000"></div>
-        <div class="blob bg-brand-orange/30 w-64 h-64 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 delay-2000"></div>
-    </div>
+<body class="flex flex-col h-screen overflow-hidden">
 
-    <!-- Header / Nav -->
-    <nav class="h-16 flex-none bg-white/70 backdrop-blur-md border-b border-white/50 px-6 flex items-center justify-between z-50 shadow-sm">
-        <div class="flex items-center gap-4">
-            <!-- Removed the reload button element -->
-            <h1 class="text-2xl font-bold tracking-tight text-slate-700 flex items-center gap-1">
-                <i class="fas fa-bolt text-brand-orange text-xl mr-1"></i>
-                <span class="text-slate-800">Task</span><span class="text-brand-blue">Assigner</span>
-            </h1>
+    <header class="w-full bg-white border-b-4 border-dark flex-none z-40">
+        <div class="max-w-8xl mx-auto px-6 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-blue w-12 h-12 rounded-xl border-2 border-dark flex items-center justify-center text-white shadow-neo-sm">
+                    <i data-lucide="zap" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-3xl font-heading text-dark leading-none mt-1">TASK ASSIGNER</h1>
+                    <div class="text-xs font-bold text-slate-500 uppercase tracking-widest">English 1 Batam</div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <button id="sound-toggle" class="p-2 rounded-xl border-2 border-transparent hover:border-dark hover:bg-chalk transition-all text-dark" title="Toggle Sound">
+                    <i data-lucide="volume-2" class="w-6 h-6"></i>
+                </button>
+            </div>
         </div>
-    </nav>
+    </header>
 
-    <!-- WARNING HEADER: Fixed bar below nav for critical alerts -->
-    <div id="mainWarning" class="hidden fixed top-16 left-0 right-0 z-50 px-6 py-3 bg-brand-pink/95 text-white font-black text-center shadow-lg transition-all duration-300">
-        <!-- Message inserted here by JavaScript -->
-    </div>
-
-    <!-- Main Content Layout - Max width increased to 8xl (1536px) -->
-    <div class="flex-grow flex flex-col md:flex-row p-6 gap-6 overflow-hidden max-w-8xl mx-auto w-full">
+    <main class="flex-grow flex flex-col md:flex-row p-6 gap-6 overflow-hidden max-w-8xl mx-auto w-full">
         
-        <!-- LEFT PANEL: Teacher Controls - Increased width for desktop (md:w-96) -->
-        <div class="w-full md:w-96 flex-none flex flex-col gap-4 z-10">
-            <div class="glass-panel rounded-3xl p-6 flex flex-col h-full overflow-hidden relative border-t-4 border-t-brand-blue">
+        <div class="w-full md:w-96 flex-none flex flex-col gap-4 z-20">
+            <div class="neo-card p-6 flex flex-col h-full overflow-hidden bg-white">
                 
-                <div class="flex items-center justify-between mb-5">
-                    <h2 class="text-xl font-bold text-slate-700 flex items-center gap-2">
-                        <span class="w-10 h-10 rounded-xl bg-blue-100 text-brand-blue flex items-center justify-center"><i class="fas fa-sliders-h text-lg"></i></span>
-                        Assignment Setup
+                <div class="flex items-center justify-between mb-4 border-b-2 border-slate-100 pb-2">
+                    <h2 class="text-xl font-heading text-dark flex items-center gap-2">
+                        <i data-lucide="sliders-horizontal" class="w-5 h-5 text-blue"></i> SETUP
                     </h2>
-                    <div class="text-xs font-bold text-slate-400 bg-slate-100 px-2 py-1 rounded-md">AUTOSAVE ON</div>
+                    <span class="bg-green text-dark text-xs font-bold px-2 py-1 rounded border-2 border-dark uppercase">Auto-Save</span>
                 </div>
 
-                <!-- Inputs Scrollable Area -->
-                <div class="flex-grow overflow-y-auto pr-2 space-y-6 custom-scroll pb-4">
-                    <!-- Students -->
+                <div class="flex-grow overflow-y-auto pr-2 space-y-4">
+                    
                     <div>
-                        <div class="flex justify-between items-end mb-2 ml-1">
-                            <label class="text-sm font-bold text-slate-500 uppercase tracking-wide">Students Present</label>
-                            <span id="peopleCount" class="bg-brand-pink/10 text-brand-pink px-2 py-0.5 rounded-md text-xs font-bold">0</span>
+                        <div class="flex justify-between items-end mb-1">
+                            <label class="text-sm font-bold text-dark uppercase tracking-widest">Students</label>
+                            <span id="peopleCount" class="text-pink font-black text-sm">0</span>
                         </div>
-                        <textarea id="peopleInput" rows="6" 
-                            class="kid-input w-full rounded-xl p-4 text-base font-medium text-slate-700 placeholder-slate-300 resize-none shadow-inner"
-                            placeholder="Paste names here...&#10;Alice, Bob, Charlie&#10;&#10;Or on different lines...&#10;Alice&#10;Bob&#10;Charlie"></textarea>
+                        <textarea id="peopleInput" rows="5" 
+                            class="w-full rounded-xl p-3 text-dark bg-slate-50 placeholder-slate-400"
+                            placeholder="Enter names here..."></textarea>
                     </div>
 
-                    <!-- Tasks -->
                     <div>
-                        <div class="flex justify-between items-end mb-2 ml-1">
-                            <label class="text-sm font-bold text-slate-500 uppercase tracking-wide">Missions Available</label>
-                            <span id="taskCount" class="bg-brand-orange/10 text-brand-orange px-2 py-0.5 rounded-md text-xs font-bold">0</span>
+                        <div class="flex justify-between items-end mb-1">
+                            <label class="text-sm font-bold text-dark uppercase tracking-widest">Missions</label>
+                            <span id="taskCount" class="text-orange font-black text-sm">0</span>
                         </div>
-                        <textarea id="taskInput" rows="6" 
-                            class="kid-input w-full rounded-xl p-4 text-base font-medium text-slate-700 placeholder-slate-300 resize-none shadow-inner"
-                            placeholder="Paste tasks here...&#10;Leader, Clearner, Helper&#10;&#10;Or on different lines...&#10;Leader&#10;Cleaner&#10;Helper"></textarea>
+                        <textarea id="taskInput" rows="5" 
+                            class="w-full rounded-xl p-3 text-dark bg-slate-50 placeholder-slate-400"
+                            placeholder="Enter tasks here..."></textarea>
                     </div>
 
-                    <!-- Group Size Selector -->
-                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                        <label class="block text-sm font-bold text-slate-500 mb-2 uppercase tracking-wide text-center">Form Groups of</label>
-                        <!-- Updated to four icon buttons -->
-                        <div class="grid grid-cols-4 bg-slate-200/50 rounded-xl p-1 gap-1">
-                            <button onclick="setGroupSize(1)" id="btnSize1" class="group-btn active py-2.5 rounded-lg text-base font-bold" title="Individual (1)">
-                                <i class="fas fa-user text-xl"></i>
-                            </button>
-                            <button onclick="setGroupSize(2)" id="btnSize2" class="group-btn py-2.5 rounded-lg text-base font-bold" title="Pairs (2)">
-                                <i class="fas fa-user-friends text-xl"></i>
-                            </button>
-                            <button onclick="setGroupSize(3)" id="btnSize3" class="group-btn py-2.5 rounded-lg text-base font-bold" title="Triplets (3)">
-                                <i class="fas fa-users text-xl"></i>
-                            </button>
-                            <button onclick="setGroupSize(4)" id="btnSize4" class="group-btn py-2.5 rounded-lg text-base font-bold" title="Quads (4)">
-                                <div class="grid grid-cols-2 grid-rows-2 w-5 h-5 gap-0.5 mx-auto">
-                                    <i class="fas fa-user text-xs"></i>
-                                    <i class="fas fa-user text-xs"></i>
-                                    <i class="fas fa-user text-xs"></i>
-                                    <i class="fas fa-user text-xs"></i>
-                                </div>
-                            </button>
+                    <div class="bg-slate-100 p-4 rounded-xl border-2 border-dashed border-slate-300">
+                        <label class="block text-sm font-bold text-dark mb-2 uppercase tracking-widest text-center">Group Size</label>
+                        <div class="grid grid-cols-4 gap-2">
+                            <button onclick="setGroupSize(1)" id="btnSize1" class="btn-neo bg-white text-dark py-2 rounded-lg font-bold hover:bg-blue hover:text-white transition-colors">1</button>
+                            <button onclick="setGroupSize(2)" id="btnSize2" class="btn-neo bg-white text-dark py-2 rounded-lg font-bold hover:bg-blue hover:text-white transition-colors">2</button>
+                            <button onclick="setGroupSize(3)" id="btnSize3" class="btn-neo bg-white text-dark py-2 rounded-lg font-bold hover:bg-blue hover:text-white transition-colors">3</button>
+                            <button onclick="setGroupSize(4)" id="btnSize4" class="btn-neo bg-white text-dark py-2 rounded-lg font-bold hover:bg-blue hover:text-white transition-colors">4</button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Action Buttons -->
-                <div class="mt-6 pt-5 border-t border-slate-100 grid grid-cols-[80px_1fr] gap-4 flex-none">
-                    <button onclick="clearAll()" class="bg-white border-2 border-slate-100 hover:border-red-300 hover:bg-red-100 text-slate-400 hover:text-red-500 font-bold h-14 rounded-xl transition-all active:scale-95 flex items-center justify-center shadow-md" title="Clear All">
-                        <i class="fas fa-trash-alt text-xl"></i>
+                <div class="mt-4 pt-4 border-t-4 border-dark flex gap-3">
+                    <button onclick="clearAll()" class="btn-neo bg-chalk text-slate-500 w-14 h-14 rounded-xl flex items-center justify-center hover:bg-pink hover:text-dark hover:border-dark" title="Clear All">
+                        <i data-lucide="trash-2" class="w-6 h-6"></i>
                     </button>
-                    <button onclick="assignTasks()" class="bg-gradient-to-r from-brand-blue to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-black text-lg h-14 rounded-xl shadow-xl shadow-blue-500/30 transition-all hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-3 animate-pulse-slow">
-                        <i class="fas fa-wand-magic-sparkles text-xl"></i> START ASSIGNMENT
+                    <button onclick="assignTasks()" class="flex-grow btn-neo bg-green text-dark h-14 rounded-xl font-heading text-xl flex items-center justify-center gap-2">
+                        <i data-lucide="wand-2" class="w-6 h-6"></i> ASSIGN
                     </button>
                 </div>
 
             </div>
         </div>
 
-        <!-- RIGHT PANEL: The Stage -->
-        <div class="flex-grow glass-panel rounded-3xl p-8 relative overflow-hidden flex flex-col z-0 border-t-4 border-t-brand-pink">
+        <div class="flex-grow flex flex-col relative overflow-hidden">
             
-            <!-- Empty State -->
-            <div id="emptyState" class="absolute inset-0 flex flex-col items-center justify-center z-10 text-center p-8">
-                <div class="relative">
-                    <div class="absolute inset-0 bg-brand-pink/20 blur-xl rounded-full animate-pulse"></div>
-                    <div class="w-36 h-36 bg-white rounded-3xl shadow-2xl flex items-center justify-center mb-8 animate-float relative z-10 border-4 border-slate-50">
-                        <i class="fas fa-rocket text-6xl text-brand-pink"></i>
+            <div id="emptyState" class="absolute inset-0 flex flex-col items-center justify-center z-10 text-center p-8 animate-pop">
+                <div class="w-32 h-32 bg-white border-4 border-dark rounded-full flex items-center justify-center mb-6 shadow-neo rotate-3">
+                    <i data-lucide="rocket" class="w-16 h-16 text-dark"></i>
+                </div>
+                <h3 class="text-4xl font-heading text-dark mb-2">Ready?</h3>
+                <p class="text-xl text-slate-600 font-bold max-w-md">Enter your class list and missions, then hit Assign.</p>
+            </div>
+
+            <div id="resultsArea" class="flex-grow overflow-y-auto pr-2 pb-20 hidden">
+                <div id="cardsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
                     </div>
-                </div>
-                <h3 class="text-4xl font-bold text-slate-700 mb-3">Ready for Action!</h3>
-                <p class="text-xl text-slate-400 font-medium max-w-md">Input your students and the required missions on the left, then hit the 'Start Assignment' button to generate groups.</p>
             </div>
 
-            <!-- Results Grid -->
-            <div id="resultsArea" class="flex-grow overflow-y-auto pr-2 hidden custom-scroll">
-                <!-- Grid now defaults to 2 columns on medium screens and 3 on large screens -->
-                <div id="cardsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20 pt-2">
-                    <!-- Cards will be injected here -->
-                </div>
-            </div>
-
-            <!-- Bottom Stats -->
-            <div class="h-10 flex-none flex items-center justify-between text-slate-400 text-sm font-bold mt-2 border-t border-slate-100 pt-3">
-                <span id="statusText" class="flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-slate-300"></span> Waiting for instructions...
-                </span>
-                <span class="opacity-50">English 1 Games © 2025</span>
-            </div>
-
+        </div>
+    </main>
+    
+    <div id="toast" class="fixed top-24 right-6 bg-pink text-dark border-3 border-dark p-4 rounded-xl shadow-neo hidden z-50 animate-shake flex items-center gap-3 max-w-sm">
+        <i data-lucide="alert-triangle" class="w-8 h-8"></i>
+        <div>
+            <div class="font-heading text-lg">MISSING INFO</div>
+            <div class="text-sm font-bold">Please enter both students and missions.</div>
         </div>
     </div>
 
     <script>
-        // --- LOCAL STORAGE KEYS ---
-        const LS_KEY_PEOPLE = 'taskAssignerPeople';
-        const LS_KEY_TASKS = 'taskAssignerTasks';
+        // --- CONSTANTS ---
+        const LS_KEY_PEOPLE = 'taskAssignerPeople_v2';
+        const LS_KEY_TASKS = 'taskAssignerTasks_v2';
 
-        // Elements
+        // --- DOM ---
         const peopleInput = document.getElementById('peopleInput');
         const taskInput = document.getElementById('taskInput');
         const peopleCount = document.getElementById('peopleCount');
@@ -266,80 +289,48 @@
         const emptyState = document.getElementById('emptyState');
         const resultsArea = document.getElementById('resultsArea');
         const cardsGrid = document.getElementById('cardsGrid');
-        const statusText = document.getElementById('statusText');
-        const mainWarning = document.getElementById('mainWarning'); // New element reference
+        const toast = document.getElementById('toast');
         
-        // Group Size State
         let currentGroupSize = 1;
+        let audioEnabled = true;
 
-        // Enhanced Styles for Cards
-        const cardStyles = [
-            { 
-                bg: 'bg-gradient-to-br from-pink-50 to-white', 
-                border: 'border-pink-200', 
-                text: 'text-pink-700', 
-                subtext: 'text-pink-400',
-                iconBg: 'bg-pink-100', 
-                dash: 'border-pink-300'
-            },
-            { 
-                bg: 'bg-gradient-to-br from-orange-50 to-white', 
-                border: 'border-orange-200', 
-                text: 'text-orange-700', 
-                subtext: 'text-orange-400',
-                iconBg: 'bg-orange-100', 
-                dash: 'border-orange-300'
-            },
-            { 
-                bg: 'bg-gradient-to-br from-green-50 to-white', 
-                border: 'border-green-200', 
-                text: 'text-green-700', 
-                subtext: 'text-green-400',
-                iconBg: 'bg-green-100', 
-                dash: 'border-green-300'
-            },
-            { 
-                bg: 'bg-gradient-to-br from-blue-50 to-white', 
-                border: 'border-blue-200', 
-                text: 'text-blue-700', 
-                subtext: 'text-blue-400',
-                iconBg: 'bg-blue-100', 
-                dash: 'border-blue-300'
-            },
-            { 
-                bg: 'bg-gradient-to-br from-purple-50 to-white', 
-                border: 'border-purple-200', 
-                text: 'text-purple-700', 
-                subtext: 'text-purple-400',
-                iconBg: 'bg-purple-100', 
-                dash: 'border-purple-300'
-            },
+        // --- COLOR PALETTE ---
+        const cardColors = [
+            { bg: 'bg-white', border: 'border-pink', accent: 'bg-pink', text: 'text-dark' },
+            { bg: 'bg-white', border: 'border-orange', accent: 'bg-orange', text: 'text-dark' },
+            { bg: 'bg-white', border: 'border-green', accent: 'bg-green', text: 'text-dark' },
+            { bg: 'bg-white', border: 'border-blue', accent: 'bg-blue', text: 'text-dark' },
         ];
 
-        // --- UTILITY: WARNING HEADER FUNCTIONS ---
-        
-        // Function to show the persistent warning header
-        function customAlert(message) {
-            console.error("WARNING: " + message);
-            mainWarning.innerHTML = `<i class="fas fa-exclamation-triangle mr-2"></i> ${message}`;
-            mainWarning.classList.remove('hidden');
-            
-            // Auto-hide after 5 seconds
-            setTimeout(hideWarning, 5000);
-        }
+        // --- AUDIO ---
+        const AudioEngine = {
+            init: async () => { try{ await Tone.start(); }catch(e){} },
+            playClick: () => {
+                if(!audioEnabled) return;
+                const synth = new Tone.MembraneSynth().toDestination();
+                synth.triggerAttackRelease("C2", "32n");
+            },
+            playSuccess: () => {
+                if(!audioEnabled) return;
+                const synth = new Tone.PolySynth().toDestination();
+                synth.triggerAttackRelease(["C4", "E4", "A4"], "16n");
+            },
+            playError: () => {
+                if(!audioEnabled) return;
+                const synth = new Tone.PluckSynth().toDestination();
+                synth.triggerAttackRelease("E2", "16n");
+            }
+        };
 
-        // Function to hide the persistent warning header
-        function hideWarning() {
-            mainWarning.classList.add('hidden');
-        }
+        // --- FUNCTIONS ---
 
-        // --- AUTOSAVE/LOAD FUNCTIONS ---
+        function initIcons() { lucide.createIcons(); }
 
         function saveInputs() {
              try {
                 localStorage.setItem(LS_KEY_PEOPLE, peopleInput.value);
                 localStorage.setItem(LS_KEY_TASKS, taskInput.value);
-            } catch (e) { console.error(e); }
+            } catch (e) {}
         }
 
         function loadInputs() {
@@ -348,16 +339,12 @@
                 const savedTasks = localStorage.getItem(LS_KEY_TASKS);
                 if (savedPeople) peopleInput.value = savedPeople;
                 if (savedTasks) taskInput.value = savedTasks;
-                // Initialize group size button state
                 setGroupSize(currentGroupSize); 
                 updateCounts();
-            } catch (e) { console.error(e); }
+            } catch (e) {}
         }
 
-        // --- LOGIC ---
-
         function updateCounts() {
-            // Updated to use filter(s => s.length > 0) for explicit and robust empty string removal.
             const p = peopleInput.value.split(/[\n,;]/).map(s => s.trim()).filter(s => s.length > 0).length;
             const t = taskInput.value.split(/[\n,;]/).map(s => s.trim()).filter(s => s.length > 0).length;
             peopleCount.textContent = p;
@@ -367,7 +354,6 @@
 
         function setGroupSize(size) {
             currentGroupSize = size;
-            // Updated loop to handle the new size 4 option
             [1, 2, 3, 4].forEach(id => {
                 const btn = document.getElementById(`btnSize${id}`);
                 if (btn) {
@@ -378,41 +364,50 @@
                     }
                 }
             });
+            AudioEngine.playClick();
         }
 
         function clearAll() {
-            // Replaced window.confirm with a console message and immediate action for simplicity in this context
-            console.log("Cleared all names and tasks.");
-            
-            hideWarning(); // Hide warning on clear
-            
             peopleInput.value = '';
             taskInput.value = '';
             updateCounts();
             cardsGrid.innerHTML = '';
             resultsArea.classList.add('hidden');
-            emptyState.style.display = 'flex';
-            statusText.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-300"></span> Waiting for instructions...`;
+            emptyState.classList.remove('hidden');
+            AudioEngine.playClick();
+        }
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function showToast() {
+            toast.classList.remove('hidden');
+            AudioEngine.playError();
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3000);
         }
 
         function assignTasks() {
-            // Get Data
-            // Updated to use filter(s => s.length > 0) for explicit and robust empty string removal.
+            AudioEngine.init();
+            
             let people = peopleInput.value.split(/[\n,;]/).map(s => s.trim()).filter(s => s.length > 0);
             let tasks = taskInput.value.split(/[\n,;]/).map(s => s.trim()).filter(s => s.length > 0);
 
             if (people.length === 0 || tasks.length === 0) {
-                customAlert("Please enter both students and tasks before assigning!");
+                showToast();
                 return;
             }
 
-            hideWarning(); // Hide warning if inputs are valid
-
-            // Shuffle
+            // Logic
             people = shuffle(people);
             tasks = shuffle(tasks);
 
-            // Grouping Logic
             let groups = [];
             if (currentGroupSize === 1) {
                 groups = people.map(p => [p]);
@@ -422,108 +417,91 @@
                 }
             }
 
-            // Clear Display
-            cardsGrid.innerHTML = '';
-            resultsArea.classList.remove('hidden');
-            emptyState.style.display = 'none';
+            // Render
+            renderGrid(groups, tasks);
+            AudioEngine.playSuccess();
+            
+            // Confetti
+            confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ['#FF6B95', '#FF8C42', '#00E676', '#2979FF']
+            });
+        }
 
-            // Generate Cards
+        function renderGrid(groups, tasks) {
+            cardsGrid.innerHTML = '';
+            emptyState.classList.add('hidden');
+            resultsArea.classList.remove('hidden');
+
             groups.forEach((groupArray, index) => {
                 const task = tasks[index % tasks.length];
-                createBigCard(groupArray, task, index);
-            });
+                const colorTheme = cardColors[index % cardColors.length];
+                
+                // Content generation
+                let namesHtml = '';
+                const isGroup = groupArray.length > 1;
+                const label = isGroup ? 'TEAM' : 'STUDENT';
+                
+                if (isGroup) {
+                    namesHtml = `<div class="flex flex-wrap gap-1 mt-1">
+                        ${groupArray.map(n => `<span class="bg-slate-100 border border-slate-300 px-2 py-0.5 rounded text-sm font-bold text-dark">${n}</span>`).join('')}
+                    </div>`;
+                } else {
+                    namesHtml = `<div class="text-2xl font-black text-dark mt-1 leading-none truncate">${groupArray[0]}</div>`;
+                }
 
-            const unit = currentGroupSize === 1 ? "students" : "groups";
-            statusText.innerHTML = `<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Success! Assigned ${groups.length} ${unit} to missions.`;
-        }
+                // Create Card
+                const card = document.createElement('div');
+                card.className = `w-full h-40 bg-white border-3 border-dark rounded-xl flex shadow-neo animate-pop overflow-hidden`;
+                card.style.animationDelay = `${index * 0.1}s`;
 
-        function createBigCard(namesArray, task, index) {
-            const style = cardStyles[index % cardStyles.length];
-            
-            // Logic for name formatting
-            let namesHtml = '';
-            let labelText = namesArray.length > 1 ? 'TEAM MEMBERS' : 'STUDENT NAME';
-            let iconClass = namesArray.length > 1 ? 'fa-users' : 'fa-user';
-            
-            let nameSizeClass = 'text-2xl';
-            if (namesArray.length > 1) nameSizeClass = 'text-xl';
-            if (namesArray.length > 3) nameSizeClass = 'text-lg';
-
-            if (namesArray.length > 1) {
-                // Display names in a column for groups
-                namesHtml = `<div class="flex flex-col leading-tight gap-1 mt-1 font-semibold">
-                    ${namesArray.map(n => `<span class="bg-white/50 px-3 py-0.5 rounded-full inline-block w-fit shadow-inner">${n}</span>`).join('')}
-                </div>`;
-            } else {
-                // Larger font for single student name
-                namesHtml = `<span class="mt-1 block font-black text-3xl">${namesArray[0]}</span>`;
-            }
-
-            const card = document.createElement('div');
-            // The card structure is now a fixed row layout for better desktop density
-            card.className = `${style.bg} border ${style.border} rounded-3xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300 animate-bounce-in flex flex-row overflow-hidden group relative`;
-            card.style.animationDelay = `${index * 100}ms`; 
-
-            card.innerHTML = `
-                <!-- Left: People -->
-                <div class="p-5 flex-1 flex items-start gap-4 relative z-10 min-w-[50%]">
-                    <div class="w-14 h-14 rounded-full ${style.iconBg} ${style.text} flex items-center justify-center text-2xl flex-shrink-0 shadow-md">
-                        <i class="fas ${iconClass}"></i>
-                    </div>
-                    <div class="min-w-0 flex-1">
-                        <div class="text-xs font-black ${style.subtext} uppercase tracking-widest">${labelText}</div>
-                        <div class="font-bold ${style.text} ${nameSizeClass} break-words">
-                            ${namesHtml}
+                card.innerHTML = `
+                    <div class="w-3/5 p-4 flex flex-col justify-center border-r-3 border-dark border-dashed relative">
+                        <div class="ticket-hole-top"></div>
+                        <div class="ticket-hole-bottom"></div>
+                        
+                        <div class="flex items-center gap-2 mb-1">
+                            <div class="w-8 h-8 ${colorTheme.accent} rounded-lg border-2 border-dark flex items-center justify-center text-dark">
+                                <i data-lucide="${isGroup ? 'users' : 'user'}" class="w-4 h-4"></i>
+                            </div>
+                            <span class="text-xs font-bold text-slate-500 tracking-widest">${label}</span>
                         </div>
+                        ${namesHtml}
                     </div>
-                </div>
 
-                <!-- Divider (Dashed Line) - Always vertical on desktop -->
-                <div class="w-px border-r-2 border-dashed ${style.dash} relative my-4 flex-none">
-                    <div class="absolute -top-4 -left-2 w-4 h-4 bg-white rounded-full border-2 ${style.border}"></div>
-                    <div class="absolute -bottom-4 -left-2 w-4 h-4 bg-white rounded-full border-2 ${style.border}"></div>
-                </div>
-
-                <!-- Right: Task -->
-                <div class="p-5 flex-1 flex items-center justify-between gap-4 relative z-10 bg-white/30 flex-none min-w-[40%]">
-                     <div class="min-w-0 flex-1 text-left">
-                        <div class="text-xs font-black ${style.subtext} uppercase tracking-widest">MISSION</div>
-                        <div class="font-black ${style.text} text-3xl leading-tight mt-1 truncate">
+                    <div class="w-2/5 p-4 ${colorTheme.accent}/10 flex flex-col justify-center items-center text-center relative overflow-hidden">
+                        <div class="text-xs font-bold text-dark mb-1 tracking-widest uppercase">MISSION</div>
+                        <div class="font-heading text-xl md:text-2xl leading-none text-dark z-10 break-words w-full">
                             ${task}
                         </div>
+                        <i data-lucide="check-circle" class="absolute -bottom-4 -right-4 w-20 h-20 text-dark/5 z-0"></i>
                     </div>
-                    <div class="w-12 h-12 rounded-full bg-white/80 ${style.text} flex items-center justify-center text-xl flex-shrink-0 shadow-md">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
-                </div>
-            `;
+                `;
 
-            cardsGrid.appendChild(card);
+                cardsGrid.appendChild(card);
+            });
+            initIcons();
         }
 
-        function shuffle(array) {
-            let currentIndex = array.length, randomIndex;
-            while (currentIndex != 0) {
-                randomIndex = Math.floor(RNG() * currentIndex);
-                currentIndex--;
-                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
-            }
-            return array;
-        }
+        // --- LISTENERS ---
+        document.getElementById('peopleInput').addEventListener('input', updateCounts);
+        document.getElementById('taskInput').addEventListener('input', updateCounts);
+        
+        document.getElementById('sound-toggle').addEventListener('click', (e) => {
+            audioEnabled = !audioEnabled;
+            const icon = audioEnabled ? 'volume-2' : 'volume-x';
+            e.currentTarget.innerHTML = `<i data-lucide="${icon}" class="w-6 h-6"></i>`;
+            initIcons();
+        });
 
-        // Simple Random Number Generator (for reliable shuffling)
-        function RNG() {
-            // Using Math.random for simplicity, but a seedable RNG could be used if strict determinism were required.
-            return Math.random();
-        }
-
-        function initializeApplication() {
+        // --- INIT ---
+        window.onload = () => {
             loadInputs();
-            peopleInput.addEventListener('input', updateCounts);
-            taskInput.addEventListener('input', updateCounts);
-        }
+            initIcons();
+        };
 
-        window.onload = initializeApplication;
     </script>
 </body>
 </html>
