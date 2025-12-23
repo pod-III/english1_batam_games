@@ -5,433 +5,249 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Classroom Whiteboard | English 1</title>
     
-    <!-- Nunito Font for a friendly classroom vibe -->
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-    <!-- FontAwesome for Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
     
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        e1: {
+                            pink: '#FF6B95',   /* Playful */
+                            orange: '#FF8C42', /* Energy */
+                            green: '#00E676',  /* Success */
+                            blue: '#2979FF',   /* Logic */
+                            dark: '#1e293b',   /* Slate 800 - Borders/Text */
+                            chalk: '#f8fafc',  /* Backgrounds */
+                        }
+                    },
+                    fontFamily: {
+                        heading: ['Fredoka', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                    },
+                    borderWidth: {
+                        '3': '3px',
+                    },
+                    boxShadow: {
+                        'neo': '4px 4px 0px 0px rgba(30, 41, 59, 1)', 
+                        'neo-sm': '2px 2px 0px 0px rgba(30, 41, 59, 1)',
+                        'none': '0px 0px 0px 0px rgba(0,0,0,0)',
+                    },
+                    cursor: {
+                        'pencil': 'url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBkPSZNMTcgM0wyMSA3TTE3IDNMNCAxNlYyMEg4TDIxIDdNMTcgM0wxNCA2IiBzdHJva2U9IiMxZTI5M2IiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PC9zdmc+) 0 24, auto',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+
     <style>
-        /* --- 1. Variables & Reset --- */
-        :root {
-            /* English 1 Palette */
-            --c-pink: #ff6b81;
-            --c-orange: #ffa502;
-            --c-green: #2ed573;
-            --c-blue: #1e90ff;
-            --c-dark: #2f3542;
-            --c-gray: #a4b0be;
-            --c-light: #f1f2f6;
-            --c-white: #ffffff;
-            
-            /* UI Constants */
-            --radius-lg: 16px;
-            --radius-md: 10px;
-            --shadow-soft: 0 4px 15px rgba(0,0,0,0.05);
-            --shadow-float: 0 8px 30px rgba(0,0,0,0.12);
-            --blur-strength: 12px;
-        }
-
-        * { 
-            box-sizing: border-box; 
-            touch-action: none; /* Critical for canvas drawing */
-            -webkit-tap-highlight-color: transparent; 
-        }
-
         body {
             font-family: 'Nunito', sans-serif;
-            margin: 0;
-            background-color: var(--c-light);
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
+            background-color: #f8fafc;
+            /* Graph Paper Grid */
+            background-image: 
+                linear-gradient(rgba(30, 41, 59, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(30, 41, 59, 0.1) 1px, transparent 1px);
+            background-size: 30px 30px;
+            overflow: hidden; /* Prevent scrolling */
+            touch-action: none; /* Critical for drawing */
         }
 
-        /* --- 2. Header --- */
-        header {
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(var(--blur-strength));
-            padding: 0 25px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-bottom: 1px solid rgba(0,0,0,0.05);
-            z-index: 50;
-            height: 60px;
-        }
-
-        .logo {
-            font-weight: 900;
-            font-size: 1.25rem;
-            color: var(--c-blue);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            letter-spacing: -0.5px;
-        }
-        .logo i { font-size: 1.3rem; color: var(--c-orange); }
-        .logo span { color: var(--c-pink); }
+        /* --- Neo-Brutalism Components --- */
         
-        .class-badge {
-            font-size: 0.75rem;
-            color: var(--c-white);
-            background: var(--c-blue);
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-weight: 800;
-            box-shadow: 0 4px 8px rgba(30, 144, 255, 0.2);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+        .panel-neo {
+            background-color: white;
+            border: 3px solid #1e293b;
+            border-radius: 1rem;
+            box-shadow: 4px 4px 0px 0px rgba(30, 41, 59, 1);
         }
 
-        /* --- 3. Main Layout & Canvas --- */
-        main {
-            flex: 1;
-            position: relative;
-            background-color: #ffffff;
-            /* Infinite Grid Pattern */
-            background-image: radial-gradient(#dfe4ea 2px, transparent 2px);
-            background-size: 30px 30px; /* Base size */
-            overflow: hidden;
-            transition: background-position 0.1s linear; /* Smooth panning of grid */
-        }
-
-        canvas {
-            display: block;
-            width: 100%;
-            height: 100%;
-            cursor: crosshair;
-            outline: none;
-            transform-origin: 0 0;
-            transition: transform 0.1s linear; /* Smooth canvas pan/zoom */
-        }
-
-        /* --- 4. Floating Toolbar --- */
-        .toolbar {
-            position: absolute;
-            left: 20px;
-            top: 20px;
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(var(--blur-strength));
-            padding: 12px;
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-float);
+        .btn-tool {
+            width: 44px;
+            height: 44px;
             display: flex;
-            flex-direction: column;
-            gap: 10px;
-            border: 1px solid rgba(255,255,255,0.5);
-            max-height: calc(100vh - 120px);
-            overflow-y: auto;
-            scrollbar-width: none;
-            z-index: 40;
-        }
-        .toolbar::-webkit-scrollbar { display: none; }
-
-        .divider { height: 1px; background: #e0e0e0; width: 100%; margin: 4px 0; }
-
-        /* Tools */
-        .tool-btn {
-            width: 42px;
-            height: 42px;
-            border: none;
-            background: transparent;
-            color: var(--c-gray);
-            border-radius: var(--radius-md);
-            font-size: 1.1rem;
-            cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            position: relative;
-        }
-
-        .tool-btn:hover { background: #f1f2f6; color: var(--c-dark); transform: scale(1.05); }
-        
-        .tool-btn.active { 
-            background: #e7f5ff; 
-            color: var(--c-blue); 
-        }
-
-        .tool-btn.danger:hover { color: var(--c-pink); background: #fff0f1; }
-        .tool-btn.undo:hover { color: var(--c-orange); background: #fff8e1; }
-        
-        /* Zoom Controls */
-        .zoom-group {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-        }
-        .tool-btn.small { width: 34px; height: 34px; font-size: 0.9rem; }
-        .zoom-label {
-            font-size: 0.65rem;
-            font-weight: 800;
-            color: var(--c-dark);
-            background: #f1f2f6;
-            padding: 2px 6px;
-            border-radius: 8px;
-            min-width: 40px;
-            text-align: center;
-        }
-
-        /* Tooltip */
-        .tool-btn::after {
-            content: attr(title);
-            position: absolute;
-            left: 120%;
-            top: 50%;
-            transform: translateY(-50%);
-            background: var(--c-dark);
-            color: white;
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-size: 0.7rem;
-            font-weight: 700;
-            white-space: nowrap;
-            opacity: 0;
-            pointer-events: none;
-            transition: 0.2s;
-            box-shadow: var(--shadow-soft);
-            z-index: 100;
-        }
-        .tool-btn:hover::after { opacity: 1; left: 130%; }
-
-        /* Color Pickers */
-        .color-group {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            align-items: center;
-            padding: 5px 0;
-        }
-
-        .color-btn {
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            border: 2px solid white;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            cursor: pointer;
-            transition: transform 0.2s;
-            position: relative;
-        }
-
-        .color-btn:hover { transform: scale(1.1); }
-        .color-btn.active {
-            transform: scale(1.25);
-            box-shadow: 0 0 0 2px white, 0 0 0 4px var(--c-gray);
-            z-index: 2;
-        }
-
-        /* Brush Size Slider */
-        .size-slider-container { 
-            display: flex; 
-            justify-content: center; 
-            padding: 8px 0; 
-            height: 90px;
-        }
-        
-        input[type=range] {
-            -webkit-appearance: slider-vertical;
-            width: 6px;
-            height: 100%;
-            background: #e1e1e1;
-            border-radius: 10px;
-            outline: none;
-            cursor: pointer;
-        }
-        
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 18px;
-            height: 18px;
-            background: var(--c-blue);
-            border: 2px solid white;
-            border-radius: 50%;
-            cursor: pointer;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            transition: transform 0.1s;
-        }
-        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
-
-        /* --- 5. Footer Actions --- */
-        .bottom-bar {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            display: flex;
-            gap: 12px;
-            z-index: 40;
-        }
-
-        .action-btn {
-            padding: 10px 20px;
-            background: var(--c-dark);
-            color: white;
-            border: none;
-            border-radius: 50px;
-            font-family: 'Nunito', sans-serif;
-            font-weight: 800;
-            font-size: 0.9rem;
-            cursor: pointer;
-            box-shadow: var(--shadow-float);
-            display: flex; align-items: center; gap: 8px;
-            transition: all 0.2s ease;
-        }
-        
-        .action-btn:hover { transform: translateY(-3px); box-shadow: 0 15px 30px rgba(0,0,0,0.15); }
-        .action-btn:active { transform: translateY(-1px); }
-        .action-btn.save { background: linear-gradient(135deg, var(--c-green), #26af61); }
-
-        /* --- 6. Modal --- */
-        .modal-overlay {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(47, 53, 66, 0.5);
-            display: none; 
             align-items: center;
             justify-content: center;
-            z-index: 100;
-            backdrop-filter: blur(4px);
-            opacity: 0;
-            transition: opacity 0.2s;
+            border: 3px solid #1e293b;
+            border-radius: 0.75rem;
+            background-color: white;
+            color: #1e293b;
+            box-shadow: 2px 2px 0px 0px rgba(30, 41, 59, 1);
+            transition: all 0.1s ease;
         }
+
+        .btn-tool:hover {
+            transform: translate(-1px, -1px);
+            box-shadow: 4px 4px 0px 0px rgba(30, 41, 59, 1);
+        }
+
+        .btn-tool:active {
+            transform: translate(2px, 2px);
+            box-shadow: 0px 0px 0px 0px rgba(30, 41, 59, 1);
+        }
+
+        .btn-tool.active {
+            background-color: #2979FF; /* e1-blue */
+            color: white;
+            box-shadow: 0px 0px 0px 0px rgba(30, 41, 59, 1);
+            transform: translate(2px, 2px);
+        }
+
+        .btn-tool.danger:hover { background-color: #FF6B95; color: white; }
         
-        .modal-overlay.show { opacity: 1; }
-
-        .modal-box {
-            background: white;
-            padding: 30px;
-            border-radius: var(--radius-lg);
-            text-align: center;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.25);
-            transform: scale(0.9);
-            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-            max-width: 300px;
-            width: 90%;
+        /* Color Picker Radio Logic */
+        .color-option {
+            width: 28px;
+            height: 28px;
+            border-radius: 99px;
+            border: 3px solid transparent;
+            cursor: pointer;
+            transition: transform 0.2s;
         }
-        .modal-overlay.show .modal-box { transform: scale(1); }
-
-        .modal-icon {
-            font-size: 3rem;
-            color: var(--c-pink);
-            margin-bottom: 15px;
-            display: inline-block;
-            animation: shake 0.5s ease-in-out;
-        }
-        @keyframes shake {
-            0%, 100% { transform: rotate(0deg); }
-            25% { transform: rotate(-10deg); }
-            75% { transform: rotate(10deg); }
+        .color-option.selected {
+            border-color: #1e293b;
+            transform: scale(1.2);
+            box-shadow: 0 0 0 2px white;
         }
 
-        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
-        .modal-btn {
-            flex: 1; padding: 10px; border: none; border-radius: var(--radius-md); font-weight: 800; cursor: pointer; transition: 0.2s;
+        /* Range Slider */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
         }
-        .modal-btn.cancel { background: #f1f2f6; color: var(--c-gray); }
-        .modal-btn.cancel:hover { background: #e1e2e6; color: var(--c-dark); }
-        .modal-btn.confirm { background: var(--c-pink); color: white; }
-        .modal-btn.confirm:hover { background: #ff4757; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #2979FF;
+            border: 3px solid #1e293b;
+            cursor: pointer;
+            margin-top: -8px; 
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            cursor: pointer;
+            background: #cbd5e1;
+            border: 1px solid #1e293b;
+            border-radius: 4px;
+        }
+
+        /* Canvas Animation */
+        canvas {
+            touch-action: none;
+        }
 
     </style>
 </head>
-<body>
+<body class="flex flex-col h-screen overflow-hidden">
 
-    <header>
-        <div class="logo">
-            <i class="fas fa-shapes"></i>
-            English 1 Batam<span>Board</span>
-        </div>
-        <div class="class-badge">
-            Classroom
+    <header class="absolute top-0 left-0 right-0 z-50 px-4 py-3 pointer-events-none">
+        <div class="max-w-7xl mx-auto flex justify-between items-start">
+            
+            <div class="bg-white border-3 border-e1-dark px-4 py-2 rounded-xl shadow-neo pointer-events-auto flex items-center gap-3">
+                <div class="bg-e1-orange text-white p-1 rounded border-2 border-e1-dark">
+                    <i data-lucide="pen-tool" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <h1 class="font-heading font-bold text-lg leading-none text-e1-dark">Whiteboard</h1>
+                    <span class="text-xs font-bold text-e1-blue uppercase">English 1</span>
+                </div>
+            </div>
+
+            <div class="flex gap-2 pointer-events-auto">
+                <button onclick="downloadCanvas()" class="btn-tool w-auto px-4 bg-e1-green text-white font-heading font-bold gap-2">
+                    <i data-lucide="download" class="w-4 h-4 stroke-[3px]"></i> Save
+                </button>
+            </div>
         </div>
     </header>
 
-    <main id="canvas-container">
-        <!-- Toolbar -->
-        <div class="toolbar">
+    <div class="absolute top-24 left-4 z-40 flex flex-col gap-4">
+        
+        <div class="panel-neo p-3 flex flex-col gap-3 w-16 items-center">
             
-            <!-- Drawing Tools -->
-            <button class="tool-btn active" id="btn-pen" onclick="setTool('pen')" title="Pen">
-                <i class="fas fa-pen"></i>
+            <button class="btn-tool active" id="btn-pen" onclick="setTool('pen')" title="Pen">
+                <i data-lucide="pencil" class="w-5 h-5"></i>
             </button>
-            <button class="tool-btn" id="btn-eraser" onclick="setTool('eraser')" title="Eraser">
-                <i class="fas fa-eraser"></i>
+            <button class="btn-tool" id="btn-eraser" onclick="setTool('eraser')" title="Eraser">
+                <i data-lucide="eraser" class="w-5 h-5"></i>
             </button>
-            <button class="tool-btn" id="btn-hand" onclick="setTool('hand')" title="Pan (Move Board)">
-                <i class="fas fa-hand-paper"></i>
+            <button class="btn-tool" id="btn-hand" onclick="setTool('hand')" title="Pan">
+                <i data-lucide="hand" class="w-5 h-5"></i>
+            </button>
+            
+            <div class="w-8 h-1 bg-slate-200 rounded"></div>
+
+            <button class="btn-tool" onclick="undoLast()" title="Undo">
+                <i data-lucide="undo-2" class="w-5 h-5"></i>
             </button>
 
-            <!-- Undo -->
-            <button class="tool-btn undo" onclick="undoLast()" title="Undo">
-                <i class="fas fa-undo-alt"></i>
-            </button>
+            <div class="w-8 h-1 bg-slate-200 rounded"></div>
 
-            <div class="divider"></div>
-
-            <!-- Zoom Controls -->
-            <div class="zoom-group">
-                <button class="tool-btn small" onclick="changeZoom(0.1)" title="Zoom In">
-                    <i class="fas fa-plus"></i>
-                </button>
-                <div id="zoom-level" class="zoom-label">100%</div>
-                <button class="tool-btn small" onclick="changeZoom(-0.1)" title="Zoom Out">
-                    <i class="fas fa-minus"></i>
-                </button>
-                <button class="tool-btn small" onclick="resetZoom()" title="Reset View" style="margin-top:2px;">
-                    <i class="fas fa-expand"></i>
-                </button>
+            <div class="flex flex-col gap-2 items-center pb-2">
+                <div class="color-option bg-e1-dark selected" onclick="setColor('#1e293b', this)"></div>
+                <div class="color-option bg-e1-blue" onclick="setColor('#2979FF', this)"></div>
+                <div class="color-option bg-e1-green" onclick="setColor('#00E676', this)"></div>
+                <div class="color-option bg-e1-orange" onclick="setColor('#FF8C42', this)"></div>
+                <div class="color-option bg-e1-pink" onclick="setColor('#FF6B95', this)"></div>
             </div>
 
-            <div class="divider"></div>
+            <div class="w-8 h-1 bg-slate-200 rounded"></div>
 
-            <!-- Colors -->
-            <div class="color-group">
-                <div class="color-btn active" style="background: var(--c-dark);" onclick="setColor('#2F3542', this)"></div>
-                <div class="color-btn" style="background: var(--c-blue);" onclick="setColor('#1E90FF', this)"></div>
-                <div class="color-btn" style="background: var(--c-green);" onclick="setColor('#2ED573', this)"></div>
-                <div class="color-btn" style="background: var(--c-orange);" onclick="setColor('#FFA502', this)"></div>
-                <div class="color-btn" style="background: var(--c-pink);" onclick="setColor('#FF6B81', this)"></div>
-            </div>
-
-            <div class="divider"></div>
-
-            <!-- Size Slider -->
-            <div class="size-slider-container" title="Brush Size">
-                <input type="range" id="brush-size" min="2" max="40" value="5">
-            </div>
-
-            <div class="divider"></div>
-
-            <!-- Trash -->
-            <button class="tool-btn danger" onclick="showClearModal()" title="Clear All">
-                <i class="fas fa-trash-alt"></i>
+             <button class="btn-tool danger hover:bg-e1-pink hover:text-white" onclick="showClearModal()" title="Clear">
+                <i data-lucide="trash-2" class="w-5 h-5"></i>
             </button>
         </div>
 
-        <!-- Canvas -->
+    </div>
+
+    <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-40 flex gap-4">
+        
+        <div class="panel-neo px-4 py-2 flex items-center gap-3">
+            <i data-lucide="circle" class="w-3 h-3 text-slate-400 fill-current"></i>
+            <input type="range" id="brush-size" min="2" max="40" value="5" class="w-32">
+            <i data-lucide="circle" class="w-6 h-6 text-slate-400 fill-current"></i>
+        </div>
+
+        <div class="panel-neo px-2 py-2 flex items-center gap-1">
+            <button class="btn-tool w-8 h-8 rounded shadow-none border-none hover:bg-slate-100" onclick="changeZoom(-0.1)">
+                <i data-lucide="minus" class="w-4 h-4"></i>
+            </button>
+            <span id="zoom-level" class="font-heading font-bold text-e1-dark w-12 text-center text-sm">100%</span>
+            <button class="btn-tool w-8 h-8 rounded shadow-none border-none hover:bg-slate-100" onclick="changeZoom(0.1)">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+            </button>
+            <button class="btn-tool w-8 h-8 rounded shadow-none border-none hover:bg-slate-100 text-slate-400" onclick="resetZoom()">
+                <i data-lucide="maximize" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+    </div>
+
+    <main id="canvas-container" class="flex-grow w-full h-full relative cursor-pencil">
         <canvas id="whiteboard"></canvas>
-
-        <!-- Save Button -->
-        <div class="bottom-bar">
-            <button class="action-btn save" onclick="downloadCanvas()">
-                <i class="fas fa-download"></i> Save Notes
-            </button>
-        </div>
-
     </main>
 
-    <!-- Clear Modal -->
-    <div id="clear-modal" class="modal-overlay">
-        <div class="modal-box">
-            <div class="modal-icon"><i class="fas fa-bomb"></i></div>
-            <h2 style="margin:0; font-size: 1.2rem; color: var(--c-dark);">Clear Board?</h2>
-            <p style="margin:8px 0 0; color: var(--c-gray); font-size:0.9rem; line-height: 1.4;">
-                This will delete your drawing.
-            </p>
-            <div class="modal-actions">
-                <button class="modal-btn cancel" onclick="closeClearModal()">Cancel</button>
-                <button class="modal-btn confirm" onclick="confirmClear()">Clear It</button>
+    <div id="clear-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm opacity-0 transition-opacity duration-200">
+        <div class="panel-neo p-6 text-center max-w-sm w-full mx-4 transform scale-90 transition-transform duration-200" id="modal-box">
+            <div class="w-16 h-16 bg-e1-pink rounded-full border-3 border-e1-dark flex items-center justify-center mx-auto mb-4 shadow-neo-sm">
+                <i data-lucide="bomb" class="w-8 h-8 text-white"></i>
+            </div>
+            <h2 class="font-heading font-bold text-2xl text-e1-dark mb-2">Wipe it clean?</h2>
+            <p class="font-body text-slate-600 mb-6">This will delete everything on the whiteboard. This cannot be undone.</p>
+            <div class="flex gap-3">
+                <button onclick="closeClearModal()" class="flex-1 btn-tool w-auto h-12 font-bold bg-white text-slate-600">Cancel</button>
+                <button onclick="confirmClear()" class="flex-1 btn-tool w-auto h-12 font-bold bg-e1-pink text-white hover:bg-red-500">Yes, Clear It</button>
             </div>
         </div>
     </div>
@@ -439,20 +255,20 @@
     <script>
         // --- 1. CONFIG & ELEMENTS ---
         const canvas = document.getElementById('whiteboard');
-        // 'willReadFrequently' optimizes canvas for frequent readback (needed for Undo)
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         const container = document.getElementById('canvas-container');
         const brushSizeInput = document.getElementById('brush-size');
         const clearModal = document.getElementById('clear-modal');
+        const modalBox = document.getElementById('modal-box');
         const zoomLevelDisplay = document.getElementById('zoom-level');
-        const STORAGE_KEY = 'english1-board-save';
+        const STORAGE_KEY = 'english1-board-neo-save';
 
         // --- 2. STATE ---
         let state = {
             isDrawing: false,
             isPanning: false,
             currentTool: 'pen',
-            currentColor: '#2F3542',
+            currentColor: '#1e293b',
             scale: 1,
             panX: 0,
             panY: 0,
@@ -460,49 +276,46 @@
             startPanY: 0
         };
         
-        // History Stack
         let undoStack = [];
         let undoIndex = -1;
 
-        // --- 3. CORE CANVAS FUNCTIONS ---
+        // --- 3. CORE FUNCTIONS ---
+
+        function initIcons() {
+            lucide.createIcons();
+        }
         
         function resizeCanvas() {
-            // Save current content to temp image
             let tempImage = null;
-            if (canvas.width > 0 && canvas.height > 0) {
-                tempImage = canvas.toDataURL();
-            }
+            if (canvas.width > 0 && canvas.height > 0) tempImage = canvas.toDataURL();
 
-            // Resize canvas to match container
             canvas.width = container.clientWidth;
             canvas.height = container.clientHeight;
 
-            // Restore content
             if (tempImage) {
                 const img = new Image();
                 img.src = tempImage;
                 img.onload = function() { 
-                    ctx.globalCompositeOperation = 'source-over'; // SAFETY: Ensure standard mode
+                    ctx.globalCompositeOperation = 'source-over';
                     ctx.drawImage(img, 0, 0); 
                 }
             }
             
-            // Re-apply Styles
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
             updateTransform(); 
         }
 
         function updateTransform() {
-            // Move the canvas visually
+            // Apply visual transform to canvas element
             canvas.style.transform = `translate(${state.panX}px, ${state.panY}px) scale(${state.scale})`;
             
-            // Move the background grid to match
+            // Move the background grid to match (Parallax effect)
             const gridSize = 30 * state.scale;
-            container.style.backgroundSize = `${gridSize}px ${gridSize}px`;
-            container.style.backgroundPosition = `${state.panX}px ${state.panY}px`;
+            document.body.style.backgroundSize = `${gridSize}px ${gridSize}px`;
+            document.body.style.backgroundPosition = `${state.panX}px ${state.panY}px`;
             
-            updateZoomLabel();
+            zoomLevelDisplay.innerText = Math.round(state.scale * 100) + "%";
         }
 
         function getPos(e) {
@@ -517,14 +330,14 @@
                 cy = e.clientY;
             }
 
-            // Map screen coordinates to canvas coordinates (accounting for zoom/pan)
+            // Important: Calculation must account for scale to draw accurately
             return {
                 x: (cx - rect.left) / state.scale,
                 y: (cy - rect.top) / state.scale
             };
         }
 
-        // --- 4. DRAWING LOGIC ---
+        // --- 4. DRAWING ---
 
         function startAction(e) {
             if (state.currentTool === 'hand') {
@@ -533,20 +346,19 @@
                 let cy = e.touches ? e.touches[0].clientY : e.clientY;
                 state.startPanX = cx - state.panX;
                 state.startPanY = cy - state.panY;
-                canvas.style.cursor = 'grabbing';
+                container.style.cursor = 'grabbing';
             } else {
                 state.isDrawing = true;
-                draw(e); // Draw a dot immediately on click
+                draw(e); 
             }
         }
 
         function moveAction(e) {
-            if (e.type === 'touchmove') e.preventDefault(); // Prevent scrolling
+            if (e.type === 'touchmove') e.preventDefault(); 
 
             if (state.isPanning) {
                 let cx = e.touches ? e.touches[0].clientX : e.clientX;
                 let cy = e.touches ? e.touches[0].clientY : e.clientY;
-                
                 state.panX = cx - state.startPanX;
                 state.panY = cy - state.startPanY;
                 updateTransform();
@@ -558,12 +370,12 @@
         function endAction() {
             if (state.isDrawing) {
                 state.isDrawing = false;
-                ctx.beginPath(); // Close path so lines don't connect
+                ctx.beginPath(); 
                 saveToHistory();
             }
             if (state.isPanning) {
                 state.isPanning = false;
-                if(state.currentTool === 'hand') canvas.style.cursor = 'grab';
+                if(state.currentTool === 'hand') container.style.cursor = 'grab';
             }
         }
 
@@ -572,14 +384,13 @@
 
             const pos = getPos(e);
             
-            // Set Tool Properties
             ctx.lineWidth = brushSizeInput.value;
             
             if (state.currentTool === 'eraser') {
-                ctx.globalCompositeOperation = 'destination-out'; // Remove pixels
-                ctx.lineWidth = brushSizeInput.value * 2; // Eraser feels better larger
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.lineWidth = brushSizeInput.value * 2; 
             } else {
-                ctx.globalCompositeOperation = 'source-over'; // Standard draw
+                ctx.globalCompositeOperation = 'source-over';
                 ctx.strokeStyle = state.currentColor;
             }
 
@@ -589,57 +400,47 @@
             ctx.moveTo(pos.x, pos.y);
         }
 
-        // --- 5. TOOLS & HISTORY ---
+        // --- 5. TOOLS ---
 
         function setTool(tool) {
             state.currentTool = tool;
             
-            // UI Update
-            document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.btn-tool').forEach(btn => btn.classList.remove('active'));
             if(tool === 'pen') document.getElementById('btn-pen').classList.add('active');
             if(tool === 'eraser') document.getElementById('btn-eraser').classList.add('active');
             if(tool === 'hand') document.getElementById('btn-hand').classList.add('active');
 
-            // Cursor Update
-            canvas.style.cursor = (tool === 'hand') ? 'grab' : 'crosshair';
+            if (tool === 'hand') {
+                container.style.cursor = 'grab';
+                container.classList.remove('cursor-pencil');
+            } else {
+                container.style.cursor = 'default';
+                container.classList.add('cursor-pencil');
+            }
         }
 
-        function setColor(color, btn) {
+        function setColor(color, el) {
             setTool('pen');
             state.currentColor = color;
-            
-            // UI Update
-            document.querySelectorAll('.color-btn').forEach(b => {
-                b.classList.remove('active');
-                b.style.boxShadow = "0 2px 5px rgba(0,0,0,0.1)";
-                b.style.transform = "scale(1)";
-                b.style.zIndex = "1";
-            });
-            btn.classList.add('active');
-            btn.style.transform = "scale(1.25)";
-            btn.style.boxShadow = `0 0 0 2px white, 0 0 0 4px ${color}`; // Ring matches color
-            btn.style.zIndex = "2";
+            document.querySelectorAll('.color-option').forEach(b => b.classList.remove('selected'));
+            el.classList.add('selected');
         }
 
+        // --- 6. HISTORY & ZOOM ---
+
         function saveToHistory() {
-            // Truncate future if we are in middle of stack
             if (undoIndex < undoStack.length - 1) {
                 undoStack = undoStack.slice(0, undoIndex + 1);
             }
             const data = canvas.toDataURL();
             undoStack.push(data);
             undoIndex++;
-            
-            // Limit stack size
             if(undoStack.length > 20) { undoStack.shift(); undoIndex--; }
-            
-            // Persist
             try { localStorage.setItem(STORAGE_KEY, data); } catch(e) {}
         }
 
         function undoLast() {
             if (undoIndex <= 0) {
-                // Clear board
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 undoIndex = -1; undoStack = [];
                 localStorage.removeItem(STORAGE_KEY);
@@ -650,18 +451,16 @@
             const img = new Image();
             img.src = data;
             img.onload = function() {
-                ctx.globalCompositeOperation = 'source-over'; // FIX: Force normal mode
+                ctx.globalCompositeOperation = 'source-over';
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.drawImage(img, 0, 0);
                 localStorage.setItem(STORAGE_KEY, data);
             }
         }
 
-        // --- 6. ZOOM LOGIC ---
-
         function changeZoom(delta) {
             let newScale = state.scale + delta;
-            newScale = Math.min(Math.max(newScale, 0.5), 3.0); // Clamp 0.5x - 3.0x
+            newScale = Math.min(Math.max(newScale, 0.5), 3.0);
             state.scale = newScale;
             updateTransform();
         }
@@ -673,11 +472,7 @@
             updateTransform();
         }
 
-        function updateZoomLabel() {
-            zoomLevelDisplay.innerText = Math.round(state.scale * 100) + "%";
-        }
-
-        // --- 7. SAVE / LOAD / CLEAR ---
+        // --- 7. UTILS ---
 
         function loadLocalData() {
             const saved = localStorage.getItem(STORAGE_KEY);
@@ -687,10 +482,10 @@
                 img.onload = function() {
                     ctx.globalCompositeOperation = 'source-over';
                     ctx.drawImage(img, 0, 0);
-                    saveToHistory(); // Initialize stack with loaded image
+                    saveToHistory();
                 };
             } else {
-                saveToHistory(); // Initialize empty stack
+                saveToHistory();
             }
         }
 
@@ -701,25 +496,32 @@
             tempCanvas.width = canvas.width;
             tempCanvas.height = canvas.height;
             
-            // Add white background (canvas is transparent by default)
             tempCtx.fillStyle = '#FFFFFF';
             tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
             tempCtx.drawImage(canvas, 0, 0);
 
-            link.download = `english1-notes-${Date.now()}.png`;
+            link.download = `english1-board-${Date.now()}.png`;
             link.href = tempCanvas.toDataURL();
             link.click();
         }
 
-        // Modal Logic
+        // Modal
         function showClearModal() {
-            clearModal.style.display = 'flex';
-            setTimeout(() => clearModal.classList.add('show'), 10);
+            clearModal.classList.remove('hidden');
+            setTimeout(() => {
+                clearModal.classList.remove('opacity-0');
+                modalBox.classList.remove('scale-90');
+                modalBox.classList.add('scale-100');
+            }, 10);
         }
+
         function closeClearModal() {
-            clearModal.classList.remove('show');
-            setTimeout(() => clearModal.style.display = 'none', 200);
+            clearModal.classList.add('opacity-0');
+            modalBox.classList.remove('scale-100');
+            modalBox.classList.add('scale-90');
+            setTimeout(() => clearModal.classList.add('hidden'), 200);
         }
+
         function confirmClear() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             closeClearModal();
@@ -729,24 +531,23 @@
             saveToHistory();
         }
 
-        // --- 8. EVENTS ---
+        // --- INIT ---
+        window.onload = () => {
+            resizeCanvas();
+            setTimeout(loadLocalData, 100);
+            initIcons();
+        };
         
         window.addEventListener('resize', resizeCanvas);
         
-        // Mouse
+        // Listeners
         canvas.addEventListener('mousedown', startAction);
         canvas.addEventListener('mouseup', endAction);
         canvas.addEventListener('mousemove', moveAction);
         canvas.addEventListener('mouseout', endAction);
-
-        // Touch
         canvas.addEventListener('touchstart', startAction, {passive: false});
         canvas.addEventListener('touchend', endAction);
         canvas.addEventListener('touchmove', moveAction, {passive: false});
-
-        // Initialize
-        resizeCanvas();
-        setTimeout(loadLocalData, 100);
 
     </script>
 </body>
