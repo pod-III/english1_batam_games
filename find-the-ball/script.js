@@ -76,7 +76,7 @@
                 button.className = 'p-1 bg-white rounded-xl border-2 border-dark shadow-hard-sm hover:-translate-y-0.5 hover:shadow-hard active:translate-y-0 transition-all duration-200 group overflow-hidden';
                 button.innerHTML = `
                     <div class="w-full aspect-[4/5] bg-slate-50 rounded-lg flex items-center justify-center relative">
-                        <img src="./cups/cup-${i}.png" class="w-3/4 h-3/4 object-contain transition-transform group-hover:scale-110 duration-300" alt="Design ${i}" draggable="false">
+                        <img src="./cups/cup-${i}.webp" class="w-3/4 h-3/4 object-contain transition-transform group-hover:scale-110 duration-300" alt="Design ${i}" draggable="false">
                         <div class="absolute inset-0 bg-blue/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                     </div>
                 `;
@@ -138,7 +138,7 @@
 
                 cup.innerHTML = `
                     <div class="cup-label text-xl transition-opacity duration-300 opacity-0" data-original-id="${i}">Cup ${i + 1}</div>
-                    <img src="./cups/cup-${imageIndex}.png" class="cup-img" alt="Cup ${i+1}" draggable="false">
+                    <img src="./cups/cup-${imageIndex}.webp" class="cup-img" alt="Cup ${i+1}" draggable="false">
                     <div class="ball" id="ball-${i}"></div>
                 `;
                 
