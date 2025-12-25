@@ -24,7 +24,7 @@ const CONFIG = {
 const Utils = {
   debounce(fn, delay) {
     let timer;
-    return function(...args) {
+    return function (...args) {
       clearTimeout(timer);
       timer = setTimeout(() => fn.apply(this, args), delay);
     };
@@ -68,13 +68,13 @@ const State = {
       const { category, searchTerm, difficulty, tags } = this.filters;
       const matchesCategory = category === 'all' || game.category === category;
       const matchesDifficulty = difficulty === 'all' || !game.difficulty || game.difficulty === difficulty;
-      
+
       const searchLower = searchTerm.toLowerCase();
-      const matchesSearch = !searchTerm || 
-        [game.title, game.description, game.category].some(field => 
+      const matchesSearch = !searchTerm ||
+        [game.title, game.description, game.category].some(field =>
           field.toLowerCase().includes(searchLower)
         ) || game.tags?.some(tag => tag.toLowerCase().includes(searchLower));
-      
+
       const matchesTags = tags.length === 0 || game.tags?.some(tag => tags.includes(tag));
 
       return matchesCategory && matchesSearch && matchesDifficulty && matchesTags;
@@ -165,7 +165,7 @@ const AudioEngine = {
   updateUI() {
     const icon = document.getElementById('sound-btn-icon');
     if (!icon) return;
-    const config = this.muted 
+    const config = this.muted
       ? { icon: 'volume-x', color: 'rgb(248 113 113)' }
       : { icon: 'volume-2', color: 'rgb(74 222 128)' };
     icon.setAttribute('data-lucide', config.icon);
@@ -199,8 +199,8 @@ const UI = {
 
     const dateEl = document.getElementById("date-display");
     if (dateEl) {
-      dateEl.textContent = new Date().toLocaleDateString("en-US", { 
-        weekday: "long", month: "short", day: "numeric" 
+      dateEl.textContent = new Date().toLocaleDateString("en-US", {
+        weekday: "long", month: "short", day: "numeric"
       });
     }
   },
@@ -322,7 +322,7 @@ const GameGrid = {
     const baseColor = game.color.replace('text-', '').split('-')[0];
     const bgClass = `bg-${baseColor}/10`;
     const btnClass = game.color.replace('text-', 'bg-');
-    const difficultyBadge = game.difficulty 
+    const difficultyBadge = game.difficulty
       ? `<span class="text-[8px] font-bold px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400 uppercase">${game.difficulty}</span>`
       : '';
 
@@ -341,7 +341,7 @@ const GameGrid = {
           <div class="flex justify-between items-start mb-3">
             <h2 class="text-2xl font-heading text-dark dark:text-white leading-none tracking-tight">${game.title}</h2>
             <div class="flex flex-col gap-1 items-end">
-              <span class="sticker ${btnClass} text-white text-[10px] font-bold px-2 py-1 rounded-md transform ${Math.random()>0.5?'rotate-2':'-rotate-2'}">${game.category.toUpperCase()}</span>
+              <span class="sticker ${btnClass} text-white text-[10px] font-bold px-2 py-1 rounded-md transform ${Math.random() > 0.5 ? 'rotate-2' : '-rotate-2'}">${game.category.toUpperCase()}</span>
               ${difficultyBadge}
             </div>
           </div>
@@ -385,8 +385,8 @@ const GameGrid = {
     const rect = card.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    const rotateX = ((y - rect.height/2) / (rect.height/2)) * -5;
-    const rotateY = ((x - rect.width/2) / (rect.width/2)) * 5;
+    const rotateX = ((y - rect.height / 2) / (rect.height / 2)) * -5;
+    const rotateY = ((x - rect.width / 2) / (rect.width / 2)) * 5;
     card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
   }
 };
@@ -400,16 +400,10 @@ const Filters = {
     GameGrid.render();
   },
 
-  setSearch: Utils.debounce(function(term) {
+  setSearch: Utils.debounce(function (term) {
     State.filters.searchTerm = term.toLowerCase();
     GameGrid.render();
   }, CONFIG.debounceDelay),
-
-  setDifficulty(difficulty) {
-    AudioEngine.click();
-    State.filters.difficulty = difficulty;
-    GameGrid.render();
-  },
 
   updateUI() {
     document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -435,8 +429,8 @@ const TabManager = {
   },
 
   saveTabsToStorage() {
-    const tabsData = this.tabs.map(({id, gameId, title, icon, color}) => ({id, gameId, title, icon, color}));
-    Storage.set(CONFIG.storageKeys.tabs, {tabs: tabsData, activeTabId: this.activeTabId});
+    const tabsData = this.tabs.map(({ id, gameId, title, icon, color }) => ({ id, gameId, title, icon, color }));
+    Storage.set(CONFIG.storageKeys.tabs, { tabs: tabsData, activeTabId: this.activeTabId });
   },
 
   loadTabsFromStorage() {
@@ -469,7 +463,7 @@ const TabManager = {
   },
 
   createTabSilent(game, tabId, switchTo = false) {
-    const tab = {id: tabId, gameId: game.id, title: game.title, icon: game.icon, color: game.color, loading: true};
+    const tab = { id: tabId, gameId: game.id, title: game.title, icon: game.icon, color: game.color, loading: true };
     this.createTabIcon(tab);
     this.createTabPanel(tab);
     this.tabs.push(tab);
@@ -485,7 +479,7 @@ const TabManager = {
 
     const tabIcon = document.createElement('button');
     tabIcon.id = `tab-icon-${tab.id}`;
-    tabIcon.className = `side-panel-tab${tab.loading?' loading':''}`;
+    tabIcon.className = `side-panel-tab${tab.loading ? ' loading' : ''}`;
     tabIcon.dataset.tabId = tab.id;
     tabIcon.dataset.color = tab.color;
     tabIcon.title = tab.title;
@@ -616,6 +610,12 @@ const TabManager = {
       t.iconElement?.classList.toggle('active', isActive);
       t.iconElement?.setAttribute('aria-selected', String(isActive));
       t.panel?.classList.toggle('active', isActive);
+      if (!isActive && t.iframe) {
+        // Preserve iframe but stop JS execution
+        t.iframe.style.display = 'none';
+      } else if (isActive) {
+        t.iframe.style.display = 'block';
+      }
     });
 
     const game = State.getGameById(tab.gameId);
@@ -625,7 +625,7 @@ const TabManager = {
       history.pushState(null, null, `#${tab.gameId}`);
     }
 
-    tab.iconElement?.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+    tab.iconElement?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     this.saveTabsToStorage();
   },
 
