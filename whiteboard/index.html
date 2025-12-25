@@ -620,33 +620,24 @@
 
         // ✨ Mouse wheel zoom support
         wrapper.addEventListener('wheel', (e) => {
-            if (e.ctrlKey || e.metaKey) {
-                e.preventDefault();
+            e.preventDefault();
 
+            // CTRL + Wheel = ZOOM
+            if (e.ctrlKey) {
+                // Determine direction (-0.1 or +0.1)
                 const delta = e.deltaY > 0 ? -0.1 : 0.1;
-                const oldScale = state.scale;
-                let newScale = state.scale + delta;
 
-                // Clamp zoom limits
-                if (newScale < 0.2) newScale = 0.2;
-                if (newScale > 3.0) newScale = 3.0;
-
-                // Get mouse position
+                // Pass mouse position to zoom towards cursor!
                 const rect = wrapper.getBoundingClientRect();
                 const mouseX = e.clientX - rect.left;
                 const mouseY = e.clientY - rect.top;
 
-                // Calculate position in canvas coordinates before zoom
-                const canvasX = (mouseX - state.panX) / oldScale;
-                const canvasY = (mouseY - state.panY) / oldScale;
-
-                // Update scale
-                state.scale = newScale;
-
-                // Adjust pan to keep the same point under mouse
-                state.panX = mouseX - (canvasX * newScale);
-                state.panY = mouseY - (canvasY * newScale);
-
+                changeZoom(delta, mouseX, mouseY);
+            }
+            // Regular Wheel = PAN (Scrolls the canvas)
+            else {
+                state.panX -= e.deltaX;
+                state.panY -= e.deltaY;
                 updateView();
             }
         }, { passive: false });
@@ -761,19 +752,19 @@
             if (strokeBatch.length === 1) {
                 ctxMain.lineWidth = state.size;
 
-            if (state.tool === 'eraser') {
-                ctxMain.globalCompositeOperation = 'destination-out';
-                ctxMain.lineWidth = state.size * 5;
-            } else {
-                ctxMain.globalCompositeOperation = 'source-over';
+                if (state.tool === 'eraser') {
+                    ctxMain.globalCompositeOperation = 'destination-out';
+                    ctxMain.lineWidth = state.size * 5;
+                } else {
+                    ctxMain.globalCompositeOperation = 'source-over';
                     ctxMain.strokeStyle = state.color;
-            }
+                }
 
-            ctxMain.lineTo(x, y);
-            ctxMain.stroke();
-            ctxMain.beginPath();
-            ctxMain.moveTo(x, y);
-        }
+                ctxMain.lineTo(x, y);
+                ctxMain.stroke();
+                ctxMain.beginPath();
+                ctxMain.moveTo(x, y);
+            }
 
             // Add to path
             ctxMain.lineTo(x, y);
@@ -1042,11 +1033,27 @@
             closeClearModal();
         }
 
-        function changeZoom(delta) {
-            let newScale = state.scale + delta;
-            if (newScale < 0.2) newScale = 0.2;
-            if (newScale > 3.0) newScale = 3.0;
+        function changeZoom(delta, mouseX, mouseY) {
+            const newScale = Math.min(Math.max(state.scale + delta, 0.2), 3.0);
+            if (newScale === state.scale) return;
+
+            // 1. Calculate where the "point of interest" is currently on the canvas
+            // If mouse coords provided, zoom to mouse. If not, zoom to screen center.
+            const wrapperRect = wrapper.getBoundingClientRect();
+
+            const screenX = (mouseX !== undefined) ? mouseX : wrapperRect.width / 2;
+            const screenY = (mouseY !== undefined) ? mouseY : wrapperRect.height / 2;
+
+            const canvasX = (screenX - state.panX) / state.scale;
+            const canvasY = (screenY - state.panY) / state.scale;
+
+            // 2. Update Scale
             state.scale = newScale;
+
+            // 3. Calculate new Pan to keep that point in the same screen position
+            state.panX = screenX - (canvasX * state.scale);
+            state.panY = screenY - (canvasY * state.scale);
+
             updateView();
         }
 
