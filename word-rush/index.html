@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Rush - Classroom Edition</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        eng_pink: '#FF6B95',
+                        eng_orange: '#FF8C42',
+                        eng_green: '#00E676',
+                        eng_blue: '#2979FF',
+                        eng_dark: '#1e293b',
+                        eng_chalk: '#f8fafc',
+                    },
+                    fontFamily: {
+                        fredoka: ['Fredoka', 'sans-serif'],
+                        nunito: ['Nunito', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'neo': '4px 4px 0px 0px rgba(30, 41, 59, 1)',
+                        'neo-lg': '8px 8px 0px 0px rgba(30, 41, 59, 1)',
+                        'neo-sm': '2px 2px 0px 0px rgba(30, 41, 59, 1)',
+                    },
+                    animation: {
+                        'pulse-fast': 'pulse 0.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Graph Paper Background */
+        .bg-graph-paper {
+            background-color: #f8fafc;
+            background-image: 
+                linear-gradient(to right, #cbd5e1 1px, transparent 1px),
+                linear-gradient(to bottom, #cbd5e1 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+        
+        .dark .bg-graph-paper {
+            background-color: #0f172a;
+            background-image: 
+                linear-gradient(to right, #334155 1px, transparent 1px),
+                linear-gradient(to bottom, #334155 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+
+        /* Neo-Brutalism Interactive Classes */
+        .btn-neo {
+            transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .btn-neo:active {
+            transform: translate(4px, 4px);
+            box-shadow: 0px 0px 0px 0px rgba(30, 41, 59, 1) !important;
+        }
+        .dark .btn-neo:active {
+             box-shadow: 0px 0px 0px 0px #94a3b8 !important;
+        }
+
+        /* Dark Mode Shadows */
+        .dark .shadow-neo, .dark .shadow-neo-lg {
+            box-shadow: 4px 4px 0px 0px #94a3b8;
+        }
+        .dark .shadow-neo-lg {
+            box-shadow: 8px 8px 0px 0px #94a3b8;
+        }
+
+        /* Range Slider Customization */
+        input[type=range] {
+            -webkit-appearance: none; 
+            background: transparent; 
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 24px;
+            width: 24px;
+            border-radius: 50%;
+            background: #FF6B95;
+            border: 3px solid #1e293b;
+            margin-top: -10px; 
+            cursor: pointer;
+            box-shadow: 2px 2px 0px 0px rgba(30,41,59,1);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 8px;
+            background: #cbd5e1;
+            border-radius: 4px;
+            border: 2px solid #1e293b;
+        }
+    </style>
+</head>
+<body class="bg-graph-paper text-eng_dark dark:text-white min-h-screen font-nunito flex flex-col items-center py-6 transition-colors duration-300 overflow-x-hidden">
+
+    <nav class="w-full max-w-5xl px-4 flex justify-between items-center mb-8 z-10">
+        <div class="group flex items-center gap-3 bg-white dark:bg-slate-800 border-4 border-eng_dark p-3 rounded-2xl shadow-neo transform -rotate-2 hover:rotate-0 transition-transform">
+            <div class="bg-eng_pink p-2 rounded-lg border-2 border-eng_dark text-white">
+                <i data-lucide="zap" class="w-6 h-6 fill-current"></i>
+            </div>
+            <div>
+                <h1 class="font-fredoka font-bold text-2xl leading-none">Word Rush</h1>
+                <span class="text-xs font-bold text-eng_blue uppercase tracking-wider">Classroom Ed.</span>
+            </div>
+        </div>
+        
+        <button onclick="toggleTheme()" class="btn-neo bg-eng_dark text-white p-3 rounded-xl border-4 border-white shadow-neo hover:bg-slate-700">
+            <i data-lucide="moon" class="w-6 h-6"></i>
+        </button>
+    </nav>
+
+    <main id="setup-screen" class="w-full max-w-3xl px-4 block relative">
+        
+        <div class="bg-white dark:bg-slate-800 border-4 border-eng_dark rounded-[2rem] p-6 md:p-10 shadow-neo-lg relative overflow-hidden">
+            
+            <div class="text-center mb-10">
+                <h2 class="font-fredoka text-4xl md:text-5xl font-bold text-eng_dark dark:text-white mb-2">Game Setup</h2>
+                <p class="font-bold text-slate-500 dark:text-slate-400">Customize your rules for today's lesson</p>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-8">
+                
+                <div class="space-y-6">
+                    <div class="bg-eng_chalk dark:bg-slate-900 p-4 rounded-2xl border-2 border-eng_dark border-dashed">
+                        <label class="font-fredoka font-bold text-xl mb-3 flex items-center gap-2">
+                            <i data-lucide="tag" class="text-eng_pink w-6 h-6"></i> Category
+                        </label>
+                        <div class="flex gap-2">
+                            <input type="text" id="categoryInput" placeholder="e.g. Verbs, Zoo Animals" 
+                                class="w-full bg-white dark:bg-slate-800 border-4 border-eng_dark rounded-xl p-3 font-bold text-lg focus:outline-none focus:border-eng_blue transition-colors">
+                            <button onclick="randomizeCategory()" class="btn-neo bg-eng_blue text-white p-3 rounded-xl border-4 border-eng_dark shadow-neo" title="Random Category">
+                                <i data-lucide="dices"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-eng_chalk dark:bg-slate-900 p-4 rounded-2xl border-2 border-eng_dark border-dashed">
+                        <label class="font-fredoka font-bold text-xl mb-2 flex items-center justify-between">
+                            <div class="flex items-center gap-2"><i data-lucide="timer" class="text-eng_orange w-6 h-6"></i> Timer</div>
+                            <span id="timerValueDisplay" class="bg-eng_orange text-white px-3 py-1 rounded-lg border-2 border-eng_dark text-sm">15s</span>
+                        </label>
+                        <input type="range" id="timeSlider" min="5" max="60" value="15" step="5" 
+                            class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer mt-4"
+                            oninput="updateTimerLabel(this.value)">
+                        <div class="flex justify-between text-xs font-bold text-gray-400 mt-2">
+                            <span>Fast (5s)</span>
+                            <span>Slow (60s)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <h3 class="font-fredoka font-bold text-lg text-eng_blue uppercase tracking-wider mb-2">Modes & Difficulty</h3>
+                    
+                    <label class="flex items-center justify-between bg-white dark:bg-slate-700 p-4 rounded-xl border-4 border-eng_dark shadow-neo cursor-pointer group hover:bg-eng_chalk transition-colors">
+                        <div class="flex items-center gap-3">
+                            <div class="bg-eng_green/20 p-2 rounded-lg text-eng_green border-2 border-eng_green group-hover:bg-eng_green group-hover:text-white transition-colors">
+                                <i data-lucide="baby" class="w-6 h-6"></i>
+                            </div>
+                            <div>
+                                <div class="font-fredoka font-bold text-lg">Kids Mode</div>
+                                <div class="text-xs font-bold text-gray-400">Removes Q, X, Z, J</div>
+                            </div>
+                        </div>
+                        <input type="checkbox" id="kidsModeToggle" class="w-6 h-6 border-4 border-eng_dark rounded text-eng_green focus:ring-0">
+                    </label>
+
+                    <label class="flex items-center justify-between bg-white dark:bg-slate-700 p-4 rounded-xl border-4 border-eng_dark shadow-neo cursor-pointer group hover:bg-eng_chalk transition-colors">
+                        <div class="flex items-center gap-3">
+                            <div class="bg-eng_pink/20 p-2 rounded-lg text-eng_pink border-2 border-eng_pink group-hover:bg-eng_pink group-hover:text-white transition-colors">
+                                <i data-lucide="bomb" class="w-6 h-6"></i>
+                            </div>
+                            <div>
+                                <div class="font-fredoka font-bold text-lg">Sudden Death</div>
+                                <div class="text-xs font-bold text-gray-400">Time -1s each turn</div>
+                            </div>
+                        </div>
+                        <input type="checkbox" id="suddenDeathToggle" class="w-6 h-6 border-4 border-eng_dark rounded text-eng_pink focus:ring-0">
+                    </label>
+
+                    <label class="flex items-center justify-between bg-white dark:bg-slate-700 p-4 rounded-xl border-4 border-eng_dark shadow-neo cursor-pointer group hover:bg-eng_chalk transition-colors">
+                        <div class="flex items-center gap-3">
+                            <div class="bg-eng_blue/20 p-2 rounded-lg text-eng_blue border-2 border-eng_blue group-hover:bg-eng_blue group-hover:text-white transition-colors">
+                                <i data-lucide="volume-2" class="w-6 h-6"></i>
+                            </div>
+                            <div>
+                                <div class="font-fredoka font-bold text-lg">Sound FX</div>
+                                <div class="text-xs font-bold text-gray-400">Beeps & Ticks</div>
+                            </div>
+                        </div>
+                        <input type="checkbox" id="soundToggle" checked class="w-6 h-6 border-4 border-eng_dark rounded text-eng_blue focus:ring-0">
+                    </label>
+                </div>
+            </div>
+
+            <button onclick="startGame()" class="w-full btn-neo mt-8 bg-eng_green text-eng_dark font-fredoka font-bold text-3xl py-5 rounded-2xl border-4 border-eng_dark shadow-neo flex justify-center items-center gap-3 hover:bg-emerald-400">
+                <i data-lucide="play" class="w-8 h-8 fill-current"></i> START GAME
+            </button>
+        </div>
+    </main>
+
+    <main id="game-screen" class="w-full max-w-6xl px-4 hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            
+            <div class="lg:col-span-4 space-y-4 lg:sticky lg:top-4">
+                
+                <div class="bg-white dark:bg-slate-800 border-4 border-eng_dark rounded-3xl p-6 shadow-neo transform rotate-1">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="bg-eng_blue text-white text-xs font-bold px-2 py-1 rounded border border-eng_dark">CATEGORY</span>
+                        <i data-lucide="hash" class="text-gray-300 dark:text-gray-600"></i>
+                    </div>
+                    <h2 id="displayCategory" class="font-fredoka text-4xl font-bold text-eng_dark dark:text-white leading-tight break-words">
+                        Loading...
+                    </h2>
+                </div>
+
+                <div id="timerContainer" class="bg-eng_dark text-white border-4 border-eng_dark rounded-3xl p-8 shadow-neo text-center relative overflow-hidden transform -rotate-1">
+                    <div id="timerBar" class="absolute bottom-0 left-0 h-3 bg-eng_green transition-all duration-100 w-full"></div>
+                    
+                    <div class="font-mono text-7xl font-bold tracking-tighter tabular-nums" id="timerDisplay">15</div>
+                    <div class="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">Seconds Left</div>
+                    
+                    <button onclick="resetTurnTimer()" class="mt-6 btn-neo w-full bg-eng_orange text-white font-fredoka font-bold text-xl py-3 rounded-xl border-2 border-white/20 flex justify-center items-center gap-2 hover:bg-orange-400">
+                        <i data-lucide="rotate-ccw"></i> RESET TIMER
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="restartGame()" class="btn-neo bg-eng_chalk dark:bg-slate-700 border-4 border-eng_dark rounded-xl py-3 font-bold text-sm flex items-center justify-center gap-2 hover:bg-white">
+                        <i data-lucide="settings-2" class="w-4 h-4"></i> Setup
+                    </button>
+                    <button onclick="resetBoard()" class="btn-neo bg-eng_blue text-white border-4 border-eng_dark rounded-xl py-3 font-bold text-sm flex items-center justify-center gap-2 hover:bg-blue-500">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i> New Round
+                    </button>
+                </div>
+            </div>
+
+            <div class="lg:col-span-8">
+                <div class="bg-white dark:bg-slate-800 border-4 border-eng_dark rounded-[2rem] p-6 md:p-8 shadow-neo-lg relative">
+                    <div class="absolute -top-3 left-8 w-4 h-8 bg-gray-300 border-2 border-black rounded-full z-10 hidden md:block"></div>
+                    <div class="absolute -top-3 left-16 w-4 h-8 bg-gray-300 border-2 border-black rounded-full z-10 hidden md:block"></div>
+                    <div class="absolute -top-3 left-24 w-4 h-8 bg-gray-300 border-2 border-black rounded-full z-10 hidden md:block"></div>
+
+                    <div class="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3 md:gap-4" id="letterGrid">
+                        </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // --- Configuration & State ---
+        const fullAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+        const kidsExclusions = ['Q', 'X', 'Z', 'J'];
+        
+        // Colors for random assignment
+        const palette = [
+            'bg-eng_pink text-white', 
+            'bg-eng_orange text-white', 
+            'bg-eng_green text-eng_dark', 
+            'bg-eng_blue text-white'
+        ];
+
+        // State
+        let settings = {
+            time: 15,
+            kidsMode: false,
+            suddenDeath: false,
+            sound: true
+        };
+        
+        let gameState = {
+            currentTurnTime: 15,
+            remainingTime: 15,
+            timerInterval: null,
+            isRunning: false,
+            lettersLeft: 26
+        };
+
+        const categories = [
+            "Animals", "Countries", "Fruits", "Jobs", "Colors", 
+            "Action Verbs", "Adjectives", "In the Classroom", "Sports", 
+            "Movies", "Brands", "Cities", "Body Parts", "Clothing",
+            "Furniture", "Transport", "Hobbies", "Drinks", "Video Games"
+        ];
+
+        // --- Audio Context for Simple Beeps ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playSound(type) {
+            if (!settings.sound) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            if (type === 'click') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.1);
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.1);
+            } else if (type === 'alarm') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.2);
+            } else if (type === 'start') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(600, audioCtx.currentTime + 0.3);
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.3);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+            }
+        }
+
+        // --- UI Setup ---
+        lucide.createIcons();
+
+        function updateTimerLabel(val) {
+            document.getElementById('timerValueDisplay').innerText = val + "s";
+        }
+
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+        }
+
+        function randomizeCategory() {
+            const randomCat = categories[Math.floor(Math.random() * categories.length)];
+            document.getElementById('categoryInput').value = randomCat;
+            // Add a little spin animation to the dice icon
+            const btn = document.querySelector('button[title="Random Category"] i');
+            btn.classList.add('animate-spin');
+            setTimeout(() => btn.classList.remove('animate-spin'), 500);
+        }
+
+        // --- Game Logic ---
+
+        function startGame() {
+            // Harvest Settings
+            settings.time = parseInt(document.getElementById('timeSlider').value);
+            settings.kidsMode = document.getElementById('kidsModeToggle').checked;
+            settings.suddenDeath = document.getElementById('suddenDeathToggle').checked;
+            settings.sound = document.getElementById('soundToggle').checked;
+            
+            let cat = document.getElementById('categoryInput').value;
+            if(!cat) cat = "Any Word!";
+            
+            // Set Initial State
+            gameState.currentTurnTime = settings.time;
+            document.getElementById('displayCategory').innerText = cat;
+            
+            // UI Transition
+            document.getElementById('setup-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            document.getElementById('game-screen').classList.add('block');
+
+            playSound('start');
+            generateGrid();
+            resetTurnTimer();
+        }
+
+        function restartGame() {
+            stopTimer();
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('block');
+            document.getElementById('setup-screen').classList.remove('hidden');
+        }
+
+        function generateGrid() {
+            const grid = document.getElementById('letterGrid');
+            grid.innerHTML = '';
+            
+            let alphabetToUse = fullAlphabet;
+            if (settings.kidsMode) {
+                alphabetToUse = fullAlphabet.filter(l => !kidsExclusions.includes(l));
+            }
+            gameState.lettersLeft = alphabetToUse.length;
+
+            alphabetToUse.forEach((letter, index) => {
+                // Pick a random color style from the palette
+                const colorClass = palette[index % palette.length];
+                
+                const btn = document.createElement('button');
+                btn.className = `
+                    letter-btn relative h-16 sm:h-20 w-full 
+                    ${colorClass}
+                    border-b-4 border-r-4 border-t-2 border-l-2 border-eng_dark 
+                    rounded-2xl text-3xl font-fredoka font-bold shadow-neo-sm
+                    hover:scale-105 hover:z-10
+                    active:border-b-2 active:border-r-2 active:translate-y-1 active:translate-x-1 active:shadow-none
+                    disabled:opacity-30 disabled:cursor-not-allowed disabled:transform-none disabled:bg-slate-300 disabled:text-slate-500 disabled:border-slate-400 disabled:shadow-none
+                    transition-all duration-150 ease-out
+                `;
+                btn.innerText = letter;
+                btn.onclick = () => handleLetterClick(btn);
+                grid.appendChild(btn);
+            });
+        }
+
+        function handleLetterClick(btn) {
+            if (btn.disabled) return;
+            
+            playSound('click');
+            
+            // "Claim" the letter
+            btn.disabled = true;
+            btn.innerHTML = `<i data-lucide="check" class="w-8 h-8"></i>`; // Replace text with checkmark
+            lucide.createIcons();
+            
+            gameState.lettersLeft--;
+
+            // Sudden Death Logic
+            if (settings.suddenDeath && gameState.currentTurnTime > 3) {
+                gameState.currentTurnTime--; // Reduce max time by 1 sec
+            }
+
+            // Win Condition
+            if (gameState.lettersLeft === 0) {
+                stopTimer();
+                confetti({
+                    particleCount: 150,
+                    spread: 70,
+                    origin: { y: 0.6 },
+                    colors: ['#FF6B95', '#FF8C42', '#00E676', '#2979FF']
+                });
+                document.getElementById('timerDisplay').innerText = "WIN";
+                return;
+            }
+            
+            resetTurnTimer();
+        }
+
+        function resetBoard() {
+            generateGrid();
+            // Reset Sudden Death timer back to original setting
+            gameState.currentTurnTime = settings.time;
+            resetTurnTimer();
+        }
+
+        function resetTurnTimer() {
+            stopTimer();
+            gameState.remainingTime = gameState.currentTurnTime;
+            
+            // Visual Reset
+            const timerContainer = document.getElementById('timerContainer');
+            timerContainer.classList.remove('animate-pulse-fast', 'bg-red-500', 'border-red-700');
+            timerContainer.classList.add('bg-eng_dark', 'border-eng_dark');
+            
+            const timerBar = document.getElementById('timerBar');
+            timerBar.classList.remove('bg-red-400');
+            timerBar.classList.add('bg-eng_green');
+
+            updateTimerDisplay();
+            startTimer();
+        }
+
+        function startTimer() {
+            if (gameState.isRunning) return;
+            gameState.isRunning = true;
+            
+            gameState.timerInterval = setInterval(() => {
+                gameState.remainingTime--;
+                updateTimerDisplay();
+
+                // Warning State (Last 5 seconds)
+                if (gameState.remainingTime <= 5 && gameState.remainingTime > 0) {
+                    playSound('alarm');
+                    const timerContainer = document.getElementById('timerContainer');
+                    const timerBar = document.getElementById('timerBar');
+                    
+                    timerContainer.classList.remove('bg-eng_dark', 'border-eng_dark');
+                    timerContainer.classList.add('bg-red-500', 'border-red-700', 'animate-pulse-fast');
+                    
+                    timerBar.classList.remove('bg-eng_green');
+                    timerBar.classList.add('bg-white');
+                }
+
+                if (gameState.remainingTime <= 0) {
+                    stopTimer();
+                    playSound('alarm');
+                    document.getElementById('timerDisplay').innerText = "XX";
+                    document.getElementById('timerContainer').classList.remove('animate-pulse-fast');
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(gameState.timerInterval);
+            gameState.isRunning = false;
+        }
+
+        function updateTimerDisplay() {
+            const display = document.getElementById('timerDisplay');
+            const bar = document.getElementById('timerBar');
+            
+            if (gameState.remainingTime >= 0) {
+                display.innerText = gameState.remainingTime < 10 ? "0" + gameState.remainingTime : gameState.remainingTime;
+                const percentage = (gameState.remainingTime / gameState.currentTurnTime) * 100;
+                bar.style.width = percentage + "%";
+            }
+        }
+
+        // Initialize Defaults
+        randomizeCategory();
+
+    </script>
+</body>
+</html>
