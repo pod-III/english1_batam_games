@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en" class="light"> <!-- Default to light, class applied for toggle -->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Elimination Grid: English 1</title>
+    
+    <!-- External Libraries -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+    <!-- Theme Configuration -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        pink: '#FF6B95',
+                        orange: '#FF8C42',
+                        green: '#00E676',
+                        blue: '#2979FF',
+                        dark: '#1e293b',
+                        chalk: '#f8fafc',
+                        board: '#0f172a', // Slate 900 for Dark Mode
+                    },
+                    fontFamily: {
+                        heading: ['Fredoka', 'sans-serif'], 
+                        body: ['Nunito', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    boxShadow: {
+                        'neo': '4px 4px 0px 0px #1e293b',
+                        'neo-lg': '8px 8px 0px 0px #1e293b',
+                        'neo-xl': '12px 12px 0px 0px #1e293b',
+                        'neo-dark': '4px 4px 0px 0px #94a3b8', // Light shadow for dark mode
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Base Styles */
+        body { 
+            font-family: 'Nunito', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            overflow: hidden; 
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* Grid Background Pattern */
+        .bg-grid-pattern {
+            background-image: 
+                linear-gradient(var(--grid-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+
+        /* Light Mode Variables */
+        html:not(.dark) body {
+            --grid-color: #CBD5E1;
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+
+        /* Dark Mode Variables (Blackboard) */
+        html.dark body {
+            --grid-color: #334155;
+            background-color: #0f172a; /* Slate 900 */
+            color: #f8fafc;
+        }
+
+        /* Chunky Neo-Brutalism Buttons */
+        .btn-chunky {
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateY(0);
+            border-width: 3px;
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
+            text-transform: uppercase;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        /* Light Mode Shadows */
+        html:not(.dark) .btn-chunky, 
+        html:not(.dark) .neo-container {
+            border-color: #1e293b;
+            box-shadow: 4px 4px 0px 0px #1e293b;
+        }
+        
+        /* Dark Mode Shadows (Light Borders/Shadows for contrast) */
+        html.dark .btn-chunky,
+        html.dark .neo-container {
+            border-color: #94a3b8; /* Slate 400 */
+            box-shadow: 4px 4px 0px 0px #94a3b8;
+        }
+
+        /* Hover Effects */
+        .btn-chunky:hover:not(:disabled) {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0px 0px var(--shadow-color) !important; 
+        }
+        html:not(.dark) .btn-chunky:hover:not(:disabled) { --shadow-color: #1e293b; }
+        html.dark .btn-chunky:hover:not(:disabled) { --shadow-color: #94a3b8; }
+
+        /* Active Effects */
+        .btn-chunky:active:not(:disabled) {
+            transform: translate(2px, 2px);
+            box-shadow: 0px 0px 0px 0px transparent !important;
+        }
+
+        /* Card Styles */
+        .grid-item {
+            border-width: 3px;
+            border-radius: 1rem;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+        
+        html:not(.dark) .grid-item {
+            background: #FFFFFF;
+            border-color: #1e293b;
+            box-shadow: 4px 4px 0px 0px #1e293b;
+        }
+        html.dark .grid-item {
+            background: #1e293b; /* Slate 800 */
+            border-color: #94a3b8;
+            box-shadow: 4px 4px 0px 0px #94a3b8;
+        }
+
+        /* Target Highlight (Roulette) */
+        .grid-item.highlight-target {
+            transform: translateY(-4px) scale(1.02);
+            z-index: 20;
+        }
+        html:not(.dark) .grid-item.highlight-target {
+            background-color: #FEF08A; /* Yellow 200 */
+            border-color: #FF8C42; /* Orange */
+            box-shadow: 8px 8px 0px 0px #1e293b;
+        }
+        html.dark .grid-item.highlight-target {
+            background-color: #eab308; /* Yellow 500 */
+            border-color: #FF8C42;
+            box-shadow: 8px 8px 0px 0px #94a3b8;
+            color: #1e293b; /* Dark text on yellow card */
+        }
+
+        /* Eliminated State */
+        .grid-item.eliminated {
+            transform: scale(0.95);
+            opacity: 0.7;
+            box-shadow: none !important;
+            border-style: dashed;
+        }
+        html:not(.dark) .grid-item.eliminated {
+            background-color: #F1F5F9;
+            color: #94A3B8;
+            border-color: #CBD5E1;
+        }
+        html.dark .grid-item.eliminated {
+            background-color: #0f172a;
+            color: #475569;
+            border-color: #334155;
+        }
+
+        /* Winner Clone Animation Style */
+        .winner-clone-card {
+            position: fixed !important;
+            z-index: 9999 !important;
+            transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border-width: 4px;
+            border-radius: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-color: #00E676; /* Success Green */
+        }
+        html:not(.dark) .winner-clone-card {
+            background-color: #FFFFFF;
+            box-shadow: 20px 20px 0px 0px #1e293b !important;
+            color: #1e293b;
+        }
+        html.dark .winner-clone-card {
+            background-color: #1e293b;
+            box-shadow: 20px 20px 0px 0px #00E676 !important; /* Green glowing shadow */
+            color: #FFFFFF;
+        }
+
+        /* Sunburst Animation for Winner */
+        .sunburst {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 200vw;
+            height: 200vw;
+            background: repeating-conic-gradient(
+                from 0deg,
+                rgba(0, 230, 118, 0.1) 0deg 15deg,
+                transparent 15deg 30deg
+            );
+            transform: translate(-50%, -50%);
+            animation: rotate 20s linear infinite;
+            pointer-events: none;
+            z-index: 40; /* Behind winner card (z-9999), above overlay (z-30) */
+            opacity: 0;
+            transition: opacity 1s ease;
+        }
+
+        @keyframes rotate {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        .elimination-mark {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transform: scale(0.5) rotate(-45deg);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+        }
+        .grid-item.eliminated .elimination-mark {
+            opacity: 1;
+            transform: scale(1) rotate(0deg);
+        }
+
+        #winner-overlay {
+            background: rgba(15, 23, 42, 0.7); /* Darker overlay */
+            backdrop-filter: blur(4px);
+        }
+
+        /* Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { 
+            background: #94a3b8; 
+            border-radius: 10px; 
+            border: 2px solid transparent;
+            background-clip: content-box;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        @keyframes pulse-ring {
+            0% { box-shadow: 0 0 0 0 rgba(255, 107, 149, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 107, 149, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 107, 149, 0); }
+        }
+        .btn-pulse:not(:disabled) {
+            animation: pulse-ring 2s infinite;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-2px, 0, 0) rotate(-1deg); }
+            20%, 80% { transform: translate3d(3px, 0, 0) rotate(2deg); }
+            30%, 50%, 70% { transform: translate3d(-5px, 0, 0) rotate(-3deg); }
+            40%, 60% { transform: translate3d(5px, 0, 0) rotate(3deg); }
+        }
+    </style>
+</head>
+<body class="bg-grid-pattern h-screen w-screen flex items-center justify-center p-4 md:p-6 transition-colors duration-300">
+
+    <!-- Sunburst Background (Hidden by default) -->
+    <div id="sunburst-bg" class="sunburst"></div>
+
+    <!-- MAIN CONSOLE -->
+    <div class="bg-white dark:bg-slate-900 border-4 border-dark dark:border-slate-400 rounded-3xl w-full h-full max-w-7xl flex flex-col md:flex-row overflow-hidden neo-shadow-xl shadow-neo transition-colors duration-300 relative z-10">
+        
+        <!-- SIDEBAR -->
+        <aside id="controls" class="w-full md:w-80 border-b-4 md:border-b-0 md:border-r-4 border-dark dark:border-slate-400 flex flex-col bg-slate-50 dark:bg-slate-800 relative shrink-0 z-20 transition-colors duration-300">
+            <!-- Header -->
+            <div class="p-6 border-b-4 border-dark dark:border-slate-400 bg-pink/10 dark:bg-slate-900/50">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <h1 class="text-3xl font-heading text-dark dark:text-white leading-none tracking-tight">
+                            GRID<span class="text-pink">REVEAL</span>
+                        </h1>
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">English 1 Batam</p>
+                    </div>
+                    <!-- Dark Mode Toggle -->
+                    <button onclick="toggleTheme()" class="p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors" title="Toggle Theme">
+                        <i id="themeIcon" data-lucide="moon" class="w-5 h-5 text-dark dark:text-white"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Content -->
+            <div class="flex-1 p-6 overflow-y-auto custom-scrollbar space-y-6">
+                
+                <!-- Input Section -->
+                <div class="space-y-3">
+                    <label class="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Add Participants</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="optionInput" placeholder="Enter name..." 
+                               class="flex-1 border-2 border-dark dark:border-slate-400 rounded-xl px-4 py-3 font-bold text-dark dark:text-white dark:bg-slate-700 focus:outline-none focus:ring-4 focus:ring-green/20 transition-all placeholder:text-slate-400">
+                        <button onclick="addOption()" class="btn-chunky bg-green text-white p-3 rounded-xl hover:bg-green/90">
+                            <i data-lucide="plus" class="w-6 h-6 stroke-[3]"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Tag List -->
+                    <div id="optionsList" class="flex flex-wrap gap-2 pt-2">
+                        <!-- Tags injected here -->
+                    </div>
+                </div>
+
+                <!-- Stats -->
+                <div class="bg-white dark:bg-slate-700 p-5 rounded-2xl border-2 border-dark dark:border-slate-400 neo-container transition-colors">
+                    <div class="flex justify-between items-end mb-2">
+                        <span class="text-[10px] font-black uppercase text-slate-400">Survivors</span>
+                        <span id="remainingCount" class="text-4xl font-heading text-dark dark:text-white">0</span>
+                    </div>
+                    <div class="w-full bg-slate-100 dark:bg-slate-900 h-4 rounded-full overflow-hidden border-2 border-dark dark:border-slate-500">
+                        <div id="progressBar" class="h-full bg-blue transition-all duration-500 ease-out w-0 flex items-center justify-end pr-1">
+                            <div class="w-1 h-full bg-white/30"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Batch Edit -->
+                <div class="flex flex-col gap-2">
+                    <button onclick="toggleBatch()" class="text-xs font-bold text-blue dark:text-blue-400 hover:underline text-left flex items-center gap-1">
+                        <i data-lucide="file-edit" class="w-3 h-3"></i> Batch Edit / Paste List
+                    </button>
+                    <textarea id="batchInput" class="hidden w-full h-32 border-2 border-dark dark:border-slate-400 rounded-xl p-3 font-mono text-xs focus:outline-none dark:bg-slate-700 dark:text-white resize-none" placeholder="Paste names here, one per line..."></textarea>
+                    <button id="batchSaveBtn" onclick="saveBatch()" class="hidden btn-chunky bg-dark dark:bg-slate-600 text-white py-2 rounded-xl text-xs w-full">Update Grid</button>
+                </div>
+            </div>
+
+            <!-- Footer Tools -->
+            <div class="p-4 border-t-4 border-dark dark:border-slate-400 bg-white dark:bg-slate-900 flex justify-between gap-3">
+                <button id="muteBtn" onclick="toggleMute()" class="flex-1 btn-chunky bg-slate-100 dark:bg-slate-700 text-dark dark:text-white py-3 rounded-xl flex justify-center items-center" title="Toggle Sound">
+                    <i id="muteIcon" data-lucide="volume-2" class="w-5 h-5"></i>
+                </button>
+                <button onclick="resetGrid()" class="flex-1 btn-chunky bg-orange text-white py-3 rounded-xl flex justify-center items-center" title="Reset All">
+                    <i data-lucide="rotate-ccw" class="w-5 h-5 stroke-[3]"></i>
+                </button>
+                <button onclick="clearAll()" class="flex-1 btn-chunky bg-pink text-white py-3 rounded-xl flex justify-center items-center" title="Delete All">
+                    <i data-lucide="trash-2" class="w-5 h-5 stroke-[3]"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- GRID AREA -->
+        <main id="main-area" class="flex-1 relative flex flex-col z-10 transition-colors duration-300">
+            <div id="grid-container" class="flex-1 overflow-y-auto p-4 md:p-8 lg:p-12 custom-scrollbar">
+                <div id="game-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 pb-40">
+                    <!-- Cards appear here -->
+                </div>
+            </div>
+
+            <!-- Action Bar -->
+            <div class="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-white/90 via-white/80 to-transparent dark:from-slate-900/90 dark:via-slate-900/80 pointer-events-none z-20 flex justify-center">
+                <button id="eliminateBtn" onclick="triggerElimination()" class="pointer-events-auto btn-chunky btn-pulse bg-pink text-white w-full md:w-auto px-12 py-5 rounded-2xl text-2xl tracking-widest flex items-center justify-center gap-4 active:scale-95 transition-transform disabled:opacity-50 disabled:grayscale disabled:shadow-none disabled:translate-y-0 disabled:animation-none">
+                    <i data-lucide="bomb" class="w-8 h-8 stroke-[2.5]"></i> 
+                    <span class="font-black drop-shadow-md">ELIMINATE</span>
+                </button>
+            </div>
+
+            <!-- WINNER OVERLAY -->
+            <div id="winner-overlay" class="absolute inset-0 pointer-events-none opacity-0 z-30 transition-opacity duration-700 flex flex-col items-center justify-center">
+                 <div class="mt-auto mb-24 flex flex-col items-center gap-8 relative z-50">
+                    <div class="text-center">
+                        <h1 class="font-heading text-6xl md:text-8xl text-dark dark:text-white drop-shadow-lg animate-bounce mb-2">WINNER!</h1>
+                        <p class="font-heading text-xl text-green font-bold bg-white/90 dark:bg-slate-800/90 px-4 py-1 rounded-full border-2 border-dark dark:border-green inline-block">Congratulations</p>
+                    </div>
+                    <button onclick="resetGrid()" class="pointer-events-auto btn-chunky bg-green text-white px-10 py-4 rounded-xl text-lg flex items-center gap-2 hover:bg-green/90">
+                        <i data-lucide="play" class="w-5 h-5 fill-current"></i> PLAY AGAIN
+                    </button>
+                 </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // --- Theme Logic ---
+        function toggleTheme() {
+            const html = document.documentElement;
+            const isDark = html.classList.toggle('dark');
+            html.classList.toggle('light', !isDark);
+            
+            const icon = document.getElementById('themeIcon');
+            icon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+            lucide.createIcons();
+            
+            localStorage.setItem('eng1_theme', isDark ? 'dark' : 'light');
+        }
+
+        function loadTheme() {
+            const saved = localStorage.getItem('eng1_theme');
+            if (saved === 'dark') {
+                document.documentElement.classList.add('dark');
+                document.documentElement.classList.remove('light');
+                document.getElementById('themeIcon').setAttribute('data-lucide', 'sun');
+            } else {
+                document.documentElement.classList.remove('dark');
+                document.documentElement.classList.add('light');
+            }
+        }
+
+        // --- State ---
+        let options = [];
+        let eliminatedIndices = new Set();
+        let isAnimating = false;
+        let isMuted = false;
+        const LS_KEY = 'eng1_elimination_grid';
+
+        // Audio
+        let synth, noiseSynth, winSynth;
+        let audioInit = false;
+
+        async function initAudio() {
+            if (audioInit || isMuted) return;
+            await Tone.start();
+            synth = new Tone.MembraneSynth().toDestination();
+            noiseSynth = new Tone.NoiseSynth({ noise: { type: 'white' }, envelope: { attack: 0.005, decay: 0.1, sustain: 0 } }).toDestination();
+            winSynth = new Tone.PolySynth(Tone.Synth).toDestination();
+            audioInit = true;
+        }
+
+        function playSound(type) {
+            if (isMuted || !audioInit) return;
+            // Robust Fix: Add small lookahead to prevent timing collisions
+            const now = Tone.now() + 0.05;
+
+            if (type === 'tick') synth.triggerAttackRelease("C2", "32n", now, 0.5);
+            if (type === 'boom') noiseSynth.triggerAttackRelease("16n", now);
+            if (type === 'win') winSynth.triggerAttackRelease(["C4", "E4", "G4", "C5"], "4n", now);
+        }
+
+        // --- Core Logic ---
+        function renderGrid() {
+            const grid = document.getElementById('game-grid');
+            grid.innerHTML = '';
+
+            if (options.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full py-20 text-center opacity-40 flex flex-col items-center">
+                        <div class="bg-slate-200 dark:bg-slate-800 p-6 rounded-full mb-4">
+                            <i data-lucide="layout-grid" class="w-16 h-16 text-slate-400 dark:text-slate-500"></i>
+                        </div>
+                        <p class="font-heading text-2xl text-dark dark:text-white">Classroom Empty</p>
+                        <p class="font-body text-sm text-slate-500 dark:text-slate-400 mt-2">Add students or paste a list to begin</p>
+                    </div>`;
+                lucide.createIcons();
+                updateStats();
+                return;
+            }
+
+            options.forEach((opt, i) => {
+                const isEliminated = eliminatedIndices.has(i);
+                const card = document.createElement('div');
+                card.id = `card-${i}`;
+                card.className = `grid-item min-h-[140px] p-4 flex flex-col items-center justify-center relative cursor-pointer select-none ${isEliminated ? 'eliminated' : ''}`;
+                card.onclick = () => manualToggle(i);
+                
+                // Truncate very long names for grid safety, full name on hover
+                const display = opt.length > 20 ? opt.substring(0, 18) + '...' : opt;
+                const fontSize = opt.length > 10 ? 'text-lg md:text-xl' : 'text-2xl md:text-3xl';
+
+                card.innerHTML = `
+                    <div class="text-center font-heading font-bold text-dark dark:text-white break-words w-full leading-tight ${fontSize}" title="${opt}">
+                        ${display}
+                    </div>
+                    <div class="elimination-mark">
+                        <i data-lucide="x" class="w-20 h-20 text-pink stroke-[4] drop-shadow-md"></i>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+            lucide.createIcons();
+            updateStats();
+        }
+
+        function updateStats() {
+            const total = options.length;
+            const rem = total - eliminatedIndices.size;
+            document.getElementById('remainingCount').innerText = rem;
+            const bar = document.getElementById('progressBar');
+            const pct = total === 0 ? 0 : (rem / total) * 100;
+            bar.style.width = `${pct}%`;
+            
+            // Color change based on remaining percentage
+            bar.classList.remove('bg-blue', 'bg-orange', 'bg-pink');
+            if (pct > 50) bar.classList.add('bg-blue');
+            else if (pct > 20) bar.classList.add('bg-orange');
+            else bar.classList.add('bg-pink');
+
+            const btn = document.getElementById('eliminateBtn');
+            const disabled = rem <= 1;
+            btn.disabled = disabled;
+            
+            // Visual disable handling handled by CSS classes now
+        }
+
+        async function triggerElimination() {
+            if (isAnimating || options.length - eliminatedIndices.size <= 1) return;
+            isAnimating = true;
+            await initAudio();
+
+            const available = options.map((_, i) => i).filter(i => !eliminatedIndices.has(i));
+            // Minimum rounds guarantees suspense
+            let rounds = 12 + Math.floor(Math.random() * 8); 
+            let delay = 60;
+            let lastIdx = -1;
+
+            // Roulette Animation
+            for (let i = 0; i < rounds; i++) {
+                const current = available[Math.floor(Math.random() * available.length)];
+                
+                // Clear previous highlight
+                if (lastIdx !== -1) {
+                    document.getElementById(`card-${lastIdx}`)?.classList.remove('highlight-target');
+                }
+                
+                const card = document.getElementById(`card-${current}`);
+                if(card) {
+                    card.classList.add('highlight-target');
+                    lastIdx = current;
+                    playSound('tick');
+                }
+                
+                await new Promise(r => setTimeout(r, delay));
+                delay *= 1.12; // Exponential decay (slower and slower)
+            }
+
+            // Final Victim Shake
+            const victim = lastIdx;
+            const victimCard = document.getElementById(`card-${victim}`);
+            
+            // Add shake animation class
+            victimCard.style.animation = 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both';
+            
+            await new Promise(r => setTimeout(r, 600)); // Wait for shake
+            
+            playSound('boom');
+            eliminatedIndices.add(victim);
+            
+            victimCard.classList.remove('highlight-target');
+            victimCard.classList.add('eliminated');
+            victimCard.style.animation = ''; // Reset animation
+            
+            isAnimating = false;
+            updateStats();
+            checkWinner();
+        }
+
+        function checkWinner() {
+            const rem = options.length - eliminatedIndices.size;
+            if (rem === 1 && options.length > 1) {
+                const winnerIdx = options.findIndex((_, i) => !eliminatedIndices.has(i));
+                setTimeout(() => declareWinner(winnerIdx), 500); // Slight pause for dramatic effect
+            }
+        }
+
+        function declareWinner(index) {
+            isAnimating = true;
+            playSound('win');
+            
+            const originalCard = document.getElementById(`card-${index}`);
+            const main = document.getElementById('main-area');
+            const overlay = document.getElementById('winner-overlay');
+            const sunburst = document.getElementById('sunburst-bg');
+
+            // --- CLONE TO BODY LOGIC ---
+            const rect = originalCard.getBoundingClientRect();
+            
+            const clone = originalCard.cloneNode(true);
+            clone.id = 'winner-clone';
+            clone.classList.remove('grid-item', 'highlight-target'); 
+            clone.classList.add('winner-clone-card'); 
+            
+            // Match dimensions and position
+            clone.style.width = rect.width + 'px';
+            clone.style.height = rect.height + 'px';
+            clone.style.left = rect.left + 'px';
+            clone.style.top = rect.top + 'px';
+            clone.style.margin = '0';
+            
+            // Ensure typography matches
+            const textDiv = clone.querySelector('div'); // The text container
+            if(textDiv) {
+                textDiv.classList.remove('text-lg', 'text-2xl', 'md:text-xl', 'md:text-3xl'); // Reset sizes
+                textDiv.style.fontSize = '3rem'; // Big text for winner
+            }
+
+            document.body.appendChild(clone);
+            originalCard.style.opacity = '0';
+
+            requestAnimationFrame(() => {
+                const centerX = window.innerWidth / 2;
+                const centerY = window.innerHeight / 2;
+                const scale = window.innerWidth < 768 ? 1.5 : 2.5;
+
+                const moveX = centerX - rect.left - (rect.width / 2);
+                const moveY = centerY - rect.top - (rect.height / 2);
+
+                clone.style.transform = `translate(${moveX}px, ${moveY}px) scale(${scale})`;
+                
+                // Background Effects
+                main.classList.add('winner-mode');
+                overlay.style.opacity = '1';
+                overlay.style.pointerEvents = 'auto';
+                
+                // Show Sunburst
+                sunburst.style.opacity = '0.5';
+            });
+
+            // Explosive Confetti
+            const colors = ['#FF6B95', '#FF8C42', '#00E676', '#2979FF'];
+            const duration = 3000;
+            const end = Date.now() + duration;
+
+            (function frame() {
+                confetti({
+                    particleCount: 5,
+                    angle: 60,
+                    spread: 55,
+                    origin: { x: 0 },
+                    colors: colors
+                });
+                confetti({
+                    particleCount: 5,
+                    angle: 120,
+                    spread: 55,
+                    origin: { x: 1 },
+                    colors: colors
+                });
+
+                if (Date.now() < end) requestAnimationFrame(frame);
+            }());
+        }
+
+        function resetGrid() {
+            eliminatedIndices.clear();
+            const main = document.getElementById('main-area');
+            const overlay = document.getElementById('winner-overlay');
+            const sunburst = document.getElementById('sunburst-bg');
+            
+            main.classList.remove('winner-mode');
+            overlay.style.opacity = '0';
+            overlay.style.pointerEvents = 'none';
+            sunburst.style.opacity = '0';
+
+            const clone = document.getElementById('winner-clone');
+            if (clone) {
+                // Reverse animation slightly before removing?
+                clone.style.opacity = '0';
+                setTimeout(() => clone.remove(), 300);
+            }
+
+            const allCards = document.querySelectorAll('.grid-item');
+            allCards.forEach(c => c.style.opacity = '1');
+
+            isAnimating = false;
+            renderGrid();
+        }
+
+        // --- Data Helpers ---
+        function addOption() {
+            const input = document.getElementById('optionInput');
+            const val = input.value.trim();
+            if (val) {
+                options.push(val);
+                input.value = '';
+                saveData();
+                renderGrid();
+                renderList();
+            }
+        }
+
+        function renderList() {
+            const list = document.getElementById('optionsList');
+            list.innerHTML = '';
+            options.forEach((opt, i) => {
+                const tag = document.createElement('div');
+                tag.className = 'flex items-center gap-2 bg-white dark:bg-slate-700 border-2 border-dark dark:border-slate-500 rounded-lg px-3 py-1 text-xs font-bold shadow-[2px_2px_0px_0px_rgba(30,41,59,1)] dark:shadow-[2px_2px_0px_0px_rgba(148,163,184,1)] text-dark dark:text-white transition-all hover:-translate-y-0.5';
+                tag.innerHTML = `${opt} <button onclick="removeOption(${i})" class="text-pink hover:scale-125 transition-transform"><i data-lucide="x" class="w-3 h-3 stroke-[3]"></i></button>`;
+                list.appendChild(tag);
+            });
+            lucide.createIcons();
+        }
+
+        function removeOption(i) {
+            options.splice(i, 1);
+            eliminatedIndices.clear();
+            saveData();
+            renderGrid();
+            renderList();
+        }
+
+        function toggleBatch() {
+            const batchInput = document.getElementById('batchInput');
+            const saveBtn = document.getElementById('batchSaveBtn');
+            const isHidden = batchInput.classList.contains('hidden');
+            
+            if (isHidden) {
+                batchInput.classList.remove('hidden');
+                saveBtn.classList.remove('hidden');
+                batchInput.value = options.join('\n');
+                batchInput.focus();
+            } else {
+                batchInput.classList.add('hidden');
+                saveBtn.classList.add('hidden');
+            }
+        }
+
+        function saveBatch() {
+            const text = document.getElementById('batchInput').value;
+            options = text.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+            saveData();
+            toggleBatch();
+            resetGrid();
+            renderList();
+        }
+
+        function manualToggle(i) {
+            if (isAnimating || eliminatedIndices.size >= options.length - 1) return;
+            if (eliminatedIndices.has(i)) {
+                eliminatedIndices.delete(i);
+            } else {
+                eliminatedIndices.add(i);
+            }
+            renderGrid();
+            checkWinner();
+        }
+
+        function clearAll() {
+            if (confirm('Delete all participants?')) {
+                options = [];
+                resetGrid();
+                saveData();
+                renderList();
+            }
+        }
+
+        function toggleMute() {
+            isMuted = !isMuted;
+            document.getElementById('muteIcon').setAttribute('data-lucide', isMuted ? 'volume-x' : 'volume-2');
+            lucide.createIcons();
+        }
+
+        function saveData() { localStorage.setItem(LS_KEY, JSON.stringify(options)); }
+        function loadData() {
+            const stored = localStorage.getItem(LS_KEY);
+            if (stored) options = JSON.parse(stored);
+            else options = ["Student A", "Student B", "Student C", "Student D"];
+            renderGrid();
+            renderList();
+        }
+
+        document.getElementById('optionInput').onkeydown = (e) => { if(e.key === 'Enter') addOption(); };
+
+        window.onload = () => {
+            loadTheme();
+            loadData();
+            lucide.createIcons();
+        };
+    </script>
+</body>
+</html>

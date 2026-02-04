@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Spin Console: English 1 (Compact)</title>
+    
+    <!-- External Libraries -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;700;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+    <!-- Theme Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        pink: '#FF6B95',
+                        orange: '#FF8C42',
+                        green: '#00E676',
+                        blue: '#2979FF',
+                        dark: '#0F172A', 
+                        surface: '#FFFFFF',
+                        border: '#cbd5e1',
+                    },
+                    fontFamily: {
+                        heading: ['Fredoka', 'sans-serif'], 
+                        body: ['Nunito', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    boxShadow: {
+                        'hard': '4px 4px 0px 0px #0F172A',
+                        'hard-sm': '2px 2px 0px 0px #0F172A',
+                        'hard-lg': '8px 8px 0px 0px #0F172A',
+                        'hard-xl': '12px 12px 0px 0px #0F172A',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { 
+            font-family: 'Nunito', sans-serif;
+            overflow: hidden;
+            background-color: #F0F4F8;
+            /* Polished Graph Paper Pattern */
+            background-image: 
+                linear-gradient(#CBD5E1 1.5px, transparent 1.5px),
+                linear-gradient(90deg, #CBD5E1 1.5px, transparent 1.5px);
+            background-size: 30px 30px;
+            color: #0F172A;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* --- NEO-BRUTALISM UI --- */
+        .console-frame {
+            background: #FFFFFF;
+            border: 4px solid #0F172A;
+            border-radius: 1.5rem;
+            box-shadow: 12px 12px 0px rgba(15, 23, 42, 0.15);
+            display: flex;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .btn-chunky {
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateY(0);
+            position: relative;
+            border: 3px solid #0F172A;
+            box-shadow: 4px 4px 0 #0F172A;
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .btn-chunky:hover:not(:disabled) {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 #0F172A;
+        }
+
+        .btn-chunky:active:not(:disabled) {
+            transform: translate(2px, 2px);
+            box-shadow: 0 0 0 #0F172A !important;
+        }
+
+        .btn-chunky:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: translateY(2px);
+            box-shadow: 0 0 0 #0F172A;
+            filter: grayscale(100%);
+        }
+
+        /* Custom Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar { width: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 99px; border: 3px solid #FFFFFF; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
+        /* Chunky Slider */
+        input[type=range] { -webkit-appearance: none; background: transparent; }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 24px; width: 24px; border-radius: 50%;
+            background: #0F172A; border: 4px solid #FF8C42; margin-top: -8px; cursor: pointer;
+            box-shadow: 2px 2px 0px rgba(15,23,42,1);
+            transition: transform 0.1s;
+        }
+        input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.1); }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 8px; background: #E2E8F0; border: 2px solid #0F172A; border-radius: 99px;
+        }
+
+        /* --- WHEEL SPECIFIC --- */
+        .wheel-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            /* Removed fixed sizing here to let Tailwind classes handle it */
+        }
+
+        #wheelCanvas {
+            border: 4px solid #0F172A; /* Reduced from 6px for smaller size */
+            border-radius: 50%;
+            box-shadow: 8px 8px 0px rgba(15, 23, 42, 0.2);
+            transition: transform 0.1s;
+        }
+
+        .pointer {
+            width: 0;
+            height: 0;
+            border-left: 16px solid transparent; /* Reduced from 20px */
+            border-right: 16px solid transparent; /* Reduced from 20px */
+            border-top: 32px solid #0F172A; /* Reduced from 40px */
+            position: absolute;
+            top: 16px; /* Adjusted top offset */
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 20;
+            filter: drop-shadow(0px 4px 0px rgba(255,255,255,0.5));
+        }
+
+        /* Winner Modal */
+        .winner-modal {
+            background: rgba(15, 23, 42, 0.5);
+            backdrop-filter: blur(4px);
+            transition: opacity 0.3s;
+        }
+        .winner-card {
+            background: #FFFFFF;
+            border: 4px solid #0F172A;
+            box-shadow: 16px 16px 0px #0F172A;
+            transform: scale(0.9);
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .winner-modal.active .winner-card {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        /* Mobile Panel Transitions */
+        .hidden-panel-mobile { transform: translateY(100%); }
+        .hidden-panel-desktop { margin-left: -24rem; }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col items-center justify-center p-2 md:p-6 overflow-hidden">
+
+    <!-- MAIN FRAME -->
+    <div class="console-frame w-full h-full relative flex-col md:flex-row max-w-[1600px] mx-auto">
+        
+        <!-- SIDEBAR -->
+        <aside id="controls" class="w-full md:w-96 bg-white border-b-4 md:border-b-0 md:border-r-4 border-dark flex flex-col z-50 transition-all duration-300 shadow-xl md:shadow-none h-[40%] md:h-full relative shrink-0">
+            
+            <!-- Branding Header -->
+            <div class="p-6 border-b-4 border-dark bg-yellow-50 flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-heading text-dark tracking-wide leading-none drop-shadow-sm">
+                        SPIN<span class="text-blue">COMMAND</span>
+                    </h1>
+                    <div class="flex items-center gap-2 mt-2">
+                        <span class="px-2 py-0.5 bg-dark text-white text-[10px] font-bold rounded uppercase">English 1</span>
+                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Batam Edition</span>
+                    </div>
+                </div>
+                <button onclick="toggleControlPanel(true)" class="md:hidden p-2 bg-blue/10 text-blue border-2 border-dark rounded-lg shadow-hard-sm active:translate-y-1 active:shadow-none transition-all">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <!-- Controls Scroll Area -->
+            <div class="flex-1 p-6 overflow-y-auto custom-scrollbar space-y-6 bg-white relative">
+                
+                <!-- 1. BIG SPIN BUTTON -->
+                <button id="spinBtn" onclick="spin()" class="w-full btn-chunky bg-gradient-to-r from-pink to-orange text-white py-6 rounded-xl text-2xl tracking-widest flex items-center justify-center gap-3 hover:brightness-110 shadow-[0_6px_0_#0F172A] group">
+                    <i data-lucide="dices" class="w-8 h-8 group-hover:rotate-180 transition-transform duration-500"></i> SPIN
+                </button>
+
+                <!-- 2. Settings -->
+                <div class="space-y-4 p-4 bg-slate-50 border-2 border-slate-200 rounded-xl">
+                    <div class="flex justify-between items-end border-b-2 border-slate-200 pb-2 border-dashed">
+                        <label class="text-xs font-black text-slate-400 uppercase tracking-widest">Duration</label>
+                        <span id="durationValue" class="font-mono text-blue font-black text-lg">5s</span>
+                    </div>
+                    <div class="px-1">
+                        <input type="range" id="durationSlider" min="1" max="15" value="5" class="w-full">
+                    </div>
+                </div>
+
+                <!-- 3. Roster Input -->
+                <div class="space-y-3">
+                    <label class="text-xs font-black text-slate-400 uppercase tracking-widest flex justify-between items-center">
+                        <span>Add Player</span>
+                        <button onclick="toggleBatch()" class="text-blue hover:underline text-[10px]">Batch Edit</button>
+                    </label>
+                    
+                    <div class="flex gap-2">
+                        <input type="text" id="optionInput" placeholder="Name..." 
+                            class="flex-1 border-2 border-dark rounded-lg px-3 py-2 font-bold text-dark focus:outline-none focus:ring-2 focus:ring-blue/20 bg-white shadow-sm">
+                        <button id="addOptionBtn" onclick="addOption()" class="btn-chunky bg-green text-dark px-3 rounded-lg shadow-[0_2px_0_#0F172A]">
+                            <i data-lucide="plus" class="w-6 h-6"></i>
+                        </button>
+                    </div>
+
+                    <!-- Batch Textarea (Hidden by default) -->
+                    <div id="batchContainer" class="hidden animate-float">
+                        <textarea id="batchInput" class="w-full h-32 border-2 border-dark rounded-lg p-3 font-mono text-xs mb-2 resize-none" placeholder="Paste names here..."></textarea>
+                        <button onclick="saveBatch()" class="w-full btn-chunky bg-dark text-white py-2 rounded-lg text-xs">UPDATE LIST</button>
+                    </div>
+
+                    <!-- Tags List -->
+                    <div id="optionsList" class="flex flex-wrap gap-2 pt-2">
+                        <!-- Generated via JS -->
+                    </div>
+                </div>
+
+            </div>
+            
+            <!-- Sidebar Footer -->
+            <div class="p-4 border-t-4 border-dark bg-slate-50 flex justify-between items-center">
+                 <div class="flex items-center gap-3">
+                     <button id="sound-toggle" onclick="toggleMute()" class="p-2 bg-white border-2 border-slate-200 rounded-lg text-slate-400 hover:text-dark hover:border-dark transition">
+                        <i id="muteIcon" data-lucide="volume-2" class="w-5 h-5"></i>
+                     </button>
+                     <button onclick="clearAll()" class="p-2 bg-white border-2 border-slate-200 rounded-lg text-slate-400 hover:text-red-500 hover:border-red-500 transition">
+                        <i data-lucide="trash-2" class="w-5 h-5"></i>
+                     </button>
+                 </div>
+                <div class="font-heading text-slate-400 text-lg">
+                    COUNT: <span id="count" class="text-dark font-bold">0</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN DISPLAY AREA -->
+        <main class="flex-1 relative bg-slate-50 overflow-hidden flex flex-col">
+            
+            <!-- Toolbar (Mobile Only) -->
+            <div class="md:hidden h-16 border-b-4 border-dark bg-white flex items-center px-4 justify-between shrink-0 z-20">
+                <button onclick="toggleControlPanel(false)" class="p-2 bg-white border-2 border-dark rounded-lg shadow-hard-sm text-slate-400 hover:text-dark">
+                    <i data-lucide="settings-2" class="w-5 h-5"></i>
+                </button>
+                <span class="font-heading text-xl text-dark">WHEEL</span>
+            </div>
+
+            <!-- Wheel Center -->
+            <div class="flex-1 relative flex items-center justify-center p-8 bg-[#F0F4F8]">
+                <!-- Decorative BG Blobs -->
+                <div class="absolute top-10 left-10 w-40 h-40 bg-pink/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="absolute bottom-10 right-10 w-60 h-60 bg-blue/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                <!-- MODIFIED: Added specific max-width and max-height constraints here -->
+                <div class="wheel-container w-full max-w-[600px] aspect-square relative">
+                    <!-- The Pointer -->
+                    <div class="pointer"></div>
+                    
+                    <!-- The Wheel -->
+                    <canvas id="wheelCanvas" width="800" height="800" class="w-full h-full"></canvas>
+
+                    <!-- Center Cap -->
+                    <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-white border-4 border-dark rounded-full shadow-hard-sm flex items-center justify-center z-10">
+                        <i data-lucide="star" class="w-8 h-8 text-orange fill-orange"></i>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- WINNER MODAL (Popup Style) -->
+        <div id="winner-modal" class="winner-modal fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
+            <div class="winner-card w-full max-w-md p-8 rounded-3xl text-center relative overflow-hidden">
+                <!-- Close Button -->
+                <button onclick="closeWinnerModal()" class="absolute top-4 right-4 text-slate-400 hover:text-dark">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+
+                <div class="mb-6 flex justify-center">
+                    <div class="w-24 h-24 bg-green/10 rounded-full flex items-center justify-center border-4 border-green text-green animate-bounce">
+                        <i data-lucide="trophy" class="w-12 h-12"></i>
+                    </div>
+                </div>
+                
+                <h2 class="text-sm font-black text-slate-400 uppercase tracking-widest mb-2">The Chosen One</h2>
+                <h1 id="modal-winner-text" class="text-4xl md:text-5xl font-heading text-dark tracking-wide mb-8 break-words drop-shadow-sm">
+                    PLAYER
+                </h1>
+                
+                <div class="grid grid-cols-2 gap-3 mt-8">
+                    <button onclick="removeWinner()" class="btn-chunky bg-white text-dark border-2 border-dark py-4 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-red-50 hover:text-red-500 hover:border-red-500 transition-colors">
+                        <i data-lucide="user-x" class="w-4 h-4"></i> REMOVE
+                    </button>
+                    <button onclick="closeWinnerModal()" class="btn-chunky bg-blue text-white py-4 rounded-xl text-sm font-bold flex items-center justify-center gap-2">
+                        <i data-lucide="check" class="w-4 h-4"></i> KEEP
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONSTANTS ---
+        const LS_KEY = 'wheelConsoleOptions';
+        const PALETTE = ['#FF6B95', '#FF8C42', '#00E676', '#2979FF']; // English 1 Palette
+
+        // --- STATE ---
+        let options = [];
+        let startAngle = 0;
+        let arc = 0;
+        let ctx;
+        let currentWinnerIndex = -1; // New: Track winner index
+        
+        // Animation
+        let isSpinning = false;
+        let spinAngleStart = 0;
+        let spinTimeTotal = 0;
+        let spinStartTime = 0;
+        let animationFrameId = null;
+
+        // Audio
+        let isMuted = false;
+        let audioInitialized = false;
+        let synth, winSynth;
+        let lastPlayedIndex = -1;
+
+        // --- DRAWING ---
+        function drawWheel() {
+            const canvas = document.getElementById("wheelCanvas");
+            if (!canvas.getContext) return;
+            ctx = canvas.getContext("2d");
+
+            // Clear
+            ctx.clearRect(0, 0, 800, 800);
+
+            const cx = 400;
+            const cy = 400;
+            const outsideRadius = 380;
+            const textRadius = 260;
+            
+            arc = Math.PI * 2 / options.length;
+
+            if (options.length === 0) {
+                // Empty State
+                ctx.beginPath();
+                ctx.arc(cx, cy, outsideRadius, 0, 2 * Math.PI);
+                ctx.fillStyle = "#F1F5F9"; // Slate-100
+                ctx.fill();
+                ctx.font = '700 30px "Fredoka"';
+                ctx.fillStyle = "#94A3B8"; // Slate-400
+                ctx.textAlign = "center";
+                ctx.fillText("ADD PLAYERS", cx, cy);
+                return;
+            }
+
+            for (let i = 0; i < options.length; i++) {
+                const angle = startAngle + i * arc;
+                
+                // Segment
+                ctx.fillStyle = PALETTE[i % PALETTE.length];
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.arc(cx, cy, outsideRadius, angle, angle + arc, false);
+                ctx.lineTo(cx, cy);
+                ctx.fill();
+
+                // Border between segments
+                ctx.lineWidth = 4;
+                ctx.strokeStyle = "#0F172A"; // Dark border
+                ctx.stroke();
+
+                // Text
+                ctx.save();
+                ctx.fillStyle = "#FFFFFF"; // White text
+                // Shadow for text legibility
+                ctx.shadowColor = "#0F172A";
+                ctx.shadowBlur = 0;
+                ctx.shadowOffsetX = 2;
+                ctx.shadowOffsetY = 2;
+
+                ctx.translate(cx + Math.cos(angle + arc / 2) * textRadius,
+                            cy + Math.sin(angle + arc / 2) * textRadius);
+                ctx.rotate(angle + arc / 2); // Rotate text radially
+
+                const text = options[i];
+                
+                // UPDATED: Larger font sizes to compensate for smaller display size
+                if (text.length > 15) ctx.font = '700 30px "Nunito"'; // Was 24
+                else if (text.length > 8) ctx.font = '700 40px "Nunito"'; // Was 32
+                else ctx.font = '700 60px "Nunito"'; // Was 48
+                
+                ctx.textAlign = "right"; 
+                // Draw text slightly offset from edge
+                ctx.fillText(text, 60, 10); 
+                ctx.restore();
+            }
+        }
+
+        // --- ANIMATION ---
+        function spin() {
+            if (isSpinning) return;
+            // if (options.length < 2) {
+            //     alert("Please add at least 2 players!");
+            //     return;
+            // }
+
+            isSpinning = true;
+            initAudio();
+
+            const durationSeconds = parseInt(document.getElementById("durationSlider").value);
+            
+            // Visual feedback
+            const btn = document.getElementById("spinBtn");
+            btn.disabled = true;
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-8 h-8 animate-spin"></i> SPINNING...`;
+            lucide.createIcons();
+
+            // Physics
+            spinAngleStart = Math.random() * 10 + 20; 
+            spinTimeTotal = durationSeconds * 1000;
+            spinStartTime = performance.now();
+            
+            animationFrameId = requestAnimationFrame(animateWheel);
+        }
+
+        function animateWheel(currentTime) {
+            const elapsedTime = currentTime - spinStartTime;
+
+            if (elapsedTime >= spinTimeTotal) {
+                finishSpin();
+                return;
+            }
+
+            const spinAngle = spinAngleStart - easeOut(elapsedTime, 0, spinAngleStart, spinTimeTotal);
+            startAngle += (spinAngle * Math.PI / 180);
+
+            drawWheel();
+            checkTicker();
+            
+            animationFrameId = requestAnimationFrame(animateWheel);
+        }
+
+        function finishSpin() {
+            cancelAnimationFrame(animationFrameId);
+            isSpinning = false;
+            
+            // Reset Button
+            const btn = document.getElementById("spinBtn");
+            btn.disabled = false;
+            btn.innerHTML = `<i data-lucide="dices" class="w-8 h-8"></i> SPIN`;
+            lucide.createIcons();
+
+            // Calc Winner
+            const degrees = startAngle * 180 / Math.PI + 90; // +90 because pointer is at top
+            const arcd = arc * 180 / Math.PI;
+            const index = Math.floor((360 - degrees % 360) / arcd);
+            
+            currentWinnerIndex = index; // Store winner index
+            const winner = options[index];
+
+            showWinner(winner);
+        }
+
+        function easeOut(t, b, c, d) {
+            const ts = (t /= d) * t;
+            const tc = ts * t;
+            return b + c * (tc + -3 * ts + 3 * t);
+        }
+
+        // --- AUDIO ---
+        function checkTicker() {
+            const degrees = startAngle * 180 / Math.PI + 90;
+            const arcd = arc * 180 / Math.PI;
+            const currentIndex = Math.floor((360 - degrees % 360) / arcd);
+
+            if (currentIndex !== lastPlayedIndex) {
+                playTick();
+                lastPlayedIndex = currentIndex;
+            }
+        }
+
+        async function initAudio() {
+            if (audioInitialized || isMuted) return;
+            await Tone.start();
+            
+            // Simple Clicker
+            synth = new Tone.MembraneSynth({
+                pitchDecay: 0.05, octaves: 2, oscillator: { type: "sine" },
+                envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.01 }, volume: -5
+            }).toDestination();
+
+            // Winner Synth
+            winSynth = new Tone.PolySynth(Tone.Synth, {
+                volume: -5, oscillator: { type: "triangle" },
+                envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 1 }
+            }).toDestination();
+
+            audioInitialized = true;
+        }
+
+        function playTick() { 
+            if (!isMuted && synth) {
+                try {
+                    synth.triggerAttackRelease("C2", "32n", Tone.now()); 
+                } catch(e) {
+                    // Ignore overlap errors
+                }
+            }
+        }
+
+        function playWinSound() {
+            if (!isMuted && winSynth) {
+                const now = Tone.now();
+                winSynth.triggerAttackRelease(["C4", "E4", "G4"], "8n", now);
+                winSynth.triggerAttackRelease(["E4", "G4", "C5"], "8n", now + 0.1);
+                winSynth.triggerAttackRelease(["G4", "C5", "E5"], "2n", now + 0.2);
+            }
+        }
+
+        function toggleMute() {
+            isMuted = !isMuted;
+            const icon = document.getElementById('muteIcon');
+            if(isMuted) {
+                icon.setAttribute('data-lucide', 'volume-x');
+                document.getElementById('sound-toggle').classList.add('text-red-500', 'border-red-500');
+            } else {
+                icon.setAttribute('data-lucide', 'volume-2');
+                document.getElementById('sound-toggle').classList.remove('text-red-500', 'border-red-500');
+                if(!audioInitialized) initAudio();
+            }
+            lucide.createIcons();
+        }
+
+        // --- UI & LOGIC ---
+        function showWinner(name) {
+            playWinSound();
+            
+            // Confetti
+            confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: PALETTE });
+            
+            document.getElementById('modal-winner-text').innerText = name;
+            const modal = document.getElementById('winner-modal');
+            modal.classList.remove('hidden');
+            // Small delay for transition
+            requestAnimationFrame(() => modal.classList.add('active'));
+        }
+
+        function closeWinnerModal() {
+            const modal = document.getElementById('winner-modal');
+            modal.classList.remove('active');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        function removeWinner() {
+            if (currentWinnerIndex > -1 && options[currentWinnerIndex]) {
+                // Remove the currently selected winner
+                options.splice(currentWinnerIndex, 1);
+                saveData();
+                renderList();
+                closeWinnerModal();
+                currentWinnerIndex = -1; // Reset
+            } else {
+                closeWinnerModal();
+            }
+        }
+
+        function renderList() {
+            const list = document.getElementById("optionsList");
+            list.innerHTML = "";
+            options.forEach((opt, i) => {
+                const color = PALETTE[i % PALETTE.length];
+                const tag = document.createElement("div");
+                tag.className = "flex items-center gap-2 bg-white border-2 border-dark rounded px-2 py-1 text-xs font-bold text-dark shadow-hard-sm select-none";
+                // Color dot
+                const dot = `<div class="w-3 h-3 rounded-full border-2 border-dark" style="background-color: ${color}"></div>`;
+                
+                tag.innerHTML = `${dot} ${opt} <button onclick="removeOption(${i})" class="ml-1 text-slate-300 hover:text-red-500"><i data-lucide="x" class="w-3 h-3"></i></button>`;
+                list.appendChild(tag);
+            });
+            document.getElementById("count").innerText = options.length;
+            lucide.createIcons();
+            drawWheel();
+        }
+
+        function addOption() {
+            const input = document.getElementById("optionInput");
+            const val = input.value.trim();
+            if (val) { options.push(val); input.value = ""; saveData(); renderList(); }
+        }
+
+        function removeOption(idx) { options.splice(idx, 1); saveData(); renderList(); }
+        function clearAll() { if (confirm("Clear all names?")) { options = []; saveData(); renderList(); } }
+
+        function toggleBatch() {
+            const container = document.getElementById("batchContainer");
+            const input = document.getElementById("batchInput");
+            if (container.classList.contains("hidden")) { 
+                input.value = options.join("\n"); 
+                container.classList.remove("hidden"); 
+            } else { 
+                container.classList.add("hidden"); 
+            }
+        }
+
+        function saveBatch() {
+            const input = document.getElementById("batchInput");
+            options = input.value.split(/[\n,]+/).map(l => l.trim()).filter(l => l.length > 0);
+            saveData(); toggleBatch(); renderList();
+        }
+
+        function saveData() { localStorage.setItem(LS_KEY, options.join('\n')); }
+        
+        function loadData() {
+            const raw = localStorage.getItem(LS_KEY);
+            options = raw ? raw.split(/[\n,]+/).map(l => l.trim()).filter(l => l.length > 0) : ["Alpha", "Bravo", "Charlie", "Delta", "Echo"];
+            renderList();
+        }
+
+        // Slider Listener
+        document.getElementById("durationSlider").addEventListener("input", (e) => {
+            document.getElementById("durationValue").innerText = e.target.value + "s";
+        });
+
+        document.getElementById("optionInput").addEventListener("keydown", (e) => { 
+            if (e.key === 'Enter') addOption(); 
+        });
+
+        // --- PANEL TOGGLE ---
+        function toggleControlPanel(forceHide = false) {
+            const controls = document.getElementById('controls');
+            const isCurrentlyHidden = window.innerWidth >= 768 
+                ? controls.classList.contains('hidden-panel-desktop')
+                : controls.classList.contains('hidden-panel-mobile');
+
+            if(forceHide || !isCurrentlyHidden) {
+                controls.classList.add('hidden-panel-mobile', 'hidden-panel-desktop');
+            } else {
+                controls.classList.remove('hidden-panel-mobile', 'hidden-panel-desktop');
+            }
+            setTimeout(() => {
+                window.dispatchEvent(new Event('resize'));
+                drawWheel(); // Redraw canvas on resize
+            }, 350);
+        }
+
+        window.addEventListener('resize', () => {
+             const controls = document.getElementById('controls');
+             if(window.innerWidth >= 768) {
+                 controls.classList.remove('hidden-panel-mobile'); 
+             } else {
+                 controls.classList.remove('hidden-panel-desktop');
+             }
+             drawWheel();
+        });
+
+        // Init
+        window.onload = () => {
+            loadData();
+            lucide.createIcons();
+            if(window.innerWidth < 768) toggleControlPanel(true);
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mystery Deck: English 1</title>
+    
+    <!-- External Libraries -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;700;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+    <!-- Theme Configuration -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        pink: '#FF6B95',
+                        orange: '#FF8C42',
+                        green: '#00E676',
+                        blue: '#2979FF',
+                        dark: '#0F172A', 
+                        surface: '#FFFFFF',
+                        border: '#cbd5e1',
+                    },
+                    fontFamily: {
+                        heading: ['Fredoka', 'sans-serif'], 
+                        body: ['Nunito', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    boxShadow: {
+                        'hard': '4px 4px 0px 0px #0F172A',
+                        'hard-sm': '2px 2px 0px 0px #0F172A',
+                        'hard-lg': '8px 8px 0px 0px #0F172A',
+                        'hard-xl': '12px 12px 0px 0px #0F172A',
+                    },
+                    animation: {
+                        'float': 'float 3s ease-in-out infinite',
+                        'card-jump': 'cardJump 0.6s infinite alternate cubic-bezier(0.2, 0.8, 0.2, 1)',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-5px)' },
+                        },
+                        cardJump: {
+                            '0%': { transform: 'translateY(0) rotate(-5deg)' },
+                            '100%': { transform: 'translateY(-20px) rotate(5deg)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { 
+            font-family: 'Nunito', sans-serif;
+            background-color: #F8FAFC;
+            /* Polished English 1 Graph Paper Pattern */
+            background-image: 
+                linear-gradient(#CBD5E1 1.5px, transparent 1.5px),
+                linear-gradient(90deg, #CBD5E1 1.5px, transparent 1.5px);
+            background-size: 30px 30px;
+            color: #0F172A;
+            -webkit-tap-highlight-color: transparent;
+            overflow: hidden; 
+        }
+
+        /* --- NEO-BRUTALISM UI --- */
+        .console-frame {
+            background: #FFFFFF;
+            border: 4px solid #0F172A;
+            border-radius: 1.5rem;
+            box-shadow: 12px 12px 0px rgba(15, 23, 42, 0.15);
+            display: flex;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            position: relative;
+            z-index: 1;
+        }
+
+        .btn-chunky {
+            transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+            transform: translateY(0);
+            position: relative;
+            border: 3px solid #0F172A;
+            box-shadow: 4px 4px 0 #0F172A;
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            cursor: pointer;
+        }
+        
+        .btn-chunky:hover:not(:disabled) {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 #0F172A;
+        }
+
+        .btn-chunky:active:not(:disabled) {
+            transform: translate(2px, 2px);
+            box-shadow: 0 0 0 #0F172A !important;
+        }
+
+        /* --- CARD 3D LOGIC & Z-AXIS --- */
+        .card-perspective {
+            perspective: 1000px;
+            z-index: 10; /* Base Layer */
+            position: relative;
+            /* Transition z-index so it doesn't snap down before moving back */
+            transition: z-index 0s linear 0.5s; 
+        }
+        
+        .card-perspective.active-parent {
+            z-index: 500; 
+            transition: z-index 0s linear 0s; 
+        }
+
+        .card-wrapper {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transform-origin: center center;
+            will-change: transform;
+        }
+
+        .card-flipper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform-style: preserve-3d;
+            cursor: pointer;
+        }
+
+        .card-flipper { transform: rotateY(0deg); }
+        .card-flipper.flipped { transform: rotateY(180deg); }
+
+        .card-face {
+            position: absolute;
+            inset: 0;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden; 
+            border: 3px solid #0F172A;
+            border-radius: 1rem;
+            box-shadow: 4px 4px 0px #0F172A;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background-color: #FFFFFF;
+        }
+
+        /* English 1 Pattern Side */
+        .face-pattern {
+            background-color: #2979FF;
+            /* Diagonal Stripes */
+            background-image: repeating-linear-gradient(
+                -45deg,
+                #2979FF,
+                #2979FF 10px,
+                #FF6B95 10px,
+                #FF6B95 20px
+            );
+            z-index: 2;
+            transform: rotateY(0deg); 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* White Circle Badge on back */
+        .face-pattern::after {
+            content: '?';
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
+            font-size: 2.5rem;
+            color: #0F172A;
+            background: white;
+            width: 3.5rem;
+            height: 3.5rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 3px solid #0F172A;
+            box-shadow: 2px 2px 0 #0F172A;
+        }
+
+        .face-content {
+            background-color: #FFFFFF;
+            transform: rotateY(180deg);
+            padding: 1rem;
+            z-index: 1;
+            /* Subtle Grid Background for content side too */
+            background-image: radial-gradient(#CBD5E1 1px, transparent 1px);
+            background-size: 10px 10px;
+        }
+
+        /* --- FOCUS MODE STYLES --- */
+        .card-wrapper.focused {
+            filter: drop-shadow(0 40px 60px rgba(15, 23, 42, 0.4));
+        }
+
+        .card-wrapper.focused .card-flipper {
+            transform: rotateY(180deg);
+        }
+
+        /* Sidebar Z-Index */
+        aside#controls {
+            z-index: 40; /* Normally above Main */
+        }
+        
+        /* Main Z-Index */
+        main#main-area {
+            z-index: 10;
+            transition: z-index 0s linear 0s;
+        }
+        
+        /* When card is active, Main jumps above Sidebar so card isn't clipped */
+        main#main-area.active-focus {
+            z-index: 50; 
+        }
+
+        /* Modal Overlay */
+        .modal-overlay {
+            background-color: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(4px);
+        }
+
+        /* Custom Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar { width: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 99px; border: 3px solid #FFFFFF; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
+        .hidden-panel-mobile { transform: translateY(100%); }
+        .hidden-panel-desktop { margin-left: -24rem; }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col items-center justify-center p-2 md:p-6 overflow-hidden">
+
+    <!-- MAIN FRAME -->
+    <div class="console-frame w-full h-full relative flex-col md:flex-row max-w-[1600px] mx-auto">
+        
+        <!-- SIDEBAR (Layer 40) -->
+        <aside id="controls" class="w-full md:w-96 bg-white border-b-4 md:border-b-0 md:border-r-4 border-dark flex flex-col transition-all duration-300 shadow-xl md:shadow-none h-[40%] md:h-full relative shrink-0">
+            
+            <div class="p-6 border-b-4 border-dark bg-yellow-50 flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-heading text-dark tracking-wide leading-none drop-shadow-sm">
+                        MYSTERY<span class="text-pink">DECK</span>
+                    </h1>
+                    <div class="flex items-center gap-2 mt-2">
+                        <span class="px-2 py-0.5 bg-dark text-white text-[10px] font-bold rounded uppercase">English 1</span>
+                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Batam Edition</span>
+                    </div>
+                </div>
+                <button onclick="toggleControlPanel(true)" class="md:hidden p-2 bg-blue/10 text-blue border-2 border-dark rounded-lg shadow-hard-sm">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <!-- INPUT AREA -->
+            <div class="flex-1 p-6 overflow-y-auto custom-scrollbar space-y-6 bg-white relative">
+                
+                <button id="shuffleBtn" onclick="openShuffleModal()" class="w-full btn-chunky bg-gradient-to-r from-blue to-green text-white py-6 rounded-xl text-2xl tracking-widest flex items-center justify-center gap-3 hover:brightness-110 shadow-[0_6px_0_#0F172A] group">
+                    <i data-lucide="shuffle" class="w-8 h-8"></i> SHUFFLE
+                </button>
+
+                <div class="space-y-3">
+                    <label class="text-xs font-black text-slate-400 uppercase tracking-widest flex justify-between items-center">
+                        <span>Add Cards</span>
+                        <button onclick="toggleBatch()" class="text-blue hover:underline text-[10px]">Batch Edit</button>
+                    </label>
+                    <div class="flex gap-2 relative z-10"> <!-- Ensure input is clickable -->
+                        <input type="text" id="optionInput" placeholder="Word/Name..." class="flex-1 border-2 border-dark rounded-lg px-3 py-2 font-bold text-dark focus:outline-none focus:ring-2 focus:ring-pink/50 bg-white shadow-sm transition-all" autocomplete="off">
+                        <button id="addOptionBtn" onclick="addOption()" class="btn-chunky bg-pink text-white px-3 rounded-lg shadow-[0_2px_0_#0F172A]">
+                            <i data-lucide="plus" class="w-6 h-6"></i>
+                        </button>
+                    </div>
+                    
+                    <div id="batchContainer" class="hidden animate-float">
+                        <textarea id="batchInput" class="w-full h-32 border-2 border-dark rounded-lg p-3 font-mono text-xs mb-2 resize-none focus:outline-none focus:ring-2 focus:ring-pink/50" placeholder="Paste names here..."></textarea>
+                        <button onclick="saveBatch()" class="w-full btn-chunky bg-dark text-white py-2 rounded-lg text-xs">UPDATE DECK</button>
+                    </div>
+                    
+                    <div id="optionsList" class="flex flex-wrap gap-2 pt-2"></div>
+                </div>
+            </div>
+            
+            <div class="p-4 border-t-4 border-dark bg-slate-50 flex justify-between items-center">
+                 <div class="flex items-center gap-3">
+                     <button id="sound-toggle" onclick="toggleMute()" class="p-2 bg-white border-2 border-slate-200 rounded-lg text-slate-400 hover:text-dark transition-colors">
+                        <i id="muteIcon" data-lucide="volume-2" class="w-5 h-5"></i>
+                     </button>
+                     <button onclick="clearAll()" class="p-2 bg-white border-2 border-slate-200 rounded-lg text-slate-400 hover:text-red-500 hover:border-red-500 transition-colors">
+                        <i data-lucide="trash-2" class="w-5 h-5"></i>
+                     </button>
+                 </div>
+                <div class="font-heading text-slate-400 text-lg">
+                    CARDS: <span id="count" class="text-dark font-bold">0</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN DISPLAY AREA (Layer 10 default, jumps to 50 on focus) -->
+        <main id="main-area" class="flex-1 relative bg-slate-50/50 overflow-hidden flex flex-col z-10">
+            <div class="md:hidden h-16 border-b-4 border-dark bg-white flex items-center px-4 justify-between shrink-0 z-50">
+                <button onclick="toggleControlPanel(false)" class="p-2 bg-white border-2 border-dark rounded-lg shadow-hard-sm">
+                    <i data-lucide="settings-2" class="w-5 h-5"></i>
+                </button>
+                <span class="font-heading text-xl text-dark">DECK</span>
+            </div>
+
+            <div id="deck-container" class="flex-1 overflow-y-auto p-8 relative z-10">
+                 <div id="card-grid" class="flex flex-wrap justify-center content-start gap-6 pb-20 pt-4 min-h-full"></div>
+            </div>
+
+            <!-- Focus Actions (Layer 110) -->
+            <div id="focus-actions" class="absolute bottom-8 left-0 right-0 z-[110] flex justify-center gap-4 transition-transform duration-300 translate-y-48">
+                <button onclick="discardCard()" class="btn-chunky bg-white text-dark border-3 border-dark py-4 px-8 rounded-xl text-lg font-bold flex items-center justify-center gap-2 hover:bg-red-50 hover:text-red-500 hover:border-red-500 transition-colors shadow-hard-lg">
+                    <i data-lucide="trash" class="w-6 h-6"></i> DISCARD
+                </button>
+                <button onclick="returnCard()" class="btn-chunky bg-blue text-white py-4 px-8 rounded-xl text-lg font-bold flex items-center justify-center gap-2 shadow-hard-lg">
+                    <i data-lucide="rotate-ccw" class="w-6 h-6"></i> RETURN
+                </button>
+            </div>
+
+            <!-- Focus Overlay (Layer 90) -->
+            <div id="focus-overlay" class="absolute inset-0 pointer-events-none opacity-0 z-[90]"></div>
+        </main>
+    </div>
+
+    <!-- SHUFFLE MODAL (Layer 200) -->
+    <div id="shuffle-modal" class="fixed inset-0 z-[200] flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="absolute inset-0 modal-overlay"></div>
+        <div class="relative bg-white border-4 border-dark rounded-2xl p-8 max-w-sm w-full shadow-hard-xl text-center transform scale-100">
+            <div class="flex justify-center mb-6">
+                <div class="w-24 h-32 border-4 border-dark rounded-xl bg-gradient-to-br from-blue to-pink animate-card-jump flex items-center justify-center shadow-hard relative overflow-hidden">
+                     <!-- Stripe pattern for modal card -->
+                     <div class="absolute inset-0 opacity-20" style="background-image: repeating-linear-gradient(-45deg, #000, #000 5px, transparent 5px, transparent 10px);"></div>
+                    <i data-lucide="refresh-cw" class="w-10 h-10 text-white stroke-[3]"></i>
+                </div>
+            </div>
+            <h2 class="font-heading text-3xl text-dark mb-2">SHUFFLING...</h2>
+            <div class="w-full bg-slate-200 h-4 rounded-full border-2 border-dark overflow-hidden">
+                <div class="h-full bg-green animate-pulse w-full"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const LS_KEY = 'deckConsoleOptions';
+        const COLORS = ['#FF6B95', '#FF8C42', '#00E676', '#2979FF'];
+
+        let options = [];
+        let focusedCardIndex = -1;
+        
+        let isMuted = false;
+        let audioInitialized = false;
+        let synth, flipSynth, shuffleSynth;
+
+        async function initAudio() {
+            if (audioInitialized || isMuted) return;
+            await Tone.start();
+            synth = new Tone.MembraneSynth({ volume: -10 }).toDestination();
+            flipSynth = new Tone.NoiseSynth({ volume: -15, envelope: { attack: 0.005, decay: 0.1, sustain: 0 } }).toDestination();
+            shuffleSynth = new Tone.MetalSynth({ volume: -20, frequency: 200, envelope: { decay: 0.1, release: 0.1 }, harmonicity: 5.1 }).toDestination();
+            audioInitialized = true;
+        }
+
+        function playSound(type) {
+            if (isMuted) return;
+            const now = Tone.now();
+            if (type === 'flip' && flipSynth) flipSynth.triggerAttackRelease("32n", now);
+            if (type === 'success' && synth) {
+                synth.triggerAttackRelease("C4", "16n", now);
+                synth.triggerAttackRelease("E4", "16n", now + 0.1);
+            }
+            if (type === 'shuffle' && shuffleSynth) shuffleSynth.triggerAttackRelease("32n", now);
+        }
+
+        function toggleMute() {
+            isMuted = !isMuted;
+            const icon = document.getElementById('muteIcon');
+            icon.setAttribute('data-lucide', isMuted ? 'volume-x' : 'volume-2');
+            document.getElementById('sound-toggle').classList.toggle('text-red-500', isMuted);
+            document.getElementById('sound-toggle').classList.toggle('border-red-500', isMuted);
+            if (!isMuted) initAudio();
+            lucide.createIcons();
+        }
+
+        function renderDeck() {
+            const grid = document.getElementById("card-grid");
+            grid.innerHTML = "";
+            if (options.length === 0) {
+                grid.innerHTML = `<div class="flex flex-col items-center justify-center mt-20 opacity-50 w-full"><i data-lucide="layers" class="w-16 h-16 mb-4"></i><span class="font-heading text-xl">Deck is Empty</span></div>`;
+                lucide.createIcons();
+                return;
+            }
+            options.forEach((opt, index) => {
+                const perspective = document.createElement("div");
+                perspective.id = `perspective-${index}`; // Add ID to parent
+                perspective.className = `card-perspective w-32 h-48 md:w-44 md:h-60`;
+                perspective.innerHTML = `
+                    <div id="wrapper-${index}" class="card-wrapper">
+                        <div id="flipper-${index}" class="card-flipper" onclick="activateCard(${index})">
+                            <div class="card-face face-pattern"></div>
+                            <div class="card-face face-content">
+                                <div class="font-heading font-bold text-dark ${opt.length > 10 ? 'text-lg' : 'text-3xl'} break-words text-center leading-tight">${opt}</div>
+                            </div>
+                        </div>
+                    </div>`;
+                grid.appendChild(perspective);
+            });
+            lucide.createIcons();
+        }
+
+        function activateCard(index) {
+            if (focusedCardIndex !== -1) return;
+            initAudio();
+            playSound('flip');
+            playSound('success');
+
+            focusedCardIndex = index;
+            const perspective = document.getElementById(`perspective-${index}`);
+            const wrapper = document.getElementById(`wrapper-${index}`);
+            const flipper = document.getElementById(`flipper-${index}`);
+            const container = document.getElementById('deck-container');
+            const mainArea = document.getElementById('main-area');
+
+            // --- Z-INDEX FIXES ---
+            // 1. Lift the card's container above siblings
+            perspective.classList.add('active-parent');
+            // 2. Lift the ENTIRE main area above the Sidebar so the card isn't clipped
+            mainArea.classList.add('active-focus');
+
+            // --- CENTER CALCULATION ---
+            const rect = wrapper.getBoundingClientRect();
+            const viewportCenterX = window.innerWidth / 2;
+            const viewportCenterY = window.innerHeight / 2;
+            
+            const cardCenterX = rect.left + rect.width / 2;
+            const cardCenterY = rect.top + rect.height / 2;
+
+            const deltaX = viewportCenterX - cardCenterX;
+            const deltaY = viewportCenterY - cardCenterY;
+
+            const scale = window.innerWidth < 768 ? 1.5 : 2.2;
+
+            container.style.overflow = 'hidden';
+            
+            wrapper.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(${scale})`;
+            wrapper.classList.add('focused');
+            flipper.classList.add('flipped');
+
+            document.getElementById('focus-overlay').style.pointerEvents = 'auto';
+            document.getElementById('focus-actions').classList.remove('translate-y-48');
+
+            confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 }, colors: COLORS, zIndex: 10000 });
+        }
+
+        function deactivateCard() {
+            if (focusedCardIndex === -1) return;
+            const perspective = document.getElementById(`perspective-${focusedCardIndex}`);
+            const wrapper = document.getElementById(`wrapper-${focusedCardIndex}`);
+            const mainArea = document.getElementById('main-area');
+            
+            if (wrapper) {
+                const flipper = wrapper.querySelector('.card-flipper');
+                wrapper.style.transform = 'translate(0px, 0px) scale(1)';
+                wrapper.classList.remove('focused');
+                flipper.classList.remove('flipped');
+                
+                // --- RESET Z-INDEX AFTER ANIMATION ---
+                setTimeout(() => { 
+                    if(perspective) perspective.classList.remove('active-parent');
+                    mainArea.classList.remove('active-focus'); // Drop main area back below Sidebar
+                    document.getElementById('deck-container').style.overflow = 'auto'; 
+                }, 500);
+            }
+            document.getElementById('focus-overlay').style.pointerEvents = 'none';
+            document.getElementById('focus-actions').classList.add('translate-y-48');
+            playSound('flip');
+            focusedCardIndex = -1;
+        }
+
+        function openShuffleModal() {
+            if (focusedCardIndex !== -1) deactivateCard();
+            initAudio();
+            const modal = document.getElementById('shuffle-modal');
+            modal.style.opacity = '1';
+            modal.style.pointerEvents = 'auto';
+            
+            // Shuffle sounds
+            const int = setInterval(() => playSound('shuffle'), 150);
+
+            setTimeout(() => {
+                clearInterval(int);
+                // Actual shuffle
+                for (let i = options.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [options[i], options[j]] = [options[j], options[i]];
+                }
+                renderDeck();
+                modal.style.opacity = '0';
+                modal.style.pointerEvents = 'none';
+                playSound('success');
+            }, 1800);
+        }
+
+        function discardCard() {
+            if (focusedCardIndex === -1) return;
+            const wrapper = document.getElementById(`wrapper-${focusedCardIndex}`);
+            // Animation for discard
+            wrapper.style.transform += ' translateY(100px) rotate(20deg) scale(0.5)';
+            wrapper.style.opacity = '0';
+            
+            // Delay data update
+            setTimeout(() => {
+                options.splice(focusedCardIndex, 1);
+                saveData();
+                
+                // Cleanup Z-index
+                const perspective = document.getElementById(`perspective-${focusedCardIndex}`);
+                if(perspective) perspective.classList.remove('active-parent');
+                document.getElementById('main-area').classList.remove('active-focus');
+
+                focusedCardIndex = -1;
+                document.getElementById('focus-actions').classList.add('translate-y-48');
+                document.getElementById('deck-container').style.overflow = 'auto';
+                document.getElementById('focus-overlay').style.pointerEvents = 'none';
+                renderDeck();
+                renderList();
+            }, 300);
+        }
+
+        function returnCard() { deactivateCard(); }
+
+        function renderList() {
+            const list = document.getElementById("optionsList");
+            list.innerHTML = "";
+            options.forEach((opt, i) => {
+                const tag = document.createElement("div");
+                tag.className = "flex items-center gap-2 bg-white border-2 border-dark rounded px-2 py-1 text-xs font-bold shadow-hard-sm hover:translate-y-[-2px] transition-transform";
+                tag.innerHTML = `${opt} <button onclick="removeOption(${i})" class="ml-1 text-slate-300 hover:text-red-500"><i data-lucide="x" class="w-3 h-3"></i></button>`;
+                list.appendChild(tag);
+            });
+            document.getElementById("count").innerText = options.length;
+            lucide.createIcons();
+        }
+
+        function addOption() {
+            const input = document.getElementById("optionInput");
+            if (input.value.trim()) { 
+                options.push(input.value.trim()); 
+                input.value = ""; 
+                saveData(); 
+                renderList(); 
+                renderDeck(); 
+                // Don't lose focus
+                input.focus();
+            }
+        }
+
+        function removeOption(idx) { options.splice(idx, 1); saveData(); renderList(); renderDeck(); }
+        function clearAll() { if (confirm("Clear deck?")) { options = []; saveData(); renderList(); renderDeck(); } }
+
+        function toggleBatch() {
+            const container = document.getElementById("batchContainer");
+            document.getElementById("batchInput").value = options.join("\n");
+            container.classList.toggle("hidden");
+        }
+
+        function saveBatch() {
+            options = document.getElementById("batchInput").value.split(/[\n,]+/).map(l => l.trim()).filter(l => l.length > 0);
+            saveData(); toggleBatch(); renderList(); renderDeck();
+        }
+
+        function saveData() { localStorage.setItem(LS_KEY, options.join('\n')); }
+        function loadData() {
+            const raw = localStorage.getItem(LS_KEY);
+            options = raw ? raw.split('\n').filter(l => l.length > 0) : ["Apple", "Banana", "Orange", "Elephant", "Tiger", "Lion"];
+            renderList(); renderDeck();
+        }
+
+        function toggleControlPanel(forceHide = false) {
+            const controls = document.getElementById('controls');
+            controls.classList.toggle('hidden-panel-mobile', forceHide);
+            controls.classList.toggle('hidden-panel-desktop', forceHide);
+        }
+
+        // Corrected Event Listener to fix input bug
+        document.getElementById("optionInput").addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') addOption();
+        });
+        
+        window.onload = loadData;
+    </script>
+</body>
+</html>
