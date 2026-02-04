@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Connect Four - English 1 Batam</title>
 
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -50,6 +50,8 @@
                 radial-gradient(#cbd5e1 2px, transparent 2px);
             background-size: 32px 32px;
             transition: background-color 0.3s ease;
+            height: 100vh; /* Force height to viewport */
+            overflow: hidden; /* Prevent scrolling */
         }
 
         .dark body {
@@ -58,48 +60,36 @@
                 radial-gradient(#1e293b 2px, transparent 2px);
         }
 
+        /* --- SCALING LOGIC FOR CHROMEBOOK/LAPTOPS --- */
+        /* If the screen is short (like a Chromebook), scale everything down */
+        @media (max-height: 800px) {
+            #game-root {
+                transform: scale(0.85); /* Zoom out to 85% */
+                transform-origin: top center;
+            }
+            header {
+                height: 3.5rem !important; /* Smaller header */
+            }
+            .header-content {
+                height: 3.5rem !important;
+            }
+        }
+
         /* Gravity Animation */
         @keyframes pieceDrop {
-            0% {
-                transform: translateY(var(--start-y));
-                opacity: 1;
-            }
-
-            60% {
-                transform: translateY(0);
-            }
-
-            75% {
-                transform: translateY(-15px);
-            }
-
-            100% {
-                transform: translateY(0);
-                opacity: 1;
-            }
+            0% { transform: translateY(var(--start-y)); opacity: 1; }
+            60% { transform: translateY(0); }
+            75% { transform: translateY(-15px); }
+            100% { transform: translateY(0); opacity: 1; }
         }
 
         /* Board Impact Shake */
         @keyframes boardShake {
-            0% {
-                transform: translateY(0) rotate(0);
-            }
-
-            25% {
-                transform: translateY(3px) rotate(-0.5deg);
-            }
-
-            50% {
-                transform: translateY(-2px) rotate(0.5deg);
-            }
-
-            75% {
-                transform: translateY(1px) rotate(0);
-            }
-
-            100% {
-                transform: translateY(0) rotate(0);
-            }
+            0% { transform: translateY(0) rotate(0); }
+            25% { transform: translateY(3px) rotate(-0.5deg); }
+            50% { transform: translateY(-2px) rotate(0.5deg); }
+            75% { transform: translateY(1px) rotate(0); }
+            100% { transform: translateY(0) rotate(0); }
         }
 
         .shake-anim {
@@ -119,13 +109,11 @@
             z-index: 10;
         }
 
-        .piece.bg-pink {
-            background: radial-gradient(circle at 35% 35%, #FFABCD, #FF6B95);
-        }
-
-        .piece.bg-green {
-            background: radial-gradient(circle at 35% 35%, #88FFBC, #00E676);
-        }
+        /* Color Variants */
+        .piece.bg-pink { background: radial-gradient(circle at 35% 35%, #FFABCD, #FF6B95); }
+        .piece.bg-green { background: radial-gradient(circle at 35% 35%, #88FFBC, #00E676); }
+        .piece.bg-orange { background: radial-gradient(circle at 35% 35%, #FFD1A3, #FF8C42); }
+        .piece.bg-blue { background: radial-gradient(circle at 35% 35%, #82B1FF, #2979FF); }
 
         .piece-drop-anim {
             animation: pieceDrop 0.5s ease-in forwards;
@@ -137,21 +125,12 @@
             inset: -2px;
             z-index: 20;
             pointer-events: none;
-            /* Creates the blue board overlay with holes */
             background: radial-gradient(circle at center, transparent 66%, #2979FF 67%);
-            /* Inner shadow for depth */
             box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2);
         }
 
         .dark .hole-mask {
             background: radial-gradient(circle at center, transparent 66%, #1e293b 67%);
-        }
-
-        /* Highlight Selection Column */
-        .col-hover-guide {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 999px;
-            transition: all 0.2s;
         }
 
         .win-highlight {
@@ -162,15 +141,8 @@
         }
 
         @keyframes winPulse {
-
-            0%,
-            100% {
-                transform: scale(1);
-            }
-
-            50% {
-                transform: scale(1.1);
-            }
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
         }
 
         .btn-chunky {
@@ -187,66 +159,72 @@
             box-shadow: 2px 2px 0px 0px rgba(30, 41, 59, 1);
         }
 
-        /* Board Glare */
         .board-glare {
             background: linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, transparent 40%);
             pointer-events: none;
         }
+        
+        select {
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 1rem center;
+            background-size: 1.2em;
+        }
     </style>
 </head>
 
-<body class="min-h-screen font-body text-dark dark:text-white flex flex-col overflow-hidden"
+<body class="min-h-screen font-body text-dark dark:text-white flex flex-col"
     onkeydown="Game.handleKey(event)">
 
-    <header class="bg-white dark:bg-slate-800 border-b-4 border-dark dark:border-slate-700 relative z-50">
-        <div class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 bg-pink rounded-xl border-4 border-dark shadow-hard flex items-center justify-center text-white cursor-pointer hover:rotate-6 transition-transform"
-                    onclick="SoundEngine.playClick()">
-                    <i data-lucide="grid-3x3" class="w-7 h-7"></i>
+    <header class="bg-white dark:bg-slate-800 border-b-4 border-dark dark:border-slate-700 relative z-50 transition-all">
+        <div class="max-w-7xl mx-auto px-4 h-20 header-content flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 md:w-12 md:h-12 bg-pink rounded-xl border-4 border-dark shadow-hard flex items-center justify-center text-white cursor-pointer hover:rotate-6 transition-transform"
+                    onclick="SoundEngine.playClick(); document.getElementById('setup-modal').style.display = 'flex';">
+                    <i data-lucide="settings" class="w-6 h-6 md:w-7 md:h-7"></i>
                 </div>
                 <div>
-                    <h1 class="font-heading text-2xl font-bold tracking-tight">Connect Four</h1>
-                    <p class="text-xs font-bold opacity-50 uppercase tracking-widest hidden sm:block">English 1 Batam
+                    <h1 class="font-heading text-xl md:text-2xl font-bold tracking-tight leading-none">Connect Four</h1>
+                    <p class="text-[0.6rem] md:text-xs font-bold opacity-50 uppercase tracking-widest hidden sm:block">English 1 Batam
                     </p>
                 </div>
             </div>
 
-            <div class="flex gap-3">
-                <div
-                    class="hidden lg:flex items-center gap-2 mr-4 text-sm font-bold opacity-50 bg-chalk dark:bg-slate-700 px-3 py-1 rounded-lg border-2 border-dark dark:border-slate-500">
-                    <span class="border border-dark/30 rounded px-1.5 py-0.5">←</span>
-                    <span class="border border-dark/30 rounded px-1.5 py-0.5">→</span>
-                    <span>MOVE</span>
-                    <span class="border border-dark/30 rounded px-1.5 py-0.5 ml-2">SPACE</span>
-                    <span>DROP</span>
-                </div>
+            <div class="flex gap-2 md:gap-3">
                 <button onclick="toggleTheme()"
                     class="w-10 h-10 rounded-xl bg-chalk dark:bg-slate-700 border-2 border-dark dark:border-slate-500 shadow-hard flex items-center justify-center hover:scale-105 transition-all">
                     <i data-lucide="moon" class="w-5 h-5 dark:hidden"></i>
                     <i data-lucide="sun" class="w-5 h-5 hidden dark:block text-orange"></i>
                 </button>
+                
+                <button onclick="Game.undoMove(); SoundEngine.playClick()"
+                    class="btn-chunky px-3 md:px-5 bg-orange text-white font-heading font-bold rounded-xl border-2 border-dark shadow-hard flex items-center gap-2 text-xs md:text-sm">
+                    <i data-lucide="undo-2" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">UNDO</span>
+                </button>
+
                 <button onclick="Game.resetBoard(); SoundEngine.playClick()"
-                    class="btn-chunky px-5 bg-blue text-white font-heading font-bold rounded-xl border-2 border-dark shadow-hard flex items-center gap-2 text-sm">
+                    class="btn-chunky px-3 md:px-5 bg-blue text-white font-heading font-bold rounded-xl border-2 border-dark shadow-hard flex items-center gap-2 text-xs md:text-sm">
                     <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
-                    <span>RESET</span>
+                    <span class="hidden sm:inline">RESET</span>
                 </button>
             </div>
         </div>
     </header>
 
-    <main class="flex-1 flex items-center justify-center p-4 relative">
+    <main id="game-root" class="flex-1 flex items-start pt-4 md:pt-8 justify-center overflow-visible">
 
-        <div class="w-full max-w-[1400px] grid lg:grid-cols-[300px_1fr_300px] gap-8 items-center justify-items-center">
+        <div class="w-full max-w-[1300px] grid lg:grid-cols-[250px_1fr_250px] gap-4 lg:gap-8 items-start justify-items-center">
 
             <div id="p1-card"
-                class="w-full bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border-4 border-dark dark:border-slate-500 shadow-hard-lg flex flex-col items-center gap-4 relative transition-all duration-300 transform hover:scale-105">
-                <div class="absolute -top-8 bg-pink p-4 rounded-2xl border-4 border-dark shadow-hard text-white">
-                    <i data-lucide="user" class="w-8 h-8"></i>
+                class="w-full max-w-[300px] lg:max-w-none bg-white dark:bg-slate-800 p-4 md:p-6 rounded-[2rem] border-4 border-dark dark:border-slate-500 shadow-hard-lg flex flex-col items-center gap-2 relative transition-all duration-300 transform mt-8 lg:mt-0">
+                <div id="p1-icon-container" class="absolute -top-6 bg-pink p-3 rounded-2xl border-4 border-dark shadow-hard text-white transition-colors">
+                    <i data-lucide="user" class="w-6 h-6"></i>
                 </div>
-                <h2 id="p1-name-display" class="font-heading text-2xl font-bold mt-4 text-center">Team Pink</h2>
-                <div class="text-8xl font-black text-pink drop-shadow-sm" id="p1-score">0</div>
-                <div class="w-full h-4 bg-gray-200 rounded-full mt-2 overflow-hidden border-2 border-dark">
+                <h2 id="p1-name-display" class="font-heading text-xl font-bold mt-4 text-center truncate w-full">Team 1</h2>
+                <div class="text-6xl md:text-7xl font-black text-pink drop-shadow-sm transition-colors leading-none" id="p1-score">0</div>
+                <div class="w-full h-3 bg-gray-200 rounded-full mt-1 overflow-hidden border-2 border-dark">
                     <div id="p1-turn-bar" class="h-full bg-pink w-0 transition-all duration-500"></div>
                 </div>
             </div>
@@ -254,63 +232,45 @@
             <div class="flex flex-col items-center relative z-10">
 
                 <div id="status-bubble"
-                    class="mb-6 px-12 py-3 bg-dark text-white font-heading text-xl font-bold rounded-full border-4 border-dark shadow-hard flex items-center gap-4">
-                    <div id="status-icon" class="w-4 h-4 rounded-full bg-pink animate-ping"></div>
+                    class="mb-4 px-8 py-2 bg-dark text-white font-heading text-lg font-bold rounded-full border-4 border-dark shadow-hard flex items-center gap-3">
+                    <div id="status-icon" class="w-3 h-3 rounded-full bg-pink animate-ping"></div>
                     <span id="status-text">WAITING...</span>
                 </div>
 
                 <div class="relative">
-                    <div
-                        class="absolute -bottom-8 -left-6 w-8 h-24 bg-blue-800 border-4 border-dark rounded-full -z-10 transform rotate-12">
-                    </div>
-                    <div
-                        class="absolute -bottom-8 -right-6 w-8 h-24 bg-blue-800 border-4 border-dark rounded-full -z-10 transform -rotate-12">
-                    </div>
+                    <div class="absolute -bottom-6 -left-4 w-6 h-20 bg-blue-800 border-4 border-dark rounded-full -z-10 transform rotate-12"></div>
+                    <div class="absolute -bottom-6 -right-4 w-6 h-20 bg-blue-800 border-4 border-dark rounded-full -z-10 transform -rotate-12"></div>
 
                     <div id="board-shell"
-                        class="relative p-3 bg-blue dark:bg-slate-800 rounded-[2rem] border-4 border-dark shadow-hard-xl transition-transform cursor-pointer">
+                        class="relative p-2 md:p-3 bg-blue dark:bg-slate-800 rounded-[1.5rem] border-4 border-dark shadow-hard-xl transition-transform cursor-pointer">
 
-                        <div class="absolute top-0 left-0 w-full h-1/3 board-glare rounded-t-[1.8rem] z-20"></div>
+                        <div class="absolute top-0 left-0 w-full h-1/3 board-glare rounded-t-[1.3rem] z-20"></div>
 
-                        <div class="grid grid-cols-7 gap-1 px-4 mb-2">
-                            <div class="col-indicator w-full h-4 rounded-full bg-transparent transition-colors duration-200"
-                                id="ind-0"></div>
-                            <div class="col-indicator w-full h-4 rounded-full bg-transparent transition-colors duration-200"
-                                id="ind-1"></div>
-                            <div class="col-indicator w-full h-4 rounded-full bg-transparent transition-colors duration-200"
-                                id="ind-2"></div>
-                            <div class="col-indicator w-full h-4 rounded-full bg-transparent transition-colors duration-200"
-                                id="ind-3"></div>
-                            <div class="col-indicator w-full h-4 rounded-full bg-transparent transition-colors duration-200"
-                                id="ind-4"></div>
-                            <div class="col-indicator w-full h-4 rounded-full bg-transparent transition-colors duration-200"
-                                id="ind-5"></div>
-                            <div class="col-indicator w-full h-4 rounded-full bg-transparent transition-colors duration-200"
-                                id="ind-6"></div>
+                        <div class="grid grid-cols-7 gap-1 px-3 mb-1">
+                            <div class="col-indicator w-full h-3 rounded-full bg-transparent transition-colors duration-200" id="ind-0"></div>
+                            <div class="col-indicator w-full h-3 rounded-full bg-transparent transition-colors duration-200" id="ind-1"></div>
+                            <div class="col-indicator w-full h-3 rounded-full bg-transparent transition-colors duration-200" id="ind-2"></div>
+                            <div class="col-indicator w-full h-3 rounded-full bg-transparent transition-colors duration-200" id="ind-3"></div>
+                            <div class="col-indicator w-full h-3 rounded-full bg-transparent transition-colors duration-200" id="ind-4"></div>
+                            <div class="col-indicator w-full h-3 rounded-full bg-transparent transition-colors duration-200" id="ind-5"></div>
+                            <div class="col-indicator w-full h-3 rounded-full bg-transparent transition-colors duration-200" id="ind-6"></div>
                         </div>
 
                         <div id="game-grid"
-                            class="grid grid-cols-7 gap-1 sm:gap-2 lg:gap-3 p-3 lg:p-4 bg-blue-700/50 dark:bg-slate-900/50 rounded-[1.5rem] border-4 border-dark/30">
-                        </div>
-
-                        <div
-                            class="absolute top-1/2 -left-2 w-4 h-4 rounded-full bg-white border-2 border-dark shadow-sm">
-                        </div>
-                        <div
-                            class="absolute top-1/2 -right-2 w-4 h-4 rounded-full bg-white border-2 border-dark shadow-sm">
+                            class="grid grid-cols-7 gap-1 sm:gap-2 p-2 bg-blue-700/50 dark:bg-slate-900/50 rounded-[1rem] border-4 border-dark/30">
                         </div>
                     </div>
                 </div>
             </div>
 
             <div id="p2-card"
-                class="w-full bg-white dark:bg-slate-800 p-8 rounded-[2.5rem] border-4 border-dark dark:border-slate-500 shadow-hard-lg flex flex-col items-center gap-4 relative transition-all duration-300 transform hover:scale-105 opacity-50 grayscale">
-                <div class="absolute -top-8 bg-green p-4 rounded-2xl border-4 border-dark shadow-hard text-white">
-                    <i data-lucide="user" class="w-8 h-8"></i>
+                class="w-full max-w-[300px] lg:max-w-none bg-white dark:bg-slate-800 p-4 md:p-6 rounded-[2rem] border-4 border-dark dark:border-slate-500 shadow-hard-lg flex flex-col items-center gap-2 relative transition-all duration-300 transform mt-4 lg:mt-0 opacity-50 grayscale">
+                <div id="p2-icon-container" class="absolute -top-6 bg-green p-3 rounded-2xl border-4 border-dark shadow-hard text-white transition-colors">
+                    <i data-lucide="user" class="w-6 h-6"></i>
                 </div>
-                <h2 id="p2-name-display" class="font-heading text-2xl font-bold mt-4 text-center">Team Green</h2>
-                <div class="text-8xl font-black text-green drop-shadow-sm" id="p2-score">0</div>
-                <div class="w-full h-4 bg-gray-200 rounded-full mt-2 overflow-hidden border-2 border-dark">
+                <h2 id="p2-name-display" class="font-heading text-xl font-bold mt-4 text-center truncate w-full">Team 2</h2>
+                <div class="text-6xl md:text-7xl font-black text-green drop-shadow-sm transition-colors leading-none" id="p2-score">0</div>
+                <div class="w-full h-3 bg-gray-200 rounded-full mt-1 overflow-hidden border-2 border-dark">
                     <div id="p2-turn-bar" class="h-full bg-green w-0 transition-all duration-500"></div>
                 </div>
             </div>
@@ -320,27 +280,43 @@
 
     <div id="setup-modal"
         class="fixed inset-0 bg-dark/95 backdrop-blur-md z-[100] flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-slate-800 w-full max-w-lg p-12 rounded-[3rem] border-4 border-dark shadow-hard-xl">
-            <div class="flex justify-center mb-8">
-                <div class="p-5 bg-orange rounded-3xl border-4 border-dark shadow-hard animate-bounce">
-                    <i data-lucide="gamepad-2" class="w-12 h-12 text-white"></i>
+        <div class="bg-white dark:bg-slate-800 w-full max-w-md p-8 rounded-[2.5rem] border-4 border-dark shadow-hard-xl max-h-[90vh] overflow-y-auto">
+            <h2 class="text-3xl font-heading font-bold text-center mb-6">Class Match</h2>
+            
+            <div class="space-y-4">
+                <div class="bg-chalk dark:bg-slate-900 p-4 rounded-2xl border-2 border-dark">
+                    <label class="font-heading font-bold text-dark dark:text-white text-sm ml-1 block mb-1">Team 1</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="input-p1" value="Team Pink" class="w-2/3 bg-white dark:bg-slate-800 border-2 border-dark rounded-xl p-2 font-bold outline-none">
+                        <div class="relative w-1/3">
+                            <select id="color-p1" class="w-full h-full bg-white dark:bg-slate-800 border-2 border-dark rounded-xl pl-2 font-bold text-sm outline-none">
+                                <option value="pink" selected>Pink</option>
+                                <option value="orange">Orange</option>
+                                <option value="green">Green</option>
+                                <option value="blue">Blue</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-chalk dark:bg-slate-900 p-4 rounded-2xl border-2 border-dark">
+                    <label class="font-heading font-bold text-dark dark:text-white text-sm ml-1 block mb-1">Team 2</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="input-p2" value="Team Green" class="w-2/3 bg-white dark:bg-slate-800 border-2 border-dark rounded-xl p-2 font-bold outline-none">
+                        <div class="relative w-1/3">
+                            <select id="color-p2" class="w-full h-full bg-white dark:bg-slate-800 border-2 border-dark rounded-xl pl-2 font-bold text-sm outline-none">
+                                <option value="pink">Pink</option>
+                                <option value="orange">Orange</option>
+                                <option value="green" selected>Green</option>
+                                <option value="blue">Blue</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <h2 class="text-5xl font-heading font-bold text-center mb-10">Class Match</h2>
-            <div class="space-y-8">
-                <div>
-                    <label class="font-heading font-bold text-pink text-2xl ml-2 block mb-3">Team 1 (Pink)</label>
-                    <input type="text" id="input-p1" value="Team Pink" onkeydown="if(event.key==='Enter') Game.init()"
-                        class="w-full bg-chalk dark:bg-slate-900 border-4 border-dark rounded-2xl p-5 font-bold text-2xl focus:ring-4 focus:ring-pink/30 outline-none transition-all">
-                </div>
-                <div>
-                    <label class="font-heading font-bold text-green text-2xl ml-2 block mb-3">Team 2 (Green)</label>
-                    <input type="text" id="input-p2" value="Team Green" onkeydown="if(event.key==='Enter') Game.init()"
-                        class="w-full bg-chalk dark:bg-slate-900 border-4 border-dark rounded-2xl p-5 font-bold text-2xl focus:ring-4 focus:ring-green/30 outline-none transition-all">
-                </div>
-            </div>
+
             <button onclick="Game.init(); SoundEngine.playClick()"
-                class="btn-chunky w-full mt-12 bg-blue text-white font-heading font-bold text-2xl py-6 rounded-2xl border-4 border-dark shadow-hard hover:bg-blue-600">
+                class="btn-chunky w-full mt-6 bg-blue text-white font-heading font-bold text-xl py-4 rounded-2xl border-4 border-dark shadow-hard hover:bg-blue-600">
                 START MATCH
             </button>
         </div>
@@ -349,26 +325,34 @@
     <div id="winner-modal"
         class="hidden fixed inset-0 bg-dark/95 backdrop-blur-xl z-[110] flex items-center justify-center p-4">
         <div
-            class="bg-white dark:bg-slate-800 w-full max-w-md p-12 rounded-[3.5rem] border-4 border-dark shadow-hard-xl text-center transform scale-100 transition-transform">
+            class="bg-white dark:bg-slate-800 w-full max-w-md p-10 rounded-[3rem] border-4 border-dark shadow-hard-xl text-center transform scale-90 md:scale-100">
             <div id="winner-crown"
-                class="w-32 h-32 mx-auto mb-8 bg-orange rounded-[2rem] border-4 border-dark shadow-hard flex items-center justify-center rotate-6">
-                <i data-lucide="trophy" class="w-16 h-16 text-white"></i>
+                class="w-24 h-24 mx-auto mb-6 bg-orange rounded-[1.5rem] border-4 border-dark shadow-hard flex items-center justify-center rotate-6">
+                <i data-lucide="trophy" class="w-12 h-12 text-white"></i>
             </div>
-            <h3 class="text-xl font-heading font-bold opacity-50 uppercase mb-2">WINNER</h3>
-            <h2 id="winner-name" class="text-5xl font-heading font-bold text-pink mb-12 leading-tight tracking-tight">
+            <h3 class="text-lg font-heading font-bold opacity-50 uppercase mb-1">WINNER</h3>
+            <h2 id="winner-name" class="text-4xl font-heading font-bold text-pink mb-8 leading-tight tracking-tight">
                 PLAYER</h2>
             <button onclick="Game.resetBoard(); SoundEngine.playClick()"
-                class="btn-chunky w-full bg-green text-white font-heading font-bold py-6 rounded-2xl border-4 border-dark shadow-hard text-3xl mb-4">
+                class="btn-chunky w-full bg-green text-white font-heading font-bold py-4 rounded-2xl border-4 border-dark shadow-hard text-2xl mb-4">
                 PLAY AGAIN
             </button>
             <button onclick="Game.closeWinnerModal(); SoundEngine.playClick()"
-                class="font-heading font-bold text-dark dark:text-white opacity-40 hover:opacity-100 transition-all uppercase tracking-widest text-sm">
+                class="font-heading font-bold text-dark dark:text-white opacity-40 hover:opacity-100 transition-all uppercase tracking-widest text-xs">
                 View Board
             </button>
         </div>
     </div>
 
     <script>
+        // Dictionary for color hex codes
+        const COLORS = {
+            pink: '#FF6B95',
+            orange: '#FF8C42',
+            green: '#00E676',
+            blue: '#2979FF'
+        };
+
         const SoundEngine = {
             ctx: null,
             init() { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); },
@@ -403,9 +387,11 @@
             currentPlayer: 1,
             gameActive: false,
             scores: { 1: 0, 2: 0 },
-            names: { 1: 'Team Pink', 2: 'Team Green' },
+            names: { 1: 'Team 1', 2: 'Team 2' },
+            colors: { 1: 'pink', 2: 'green' },
             cells: [],
-            hoverCol: 3, // For keyboard nav
+            hoverCol: 3,
+            moveHistory: [],
 
             init() {
                 SoundEngine.init();
@@ -413,28 +399,47 @@
                 const n2 = document.getElementById('input-p2').value.trim();
                 if (n1) this.names[1] = n1;
                 if (n2) this.names[2] = n2;
+                
+                this.colors[1] = document.getElementById('color-p1').value;
+                this.colors[2] = document.getElementById('color-p2').value;
+
                 document.getElementById('p1-name-display').textContent = this.names[1];
                 document.getElementById('p2-name-display').textContent = this.names[2];
                 document.getElementById('setup-modal').style.display = 'none';
+                
+                this.applyThemeColors();
                 this.createHoles();
                 this.resetBoard();
+            },
+
+            applyThemeColors() {
+                const c1 = this.colors[1];
+                const c2 = this.colors[2];
+
+                const p1Card = document.getElementById('p1-icon-container');
+                p1Card.className = `absolute -top-6 bg-${c1} p-3 rounded-2xl border-4 border-dark shadow-hard text-white transition-colors`;
+                document.getElementById('p1-score').className = `text-6xl md:text-7xl font-black text-${c1} drop-shadow-sm transition-colors leading-none`;
+                document.getElementById('p1-turn-bar').className = `h-full bg-${c1} w-0 transition-all duration-500`;
+
+                const p2Card = document.getElementById('p2-icon-container');
+                p2Card.className = `absolute -top-6 bg-${c2} p-3 rounded-2xl border-4 border-dark shadow-hard text-white transition-colors`;
+                document.getElementById('p2-score').className = `text-6xl md:text-7xl font-black text-${c2} drop-shadow-sm transition-colors leading-none`;
+                document.getElementById('p2-turn-bar').className = `h-full bg-${c2} w-0 transition-all duration-500`;
             },
 
             createHoles() {
                 const grid = document.getElementById('game-grid');
                 grid.innerHTML = '';
                 this.cells = [];
-                // Grid wrapper allows us to use columns-7 properly
                 for (let r = 0; r < this.rows; r++) {
                     this.cells[r] = [];
                     for (let c = 0; c < this.cols; c++) {
                         const cell = document.createElement('div');
-                        // Responsive Sizing: Large on Desktop
-                        cell.className = "w-10 h-10 sm:w-14 sm:h-14 lg:w-20 lg:h-20 xl:w-24 xl:h-24 relative flex items-center justify-center";
+                        // Use responsive classes that are slightly smaller for better fit
+                        cell.className = "w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-16 lg:h-16 xl:w-20 xl:h-20 relative flex items-center justify-center";
                         cell.onclick = () => this.handleMove(c);
                         cell.onmouseenter = () => this.setHover(c);
 
-                        // Dark hole background
                         const back = document.createElement('div');
                         back.className = "absolute inset-0.5 bg-blue-900/60 dark:bg-slate-950/60 rounded-full shadow-[inset_0_4px_6px_rgba(0,0,0,0.6)]";
 
@@ -457,6 +462,7 @@
                 this.board = Array(this.rows).fill().map(() => Array(this.cols).fill(0));
                 this.currentPlayer = 1;
                 this.gameActive = true;
+                this.moveHistory = [];
                 this.cells.forEach(row => row.forEach(cell => cell.innerHTML = ''));
                 this.updateUI();
                 this.setHover(3);
@@ -466,10 +472,11 @@
             setHover(c) {
                 if (!this.gameActive) return;
                 this.hoverCol = c;
-                // Update top indicators
+                const activeColorHex = COLORS[this.colors[this.currentPlayer]];
+                
                 for (let i = 0; i < 7; i++) {
                     const el = document.getElementById(`ind-${i}`);
-                    el.style.backgroundColor = (i === c) ? (this.currentPlayer === 1 ? '#FF6B95' : '#00E676') : 'transparent';
+                    el.style.backgroundColor = (i === c) ? activeColorHex : 'transparent';
                     el.style.opacity = (i === c) ? '1' : '0';
                     el.style.transform = (i === c) ? 'translateY(5px)' : 'translateY(0)';
                 }
@@ -496,6 +503,8 @@
                 if (targetRow === -1) return;
 
                 SoundEngine.playClick();
+                this.moveHistory.push({ row: targetRow, col: c, player: this.currentPlayer });
+
                 this.board[targetRow][c] = this.currentPlayer;
                 this.dropPiece(targetRow, c, this.currentPlayer);
 
@@ -513,14 +522,30 @@
                 } else {
                     this.currentPlayer = this.currentPlayer === 1 ? 2 : 1;
                     this.updateUI();
-                    this.setHover(c); // Update indicator color
+                    this.setHover(c);
                 }
+            },
+
+            undoMove() {
+                if (this.moveHistory.length === 0 || !this.gameActive) return;
+                const lastMove = this.moveHistory.pop();
+                const { row, col, player } = lastMove;
+
+                this.board[row][col] = 0;
+                const cellLayer = this.cells[row][col];
+                if (cellLayer.lastChild) {
+                    cellLayer.removeChild(cellLayer.lastChild);
+                }
+
+                this.currentPlayer = player;
+                this.updateUI();
+                this.setHover(col);
             },
 
             dropPiece(r, c, player) {
                 const layer = this.cells[r][c];
                 const piece = document.createElement('div');
-                const colorClass = player === 1 ? 'bg-pink' : 'bg-green';
+                const colorClass = `bg-${this.colors[player]}`;
                 const startY = -(r + 1.5) * 120;
 
                 piece.style.setProperty('--start-y', `${startY}%`);
@@ -566,6 +591,9 @@
                 const icon = document.getElementById('status-icon');
                 const bar1 = document.getElementById('p1-turn-bar');
                 const bar2 = document.getElementById('p2-turn-bar');
+                
+                const c1 = this.colors[1];
+                const c2 = this.colors[2];
 
                 document.getElementById('p1-score').textContent = this.scores[1];
                 document.getElementById('p2-score').textContent = this.scores[2];
@@ -577,7 +605,7 @@
                     p2.classList.remove('shadow-hard-lg', '-translate-y-2');
 
                     status.textContent = `${this.names[1].toUpperCase()}'S TURN`;
-                    icon.className = "w-5 h-5 rounded-full bg-pink animate-ping";
+                    icon.className = `w-3 h-3 rounded-full bg-${c1} animate-ping`;
 
                     bar1.style.width = '100%';
                     bar2.style.width = '0%';
@@ -588,7 +616,7 @@
                     p1.classList.remove('shadow-hard-lg', '-translate-y-2');
 
                     status.textContent = `${this.names[2].toUpperCase()}'S TURN`;
-                    icon.className = "w-5 h-5 rounded-full bg-green animate-ping";
+                    icon.className = `w-3 h-3 rounded-full bg-${c2} animate-ping`;
 
                     bar1.style.width = '0%';
                     bar2.style.width = '100%';
@@ -599,12 +627,11 @@
                 if (hasWinner) {
                     this.scores[this.currentPlayer]++;
                     const name = this.names[this.currentPlayer].toUpperCase();
-                    const color = this.currentPlayer === 1 ? 'text-pink' : 'text-green';
-                    const bg = this.currentPlayer === 1 ? 'bg-pink' : 'bg-green';
-
+                    const winColor = this.colors[this.currentPlayer];
+                    
                     document.getElementById('winner-name').textContent = name;
-                    document.getElementById('winner-name').className = `text-5xl font-heading font-bold mb-12 leading-tight tracking-tight ${color}`;
-                    document.getElementById('winner-crown').className = `w-32 h-32 mx-auto mb-8 rounded-[2rem] border-4 border-dark shadow-hard flex items-center justify-center rotate-6 ${bg}`;
+                    document.getElementById('winner-name').className = `text-4xl font-heading font-bold mb-8 leading-tight tracking-tight text-${winColor}`;
+                    document.getElementById('winner-crown').className = `w-24 h-24 mx-auto mb-6 rounded-[1.5rem] border-4 border-dark shadow-hard flex items-center justify-center rotate-6 bg-${winColor}`;
 
                     document.getElementById('winner-modal').classList.remove('hidden');
                     lucide.createIcons();
@@ -618,7 +645,7 @@
 
         function toggleTheme() { document.documentElement.classList.toggle('dark'); }
         lucide.createIcons();
+        window.onload = () => {}
     </script>
 </body>
-
 </html>
