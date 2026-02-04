@@ -43,7 +43,7 @@
     </script>
 
     <style>
-        /* --- SCREEN STYLES (The Fun Stuff) --- */
+        /* --- SCREEN STYLES --- */
         body {
             background-color: #f8fafc;
             background-image: 
@@ -65,29 +65,26 @@
             min-height: 50px;
         }
 
-        /* --- PRINT STYLES (The Professional Stuff) --- */
+        /* --- PRINT STYLES --- */
         @media print {
             @page { 
                 margin: 0.75cm; 
                 size: A4 portrait;
             }
             
-            /* Reset Page */
             body { 
                 background: white !important; 
                 color: black !important;
-                font-family: 'Times New Roman', serif; /* Or keep Nunito if preferred, but serif is readable */
+                font-family: 'Times New Roman', serif;
                 -webkit-print-color-adjust: exact; 
                 padding: 0 !important;
                 font-size: 11pt;
             }
 
-            /* Hide UI Elements */
-            .no-print, header .lucide-save, #saveStatus, #resetBtn, button { 
+            .no-print, header .lucide-save, #saveStatus, button { 
                 display: none !important; 
             }
 
-            /* Main Container Reset */
             main { 
                 border: none !important; 
                 box-shadow: none !important; 
@@ -97,24 +94,21 @@
                 padding: 0 !important;
             }
 
-            /* Inputs & Textareas */
             input, textarea {
                 border: none !important;
-                border-bottom: 1px solid #ccc !important; /* Writing line guide */
+                border-bottom: 1px solid #ccc !important;
                 background: transparent !important;
                 padding: 0px !important;
                 color: black !important;
                 font-weight: normal;
             }
             
-            /* If empty, give space for handwriting */
             textarea:placeholder-shown {
                 min-height: 100px !important;
                 border: 1px solid #ddd !important;
                 background-color: #fafafa !important;
             }
 
-            /* Table Styles */
             table {
                 width: 100%;
                 border-collapse: collapse;
@@ -132,12 +126,10 @@
                 padding: 4px !important;
                 vertical-align: top;
             }
-            /* Table Inputs in Print */
             td input, td textarea {
-                border: none !important; /* Remove line inside table cells */
+                border: none !important;
             }
 
-            /* Section Cards (Keep, Start, Avoid) */
             .grid-cols-1.md\:grid-cols-3 {
                 display: flex !important;
                 flex-direction: row !important;
@@ -149,13 +141,12 @@
                 border-radius: 8px !important;
                 box-shadow: none !important;
             }
-            .absolute.inset-0 { display: none !important; } /* Remove shadow blob */
+            .absolute.inset-0 { display: none !important; }
             .relative.bg-white {
                 border: none !important;
                 padding: 10px !important;
             }
             
-            /* Action Plan */
             #action_plan {
                 border: 1px solid black !important;
                 min-height: 150px !important;
@@ -163,12 +154,10 @@
                 border-radius: 8px;
             }
 
-            /* Typography Overrides */
             h1 { font-size: 18pt !important; color: black !important; margin-bottom: 5px !important; }
             h2, h3 { font-size: 14pt !important; color: black !important; margin-bottom: 5px !important; }
             label { font-weight: bold !important; color: #333 !important; }
             
-            /* Prevent Page Breaks inside critical elements */
             tr, .relative.group, .action-plan-container {
                 page-break-inside: avoid;
             }
@@ -177,14 +166,26 @@
 </head>
 <body class="text-dark dark:text-white p-4 md:p-10 font-nunito min-h-screen flex flex-col items-center">
 
-    <div class="fixed top-4 right-4 flex gap-3 z-50 no-print">
+    <input type="file" id="importFile" accept=".json" class="hidden" onchange="handleFileImport(this)">
+
+    <div class="fixed top-4 right-4 flex flex-wrap gap-2 z-50 no-print justify-end">
+        
+        <div class="flex gap-2 bg-white dark:bg-slate-800 p-1 rounded-xl border-3 border-dark shadow-hard mr-2">
+            <button onclick="exportData()" title="Export Data" class="bg-e1green text-dark px-3 py-2 rounded-lg border-2 border-dark hover:bg-e1green/80 transition-colors">
+                <i data-lucide="download" class="w-5 h-5"></i>
+            </button>
+            <button onclick="document.getElementById('importFile').click()" title="Import Data" class="bg-e1orange text-dark px-3 py-2 rounded-lg border-2 border-dark hover:bg-e1orange/80 transition-colors">
+                <i data-lucide="upload" class="w-5 h-5"></i>
+            </button>
+        </div>
+
         <button onclick="window.print()" class="bg-e1blue text-white px-4 py-2 rounded-xl border-3 border-dark shadow-hard hover:translate-y-1 hover:shadow-hard-sm transition-all font-fredoka font-bold flex items-center gap-2">
-            <i data-lucide="printer" class="w-5 h-5"></i> Print
+            <i data-lucide="printer" class="w-5 h-5"></i> <span class="hidden md:inline">Print</span>
         </button>
         <button id="resetBtn" class="bg-e1pink text-dark px-4 py-2 rounded-xl border-3 border-dark shadow-hard hover:translate-y-1 hover:shadow-hard-sm transition-all font-fredoka font-bold flex items-center gap-2">
-            <i data-lucide="trash-2" class="w-5 h-5"></i> Clear
+            <i data-lucide="trash-2" class="w-5 h-5"></i> <span class="hidden md:inline">Clear</span>
         </button>
-        <button onclick="document.documentElement.classList.toggle('dark')" class="bg-dark text-white dark:bg-e1orange dark:text-dark p-2 rounded-xl border-3 border-dark shadow-hard hover:translate-y-1 hover:shadow-hard-sm transition-all">
+        <button onclick="document.documentElement.classList.toggle('dark')" class="bg-dark text-white dark:bg-slate-700 dark:text-white p-2 rounded-xl border-3 border-dark shadow-hard hover:translate-y-1 hover:shadow-hard-sm transition-all">
             <i data-lucide="moon" class="w-6 h-6 dark:hidden"></i>
             <i data-lucide="sun" class="w-6 h-6 hidden dark:block"></i>
         </button>
@@ -362,21 +363,19 @@
                     if(input.tagName === 'TEXTAREA') autoExpand(input);
                     saveData();
                 });
-                // Initial expand if loading data
                 if(input.tagName === 'TEXTAREA') autoExpand(input);
             });
         }
 
         // --- 3. SAVE/LOAD SYSTEM ---
 
-        function saveData() {
-            // 1. Save Header & Footer Fields
+        function getDataObject() {
+            // Helper to build data object from current DOM
             const staticFields = {};
             ['teacher_name', 'observer_name', 'students_info', 'date_time', 'class_name', 'keep_doing', 'start_doing', 'avoid_doing', 'action_plan'].forEach(id => {
                 staticFields[id] = document.getElementById(id).value;
             });
 
-            // 2. Save Dynamic Table Rows
             const rows = [];
             document.querySelectorAll('#tableBody tr').forEach(tr => {
                 const rowData = {};
@@ -385,9 +384,13 @@
                 });
                 rows.push(rowData);
             });
+            
+            return { staticFields, rows };
+        }
 
-            const fullData = { staticFields, rows };
-            localStorage.setItem('obsFormV3', JSON.stringify(fullData)); // Updated key to v3
+        function saveData() {
+            const fullData = getDataObject();
+            localStorage.setItem('obsFormV3', JSON.stringify(fullData));
 
             // Visual Feedback
             statusSpan.innerText = "Saved";
@@ -416,13 +419,63 @@
                 addRow(); addRow(); addRow(); addRow(); addRow();
             }
             
-            // Trigger auto-expand on all textareas after load
             setTimeout(() => {
                 document.querySelectorAll('textarea').forEach(autoExpand);
             }, 100);
         }
 
-        // --- 4. INITIALIZATION ---
+        // --- 4. EXPORT / IMPORT LOGIC ---
+
+        function exportData() {
+            const data = localStorage.getItem('obsFormV3');
+            if (!data) { alert('No data to export!'); return; }
+            
+            // Create filename based on teacher/date if available
+            const teacher = document.getElementById('teacher_name').value || 'observation';
+            const date = new Date().toISOString().slice(0,10);
+            const filename = `${teacher.replace(/\s+/g, '_')}_${date}.json`;
+
+            const blob = new Blob([data], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function handleFileImport(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    // Simple Validation
+                    if (!data.staticFields || !data.rows) {
+                        throw new Error("Invalid file format. Missing fields.");
+                    }
+
+                    // Confirm overwrite
+                    if(!confirm("Importing will overwrite current data. Continue?")) {
+                        input.value = ''; // Reset input
+                        return;
+                    }
+
+                    // Save to local storage and reload
+                    localStorage.setItem('obsFormV3', JSON.stringify(data));
+                    location.reload();
+
+                } catch (err) {
+                    alert("Error importing file: " + err.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // --- 5. INITIALIZATION ---
 
         // Attach listeners to static fields
         ['teacher_name', 'observer_name', 'students_info', 'date_time', 'class_name', 'keep_doing', 'start_doing', 'avoid_doing', 'action_plan'].forEach(id => {
