@@ -31,7 +31,8 @@ const state = {
     currentTool: 'clock',
     clock: { is24Hour: false, isAnalog: false, animFrame: null },
     stopwatch: { startTime: 0, elapsed: 0, running: false, animFrame: null, laps: [] },
-    timer: { timeLeft: 300, initial: 300, running: false, interval: null, mode: 'calm' },
+    // UPDATE: Added lastDuration to remember user settings
+    timer: { timeLeft: 300, initial: 300, lastDuration: 300, running: false, interval: null, mode: 'calm' },
     calendar: { date: new Date(), marked: {}, selected: null },
     audio: { ctx: null, oscillatorPool: [] }
 };
@@ -440,11 +441,17 @@ const timer = {
     
     start() {
         const t = state.timer;
-        t.timeLeft = utils.parseTimeInputs('t-min', 't-sec');
+        const inputTime = utils.parseTimeInputs('t-min', 't-sec');
+        
+        t.timeLeft = inputTime;
         
         if (t.timeLeft <= 0) return;
         
-        t.initial = Math.max(t.initial, t.timeLeft);
+        // UPDATE: Remember this duration as the "Start" point
+        t.lastDuration = inputTime;
+        // UPDATE: Reset initial to current full time so progress bar is 100%
+        t.initial = t.timeLeft;
+        
         t.running = true;
         
         const els = this.cacheElements();
@@ -498,8 +505,12 @@ const timer = {
     reset() {
         timer.stop();
         
-        state.timer.timeLeft = 300;
-        utils.setTimeInputs('t-min', 't-sec', 300);
+        // UPDATE: Restore the last configured duration instead of hardcoded 300
+        const resetTime = state.timer.lastDuration || 300;
+        state.timer.timeLeft = resetTime;
+        state.timer.initial = resetTime;
+        
+        utils.setTimeInputs('t-min', 't-sec', resetTime);
         timer.updateInputs();
         
         const els = this.cacheElements();
