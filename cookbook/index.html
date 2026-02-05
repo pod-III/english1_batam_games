@@ -113,7 +113,7 @@
     </div>
 
     <script>
-        // --- BACKUP DATA (Used if fetch fails) ---
+        // --- BACKUP DATA (Used if all fetches fail) ---
         const BACKUP_RECIPES = [
             {
                 "id": "apple-crumble",
@@ -146,27 +146,34 @@
         // Global State
         let recipes = [];
 
-        // --- FETCH LOGIC ---
+        // --- SMART FETCH LOGIC ---
         async function initApp() {
-            const container = document.getElementById('app-container');
+            // We try multiple paths to ensure we find the file regardless of folder structure
+            const possiblePaths = [
+                './recipes.json',       // 1. Explicitly current directory (Best for subfolders)
+                'recipes.json',         // 2. Standard relative path
+                '/cookbook/recipes.json' // 3. Hardcoded subfolder path (Fallback)
+            ];
 
-            try {
-                // Try to find the file
-                const response = await fetch('recipes.json');
+            let loaded = false;
 
-                if (!response.ok) {
-                    throw new Error(`Server returned ${response.status}`);
+            for (const path of possiblePaths) {
+                try {
+                    const response = await fetch(path);
+                    if (response.ok) {
+                        recipes = await response.json();
+                        console.log(`System: Successfully loaded from ${path}`);
+                        loaded = true;
+                        break; // Stop loop if we found it
+                    }
+                } catch (e) {
+                    console.log(`System: Failed to load from ${path}... trying next.`);
                 }
+            }
 
-                recipes = await response.json();
-                console.log("System: Loaded from recipes.json");
-
-            } catch (e) {
-                // If 404 or Error, use Backup
-                console.warn("System: Fetch failed, switching to backup data.", e);
+            if (!loaded) {
+                console.warn("System: All fetch paths failed. Switching to BACKUP DATA.");
                 recipes = BACKUP_RECIPES;
-
-                // Show a small notification toast
                 showToast();
             }
 
@@ -174,17 +181,11 @@
         }
 
         function showToast() {
-            // Create a temporary notification that we are in "Backup Mode"
             const toast = document.createElement('div');
             toast.className = 'fixed bottom-4 right-4 bg-e1orange border-2 border-e1dark text-white p-3 rounded-xl shadow-neo font-fredoka text-sm flex items-center gap-2 z-50 animate-bounce';
-            toast.innerHTML = '<i data-lucide="alert-triangle"></i> Using Offline Data (Check recipes.json location)';
+            toast.innerHTML = '<i data-lucide="alert-triangle"></i> Using Offline Data (Could not find JSON file)';
             document.body.appendChild(toast);
-
-            // Remove after 5 seconds
-            setTimeout(() => {
-                toast.remove();
-            }, 5000);
-
+            setTimeout(() => toast.remove(), 5000);
             lucide.createIcons();
         }
 
@@ -198,14 +199,12 @@
             }
 
             const cardsHTML = recipes.map(r => {
-                // Dynamic border colors based on recipe color
                 let btnColor = '';
                 if (r.color === 'e1pink') btnColor = 'bg-e1pink hover:bg-pink-600';
                 if (r.color === 'e1orange') btnColor = 'bg-e1orange hover:bg-orange-600';
                 if (r.color === 'e1blue') btnColor = 'bg-e1blue hover:bg-blue-600';
                 if (r.color === 'e1green') btnColor = 'bg-e1green hover:bg-green-600';
 
-                // Safety check for meta
                 const meta1 = r.meta && r.meta[0] ? r.meta[0].value : '??';
 
                 return `
@@ -244,7 +243,6 @@
                     </div>
                 </div>
             `;
-
             lucide.createIcons();
         }
 
@@ -255,7 +253,6 @@
 
             const container = document.getElementById('app-container');
 
-            // 1. HEADER
             let metaHTML = (r.meta || []).map(m => `
                 <div class="bg-e1chalk border-2 border-e1dark rounded-xl p-3 text-center shadow-neo-sm">
                     <i data-lucide="${m.icon}" class="mx-auto w-6 h-6 text-${r.color} mb-1"></i>
@@ -264,7 +261,6 @@
                 </div>
             `).join('');
 
-            // 2. SIDEBAR
             let ingredientsHTML = (r.loadout || []).map(group => `
                 <div class="mb-4 last:mb-0">
                     <h3 class="font-fredoka text-lg ${group.groupColor} uppercase tracking-wider mb-2 border-b-2 border-slate-200">${group.groupName}</h3>
@@ -276,7 +272,6 @@
 
             let vocabHTML = (r.vocab || []).map(v => `<li><span class="${v.color} font-bold">${v.word}</span> ${v.def}</li>`).join('');
 
-            // 3. STEPS
             let stepsHTML = (r.steps || []).map(step => {
                 let noteClass = `bg-slate-50 border-slate-300`;
                 if (step.color === 'e1blue') noteClass = `bg-blue-50 border-e1blue`;
@@ -302,7 +297,6 @@
                 </div>`;
             }).join('');
 
-            // COMBINE VIEW
             container.innerHTML = `
                 <div class="animate-fade-in-up">
                     <button onclick="renderHome()" class="mb-6 flex items-center gap-2 font-bold text-slate-500 hover:text-e1dark transition-colors">
@@ -349,7 +343,6 @@
                 </div>
             `;
 
-            // Scroll to top
             window.scrollTo(0, 0);
             lucide.createIcons();
         }
