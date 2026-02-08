@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simon Memory Game - English 1 Batam</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --pink: #FF6B95;
+            --orange: #FF8C42;
+            --green: #00E676;
+            --blue: #2979FF;
+            --dark: #1e293b;
+            --chalk: #f8fafc;
+        }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: var(--chalk);
+            /* Graph paper grid style */
+            background-image: 
+                linear-gradient(rgba(30, 41, 59, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(30, 41, 59, 0.1) 1px, transparent 1px);
+            background-size: 40px 40px;
+            background-attachment: fixed;
+        }
+
+        h1, h2, h3, button {
+            font-family: 'Fredoka', sans-serif;
+        }
+
+        .neo-shadow {
+            box-shadow: 8px 8px 0px 0px rgba(30, 41, 59, 1);
+        }
+
+        .neo-shadow-sm {
+            box-shadow: 4px 4px 0px 0px rgba(30, 41, 59, 1);
+        }
+
+        .active-btn {
+            transform: translate(4px, 4px);
+            box-shadow: 0px 0px 0px 0px rgba(30, 41, 59, 1) !important;
+            filter: brightness(1.2) !important;
+        }
+
+        .flash {
+            filter: brightness(1.5) contrast(1.2);
+            transform: scale(0.97);
+        }
+
+        /* Pad colors */
+        .pad-pink { background-color: var(--pink); border-color: var(--dark); }
+        .pad-orange { background-color: var(--orange); border-color: var(--dark); }
+        .pad-green { background-color: var(--green); border-color: var(--dark); }
+        .pad-blue { background-color: var(--blue); border-color: var(--dark); }
+
+        .game-card {
+            max-width: 500px;
+            width: 95%;
+        }
+
+        /* Animation for wrong answer */
+        .shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <!-- Game Container -->
+    <div id="game-container" class="game-card bg-white border-4 border-slate-900 rounded-3xl p-6 sm:p-10 neo-shadow relative z-10 hidden">
+        <div class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-3xl font-bold text-slate-900" id="level-title">Level 1</h1>
+                <p class="text-slate-500 font-bold uppercase tracking-wider text-xs">Memory Challenge</p>
+            </div>
+            <div class="bg-slate-900 text-white px-5 py-2 rounded-xl border-2 border-slate-900 neo-shadow-sm flex flex-col items-center">
+                <span class="text-[10px] font-bold uppercase opacity-70">Score</span>
+                <span id="score" class="font-bold text-2xl leading-none">0</span>
+            </div>
+        </div>
+
+        <!-- The Simon Pad Grid -->
+        <div class="grid grid-cols-2 gap-4 sm:gap-8 aspect-square mb-8" id="pad-grid">
+            <button id="pink" class="pad-pink border-4 rounded-[2rem] neo-shadow transition-all duration-100 hover:-translate-y-1 active:active-btn h-full w-full"></button>
+            <button id="orange" class="pad-orange border-4 rounded-[2rem] neo-shadow transition-all duration-100 hover:-translate-y-1 active:active-btn h-full w-full"></button>
+            <button id="green" class="pad-green border-4 rounded-[2rem] neo-shadow transition-all duration-100 hover:-translate-y-1 active:active-btn h-full w-full"></button>
+            <button id="blue" class="pad-blue border-4 rounded-[2rem] neo-shadow transition-all duration-100 hover:-translate-y-1 active:active-btn h-full w-full"></button>
+        </div>
+
+        <div class="text-center italic text-slate-600 font-bold py-2 bg-slate-100 rounded-xl border-2 border-slate-900" id="status-text">
+            Watch the sequence...
+        </div>
+    </div>
+
+    <!-- Start Modal -->
+    <div id="modal-overlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50">
+        <div class="bg-white border-4 border-slate-900 rounded-[2.5rem] p-10 neo-shadow max-w-sm w-full mx-4 text-center">
+            <div class="inline-flex p-4 bg-blue-100 rounded-3xl border-2 border-slate-900 mb-6">
+                <i data-lucide="brain" class="w-10 h-10 text-slate-900"></i>
+            </div>
+            
+            <h2 id="modal-title" class="text-3xl font-bold text-slate-900 mb-2">Memory Master</h2>
+            <p id="modal-desc" class="text-slate-600 font-medium mb-8">Can you remember the pattern? Press the button when you're ready to start!</p>
+
+            <button id="start-btn" class="w-full bg-[#00E676] hover:bg-[#00d66c] text-slate-900 border-4 border-slate-900 rounded-2xl py-4 font-bold text-2xl neo-shadow-sm transition-all hover:-translate-y-1 active:active-btn">
+                PLAY NOW
+            </button>
+        </div>
+    </div>
+
+    <!-- Audio Synthesis -->
+    <script>
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const frequencies = {
+            pink: 415.30,   // Ab4
+            orange: 311.13, // Eb4
+            green: 247.94,  // B3
+            blue: 207.65    // Ab3
+        };
+
+        function playNote(color) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(frequencies[color], audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        function playGameOverSound() {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 1);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 1);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 1);
+        }
+    </script>
+
+    <script>
+        // Initialize Icons
+        lucide.createIcons();
+
+        // Game State
+        const buttonColors = ["pink", "orange", "green", "blue"];
+        let gameSequence = [];
+        let userClickedPattern = [];
+        let started = false;
+        let level = 0;
+
+        // DOM Elements
+        const modal = document.getElementById('modal-overlay');
+        const modalTitle = document.getElementById('modal-title');
+        const modalDesc = document.getElementById('modal-desc');
+        const startBtn = document.getElementById('start-btn');
+        const gameContainer = document.getElementById('game-container');
+        const levelTitle = document.getElementById('level-title');
+        const scoreDisplay = document.getElementById('score');
+        const statusText = document.getElementById('status-text');
+
+        // Event Listeners
+        startBtn.addEventListener('click', () => {
+            modal.classList.add('hidden');
+            gameContainer.classList.remove('hidden');
+            
+            if (!started) {
+                started = true;
+                nextSequence();
+            } else {
+                resetGame();
+                nextSequence();
+            }
+        });
+
+        document.querySelectorAll('#pink, #orange, #green, #blue').forEach(btn => {
+            btn.addEventListener('click', function() {
+                if (!started || statusText.innerText.includes("Watch")) return;
+                
+                const userChosenColor = this.id;
+                userClickedPattern.push(userChosenColor);
+                
+                animatePress(userChosenColor);
+                playNote(userChosenColor);
+                
+                checkAnswer(userClickedPattern.length - 1);
+            });
+        });
+
+        // Core Functions
+        function checkAnswer(currentLevel) {
+            if (gameSequence[currentLevel] === userClickedPattern[currentLevel]) {
+                if (userClickedPattern.length === gameSequence.length) {
+                    statusText.innerText = "Level Up! +1";
+                    setTimeout(function() {
+                        nextSequence();
+                    }, 1000);
+                }
+            } else {
+                handleGameOver();
+            }
+        }
+
+        function nextSequence() {
+            userClickedPattern = [];
+            level++;
+            levelTitle.innerText = "Level " + level;
+            scoreDisplay.innerText = level - 1;
+            statusText.innerText = "Watch carefully...";
+
+            const randomNumber = Math.floor(Math.random() * 4);
+            const randomChosenColor = buttonColors[randomNumber];
+            gameSequence.push(randomChosenColor);
+
+            // Play sequence
+            let i = 0;
+            const interval = setInterval(() => {
+                flashButton(gameSequence[i]);
+                playNote(gameSequence[i]);
+                i++;
+                if (i >= gameSequence.length) {
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        statusText.innerText = "Your turn! Repeat it.";
+                    }, 500);
+                }
+            }, 700 - (Math.min(level * 30, 400))); // Speed up slightly as levels go up
+        }
+
+        function flashButton(color) {
+            const btn = document.getElementById(color);
+            btn.classList.add("flash");
+            setTimeout(() => {
+                btn.classList.remove("flash");
+            }, 300);
+        }
+
+        function animatePress(currentColor) {
+            const btn = document.getElementById(currentColor);
+            btn.classList.add("active-btn");
+            setTimeout(function() {
+                btn.classList.remove("active-btn");
+            }, 100);
+        }
+
+        function handleGameOver() {
+            playGameOverSound();
+            gameContainer.classList.add("shake");
+            document.body.style.backgroundColor = "#fee2e2"; // Soft red
+            
+            setTimeout(() => {
+                gameContainer.classList.remove("shake");
+                document.body.style.backgroundColor = "var(--chalk)";
+                
+                // Show Result Modal
+                modalTitle.innerText = "Game Over!";
+                modalDesc.innerText = `You made it to Level ${level}. Your final score is ${level - 1}.`;
+                startBtn.innerText = "RESTART GAME";
+                modal.classList.remove('hidden');
+            }, 500);
+
+            started = false;
+        }
+
+        function resetGame() {
+            level = 0;
+            gameSequence = [];
+            started = true;
+        }
+    </script>
+</body>
+</html>
