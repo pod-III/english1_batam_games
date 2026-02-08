@@ -14,6 +14,10 @@
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
+    <!-- Quill.js for Rich Text Editing -->
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -60,16 +64,37 @@
             border-radius: 10px; 
         }
 
-        input, textarea, select {
+        input, select {
             border-width: 2px !important;
             border-color: #1e293b !important;
             box-shadow: 2px 2px 0px 0px rgba(30, 41, 59, 1);
             transition: all 0.1s ease;
         }
-        input:focus, textarea:focus, select:focus {
+        input:focus, select:focus {
             outline: none;
             transform: translate(-1px, -1px);
             box-shadow: 4px 4px 0px 0px rgba(30, 41, 59, 1);
+        }
+
+        /* Neo-Brutalist Quill Styling */
+        .ql-toolbar.ql-snow {
+            border: 2px solid #1e293b !important;
+            border-bottom: none !important;
+            border-radius: 12px 12px 0 0 !important;
+            background: #f1f5f9 !important;
+            padding: 8px !important;
+        }
+        .ql-container.ql-snow {
+            border: 2px solid #1e293b !important;
+            border-radius: 0 0 12px 12px !important;
+            box-shadow: 3px 3px 0px 0px rgba(30, 41, 59, 1);
+            font-family: 'Nunito', sans-serif !important;
+            font-size: 16px !important;
+            background: white !important;
+            min-height: 150px;
+        }
+        .ql-editor {
+            min-height: 150px;
         }
     </style>
 </head>
@@ -95,6 +120,11 @@
             <!-- Left: Controls & Book List -->
             <div class="lg:col-span-4 space-y-6">
                 
+                <!-- New Book Action -->
+                <button onclick="resetForm()" class="w-full bg-brand-yellow border-4 border-brand-dark rounded-2xl py-4 font-heading text-xl font-bold text-brand-dark shadow-hard hover:-translate-y-1 hover:shadow-hard-hover active:translate-y-1 active:shadow-none transition-all flex justify-center items-center gap-3">
+                    <i data-lucide="sparkles" class="w-6 h-6"></i> Add New Book
+                </button>
+
                 <!-- JSON Actions Card -->
                 <div class="bg-brand-blue border-4 border-brand-dark rounded-2xl p-6 shadow-hard text-white">
                     <h3 class="font-heading text-xl font-bold mb-4 flex items-center gap-2">
@@ -103,7 +133,7 @@
                     <div class="space-y-3">
                         <label class="block">
                             <span class="text-sm font-bold opacity-80">Import Existing File</span>
-                            <input type="file" id="importJson" accept=".json" class="mt-1 block w-full text-sm text-slate-200 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-2 file:border-brand-dark file:text-sm file:font-bold file:bg-brand-chalk file:text-brand-dark hover:file:bg-brand-green cursor-pointer">
+                            <input type="file" id="importJson" accept=".json" class="mt-1 block w-full text-sm text-slate-200 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-2 file:border-brand-dark file:text-sm file:font-bold file:bg-brand-chalk file:text-brand-dark hover:file:bg-brand-green cursor-pointer shadow-none border-none">
                         </label>
                         <button onclick="exportJson()" class="w-full bg-brand-green border-2 border-brand-dark rounded-xl py-3 font-heading font-bold text-brand-dark shadow-hard-sm hover:-translate-y-1 hover:shadow-hard active:translate-y-1 transition-all flex justify-center items-center gap-2">
                             <i data-lucide="download"></i> Download books.json
@@ -126,11 +156,13 @@
             <!-- Right: Input Form -->
             <div class="lg:col-span-8">
                 <div class="bg-white border-4 border-brand-dark rounded-2xl shadow-hard overflow-hidden">
-                    <div class="bg-brand-pink border-b-4 border-brand-dark p-6 flex justify-between items-center">
-                        <h2 class="font-heading text-2xl font-bold text-brand-dark flex items-center gap-2">
-                            <i data-lucide="plus-circle"></i> Add / Edit Book
+                    <div id="formHeader" class="bg-brand-pink border-b-4 border-brand-dark p-6 flex justify-between items-center transition-colors">
+                        <h2 id="formTitle" class="font-heading text-2xl font-bold text-brand-dark flex items-center gap-2">
+                            <i data-lucide="plus-circle"></i> Adding New Book
                         </h2>
-                        <button onclick="resetForm()" class="text-xs font-bold uppercase tracking-widest text-brand-dark/60 hover:text-brand-dark">Clear Form</button>
+                        <button onclick="resetForm()" class="text-xs font-bold uppercase tracking-widest text-brand-dark/60 hover:text-brand-dark flex items-center gap-1">
+                             <i data-lucide="rotate-ccw" class="w-3 h-3"></i> Reset Form
+                        </button>
                     </div>
 
                     <form id="bookForm" class="p-6 md:p-8 space-y-8" onsubmit="saveBook(event)">
@@ -165,14 +197,13 @@
                             <div class="space-y-2">
                                 <label class="font-bold text-sm">Lucide Icon Name</label>
                                 <input type="text" id="icon" required placeholder="e.g. graduation-cap" class="w-full px-4 py-3 rounded-xl font-bold">
-                                <p class="text-[10px] text-slate-500 font-bold uppercase">Refer to lucide.dev for names</p>
                             </div>
                         </div>
 
                         <!-- Synopsis -->
                         <div class="space-y-2">
                             <label class="font-bold text-sm">Quick Synopsis (Card Text)</label>
-                            <textarea id="synopsis" required rows="3" class="w-full px-4 py-3 rounded-xl font-bold resize-none" placeholder="A short 2-3 sentence teaser for the card..."></textarea>
+                            <input type="text" id="synopsis" required class="w-full px-4 py-3 rounded-xl font-bold" placeholder="A short teaser for the library card...">
                         </div>
 
                         <!-- Chapters Dynamic Section -->
@@ -184,12 +215,12 @@
                                 </button>
                             </div>
                             
-                            <div id="chaptersContainer" class="space-y-4">
+                            <div id="chaptersContainer" class="space-y-6">
                                 <!-- Chapter rows added here -->
                             </div>
                         </div>
 
-                        <button type="submit" class="w-full bg-brand-green border-4 border-brand-dark rounded-2xl py-4 font-heading text-2xl font-bold shadow-hard hover:-translate-y-1 hover:shadow-hard-hover active:translate-y-1 active:shadow-none transition-all mt-8">
+                        <button id="submitBtn" type="submit" class="w-full bg-brand-green border-4 border-brand-dark rounded-2xl py-4 font-heading text-2xl font-bold shadow-hard hover:-translate-y-1 hover:shadow-hard-hover active:translate-y-1 active:shadow-none transition-all mt-8">
                             Save Book to Session
                         </button>
                     </form>
@@ -208,6 +239,7 @@
     <script>
         let sessionBooks = [];
         let editingId = null;
+        let quillInstances = {}; // Track Quill editors by row ID
 
         // Initialize Icons
         lucide.createIcons();
@@ -248,10 +280,13 @@
         // --- CHAPTER MANAGEMENT ---
         function addChapterRow(title = '', content = '') {
             const container = document.getElementById('chaptersContainer');
+            const rowId = 'chap-' + Date.now() + Math.floor(Math.random() * 1000);
+            
             const row = document.createElement('div');
-            row.className = "bg-brand-chalk border-2 border-brand-dark rounded-xl p-4 space-y-3 relative chapter-row";
+            row.id = rowId;
+            row.className = "bg-brand-chalk border-2 border-brand-dark rounded-xl p-4 space-y-4 relative chapter-row";
             row.innerHTML = `
-                <button type="button" onclick="this.parentElement.remove()" class="absolute top-2 right-2 text-red-500 hover:scale-110 transition-transform">
+                <button type="button" onclick="removeChapterRow('${rowId}')" class="absolute top-2 right-2 text-red-500 hover:scale-110 transition-transform z-10">
                     <i data-lucide="trash-2" class="w-5 h-5"></i>
                 </button>
                 <div class="space-y-2">
@@ -259,12 +294,37 @@
                     <input type="text" value="${title}" required placeholder="Chapter 1: The Basics" class="w-full px-3 py-2 rounded-lg font-bold chap-title bg-white">
                 </div>
                 <div class="space-y-2">
-                    <label class="text-xs font-black uppercase text-slate-400">Detailed Content (HTML OK)</label>
-                    <textarea required rows="4" class="w-full px-3 py-2 rounded-lg font-bold chap-content bg-white resize-none" placeholder="Explain the key takeaways here... Use <p> for paragraphs.">${content}</textarea>
+                    <label class="text-xs font-black uppercase text-slate-400">Detailed Content</label>
+                    <div id="editor-${rowId}" class="quill-editor"></div>
                 </div>
             `;
             container.appendChild(row);
+            
+            // Initialize Quill
+            const quill = new Quill(`#editor-${rowId}`, {
+                theme: 'snow',
+                modules: {
+                    toolbar: [
+                        [{ 'header': [1, 2, false] }],
+                        ['bold', 'italic', 'underline'],
+                        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                        ['clean']
+                    ]
+                }
+            });
+            
+            // Set initial content if editing
+            if (content) {
+                quill.root.innerHTML = content;
+            }
+
+            quillInstances[rowId] = quill;
             lucide.createIcons();
+        }
+
+        function removeChapterRow(id) {
+            delete quillInstances[id];
+            document.getElementById(id).remove();
         }
 
         // --- FORM LOGIC ---
@@ -272,10 +332,13 @@
             e.preventDefault();
 
             const chapterRows = document.querySelectorAll('.chapter-row');
-            const chapters = Array.from(chapterRows).map(row => ({
-                title: row.querySelector('.chap-title').value,
-                detailedContent: row.querySelector('.chap-content').value
-            }));
+            const chapters = Array.from(chapterRows).map(row => {
+                const quill = quillInstances[row.id];
+                return {
+                    title: row.querySelector('.chap-title').value,
+                    detailedContent: quill.root.innerHTML // Grab HTML from Quill
+                };
+            });
 
             if (chapters.length === 0) {
                 showMsg("Add at least one chapter!", true);
@@ -312,6 +375,17 @@
             if (!book) return;
 
             editingId = id;
+            
+            // UI Feedback
+            const formTitle = document.getElementById('formTitle');
+            const formHeader = document.getElementById('formHeader');
+            const submitBtn = document.getElementById('submitBtn');
+            
+            formTitle.innerHTML = `<i data-lucide="edit"></i> Editing: ${book.title}`;
+            formHeader.classList.replace('bg-brand-pink', 'bg-brand-blue');
+            submitBtn.innerText = "Update Book in Session";
+            submitBtn.classList.replace('bg-brand-green', 'bg-brand-orange');
+
             document.getElementById('title').value = book.title;
             document.getElementById('author').value = book.author;
             document.getElementById('category').value = book.category;
@@ -321,23 +395,40 @@
 
             const container = document.getElementById('chaptersContainer');
             container.innerHTML = '';
+            quillInstances = {}; // Clear previous instances
+            
             book.chapters.forEach(c => addChapterRow(c.title, c.detailedContent));
 
             window.scrollTo({ top: 0, behavior: 'smooth' });
+            lucide.createIcons();
         }
 
         function deleteBook(id) {
             if (!confirm("Remove this book from session?")) return;
             sessionBooks = sessionBooks.filter(b => b.id !== id);
+            if (editingId === id) resetForm();
             updateSessionList();
             showMsg("Book removed.");
         }
 
         function resetForm() {
+            editingId = null;
             document.getElementById('bookForm').reset();
             document.getElementById('chaptersContainer').innerHTML = '';
-            editingId = null;
-            addChapterRow(); // Add one empty row back
+            quillInstances = {};
+            
+            // Reset UI to "Add Mode"
+            const formTitle = document.getElementById('formTitle');
+            const formHeader = document.getElementById('formHeader');
+            const submitBtn = document.getElementById('submitBtn');
+            
+            formTitle.innerHTML = `<i data-lucide="plus-circle"></i> Adding New Book`;
+            formHeader.classList.replace('bg-brand-blue', 'bg-brand-pink');
+            submitBtn.innerText = "Save Book to Session";
+            submitBtn.classList.replace('bg-brand-orange', 'bg-brand-green');
+
+            addChapterRow(); 
+            lucide.createIcons();
         }
 
         function updateSessionList() {
@@ -351,7 +442,7 @@
             }
 
             list.innerHTML = sessionBooks.map(b => `
-                <div class="bg-white border-2 border-brand-dark rounded-xl p-3 shadow-hard-sm flex justify-between items-center group">
+                <div class="bg-white border-2 border-brand-dark rounded-xl p-3 shadow-hard-sm flex justify-between items-center group ${editingId === b.id ? 'border-brand-blue ring-2 ring-brand-blue/20' : ''}">
                     <div class="truncate">
                         <p class="font-bold truncate text-sm">${b.title}</p>
                         <p class="text-[10px] font-black text-brand-blue uppercase">${b.category}</p>
@@ -385,7 +476,9 @@
         }
 
         // Initialize with one chapter row
-        addChapterRow();
+        window.onload = () => {
+            addChapterRow();
+        };
     </script>
 </body>
 </html>
