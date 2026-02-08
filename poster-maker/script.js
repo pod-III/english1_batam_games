@@ -433,11 +433,6 @@ function addModule(type) {
     if (type === 'text') newMod = { id, type: 'text', size: 'medium', color: 'orange', title: 'Dialogue', data: { prompt: 'Q?', body: 'A.' } };
     if (type === 'vocab') newMod.data = 'Item 1\nItem 2';
 
-    modules.push(newMod);
-    renderEditorList();
-    renderPoster();
-    openEditor(id);
-
     // Auto Scroll List
     setTimeout(() => {
         const container = document.getElementById('module-list');
