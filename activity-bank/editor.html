@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activity Manager | English 1 Batam</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            pink: '#FF6B95',
+                            orange: '#FF8C42',
+                            green: '#00E676',
+                            blue: '#2979FF',
+                            dark: '#1e293b',
+                            chalk: '#f8fafc',
+                            yellow: '#FACC15',
+                        }
+                    },
+                    fontFamily: {
+                        heading: ['Fredoka', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #f8fafc;
+            background-image: 
+                linear-gradient(rgba(30, 41, 59, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(30, 41, 59, 0.05) 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+
+        .neo-border { border: 3px solid #1e293b; }
+        .neo-shadow { box-shadow: 4px 4px 0px 0px rgba(30, 41, 59, 1); }
+        .neo-shadow-sm { box-shadow: 2px 2px 0px 0px rgba(30, 41, 59, 1); }
+        
+        .neo-btn {
+            transition: all 0.1s ease;
+        }
+        .neo-btn:hover {
+            transform: translate(-1px, -1px);
+            box-shadow: 6px 6px 0px 0px rgba(30, 41, 59, 1);
+        }
+        .neo-btn:active {
+            transform: translate(2px, 2px);
+            box-shadow: 0px 0px 0px 0px rgba(30, 41, 59, 1);
+        }
+
+        input, select, textarea {
+            border: 2px solid #1e293b !important;
+            box-shadow: 2px 2px 0px 0px rgba(30, 41, 59, 1);
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            box-shadow: 4px 4px 0px 0px rgba(30, 41, 59, 1);
+            transform: translate(-1px, -1px);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { 
+            background: #1e293b; 
+            border-radius: 10px; 
+            border: 2px solid #f8fafc;
+        }
+    </style>
+</head>
+<body class="text-brand-dark font-body min-h-screen flex flex-col">
+
+    <!-- Navbar -->
+    <nav class="bg-brand-orange border-b-4 border-brand-dark p-4 sticky top-0 z-40 neo-shadow">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3 bg-brand-chalk border-2 border-brand-dark rounded-xl px-4 py-2 neo-shadow-sm">
+                <i data-lucide="zap" class="w-6 h-6 text-brand-orange"></i>
+                <h1 class="font-heading text-xl font-bold">Activity Bank Manager</h1>
+            </div>
+            <div class="flex gap-3">
+                 <button onclick="exportJson()" class="bg-brand-green border-2 border-brand-dark rounded-xl px-4 py-2 font-heading font-bold neo-shadow-sm neo-btn flex items-center gap-2">
+                    <i data-lucide="download" class="w-4 h-4"></i> Export activities.json
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-grow p-4 md:p-8">
+        <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <!-- Sidebar: Activity List -->
+            <div class="lg:col-span-4 space-y-6">
+                
+                <button onclick="resetForm()" class="w-full bg-brand-yellow border-4 border-brand-dark rounded-2xl py-4 font-heading text-xl font-bold neo-shadow neo-btn flex justify-center items-center gap-3">
+                    <i data-lucide="plus-circle" class="w-6 h-6"></i> Add New Activity
+                </button>
+
+                <div class="bg-brand-blue border-4 border-brand-dark rounded-2xl p-5 neo-shadow text-white">
+                    <p class="text-sm font-bold opacity-80 mb-3 uppercase tracking-widest">Workspace Actions</p>
+                    <input type="file" id="importFile" accept=".json" class="hidden">
+                    <button onclick="document.getElementById('importFile').click()" class="w-full bg-brand-chalk text-brand-dark border-2 border-brand-dark rounded-xl py-3 font-heading font-bold neo-shadow-sm neo-btn flex justify-center items-center gap-2">
+                        <i data-lucide="file-up" class="w-5 h-5"></i> Import JSON
+                    </button>
+                </div>
+
+                <div class="bg-white border-4 border-brand-dark rounded-2xl neo-shadow flex flex-col h-[550px]">
+                    <div class="p-4 border-b-4 border-brand-dark bg-brand-chalk font-heading font-bold flex justify-between items-center">
+                        <span>Stored Activities</span>
+                        <span id="activityCount" class="bg-brand-dark text-white px-2 py-1 rounded-lg text-xs">0</span>
+                    </div>
+                    <div id="activityList" class="flex-grow overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                        <!-- List items injected here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Panel: Form -->
+            <div class="lg:col-span-8">
+                <div class="bg-white border-4 border-brand-dark rounded-2xl neo-shadow overflow-hidden">
+                    <div id="formHeader" class="bg-brand-pink border-b-4 border-brand-dark p-6 flex justify-between items-center">
+                        <h2 id="formTitle" class="font-heading text-2xl font-bold flex items-center gap-3">
+                            <i data-lucide="pen-tool"></i> Adding New Activity
+                        </h2>
+                        <span id="idBadge" class="text-xs font-black bg-brand-dark/20 px-2 py-1 rounded">NEW</span>
+                    </div>
+
+                    <form id="activityForm" class="p-6 md:p-8 space-y-8" onsubmit="saveActivity(event)">
+                        
+                        <!-- Row 1 -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="space-y-2">
+                                <label class="font-bold text-sm uppercase">Activity Title</label>
+                                <input type="text" id="title" required placeholder="e.g. Back-to-Back Drawing" class="w-full px-4 py-3 rounded-xl font-bold">
+                            </div>
+                            <div class="space-y-2">
+                                <label class="font-bold text-sm uppercase">Icon Name (Lucide)</label>
+                                <input type="text" id="icon" required placeholder="e.g. headphones" class="w-full px-4 py-3 rounded-xl font-bold">
+                            </div>
+                        </div>
+
+                        <!-- Row 2 -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div class="space-y-2">
+                                <label class="font-bold text-sm uppercase">Type</label>
+                                <select id="type" class="w-full px-4 py-3 rounded-xl font-bold appearance-none bg-white">
+                                    <option value="Stirrer">Stirrer (High Energy)</option>
+                                    <option value="Settler">Settler (Focus)</option>
+                                </select>
+                            </div>
+                            <div class="space-y-2">
+                                <label class="font-bold text-sm uppercase">Difficulty</label>
+                                <select id="difficulty" class="w-full px-4 py-3 rounded-xl font-bold appearance-none bg-white">
+                                    <option value="Easy">Easy</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="Hard">Hard</option>
+                                </select>
+                            </div>
+                            <div class="space-y-2">
+                                <label class="font-bold text-sm uppercase">Time Estimate</label>
+                                <input type="text" id="time" required placeholder="e.g. 10-15 Min" class="w-full px-4 py-3 rounded-xl font-bold">
+                            </div>
+                        </div>
+
+                        <!-- Description -->
+                        <div class="space-y-2">
+                            <label class="font-bold text-sm uppercase">Short Description</label>
+                            <textarea id="desc" required rows="2" class="w-full px-4 py-3 rounded-xl font-bold resize-none" placeholder="A one-sentence summary for the bank..."></textarea>
+                        </div>
+
+                        <!-- Skills Tags -->
+                        <div class="space-y-2">
+                            <label class="font-bold text-sm uppercase">Skills (Comma separated)</label>
+                            <input type="text" id="skills" required placeholder="e.g. Listening, Speaking, Vocabulary" class="w-full px-4 py-3 rounded-xl font-bold">
+                        </div>
+
+                        <!-- Steps Breakdown -->
+                        <div class="space-y-4 border-t-4 border-brand-dark pt-6">
+                            <div class="flex justify-between items-center">
+                                <h3 class="font-heading text-xl font-bold uppercase tracking-tight">Step-by-Step Guide</h3>
+                                <button type="button" onclick="addStep()" class="bg-brand-blue text-white border-2 border-brand-dark rounded-xl px-4 py-2 font-heading font-bold neo-shadow-sm neo-btn flex items-center gap-2">
+                                    <i data-lucide="plus"></i> Add Step
+                                </button>
+                            </div>
+                            <div id="stepsContainer" class="space-y-3">
+                                <!-- Steps injected here -->
+                            </div>
+                        </div>
+
+                        <!-- Variation -->
+                        <div class="space-y-2 bg-brand-chalk border-2 border-brand-dark border-dashed rounded-2xl p-4">
+                            <label class="font-bold text-sm uppercase text-slate-500">Variation / Pro Tip</label>
+                            <textarea id="variation" rows="2" class="w-full px-4 py-3 rounded-xl font-bold resize-none bg-white" placeholder="Any optional changes for different levels?"></textarea>
+                        </div>
+
+                        <button type="submit" class="w-full bg-brand-green border-4 border-brand-dark rounded-2xl py-5 font-heading text-2xl font-bold neo-shadow neo-btn mt-8">
+                            Save to Activity Bank
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 transform translate-y-32 opacity-0 transition-all duration-300">
+        <div class="bg-brand-dark text-white neo-border rounded-2xl px-8 py-4 neo-shadow font-bold text-lg flex items-center gap-4">
+            <i data-lucide="check-circle" class="text-brand-green"></i>
+            <span id="toastMsg">Activity Saved!</span>
+        </div>
+    </div>
+
+    <script>
+        let activities = [];
+        let editingId = null;
+
+        // Initialize Icons
+        lucide.createIcons();
+
+        // --- FILE HANDLING ---
+        document.getElementById('importFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    activities = JSON.parse(event.target.result);
+                    updateActivityList();
+                    showToast("Data Imported Successfully!");
+                } catch (err) {
+                    showToast("Error: Invalid JSON format!", true);
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        function exportJson() {
+            if (activities.length === 0) return showToast("Nothing to export!", true);
+            const blob = new Blob([JSON.stringify(activities, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "activities.json";
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast("Exporting File...");
+        }
+
+        // --- LIST MANAGEMENT ---
+        function updateActivityList() {
+            const list = document.getElementById('activityList');
+            const count = document.getElementById('activityCount');
+            count.innerText = activities.length;
+
+            if (activities.length === 0) {
+                list.innerHTML = `<div class="text-center py-20 text-slate-400 font-bold italic">No activities found.</div>`;
+                return;
+            }
+
+            list.innerHTML = activities.map(act => `
+                <div class="bg-white border-2 border-brand-dark rounded-xl p-3 neo-shadow-sm flex justify-between items-center group ${editingId === act.id ? 'ring-4 ring-brand-blue/30 border-brand-blue' : ''}">
+                    <div class="truncate">
+                        <p class="font-bold text-sm truncate">${act.title}</p>
+                        <p class="text-[10px] font-black uppercase text-brand-blue">${act.type} • ${act.time}</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="editActivity(${act.id})" class="p-2 border-2 border-brand-dark rounded-lg hover:bg-brand-blue hover:text-white transition-colors">
+                            <i data-lucide="edit-3" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="deleteActivity(${act.id})" class="p-2 border-2 border-brand-dark rounded-lg hover:bg-brand-pink hover:text-white transition-colors">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        // --- FORM LOGIC ---
+        function addStep(val = '') {
+            const container = document.getElementById('stepsContainer');
+            const stepDiv = document.createElement('div');
+            stepDiv.className = "flex gap-3 group items-center";
+            stepDiv.innerHTML = `
+                <div class="flex-shrink-0 w-8 h-8 bg-brand-dark text-white rounded-lg flex items-center justify-center font-bold neo-shadow-sm">
+                    ${container.children.length + 1}
+                </div>
+                <input type="text" required value="${val}" class="flex-grow px-4 py-2 rounded-xl font-bold text-sm" placeholder="Actionable step description...">
+                <button type="button" onclick="this.parentElement.remove(); reorderSteps();" class="text-brand-pink opacity-0 group-hover:opacity-100 transition-opacity">
+                    <i data-lucide="x-circle" class="w-5 h-5"></i>
+                </button>
+            `;
+            container.appendChild(stepDiv);
+            lucide.createIcons();
+        }
+
+        function reorderSteps() {
+            const steps = document.querySelectorAll('#stepsContainer > div');
+            steps.forEach((s, i) => {
+                s.querySelector('div').innerText = i + 1;
+            });
+        }
+
+        function saveActivity(e) {
+            e.preventDefault();
+            
+            const stepInputs = document.querySelectorAll('#stepsContainer input');
+            const steps = Array.from(stepInputs).map(i => i.value);
+            
+            if (steps.length === 0) return showToast("Add at least one step!", true);
+
+            const data = {
+                id: editingId || Date.now(),
+                title: document.getElementById('title').value,
+                type: document.getElementById('type').value,
+                difficulty: document.getElementById('difficulty').value,
+                time: document.getElementById('time').value,
+                desc: document.getElementById('desc').value,
+                skills: document.getElementById('skills').value.split(',').map(s => s.trim()).filter(s => s),
+                icon: document.getElementById('icon').value,
+                steps: steps,
+                variation: document.getElementById('variation').value
+            };
+
+            if (editingId) {
+                const idx = activities.findIndex(a => a.id === editingId);
+                activities[idx] = data;
+                showToast("Activity Updated!");
+            } else {
+                activities.push(data);
+                showToast("New Activity Added!");
+            }
+
+            resetForm();
+            updateActivityList();
+        }
+
+        function editActivity(id) {
+            const act = activities.find(a => a.id === id);
+            if (!act) return;
+
+            editingId = id;
+            document.getElementById('formTitle').innerHTML = `<i data-lucide="edit"></i> Editing Activity`;
+            document.getElementById('formHeader').classList.replace('bg-brand-pink', 'bg-brand-blue');
+            document.getElementById('idBadge').innerText = "ID: " + id;
+
+            // Fill fields
+            document.getElementById('title').value = act.title;
+            document.getElementById('icon').value = act.icon;
+            document.getElementById('type').value = act.type;
+            document.getElementById('difficulty').value = act.difficulty;
+            document.getElementById('time').value = act.time;
+            document.getElementById('desc').value = act.desc;
+            document.getElementById('skills').value = act.skills.join(', ');
+            document.getElementById('variation').value = act.variation;
+
+            // Steps
+            const container = document.getElementById('stepsContainer');
+            container.innerHTML = '';
+            act.steps.forEach(s => addStep(s));
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            updateActivityList();
+            lucide.createIcons();
+        }
+
+        function deleteActivity(id) {
+            if (!confirm("Remove this activity forever?")) return;
+            activities = activities.filter(a => a.id !== id);
+            if (editingId === id) resetForm();
+            updateActivityList();
+            showToast("Activity Deleted.", true);
+        }
+
+        function resetForm() {
+            editingId = null;
+            document.getElementById('activityForm').reset();
+            document.getElementById('stepsContainer').innerHTML = '';
+            document.getElementById('formTitle').innerHTML = `<i data-lucide="pen-tool"></i> Adding New Activity`;
+            document.getElementById('formHeader').classList.replace('bg-brand-blue', 'bg-brand-pink');
+            document.getElementById('idBadge').innerText = "NEW";
+            addStep();
+            lucide.createIcons();
+        }
+
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = msg;
+            toast.classList.remove('translate-y-32', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-32', 'opacity-0');
+            }, 3000);
+        }
+
+        // Init
+        window.onload = () => {
+            addStep();
+            updateActivityList();
+        };
+    </script>
+</body>
+</html>
