@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English 1 Smart Dictionary</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300..700&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Design Config -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        e1pink: '#FF6B95',
+                        e1orange: '#FF8C42',
+                        e1green: '#00E676',
+                        e1blue: '#2979FF',
+                        e1dark: '#1e293b',
+                        e1chalk: '#f8fafc',
+                    },
+                    fontFamily: {
+                        fredoka: ['Fredoka', 'sans-serif'],
+                        nunito: ['Nunito', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'neo': '4px 4px 0px 0px rgba(30, 41, 59, 1)',
+                        'neo-sm': '2px 2px 0px 0px rgba(30, 41, 59, 1)',
+                        'neo-hover': '6px 6px 0px 0px rgba(30, 41, 59, 1)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #f8fafc;
+            background-image: 
+                linear-gradient(rgba(30, 41, 59, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(30, 41, 59, 0.1) 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+
+        .dark body {
+            background-color: #0f172a;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+        }
+
+        /* Focus states for inputs */
+        .neo-input {
+            transition: all 0.2s;
+        }
+        .neo-input:focus {
+            box-shadow: 4px 4px 0px 0px rgba(41, 121, 255, 0.3);
+            transform: translate(-1px, -1px);
+        }
+
+        /* Custom Scrollbar for suggestions */
+        .suggestion-list::-webkit-scrollbar { width: 8px; }
+        .suggestion-list::-webkit-scrollbar-track { background: transparent; }
+        .suggestion-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .suggestion-list::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Loader Animation */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #FF6B95;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="font-nunito text-e1dark min-h-screen transition-colors duration-300" onclick="closeSuggestions()">
+
+    <div class="max-w-6xl mx-auto p-4 md:p-8">
+        
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4 bg-white dark:bg-slate-800 border-3 border-e1dark rounded-2xl p-6 shadow-neo transition-colors duration-300">
+            <div class="flex items-center gap-4">
+                <div class="bg-e1green p-3 rounded-xl border-2 border-e1dark shadow-neo-sm transform hover:rotate-3 transition-transform">
+                    <i data-lucide="library" class="w-8 h-8 text-e1dark"></i>
+                </div>
+                <div>
+                    <h1 class="font-fredoka text-3xl md:text-4xl font-bold dark:text-white tracking-wide">Smart Dictionary</h1>
+                    <p class="text-sm font-bold text-slate-500 dark:text-slate-300">English 1 Batam</p>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap gap-3 justify-center md:justify-end">
+                <!-- Import -->
+                 <button onclick="document.getElementById('fileInput').click()" class="group bg-e1blue text-white p-3 rounded-xl border-2 border-e1dark shadow-neo active:translate-y-1 active:shadow-none transition-all" title="Import Custom JSON" aria-label="Import Data">
+                    <i data-lucide="upload" class="w-5 h-5 group-hover:scale-110 transition-transform"></i>
+                </button>
+                <input type="file" id="fileInput" accept=".json" class="hidden" onchange="importData(event)">
+
+                <!-- Export -->
+                 <button onclick="exportData()" class="group bg-e1orange text-white p-3 rounded-xl border-2 border-e1dark shadow-neo active:translate-y-1 active:shadow-none transition-all" title="Export Current Set" aria-label="Export Data">
+                    <i data-lucide="download" class="w-5 h-5 group-hover:scale-110 transition-transform"></i>
+                </button>
+
+                 <!-- Clear -->
+                 <button onclick="clearAllData()" class="group bg-red-500 hover:bg-red-600 text-white p-3 rounded-xl border-2 border-e1dark shadow-neo active:translate-y-1 active:shadow-none transition-all" title="Clear All Saved Words" aria-label="Clear Data">
+                    <i data-lucide="trash-2" class="w-5 h-5 group-hover:scale-110 transition-transform"></i>
+                </button>
+                
+                <!-- Theme -->
+                <button id="themeToggle" class="group bg-e1dark text-white p-3 rounded-xl border-2 border-slate-400 shadow-neo active:translate-y-1 active:shadow-none transition-all" aria-label="Toggle Dark Mode">
+                    <i data-lucide="moon" class="w-5 h-5 group-hover:rotate-12 transition-transform"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- TEACHER TOOLS SECTION -->
+        <div class="bg-e1orange/10 dark:bg-slate-800/50 border-3 border-e1orange border-dashed rounded-2xl p-6 mb-8 relative transition-colors duration-300">
+            <div class="absolute -top-3 left-6 bg-e1orange text-white font-fredoka font-bold px-4 py-1 rounded-full text-sm border-2 border-e1dark shadow-sm">
+                Teacher Tools
+            </div>
+            
+            <div class="flex flex-col md:flex-row gap-6 items-start mt-2">
+                <div class="w-full md:w-1/3">
+                    <label class="block font-bold text-sm text-slate-500 dark:text-slate-400 mb-2">Select a Category Set:</label>
+                    <div class="relative">
+                        <select id="commonSetSelect" class="w-full p-3 pr-10 rounded-xl border-2 border-e1dark font-bold bg-white dark:bg-slate-900 dark:text-white appearance-none cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" onchange="previewCommonSet()">
+                            <option value="" disabled selected>Loading sets...</option>
+                            <option value="actions">Actions (Verbs)</option>
+                            <option value="animals">Animals</option>
+                            <option value="appearance">Appearance</option>
+                        </select>
+                        <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none"></i>
+                    </div>
+                </div>
+
+                <div class="w-full md:w-2/3 flex flex-col gap-3">
+                    <!-- Preview Box -->
+                    <div class="bg-white dark:bg-slate-900 p-4 rounded-xl border-2 border-e1dark min-h-[60px] flex items-center transition-colors">
+                        <p id="commonSetPreview" class="font-nunito text-slate-500 dark:text-slate-400 italic w-full text-sm leading-relaxed">
+                            Select a category to see common words...
+                        </p>
+                    </div>
+                    
+                    <div class="flex gap-3">
+                        <button onclick="copyCommonSet()" id="btnCopyCSV" disabled class="flex-1 bg-e1dark hover:bg-slate-700 text-white font-fredoka font-bold py-3 rounded-xl border-2 border-slate-400 shadow-neo-sm active:translate-y-1 active:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 group">
+                            <i data-lucide="copy" class="w-4 h-4 group-hover:scale-110 transition-transform"></i>
+                            <span id="btnCopyText">Copy CSV</span>
+                        </button>
+                        <button onclick="addCommonSetToBank()" id="btnAddSet" disabled class="flex-1 bg-e1green hover:bg-green-400 text-e1dark font-fredoka font-bold py-3 rounded-xl border-2 border-e1dark shadow-neo-sm active:translate-y-1 active:shadow-none transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 group">
+                            <i data-lucide="plus-square" class="w-4 h-4 group-hover:scale-110 transition-transform"></i>
+                            <span>Add All to Bank</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SEARCH SECTION -->
+        <div class="mb-12 relative z-20">
+            <div class="bg-white dark:bg-slate-800 p-6 md:p-8 rounded-2xl border-3 border-e1dark shadow-neo relative z-20 transition-colors duration-300">
+                
+                <h2 class="font-fredoka text-2xl font-bold text-e1blue mb-4 flex items-center gap-2">
+                    <i data-lucide="cloud-download" class="w-6 h-6"></i>
+                    Search & Add Words
+                </h2>
+                
+                <div class="flex flex-col md:flex-row gap-4 mb-6">
+                    <!-- Search Input -->
+                    <div class="relative flex-grow">
+                        <input type="text" id="apiSearchInput" placeholder="Type a word (e.g., 'Apple')..." 
+                            class="w-full p-4 pl-12 rounded-xl border-3 border-e1dark shadow-neo-sm font-fredoka text-xl focus:outline-none focus:ring-4 focus:ring-e1blue/30 dark:bg-slate-900 dark:text-white dark:placeholder-slate-500 transition-all"
+                            autocomplete="off"
+                            oninput="handleInput(event)"
+                            onkeypress="if(event.key === 'Enter') { closeSuggestions(); fetchWord(); }">
+                        <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-slate-400"></i>
+                        
+                        <!-- Suggestion Dropdown -->
+                        <ul id="suggestionList" class="hidden absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 border-3 border-e1dark rounded-xl shadow-neo max-h-60 overflow-y-auto suggestion-list z-50">
+                            <!-- JS Injected -->
+                        </ul>
+                    </div>
+    
+                    <button onclick="fetchWord()" id="searchBtn" class="bg-e1blue hover:bg-blue-600 text-white font-fredoka font-bold py-4 px-8 rounded-xl border-3 border-e1dark shadow-neo-sm active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-2 min-w-[140px] group">
+                        <span>Search</span>
+                        <i data-lucide="arrow-right" class="w-5 h-5 group-hover:translate-x-1 transition-transform"></i>
+                    </button>
+                </div>
+    
+                <!-- Loading State -->
+                <div id="loader" class="hidden justify-center py-8">
+                    <div class="loader"></div>
+                </div>
+    
+                <!-- Result Card -->
+                <div id="apiResult" class="hidden bg-e1chalk dark:bg-slate-900 border-2 border-dashed border-e1dark rounded-xl p-6 relative transition-colors">
+                    <div class="flex flex-col md:flex-row justify-between gap-6">
+                        <div class="flex-grow">
+                            <div class="flex items-baseline gap-3 mb-2 flex-wrap">
+                                <h3 id="resWord" class="font-fredoka text-4xl font-bold text-e1dark dark:text-white">Word</h3>
+                                <span id="resPhonetic" class="font-serif italic text-slate-500 text-xl">/phonetic/</span>
+                            </div>
+                            <p id="resDefinition" class="text-lg font-nunito text-e1dark dark:text-slate-200 mb-3 leading-relaxed">Definition goes here.</p>
+                            <div class="bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700 inline-block">
+                                <p id="resExample" class="text-slate-500 italic dark:text-slate-400">"Example sentence."</p>
+                            </div>
+                        </div>
+    
+                        <!-- Save Controls -->
+                        <div class="flex flex-col gap-3 min-w-[200px] border-t md:border-t-0 md:border-l border-slate-200 dark:border-slate-700 pt-4 md:pt-0 md:pl-6">
+                            <label class="text-sm font-bold text-slate-500 dark:text-slate-400">Category:</label>
+                            <div class="relative">
+                                <select id="categorySelect" class="w-full p-2 pr-8 rounded-lg border-2 border-e1dark font-bold bg-white dark:bg-slate-800 dark:text-white mb-2 appearance-none">
+                                    <!-- JS Injected -->
+                                </select>
+                                <i data-lucide="chevron-down" class="absolute right-2 top-1/2 -translate-y-1.5 w-4 h-4 text-slate-400 pointer-events-none"></i>
+                            </div>
+                            
+                            <button onclick="saveCurrentWord()" class="bg-e1green hover:bg-green-400 text-e1dark font-fredoka font-bold py-3 rounded-lg border-2 border-e1dark shadow-neo-sm active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-2">
+                                <i data-lucide="save" class="w-4 h-4"></i>
+                                Save
+                            </button>
+                            <button id="previewAudioBtn" class="bg-e1orange hover:bg-orange-400 text-white font-fredoka font-bold py-2 rounded-lg border-2 border-e1dark shadow-neo-sm active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-2">
+                                <i data-lucide="volume-2" class="w-4 h-4"></i>
+                                Listen
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- MY WORD BANK SECTION -->
+        <div class="space-y-6">
+            <div class="flex flex-col md:flex-row justify-between items-end gap-4 border-b-2 border-slate-200 dark:border-slate-700 pb-4">
+                <div>
+                    <h2 class="font-fredoka text-3xl font-bold text-e1dark dark:text-white mb-1">My Word Bank</h2>
+                    <p class="text-slate-500 dark:text-slate-400 text-sm">Your collected vocabulary</p>
+                </div>
+                
+                <!-- Local Search -->
+                <div class="relative w-full md:w-64">
+                    <input type="text" id="localSearch" placeholder="Filter my words..." 
+                        class="w-full p-2 pl-10 rounded-lg border-2 border-e1dark shadow-neo-sm font-nunito dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-e1blue">
+                    <i data-lucide="filter" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+                </div>
+            </div>
+
+            <!-- Categories Filter -->
+            <div class="flex items-center gap-2">
+                <div class="flex gap-3 overflow-x-auto hide-scroll py-2 px-1" id="categoryContainer">
+                    <!-- JS Injected -->
+                </div>
+                <!-- ADD CATEGORY BUTTON -->
+                <button onclick="openCategoryModal()" class="flex-shrink-0 w-10 h-10 bg-white dark:bg-slate-800 text-e1dark dark:text-white border-3 border-dashed border-e1dark rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center justify-center transition-all shadow-sm active:translate-y-1 active:shadow-none" title="Add New Category">
+                    <i data-lucide="plus" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Grid -->
+            <div id="wordsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- JS Injected -->
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="hidden flex-col items-center justify-center py-10 text-center animate-fade-in">
+                <div class="bg-slate-100 dark:bg-slate-800 p-6 rounded-full mb-4 border-2 border-dashed border-slate-300 dark:border-slate-600">
+                    <i data-lucide="inbox" class="w-12 h-12 text-slate-400"></i>
+                </div>
+                <h3 class="font-fredoka text-xl font-bold text-slate-500 dark:text-slate-400">Your bank is empty</h3>
+                <p class="text-slate-400 dark:text-slate-500 text-sm mt-1">Add words using the search bar above!</p>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- NEW CATEGORY MODAL -->
+    <div id="categoryModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm opacity-0 transition-opacity duration-300">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-sm rounded-2xl border-4 border-e1dark shadow-[8px_8px_0px_0px_rgba(30,41,59,1)] p-6 transform scale-95 transition-transform duration-300" id="catModalContent">
+            
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-fredoka text-2xl font-bold text-e1dark dark:text-white">New Category</h3>
+                <button onclick="closeCategoryModal()" class="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+                    <i data-lucide="x" class="w-6 h-6 dark:text-white"></i>
+                </button>
+            </div>
+
+            <div class="mb-4">
+                <label class="block font-bold text-sm text-slate-500 mb-1">Category Name</label>
+                <input type="text" id="newCatName" placeholder="e.g. Space, Pirates" class="w-full p-3 rounded-xl border-2 border-e1dark focus:ring-4 focus:ring-e1blue/30 dark:bg-slate-800 dark:text-white">
+            </div>
+
+            <div class="mb-6">
+                <label class="block font-bold text-sm text-slate-500 mb-2">Color Tag</label>
+                <div class="flex gap-2 justify-between">
+                    <button onclick="selectColor('bg-e1pink text-white')" class="w-8 h-8 rounded-full bg-e1pink border-2 border-transparent hover:scale-110 focus:border-e1dark focus:scale-110 transition-transform color-btn"></button>
+                    <button onclick="selectColor('bg-e1orange text-white')" class="w-8 h-8 rounded-full bg-e1orange border-2 border-transparent hover:scale-110 focus:border-e1dark focus:scale-110 transition-transform color-btn"></button>
+                    <button onclick="selectColor('bg-e1green text-e1dark')" class="w-8 h-8 rounded-full bg-e1green border-2 border-transparent hover:scale-110 focus:border-e1dark focus:scale-110 transition-transform color-btn"></button>
+                    <button onclick="selectColor('bg-e1blue text-white')" class="w-8 h-8 rounded-full bg-e1blue border-2 border-transparent hover:scale-110 focus:border-e1dark focus:scale-110 transition-transform color-btn"></button>
+                    <button onclick="selectColor('bg-purple-500 text-white')" class="w-8 h-8 rounded-full bg-purple-500 border-2 border-transparent hover:scale-110 focus:border-e1dark focus:scale-110 transition-transform color-btn"></button>
+                    <button onclick="selectColor('bg-e1dark text-white')" class="w-8 h-8 rounded-full bg-e1dark border-2 border-transparent hover:scale-110 focus:border-e1dark focus:scale-110 transition-transform color-btn"></button>
+                </div>
+                <input type="hidden" id="newCatColor" value="bg-e1dark text-white">
+            </div>
+
+            <button onclick="addNewCategory()" class="w-full bg-e1green text-e1dark font-fredoka font-bold py-3 rounded-xl border-3 border-e1dark shadow-neo active:translate-y-1 active:shadow-none transition-all">
+                Add Category
+            </button>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-4 right-4 bg-e1dark text-white font-bold px-6 py-4 rounded-xl border-2 border-slate-400 shadow-neo transform translate-y-32 transition-transform duration-300 flex items-center gap-3 z-50">
+        <div id="toastIcon" class="bg-e1green rounded-full p-1 text-e1dark">
+            <i data-lucide="check" class="w-4 h-4"></i>
+        </div>
+        <span id="toastMsg">Action Successful</span>
+    </div>
+
+    <script>
+        // --- 1. STATE & CONFIG ---
+        const API_URL = "https://api.dictionaryapi.dev/api/v2/entries/en/";
+        const SUGGEST_URL = "https://api.datamuse.com/sug?s=";
+        const WORDS_FILE = "words.json";
+        
+        // DEFAULT CATEGORIES
+        const defaultCategories = [
+            { id: "all", name: "Show All", color: "bg-e1dark text-white" },
+            { id: "actions", name: "Actions", color: "bg-e1blue text-white" },
+            { id: "animals", name: "Animals", color: "bg-e1pink text-white" },
+            { id: "appearance", name: "Appearance", color: "bg-purple-500 text-white" }
+        ];
+
+        // FALLBACK DATA (If JSON fetch fails)
+        const fallbackSets = {
+            actions: [
+                { id: "c1", word: "Run", category: "actions", pronunciation: "/rʌn/", definition: "To move fast on foot.", example: "I run in the park.", audio: "https://api.dictionaryapi.dev/media/pronunciations/en/run-us.mp3" },
+                { id: "c2", word: "Jump", category: "actions", pronunciation: "/dʒʌmp/", definition: "To push yourself into the air.", example: "Can you jump high?", audio: "https://api.dictionaryapi.dev/media/pronunciations/en/jump-us.mp3" }
+            ]
+        };
+
+        const initialData = [
+            { id: 1, word: "Welcome", category: "appearance", pronunciation: "/ˈwel.kəm/", definition: "A greeting word.", example: "Welcome to class.", audio: "" }
+        ];
+
+        let appState = {
+            savedWords: [],
+            categories: [],
+            currentFilter: 'all',
+            localQuery: '',
+            darkMode: false,
+            tempApiData: null,
+            searchTimer: null,
+            commonSets: fallbackSets // Initialize with fallback
+        };
+
+        // --- 2. INITIALIZATION & PERSISTENCE ---
+        function init() {
+            try {
+                // 1. Load Theme
+                const storedTheme = localStorage.getItem('e1_theme');
+                if (storedTheme === 'dark' || (!storedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                    appState.darkMode = true;
+                    document.documentElement.classList.add('dark');
+                    updateThemeIcon();
+                } else {
+                    lucide.createIcons();
+                }
+
+                // 2. Load Words
+                const storedWords = localStorage.getItem('e1_wordbank');
+                if (storedWords) {
+                    appState.savedWords = JSON.parse(storedWords);
+                } else {
+                    appState.savedWords = initialData;
+                    saveWordsToLocal();
+                }
+
+                // 3. Load Categories
+                const storedCats = localStorage.getItem('e1_categories');
+                if (storedCats) {
+                    const loaded = JSON.parse(storedCats);
+                    // Reset if structure looks broken or extremely old
+                    if(!Array.isArray(loaded)) {
+                         appState.categories = defaultCategories;
+                         saveCategoriesToLocal();
+                    } else {
+                        appState.categories = loaded;
+                    }
+                } else {
+                    appState.categories = defaultCategories;
+                    saveCategoriesToLocal();
+                }
+
+                // 4. Load Common Sets (Network)
+                fetchCommonSets();
+
+                // 5. Render
+                renderCategories();
+                updateCategoryDropdowns();
+                renderGrid();
+
+            } catch (err) {
+                console.error("Initialization Error:", err);
+                showToast("Error loading saved data", "error");
+            }
+        }
+
+        // --- 3. FETCH COMMON SETS ---
+        async function fetchCommonSets() {
+            try {
+                const response = await fetch(WORDS_FILE);
+                if (!response.ok) throw new Error('Failed to load words.json');
+                const data = await response.json();
+                appState.commonSets = data;
+                
+                const select = document.getElementById('commonSetSelect');
+                select.querySelector('option[disabled]').innerText = "Choose Category...";
+            } catch (error) {
+                console.warn("Using fallback sets due to fetch error:", error);
+                // Fallback is already set in appState.commonSets
+                const select = document.getElementById('commonSetSelect');
+                select.querySelector('option[disabled]').innerText = "Offline Mode (Limited)";
+            }
+        }
+
+        // --- 4. TEACHER TOOLS ---
+        function previewCommonSet() {
+            const select = document.getElementById('commonSetSelect');
+            const preview = document.getElementById('commonSetPreview');
+            const btnCopy = document.getElementById('btnCopyCSV');
+            const btnAdd = document.getElementById('btnAddSet');
+            
+            const category = select.value;
+            if(!category || !appState.commonSets[category]) return;
+
+            const words = appState.commonSets[category].map(w => w.word);
+            preview.innerText = words.join(", ");
+            preview.classList.remove('italic', 'text-slate-500');
+            preview.classList.add('font-bold', 'text-e1dark', 'dark:text-white');
+
+            btnCopy.disabled = false;
+            btnAdd.disabled = false;
+            btnCopy.classList.remove('opacity-50', 'cursor-not-allowed');
+            btnAdd.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+
+        function copyCommonSet() {
+            const select = document.getElementById('commonSetSelect');
+            const category = select.value;
+            if(!category || !appState.commonSets[category]) return;
+
+            const csv = appState.commonSets[category].map(w => w.word).join(", ");
+            
+            navigator.clipboard.writeText(csv).then(() => {
+                // UI Feedback
+                const btnText = document.getElementById('btnCopyText');
+                const originalText = btnText.innerText;
+                btnText.innerText = "Copied!";
+                setTimeout(() => btnText.innerText = originalText, 1500);
+                showToast("Copied to Clipboard!");
+            }).catch(err => {
+                showToast("Failed to copy", "error");
+            });
+        }
+
+        function addCommonSetToBank() {
+            const select = document.getElementById('commonSetSelect');
+            const category = select.value;
+            if(!category || !appState.commonSets[category]) return;
+
+            const newWords = appState.commonSets[category].map(w => ({
+                ...w,
+                id: Date.now() + Math.random() 
+            }));
+
+            // Filter duplicates
+            const currentWordIds = new Set(appState.savedWords.map(w => w.word.toLowerCase()));
+            const uniqueWords = newWords.filter(w => !currentWordIds.has(w.word.toLowerCase()));
+
+            if (uniqueWords.length === 0) {
+                showToast("All words already in bank!", "error");
+                return;
+            }
+
+            appState.savedWords = [...uniqueWords, ...appState.savedWords];
+            saveWordsToLocal();
+            renderGrid();
+            showToast(`Added ${uniqueWords.length} words to bank!`);
+        }
+
+        // --- 5. CATEGORY LOGIC ---
+        function openCategoryModal() {
+            const modal = document.getElementById('categoryModal');
+            const content = document.getElementById('catModalContent');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('scale-95');
+                content.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeCategoryModal() {
+            const modal = document.getElementById('categoryModal');
+            const content = document.getElementById('catModalContent');
+            modal.classList.add('opacity-0');
+            content.classList.remove('scale-100');
+            content.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        function selectColor(colorClass) {
+            document.getElementById('newCatColor').value = colorClass;
+            document.querySelectorAll('.color-btn').forEach(btn => btn.classList.remove('ring-2', 'ring-offset-2', 'ring-e1dark'));
+            event.target.classList.add('ring-2', 'ring-offset-2', 'ring-e1dark');
+        }
+
+        function addNewCategory() {
+            const name = document.getElementById('newCatName').value.trim();
+            const color = document.getElementById('newCatColor').value;
+
+            if (!name) {
+                showToast("Please enter a category name", "error");
+                return;
+            }
+            const id = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+
+            if (appState.categories.some(c => c.id === id)) {
+                showToast("Category already exists", "error");
+                return;
+            }
+
+            const newCat = { id, name, color };
+            appState.categories.push(newCat);
+            saveCategoriesToLocal();
+            renderCategories();
+            updateCategoryDropdowns();
+            closeCategoryModal();
+            document.getElementById('newCatName').value = '';
+            showToast(`Category "${name}" added!`);
+        }
+
+        function updateCategoryDropdowns() {
+            const options = appState.categories
+                .filter(c => c.id !== 'all') 
+                .map(c => `<option value="${c.id}">${c.name}</option>`)
+                .join('');
+            
+            const catSelect = document.getElementById('categorySelect');
+            if(catSelect) catSelect.innerHTML = options;
+        }
+
+        function saveCategoriesToLocal() {
+            try {
+                localStorage.setItem('e1_categories', JSON.stringify(appState.categories));
+            } catch(e) { console.error("Save failed", e); }
+        }
+
+        // --- 6. SUGGESTION & SEARCH ---
+        function handleInput(event) {
+            const query = event.target.value.trim();
+            const list = document.getElementById('suggestionList');
+            clearTimeout(appState.searchTimer);
+
+            if (query.length < 2) {
+                list.classList.add('hidden');
+                return;
+            }
+            appState.searchTimer = setTimeout(() => {
+                fetchSuggestions(query);
+            }, 300); // 300ms Debounce
+        }
+
+        async function fetchSuggestions(query) {
+            try {
+                const response = await fetch(SUGGEST_URL + query);
+                const data = await response.json();
+                renderSuggestions(data);
+            } catch (error) {
+                console.error("Suggestion error:", error);
+            }
+        }
+
+        function renderSuggestions(words) {
+            const list = document.getElementById('suggestionList');
+            if (words.length === 0) {
+                list.classList.add('hidden');
+                return;
+            }
+            const topWords = words.slice(0, 5);
+            list.innerHTML = topWords.map(item => `
+                <li onclick="selectSuggestion('${item.word}')" 
+                    class="px-4 py-3 cursor-pointer hover:bg-e1blue/10 dark:hover:bg-slate-800 dark:text-white font-fredoka text-lg border-b-2 border-slate-100 dark:border-slate-800 last:border-0 transition-colors flex justify-between items-center group">
+                    <span>${item.word}</span>
+                    <i data-lucide="arrow-up-left" class="w-4 h-4 text-slate-300 group-hover:text-e1blue"></i>
+                </li>
+            `).join('');
+            list.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function selectSuggestion(word) {
+            const input = document.getElementById('apiSearchInput');
+            input.value = word; 
+            closeSuggestions();
+            fetchWord(); 
+        }
+
+        function closeSuggestions() {
+            setTimeout(() => {
+                document.getElementById('suggestionList').classList.add('hidden');
+            }, 100);
+        }
+
+        document.getElementById('apiSearchInput').addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        // --- 7. API FETCH WORD ---
+        async function fetchWord() {
+            const input = document.getElementById('apiSearchInput');
+            const word = input.value.trim();
+            const loader = document.getElementById('loader');
+            const resultArea = document.getElementById('apiResult');
+
+            if (!word) return;
+
+            closeSuggestions();
+            loader.classList.remove('hidden');
+            loader.classList.add('flex');
+            resultArea.classList.add('hidden');
+
+            try {
+                const response = await fetch(API_URL + word);
+                if (!response.ok) throw new Error('Word not found');
+                const data = await response.json();
+                processApiResult(data);
+            } catch (error) {
+                showToast('Word not found or API error', 'error');
+                resultArea.classList.add('hidden');
+            } finally {
+                loader.classList.add('hidden');
+                loader.classList.remove('flex');
+            }
+        }
+
+        function processApiResult(data) {
+            const entry = data[0]; 
+            
+            let audioUrl = '';
+            const phoneticWithAudio = entry.phonetics.find(p => p.audio && p.audio !== '');
+            if (phoneticWithAudio) audioUrl = phoneticWithAudio.audio;
+
+            let def = "No definition found.";
+            let example = "No example available.";
+            
+            if (entry.meanings.length > 0) {
+                const firstMeaning = entry.meanings[0];
+                if (firstMeaning.definitions.length > 0) {
+                    def = firstMeaning.definitions[0].definition;
+                    if (firstMeaning.definitions[0].example) {
+                        example = firstMeaning.definitions[0].example;
+                    }
+                }
+            }
+
+            appState.tempApiData = {
+                id: Date.now(), 
+                word: entry.word.charAt(0).toUpperCase() + entry.word.slice(1), 
+                phonetic: entry.phonetic || (entry.phonetics[0] ? entry.phonetics[0].text : ''),
+                definition: def,
+                example: example,
+                audio: audioUrl,
+                category: appState.categories[1] ? appState.categories[1].id : 'actions'
+            };
+
+            document.getElementById('resWord').innerText = appState.tempApiData.word;
+            document.getElementById('resPhonetic').innerText = appState.tempApiData.phonetic;
+            document.getElementById('resDefinition').innerText = appState.tempApiData.definition;
+            document.getElementById('resExample').innerText = `"${appState.tempApiData.example}"`;
+            
+            const audioBtn = document.getElementById('previewAudioBtn');
+            if (audioUrl) {
+                audioBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                audioBtn.onclick = () => playAudio(audioUrl);
+                audioBtn.innerHTML = `<i data-lucide="volume-2" class="w-4 h-4"></i> Listen`;
+            } else {
+                audioBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                audioBtn.onclick = null;
+                audioBtn.innerHTML = `<i data-lucide="volume-x" class="w-4 h-4"></i> No Audio`;
+            }
+
+            document.getElementById('apiResult').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function saveCurrentWord() {
+            if (!appState.tempApiData) return;
+
+            const catSelect = document.getElementById('categorySelect');
+            appState.tempApiData.category = catSelect.value;
+
+            const exists = appState.savedWords.some(w => w.word.toLowerCase() === appState.tempApiData.word.toLowerCase());
+            if (exists) {
+                showToast('Word is already in your bank!', 'error');
+                return;
+            }
+
+            appState.savedWords.unshift(appState.tempApiData); 
+            saveWordsToLocal();
+            renderGrid();
+            
+            document.getElementById('apiResult').classList.add('hidden');
+            document.getElementById('apiSearchInput').value = '';
+            appState.tempApiData = null;
+            showToast('Word saved to bank!');
+        }
+
+        function playAudio(url) {
+            if (!url) return;
+            const audio = new Audio(url);
+            audio.play();
+        }
+
+        // --- 8. IMPORT / EXPORT ---
+        function exportData() {
+            const exportObj = {
+                words: appState.savedWords,
+                categories: appState.categories
+            };
+            const dataStr = JSON.stringify(exportObj, null, 2);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `english1_wordbank_${new Date().toISOString().slice(0,10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('Word Bank exported!');
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const json = JSON.parse(e.target.result);
+                    let newWords = [], newCats = [];
+                    if (Array.isArray(json)) newWords = json;
+                    else if (json.words && json.categories) {
+                        newWords = json.words;
+                        newCats = json.categories;
+                    }
+
+                    if(confirm(`Importing data. OK to REPLACE, Cancel to MERGE?`)) {
+                        if (newWords.length) appState.savedWords = newWords;
+                        if (newCats.length) appState.categories = newCats;
+                    } else {
+                        if (newCats.length) {
+                            const currentCatIds = new Set(appState.categories.map(c => c.id));
+                            const uniqueCats = newCats.filter(c => !currentCatIds.has(c.id));
+                            appState.categories = [...appState.categories, ...uniqueCats];
+                        }
+                        if (newWords.length) {
+                            const currentWordIds = new Set(appState.savedWords.map(w => w.word.toLowerCase()));
+                            const uniqueWords = newWords.filter(w => !currentWordIds.has(w.word.toLowerCase()));
+                            appState.savedWords = [...uniqueWords, ...appState.savedWords];
+                        }
+                    }
+                    saveWordsToLocal();
+                    saveCategoriesToLocal();
+                    renderCategories();
+                    updateCategoryDropdowns();
+                    renderGrid();
+                    showToast("Word Bank updated!");
+                } catch (error) {
+                    console.error(error);
+                    showToast("Error reading file", "error");
+                }
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        // --- 9. RENDER FUNCTIONS ---
+        function renderCategories() {
+            const container = document.getElementById('categoryContainer');
+            container.innerHTML = appState.categories.map(cat => {
+                const isActive = appState.currentFilter === cat.id;
+                const activeStyle = isActive 
+                    ? `border-e1dark ring-2 ring-offset-2 ring-e1dark transform -translate-y-1 shadow-neo opacity-100 bg-opacity-100` 
+                    : `border-transparent opacity-70 hover:opacity-100`;
+                
+                return `
+                    <button onclick="setFilter('${cat.id}')" 
+                        class="${cat.color} ${activeStyle} flex-shrink-0 font-fredoka font-bold py-2 px-4 rounded-xl border-3 transition-all whitespace-nowrap">
+                        ${cat.name}
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function renderGrid() {
+            const grid = document.getElementById('wordsGrid');
+            const empty = document.getElementById('emptyState');
+            
+            const filtered = appState.savedWords.filter(w => {
+                const matchCat = appState.currentFilter === 'all' || w.category === appState.currentFilter;
+                const matchSearch = w.word.toLowerCase().includes(appState.localQuery.toLowerCase());
+                return matchCat && matchSearch;
+            });
+
+            if (filtered.length === 0) {
+                grid.classList.add('hidden');
+                empty.classList.remove('hidden');
+                empty.classList.add('flex');
+                return;
+            }
+
+            grid.classList.remove('hidden');
+            empty.classList.add('hidden');
+            empty.classList.remove('flex');
+
+            grid.innerHTML = filtered.map(word => {
+                const catObj = appState.categories.find(c => c.id === word.category) || { name: 'Unknown', color: 'bg-gray-400' };
+                const cardBg = appState.darkMode ? 'bg-slate-800' : 'bg-white';
+                // Line clamp logic is now handled by CSS 'line-clamp-2' class in tailwind but ensuring definition isn't too long in JS is safer for older browsers
+                const shortDef = word.definition.length > 80 ? word.definition.substring(0, 80) + '...' : word.definition;
+
+                return `
+                    <div class="relative group ${cardBg} p-6 rounded-2xl border-3 border-e1dark shadow-neo transition-all hover:-translate-y-1 hover:shadow-neo-hover flex flex-col justify-between h-full">
+                        
+                        <button onclick="deleteWord('${word.id}')" class="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-100 rounded-lg text-red-500 z-10" aria-label="Delete word">
+                            <i data-lucide="trash" class="w-4 h-4"></i>
+                        </button>
+
+                        <div>
+                            <span class="inline-block px-2 py-1 mb-2 text-xs font-bold rounded border-2 border-e1dark bg-opacity-20 text-e1dark dark:text-white ${catObj.color.split(' ')[0]}">
+                                ${catObj.name.toUpperCase()}
+                            </span>
+                            <div class="flex items-baseline gap-2 mb-1">
+                                <h3 class="font-fredoka text-2xl font-bold text-e1dark dark:text-white">${word.word}</h3>
+                                <span class="text-slate-400 font-serif italic text-sm">${word.phonetic}</span>
+                            </div>
+                            <p class="text-e1dark dark:text-slate-300 font-nunito mb-4 text-sm leading-relaxed min-h-[40px]">${shortDef}</p>
+                        </div>
+
+                        <div class="flex gap-2 mt-4 pt-4 border-t-2 border-slate-100 dark:border-slate-700">
+                             <button onclick="playAudio('${word.audio}')" ${!word.audio ? 'disabled' : ''} class="flex-1 bg-e1orange text-white py-2 rounded-lg border-2 border-e1dark shadow-sm active:translate-y-1 active:shadow-none font-bold text-sm flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group">
+                                <i data-lucide="volume-2" class="w-4 h-4 group-hover:scale-110 transition-transform"></i> 
+                                Listen
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        // --- 10. INTERACTION LOGIC ---
+        function setFilter(id) {
+            appState.currentFilter = id;
+            renderCategories();
+            renderGrid();
+        }
+
+        document.getElementById('localSearch').addEventListener('input', (e) => {
+            appState.localQuery = e.target.value;
+            renderGrid();
+        });
+
+        function deleteWord(id) {
+            if(confirm("Remove this word from your bank?")) {
+                // Ensure ID comparison works (string vs number)
+                appState.savedWords = appState.savedWords.filter(w => String(w.id) !== String(id));
+                saveWordsToLocal();
+                renderGrid();
+                showToast("Word removed");
+            }
+        }
+
+        function clearAllData() {
+            if(confirm("Are you sure you want to delete ALL words? This cannot be undone.")) {
+                appState.savedWords = [];
+                saveWordsToLocal();
+                renderGrid();
+                showToast("All data cleared", "error");
+            }
+        }
+
+        function saveWordsToLocal() {
+            try {
+                localStorage.setItem('e1_wordbank', JSON.stringify(appState.savedWords));
+            } catch(e) { console.error("Save failed", e); }
+        }
+
+        function updateThemeIcon() {
+             const btn = document.getElementById('themeToggle');
+             const icon = btn.querySelector('i'); // Get existing icon or create new
+             
+             if (appState.darkMode) {
+                btn.innerHTML = '<i data-lucide="sun" class="w-5 h-5 group-hover:rotate-12 transition-transform"></i>';
+                btn.className = "group bg-white text-e1dark p-3 rounded-xl border-2 border-slate-400 shadow-neo active:translate-y-1 active:shadow-none transition-all";
+            } else {
+                btn.innerHTML = '<i data-lucide="moon" class="w-5 h-5 group-hover:rotate-12 transition-transform"></i>';
+                btn.className = "group bg-e1dark text-white p-3 rounded-xl border-2 border-slate-400 shadow-neo active:translate-y-1 active:shadow-none transition-all";
+            }
+            lucide.createIcons();
+        }
+
+        function toggleTheme() {
+            appState.darkMode = !appState.darkMode;
+            document.documentElement.classList.toggle('dark');
+            localStorage.setItem('e1_theme', appState.darkMode ? 'dark' : 'light');
+            updateThemeIcon();
+            renderGrid(); // Refresh cards for bg colors
+        }
+        
+        document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+
+        function showToast(msg, type = 'success') {
+            const t = document.getElementById('toast');
+            const icon = document.getElementById('toastIcon');
+            const txt = document.getElementById('toastMsg');
+            
+            txt.innerText = msg;
+            
+            if (type === 'error') {
+                icon.className = "bg-red-500 rounded-full p-1 text-white";
+                icon.innerHTML = '<i data-lucide="alert-circle" class="w-4 h-4"></i>';
+            } else {
+                icon.className = "bg-e1green rounded-full p-1 text-e1dark";
+                icon.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i>';
+            }
+            lucide.createIcons();
+
+            t.classList.remove('translate-y-32');
+            setTimeout(() => {
+                t.classList.add('translate-y-32');
+            }, 3000);
+        }
+
+        // Start
+        init();
+
+    </script>
+</body>
+</html>
