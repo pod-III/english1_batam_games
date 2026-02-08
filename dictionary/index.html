@@ -93,7 +93,7 @@
         }
     </style>
 </head>
-<body class="font-nunito text-e1dark min-h-screen transition-colors duration-300" onclick="closeSuggestions()">
+<body class="font-nunito text-e1dark min-h-screen transition-colors duration-300" onclick="closeAllDropdowns()">
 
     <div class="max-w-6xl mx-auto p-4 md:p-8">
         
@@ -141,13 +141,26 @@
             
             <div class="flex flex-col md:flex-row gap-6 items-start mt-2">
                 <div class="w-full md:w-1/3">
-                    <label class="block font-bold text-sm text-slate-500 dark:text-slate-400 mb-2">Select a Category Set:</label>
-                    <div class="relative">
-                        <!-- Options generated dynamically -->
-                        <select id="commonSetSelect" class="w-full p-3 pr-10 rounded-xl border-2 border-e1dark font-bold bg-white dark:bg-slate-900 dark:text-white appearance-none cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" onchange="previewCommonSet()">
-                            <option value="" disabled selected>Loading sets...</option>
-                        </select>
-                        <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none"></i>
+                    <label class="block font-bold text-sm text-slate-500 dark:text-slate-400 mb-2">Search Category Set:</label>
+                    
+                    <!-- SEARCHABLE DROPDOWN (CUSTOM) -->
+                    <div class="relative group">
+                        <input type="text" id="categorySetSearch" 
+                            placeholder="Type to search (e.g. Food)..." 
+                            class="w-full p-3 pr-10 rounded-xl border-2 border-e1dark font-bold bg-white dark:bg-slate-900 dark:text-white transition-colors focus:outline-none focus:ring-4 focus:ring-e1orange/30 cursor-pointer"
+                            autocomplete="off"
+                            onclick="event.stopPropagation(); toggleSetDropdown(true);"
+                            oninput="filterCategorySets(this.value)">
+                        
+                        <!-- Hidden input to store the actual ID for logic -->
+                        <input type="hidden" id="selectedSetId">
+
+                        <i data-lucide="search" class="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none"></i>
+
+                        <!-- Custom Dropdown List -->
+                        <div id="categorySetDropdown" class="hidden absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-900 border-2 border-e1dark rounded-xl shadow-neo max-h-60 overflow-y-auto z-40 suggestion-list">
+                            <!-- Options injected via JS -->
+                        </div>
                     </div>
                 </div>
 
@@ -155,7 +168,7 @@
                     <!-- Preview Box -->
                     <div class="bg-white dark:bg-slate-900 p-4 rounded-xl border-2 border-e1dark min-h-[60px] flex items-center transition-colors">
                         <p id="commonSetPreview" class="font-nunito text-slate-500 dark:text-slate-400 italic w-full text-sm leading-relaxed">
-                            Select a category to see common words...
+                            Search and select a category to see common words...
                         </p>
                     </div>
                     
@@ -188,8 +201,9 @@
                         <input type="text" id="apiSearchInput" placeholder="Type a word (e.g., 'Apple')..." 
                             class="w-full p-4 pl-12 rounded-xl border-3 border-e1dark shadow-neo-sm font-fredoka text-xl focus:outline-none focus:ring-4 focus:ring-e1blue/30 dark:bg-slate-900 dark:text-white dark:placeholder-slate-500 transition-all"
                             autocomplete="off"
+                            onclick="event.stopPropagation();"
                             oninput="handleInput(event)"
-                            onkeypress="if(event.key === 'Enter') { closeSuggestions(); fetchWord(); }">
+                            onkeypress="if(event.key === 'Enter') { closeAllDropdowns(); fetchWord(); }">
                         <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-6 h-6 text-slate-400"></i>
                         
                         <!-- Suggestion Dropdown -->
@@ -428,7 +442,6 @@
 
         // --- 3. FETCH COMMON SETS ---
         async function fetchCommonSets() {
-            const select = document.getElementById('commonSetSelect');
             try {
                 const response = await fetch(WORDS_FILE);
                 if (!response.ok) throw new Error('Failed to load words.json');
@@ -437,32 +450,68 @@
                 // Store the library array
                 appState.library = data.library;
                 
-                // Generate Options Dynamically
-                let options = `<option value="" disabled selected>Choose Category...</option>`;
-                appState.library.forEach(cat => {
-                    options += `<option value="${cat.id}">${cat.label}</option>`;
-                });
-                select.innerHTML = options;
-                
             } catch (error) {
                 console.warn("Using fallback sets due to fetch error:", error);
                 appState.library = fallbackLibrary;
-                let options = `<option value="" disabled selected>Offline Mode (Limited)</option>`;
-                 appState.library.forEach(cat => {
-                    options += `<option value="${cat.id}">${cat.label}</option>`;
-                });
-                select.innerHTML = options;
+                showToast("Offline Mode active", "error");
             }
         }
 
-        // --- 4. TEACHER TOOLS ---
-        function previewCommonSet() {
-            const select = document.getElementById('commonSetSelect');
+        // --- 4. TEACHER TOOLS (SEARCHABLE DROPDOWN) ---
+        function toggleSetDropdown(show) {
+            const dropdown = document.getElementById('categorySetDropdown');
+            if (show) {
+                dropdown.classList.remove('hidden');
+                // Render all options initially if input is empty, else filter
+                const input = document.getElementById('categorySetSearch');
+                filterCategorySets(input.value);
+            } else {
+                dropdown.classList.add('hidden');
+            }
+        }
+
+        function filterCategorySets(query) {
+            const dropdown = document.getElementById('categorySetDropdown');
+            const cleanQuery = query.toLowerCase().trim();
+            
+            const filtered = appState.library.filter(cat => 
+                cat.label.toLowerCase().includes(cleanQuery)
+            );
+
+            if (filtered.length === 0) {
+                dropdown.innerHTML = `<div class="p-3 text-slate-500 italic text-center">No categories found</div>`;
+                return;
+            }
+
+            dropdown.innerHTML = filtered.map(cat => `
+                <div onclick="selectCategorySet('${cat.id}', '${cat.label}')" 
+                     class="p-3 hover:bg-e1blue/10 dark:hover:bg-slate-800 cursor-pointer border-b border-slate-100 dark:border-slate-700 last:border-0 font-nunito dark:text-white transition-colors">
+                    ${cat.label}
+                </div>
+            `).join('');
+            
+            if (document.activeElement.id === 'categorySetSearch') {
+                dropdown.classList.remove('hidden');
+            }
+        }
+
+        function selectCategorySet(id, label) {
+            // Update Inputs
+            document.getElementById('categorySetSearch').value = label;
+            document.getElementById('selectedSetId').value = id;
+            
+            // Hide Dropdown
+            toggleSetDropdown(false);
+            
+            // Trigger Preview
+            previewCommonSet(id);
+        }
+
+        function previewCommonSet(catId) {
             const preview = document.getElementById('commonSetPreview');
             const btnCopy = document.getElementById('btnCopyCSV');
             const btnAdd = document.getElementById('btnAddSet');
             
-            const catId = select.value;
             if(!catId) return;
 
             // Find the category object in the library
@@ -482,8 +531,7 @@
         }
 
         function copyCommonSet() {
-            const select = document.getElementById('commonSetSelect');
-            const catId = select.value;
+            const catId = document.getElementById('selectedSetId').value;
             if(!catId) return;
 
             const categoryObj = appState.library.find(c => c.id === catId);
@@ -492,7 +540,6 @@
             const csv = categoryObj.words.map(w => w.word).join(", ");
             
             navigator.clipboard.writeText(csv).then(() => {
-                // UI Feedback
                 const btnText = document.getElementById('btnCopyText');
                 const originalText = btnText.innerText;
                 btnText.innerText = "Copied!";
@@ -504,8 +551,7 @@
         }
 
         function addCommonSetToBank() {
-            const select = document.getElementById('commonSetSelect');
-            const catId = select.value;
+            const catId = document.getElementById('selectedSetId').value;
             if(!catId) return;
 
             const categoryObj = appState.library.find(c => c.id === catId);
@@ -647,13 +693,14 @@
         function selectSuggestion(word) {
             const input = document.getElementById('apiSearchInput');
             input.value = word; 
-            closeSuggestions();
+            closeAllDropdowns();
             fetchWord(); 
         }
 
-        function closeSuggestions() {
+        function closeAllDropdowns() {
             setTimeout(() => {
                 document.getElementById('suggestionList').classList.add('hidden');
+                document.getElementById('categorySetDropdown').classList.add('hidden');
             }, 100);
         }
 
@@ -670,7 +717,7 @@
 
             if (!word) return;
 
-            closeSuggestions();
+            closeAllDropdowns();
             loader.classList.remove('hidden');
             loader.classList.add('flex');
             resultArea.classList.add('hidden');
