@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English 1 Poster Studio</title>
+    
+    <!-- LIBRARIES -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300;400;500;600;700&family=Nunito:wght@400;600;700;800&family=Patrick+Hand&display=swap" rel="stylesheet">
+
+    <!-- TAILWIND CONFIG -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            pink: '#FF6B95',
+                            orange: '#FF8C42',
+                            green: '#00E676',
+                            blue: '#2979FF',
+                            purple: '#A855F7',
+                            red: '#EF4444',
+                            dark: '#1e293b',
+                            chalk: '#f8fafc',
+                            yellow: '#FCD34D',
+                            surface: '#E2E8F0'
+                        }
+                    },
+                    fontFamily: {
+                        heading: ['Fredoka', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                        hand: ['Patrick Hand', 'cursive'],
+                    },
+                    boxShadow: {
+                        'neo': '4px 4px 0px 0px rgba(30, 41, 59, 1)',
+                        'neo-sm': '2px 2px 0px 0px rgba(30, 41, 59, 1)',
+                        'neo-lg': '8px 8px 0px 0px rgba(30, 41, 59, 1)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- CUSTOM CSS -->
+    <style>
+        /* 1. RESET & BASICS */
+        :root { --neo-dark: #1e293b; }
+        body { -webkit-font-smoothing: antialiased; }
+        
+        /* 2. CUSTOM SCROLLBARS */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 99px;
+            border: 2px solid transparent;
+            background-clip: content-box;
+        }
+        .custom-scrollbar:hover::-webkit-scrollbar-thumb { background-color: #94a3b8; }
+
+        /* 3. PATTERNS & DECORATIONS */
+        .bg-graph-paper {
+            background-color: #f8fafc;
+            background-image:
+                linear-gradient(#e2e8f0 1px, transparent 1px),
+                linear-gradient(90deg, #e2e8f0 1px, transparent 1px);
+            background-size: 32px 32px;
+        }
+        .dark.bg-graph-paper {
+            background-color: #1e293b;
+            background-image:
+                linear-gradient(#334155 1px, transparent 1px),
+                linear-gradient(90deg, #334155 1px, transparent 1px);
+        }
+
+        .tape-strip {
+            position: absolute;
+            top: -12px; left: 50%;
+            transform: translateX(-50%) rotate(-2deg);
+            width: 100px; height: 30px;
+            background-color: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(2px);
+            border-left: 2px dashed rgba(0,0,0,0.1);
+            border-right: 2px dashed rgba(0,0,0,0.1);
+            z-index: 10;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* 4. COMPONENT CLASSES */
+        .neo-input {
+            width: 100%;
+            background-color: white;
+            border: 2px solid #1e293b;
+            border-radius: 0.5rem;
+            padding: 0.35rem 0.5rem;
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
+            font-size: 0.875rem;
+            color: #1e293b;
+            transition: all 0.2s;
+        }
+        .neo-input:focus {
+            box-shadow: 2px 2px 0px 0px rgba(30, 41, 59, 1);
+            background-color: #FEF9C3;
+            transform: translateY(-1px);
+        }
+
+        .neo-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            border: 2px solid #1e293b;
+            border-radius: 0.75rem;
+            transition: all 0.1s;
+            box-shadow: 4px 4px 0px 0px rgba(30, 41, 59, 1);
+        }
+        .neo-btn:hover { box-shadow: none; transform: translateY(2px); }
+        .neo-btn:active { transform: translateY(2px); }
+
+        /* 5. VIEW MODES */
+        #poster-wrapper { transition: transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94); transform-origin: top center; }
+        body.zen-mode aside { display: none !important; }
+        body.zen-mode #poster-viewport { padding: 0; align-items: center; justify-content: center; }
+
+        /* 6. PRINT */
+        @media print {
+            .no-print, aside, button, .zoom-controls { display: none !important; }
+            body, html, main, #poster-viewport { margin: 0; padding: 0; background: white; overflow: visible; height: auto; }
+            #poster-wrapper { transform: none !important; width: 100%; margin: 0; }
+            #poster-area {
+                margin: 0; border: none; box-shadow: none; width: 100% !important; height: 100vh !important;
+                background-color: white !important; background-image: none !important; page-break-after: always;
+            }
+            * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+    </style>
+</head>
+
+<body class="bg-brand-surface h-screen w-screen overflow-hidden text-brand-dark font-body selection:bg-brand-yellow/50">
+
+    <div class="flex h-full">
+
+        <!-- SIDEBAR -->
+        <aside class="w-[360px] h-full flex flex-col bg-white border-r-4 border-brand-dark shrink-0 relative z-30 no-print shadow-2xl transition-all duration-300">
+            
+            <!-- HEADER (Ultra Compact) -->
+            <div class="p-2 border-b-4 border-brand-dark bg-slate-50 relative overflow-hidden">
+                <div class="flex items-center justify-between mb-1 relative z-10">
+                    <h1 class="font-heading font-black text-lg text-brand-dark tracking-tight">
+                        POSTER <span class="text-brand-pink">STUDIO</span>
+                    </h1>
+                    <button onclick="toggleTheme()" class="neo-btn bg-white w-7 h-7 p-0 rounded-lg shadow-neo-sm" title="Toggle Theme">
+                        <i data-lucide="moon" class="w-3.5 h-3.5 text-slate-700 dark:hidden"></i>
+                        <i data-lucide="sun" class="w-3.5 h-3.5 text-brand-orange hidden dark:block"></i>
+                    </button>
+                </div>
+
+                <!-- QUICK JUMP -->
+                <div class="mb-1 p-1 bg-brand-dark rounded-lg flex gap-1 shadow-neo-sm relative z-10">
+                    <button onclick="cyclePoster(-1)" class="p-1 bg-slate-700 text-white rounded hover:bg-slate-600 transition-colors"><i data-lucide="chevron-left" class="w-3.5 h-3.5"></i></button>
+                    <div class="flex-1 relative group">
+                        <select id="project-quick-select" onchange="switchPoster(this.value)" 
+                            class="w-full h-full pl-2 pr-5 bg-slate-800 rounded font-heading font-bold text-xs text-white appearance-none cursor-pointer focus:bg-slate-700 outline-none truncate">
+                        </select>
+                        <i data-lucide="chevron-down" class="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none"></i>
+                    </div>
+                    <button onclick="cyclePoster(1)" class="p-1 bg-slate-700 text-white rounded hover:bg-slate-600 transition-colors"><i data-lucide="chevron-right" class="w-3.5 h-3.5"></i></button>
+                    <button onclick="createNewPoster()" class="p-1 bg-brand-green text-brand-dark rounded hover:bg-[#00c965] transition-colors"><i data-lucide="plus" class="w-3.5 h-3.5"></i></button>
+                </div>
+
+                <!-- GLOBAL INPUTS -->
+                <div class="space-y-1 relative z-10">
+                    <div class="grid grid-cols-4 gap-1">
+                        <div class="col-span-1">
+                            <input type="text" id="global_badge" placeholder="#" class="neo-input text-center px-1" title="Badge">
+                        </div>
+                        <div class="col-span-3">
+                            <input type="text" id="global_title" placeholder="TITLE" class="neo-input" title="Main Title">
+                        </div>
+                    </div>
+                    <div>
+                        <input type="text" id="global_subtitle" placeholder="Subtitle / Context..." class="neo-input font-body font-semibold text-xs" title="Subtitle">
+                    </div>
+                </div>
+            </div>
+
+            <!-- TOOLBOX (3 Rows) -->
+            <div class="p-3 border-b-4 border-brand-dark bg-white">
+                <label class="block font-heading font-bold text-[10px] text-slate-400 mb-2 uppercase tracking-widest">Modules</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <!-- Vocab -->
+                    <button onclick="addModule('vocab')" class="flex items-center gap-2 p-2 bg-white border-2 border-brand-dark rounded-xl shadow-[3px_3px_0px_0px_#00E676] hover:shadow-none hover:translate-y-0.5 transition-all group">
+                        <div class="w-6 h-6 rounded-full bg-brand-green/20 flex items-center justify-center text-brand-green"><i data-lucide="list" class="w-4 h-4"></i></div>
+                        <span class="font-heading font-bold text-slate-700 text-xs">Vocab</span>
+                    </button>
+                    <!-- Formula -->
+                    <button onclick="addModule('grammar_structure')" class="flex items-center gap-2 p-2 bg-white border-2 border-brand-dark rounded-xl shadow-[3px_3px_0px_0px_#2979FF] hover:shadow-none hover:translate-y-0.5 transition-all group">
+                        <div class="w-6 h-6 rounded-full bg-brand-blue/20 flex items-center justify-center text-brand-blue"><i data-lucide="layers" class="w-4 h-4"></i></div>
+                        <span class="font-heading font-bold text-slate-700 text-xs">Formula</span>
+                    </button>
+                    <!-- Text -->
+                    <button onclick="addModule('text')" class="flex items-center gap-2 p-2 bg-white border-2 border-brand-dark rounded-xl shadow-[3px_3px_0px_0px_#FF8C42] hover:shadow-none hover:translate-y-0.5 transition-all group">
+                        <div class="w-6 h-6 rounded-full bg-brand-orange/20 flex items-center justify-center text-brand-orange"><i data-lucide="message-square" class="w-4 h-4"></i></div>
+                        <span class="font-heading font-bold text-slate-700 text-xs">Text</span>
+                    </button>
+                    <!-- Logic -->
+                    <button onclick="addModule('grammar_logic')" class="flex items-center gap-2 p-2 bg-white border-2 border-brand-dark rounded-xl shadow-[3px_3px_0px_0px_#FF6B95] hover:shadow-none hover:translate-y-0.5 transition-all group">
+                        <div class="w-6 h-6 rounded-full bg-brand-pink/20 flex items-center justify-center text-brand-pink"><i data-lucide="lightbulb" class="w-4 h-4"></i></div>
+                        <span class="font-heading font-bold text-slate-700 text-xs">Logic</span>
+                    </button>
+                     <!-- Table (New) -->
+                     <button onclick="addModule('table')" class="flex items-center gap-2 p-2 bg-white border-2 border-brand-dark rounded-xl shadow-[3px_3px_0px_0px_#A855F7] hover:shadow-none hover:translate-y-0.5 transition-all group">
+                        <div class="w-6 h-6 rounded-full bg-purple-100 flex items-center justify-center text-brand-purple"><i data-lucide="grid-3x3" class="w-4 h-4"></i></div>
+                        <span class="font-heading font-bold text-slate-700 text-xs">Table</span>
+                    </button>
+                     <!-- Note (New) -->
+                     <button onclick="addModule('note')" class="flex items-center gap-2 p-2 bg-white border-2 border-brand-dark rounded-xl shadow-[3px_3px_0px_0px_#EF4444] hover:shadow-none hover:translate-y-0.5 transition-all group">
+                        <div class="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center text-brand-red"><i data-lucide="sticky-note" class="w-4 h-4"></i></div>
+                        <span class="font-heading font-bold text-slate-700 text-xs">Note</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- LAYER LIST -->
+            <div class="flex-1 overflow-y-auto p-4 bg-slate-50 custom-scrollbar relative">
+                <div id="layer-header" class="flex items-center justify-between mb-4 sticky top-0 bg-slate-50 z-10 py-2 border-b-2 border-slate-200">
+                    <label class="block font-heading font-bold text-[10px] text-slate-400 uppercase tracking-widest flex items-center gap-2"><i data-lucide="layers" class="w-3 h-3"></i> Layers</label>
+                    <button onclick="clearAll()" class="text-[10px] font-bold text-red-400 hover:text-red-600 hover:underline">Clear All</button>
+                </div>
+                <div id="editor-container" class="space-y-3 pb-24"></div>
+            </div>
+
+            <!-- FOOTER -->
+            <div class="p-4 border-t-4 border-brand-dark bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-10">
+                <div class="flex gap-2">
+                    <button onclick="saveState(true)" id="save-btn" class="flex-1 py-3 bg-brand-dark text-white font-heading font-bold rounded-xl shadow-neo hover:shadow-none hover:translate-y-1 transition-all flex items-center justify-center gap-2 group border-2 border-brand-dark">
+                         <i data-lucide="save" class="w-4 h-4 group-hover:scale-110 transition-transform"></i> <span>Save</span>
+                    </button>
+                    <div class="flex border-2 border-brand-dark rounded-xl overflow-hidden shadow-neo bg-white">
+                         <button onclick="exportPoster()" title="Export JSON" class="px-4 hover:bg-slate-100 border-r-2 border-brand-dark transition-colors"><i data-lucide="download" class="w-5 h-5"></i></button>
+                         <button onclick="importPoster()" title="Import JSON" class="px-4 hover:bg-slate-100 transition-colors"><i data-lucide="upload" class="w-5 h-5"></i></button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- CANVAS -->
+        <main class="flex-1 h-full relative overflow-hidden flex flex-col bg-brand-surface">
+            <!-- Toolbar -->
+            <div class="absolute top-4 right-4 z-40 flex gap-2 no-print group">
+                <div class="bg-white border-2 border-brand-dark rounded-xl shadow-neo flex items-center p-1">
+                    <button onclick="changeZoom(-0.1)" class="p-2 hover:bg-slate-100 rounded-lg text-slate-600 hover:text-brand-dark"><i data-lucide="minus" class="w-5 h-5"></i></button>
+                    <span id="zoom-level" class="font-heading font-bold text-sm w-12 text-center text-brand-dark">100%</span>
+                    <button onclick="changeZoom(0.1)" class="p-2 hover:bg-slate-100 rounded-lg text-slate-600 hover:text-brand-dark"><i data-lucide="plus" class="w-5 h-5"></i></button>
+                </div>
+
+                <button onclick="openLibrary()" title="My Posters" class="neo-btn bg-brand-yellow text-brand-dark w-11 h-11 p-0"><i data-lucide="folder-open" class="w-5 h-5"></i></button>
+                <button id="fullscreen-btn" onclick="toggleFullScreen()" title="Toggle Sidebar" class="neo-btn bg-white text-brand-dark w-11 h-11 p-0"><i data-lucide="maximize" class="w-5 h-5"></i></button>
+                <button onclick="window.print()" title="Print" class="neo-btn bg-brand-blue text-white w-11 h-11 p-0"><i data-lucide="printer" class="w-5 h-5"></i></button>
+            </div>
+
+            <!-- Viewport -->
+            <div id="poster-viewport" class="flex-1 w-full h-full overflow-auto p-8 flex justify-center items-start transition-all duration-300">
+                <div id="poster-wrapper">
+                    <!-- QHD Poster Size (2560x1440) -->
+                    <div id="poster-area" class="w-[2560px] h-[1440px] bg-brand-chalk bg-graph-paper relative shadow-neo-lg overflow-hidden border-4 border-brand-dark transition-all duration-300">
+                        <!-- Content Injected Here -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODALS -->
+    <!-- Alert/Confirm Modal -->
+    <div id="custom-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center bg-brand-dark/50 backdrop-blur-sm transition-opacity opacity-0 pointer-events-none">
+        <div class="bg-white w-full max-w-md rounded-2xl border-4 border-brand-dark shadow-[8px_8px_0px_0px_rgba(30,41,59,1)] overflow-hidden transform scale-95 transition-all duration-200">
+            <div class="bg-brand-dark p-4 flex items-center gap-3">
+                <div class="bg-white/10 p-2 rounded-lg border border-white/20"><i id="modal-icon" data-lucide="info" class="w-6 h-6 text-brand-yellow"></i></div>
+                <h3 id="modal-title" class="font-heading text-xl font-bold text-white tracking-wide">Notification</h3>
+            </div>
+            <div class="p-6">
+                <p id="modal-msg" class="text-slate-600 font-bold text-base leading-relaxed mb-6">Message...</p>
+                <div class="flex gap-3">
+                    <button id="modal-cancel" onclick="closeModal()" class="neo-btn bg-white text-slate-500 border-slate-300 flex-1 py-3 hover:bg-slate-50">Cancel</button>
+                    <button id="modal-confirm" class="neo-btn bg-brand-pink text-white border-brand-dark flex-1 py-3">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Library Modal -->
+    <div id="library-modal" class="fixed inset-0 z-[90] hidden items-center justify-center bg-brand-dark/50 backdrop-blur-sm transition-opacity opacity-0 pointer-events-none">
+        <div class="bg-white w-full max-w-2xl h-[80vh] flex flex-col rounded-2xl border-4 border-brand-dark shadow-[8px_8px_0px_0px_rgba(30,41,59,1)] overflow-hidden transform scale-95 transition-all duration-200">
+            <div class="bg-slate-50 border-b-4 border-brand-dark p-5 flex justify-between items-center">
+                <div class="flex items-center gap-4">
+                    <div class="bg-brand-yellow border-2 border-brand-dark p-3 rounded-xl shadow-neo-sm"><i data-lucide="library" class="w-6 h-6 text-brand-dark"></i></div>
+                    <div>
+                        <h2 class="font-heading font-black text-2xl text-brand-dark leading-none">MY POSTERS</h2>
+                        <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Manage your collection</p>
+                    </div>
+                </div>
+                <button onclick="closeLibrary()" class="p-2 hover:bg-slate-200 rounded-lg"><i data-lucide="x" class="w-6 h-6 text-slate-600"></i></button>
+            </div>
+            <div id="library-list" class="flex-1 overflow-y-auto p-5 space-y-3 bg-slate-100 custom-scrollbar"></div>
+            <div class="p-5 border-t-4 border-brand-dark bg-white">
+                <button onclick="createNewPoster()" class="neo-btn bg-brand-green text-brand-dark w-full py-4 text-lg gap-2"><i data-lucide="plus-circle" class="w-6 h-6"></i> CREATE NEW POSTER</button>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="import-file" class="hidden" accept=".json" onchange="handleFileImport(this)">
+
+    <!-- LOGIC -->
+    <script>
+        // --- CONFIG & STATE ---
+        const STORAGE_KEY = 'english1-poster-studio-v2';
+        const UI = {}; // DOM Cache
+        let debounceTimer;
+
+        // Default Data Structure
+        const defaultPosterData = {
+            id: 'default',
+            global: { title: 'UNTITLED', subtitle: 'New Project', badge: '1' },
+            modules: [],
+            zoom: 0.5, // Changed default zoom to 50% so the huge poster fits in view initially
+            lastModified: Date.now()
+        };
+
+        const defaultState = {
+            currentId: 'default',
+            theme: 'light',
+            posters: [ JSON.parse(JSON.stringify(defaultPosterData)) ]
+        };
+        
+        // Load State
+        let state = JSON.parse(localStorage.getItem(STORAGE_KEY)) || defaultState;
+        if (!state.posters || !Array.isArray(state.posters)) state = defaultState;
+
+        // Runtime Refs
+        let currentPoster = state.posters.find(p => p.id === state.currentId) || state.posters[0];
+        let editingId = null;
+        let modalCallback = null;
+
+        // --- INIT ---
+        window.onload = () => {
+            UI.title = document.getElementById('global_title');
+            UI.subtitle = document.getElementById('global_subtitle');
+            UI.badge = document.getElementById('global_badge');
+            UI.canvas = document.getElementById('poster-area');
+            UI.editor = document.getElementById('editor-container');
+            UI.select = document.getElementById('project-quick-select');
+            
+            const inputs = [UI.title, UI.subtitle, UI.badge];
+            inputs.forEach(el => {
+                if(el) el.addEventListener('input', (e) => handleGlobalInput(e));
+            });
+
+            loadPosterUI();
+        };
+
+        function loadPosterUI() {
+            UI.title.value = currentPoster.global.title;
+            UI.subtitle.value = currentPoster.global.subtitle;
+            UI.badge.value = currentPoster.global.badge;
+            applyTheme();
+            applyZoom();
+            updateQuickSelector();
+            renderAll();
+        }
+
+        // --- HANDLERS ---
+        function handleGlobalInput(e) {
+            const field = e.target.id.replace('global_', '');
+            currentPoster.global[field] = e.target.value;
+            renderPoster(); 
+            updateQuickSelector();
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => saveState(false), 500);
+        }
+
+        function saveState(visualFeedback = false) {
+            currentPoster.lastModified = Date.now();
+            const idx = state.posters.findIndex(p => p.id === currentPoster.id);
+            if(idx !== -1) state.posters[idx] = currentPoster;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+
+            if (visualFeedback) {
+                const btn = document.getElementById('save-btn');
+                const originalContent = btn.innerHTML;
+                btn.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i> Saved!`;
+                btn.classList.replace('bg-brand-dark', 'bg-brand-green');
+                btn.classList.replace('text-white', 'text-brand-dark');
+                lucide.createIcons();
+                setTimeout(() => {
+                    btn.innerHTML = originalContent;
+                    btn.classList.replace('bg-brand-green', 'bg-brand-dark');
+                    btn.classList.replace('text-brand-dark', 'text-white');
+                    lucide.createIcons();
+                }, 1000);
+            }
+        }
+
+        // --- MODULE LOGIC ---
+        function addModule(type) {
+            const id = crypto.randomUUID();
+            // Default size: medium, Default height: auto (row-span-3)
+            let newMod = { id, type, size: 'md', height: 'auto', title: 'New Section', color: 'blue', data: {} };
+            
+            // Factory
+            if (type === 'vocab') { newMod.title = 'Vocabulary'; newMod.color = 'green'; newMod.data.list = 'Apple\nBanana\nOrange'; }
+            else if (type === 'grammar_structure') { newMod.title = 'Formula'; newMod.color = 'blue'; newMod.data = { formula: 'S + V + O', example: 'I play chess.' }; }
+            else if (type === 'text') { newMod.title = 'Dialogue'; newMod.color = 'orange'; newMod.data.text = 'A: Hello!\nB: Hi there!'; }
+            else if (type === 'grammar_logic') { newMod.title = 'Concept'; newMod.color = 'pink'; newMod.data = { concept: 'Why?', rule: 'Because...' }; }
+            else if (type === 'table') { newMod.title = 'Conjugation'; newMod.color = 'purple'; newMod.data = { content: 'Subject | Verb\nI | Play\nYou | Play' }; }
+            else if (type === 'note') { newMod.title = 'Important'; newMod.color = 'red'; newMod.data = { text: 'Remember to practice!' }; }
+
+            currentPoster.modules.push(newMod);
+            saveState();
+            renderAll();
+            setTimeout(() => UI.editor.scrollTop = UI.editor.scrollHeight, 50);
+        }
+
+        function updateModule(id, key, val) {
+            const mod = currentPoster.modules.find(m => m.id === id);
+            if (!mod) return;
+            if (key.includes('.')) {
+                const [p, c] = key.split('.');
+                mod[p][c] = val;
+            } else {
+                mod[key] = val;
+            }
+            renderPoster();
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => saveState(false), 500);
+        }
+
+        function deleteModule(id) {
+            showModal('Delete Module?', 'Confirm deletion?', true, () => {
+                currentPoster.modules = currentPoster.modules.filter(m => m.id !== id);
+                if (editingId === id) { editingId = null; renderEditorList(); }
+                saveState();
+                renderAll();
+            });
+        }
+
+        function moveModule(idx, dir) {
+            if (idx + dir < 0 || idx + dir >= currentPoster.modules.length) return;
+            [currentPoster.modules[idx], currentPoster.modules[idx+dir]] = [currentPoster.modules[idx+dir], currentPoster.modules[idx]];
+            saveState();
+            renderAll();
+        }
+
+        // --- RENDERING ---
+        function renderAll() {
+            renderEditorList();
+            renderPoster();
+            lucide.createIcons();
+        }
+
+        function renderEditorList() {
+            UI.editor.innerHTML = '';
+            if (currentPoster.modules.length === 0) {
+                UI.editor.innerHTML = `
+                    <div class="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-slate-300 rounded-xl mt-4">
+                        <div class="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-3"><i data-lucide="box" class="w-6 h-6 text-slate-400"></i></div>
+                        <p class="text-slate-500 font-bold text-sm">No layers yet</p>
+                    </div>`;
+                return;
+            }
+
+            if (editingId) {
+                renderModuleEditor(editingId);
+            } else {
+                currentPoster.modules.forEach((mod, idx) => {
+                    const div = document.createElement('div');
+                    div.className = `relative group flex items-center gap-2 p-2 rounded-lg border-2 transition-all cursor-pointer bg-white border-slate-200 hover:border-slate-400 hover:shadow-sm`;
+                    div.innerHTML = `
+                        <div class="w-1.5 h-8 rounded-full bg-brand-${mod.color}"></div>
+                        <div class="flex-1 min-w-0" onclick="editingId='${mod.id}'; renderEditorList()">
+                            <div class="flex items-center gap-2 mb-0.5"><span class="text-[9px] font-black uppercase tracking-wider text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md">${mod.type.replace('_', ' ')}</span></div>
+                            <h4 class="font-heading font-bold text-slate-800 text-sm truncate">${mod.title}</h4>
+                        </div>
+                        <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onclick="moveModule(${idx}, -1)" class="p-1 hover:bg-slate-100 rounded text-brand-dark"><i data-lucide="arrow-up" class="w-3.5 h-3.5"></i></button>
+                            <button onclick="moveModule(${idx}, 1)" class="p-1 hover:bg-slate-100 rounded text-brand-dark"><i data-lucide="arrow-down" class="w-3.5 h-3.5"></i></button>
+                            <button onclick="deleteModule('${mod.id}')" class="p-1 hover:bg-red-50 rounded text-red-500"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                        </div>
+                    `;
+                    UI.editor.appendChild(div);
+                });
+            }
+        }
+
+        function renderModuleEditor(id) {
+            const mod = currentPoster.modules.find(m => m.id === id);
+            if (!mod) { editingId = null; renderEditorList(); return; }
+
+            let fields = '';
+            if (mod.type === 'vocab') fields = `<label class="l">List Items</label><textarea class="neo-input h-32 font-mono text-sm" oninput="updateModule('${id}','data.list',this.value)">${mod.data.list||''}</textarea>`;
+            else if (mod.type === 'text') fields = `<label class="l">Body Text</label><textarea class="neo-input h-32" oninput="updateModule('${id}','data.text',this.value)">${mod.data.text||''}</textarea>`;
+            else if (mod.type === 'grammar_structure') fields = `<label class="l">Formula</label><input class="neo-input mb-2" value="${mod.data.formula||''}" oninput="updateModule('${id}','data.formula',this.value)"><label class="l">Example</label><input class="neo-input" value="${mod.data.example||''}" oninput="updateModule('${id}','data.example',this.value)">`;
+            else if (mod.type === 'grammar_logic') fields = `<label class="l">Concept</label><input class="neo-input mb-2" value="${mod.data.concept||''}" oninput="updateModule('${id}','data.concept',this.value)"><label class="l">Rule</label><textarea class="neo-input h-20" oninput="updateModule('${id}','data.rule',this.value)">${mod.data.rule||''}</textarea>`;
+            else if (mod.type === 'table') fields = `<label class="l">Content (Use | for columns)</label><textarea class="neo-input h-32 font-mono text-sm" placeholder="Row 1 Col 1 | Row 1 Col 2" oninput="updateModule('${id}','data.content',this.value)">${mod.data.content||''}</textarea>`;
+            else if (mod.type === 'note') fields = `<label class="l">Note Text</label><textarea class="neo-input h-24 font-hand text-lg" oninput="updateModule('${id}','data.text',this.value)">${mod.data.text||''}</textarea>`;
+
+            UI.editor.innerHTML = `
+                <div class="bg-white rounded-xl border-2 border-brand-dark p-4 shadow-neo">
+                    <div class="flex justify-between items-center mb-3 pb-2 border-b-2 border-slate-100">
+                        <button onclick="editingId=null; renderEditorList()" class="flex items-center gap-1 text-xs font-bold text-slate-500 hover:text-brand-dark"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back</button>
+                        <span class="text-[10px] font-black uppercase text-slate-300 tracking-wider">Editing</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 mb-3">
+                        <div class="col-span-2 grid grid-cols-2 gap-2">
+                             <div><label class="l">Color</label><select class="neo-input" onchange="updateModule('${id}','color',this.value)">
+                                <option value="pink" ${mod.color=='pink'?'selected':''}>Pink</option><option value="orange" ${mod.color=='orange'?'selected':''}>Orange</option>
+                                <option value="green" ${mod.color=='green'?'selected':''}>Green</option><option value="blue" ${mod.color=='blue'?'selected':''}>Blue</option>
+                                <option value="purple" ${mod.color=='purple'?'selected':''}>Purple</option><option value="red" ${mod.color=='red'?'selected':''}>Red</option>
+                            </select></div>
+                             <div><label class="l">Height</label><select class="neo-input" onchange="updateModule('${id}','height',this.value)">
+                                <option value="short" ${mod.height=='short'?'selected':''}>Compact (2 rows)</option>
+                                <option value="auto" ${(!mod.height || mod.height=='auto')?'selected':''}>Standard (3 rows)</option>
+                                <option value="tall" ${mod.height=='tall'?'selected':''}>Tall (6 rows)</option>
+                                <option value="full" ${mod.height=='full'?'selected':''}>Full Height (12 rows)</option>
+                            </select></div>
+                        </div>
+                        <div class="col-span-2">
+                            <label class="l">Width</label><select class="neo-input" onchange="updateModule('${id}','size',this.value)">
+                                <option value="xs" ${mod.size=='xs'?'selected':''}>XS (1/6)</option>
+                                <option value="sm" ${mod.size=='sm'||mod.size=='mini'?'selected':''}>Small (1/3)</option>
+                                <option value="md" ${mod.size=='md'||mod.size=='medium'?'selected':''}>Medium (1/2)</option>
+                                <option value="lg" ${mod.size=='lg'?'selected':''}>Large (2/3)</option>
+                                <option value="xl" ${mod.size=='xl'?'selected':''}>XL (5/6)</option>
+                                <option value="full" ${mod.size=='full'?'selected':''}>Full (1/1)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3"><label class="l">Title</label><input type="text" class="neo-input" value="${mod.title}" oninput="updateModule('${id}','title',this.value)"></div>
+                    ${fields}
+                    <button onclick="deleteModule('${id}')" class="w-full mt-4 py-2 border-2 border-red-100 text-red-500 rounded-lg hover:bg-red-50 font-bold text-xs flex items-center justify-center gap-2"><i data-lucide="trash-2" class="w-3 h-3"></i> Delete</button>
+                </div>`;
+            
+            UI.editor.querySelectorAll('.l').forEach(el => el.className = 'block text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1.5 ml-1');
+        }
+
+        function renderPoster() {
+            const { title, subtitle, badge } = currentPoster.global;
+            
+            const headerHTML = `
+                <div class="col-span-12 row-span-2 w-full flex items-start justify-between mb-0 border-b-4 border-brand-dark pb-4 z-20">
+                    <div class="flex-1 pr-8">
+                        <h1 class="font-heading font-black text-8xl text-brand-dark tracking-tight leading-none mb-4">${title}</h1>
+                        <p class="font-body font-bold text-4xl text-slate-500 dark:text-slate-400">${subtitle}</p>
+                    </div>
+                    <div class="h-32 min-w-[180px] px-10 flex items-center justify-center bg-brand-yellow border-4 border-brand-dark rounded-full shadow-neo transform rotate-2">
+                        <span class="font-heading font-black text-6xl text-brand-dark whitespace-nowrap">${badge}</span>
+                    </div>
+                </div>`;
+
+            // Grid: 12 Cols, 12 Rows. Flow Dense to pack items nicely.
+            let gridHTML = `<div class="grid grid-cols-12 grid-rows-12 gap-8 w-full h-full grid-flow-dense pt-6">`;
+            
+            // Header takes up top space implicitly via flex, but better to put it in the grid?
+            // Actually, keep header top separate flex, and grid below.
+            // But user wants "Full Height" module. Full height implies spanning the whole canvas.
+            // Let's put header INSIDE the grid if possible? No, header is top.
+            // If header is top, "Full Height" module means "Full remaining height".
+            // Poster height 1440. Header approx 200px. Grid height ~1200px.
+            
+            currentPoster.modules.forEach(mod => {
+                gridHTML += renderModuleContent(mod);
+            });
+            gridHTML += `</div>`;
+
+            UI.canvas.innerHTML = `
+                <div class="p-16 h-full flex flex-col">
+                    ${headerHTML}
+                    <div class="flex-1 min-h-0">
+                        ${gridHTML}
+                    </div>
+                    <div class="mt-auto pt-8 text-center opacity-40"><p class="font-heading font-bold text-brand-dark text-xl uppercase tracking-[0.3em]">English 1 Batam • Educational Resource</p></div>
+                </div>`;
+        }
+
+        function renderModuleContent(mod) {
+            // WIDTH (Col Span)
+            let colSpan = 'col-span-12'; // Default
+            if (mod.size === 'xs') colSpan = 'col-span-2';
+            if (mod.size === 'sm' || mod.size === 'mini') colSpan = 'col-span-4';
+            if (mod.size === 'md' || mod.size === 'medium') colSpan = 'col-span-6';
+            if (mod.size === 'lg') colSpan = 'col-span-8';
+            if (mod.size === 'xl') colSpan = 'col-span-10';
+            if (mod.size === 'full') colSpan = 'col-span-12';
+
+            // HEIGHT (Row Span)
+            // 12 Rows total available in the grid container
+            let rowSpan = 'row-span-3'; // Default Auto
+            if (mod.height === 'short') rowSpan = 'row-span-2';
+            if (mod.height === 'tall') rowSpan = 'row-span-6';
+            if (mod.height === 'full') rowSpan = 'row-span-12';
+
+            let content = '';
+            // Font sizes increased for bigger poster
+            if (mod.type === 'vocab') {
+                content = `<ul class="p-6 bg-white h-full overflow-hidden">` + (mod.data.list||'').split('\n').filter(x=>x).map(x => `
+                    <li class="flex items-center gap-4 mb-4"><div class="w-4 h-4 rounded-sm bg-brand-${mod.color} border border-brand-dark shadow-[1px_1px_0_0_rgba(30,41,59,1)]"></div><span class="font-body font-bold text-2xl text-brand-dark">${x}</span></li>
+                `).join('') + `</ul>`;
+            } else if (mod.type === 'grammar_structure') {
+                content = `<div class="p-8 bg-white text-center h-full flex flex-col justify-center"><div class="mb-6 font-heading font-black text-3xl text-brand-blue bg-blue-50 px-6 py-4 rounded-xl border-2 border-brand-blue border-dashed">${mod.data.formula||''}</div><p class="font-hand text-3xl text-slate-600">"${mod.data.example||''}"</p></div>`;
+            } else if (mod.type === 'text') {
+                content = `<div class="p-6 bg-white font-body text-2xl whitespace-pre-line text-slate-700 h-full leading-relaxed">${mod.data.text||''}</div>`;
+            } else if (mod.type === 'grammar_logic') {
+                content = `<div class="flex flex-col h-full"><div class="bg-slate-50 p-6 border-b-2 border-brand-dark"><span class="text-sm font-black text-slate-400 uppercase tracking-widest">CONCEPT</span><p class="font-heading font-bold text-3xl text-brand-dark mt-2">${mod.data.concept||''}</p></div><div class="bg-white p-6 flex-1"><span class="text-sm font-black text-slate-400 uppercase tracking-widest">RULE</span><p class="font-hand text-3xl text-brand-pink mt-2">${mod.data.rule||''}</p></div></div>`;
+            } else if (mod.type === 'table') {
+                const rows = (mod.data.content||'').split('\n').filter(r => r.trim());
+                const tableRows = rows.map((r, i) => {
+                    const cols = r.split('|');
+                    const cellClass = i === 0 ? 'font-heading font-black bg-brand-purple text-white uppercase text-lg' : 'font-body font-bold text-slate-700 text-2xl';
+                    return `<tr class="${i === 0 ? 'bg-purple-500' : (i%2===0 ? 'bg-white' : 'bg-purple-50')}">${cols.map(c => `<td class="p-4 border border-purple-200 ${cellClass}">${c.trim()}</td>`).join('')}</tr>`;
+                }).join('');
+                content = `<div class="p-0 bg-white h-full overflow-hidden"><table class="w-full text-left border-collapse">${tableRows}</table></div>`;
+            } else if (mod.type === 'note') {
+                content = `<div class="p-8 bg-yellow-100 h-full flex items-center justify-center relative"><div class="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-red-500 border-2 border-brand-dark shadow-sm -mt-3 z-10"></div><p class="font-hand text-4xl text-slate-800 text-center leading-normal rotate-1">${mod.data.text||''}</p></div>`;
+            }
+
+            return `
+                <div class="${colSpan} ${rowSpan} bg-white border-4 border-brand-dark rounded-2xl overflow-hidden shadow-neo relative h-full flex flex-col">
+                    <div class="bg-brand-${mod.color} px-6 py-3 border-b-4 border-brand-dark flex justify-between items-center relative z-10">
+                        <h3 class="font-heading font-black text-white text-2xl uppercase shadow-sm tracking-wide">${mod.title}</h3>
+                        <div class="w-4 h-4 rounded-full bg-brand-dark opacity-20"></div>
+                    </div>
+                    <div class="flex-1 overflow-hidden relative">${content}</div>
+                    <div class="tape-strip"></div>
+                </div>`;
+        }
+
+        // --- GLOBAL & LIBRARY ---
+        function applyTheme() {
+            if (state.theme === 'dark') {
+                UI.canvas.classList.add('dark'); UI.canvas.classList.replace('bg-brand-chalk', 'bg-slate-900');
+            } else {
+                UI.canvas.classList.remove('dark'); UI.canvas.classList.replace('bg-slate-900', 'bg-brand-chalk');
+            }
+        }
+        function toggleTheme() { state.theme = state.theme === 'light' ? 'dark' : 'light'; saveState(); applyTheme(); }
+
+        function applyZoom() {
+            document.getElementById('poster-wrapper').style.transform = `scale(${currentPoster.zoom || 0.5})`;
+            document.getElementById('zoom-level').innerText = `${Math.round((currentPoster.zoom || 0.5) * 100)}%`;
+        }
+        function changeZoom(delta) {
+            currentPoster.zoom = Math.max(0.1, Math.min(2.0, (currentPoster.zoom || 0.5) + delta));
+            applyZoom();
+        }
+
+        function toggleFullScreen() {
+            document.body.classList.toggle('zen-mode');
+            const btn = document.getElementById('fullscreen-btn');
+            const iconName = document.body.classList.contains('zen-mode') ? 'minimize' : 'maximize';
+            
+            // Fix: Completely replace button content to reset icon for Lucide
+            btn.innerHTML = `<i data-lucide="${iconName}" class="w-5 h-5"></i>`;
+            lucide.createIcons();
+        }
+
+        // --- LIBRARY/PROJECTS ---
+        function updateQuickSelector() {
+            UI.select.innerHTML = state.posters.map(p => 
+                `<option value="${p.id}" ${p.id === currentPoster.id ? 'selected' : ''}>${p.global.title}</option>`
+            ).join('');
+        }
+
+        function switchPoster(id) {
+            saveState(); // Save old one
+            const target = state.posters.find(p => p.id === id);
+            if(target) {
+                state.currentId = id;
+                currentPoster = target;
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); // update pointer
+                editingId = null; // close editor
+                closeLibrary();
+                loadPosterUI(); // Reload UI with new data
+            }
+        }
+
+        function createNewPoster() {
+            const newP = JSON.parse(JSON.stringify(defaultPosterData));
+            newP.id = crypto.randomUUID();
+            newP.lastModified = Date.now();
+            newP.global = { title: 'UNTITLED', subtitle: 'New Project', badge: '1' };
+            newP.modules = [];
+
+            state.posters.push(newP);
+            switchPoster(newP.id);
+        }
+
+        function cyclePoster(dir) {
+            const idx = state.posters.findIndex(p => p.id === currentPoster.id);
+            let newIdx = idx + dir;
+            if (newIdx >= state.posters.length) newIdx = 0;
+            if (newIdx < 0) newIdx = state.posters.length - 1;
+            switchPoster(state.posters[newIdx].id);
+        }
+
+        function deletePoster(id) {
+            showModal('Delete Project?', 'Permanently remove this poster?', true, () => {
+                state.posters = state.posters.filter(p => p.id !== id);
+                if (state.posters.length === 0) createNewPoster(); // Ensure at least 1 exists
+                else if (id === currentPoster.id) switchPoster(state.posters[0].id);
+                else { saveState(); openLibrary(); } // Just refresh list if deleted non-active
+            });
+        }
+
+        function clearAll() {
+            showModal('Clear Poster', 'Remove all modules?', true, () => {
+                currentPoster.modules = [];
+                saveState(); renderAll();
+            });
+        }
+
+        // --- MODALS & EXPORT ---
+        function openLibrary() {
+            const list = document.getElementById('library-list');
+            list.innerHTML = '';
+            const sorted = [...state.posters].sort((a,b) => (b.lastModified || 0) - (a.lastModified || 0));
+            
+            sorted.forEach(p => {
+                const isCur = p.id === currentPoster.id;
+                const date = new Date(p.lastModified || 0).toLocaleDateString();
+                const el = document.createElement('div');
+                el.className = `p-4 border-2 rounded-xl flex items-center justify-between transition-all ${isCur ? 'border-brand-blue bg-blue-50' : 'border-slate-200 bg-white hover:border-slate-400'}`;
+                el.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-lg ${isCur ? 'bg-brand-blue text-white' : 'bg-slate-100 text-slate-400'} flex items-center justify-center font-black text-xl border-2 border-brand-dark">${p.global.badge}</div>
+                        <div><h4 class="font-heading font-black text-lg text-brand-dark uppercase">${p.global.title}</h4><p class="text-xs font-bold text-slate-500">${p.modules.length} modules • ${date}</p></div>
+                    </div>
+                    <div class="flex gap-2">
+                         ${!isCur ? `<button onclick="switchPoster('${p.id}')" class="neo-btn px-4 py-2 bg-white text-xs">OPEN</button>` : `<span class="neo-btn px-4 py-2 bg-brand-dark text-white text-xs">ACTIVE</span>`}
+                         ${state.posters.length > 1 ? `<button onclick="deletePoster('${p.id}')" class="neo-btn p-2 text-red-500 border-red-200 hover:bg-red-50"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : ''}
+                    </div>`;
+                list.appendChild(el);
+            });
+            
+            lucide.createIcons();
+            document.getElementById('library-modal').classList.remove('hidden', 'opacity-0', 'pointer-events-none');
+        }
+        function closeLibrary() { document.getElementById('library-modal').classList.add('hidden'); }
+
+        function showModal(title, msg, isConfirm, cb) {
+            const m = document.getElementById('custom-modal');
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-msg').innerText = msg;
+            const confirm = document.getElementById('modal-confirm');
+            confirm.innerText = isConfirm ? 'Confirm' : 'OK';
+            document.getElementById('modal-cancel').style.display = isConfirm ? 'block' : 'none';
+            modalCallback = cb || (() => closeModal());
+            m.classList.remove('hidden', 'opacity-0', 'pointer-events-none');
+            lucide.createIcons();
+        }
+        function closeModal() { document.getElementById('custom-modal').classList.add('hidden'); modalCallback = null; }
+        document.getElementById('modal-confirm').onclick = () => { if(modalCallback) modalCallback(); closeModal(); };
+
+        function exportPoster() {
+            const data = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(currentPoster));
+            const dl = document.createElement('a');
+            dl.href = data;
+            dl.download = `poster_${currentPoster.global.title.replace(/\s+/g, '_')}.json`;
+            dl.click();
+        }
+        function importPoster() { document.getElementById('import-file').click(); }
+        function handleFileImport(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const r = new FileReader();
+            r.onload = (e) => {
+                try {
+                    const json = JSON.parse(e.target.result);
+                    if(json.global && json.modules) {
+                        json.id = crypto.randomUUID();
+                        json.lastModified = Date.now();
+                        state.posters.push(json);
+                        switchPoster(json.id);
+                        showModal('Success', 'Poster imported!', false);
+                    } else showModal('Error', 'Invalid format', false);
+                } catch(e) { showModal('Error', 'Read error', false); }
+            };
+            r.readAsText(file);
+            input.value = '';
+        }
+    </script>
+</body>
+</html>
