@@ -65,20 +65,25 @@
         .custom-scrollbar::-webkit-scrollbar { width: 10px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; border: 2px solid #f8fafc; }
+        
+        .icon-option:hover { background-color: #2979FF; color: white; border-color: #1e293b; }
     </style>
 </head>
 <body class="text-brand-dark font-body min-h-screen flex flex-col">
 
     <!-- Navbar -->
-    <nav class="bg-brand-pink border-b-4 border-brand-dark p-4 sticky top-0 z-40 neo-shadow">
-        <div class="max-w-7xl mx-auto flex justify-between items-center">
+    <nav class="bg-brand-pink border-b-4 border-brand-dark p-4 sticky top-0 z-40 neo-shadow text-brand-dark">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row gap-4 justify-between items-center">
             <div class="flex items-center gap-3 bg-brand-chalk border-2 border-brand-dark rounded-xl px-4 py-2 neo-shadow-sm text-brand-dark">
                 <i data-lucide="gamepad-2" class="w-6 h-6 text-brand-pink"></i>
                 <h1 class="font-heading text-xl font-bold tracking-tight">Project Game Manager</h1>
             </div>
-            <div class="flex gap-3">
+            <div class="flex gap-2">
+                 <button onclick="copyToClipboard()" class="bg-brand-blue text-white border-2 border-brand-dark rounded-xl px-4 py-2 font-heading font-bold neo-shadow-sm neo-btn flex items-center gap-2">
+                    <i data-lucide="copy" class="w-4 h-4"></i> Copy JSON
+                </button>
                  <button onclick="exportJson()" class="bg-brand-green border-2 border-brand-dark rounded-xl px-4 py-2 font-heading font-bold neo-shadow-sm neo-btn flex items-center gap-2">
-                    <i data-lucide="download" class="w-4 h-4"></i> Export games.json
+                    <i data-lucide="download" class="w-4 h-4"></i> Export
                 </button>
             </div>
         </div>
@@ -187,9 +192,21 @@
                                 <label class="text-xs font-black uppercase text-slate-400">Path / URL</label>
                                 <input type="text" id="path" required placeholder="./word-rush/index.html" class="w-full px-4 py-3 rounded-xl font-bold">
                             </div>
+                            <!-- Updated Icon Picker Field -->
                             <div class="space-y-1">
-                                <label class="text-xs font-black uppercase text-slate-400">Icon (Lucide name)</label>
-                                <input type="text" id="icon" required placeholder="zap" class="w-full px-4 py-3 rounded-xl font-bold">
+                                <label class="text-xs font-black uppercase text-slate-400">Display Icon</label>
+                                <div class="flex gap-2">
+                                    <button type="button" onclick="openIconPicker()" class="flex-1 bg-white border-2 border-brand-dark rounded-xl px-4 py-3 font-bold flex items-center justify-between group neo-shadow-sm hover:-translate-y-0.5 active:translate-y-0.5 transition-all">
+                                        <div class="flex items-center gap-3">
+                                            <div id="currentIconDisplay" class="p-1 bg-brand-chalk border-2 border-brand-dark rounded-lg flex items-center justify-center">
+                                                <i data-lucide="zap" class="w-5 h-5"></i>
+                                            </div>
+                                            <span id="currentIconName">zap</span>
+                                        </div>
+                                        <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400"></i>
+                                    </button>
+                                    <input type="hidden" id="icon" value="zap">
+                                </div>
                             </div>
                         </div>
 
@@ -261,6 +278,29 @@
         </div>
     </main>
 
+    <!-- ICON PICKER MODAL -->
+    <div id="iconPickerModal" class="fixed inset-0 bg-brand-dark/80 backdrop-blur-sm z-[100] hidden flex justify-center items-center p-4">
+        <div class="bg-white w-full max-w-2xl border-4 border-brand-dark rounded-2xl neo-shadow overflow-hidden flex flex-col max-h-[80vh]">
+            <div class="bg-brand-blue p-4 border-b-4 border-brand-dark flex justify-between items-center shrink-0">
+                <h3 class="font-heading text-xl font-bold text-white">Choose an Icon</h3>
+                <button onclick="closeIconPicker()" class="bg-white border-2 border-brand-dark rounded-lg p-1.5 hover:bg-brand-pink transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <div class="p-4 border-b-2 border-brand-dark bg-brand-chalk shrink-0">
+                <div class="relative">
+                    <input type="text" id="iconSearchInput" placeholder="Search icons (e.g. book, game, music)..." oninput="filterIcons()" class="w-full px-4 py-2 pl-10 rounded-xl font-bold">
+                    <i data-lucide="search" class="absolute left-3 top-2.5 w-5 h-5 text-slate-400"></i>
+                </div>
+            </div>
+
+            <div id="iconGrid" class="flex-grow overflow-y-auto p-4 grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3 custom-scrollbar">
+                <!-- Icons injected here -->
+            </div>
+        </div>
+    </div>
+
     <!-- Toast -->
     <div id="toast" class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 transform translate-y-32 opacity-0 transition-all duration-300">
         <div class="bg-brand-dark text-white neo-border rounded-2xl px-8 py-4 neo-shadow font-bold flex items-center gap-4">
@@ -278,8 +318,56 @@
         };
         let editingId = null;
 
+        const iconList = [
+            "zap", "layers", "book-a", "briefcase", "utensils", "clock", "flame", "headphones", "eye", "flag", 
+            "pen-tool", "graduation-cap", "brain-circuit", "check-circle", "book-open", "scale", "search", 
+            "library", "trash-2", "edit-3", "file-up", "plus-square", "download", "gamepad-2", "mic", "music",
+            "pencil", "brush", "palette", "languages", "globe", "map", "users", "smile", "heart", "star",
+            "trophy", "medal", "award", "rocket", "plane", "compass", "puzzle", "dice-5", "swatch-book", "shapes",
+            "type", "case-sensitive", "spell-check", "binary", "terminal", "code", "cpu", "database", "cloud",
+            "wifi", "bluetooth", "battery-charging", "camera", "video", "layout", "monitor", "smartphone", "mouse-pointer", "copy", "clipboard-check"
+        ];
+
         // Init
         lucide.createIcons();
+
+        // --- ICON PICKER ---
+        function openIconPicker() {
+            document.getElementById('iconPickerModal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            renderIconGrid(iconList);
+            document.getElementById('iconSearchInput').value = '';
+        }
+
+        function closeIconPicker() {
+            document.getElementById('iconPickerModal').classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        function renderIconGrid(list) {
+            const grid = document.getElementById('iconGrid');
+            grid.innerHTML = list.map(icon => `
+                <button type="button" onclick="selectIcon('${icon}')" class="icon-option flex flex-col items-center gap-1 p-2 border-2 border-brand-dark/10 rounded-xl transition-all">
+                    <i data-lucide="${icon}" class="w-6 h-6"></i>
+                    <span class="text-[8px] font-black uppercase truncate w-full text-center">${icon}</span>
+                </button>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function filterIcons() {
+            const term = document.getElementById('iconSearchInput').value.toLowerCase();
+            const filtered = iconList.filter(i => i.includes(term));
+            renderIconGrid(filtered);
+        }
+
+        function selectIcon(icon) {
+            document.getElementById('icon').value = icon;
+            document.getElementById('currentIconName').innerText = icon;
+            document.getElementById('currentIconDisplay').innerHTML = `<i data-lucide="${icon}" class="w-5 h-5"></i>`;
+            lucide.createIcons();
+            closeIconPicker();
+        }
 
         // --- MAINTENANCE TOOLS ---
         function sortGamesAZ() {
@@ -299,6 +387,42 @@
             showToast("Theme Colors Applied!");
         }
 
+        // --- CLIPBOARD ---
+        function copyToClipboard() {
+            if (projectData.games.length === 0) return showToast("Nothing to copy!", true);
+            
+            // Sync final meta
+            projectData.metadata.totalGames = projectData.games.length;
+            projectData.lastUpdated = new Date().toISOString().split('T')[0];
+            
+            const text = JSON.stringify(projectData, null, 2);
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            
+            // Ensure textArea is not visible but part of DOM
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            textArea.style.top = "0";
+            document.body.appendChild(textArea);
+            
+            textArea.select();
+            textArea.setSelectionRange(0, 99999); // For mobile devices
+            
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showToast("JSON Copied to Clipboard!");
+                } else {
+                    throw new Error("Copy command failed");
+                }
+            } catch (err) {
+                console.error('Fallback copy failed', err);
+                showToast("Failed to copy JSON!", true);
+            }
+            
+            document.body.removeChild(textArea);
+        }
+
         // --- FILE HANDLING ---
         document.getElementById('importFile').addEventListener('change', function(e) {
             const file = e.target.files[0]; if (!file) return;
@@ -308,7 +432,6 @@
                     let raw = event.target.result.trim();
                     if (raw.charCodeAt(0) === 0xFEFF) raw = raw.slice(1);
                     
-                    // JSON Healer Logic
                     const startObj = raw.indexOf('{');
                     if (startObj !== -1) {
                         let last = raw.lastIndexOf('}');
@@ -337,7 +460,6 @@
             if (projectData.games.length === 0) return showToast("Nothing to export!", true);
             projectData.metadata.totalGames = projectData.games.length;
             projectData.lastUpdated = new Date().toISOString().split('T')[0];
-            
             const blob = new Blob([JSON.stringify(projectData, null, 2)], { type: "application/json" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -360,15 +482,11 @@
         function updateGameList() {
             const list = document.getElementById('gameList');
             document.getElementById('gameCount').innerText = projectData.games.length;
-            
             if (projectData.games.length === 0) {
                 list.innerHTML = `<p class="text-center py-10 opacity-30 font-bold italic text-sm">No entries found.</p>`;
                 return;
             }
-
-            list.innerHTML = projectData.games.map(g => {
-                // Map logical color names to real CSS classes if needed (though project uses 'text-pink' etc)
-                return `
+            list.innerHTML = projectData.games.map(g => `
                 <div class="bg-white border-2 border-brand-dark rounded-xl p-3 neo-shadow-sm flex justify-between items-center group ${editingId === g.id ? 'ring-4 ring-brand-blue/20 border-brand-blue' : ''}">
                     <div class="truncate">
                         <p class="font-bold text-sm truncate">${g.title}</p>
@@ -383,7 +501,7 @@
                         </button>
                     </div>
                 </div>
-            `;}).join('');
+            `).join('');
             lucide.createIcons();
         }
 
@@ -418,10 +536,8 @@
 
         function saveEntry(e) {
             e.preventDefault();
-            
             const tags = Array.from(document.querySelectorAll('.tag-val')).map(i => i.value).filter(v => v);
             const steps = Array.from(document.querySelectorAll('.step-val')).map(i => i.value).filter(v => v);
-
             const data = {
                 id: document.getElementById('id').value,
                 title: document.getElementById('title').value,
@@ -435,48 +551,38 @@
                 ageRange: document.getElementById('ageRange').value,
                 featured: document.getElementById('featured').checked,
                 active: document.getElementById('active').checked,
-                guide: {
-                    short: document.getElementById('guideShort').value,
-                    steps: steps
-                }
+                guide: { short: document.getElementById('guideShort').value, steps: steps }
             };
-
             if (editingId) {
                 const idx = projectData.games.findIndex(g => g.id === editingId);
                 projectData.games[idx] = data;
                 showToast("Entry Updated!");
             } else {
-                if (projectData.games.some(g => g.id === data.id)) {
-                    showToast("ID already exists!", true);
-                    return;
-                }
+                if (projectData.games.some(g => g.id === data.id)) return showToast("ID already exists!", true);
                 projectData.games.push(data);
                 showToast("Entry Added!");
             }
-
-            // Update Metadata Tags collection
             const allTags = new Set(projectData.metadata.tags);
             tags.forEach(t => allTags.add(t));
             projectData.metadata.tags = Array.from(allTags);
-
-            resetForm();
-            updateGameList();
+            resetForm(); updateGameList();
         }
 
         function editEntry(id) {
             const g = projectData.games.find(x => x.id === id);
             if (!g) return;
-
             editingId = id;
             document.getElementById('formTitle').innerHTML = `<i data-lucide="edit"></i> Editing Entry`;
             document.getElementById('formHeader').classList.replace('bg-brand-orange', 'bg-brand-blue');
             document.getElementById('idBadge').innerText = "ID: " + id;
-
             document.getElementById('id').value = g.id;
             document.getElementById('title').value = g.title;
             document.getElementById('category').value = g.category;
             document.getElementById('path').value = g.path;
-            document.getElementById('icon').value = g.icon;
+            
+            // Set Icon
+            selectIcon(g.icon || 'zap');
+
             document.getElementById('color').value = g.color;
             document.getElementById('description').value = g.description;
             document.getElementById('difficulty').value = g.difficulty;
@@ -484,21 +590,16 @@
             document.getElementById('featured').checked = g.featured;
             document.getElementById('active').checked = g.active;
             document.getElementById('guideShort').value = g.guide?.short || "";
-
-            // Dynamic lists
             document.getElementById('tagsContainer').innerHTML = '';
             g.tags?.forEach(t => addTagRow(t));
-
             document.getElementById('stepsContainer').innerHTML = '';
             g.guide?.steps?.forEach(s => addStepRow(s));
-
             window.scrollTo({ top: 0, behavior: 'smooth' });
             updateGameList();
-            lucide.createIcons();
         }
 
         function deleteEntry(id) {
-            if (!confirm("Delete this entry from the directory?")) return;
+            if (!confirm("Delete permanently?")) return;
             projectData.games = projectData.games.filter(g => g.id !== id);
             if (editingId === id) resetForm();
             updateGameList();
@@ -510,11 +611,10 @@
             document.getElementById('gameForm').reset();
             document.getElementById('tagsContainer').innerHTML = '';
             document.getElementById('stepsContainer').innerHTML = '';
-            
             document.getElementById('formTitle').innerHTML = `<i data-lucide="plus-square"></i> Adding New Entry`;
             document.getElementById('formHeader').classList.replace('bg-brand-blue', 'bg-brand-orange');
             document.getElementById('idBadge').innerText = "New Entry";
-            
+            selectIcon('zap');
             addTagRow('vocabulary');
             addStepRow();
             lucide.createIcons();
@@ -530,11 +630,7 @@
             setTimeout(() => t.classList.add('translate-y-32', 'opacity-0'), 3000);
         }
 
-        window.onload = () => {
-            syncMetaToInputs();
-            resetForm();
-            updateGameList();
-        };
+        window.onload = () => { syncMetaToInputs(); resetForm(); updateGameList(); };
     </script>
 </body>
 </html>
