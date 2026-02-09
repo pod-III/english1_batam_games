@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English 1 Batam | Skill Tracker</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300..700&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Nunito', 'sans-serif'],
+                        display: ['Fredoka', 'sans-serif'],
+                    },
+                    colors: {
+                        e1pink: '#FF6B95',
+                        e1orange: '#FF8C42',
+                        e1green: '#00E676',
+                        e1blue: '#2979FF',
+                        e1indigo: '#6366f1',
+                        e1violet: '#8b5cf6',
+                        e1dark: '#1e293b',
+                        e1chalk: '#f8fafc',
+                    },
+                    boxShadow: {
+                        'neo': '4px 4px 0px 0px rgba(30, 41, 59, 1)',
+                        'neo-sm': '2px 2px 0px 0px rgba(30, 41, 59, 1)',
+                        'neo-hover': '6px 6px 0px 0px rgba(30, 41, 59, 1)',
+                        'neo-active': '0px 0px 0px 0px rgba(30, 41, 59, 1)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* Custom Graph Paper Background */
+        body {
+            background-color: #f8fafc;
+            background-image: 
+                linear-gradient(#cbd5e1 1px, transparent 1px),
+                linear-gradient(90deg, #cbd5e1 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .dark body {
+            background-color: #0f172a;
+            background-image: 
+                linear-gradient(#1e293b 1px, transparent 1px),
+                linear-gradient(90deg, #1e293b 1px, transparent 1px);
+        }
+
+        /* Utilities */
+        .btn-neo {
+            transition: all 0.1s ease;
+        }
+        .btn-neo:active {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px 0px rgba(30, 41, 59, 1);
+        }
+        
+        /* Hide number input arrows */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+
+        .legend-chip {
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .legend-chip:hover {
+            transform: translateY(-2px);
+        }
+        .legend-chip.active {
+            outline: 3px solid #1e293b;
+            background-color: white;
+            color: #1e293b;
+        }
+        .dark .legend-chip.active {
+            outline-color: #f8fafc;
+            background-color: #1e293b;
+            color: white;
+        }
+    </style>
+</head>
+<body class="text-e1dark dark:text-e1chalk min-h-screen transition-colors duration-300 pb-20">
+
+    <!-- Navbar -->
+    <nav class="sticky top-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border-b-4 border-e1dark px-4 py-3 mb-8">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-e1pink rounded-lg border-2 border-e1dark shadow-neo flex items-center justify-center">
+                    <i data-lucide="activity" class="text-white w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="font-display font-bold text-2xl tracking-wide leading-none">English 1 <span class="text-e1blue">Tracker</span></h1>
+                    <input type="text" id="studentNameInput" placeholder="Student Name / Overall Title..." class="bg-transparent border-none p-0 text-sm font-bold text-slate-500 focus:ring-0 placeholder:font-sans placeholder:font-normal w-64">
+                </div>
+            </div>
+            
+            <div class="flex gap-4">
+                 <button onclick="clearData()" class="bg-red-500 text-white font-display font-bold py-2 px-4 rounded-xl border-2 border-e1dark shadow-neo hover:-translate-y-1 hover:shadow-neo-hover btn-neo flex items-center gap-2 text-sm">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i> Reset
+                </button>
+                <button id="themeToggle" class="bg-e1orange text-white p-2 rounded-xl border-2 border-e1dark shadow-neo hover:-translate-y-1 hover:shadow-neo-hover btn-neo">
+                    <i data-lucide="moon" class="w-6 h-6"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 space-y-8">
+        
+        <!-- Chart Section -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border-4 border-e1dark shadow-neo p-6 h-[500px] flex flex-col relative overflow-hidden">
+             <!-- Decorative -->
+             <div class="absolute top-0 right-0 w-32 h-32 bg-e1green/10 rounded-bl-full -mr-4 -mt-4 pointer-events-none"></div>
+
+             <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <div class="flex flex-col gap-2">
+                    <h2 class="font-display font-bold text-2xl flex items-center gap-2">
+                        <i data-lucide="trending-up" class="w-6 h-6 text-e1green"></i> 
+                        Performance Trend
+                    </h2>
+                    <!-- Category Filter -->
+                    <div class="flex items-center gap-2">
+                        <label for="categoryFilter" class="text-xs font-bold text-slate-400 uppercase">View Mode:</label>
+                        <select id="categoryFilter" onchange="handleFilterChange()" class="bg-e1chalk dark:bg-slate-700 border-2 border-e1dark rounded-lg px-3 py-1 text-sm font-bold focus:ring-0">
+                            <option value="All">All Categories (Continuous Growth)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Legend / Highlight Controls -->
+                <div id="customLegend" class="flex flex-wrap gap-2 text-xs font-bold justify-end max-w-lg">
+                    <button onclick="toggleHighlight(0, this)" class="legend-chip flex items-center gap-1.5 px-2 py-1.5 rounded-lg border-2 border-e1dark bg-white dark:bg-slate-700">
+                        <span class="w-3 h-3 rounded-full bg-e1indigo border border-e1dark"></span> Gram
+                    </button>
+                    <button onclick="toggleHighlight(1, this)" class="legend-chip flex items-center gap-1.5 px-2 py-1.5 rounded-lg border-2 border-e1dark bg-white dark:bg-slate-700">
+                        <span class="w-3 h-3 rounded-full bg-e1orange border border-e1dark"></span> Listen
+                    </button>
+                    <button onclick="toggleHighlight(2, this)" class="legend-chip flex items-center gap-1.5 px-2 py-1.5 rounded-lg border-2 border-e1dark bg-white dark:bg-slate-700">
+                        <span class="w-3 h-3 rounded-full bg-e1blue border border-e1dark"></span> Read
+                    </button>
+                    <button onclick="toggleHighlight(3, this)" class="legend-chip flex items-center gap-1.5 px-2 py-1.5 rounded-lg border-2 border-e1dark bg-white dark:bg-slate-700">
+                        <span class="w-3 h-3 rounded-full bg-e1green border border-e1dark"></span> Speak
+                    </button>
+                    <button onclick="toggleHighlight(4, this)" class="legend-chip flex items-center gap-1.5 px-2 py-1.5 rounded-lg border-2 border-e1dark bg-white dark:bg-slate-700">
+                        <span class="w-3 h-3 rounded-full bg-e1violet border border-e1dark"></span> Vocab
+                    </button>
+                    <button onclick="toggleHighlight(5, this)" class="legend-chip flex items-center gap-1.5 px-2 py-1.5 rounded-lg border-2 border-e1dark bg-white dark:bg-slate-700">
+                        <span class="w-3 h-3 rounded-full bg-e1pink border border-e1dark"></span> Write
+                    </button>
+                    <button onclick="toggleHighlight(6, this)" class="legend-chip flex items-center gap-1.5 px-2 py-1.5 rounded-lg border-2 border-e1dark bg-white dark:bg-slate-700">
+                        <span class="w-4 h-1 bg-e1dark border-b-2 border-dashed border-slate-500"></span> Avg
+                    </button>
+                </div>
+            </div>
+            <div class="flex-1 w-full relative">
+                <canvas id="progressChart"></canvas>
+            </div>
+            <div class="mt-2 text-center">
+                <p class="text-[10px] uppercase tracking-widest font-bold text-slate-400">Click a skill above to highlight specific trend</p>
+            </div>
+        </div>
+
+        <!-- Combined Input & Data Table -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl border-4 border-e1dark shadow-neo overflow-hidden">
+            <div class="p-4 bg-slate-50 dark:bg-slate-700/50 border-b-4 border-e1dark flex justify-between items-center">
+                <h2 class="font-display font-bold text-xl flex items-center gap-2">
+                    <i data-lucide="table-2" class="w-5 h-5 text-e1blue"></i>
+                    Milestone Data
+                </h2>
+                <span class="text-xs font-bold text-slate-500 uppercase tracking-widest">Organize by Category (Class) and Milestone (Unit)</span>
+            </div>
+
+            <div class="overflow-x-auto">
+                <form id="entryForm">
+                    <table class="w-full text-left border-collapse min-w-[950px]">
+                        <thead>
+                            <tr class="text-slate-500 dark:text-slate-400 text-sm border-b-2 border-e1dark/20">
+                                <th class="p-4 font-display w-1/6">Category / Class</th>
+                                <th class="p-4 font-display w-1/6">Milestone</th>
+                                <th class="p-2 font-sans text-center text-e1indigo w-20">Gram</th>
+                                <th class="p-2 font-sans text-center text-e1orange w-20">Listen</th>
+                                <th class="p-2 font-sans text-center text-e1blue w-20">Read</th>
+                                <th class="p-2 font-sans text-center text-e1green w-20">Speak</th>
+                                <th class="p-2 font-sans text-center text-e1violet w-20">Vocab</th>
+                                <th class="p-2 font-sans text-center text-e1pink w-20">Write</th>
+                                <th class="p-4 text-center w-32">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataTableBody" class="font-bold text-e1dark dark:text-e1chalk">
+                            
+                            <!-- INPUT ROW (Always at top) -->
+                            <tr class="bg-e1blue/5 dark:bg-e1blue/10 border-b-4 border-e1dark/20">
+                                <td class="p-3">
+                                    <input type="text" id="inCategory" placeholder="e.g. Level 1A" required 
+                                        class="w-full bg-white dark:bg-slate-900 border-2 border-e1dark rounded-lg px-3 py-2 font-display focus:outline-none focus:ring-2 focus:ring-e1indigo shadow-neo-sm placeholder:font-sans placeholder:font-normal text-sm">
+                                </td>
+                                <td class="p-3">
+                                    <input type="text" id="milestone" placeholder="e.g. Unit 1" required 
+                                        class="w-full bg-white dark:bg-slate-900 border-2 border-e1dark rounded-lg px-3 py-2 font-display focus:outline-none focus:ring-2 focus:ring-e1blue shadow-neo-sm placeholder:font-sans placeholder:font-normal text-sm">
+                                </td>
+                                <td class="p-2">
+                                    <input type="number" id="inGrammar" min="0" max="120" step="0.01" placeholder="-" 
+                                        class="w-full text-center bg-white dark:bg-slate-900 border-2 border-e1dark rounded-lg py-2 font-display focus:outline-none focus:ring-2 focus:ring-e1indigo shadow-neo-sm">
+                                </td>
+                                <td class="p-2">
+                                    <input type="number" id="inListening" min="0" max="120" step="0.01" placeholder="-" 
+                                        class="w-full text-center bg-white dark:bg-slate-900 border-2 border-e1dark rounded-lg py-2 font-display focus:outline-none focus:ring-2 focus:ring-e1orange shadow-neo-sm">
+                                </td>
+                                <td class="p-2">
+                                    <input type="number" id="inReading" min="0" max="120" step="0.01" placeholder="-" 
+                                        class="w-full text-center bg-white dark:bg-slate-900 border-2 border-e1dark rounded-lg py-2 font-display focus:outline-none focus:ring-2 focus:ring-e1blue shadow-neo-sm">
+                                </td>
+                                <td class="p-2">
+                                    <input type="number" id="inSpeaking" min="0" max="120" step="0.01" placeholder="-" 
+                                        class="w-full text-center bg-white dark:bg-slate-900 border-2 border-e1dark rounded-lg py-2 font-display focus:outline-none focus:ring-2 focus:ring-e1green shadow-neo-sm">
+                                </td>
+                                <td class="p-2">
+                                    <input type="number" id="inVocab" min="0" max="120" step="0.01" placeholder="-" 
+                                        class="w-full text-center bg-white dark:bg-slate-900 border-2 border-e1dark rounded-lg py-2 font-display focus:outline-none focus:ring-2 focus:ring-e1violet shadow-neo-sm">
+                                </td>
+                                <td class="p-2">
+                                    <input type="number" id="inWriting" min="0" max="120" step="0.01" placeholder="-" 
+                                        class="w-full text-center bg-white dark:bg-slate-900 border-2 border-e1dark rounded-lg py-2 font-display focus:outline-none focus:ring-2 focus:ring-e1pink shadow-neo-sm">
+                                </td>
+                                <td class="p-3 text-center">
+                                    <button type="submit" class="bg-e1green text-white p-2 rounded-lg border-2 border-e1dark shadow-neo-sm hover:-translate-y-1 hover:shadow-neo btn-neo w-full flex justify-center items-center">
+                                        <i data-lucide="plus" class="w-6 h-6"></i>
+                                    </button>
+                                </td>
+                            </tr>
+
+                            <!-- Data Rows will be injected here -->
+                        </tbody>
+                    </table>
+                </form>
+                 <div id="emptyState" class="p-8 text-center text-slate-400 italic border-t border-e1dark/10">
+                    Enter your first category and milestone above to start tracking.
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // --- 1. Icons ---
+        lucide.createIcons();
+
+        // --- 2. State Management ---
+        let appData = []; 
+        let chartInstance = null;
+        let highlightedDatasetIndex = null;
+        let currentlyEditingIndex = null;
+        let currentFilter = 'All';
+
+        const form = document.getElementById('entryForm');
+        const tableBody = document.getElementById('dataTableBody');
+        const emptyState = document.getElementById('emptyState');
+        const studentNameInput = document.getElementById('studentNameInput');
+        const categoryFilter = document.getElementById('categoryFilter');
+
+        // --- 3. Chart Logic ---
+        function initChart() {
+            const ctx = document.getElementById('progressChart').getContext('2d');
+            
+            Chart.defaults.font.family = 'Nunito';
+            Chart.defaults.color = '#64748b';
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: 'Grammar', data: [], borderColor: '#6366f1', backgroundColor: '#6366f1', borderWidth: 3, tension: 0.3, pointBackgroundColor: '#fff', pointBorderWidth: 3, pointRadius: 5 },
+                        { label: 'Listening', data: [], borderColor: '#FF8C42', backgroundColor: '#FF8C42', borderWidth: 3, tension: 0.3, pointBackgroundColor: '#fff', pointBorderWidth: 3, pointRadius: 5 },
+                        { label: 'Reading', data: [], borderColor: '#2979FF', backgroundColor: '#2979FF', borderWidth: 3, tension: 0.3, pointBackgroundColor: '#fff', pointBorderWidth: 3, pointRadius: 5 },
+                        { label: 'Speaking', data: [], borderColor: '#00E676', backgroundColor: '#00E676', borderWidth: 3, tension: 0.3, pointBackgroundColor: '#fff', pointBorderWidth: 3, pointRadius: 5 },
+                        { label: 'Vocabulary', data: [], borderColor: '#8b5cf6', backgroundColor: '#8b5cf6', borderWidth: 3, tension: 0.3, pointBackgroundColor: '#fff', pointBorderWidth: 3, pointRadius: 5 },
+                        { label: 'Writing', data: [], borderColor: '#FF6B95', backgroundColor: '#FF6B95', borderWidth: 3, tension: 0.3, pointBackgroundColor: '#fff', pointBorderWidth: 3, pointRadius: 5 },
+                        { label: 'Average', data: [], borderColor: '#1e293b', backgroundColor: '#1e293b', borderWidth: 2, borderDash: [5, 5], tension: 0.3, pointBackgroundColor: '#1e293b', pointBorderWidth: 0, pointRadius: 3 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1e293b',
+                            titleFont: { family: 'Fredoka', size: 14 },
+                            bodyFont: { family: 'Nunito', size: 12 },
+                            padding: 12,
+                            cornerRadius: 8,
+                            displayColors: true,
+                            borderWidth: 2,
+                            borderColor: '#ffffff',
+                            callbacks: {
+                                title: function(context) {
+                                    // If showing "All", show Category + Milestone
+                                    const index = context[0].dataIndex;
+                                    const filteredData = getFilteredData();
+                                    const item = filteredData[index];
+                                    return `${item.category}: ${item.milestone}`;
+                                },
+                                label: function(context) {
+                                    let val = context.parsed.y;
+                                    let formattedVal = Number.isInteger(val) ? val : val.toFixed(2);
+                                    return context.dataset.label + ': ' + formattedVal + '%';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 120,
+                            grid: { color: '#e2e8f0', borderDash: [4, 4] },
+                            ticks: { 
+                                font: { weight: 'bold' },
+                                callback: function(value) {
+                                    if (value > 100) return null;
+                                    return value;
+                                }
+                            }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { family: 'Fredoka', weight: 'bold' } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function getFilteredData() {
+            if (currentFilter === 'All') return appData;
+            return appData.filter(d => d.category === currentFilter);
+        }
+
+        function handleFilterChange() {
+            currentFilter = categoryFilter.value;
+            updateChart();
+        }
+
+        function toggleHighlight(index, element) {
+            const chips = document.querySelectorAll('.legend-chip');
+            if (highlightedDatasetIndex === index) {
+                highlightedDatasetIndex = null;
+                chips.forEach(c => c.classList.remove('active'));
+                chartInstance.data.datasets.forEach((ds) => {
+                    ds.borderWidth = ds.label === 'Average' ? 2 : 3;
+                    ds.pointRadius = ds.label === 'Average' ? 3 : 5;
+                    ds.borderColor = applyOpacity(ds.borderColor, 1);
+                    ds.backgroundColor = applyOpacity(ds.backgroundColor, 1);
+                });
+            } else {
+                highlightedDatasetIndex = index;
+                chips.forEach(c => c.classList.remove('active'));
+                element.classList.add('active');
+                chartInstance.data.datasets.forEach((ds, i) => {
+                    const isTarget = (i === index);
+                    ds.borderWidth = isTarget ? 6 : 1.5;
+                    ds.pointRadius = isTarget ? 7 : 2;
+                    ds.borderColor = applyOpacity(ds.borderColor, isTarget ? 1 : 0.15);
+                    ds.backgroundColor = applyOpacity(ds.backgroundColor, isTarget ? 1 : 0.15);
+                });
+            }
+            chartInstance.update();
+        }
+
+        function applyOpacity(color, opacity) {
+            if (color.startsWith('#')) {
+                const r = parseInt(color.slice(1, 3), 16);
+                const g = parseInt(color.slice(3, 5), 16);
+                const b = parseInt(color.slice(5, 7), 16);
+                return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+            }
+            if (color.startsWith('rgba')) return color.replace(/[^,]+(?=\))/, opacity);
+            return color;
+        }
+
+        function updateFilterOptions() {
+            const categories = [...new Set(appData.map(d => d.category))];
+            const currentVal = categoryFilter.value;
+            
+            categoryFilter.innerHTML = '<option value="All">All Categories (Continuous Growth)</option>';
+            categories.forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat;
+                opt.textContent = cat;
+                categoryFilter.appendChild(opt);
+            });
+            
+            // Restore previous value if it still exists
+            if (categories.includes(currentVal)) categoryFilter.value = currentVal;
+            else categoryFilter.value = 'All';
+            currentFilter = categoryFilter.value;
+        }
+
+        function updateChart() {
+            const filtered = getFilteredData();
+            
+            chartInstance.data.labels = filtered.map(d => currentFilter === 'All' ? `${d.category} - ${d.milestone}` : d.milestone);
+            const averages = filtered.map(d => (d.gram + d.listen + d.read + d.speak + d.vocab + d.write) / 6);
+
+            chartInstance.data.datasets[0].data = filtered.map(d => d.gram);
+            chartInstance.data.datasets[1].data = filtered.map(d => d.listen);
+            chartInstance.data.datasets[2].data = filtered.map(d => d.read);
+            chartInstance.data.datasets[3].data = filtered.map(d => d.speak);
+            chartInstance.data.datasets[4].data = filtered.map(d => d.vocab);
+            chartInstance.data.datasets[5].data = filtered.map(d => d.write);
+            chartInstance.data.datasets[6].data = averages;
+
+            chartInstance.update();
+        }
+
+        // --- 4. Table Logic ---
+        function renderTableRows() {
+            const existingRows = document.querySelectorAll('.data-row');
+            existingRows.forEach(row => row.remove());
+
+            if (appData.length === 0) {
+                emptyState.style.display = 'block';
+            } else {
+                emptyState.style.display = 'none';
+            }
+
+            appData.forEach((item, index) => {
+                const tr = document.createElement('tr');
+                tr.className = "data-row border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group";
+                
+                if (currentlyEditingIndex === index) {
+                    tr.classList.add('bg-e1orange/5', 'dark:bg-e1orange/10');
+                    tr.innerHTML = `
+                        <td class="p-2"><input type="text" id="edit-category" value="${item.category}" class="w-full bg-white dark:bg-slate-900 border-2 border-e1dark rounded px-2 py-1 font-display text-sm"></td>
+                        <td class="p-2"><input type="text" id="edit-milestone" value="${item.milestone}" class="w-full bg-white dark:bg-slate-900 border-2 border-e1dark rounded px-2 py-1 font-display text-sm"></td>
+                        <td class="p-1"><input type="number" step="0.01" id="edit-gram" value="${item.gram}" class="w-full text-center bg-white dark:bg-slate-900 border-2 border-e1dark rounded py-1"></td>
+                        <td class="p-1"><input type="number" step="0.01" id="edit-listen" value="${item.listen}" class="w-full text-center bg-white dark:bg-slate-900 border-2 border-e1dark rounded py-1"></td>
+                        <td class="p-1"><input type="number" step="0.01" id="edit-read" value="${item.read}" class="w-full text-center bg-white dark:bg-slate-900 border-2 border-e1dark rounded py-1"></td>
+                        <td class="p-1"><input type="number" step="0.01" id="edit-speak" value="${item.speak}" class="w-full text-center bg-white dark:bg-slate-900 border-2 border-e1dark rounded py-1"></td>
+                        <td class="p-1"><input type="number" step="0.01" id="edit-vocab" value="${item.vocab}" class="w-full text-center bg-white dark:bg-slate-900 border-2 border-e1dark rounded py-1"></td>
+                        <td class="p-1"><input type="number" step="0.01" id="edit-write" value="${item.write}" class="w-full text-center bg-white dark:bg-slate-900 border-2 border-e1dark rounded py-1"></td>
+                        <td class="p-3 text-center flex justify-center gap-2">
+                            <button onclick="saveEdit(${index})" class="text-e1green hover:bg-e1green/10 p-1.5 rounded-lg transition-colors border-2 border-e1green">
+                                <i data-lucide="check" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="cancelEdit()" class="text-slate-400 hover:bg-slate-100 p-1.5 rounded-lg transition-colors border-2 border-slate-300">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                        </td>
+                    `;
+                } else {
+                    tr.innerHTML = `
+                        <td class="p-4 font-display text-slate-500 text-sm italic">${item.category}</td>
+                        <td class="p-4 font-display font-bold text-lg">${item.milestone}</td>
+                        <td class="p-2 text-center text-e1indigo text-lg">${item.gram}</td>
+                        <td class="p-2 text-center text-e1orange text-lg">${item.listen}</td>
+                        <td class="p-2 text-center text-e1blue text-lg">${item.read}</td>
+                        <td class="p-2 text-center text-e1green text-lg">${item.speak}</td>
+                        <td class="p-2 text-center text-e1violet text-lg">${item.vocab}</td>
+                        <td class="p-2 text-center text-e1pink text-lg">${item.write}</td>
+                        <td class="p-3 text-center">
+                            <div class="flex justify-center gap-2">
+                                <button onclick="editRow(${index})" class="text-slate-400 hover:text-e1blue transition-colors p-2 rounded-lg hover:bg-e1blue/5">
+                                    <i data-lucide="pencil" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="deleteRow(${index})" class="text-slate-400 hover:text-red-500 transition-colors p-2 rounded-lg hover:bg-red-50">
+                                    <i data-lucide="trash" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                }
+                tableBody.appendChild(tr);
+            });
+            lucide.createIcons();
+        }
+
+        // --- 5. Storage Logic ---
+        function saveData() {
+            localStorage.setItem('e1_tracker_data', JSON.stringify(appData));
+            localStorage.setItem('e1_tracker_name', studentNameInput.value);
+        }
+
+        function loadData() {
+            const savedData = localStorage.getItem('e1_tracker_data');
+            const savedName = localStorage.getItem('e1_tracker_name');
+            if (savedName) studentNameInput.value = savedName;
+            if (savedData) {
+                try {
+                    appData = JSON.parse(savedData);
+                    updateFilterOptions();
+                    updateChart();
+                    renderTableRows();
+                } catch(e) { console.error(e); }
+            }
+        }
+
+        // --- 6. Actions ---
+        studentNameInput.addEventListener('input', saveData);
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const getVal = (id) => {
+                const val = document.getElementById(id).value;
+                return val === '' ? 0 : parseFloat(val);
+            };
+
+            const newItem = {
+                category: document.getElementById('inCategory').value,
+                milestone: document.getElementById('milestone').value,
+                gram: getVal('inGrammar'),
+                listen: getVal('inListening'),
+                read: getVal('inReading'),
+                speak: getVal('inSpeaking'),
+                vocab: getVal('inVocab'),
+                write: getVal('inWriting'),
+            };
+
+            appData.push(newItem);
+            // Don't reset Category so teacher can rapidly add milestones to same class
+            document.getElementById('milestone').value = "";
+            document.getElementById('inGrammar').value = "";
+            document.getElementById('inListening').value = "";
+            document.getElementById('inReading').value = "";
+            document.getElementById('inSpeaking').value = "";
+            document.getElementById('inVocab').value = "";
+            document.getElementById('inWriting').value = "";
+            
+            document.getElementById('milestone').focus(); 
+            
+            saveData();
+            updateFilterOptions();
+            updateChart();
+            renderTableRows();
+        });
+
+        window.editRow = function(index) {
+            currentlyEditingIndex = index;
+            renderTableRows();
+        };
+
+        window.cancelEdit = function() {
+            currentlyEditingIndex = null;
+            renderTableRows();
+        };
+
+        window.saveEdit = function(index) {
+            const getVal = (id) => {
+                const val = document.getElementById(id).value;
+                return val === '' ? 0 : parseFloat(val);
+            };
+
+            appData[index] = {
+                category: document.getElementById('edit-category').value,
+                milestone: document.getElementById('edit-milestone').value,
+                gram: getVal('edit-gram'),
+                listen: getVal('edit-listen'),
+                read: getVal('edit-read'),
+                speak: getVal('edit-speak'),
+                vocab: getVal('edit-vocab'),
+                write: getVal('edit-write')
+            };
+
+            currentlyEditingIndex = null;
+            saveData();
+            updateFilterOptions();
+            updateChart();
+            renderTableRows();
+        };
+
+        window.deleteRow = function(index) {
+            if(confirm('Remove this milestone?')) {
+                appData.splice(index, 1);
+                saveData();
+                updateFilterOptions();
+                updateChart();
+                renderTableRows();
+            }
+        };
+
+        window.clearData = function() {
+            if(confirm('Clear all data?')) {
+                appData = [];
+                studentNameInput.value = "";
+                saveData();
+                updateFilterOptions();
+                updateChart();
+                renderTableRows();
+            }
+        }
+
+        const themeBtn = document.getElementById('themeToggle');
+        themeBtn.addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            const isDark = document.documentElement.classList.contains('dark');
+            themeBtn.innerHTML = isDark ? '<i data-lucide="sun" class="w-6 h-6"></i>' : '<i data-lucide="moon" class="w-6 h-6"></i>';
+            Chart.defaults.color = isDark ? '#94a3b8' : '#64748b'; 
+            chartInstance.options.scales.y.grid.color = isDark ? '#334155' : '#e2e8f0';
+            if (chartInstance.data.datasets[6]) {
+                const isH = highlightedDatasetIndex === null || highlightedDatasetIndex === 6;
+                chartInstance.data.datasets[6].borderColor = isH ? (isDark ? '#f8fafc' : '#1e293b') : applyOpacity(isDark ? '#f8fafc' : '#1e293b', 0.15);
+                chartInstance.data.datasets[6].backgroundColor = chartInstance.data.datasets[6].borderColor;
+            }
+            chartInstance.update();
+            lucide.createIcons();
+        });
+
+        initChart();
+        loadData();
+    </script>
+</body>
+</html>
