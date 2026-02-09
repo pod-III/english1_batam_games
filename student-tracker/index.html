@@ -8,7 +8,7 @@
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300..700&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
     
     <!-- Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -36,6 +36,7 @@
                     },
                     boxShadow: {
                         'neo': '4px 4px 0px 0px rgba(30, 41, 59, 1)',
+                        'neo-hover': '6px 6px 0px 0px rgba(30, 41, 59, 1)',
                         'neo-sm': '2px 2px 0px 0px rgba(30, 41, 59, 1)',
                     }
                 }
@@ -52,7 +53,7 @@
             background-image: 
                 linear-gradient(#cbd5e1 1px, transparent 1px),
                 linear-gradient(90deg, #cbd5e1 1px, transparent 1px);
-            background-size: 20px 20px;
+            background-size: 24px 24px;
         }
 
         .dark body {
@@ -65,9 +66,13 @@
         .btn-neo {
             transition: all 0.1s ease;
         }
+        .btn-neo:hover {
+            transform: translate(-1px, -1px);
+            box-shadow: 6px 6px 0px 0px rgba(30, 41, 59, 1);
+        }
         .btn-neo:active {
-            transform: translate(2px, 2px);
-            box-shadow: 2px 2px 0px 0px rgba(30, 41, 59, 1);
+            transform: translate(3px, 3px);
+            box-shadow: 1px 1px 0px 0px rgba(30, 41, 59, 1);
         }
         
         input[type=number]::-webkit-inner-spin-button, 
@@ -84,192 +89,221 @@
             cursor: pointer;
         }
         .legend-chip.active {
-            outline: 3px solid #1e293b;
-            background-color: white;
-            color: #1e293b;
-        }
-        .dark .legend-chip.active {
-            outline-color: #f8fafc;
-            background-color: #1e293b;
-            color: white;
+            transform: scale(1.05);
+            background-color: #1e293b !important;
+            color: white !important;
+            border-color: white !important;
         }
 
         .student-item.active {
             background-color: #2979FF;
             color: white;
             border-color: #1e293b;
-            transform: translateX(4px);
+            transform: translateX(6px);
+            box-shadow: 4px 4px 0px 0px rgba(30, 41, 59, 1);
         }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { 
+            background: #1e293b; 
+            border-radius: 10px;
+            border: 2px solid #f8fafc;
+        }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb { border-color: #0f172a; }
+
+        @keyframes toastIn {
+            from { transform: translateY(100%) scale(0.9); opacity: 0; }
+            to { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        .toast-animation { animation: toastIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
     </style>
 </head>
 <body class="text-e1dark dark:text-e1chalk min-h-screen transition-colors duration-300">
 
+    <!-- Toast Notification Overlay -->
+    <div id="toastContainer" class="fixed bottom-6 right-6 z-[100] flex flex-col gap-3"></div>
+
     <div class="flex flex-col lg:flex-row min-h-screen">
         
         <!-- SIDEBAR -->
-        <aside class="w-full lg:w-72 bg-white dark:bg-slate-900 border-b-4 lg:border-b-0 lg:border-r-4 border-e1dark z-40 p-6 flex flex-col gap-6 sticky top-0 h-auto lg:h-screen">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-e1pink rounded-lg border-2 border-e1dark shadow-neo flex items-center justify-center">
-                    <i data-lucide="users" class="text-white w-6 h-6"></i>
+        <aside class="w-full lg:w-80 bg-white dark:bg-slate-900 border-b-4 lg:border-b-0 lg:border-r-4 border-e1dark z-40 p-6 flex flex-col gap-6 sticky top-0 h-auto lg:h-screen shadow-[4px_0px_0px_0px_rgba(30,41,59,0.1)]">
+            <div class="flex items-center gap-3 mb-2">
+                <div class="w-12 h-12 bg-e1pink rounded-xl border-4 border-e1dark shadow-neo flex items-center justify-center rotate-[-3deg]">
+                    <i data-lucide="graduation-cap" class="text-white w-7 h-7"></i>
                 </div>
-                <h2 class="font-display font-bold text-xl tracking-wide">Class Roster</h2>
+                <div>
+                    <h1 class="font-display font-bold text-2xl tracking-tight leading-none">English 1</h1>
+                    <p class="text-[10px] font-black uppercase tracking-widest text-e1blue">Skill Dashboard</p>
+                </div>
             </div>
 
-            <button onclick="addNewStudent()" class="w-full bg-e1green text-white font-display font-bold py-3 rounded-xl border-2 border-e1dark shadow-neo hover:-translate-y-1 btn-neo flex items-center justify-center gap-2">
-                <i data-lucide="user-plus" class="w-5 h-5"></i> Add Student
+            <button onclick="addNewStudent()" class="w-full bg-e1green text-white font-display font-bold py-4 rounded-2xl border-4 border-e1dark shadow-neo btn-neo flex items-center justify-center gap-3 text-lg">
+                <i data-lucide="user-plus" class="w-6 h-6"></i> Add Student
             </button>
 
-            <div class="flex-1 overflow-y-auto space-y-3 pr-2" id="studentRoster">
+            <div class="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar" id="studentRoster">
                 <!-- Students injected here -->
             </div>
 
-            <div class="pt-4 border-t-2 border-slate-100 dark:border-slate-800 space-y-3">
-                <div class="grid grid-cols-2 gap-2">
-                    <button onclick="exportAllData()" class="bg-e1blue text-white font-display font-bold py-2 rounded-xl border-2 border-e1dark shadow-neo btn-neo flex items-center justify-center gap-2 text-[10px] uppercase">
-                        <i data-lucide="download" class="w-4 h-4"></i> Export All
+            <div class="pt-6 border-t-4 border-e1dark/10 space-y-4">
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="exportAllData()" class="bg-e1blue text-white font-display font-bold py-2 rounded-xl border-3 border-e1dark shadow-neo btn-neo flex items-center justify-center gap-2 text-[10px] uppercase">
+                        <i data-lucide="download" class="w-4 h-4"></i> Backup All
                     </button>
-                    <button onclick="triggerImport()" class="bg-e1indigo text-white font-display font-bold py-2 rounded-xl border-2 border-e1dark shadow-neo btn-neo flex items-center justify-center gap-2 text-[10px] uppercase">
-                        <i data-lucide="upload" class="w-4 h-4"></i> Import File
+                    <button onclick="triggerImport()" class="bg-e1indigo text-white font-display font-bold py-2 rounded-xl border-3 border-e1dark shadow-neo btn-neo flex items-center justify-center gap-2 text-[10px] uppercase">
+                        <i data-lucide="file-up" class="w-4 h-4"></i> Import
                     </button>
                 </div>
 
-                <button id="themeToggle" class="w-full bg-e1orange text-white font-display font-bold py-2 rounded-xl border-2 border-e1dark shadow-neo btn-neo flex items-center justify-center gap-2">
-                    <i data-lucide="moon" class="w-5 h-5"></i> <span id="themeLabel">Blackboard Mode</span>
+                <button id="themeToggle" class="w-full bg-e1orange text-white font-display font-bold py-3 rounded-2xl border-4 border-e1dark shadow-neo btn-neo flex items-center justify-center gap-2">
+                    <i data-lucide="moon" class="w-5 h-5"></i> <span id="themeLabel" class="font-display">Blackboard Mode</span>
                 </button>
             </div>
         </aside>
 
         <!-- MAIN CONTENT -->
-        <main class="flex-1 p-4 lg:p-8 space-y-8 overflow-x-hidden">
+        <main class="flex-1 p-4 lg:p-10 space-y-10 overflow-x-hidden">
             
-            <!-- Navbar -->
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-slate-800 p-6 rounded-2xl border-4 border-e1dark shadow-neo">
-                <div class="flex items-center gap-4">
-                    <div class="w-16 h-16 bg-e1blue rounded-full border-4 border-e1dark shadow-neo flex items-center justify-center text-white">
-                        <i data-lucide="user" class="w-8 h-8"></i>
+            <!-- Navbar / Student Header -->
+            <div id="studentHeader" class="bg-white dark:bg-slate-800 p-8 rounded-[2rem] border-4 border-e1dark shadow-neo relative overflow-hidden group">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-e1blue/5 rounded-bl-[4rem] group-hover:scale-110 transition-transform duration-500"></div>
+                
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 relative z-10">
+                    <div class="flex items-center gap-6 w-full max-w-2xl">
+                        <div class="w-20 h-20 bg-e1blue rounded-3xl border-4 border-e1dark shadow-neo flex items-center justify-center text-white shrink-0 rotate-[2deg]">
+                            <i data-lucide="user-circle" class="w-12 h-12"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <input type="text" id="studentNameInput" placeholder="Enter student name..." 
+                                class="block bg-transparent border-none p-0 font-display font-bold text-4xl focus:ring-0 placeholder-slate-300 dark:placeholder-slate-600 w-full truncate">
+                            <div class="flex items-center gap-2 mt-2">
+                                <span class="bg-e1orange/10 dark:bg-e1orange/20 text-e1orange text-[10px] font-black px-2 py-0.5 rounded border border-e1orange/30 uppercase tracking-tighter" id="studentMeta">ID: Select Student</span>
+                                <span class="text-xs font-bold text-slate-400 italic">Editing active profile</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="min-w-0 flex-1">
-                        <input type="text" id="studentNameInput" placeholder="Enter student name..." class="block bg-transparent border-none p-0 font-display font-bold text-3xl focus:ring-0 placeholder-slate-400 w-full max-w-md">
-                        <p class="text-sm font-bold text-slate-400 uppercase tracking-widest" id="studentMeta">ID: Select a student</p>
+                    <div class="flex flex-wrap gap-3 shrink-0">
+                        <button onclick="triggerImport()" class="bg-e1indigo text-white font-display font-bold py-3 px-5 rounded-2xl border-4 border-e1dark shadow-neo btn-neo flex items-center gap-2 text-sm">
+                            <i data-lucide="file-input" class="w-5 h-5"></i> Import
+                        </button>
+                        <button onclick="exportCurrentStudent()" class="bg-e1green text-white font-display font-bold py-3 px-5 rounded-2xl border-4 border-e1dark shadow-neo btn-neo flex items-center gap-2 text-sm">
+                            <i data-lucide="share" class="w-5 h-5"></i> Export
+                        </button>
+                        <button onclick="clearData()" class="bg-red-500 text-white font-display font-bold py-3 px-5 rounded-2xl border-4 border-e1dark shadow-neo btn-neo flex items-center gap-2 text-sm">
+                            <i data-lucide="trash-2" class="w-5 h-5"></i> Reset
+                        </button>
                     </div>
-                </div>
-                <div class="flex flex-wrap gap-2">
-                    <button onclick="triggerImport()" class="bg-e1indigo text-white font-display font-bold py-2 px-4 rounded-xl border-2 border-e1dark shadow-neo btn-neo flex items-center gap-2 text-sm">
-                        <i data-lucide="upload" class="w-4 h-4"></i> Import Student
-                    </button>
-                     <button onclick="exportCurrentStudent()" class="bg-e1green text-white font-display font-bold py-2 px-4 rounded-xl border-2 border-e1dark shadow-neo btn-neo flex items-center gap-2 text-sm">
-                        <i data-lucide="user-down" class="w-4 h-4"></i> Export Student
-                    </button>
-                     <button onclick="clearData()" class="bg-red-500 text-white font-display font-bold py-2 px-4 rounded-xl border-2 border-e1dark shadow-neo btn-neo flex items-center gap-2 text-sm">
-                        <i data-lucide="trash-2" class="w-4 h-4"></i> Reset
-                    </button>
                 </div>
             </div>
 
             <!-- Hidden Global Import Input -->
             <input type="file" id="importInput" accept=".json,.csv" class="hidden" onchange="handleImport(event)">
 
-            <!-- Chart -->
-            <div class="bg-white dark:bg-slate-800 rounded-2xl border-4 border-e1dark shadow-neo p-6 h-[480px] flex flex-col relative overflow-hidden">
-                 <div class="absolute top-0 right-0 w-32 h-32 bg-e1green/10 rounded-bl-full -mr-4 -mt-4 pointer-events-none"></div>
+            <!-- Chart Section -->
+            <div class="bg-white dark:bg-slate-800 rounded-[2.5rem] border-4 border-e1dark shadow-neo p-8 h-[550px] flex flex-col relative overflow-hidden">
+                 <div class="absolute -bottom-10 -left-10 w-40 h-40 bg-e1pink/5 rounded-full pointer-events-none"></div>
 
-                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                    <div class="flex flex-col gap-2">
-                        <h2 class="font-display font-bold text-2xl flex items-center gap-2">
-                            <i data-lucide="trending-up" class="w-6 h-6 text-e1green"></i> 
-                            Trend Analysis
+                 <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6 relative z-10">
+                    <div class="space-y-3">
+                        <h2 class="font-display font-bold text-3xl flex items-center gap-3">
+                            <i data-lucide="line-chart" class="w-8 h-8 text-e1green"></i> 
+                            Growth Path
                         </h2>
-                        <div class="flex items-center gap-2">
-                            <label for="categoryFilter" class="text-xs font-bold text-slate-400 uppercase">Filter:</label>
-                            <select id="categoryFilter" onchange="handleFilterChange()" class="bg-e1chalk dark:bg-slate-700 border-2 border-e1dark rounded-lg px-3 py-1 text-sm font-bold focus:ring-0">
-                                <option value="All">All Categories</option>
+                        <div class="flex items-center gap-3 bg-slate-50 dark:bg-slate-900 px-4 py-2 rounded-2xl border-2 border-e1dark w-fit">
+                            <label for="categoryFilter" class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Focus View:</label>
+                            <select id="categoryFilter" onchange="handleFilterChange()" class="bg-transparent border-none p-0 text-sm font-bold focus:ring-0 cursor-pointer">
+                                <option value="All">All Progression</option>
                             </select>
                         </div>
                     </div>
 
                     <!-- Legend Highlighting -->
-                    <div id="customLegend" class="flex flex-wrap gap-2 text-xs font-bold justify-end max-w-lg">
-                        <button onclick="toggleHighlight(0, this)" class="legend-chip flex items-center gap-1.5 px-2 py-1.5 rounded-lg border-2 border-e1dark bg-white dark:bg-slate-700 shadow-neo-sm">
+                    <div id="customLegend" class="flex flex-wrap gap-2 text-xs font-bold justify-end max-w-xl">
+                        <button onclick="toggleHighlight(0, this)" class="legend-chip flex items-center gap-2 px-3 py-2 rounded-xl border-2 border-e1dark bg-white dark:bg-slate-700 shadow-neo-sm">
                             <span class="w-3 h-3 rounded-full bg-e1indigo border border-e1dark"></span> Gram
                         </button>
-                        <button onclick="toggleHighlight(1, this)" class="legend-chip flex items-center gap-1.5 px-2 py-1.5 rounded-lg border-2 border-e1dark bg-white dark:bg-slate-700 shadow-neo-sm">
+                        <button onclick="toggleHighlight(1, this)" class="legend-chip flex items-center gap-2 px-3 py-2 rounded-xl border-2 border-e1dark bg-white dark:bg-slate-700 shadow-neo-sm">
                             <span class="w-3 h-3 rounded-full bg-e1orange border border-e1dark"></span> Listen
                         </button>
-                        <button onclick="toggleHighlight(2, this)" class="legend-chip flex items-center gap-1.5 px-2 py-1.5 rounded-lg border-2 border-e1dark bg-white dark:bg-slate-700 shadow-neo-sm">
+                        <button onclick="toggleHighlight(2, this)" class="legend-chip flex items-center gap-2 px-3 py-2 rounded-xl border-2 border-e1dark bg-white dark:bg-slate-700 shadow-neo-sm">
                             <span class="w-3 h-3 rounded-full bg-e1blue border border-e1dark"></span> Read
                         </button>
-                        <button onclick="toggleHighlight(3, this)" class="legend-chip flex items-center gap-1.5 px-2 py-1.5 rounded-lg border-2 border-e1dark bg-white dark:bg-slate-700 shadow-neo-sm">
+                        <button onclick="toggleHighlight(3, this)" class="legend-chip flex items-center gap-2 px-3 py-2 rounded-xl border-2 border-e1dark bg-white dark:bg-slate-700 shadow-neo-sm">
                             <span class="w-3 h-3 rounded-full bg-e1green border border-e1dark"></span> Speak
                         </button>
-                        <button onclick="toggleHighlight(4, this)" class="legend-chip flex items-center gap-1.5 px-2 py-1.5 rounded-lg border-2 border-e1dark bg-white dark:bg-slate-700 shadow-neo-sm">
+                        <button onclick="toggleHighlight(4, this)" class="legend-chip flex items-center gap-2 px-3 py-2 rounded-xl border-2 border-e1dark bg-white dark:bg-slate-700 shadow-neo-sm">
                             <span class="w-3 h-3 rounded-full bg-e1violet border border-e1dark"></span> Vocab
                         </button>
-                        <button onclick="toggleHighlight(5, this)" class="legend-chip flex items-center gap-1.5 px-2 py-1.5 rounded-lg border-2 border-e1dark bg-white dark:bg-slate-700 shadow-neo-sm">
+                        <button onclick="toggleHighlight(5, this)" class="legend-chip flex items-center gap-2 px-3 py-2 rounded-xl border-2 border-e1dark bg-white dark:bg-slate-700 shadow-neo-sm">
                             <span class="w-3 h-3 rounded-full bg-e1pink border border-e1dark"></span> Write
                         </button>
-                        <button onclick="toggleHighlight(6, this)" class="legend-chip flex items-center gap-1.5 px-2 py-1.5 rounded-lg border-2 border-e1dark bg-white dark:bg-slate-700 shadow-neo-sm">
-                            <span class="w-4 h-1 bg-e1dark border-b-2 border-dashed border-slate-500"></span> Avg
+                        <button onclick="toggleHighlight(6, this)" class="legend-chip flex items-center gap-2 px-3 py-2 rounded-xl border-2 border-e1dark bg-slate-100 dark:bg-slate-900 shadow-neo-sm">
+                            <span class="w-5 h-1 bg-e1dark rounded-full"></span> Average
                         </button>
                     </div>
                 </div>
-                <div class="flex-1 w-full relative">
+                <div class="flex-1 w-full relative bg-slate-50/50 dark:bg-slate-900/20 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 p-4">
                     <canvas id="progressChart"></canvas>
                 </div>
             </div>
 
-            <!-- Table -->
-            <div class="bg-white dark:bg-slate-800 rounded-2xl border-4 border-e1dark shadow-neo overflow-hidden">
-                <div class="p-4 bg-slate-50 dark:bg-slate-700/50 border-b-4 border-e1dark flex justify-between items-center">
-                    <h2 class="font-display font-bold text-xl flex items-center gap-2">
-                        <i data-lucide="table-2" class="w-5 h-5 text-e1blue"></i>
-                        Milestone Data
+            <!-- Table Section -->
+            <div class="bg-white dark:bg-slate-800 rounded-[2.5rem] border-4 border-e1dark shadow-neo overflow-hidden">
+                <div class="p-6 bg-e1blue text-white border-b-4 border-e1dark flex justify-between items-center">
+                    <h2 class="font-display font-bold text-2xl flex items-center gap-3">
+                        <i data-lucide="database" class="w-7 h-7"></i>
+                        Assessment Data
                     </h2>
                 </div>
 
                 <div class="overflow-x-auto">
                     <form id="entryForm">
-                        <table class="w-full text-left border-collapse min-w-[950px]">
+                        <table class="w-full text-left border-collapse min-w-[1000px]">
                             <thead>
-                                <tr class="text-slate-500 dark:text-slate-400 text-sm border-b-2 border-e1dark/20">
-                                    <th class="p-4 font-display w-1/6">Category</th>
-                                    <th class="p-4 font-display w-1/6">Milestone</th>
-                                    <th class="p-2 text-center text-e1indigo w-20">Gram</th>
-                                    <th class="p-2 text-center text-e1orange w-20">Listen</th>
-                                    <th class="p-2 text-center text-e1blue w-20">Read</th>
-                                    <th class="p-2 text-center text-e1green w-20">Speak</th>
-                                    <th class="p-2 text-center text-e1violet w-20">Vocab</th>
-                                    <th class="p-2 text-center text-e1pink w-20">Write</th>
+                                <tr class="text-slate-400 text-[10px] font-black uppercase tracking-widest border-b-2 border-e1dark/10">
+                                    <th class="p-4">Category</th>
+                                    <th class="p-4">Milestone</th>
+                                    <th class="p-2 text-center text-e1indigo">Gram</th>
+                                    <th class="p-2 text-center text-e1orange">Listen</th>
+                                    <th class="p-2 text-center text-e1blue">Read</th>
+                                    <th class="p-2 text-center text-e1green">Speak</th>
+                                    <th class="p-2 text-center text-e1violet">Vocab</th>
+                                    <th class="p-2 text-center text-e1pink">Write</th>
                                     <th class="p-4 text-center w-32">Action</th>
                                 </tr>
                             </thead>
                             <tbody id="dataTableBody" class="font-bold text-e1dark dark:text-e1chalk">
                                 
                                 <!-- INPUT ROW -->
-                                <tr class="bg-e1blue/5 dark:bg-e1blue/10 border-b-4 border-e1dark/20">
+                                <tr class="bg-e1chalk dark:bg-slate-900/40 border-b-4 border-e1dark/20">
                                     <td class="p-3">
-                                        <input type="text" id="inCategory" placeholder="e.g. Starter A" required 
-                                            class="w-full bg-white dark:bg-slate-900 border-2 border-e1dark rounded-lg px-3 py-2 font-display text-sm">
+                                        <input type="text" id="inCategory" placeholder="e.g. Level 1A" required 
+                                            class="w-full bg-white dark:bg-slate-900 border-2 border-e1dark rounded-xl px-4 py-2.5 font-display text-sm focus:border-e1blue focus:ring-0 shadow-sm transition-all">
                                     </td>
                                     <td class="p-3">
-                                        <input type="text" id="milestone" placeholder="e.g. Unit 1" required 
-                                            class="w-full bg-white dark:bg-slate-900 border-2 border-e1dark rounded-lg px-3 py-2 font-display text-sm">
+                                        <input type="text" id="milestone" placeholder="e.g. Test 1" required 
+                                            class="w-full bg-white dark:bg-slate-900 border-2 border-e1dark rounded-xl px-4 py-2.5 font-display text-sm focus:border-e1blue focus:ring-0 shadow-sm transition-all">
                                     </td>
-                                    <td class="p-2"><input type="number" id="inGrammar" min="0" max="120" step="0.01" class="w-full text-center bg-white dark:bg-slate-900 border-2 border-e1dark rounded-lg py-2"></td>
-                                    <td class="p-2"><input type="number" id="inListening" min="0" max="120" step="0.01" class="w-full text-center bg-white dark:bg-slate-900 border-2 border-e1dark rounded-lg py-2"></td>
-                                    <td class="p-2"><input type="number" id="inReading" min="0" max="120" step="0.01" class="w-full text-center bg-white dark:bg-slate-900 border-2 border-e1dark rounded-lg py-2"></td>
-                                    <td class="p-2"><input type="number" id="inSpeaking" min="0" max="120" step="0.01" class="w-full text-center bg-white dark:bg-slate-900 border-2 border-e1dark rounded-lg py-2"></td>
-                                    <td class="p-2"><input type="number" id="inVocab" min="0" max="120" step="0.01" class="w-full text-center bg-white dark:bg-slate-900 border-2 border-e1dark rounded-lg py-2"></td>
-                                    <td class="p-2"><input type="number" id="inWriting" min="0" max="120" step="0.01" class="w-full text-center bg-white dark:bg-slate-900 border-2 border-e1dark rounded-lg py-2"></td>
+                                    <td class="p-2"><input type="number" id="inGrammar" min="0" max="120" step="0.01" class="w-full text-center bg-white dark:bg-slate-900 border-2 border-e1dark rounded-xl py-2 focus:border-e1indigo"></td>
+                                    <td class="p-2"><input type="number" id="inListening" min="0" max="120" step="0.01" class="w-full text-center bg-white dark:bg-slate-900 border-2 border-e1dark rounded-xl py-2 focus:border-e1orange"></td>
+                                    <td class="p-2"><input type="number" id="inReading" min="0" max="120" step="0.01" class="w-full text-center bg-white dark:bg-slate-900 border-2 border-e1dark rounded-xl py-2 focus:border-e1blue"></td>
+                                    <td class="p-2"><input type="number" id="inSpeaking" min="0" max="120" step="0.01" class="w-full text-center bg-white dark:bg-slate-900 border-2 border-e1dark rounded-xl py-2 focus:border-e1green"></td>
+                                    <td class="p-2"><input type="number" id="inVocab" min="0" max="120" step="0.01" class="w-full text-center bg-white dark:bg-slate-900 border-2 border-e1dark rounded-xl py-2 focus:border-e1violet"></td>
+                                    <td class="p-2"><input type="number" id="inWriting" min="0" max="120" step="0.01" class="w-full text-center bg-white dark:bg-slate-900 border-2 border-e1dark rounded-xl py-2 focus:border-e1pink"></td>
                                     <td class="p-3">
-                                        <button type="submit" class="w-full bg-e1green text-white p-2 rounded-lg border-2 border-e1dark shadow-neo-sm btn-neo">
-                                            <i data-lucide="plus" class="w-6 h-6 mx-auto"></i>
+                                        <button type="submit" class="w-full bg-e1green text-white py-2.5 rounded-xl border-3 border-e1dark shadow-neo-sm btn-neo">
+                                            <i data-lucide="save" class="w-6 h-6 mx-auto"></i>
                                         </button>
                                     </td>
                                 </tr>
                             </tbody>
                         </table>
                     </form>
-                    <div id="emptyState" class="p-12 text-center text-slate-400 italic">No milestones yet.</div>
+                    <div id="emptyState" class="p-20 text-center text-slate-400 font-display text-xl space-y-4">
+                        <i data-lucide="clipboard-list" class="w-16 h-16 mx-auto text-slate-200 dark:text-slate-700"></i>
+                        <p>No assessment data recorded for this student.</p>
+                    </div>
                 </div>
             </div>
         </main>
@@ -277,6 +311,33 @@
 
     <script>
         lucide.createIcons();
+
+        // Custom Toast System
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            const colors = {
+                info: 'bg-e1blue text-white',
+                success: 'bg-e1green text-white',
+                error: 'bg-red-500 text-white',
+                warning: 'bg-e1orange text-white'
+            };
+            
+            toast.className = `${colors[type]} px-6 py-4 rounded-2xl border-4 border-e1dark shadow-neo toast-animation flex items-center gap-3 font-bold text-sm min-w-[250px]`;
+            toast.innerHTML = `
+                <i data-lucide="${type === 'success' ? 'check-circle' : 'info'}" class="w-5 h-5 shrink-0"></i>
+                <span class="flex-1">${message}</span>
+            `;
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(20px) scale(0.9)';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
 
         // State
         let students = []; 
@@ -293,6 +354,16 @@
         const studentNameInput = document.getElementById('studentNameInput');
         const categoryFilter = document.getElementById('categoryFilter');
         const studentRoster = document.getElementById('studentRoster');
+
+        // Helper: Smart Increment for strings like "Unit 1" -> "Unit 2"
+        function incrementMilestone(str) {
+            const hasNumber = /\d+/.test(str);
+            if (!hasNumber) return str;
+            // Finds the LAST sequence of digits in the string and increments it
+            return str.replace(/(\d+)(?!.*\d)/, (match) => {
+                return parseInt(match) + 1;
+            });
+        }
 
         // Chart Logic
         function initChart() {
@@ -322,11 +393,11 @@
                         legend: { display: false },
                         tooltip: {
                             backgroundColor: '#1e293b',
-                            padding: 12,
-                            cornerRadius: 8,
-                            titleFont: { family: 'Fredoka', size: 14 },
-                            bodyFont: { family: 'Nunito', size: 12 },
-                            borderWidth: 2,
+                            padding: 16,
+                            cornerRadius: 12,
+                            titleFont: { family: 'Fredoka', size: 16, weight: 'bold' },
+                            bodyFont: { family: 'Nunito', size: 13 },
+                            borderWidth: 3,
                             borderColor: '#ffffff',
                             callbacks: {
                                 title: (ctxs) => {
@@ -334,7 +405,7 @@
                                     const item = filtered[ctxs[0].dataIndex];
                                     return `${item.category}: ${item.milestone}`;
                                 },
-                                label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}%`
+                                label: (ctx) => `• ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}%`
                             }
                         }
                     },
@@ -344,7 +415,7 @@
                             grid: { color: document.documentElement.classList.contains('dark') ? '#1e293b' : '#e2e8f0', borderDash: [4, 4] },
                             ticks: { 
                                 font: { weight: 'bold' },
-                                callback: (v) => v > 100 ? null : v
+                                callback: (v) => v > 100 ? null : v + '%'
                             }
                         },
                         x: { grid: { display: false }, ticks: { font: { family: 'Fredoka', weight: 'bold' } } }
@@ -385,8 +456,8 @@
                 el.classList.add('active');
                 chartInstance.data.datasets.forEach((ds, i) => {
                     const isT = i === idx;
-                    ds.borderWidth = isT ? 6 : 1.2;
-                    ds.borderColor = applyOpacity(ds.borderColor, isT ? 1 : 0.15);
+                    ds.borderWidth = isT ? 6 : 1;
+                    ds.borderColor = applyOpacity(ds.borderColor, isT ? 1 : 0.1);
                 });
             }
             chartInstance.update();
@@ -412,15 +483,17 @@
             studentRoster.innerHTML = '';
             students.forEach(s => {
                 const div = document.createElement('div');
-                div.className = `student-item group flex items-center justify-between p-3 rounded-xl border-2 border-transparent cursor-pointer transition-all hover:bg-slate-50 dark:hover:bg-slate-800 ${currentStudentId === s.id ? 'active' : ''}`;
+                div.className = `student-item group flex items-center justify-between p-4 rounded-2xl border-4 border-e1dark cursor-pointer transition-all bg-white dark:bg-slate-800 ${currentStudentId === s.id ? 'active' : 'hover:bg-slate-50 dark:hover:bg-slate-700 shadow-neo'}`;
                 div.onclick = () => switchStudent(s.id);
                 div.innerHTML = `
-                    <div class="flex items-center gap-2 overflow-hidden">
-                        <i data-lucide="user-round" class="w-4 h-4 shrink-0"></i>
-                        <span class="font-bold truncate text-sm">${s.name || 'Anonymous'}</span>
+                    <div class="flex items-center gap-3 overflow-hidden">
+                        <div class="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-900 flex items-center justify-center shrink-0 border-2 border-e1dark">
+                            <i data-lucide="user" class="w-4 h-4 text-e1indigo"></i>
+                        </div>
+                        <span class="font-display font-bold truncate text-sm">${s.name || 'Anonymous'}</span>
                     </div>
                     <button onclick="event.stopPropagation(); deleteStudent('${s.id}')" class="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 transition-opacity">
-                        <i data-lucide="x" class="w-4 h-4"></i>
+                        <i data-lucide="x-circle" class="w-5 h-5"></i>
                     </button>
                 `;
                 studentRoster.appendChild(div);
@@ -433,6 +506,7 @@
             students.push({ id, name: 'Student ' + (students.length + 1) });
             saveStudents();
             switchStudent(id);
+            showToast("New student profile created!", "success");
         }
 
         function switchStudent(id) {
@@ -449,7 +523,7 @@
         }
 
         function deleteStudent(id) {
-            if (confirm('Delete student profile?')) {
+            if (confirm('Permanently delete student profile?')) {
                 students = students.filter(x => x.id !== id);
                 localStorage.removeItem(`e1_v2_scores_${id}`);
                 saveStudents();
@@ -457,6 +531,7 @@
                     if (students.length) switchStudent(students[0].id);
                     else { currentStudentId = null; appData = []; renderRoster(); renderTable(); }
                 } else renderRoster();
+                showToast("Profile removed.", "info");
             }
         }
 
@@ -467,37 +542,37 @@
 
             appData.forEach((d, idx) => {
                 const tr = document.createElement('tr');
-                tr.className = "data-row border-b-2 border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/20 group";
+                tr.className = "data-row border-b-2 border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/20 group transition-colors";
                 
                 if (currentlyEditingIndex === idx) {
-                    tr.classList.add('bg-e1orange/5');
+                    tr.classList.add('bg-e1orange/10');
                     tr.innerHTML = `
-                        <td class="p-2"><input type="text" id="ed-cat" value="${d.category}" class="w-full bg-white dark:bg-slate-900 border-2 border-e1dark rounded px-2 py-1 text-xs"></td>
-                        <td class="p-2"><input type="text" id="ed-mil" value="${d.milestone}" class="w-full bg-white dark:bg-slate-900 border-2 border-e1dark rounded px-2 py-1 text-xs"></td>
-                        <td class="p-1"><input type="number" step="0.01" id="ed-g" value="${d.gram}" class="w-full text-center border-2 border-e1dark rounded py-1"></td>
-                        <td class="p-1"><input type="number" step="0.01" id="ed-l" value="${d.listen}" class="w-full text-center border-2 border-e1dark rounded py-1"></td>
-                        <td class="p-1"><input type="number" step="0.01" id="ed-r" value="${d.read}" class="w-full text-center border-2 border-e1dark rounded py-1"></td>
-                        <td class="p-1"><input type="number" step="0.01" id="ed-s" value="${d.speak}" class="w-full text-center border-2 border-e1dark rounded py-1"></td>
-                        <td class="p-1"><input type="number" step="0.01" id="ed-v" value="${d.vocab}" class="w-full text-center border-2 border-e1dark rounded py-1"></td>
-                        <td class="p-1"><input type="number" step="0.01" id="ed-w" value="${d.write}" class="w-full text-center border-2 border-e1dark rounded py-1"></td>
+                        <td class="p-2"><input type="text" id="ed-cat" value="${d.category}" class="w-full bg-white dark:bg-slate-900 border-2 border-e1dark rounded-xl px-2 py-2 text-xs font-bold"></td>
+                        <td class="p-2"><input type="text" id="ed-mil" value="${d.milestone}" class="w-full bg-white dark:bg-slate-900 border-2 border-e1dark rounded-xl px-2 py-2 text-xs font-bold"></td>
+                        <td class="p-1"><input type="number" step="0.01" id="ed-g" value="${d.gram}" class="w-full text-center border-2 border-e1dark rounded-xl py-2"></td>
+                        <td class="p-1"><input type="number" step="0.01" id="ed-l" value="${d.listen}" class="w-full text-center border-2 border-e1dark rounded-xl py-2"></td>
+                        <td class="p-1"><input type="number" step="0.01" id="ed-r" value="${d.read}" class="w-full text-center border-2 border-e1dark rounded-xl py-2"></td>
+                        <td class="p-1"><input type="number" step="0.01" id="ed-s" value="${d.speak}" class="w-full text-center border-2 border-e1dark rounded-xl py-2"></td>
+                        <td class="p-1"><input type="number" step="0.01" id="ed-v" value="${d.vocab}" class="w-full text-center border-2 border-e1dark rounded-xl py-2"></td>
+                        <td class="p-1"><input type="number" step="0.01" id="ed-w" value="${d.write}" class="w-full text-center border-2 border-e1dark rounded-xl py-2"></td>
                         <td class="p-3 flex justify-center gap-2">
-                            <button onclick="saveEdit(${idx})" class="text-e1green border-2 border-e1green p-1.5 rounded-lg"><i data-lucide="check" class="w-4 h-4"></i></button>
-                            <button onclick="cancelEdit()" class="text-slate-400 border-2 border-slate-300 p-1.5 rounded-lg"><i data-lucide="x" class="w-4 h-4"></i></button>
+                            <button onclick="saveEdit(${idx})" class="text-e1green p-1 hover:scale-110 transition-transform"><i data-lucide="check-circle" class="w-6 h-6"></i></button>
+                            <button onclick="cancelEdit()" class="text-slate-400 p-1 hover:scale-110 transition-transform"><i data-lucide="x-circle" class="w-6 h-6"></i></button>
                         </td>
                     `;
                 } else {
                     tr.innerHTML = `
-                        <td class="p-4 font-display text-slate-500 text-sm italic">${d.category}</td>
-                        <td class="p-4 font-display font-bold text-lg">${d.milestone}</td>
-                        <td class="p-2 text-center text-e1indigo text-lg">${d.gram}</td>
-                        <td class="p-2 text-center text-e1orange text-lg">${d.listen}</td>
-                        <td class="p-2 text-center text-e1blue text-lg">${d.read}</td>
-                        <td class="p-2 text-center text-e1green text-lg">${d.speak}</td>
-                        <td class="p-2 text-center text-e1violet text-lg">${d.vocab}</td>
-                        <td class="p-2 text-center text-e1pink text-lg">${d.write}</td>
+                        <td class="p-4 text-slate-500 dark:text-slate-400 text-xs italic font-black uppercase tracking-tight">${d.category}</td>
+                        <td class="p-4 text-lg font-display text-e1dark dark:text-e1chalk">${d.milestone}</td>
+                        <td class="p-2 text-center text-e1indigo font-display text-2xl">${d.gram}</td>
+                        <td class="p-2 text-center text-e1orange font-display text-2xl">${d.listen}</td>
+                        <td class="p-2 text-center text-e1blue font-display text-2xl">${d.read}</td>
+                        <td class="p-2 text-center text-e1green font-display text-2xl">${d.speak}</td>
+                        <td class="p-2 text-center text-e1violet font-display text-2xl">${d.vocab}</td>
+                        <td class="p-2 text-center text-e1pink font-display text-2xl">${d.write}</td>
                         <td class="p-3 text-center opacity-0 group-hover:opacity-100 transition-opacity">
                             <div class="flex justify-center gap-2">
-                                <button onclick="editRow(${idx})" class="text-slate-400 hover:text-e1blue p-2"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+                                <button onclick="editRow(${idx})" class="text-slate-400 hover:text-e1blue p-2"><i data-lucide="edit" class="w-4 h-4"></i></button>
                                 <button onclick="deleteRow(${idx})" class="text-slate-400 hover:text-red-500 p-2"><i data-lucide="trash" class="w-4 h-4"></i></button>
                             </div>
                         </td>
@@ -526,22 +601,24 @@
             else renderRoster();
         }
 
-        // --- Import/Export ---
+        // Import/Export
         function exportCurrentStudent() {
-            if (!currentStudentId) return;
+            if (!currentStudentId) return showToast("Select a student first.", "warning");
             const s = students.find(x => x.id === currentStudentId);
             const data = { type: 'single_student', profile: s, scores: appData };
             downloadJSON(data, `Student_${s.name.replace(/\s+/g, '_')}.json`);
+            showToast("Student data exported.");
         }
 
         function exportAllData() {
-            if (!students.length) return;
+            if (!students.length) return showToast("No students to backup.", "warning");
             const data = { type: 'full_database', students: students, scores: {} };
             students.forEach(s => {
                 const stored = localStorage.getItem(`e1_v2_scores_${s.id}`);
                 data.scores[s.id] = stored ? JSON.parse(stored) : [];
             });
-            downloadJSON(data, `English1_Backup.json`);
+            downloadJSON(data, `English1_Complete_Backup.json`);
+            showToast("Full database backup exported.");
         }
 
         function downloadJSON(data, filename) {
@@ -569,8 +646,8 @@
                         const data = JSON.parse(content);
                         if (data.type === 'single_student') importSingleStudent(data);
                         else if (data.type === 'full_database') importFullDatabase(data);
-                        else alert("Unknown JSON format.");
-                    } catch (err) { alert("Invalid file."); }
+                        else showToast("Unrecognized file format.", "error");
+                    } catch (err) { showToast("Error reading file.", "error"); }
                 }
                 event.target.value = '';
             };
@@ -588,12 +665,11 @@
             const scoreIdx = headers.indexOf("%PT Completion Current ");
 
             if (accountIdx === -1 || groupIdx === -1 || skillIdx === -1 || scoreIdx === -1) {
-                alert("CSV format not recognized. Ensure headers match the KPI report.");
+                showToast("Invalid CSV headers.", "error");
                 return;
             }
 
             const studentMap = {};
-
             for (let i = 1; i < lines.length; i++) {
                 const row = lines[i].split(",");
                 const accId = row[accountIdx];
@@ -603,10 +679,9 @@
                 if (!accId || !groupCode || !skillName) continue;
 
                 const score = parseFloat(scoreRaw.replace("%", "")) || 0;
-
                 if (!studentMap[accId]) studentMap[accId] = { name: accId, milestones: {} };
                 if (!studentMap[accId].milestones[groupCode]) {
-                    studentMap[accId].milestones[groupCode] = { category: "KPI Import", milestone: groupCode, gram: 0, listen: 0, read: 0, speak: 0, vocab: 0, write: 0 };
+                    studentMap[accId].milestones[groupCode] = { category: "KPI", milestone: groupCode, gram: 0, listen: 0, read: 0, speak: 0, vocab: 0, write: 0 };
                 }
 
                 const m = studentMap[accId].milestones[groupCode];
@@ -623,45 +698,79 @@
                 const newId = 's_' + Date.now() + Math.random().toString(36).substr(2, 5);
                 const sData = studentMap[accId];
                 students.push({ id: newId, name: sData.name });
-                const scoresArray = Object.values(sData.milestones);
-                localStorage.setItem(`e1_v2_scores_${newId}`, JSON.stringify(scoresArray));
+                localStorage.setItem(`e1_v2_scores_${newId}`, JSON.stringify(Object.values(sData.milestones)));
             });
 
             saveStudents();
             loadAll();
-            alert(`Imported ${ids.length} student(s) from CSV.`);
+            showToast(`Imported ${ids.length} students from CSV.`, "success");
         }
 
         function importSingleStudent(data) {
             const newId = 's_' + Date.now();
-            students.push({ id: newId, name: data.profile.name + " (Imported)" });
+            students.push({ id: newId, name: data.profile.name + " (Import)" });
             localStorage.setItem(`e1_v2_scores_${newId}`, JSON.stringify(data.scores));
             saveStudents(); switchStudent(newId);
+            showToast("Student profile imported.", "success");
         }
 
         function importFullDatabase(data) {
-            if (!confirm("Merge database?")) return;
+            if (!confirm("Merge this database with existing data?")) return;
             data.students.forEach(s => {
                 const nid = 's_' + Date.now() + Math.random().toString(36).substr(2, 5);
                 students.push({ id: nid, name: s.name });
                 localStorage.setItem(`e1_v2_scores_${nid}`, JSON.stringify(data.scores[s.id] || []));
             });
             saveStudents(); loadAll();
+            showToast("Full database merged.", "success");
         }
 
-        // Handlers
+        // --- Core Action Handlers ---
+
         studentNameInput.addEventListener('input', () => { saveStudentData(); renderRoster(); });
+        
         form.addEventListener('submit', (e) => {
             e.preventDefault();
-            if (!currentStudentId) return;
-            const get = (id) => { const v = document.getElementById(id).value; return v === '' ? 0 : parseFloat(v); };
+            if (!currentStudentId) return showToast("Select student first.", "warning");
+            
+            const get = (id) => { 
+                const v = document.getElementById(id).value; 
+                return v === '' ? 0 : parseFloat(v); 
+            };
+
+            const catField = document.getElementById('inCategory');
+            const milField = document.getElementById('milestone');
+
+            // Save the data
             appData.push({
-                category: document.getElementById('inCategory').value,
-                milestone: document.getElementById('milestone').value,
-                gram: get('inGrammar'), listen: get('inListening'), read: get('inReading'), speak: get('inSpeaking'), vocab: get('inVocab'), write: get('inWriting')
+                category: catField.value,
+                milestone: milField.value,
+                gram: get('inGrammar'), 
+                listen: get('inListening'), 
+                read: get('inReading'), 
+                speak: get('inSpeaking'), 
+                vocab: get('inVocab'), 
+                write: get('inWriting')
             });
-            form.reset(); document.getElementById('inCategory').focus();
-            saveStudentData(); updateFilters(); updateChart(); renderTable();
+
+            // Smart Auto-Input Implementation
+            // 1. Milestone Increments (e.g., Unit 1 -> Unit 2)
+            const nextMilestone = incrementMilestone(milField.value);
+            milField.value = nextMilestone;
+
+            // 2. Clear score fields but leave Category/Milestone alone
+            ['inGrammar', 'inListening', 'inReading', 'inSpeaking', 'inVocab', 'inWriting'].forEach(id => {
+                document.getElementById(id).value = '';
+            });
+
+            // 3. Focus the Grammar field for the next student/milestone entry
+            document.getElementById('inGrammar').focus();
+
+            saveStudentData(); 
+            updateFilters(); 
+            updateChart(); 
+            renderTable();
+            showToast("Milestone saved.", "success");
         });
 
         window.editRow = (idx) => { currentlyEditingIndex = idx; renderTable(); };
@@ -673,14 +782,15 @@
                 gram: get('ed-g'), listen: get('ed-l'), read: get('ed-r'), speak: get('ed-s'), vocab: get('ed-v'), write: get('ed-w')
             };
             currentlyEditingIndex = null; saveStudentData(); updateFilters(); updateChart(); renderTable();
+            showToast("Updated.");
         };
-        window.deleteRow = (idx) => { if(confirm('Delete?')) { appData.splice(idx, 1); saveStudentData(); updateChart(); renderTable(); } };
-        window.clearData = () => { if(confirm('Clear current student?')) { appData = []; saveStudentData(); updateChart(); renderTable(); } };
+        window.deleteRow = (idx) => { if(confirm('Delete milestone?')) { appData.splice(idx, 1); saveStudentData(); updateChart(); renderTable(); showToast("Milestone deleted."); } };
+        window.clearData = () => { if(confirm('Clear current student scores?')) { appData = []; saveStudentData(); updateChart(); renderTable(); showToast("Student data cleared."); } };
 
         function updateFilters() {
             const cats = [...new Set(appData.map(d => d.category))];
             const old = categoryFilter.value;
-            categoryFilter.innerHTML = '<option value="All">All Categories</option>';
+            categoryFilter.innerHTML = '<option value="All">All Progression</option>';
             cats.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; categoryFilter.appendChild(o); });
             categoryFilter.value = cats.includes(old) ? old : 'All';
             currentFilter = categoryFilter.value;
@@ -693,8 +803,10 @@
             const isDark = html.classList.contains('dark');
             const labelText = isDark ? 'Whiteboard Mode' : 'Blackboard Mode';
             themeBtn.innerHTML = `<i data-lucide="${isDark ? 'sun' : 'moon'}" class="w-5 h-5"></i> <span id="themeLabel">${labelText}</span>`;
+            
             Chart.defaults.color = isDark ? '#94a3b8' : '#64748b'; 
             chartInstance.options.scales.y.grid.color = isDark ? '#1e293b' : '#e2e8f0';
+            
             if (chartInstance.data.datasets[6]) {
                 const isH = highlightedDatasetIndex === null || highlightedDatasetIndex === 6;
                 chartInstance.data.datasets[6].borderColor = isH ? (isDark ? '#f8fafc' : '#1e293b') : applyOpacity(isDark ? '#f8fafc' : '#1e293b', 0.15);
@@ -702,6 +814,7 @@
             }
             chartInstance.update();
             lucide.createIcons();
+            showToast(`Switched to ${labelText}`);
         });
 
         initChart(); loadAll();
