@@ -128,7 +128,7 @@
         .neo-btn:active { transform: translateY(2px); }
 
         /* 6. VIEW MODES */
-        #poster-wrapper { transition: transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94); transform-origin: top center; }
+        #poster-wrapper { transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94); transform-origin: center center; }
         body.zen-mode aside { display: none !important; }
         body.zen-mode #poster-viewport { padding: 0; align-items: center; justify-content: center; }
 
@@ -247,9 +247,10 @@
             <!-- Toolbar -->
             <div class="absolute top-4 right-4 z-40 flex gap-2 no-print group">
                 <div class="bg-white border-2 border-brand-dark rounded-xl shadow-neo flex items-center p-1">
-                    <button onclick="changeZoom(-0.1)" class="p-2 hover:bg-slate-100 rounded-lg text-slate-600 hover:text-brand-dark"><i data-lucide="minus" class="w-5 h-5"></i></button>
+                    <button onclick="changeZoom(-0.1)" class="p-2 hover:bg-slate-100 rounded-lg text-slate-600 hover:text-brand-dark" title="Zoom Out"><i data-lucide="minus" class="w-5 h-5"></i></button>
+                    <button onclick="fitToScreen()" class="px-3 py-2 hover:bg-brand-yellow/20 rounded-lg text-brand-dark font-black text-xs uppercase tracking-wider" title="Fit to Screen">FIT</button>
                     <span id="zoom-level" class="font-heading font-bold text-sm w-12 text-center text-brand-dark">100%</span>
-                    <button onclick="changeZoom(0.1)" class="p-2 hover:bg-slate-100 rounded-lg text-slate-600 hover:text-brand-dark"><i data-lucide="plus" class="w-5 h-5"></i></button>
+                    <button onclick="changeZoom(0.1)" class="p-2 hover:bg-slate-100 rounded-lg text-slate-600 hover:text-brand-dark" title="Zoom In"><i data-lucide="plus" class="w-5 h-5"></i></button>
                 </div>
 
                 <button onclick="openLibrary()" title="My Posters" class="neo-btn bg-brand-yellow text-brand-dark w-11 h-11 p-0"><i data-lucide="folder-open" class="w-5 h-5"></i></button>
@@ -258,7 +259,8 @@
             </div>
 
             <!-- Viewport -->
-            <div id="poster-viewport" class="flex-1 w-full h-full overflow-auto p-8 flex justify-center items-start transition-all duration-300">
+            <!-- UPDATED: justify-center items-center for center alignment -->
+            <div id="poster-viewport" class="flex-1 w-full h-full overflow-auto p-8 flex justify-center items-center transition-all duration-300">
                 <div id="poster-wrapper">
                     <!-- QHD Poster Size (2560x1440) -->
                     <div id="poster-area" class="w-[2560px] h-[1440px] bg-brand-chalk bg-graph-paper relative shadow-neo-lg overflow-hidden border-4 border-brand-dark transition-all duration-300">
@@ -356,6 +358,9 @@
             });
 
             loadPosterUI();
+            
+            // Auto Fit on Load
+            fitToScreen();
         };
 
         function loadPosterUI() {
@@ -694,6 +699,22 @@
             applyZoom();
         }
 
+        function fitToScreen() {
+            const viewport = document.getElementById('poster-viewport');
+            if(!viewport) return;
+            
+            // Subtract padding (8rem total = 32px each side approx)
+            // p-8 = 2rem = 32px. 32*2 = 64px. Let's give it 80px breathing room
+            const vw = viewport.clientWidth - 80;
+            const vh = viewport.clientHeight - 80;
+            const pw = 2560;
+            const ph = 1440;
+            
+            const scale = Math.min(vw/pw, vh/ph);
+            currentPoster.zoom = Math.max(0.1, Math.floor(scale * 100) / 100);
+            applyZoom();
+        }
+
         function toggleFullScreen() {
             document.body.classList.toggle('zen-mode');
             const btn = document.getElementById('fullscreen-btn');
@@ -702,6 +723,9 @@
             // Fix: Completely replace button content to reset icon for Lucide
             btn.innerHTML = `<i data-lucide="${iconName}" class="w-5 h-5"></i>`;
             lucide.createIcons();
+            
+            // Re-fit screen after transition
+            setTimeout(fitToScreen, 350);
         }
 
         // --- LIBRARY/PROJECTS ---
@@ -721,6 +745,7 @@
                 editingId = null; // close editor
                 closeLibrary();
                 loadPosterUI(); // Reload UI with new data
+                fitToScreen(); // Auto fit new poster
             }
         }
 
@@ -733,6 +758,24 @@
 
             state.posters.push(newP);
             switchPoster(newP.id);
+        }
+
+        function duplicatePoster(id) {
+            const original = state.posters.find(p => p.id === id);
+            if (!original) return;
+
+            // Deep copy using JSON parse/stringify
+            const copy = JSON.parse(JSON.stringify(original));
+            
+            // Modify metadata for the copy
+            copy.id = crypto.randomUUID();
+            copy.global.title = copy.global.title + " (Copy)";
+            copy.lastModified = Date.now();
+
+            // Insert into state and update UI
+            state.posters.push(copy);
+            saveState();
+            openLibrary(); // Refresh list to show new item
         }
 
         function cyclePoster(dir) {
@@ -777,7 +820,8 @@
                     </div>
                     <div class="flex gap-2">
                          ${!isCur ? `<button onclick="switchPoster('${p.id}')" class="neo-btn px-4 py-2 bg-white text-xs">OPEN</button>` : `<span class="neo-btn px-4 py-2 bg-brand-dark text-white text-xs">ACTIVE</span>`}
-                         ${state.posters.length > 1 ? `<button onclick="deletePoster('${p.id}')" class="neo-btn p-2 text-red-500 border-red-200 hover:bg-red-50"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : ''}
+                         <button onclick="duplicatePoster('${p.id}')" class="neo-btn p-2 text-brand-blue border-brand-blue bg-blue-50 hover:bg-blue-100" title="Duplicate"><i data-lucide="copy" class="w-4 h-4"></i></button>
+                         ${state.posters.length > 1 ? `<button onclick="deletePoster('${p.id}')" class="neo-btn p-2 text-red-500 border-red-200 hover:bg-red-50" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : ''}
                     </div>`;
                 list.appendChild(el);
             });
