@@ -69,6 +69,9 @@
         .btn-neo:hover {
             @apply -translate-y-0.5 shadow-neo-lg;
         }
+        .btn-neo:disabled {
+            @apply opacity-50 cursor-not-allowed shadow-none translate-y-0.5;
+        }
 
         .card-neo {
             @apply bg-white border-3 border-brand-dark rounded-2xl shadow-neo p-6 relative overflow-hidden;
@@ -248,7 +251,8 @@
                 <h2 id="q-text" class="text-3xl md:text-4xl font-heading font-bold leading-tight text-brand-dark">
                     Ready to Challenge<br>Your Grammar?
                 </h2>
-                
+                <div id="loading-msg" class="text-sm font-bold text-slate-400 animate-pulse hidden">Loading questions...</div>
+
                 <div id="options-area" class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full mt-4 hidden">
                     <!-- Buttons go here -->
                 </div>
@@ -406,23 +410,31 @@
             }
         };
 
-        const QUESTIONS = [
-            { q: "She ______ to work every day.", opts: ["walks", "walking", "is walk", "walked"], a: 0, exp: "Routine = Present Simple (walks)." },
-            { q: "Look! It ______ right now.", opts: ["rains", "is raining", "rained", "rain"], a: 1, exp: "Now = Present Continuous (is raining)." },
-            { q: "I ______ sushi last night.", opts: ["eat", "have eaten", "ate", "eating"], a: 2, exp: "Specific past time = Past Simple (ate)." },
-            { q: "They ______ when the phone rang.", opts: ["slept", "were sleeping", "sleep", "have slept"], a: 1, exp: "Interrupted action = Past Continuous." },
-            { q: "I ______ him for 10 years.", opts: ["know", "am knowing", "have known", "knew"], a: 2, exp: "Started in past, continues now = Present Perfect." },
-            { q: "By next year, I ______ here for 5 years.", opts: ["will work", "work", "will have been working", "worked"], a: 2, exp: "Duration up to a future point = Future Perfect Continuous." },
-            { q: "The train ______ when we arrived.", opts: ["left", "has left", "had left", "leaving"], a: 2, exp: "Action before past action = Past Perfect." },
-            { q: "At 8 PM tomorrow, I ______ TV.", opts: ["watch", "will watch", "will be watching", "watched"], a: 2, exp: "Action in progress at a specific future time = Future Continuous." },
-            { q: "Your eyes are red. ______?", opts: ["Have you cried", "Did you cry", "Do you cry", "Have you been crying"], a: 3, exp: "Recent activity with visible present evidence = Pres. Perf. Cont." },
-            { q: "I ______ hungry because I hadn't eaten.", opts: ["am", "was", "have been", "had been"], a: 1, exp: "Past result ('was') of a Past Perfect cause." },
-            { q: "By the time you arrive, I ______ the food.", opts: ["will cook", "will have cooked", "cook", "cooked"], a: 1, exp: "Action completed before a future moment = Future Perfect." },
-            { q: "This soup ______ delicious!", opts: ["is tasting", "tastes", "has tasted", "taste"], a: 1, exp: "Stative verbs (senses) usually take Simple tenses." },
-            { q: "We ______ for hours before the bus came.", opts: ["have waited", "waited", "were waiting", "had been waiting"], a: 3, exp: "Duration leading up to a past event = Past Perf. Cont." },
-            { q: "I haven't seen him ______ 2020.", opts: ["for", "since", "until", "ago"], a: 1, exp: "'Since' is used with a specific starting point." },
-            { q: "Look at those clouds! It ______.", opts: ["will rain", "rains", "is going to rain", "rained"], a: 2, exp: "Prediction based on present evidence = 'going to'." }
-        ];
+        // --- QUESTIONS LOGIC (FETCH) ---
+        let QUESTIONS = [];
+
+        async function loadQuestions() {
+            const startBtn = document.getElementById('btn-start');
+            const loadingMsg = document.getElementById('loading-msg');
+            
+            try {
+                startBtn.disabled = true;
+                loadingMsg.classList.remove('hidden');
+                
+                const response = await fetch('questions.json');
+                if (!response.ok) throw new Error("File not found");
+                
+                QUESTIONS = await response.json();
+                
+                startBtn.disabled = false;
+                loadingMsg.classList.add('hidden');
+                console.log("Questions loaded:", QUESTIONS.length);
+            } catch (error) {
+                console.error("Error loading questions:", error);
+                loadingMsg.innerText = "Error loading questions. Ensure you are running this on a local server.";
+                loadingMsg.className = "text-sm font-bold text-red-500";
+            }
+        }
 
         // --- DOM ELEMENTS ---
         const viewStudy = document.getElementById('view-study');
@@ -455,6 +467,11 @@
                 const btnStudy = document.getElementById('btn-mode-study');
                 btnStudy.classList.remove('bg-brand-orange', 'text-white', 'border-brand-dark', 'shadow-neo-sm');
                 btnStudy.classList.add('border-transparent', 'text-brand-dark');
+
+                // Load questions only when entering game mode (if not loaded)
+                if(QUESTIONS.length === 0) {
+                    loadQuestions();
+                }
             }
         }
 
@@ -587,6 +604,11 @@
         let timerInterval;
 
         function startGame() {
+            if(QUESTIONS.length === 0) {
+                alert("Questions are still loading or failed to load. Please check your connection or server.");
+                loadQuestions();
+                return;
+            }
             document.getElementById('btn-start').classList.add('hidden');
             document.getElementById('options-area').classList.remove('hidden');
             document.getElementById('options-area').classList.add('grid');
