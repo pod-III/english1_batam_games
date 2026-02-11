@@ -38,6 +38,25 @@
                         'hard': '4px 4px 0px 0px rgba(30, 41, 59, 1)',
                         'hard-lg': '8px 8px 0px 0px rgba(30, 41, 59, 1)',
                         'hard-sm': '2px 2px 0px 0px rgba(30, 41, 59, 1)',
+                    },
+                    animation: {
+                        'float': 'float 3s ease-in-out infinite',
+                        'pop-spring': 'popSpring 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                        'fade-in': 'fadeIn 0.2s ease-out forwards',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        },
+                        popSpring: {
+                            '0%': { transform: 'scale(0.5) translateY(40px)', opacity: '0' },
+                            '100%': { transform: 'scale(1) translateY(0)', opacity: '1' },
+                        },
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        }
                     }
                 }
             }
@@ -45,16 +64,42 @@
     </script>
 
     <style>
+        /* Graph Paper Background */
         body {
             background-color: #f8fafc;
             background-image: linear-gradient(#e2e8f0 1px, transparent 1px), linear-gradient(90deg, #e2e8f0 1px, transparent 1px);
             background-size: 24px 24px;
         }
+
+        /* Neo-Brutalism Form Styling */
         .neo-input {
-            @apply border-4 border-brand-dark rounded-xl px-4 py-2 focus:outline-none focus:ring-4 focus:ring-brand-blue/20 transition-all font-bold;
+            @apply border-4 border-brand-dark rounded-xl px-4 py-3 focus:outline-none focus:ring-4 focus:ring-brand-blue/20 transition-all font-bold bg-white text-brand-dark placeholder:text-slate-400;
         }
+        
         .neo-btn {
-            @apply transition-all active:translate-x-1 active:translate-y-1 active:shadow-none;
+            @apply transition-all active:translate-x-[2px] active:translate-y-[2px] active:shadow-none hover:-translate-x-[2px] hover:-translate-y-[2px];
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 5px;
+            border: 2px solid #f1f5f9;
+        }
+
+        .set-item.active {
+            @apply bg-brand-blue text-white translate-x-1 translate-y-1 shadow-none border-brand-dark;
+        }
+
+        /* Modal Overlay Transition */
+        #custom-modal:not(.hidden) {
+            display: flex;
         }
     </style>
 </head>
@@ -63,92 +108,156 @@
     <!-- Header -->
     <header class="bg-white border-b-4 border-brand-dark sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-6 py-4 flex flex-wrap justify-between items-center gap-4">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-brand-blue border-2 border-brand-dark rounded-lg flex items-center justify-center shadow-hard-sm">
-                    <i data-lucide="edit-3" class="text-white w-6 h-6"></i>
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-brand-pink border-4 border-brand-dark rounded-xl flex items-center justify-center shadow-hard animate-float">
+                    <i data-lucide="edit-3" class="text-white w-7 h-7"></i>
                 </div>
-                <h1 class="font-heading font-bold text-2xl tracking-tight">Quiz Editor</h1>
+                <div>
+                    <h1 class="font-heading font-bold text-3xl tracking-tight leading-none">Arcade Editor</h1>
+                    <p class="text-xs font-black text-slate-500 uppercase tracking-widest mt-1">English 1 Batam</p>
+                </div>
             </div>
             
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-4">
                 <input type="file" id="import-json" accept=".json" class="hidden">
-                <button onclick="document.getElementById('import-json').click()" class="neo-btn bg-white border-4 border-brand-dark px-4 py-2 rounded-xl font-heading font-bold shadow-hard hover:bg-slate-50 flex items-center gap-2">
-                    <i data-lucide="upload" class="w-5 h-5"></i> Import JSON
+                <button onclick="document.getElementById('import-json').click()" class="neo-btn bg-white border-4 border-brand-dark px-5 py-2.5 rounded-xl font-heading font-bold shadow-hard hover:bg-slate-50 flex items-center gap-2">
+                    <i data-lucide="upload" class="w-5 h-5"></i> Import
                 </button>
-                <button onclick="exportJSON()" class="neo-btn bg-brand-green border-4 border-brand-dark px-4 py-2 rounded-xl font-heading font-bold shadow-hard flex items-center gap-2">
-                    <i data-lucide="download" class="w-5 h-5"></i> Export JSON
+                <button onclick="exportJSON()" class="neo-btn bg-brand-green border-4 border-brand-dark px-5 py-2.5 rounded-xl font-heading font-bold shadow-hard flex items-center gap-2">
+                    <i data-lucide="download" class="w-5 h-5"></i> Export
                 </button>
             </div>
         </div>
     </header>
 
-    <main class="max-w-7xl mx-auto w-full p-6 flex flex-col lg:flex-row gap-8">
+    <main class="max-w-7xl mx-auto w-full p-6 flex flex-col lg:flex-row gap-10">
         
         <!-- Sidebar: List of Sets -->
-        <aside class="w-full lg:w-1/3 flex flex-col gap-6">
-            <div class="bg-white border-4 border-brand-dark rounded-2xl p-6 shadow-hard flex flex-col gap-4">
+        <aside class="w-full lg:w-80 flex flex-col gap-6 shrink-0">
+            <div class="bg-white border-4 border-brand-dark rounded-2xl p-6 shadow-hard-lg flex flex-col gap-6">
                 <div class="flex justify-between items-center">
-                    <h2 class="font-heading text-xl font-bold">Quiz Sets</h2>
-                    <button onclick="addNewSet()" class="p-2 bg-brand-orange text-white border-2 border-brand-dark rounded-lg shadow-hard-sm hover:scale-110 transition-transform">
-                        <i data-lucide="plus" class="w-5 h-5"></i>
+                    <h2 class="font-heading text-2xl font-bold">Quiz Sets</h2>
+                    <button onclick="addNewSet()" class="w-10 h-10 bg-brand-orange text-white border-4 border-brand-dark rounded-xl shadow-hard-sm hover:rotate-12 transition-transform flex items-center justify-center">
+                        <i data-lucide="plus" class="w-6 h-6"></i>
                     </button>
                 </div>
-                <div id="set-list" class="flex flex-col gap-3 max-h-[60vh] overflow-y-auto pr-2">
+                
+                <div id="set-list" class="flex flex-col gap-4 max-h-[70vh] overflow-y-auto pr-2">
                     <!-- Set items injected here -->
                 </div>
+            </div>
+            
+            <div class="bg-brand-dark text-white p-5 rounded-2xl shadow-hard border-4 border-brand-dark">
+                <h3 class="font-heading font-bold mb-2 flex items-center gap-2">
+                    <i data-lucide="info" class="w-4 h-4"></i> Instructions
+                </h3>
+                <p class="text-xs text-slate-300 leading-relaxed">
+                    1. Create or Import a JSON.<br>
+                    2. Choose icons from <span class="text-brand-orange font-bold">Lucide</span> (e.g., book, sparkles, zap).<br>
+                    3. Mark correct answers using the checkboxes.
+                </p>
             </div>
         </aside>
 
         <!-- Main Editor Section -->
-        <section class="flex-grow flex flex-col gap-6">
-            <div id="editor-placeholder" class="bg-white border-4 border-brand-dark border-dashed rounded-2xl p-20 text-center shadow-hard">
-                <i data-lucide="mouse-pointer-click" class="w-16 h-16 mx-auto mb-4 text-slate-300"></i>
-                <h3 class="font-heading text-2xl font-bold text-slate-400">Select a set to start editing</h3>
+        <section class="flex-grow flex flex-col gap-8">
+            <div id="editor-placeholder" class="bg-white border-4 border-brand-dark border-dashed rounded-3xl p-20 text-center shadow-hard opacity-60">
+                <div class="w-20 h-20 bg-slate-100 rounded-full border-4 border-brand-dark flex items-center justify-center mx-auto mb-6">
+                    <i data-lucide="mouse-pointer-2" class="w-10 h-10 text-slate-400"></i>
+                </div>
+                <h3 class="font-heading text-3xl font-bold text-slate-400">Select a set to begin editing</h3>
             </div>
 
-            <div id="editor-content" class="hidden space-y-6">
-                <!-- Set Metadata Card -->
-                <div class="bg-white border-4 border-brand-dark rounded-2xl p-6 shadow-hard space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="flex flex-col gap-1">
-                            <label class="text-xs font-black uppercase text-slate-500">Set ID (Unique)</label>
-                            <input type="text" id="edit-id" class="neo-input" oninput="updateActiveSet('id', this.value)">
-                        </div>
-                        <div class="flex flex-col gap-1">
-                            <label class="text-xs font-black uppercase text-slate-500">Title</label>
-                            <input type="text" id="edit-title" class="neo-input" oninput="updateActiveSet('title', this.value)">
-                        </div>
-                        <div class="flex flex-col gap-1">
-                            <label class="text-xs font-black uppercase text-slate-500">Topic</label>
-                            <input type="text" id="edit-topic" class="neo-input" oninput="updateActiveSet('topic', this.value)">
-                        </div>
-                        <div class="flex flex-col gap-1">
-                            <label class="text-xs font-black uppercase text-slate-500">Lucide Icon Name</label>
-                            <input type="text" id="edit-icon" class="neo-input" oninput="updateActiveSet('icon', this.value)">
-                        </div>
-                        <div class="flex flex-col gap-1 md:col-span-2">
-                            <label class="text-xs font-black uppercase text-slate-500">Description</label>
-                            <textarea id="edit-desc" class="neo-input h-20 resize-none" oninput="updateActiveSet('desc', this.value)"></textarea>
+            <div id="editor-content" class="hidden space-y-8 animate-fade-in">
+                
+                <!-- Set Metadata Section -->
+                <div class="relative">
+                    <div class="absolute -top-4 -left-4 bg-brand-blue text-white border-4 border-brand-dark px-4 py-1 rounded-lg font-heading font-bold z-10 shadow-hard-sm">
+                        SET SETTINGS
+                    </div>
+                    <div class="bg-white border-4 border-brand-dark rounded-2xl p-8 pt-10 shadow-hard-lg space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            <div class="flex flex-col gap-2">
+                                <label class="text-xs font-black uppercase text-slate-500 tracking-wider">Set ID</label>
+                                <input type="text" id="edit-id" class="neo-input" oninput="updateActiveSet('id', this.value)">
+                            </div>
+                            <div class="flex flex-col gap-2 md:col-span-2">
+                                <label class="text-xs font-black uppercase text-slate-500 tracking-wider">Title</label>
+                                <input type="text" id="edit-title" class="neo-input" oninput="updateActiveSet('title', this.value)">
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                <label class="text-xs font-black uppercase text-slate-500 tracking-wider">Topic Tag</label>
+                                <input type="text" id="edit-topic" class="neo-input" oninput="updateActiveSet('topic', this.value)">
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                <label class="text-xs font-black uppercase text-slate-500 tracking-wider">Lucide Icon</label>
+                                <input type="text" id="edit-icon" class="neo-input" oninput="updateActiveSet('icon', this.value)" placeholder="e.g. brain">
+                            </div>
+                            <div class="flex flex-col gap-2">
+                                <label class="text-xs font-black uppercase text-slate-500 tracking-wider">Primary Color</label>
+                                <select id="edit-color" class="neo-input" onchange="updateActiveSet('color', this.value)">
+                                    <option value="bg-brand-pink">Pink</option>
+                                    <option value="bg-brand-orange">Orange</option>
+                                    <option value="bg-brand-blue">Blue</option>
+                                    <option value="bg-brand-green">Green</option>
+                                    <option value="bg-brand-dark">Dark</option>
+                                </select>
+                            </div>
+                            <div class="flex flex-col gap-2 md:col-span-3">
+                                <label class="text-xs font-black uppercase text-slate-500 tracking-wider">Short Description</label>
+                                <textarea id="edit-desc" class="neo-input h-24 resize-none" oninput="updateActiveSet('desc', this.value)"></textarea>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Questions Manager -->
-                <div class="bg-white border-4 border-brand-dark rounded-2xl p-6 shadow-hard space-y-6">
-                    <div class="flex justify-between items-center border-b-4 border-brand-dark pb-4">
-                        <h3 class="font-heading text-2xl font-bold">Questions (<span id="q-count">0</span>)</h3>
-                        <button onclick="addQuestion()" class="neo-btn bg-brand-pink text-white border-4 border-brand-dark px-4 py-2 rounded-xl font-heading font-bold shadow-hard flex items-center gap-2">
-                            <i data-lucide="file-plus" class="w-5 h-5"></i> Add Question
-                        </button>
+                <div class="relative">
+                    <div class="absolute -top-4 -left-4 bg-brand-pink text-white border-4 border-brand-dark px-4 py-1 rounded-lg font-heading font-bold z-10 shadow-hard-sm">
+                        QUESTIONS
                     </div>
+                    <div class="bg-white border-4 border-brand-dark rounded-2xl p-8 pt-12 shadow-hard-lg space-y-8">
+                        <div class="flex justify-between items-center border-b-4 border-brand-chalk pb-6">
+                            <h3 class="font-heading text-2xl font-bold">Manage Content (<span id="q-count">0</span>)</h3>
+                            <button onclick="addQuestion()" class="neo-btn bg-brand-orange text-white border-4 border-brand-dark px-6 py-3 rounded-xl font-heading font-bold shadow-hard flex items-center gap-2">
+                                <i data-lucide="plus-circle" class="w-5 h-5"></i> Add Question
+                            </button>
+                        </div>
 
-                    <div id="questions-list" class="space-y-8">
-                        <!-- Question blocks injected here -->
+                        <div id="questions-list" class="space-y-10">
+                            <!-- Question blocks injected here -->
+                        </div>
                     </div>
                 </div>
             </div>
         </section>
     </main>
+
+    <!-- CUSTOM MODAL POPUP (POLISHED) -->
+    <div id="custom-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-6 animate-fade-in">
+        <!-- Backdrop with Blur -->
+        <div class="absolute inset-0 bg-brand-dark/40 backdrop-blur-md" onclick="closeModal(false)"></div>
+        
+        <!-- Modal Content Container -->
+        <div id="modal-content" class="relative bg-white border-4 border-brand-dark rounded-[2.5rem] shadow-[8px_8px_0px_0px_rgba(30,41,59,1)] w-full max-w-md p-10 animate-pop-spring">
+            
+            <!-- Floating Icon Box -->
+            <div class="absolute -top-12 left-1/2 -translate-x-1/2">
+                <div id="modal-icon-box" class="w-24 h-24 rounded-3xl border-4 border-brand-dark flex items-center justify-center shadow-hard animate-float bg-brand-blue">
+                    <i id="modal-icon" class="text-white w-12 h-12" data-lucide="info"></i>
+                </div>
+            </div>
+
+            <div class="mt-8 text-center">
+                <h3 id="modal-title" class="font-heading text-4xl font-bold text-brand-dark mb-4 tracking-tight"></h3>
+                <p id="modal-body" class="font-sans text-lg text-slate-600 font-bold mb-10 leading-relaxed"></p>
+                
+                <div id="modal-footer" class="flex flex-col sm:flex-row gap-4">
+                    <!-- Buttons injected by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>
         // --- DATA STATE ---
@@ -158,10 +267,67 @@
         // --- INITIALIZATION ---
         document.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();
-            
-            // Listen for imports
             document.getElementById('import-json').addEventListener('change', handleImport);
         });
+
+        // --- POLISHED MODAL SYSTEM ---
+        let modalResolve = null;
+
+        function showModal({ title, body, icon, type = 'info', confirmText = 'OK', cancelText = null }) {
+            const modal = document.getElementById('custom-modal');
+            const iconBox = document.getElementById('modal-icon-box');
+            const iconEl = document.getElementById('modal-icon');
+            const titleEl = document.getElementById('modal-title');
+            const bodyEl = document.getElementById('modal-body');
+            const footer = document.getElementById('modal-footer');
+
+            // Set content
+            titleEl.innerText = title;
+            bodyEl.innerText = body;
+            iconEl.setAttribute('data-lucide', icon || 'info');
+
+            // Set color based on type
+            const colors = {
+                info: 'bg-brand-blue',
+                success: 'bg-brand-green',
+                warning: 'bg-brand-pink',
+                danger: 'bg-brand-pink',
+                question: 'bg-brand-orange'
+            };
+            
+            iconBox.className = `w-24 h-24 rounded-3xl border-4 border-brand-dark flex items-center justify-center shadow-hard animate-float ${colors[type] || colors.info}`;
+
+            // Set buttons
+            footer.innerHTML = '';
+            
+            if (cancelText) {
+                const btnCancel = document.createElement('button');
+                btnCancel.className = "neo-btn flex-1 bg-white border-4 border-brand-dark py-4 rounded-2xl font-heading font-bold text-lg shadow-hard";
+                btnCancel.innerText = cancelText;
+                btnCancel.onclick = () => closeModal(false);
+                footer.appendChild(btnCancel);
+            }
+
+            const btnConfirm = document.createElement('button');
+            const confirmColor = type === 'danger' ? 'bg-brand-pink' : (type === 'success' ? 'bg-brand-green' : 'bg-brand-blue');
+            btnConfirm.className = `neo-btn flex-1 ${confirmColor} text-white border-4 border-brand-dark py-4 rounded-2xl font-heading font-bold text-lg shadow-hard`;
+            btnConfirm.innerText = confirmText;
+            btnConfirm.onclick = () => closeModal(true);
+            footer.appendChild(btnConfirm);
+
+            modal.classList.remove('hidden');
+            lucide.createIcons();
+
+            return new Promise(resolve => {
+                modalResolve = resolve;
+            });
+        }
+
+        function closeModal(result) {
+            const modal = document.getElementById('custom-modal');
+            modal.classList.add('hidden');
+            if (modalResolve) modalResolve(result);
+        }
 
         // --- CORE FUNCTIONS ---
 
@@ -171,14 +337,14 @@
             
             appData.forEach((set, idx) => {
                 const item = document.createElement('div');
-                item.className = `p-4 border-4 border-brand-dark rounded-xl cursor-pointer transition-all flex justify-between items-center group ${activeSetIndex === idx ? 'bg-brand-blue text-white shadow-none translate-x-1 translate-y-1' : 'bg-white shadow-hard-sm hover:shadow-hard'}`;
+                item.className = `set-item p-4 border-4 border-brand-dark rounded-2xl cursor-pointer transition-all flex justify-between items-center group ${activeSetIndex === idx ? 'active' : 'bg-white shadow-hard-sm hover:shadow-hard hover:-translate-y-1'}`;
                 
                 item.innerHTML = `
-                    <div class="flex-grow" onclick="selectSet(${idx})">
-                        <p class="text-xs font-black uppercase opacity-60">${set.topic || 'Untitled'}</p>
-                        <h4 class="font-heading font-bold truncate">${set.title || 'New Quiz Set'}</h4>
+                    <div class="flex-grow overflow-hidden" onclick="selectSet(${idx})">
+                        <p class="text-[10px] font-black uppercase tracking-tighter opacity-70 mb-1">${set.topic || 'No Topic'}</p>
+                        <h4 class="font-heading font-bold truncate pr-2">${set.title || 'Untitled Quiz'}</h4>
                     </div>
-                    <button onclick="deleteSet(${idx})" class="p-1 opacity-0 group-hover:opacity-100 hover:text-brand-pink transition-opacity">
+                    <button onclick="event.stopPropagation(); deleteSet(${idx})" class="p-2 opacity-0 group-hover:opacity-100 hover:bg-brand-pink hover:text-white rounded-lg transition-all border-2 border-transparent hover:border-brand-dark">
                         <i data-lucide="trash-2" class="w-4 h-4"></i>
                     </button>
                 `;
@@ -199,6 +365,7 @@
             document.getElementById('edit-desc').value = set.desc || '';
             document.getElementById('edit-topic').value = set.topic || '';
             document.getElementById('edit-icon').value = set.icon || 'book';
+            document.getElementById('edit-color').value = set.color || 'bg-brand-pink';
             
             renderSetList();
             renderQuestions();
@@ -212,33 +379,47 @@
 
             set.questions.forEach((q, qIdx) => {
                 const block = document.createElement('div');
-                block.className = "p-6 bg-brand-chalk border-4 border-brand-dark rounded-2xl shadow-hard relative space-y-4";
+                block.className = "group p-8 bg-brand-chalk border-4 border-brand-dark rounded-3xl shadow-hard relative space-y-6 transition-all hover:shadow-hard-lg hover:-translate-y-1";
                 
                 block.innerHTML = `
                     <div class="flex justify-between items-center">
-                        <span class="bg-brand-dark text-white font-heading px-3 py-1 rounded-lg text-sm">Question ${qIdx + 1}</span>
-                        <button onclick="deleteQuestion(${qIdx})" class="text-brand-pink hover:bg-pink-50 p-1 rounded-lg transition-colors">
-                            <i data-lucide="x-square" class="w-6 h-6"></i>
+                        <div class="flex items-center gap-3">
+                            <span class="w-10 h-10 bg-brand-dark text-white rounded-xl flex items-center justify-center font-heading font-bold border-2 border-brand-dark shadow-hard-sm">
+                                ${qIdx + 1}
+                            </span>
+                            <h4 class="font-heading font-bold text-xl text-brand-dark opacity-40 italic">New Question</h4>
+                        </div>
+                        <button onclick="deleteQuestion(${qIdx})" class="w-10 h-10 bg-white text-brand-pink border-4 border-brand-dark rounded-xl shadow-hard-sm hover:bg-brand-pink hover:text-white transition-all flex items-center justify-center">
+                            <i data-lucide="trash" class="w-5 h-5"></i>
                         </button>
                     </div>
                     
-                    <div class="flex flex-col gap-1">
-                        <label class="text-xs font-black uppercase text-slate-500">Question Text</label>
-                        <input type="text" class="neo-input w-full" value="${q.q}" oninput="updateQuestion(${qIdx}, 'q', this.value)">
+                    <div class="flex flex-col gap-2">
+                        <label class="text-xs font-black uppercase text-slate-500 tracking-widest">Question Text</label>
+                        <input type="text" class="neo-input w-full" value="${escapeHtml(q.q)}" oninput="updateQuestion(${qIdx}, 'q', this.value)">
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         ${q.opts.map((opt, oIdx) => `
-                            <div class="flex items-center gap-3">
-                                <input type="radio" name="correct-${qIdx}" class="w-5 h-5 accent-brand-green" ${q.a === oIdx ? 'checked' : ''} onchange="updateQuestion(${qIdx}, 'a', ${oIdx})">
-                                <input type="text" class="neo-input flex-grow text-sm" placeholder="Option ${oIdx+1}" value="${opt}" oninput="updateOption(${qIdx}, ${oIdx}, this.value)">
+                            <div class="flex flex-col gap-1">
+                                <div class="flex items-center gap-4">
+                                    <div class="relative cursor-pointer">
+                                        <input type="radio" name="correct-${qIdx}" class="peer hidden" ${q.a === oIdx ? 'checked' : ''} onchange="updateQuestion(${qIdx}, 'a', ${oIdx})">
+                                        <div class="w-8 h-8 bg-white border-4 border-brand-dark rounded-lg peer-checked:bg-brand-green flex items-center justify-center transition-all">
+                                            <i data-lucide="check" class="w-4 h-4 text-white opacity-0 peer-checked:opacity-100"></i>
+                                        </div>
+                                    </div>
+                                    <input type="text" class="neo-input flex-grow text-sm py-2" placeholder="Option ${oIdx+1}" value="${escapeHtml(opt)}" oninput="updateOption(${qIdx}, ${oIdx}, this.value)">
+                                </div>
                             </div>
                         `).join('')}
                     </div>
 
-                    <div class="flex flex-col gap-1">
-                        <label class="text-xs font-black uppercase text-slate-500">Explanation</label>
-                        <input type="text" class="neo-input w-full text-sm font-normal" placeholder="Why is this correct?" value="${q.exp || ''}" oninput="updateQuestion(${qIdx}, 'exp', this.value)">
+                    <div class="flex flex-col gap-2 pt-2">
+                        <label class="text-xs font-black uppercase text-slate-500 tracking-widest flex items-center gap-2">
+                            <i data-lucide="message-square" class="w-3 h-3"></i> Explanation / Tip
+                        </label>
+                        <textarea class="neo-input w-full text-sm font-normal h-20 resize-none" placeholder="Explain why this answer is correct..." oninput="updateQuestion(${qIdx}, 'exp', this.value)">${escapeHtml(q.exp || '')}</textarea>
                     </div>
                 `;
                 container.appendChild(block);
@@ -246,7 +427,13 @@
             lucide.createIcons();
         }
 
-        // --- UPDATE LOGIC ---
+        // --- LOGIC HELPERS ---
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
 
         function updateActiveSet(key, value) {
             if (activeSetIndex === -1) return;
@@ -264,11 +451,11 @@
 
         function addNewSet() {
             const newSet = {
-                id: "new_set_" + Date.now(),
-                title: "New Quiz Set",
-                desc: "Description of your quiz.",
-                topic: "General",
-                icon: "book",
+                id: "set_" + Date.now(),
+                title: "New Quiz Arcade Set",
+                desc: "A short catchy description for the card.",
+                topic: "English",
+                icon: "sparkles",
                 color: "bg-brand-pink",
                 questions: []
             };
@@ -276,8 +463,18 @@
             selectSet(appData.length - 1);
         }
 
-        function deleteSet(index) {
-            if (!confirm("Are you sure you want to delete this set?")) return;
+        async function deleteSet(index) {
+            const confirm = await showModal({
+                title: "Delete Set?",
+                body: `Are you sure you want to remove "${appData[index].title || 'Untitled'}"? This action cannot be undone.`,
+                icon: 'trash-2',
+                type: 'danger',
+                confirmText: 'Yes, Delete',
+                cancelText: 'Cancel'
+            });
+
+            if (!confirm) return;
+
             appData.splice(index, 1);
             if (activeSetIndex === index) {
                 activeSetIndex = -1;
@@ -291,49 +488,76 @@
 
         function addQuestion() {
             appData[activeSetIndex].questions.push({
-                q: "New Question Text",
-                opts: ["Option 1", "Option 2", "Option 3", "Option 4"],
+                q: "",
+                opts: ["", "", "", ""],
                 a: 0,
                 exp: ""
             });
             renderQuestions();
         }
 
-        function deleteQuestion(qIdx) {
-            appData[activeSetIndex].questions.splice(qIdx, 1);
-            renderQuestions();
+        async function deleteQuestion(qIdx) {
+            const confirm = await showModal({
+                title: "Remove Question?",
+                body: "This question will be deleted from the set.",
+                icon: 'file-x',
+                type: 'danger',
+                confirmText: 'Delete',
+                cancelText: 'Keep'
+            });
+            if (confirm) {
+                appData[activeSetIndex].questions.splice(qIdx, 1);
+                renderQuestions();
+            }
         }
 
-        // --- IO ---
+        // --- IMPORT / EXPORT ---
 
         function handleImport(e) {
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
-            reader.onload = (event) => {
+            reader.onload = async (event) => {
                 try {
                     const imported = JSON.parse(event.target.result);
                     if (Array.isArray(imported)) {
                         appData = imported;
                         renderSetList();
-                        alert("Data imported successfully!");
+                        showModal({
+                            title: "Success!",
+                            body: "All quiz sets have been imported successfully.",
+                            icon: 'check-circle',
+                            type: 'success'
+                        });
                     } else {
                         throw new Error();
                     }
                 } catch (err) {
-                    alert("Invalid JSON format. Please use an array of quiz sets.");
+                    showModal({
+                        title: "Import Error",
+                        body: "The JSON file format is incorrect. Please check your file.",
+                        icon: 'alert-triangle',
+                        type: 'warning'
+                    });
                 }
             };
             reader.readAsText(file);
         }
 
-        function exportJSON() {
-            if (appData.length === 0) return alert("No data to export!");
+        async function exportJSON() {
+            if (appData.length === 0) {
+                showModal({
+                    title: "Nothing to Export",
+                    body: "Your quiz list is empty. Add some sets first!",
+                    icon: 'file-warning',
+                    type: 'warning'
+                });
+                return;
+            }
             
             const dataStr = JSON.stringify(appData, null, 2);
             const blob = new Blob([dataStr], { type: "application/json" });
             const url = URL.createObjectURL(blob);
-            
             const link = document.createElement("a");
             link.href = url;
             link.download = "questions.json";
@@ -341,6 +565,13 @@
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
+
+            showModal({
+                title: "Export Ready",
+                body: "Your questions.json file has been downloaded.",
+                icon: 'download-cloud',
+                type: 'success'
+            });
         }
     </script>
 </body>
