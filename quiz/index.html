@@ -3,15 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>English 1 Batam: Universal Quiz</title>
+    <title>English 1 Batam: Quiz Arcade</title>
     
+    <!-- Fonts: Fredoka (Headings) & Nunito (Body) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300..700&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
     
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
+    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
     <script>
         tailwind.config = {
@@ -29,21 +35,35 @@
                             green: '#00E676',
                             blue: '#2979FF',
                             dark: '#1e293b',
-                            chalk: '#f8fafc'
+                            chalk: '#f8fafc',
+                            yellow: '#FFD700'
                         }
                     },
                     boxShadow: {
                         'hard': '4px 4px 0px 0px rgba(30, 41, 59, 1)',
+                        'hard-lg': '6px 6px 0px 0px rgba(30, 41, 59, 1)',
                         'hard-sm': '2px 2px 0px 0px rgba(30, 41, 59, 1)',
-                        'hard-active': '0px 0px 0px 0px rgba(30, 41, 59, 1)',
+                        'inner-hard': 'inset 2px 2px 0px 0px rgba(30, 41, 59, 0.1)',
                     },
                     animation: {
-                        'bounce-slight': 'bounce-slight 0.3s infinite alternate',
+                        'bounce-in': 'bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+                        'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+                        'float': 'float 3s ease-in-out infinite',
                     },
                     keyframes: {
-                        'bounce-slight': {
-                            '0%': { transform: 'translateY(0)' },
-                            '100%': { transform: 'translateY(-5px)' },
+                        bounceIn: {
+                            '0%': { transform: 'scale(0.8)', opacity: '0' },
+                            '100%': { transform: 'scale(1)', opacity: '1' },
+                        },
+                        shake: {
+                            '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
+                            '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
+                            '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
+                            '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
+                        },
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
                         }
                     }
                 }
@@ -52,367 +72,571 @@
     </script>
 
     <style>
-        /* English 1 Batam: Graph Paper Background */
+        /* Graph Paper Background - Desktop Friendly */
         body {
-            background-color: #f8fafc; 
-            background-image: linear-gradient(#cbd5e1 1px, transparent 1px), linear-gradient(90deg, #cbd5e1 1px, transparent 1px);
-            background-size: 20px 20px;
+            background-color: #f8fafc;
+            background-image: 
+                linear-gradient(#e2e8f0 1px, transparent 1px), 
+                linear-gradient(90deg, #e2e8f0 1px, transparent 1px);
+            background-size: 24px 24px;
         }
-        
-        /* Physical Button Feel */
+
+        /* Neo-Brutalism Button Interactions */
         .neo-btn {
-            transition: all 0.1s ease;
+            transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            transform: translate(0, 0);
         }
-        .neo-btn:active {
-            transform: translate(4px, 4px);
+        .neo-btn:hover:not(:disabled) {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0px 0px rgba(30, 41, 59, 1);
+        }
+        .neo-btn:active:not(:disabled) {
+            transform: translate(2px, 2px);
             box-shadow: 0px 0px 0px 0px rgba(30, 41, 59, 1);
+        }
+        .neo-btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            filter: grayscale(100%);
+        }
+
+        /* Card Hover Effect */
+        .neo-card {
+            transition: all 0.2s ease;
+        }
+        .neo-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 6px 6px 0px 0px rgba(30, 41, 59, 1);
+        }
+
+        /* Option Button Specifics */
+        .option-btn {
+            transition: transform 0.1s;
+        }
+        .option-btn:active {
+            transform: scale(0.98);
         }
     </style>
 </head>
-<body class="min-h-screen text-brand-dark flex flex-col items-center p-4">
+<body class="min-h-screen text-brand-dark flex flex-col font-sans selection:bg-brand-pink selection:text-white">
 
-    <header class="w-full max-w-4xl mb-6 flex justify-between items-center bg-white border-4 border-brand-dark p-4 rounded-xl shadow-hard">
-        <div class="flex items-center gap-3">
-            <div class="bg-brand-pink p-2 border-2 border-brand-dark rounded-lg text-white">
-                <i data-lucide="layers" class="w-6 h-6"></i>
+    <!-- Header -->
+    <header class="w-full bg-white border-b-4 border-brand-dark sticky top-0 z-50">
+        <div class="max-w-5xl mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-4 cursor-pointer group" onclick="goHome()">
+                <div class="w-12 h-12 bg-brand-orange border-2 border-brand-dark rounded-xl flex items-center justify-center shadow-hard-sm group-hover:rotate-12 transition-transform">
+                    <i data-lucide="zap" class="text-white w-7 h-7 fill-current"></i>
+                </div>
+                <div>
+                    <h1 class="font-heading font-bold text-3xl leading-none tracking-tight text-brand-dark">Quiz Arcade</h1>
+                    <span class="text-xs font-bold text-slate-500 uppercase tracking-widest">English 1 Batam</span>
+                </div>
             </div>
-            <h1 class="font-heading text-2xl md:text-3xl font-bold tracking-wide">Quiz Hub</h1>
-        </div>
-        <div id="score-container" class="hidden bg-brand-chalk border-2 border-brand-dark rounded-lg px-4 py-2 font-heading font-bold shadow-hard-sm flex items-center gap-2">
-            <i data-lucide="trophy" class="w-5 h-5 text-brand-orange"></i>
-            <span id="score-display">Score: 0</span>
+            
+            <div id="status-badge" class="hidden md:flex items-center gap-2 bg-brand-chalk px-4 py-2 rounded-lg font-bold border-2 border-brand-dark shadow-hard-sm">
+                <div id="connection-dot" class="w-3 h-3 rounded-full bg-brand-green animate-pulse"></div>
+                <span id="connection-text" class="text-sm">System Ready</span>
+            </div>
         </div>
     </header>
 
-    <main class="w-full max-w-4xl bg-white border-4 border-brand-dark shadow-hard rounded-2xl overflow-hidden min-h-[500px] flex flex-col">
+    <!-- Main Content Area -->
+    <main class="flex-grow flex flex-col items-center justify-start pt-10 pb-12 px-4 w-full max-w-6xl mx-auto">
         
-        <div id="view-selector" class="p-8 flex-1 flex flex-col">
-            <div class="text-center mb-8">
-                <h2 class="font-heading text-3xl font-bold mb-2">Choose Your Challenge</h2>
-                <p class="text-slate-600 font-bold">Select a topic below or upload your own file.</p>
-            </div>
-
-            <div class="mb-8">
-                <label class="flex flex-col items-center justify-center w-full h-32 border-4 border-brand-dark border-dashed rounded-xl cursor-pointer bg-brand-chalk hover:bg-white transition-colors">
-                    <div class="flex flex-col items-center justify-center pt-5 pb-6">
-                        <i data-lucide="upload" class="w-8 h-8 mb-2 text-slate-500"></i>
-                        <p class="mb-2 text-sm text-slate-500 font-bold"><span class="font-heading text-brand-blue">Click to upload</span> custom JSON</p>
-                    </div>
-                    <input type="file" id="json-input" accept=".json" class="hidden" />
-                </label>
-            </div>
-
-            <div id="sets-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- SECTION: HOME / SET SELECTION -->
+        <section id="view-home" class="w-full animate-bounce-in">
+            <div class="text-center mb-12">
+                <h2 class="font-heading text-5xl font-bold mb-4 text-brand-dark">Choose Your Challenge</h2>
+                <div class="inline-block bg-white px-8 py-3 rounded-full border-2 border-brand-dark shadow-hard-sm">
+                    <p class="font-bold text-slate-600 text-lg">Select a topic to begin your training</p>
                 </div>
-        </div>
+            </div>
 
-        <div id="view-quiz" class="hidden p-6 md:p-10 flex-col h-full">
-            <div class="flex justify-between items-center mb-6">
-                <button onclick="goHome()" class="neo-btn px-4 py-2 bg-slate-200 border-2 border-brand-dark rounded-lg font-bold text-sm shadow-hard-sm hover:bg-slate-300">
-                    <i data-lucide="arrow-left" class="inline w-4 h-4 mr-1"></i> Exit
+            <!-- Loading Spinner -->
+            <div id="loading-indicator" class="flex flex-col items-center justify-center py-12">
+                <i data-lucide="loader-2" class="w-12 h-12 animate-spin text-brand-blue mb-4"></i>
+                <p class="font-heading font-bold text-xl">Fetching Data...</p>
+            </div>
+
+            <div id="sets-grid" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 px-4">
+                <!-- Cards injected here -->
+            </div>
+        </section>
+
+        <!-- SECTION: QUIZ INTERFACE -->
+        <section id="view-quiz" class="w-full max-w-3xl hidden flex-col">
+            <!-- Top Bar: Progress & Exit -->
+            <div class="flex items-center gap-6 mb-8 bg-white p-5 rounded-2xl border-4 border-brand-dark shadow-hard">
+                <button onclick="goHome()" class="neo-btn p-3 bg-slate-100 rounded-xl border-2 border-brand-dark hover:bg-slate-200">
+                    <i data-lucide="arrow-left" class="w-6 h-6"></i>
                 </button>
-                <div class="bg-brand-blue text-white px-4 py-1 border-2 border-brand-dark rounded-full font-heading font-bold shadow-hard-sm">
-                    <span id="topic-badge">General</span>
+                
+                <div class="flex-grow">
+                    <div class="flex justify-between text-xs font-black mb-2 uppercase tracking-wider text-slate-500">
+                        <span>Progress</span>
+                        <span id="progress-text">0%</span>
+                    </div>
+                    <div class="h-6 bg-slate-200 rounded-full border-2 border-brand-dark overflow-hidden relative">
+                        <div id="progress-bar" class="h-full bg-brand-green transition-all duration-500 ease-out w-0 relative">
+                            <!-- Stripe pattern overlay -->
+                            <div class="absolute inset-0 opacity-20 bg-[linear-gradient(45deg,rgba(255,255,255,.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,.15)_50%,rgba(255,255,255,.15)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem]"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-brand-blue/10 px-4 py-2 rounded-xl border-2 border-brand-blue text-brand-blue font-heading font-bold text-lg min-w-[80px] text-center">
+                    <span id="q-current">1</span> / <span id="q-total">10</span>
                 </div>
             </div>
 
-            <div class="w-full bg-slate-200 border-2 border-brand-dark rounded-full h-6 overflow-hidden mb-8 relative">
-                <div id="progress-bar" class="bg-brand-green h-full w-0 transition-all duration-300 border-r-2 border-brand-dark"></div>
-                <span id="progress-text" class="absolute inset-0 flex items-center justify-center text-xs font-bold text-brand-dark">0%</span>
+            <!-- Question Card -->
+            <div class="bg-white border-4 border-brand-dark rounded-2xl p-8 md:p-12 shadow-hard-lg mb-8 relative overflow-hidden">
+                <!-- Decorative Elements -->
+                <div class="absolute -top-12 -right-12 w-40 h-40 bg-brand-yellow/20 rounded-full blur-3xl"></div>
+                <div class="absolute bottom-0 left-0 w-full h-2 bg-brand-dark"></div>
+                
+                <h3 id="question-text" class="relative z-10 font-heading text-3xl md:text-4xl font-bold leading-tight text-brand-dark">
+                    <!-- Question goes here -->
+                </h3>
             </div>
 
-            <div class="flex-1 flex flex-col justify-center">
-                <h2 id="question-text" class="font-heading text-2xl md:text-4xl font-bold mb-8 text-center leading-tight"></h2>
-
-                <div id="options-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    </div>
+            <!-- Options Grid -->
+            <div id="options-container" class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
+                <!-- Buttons injected here -->
             </div>
 
-            <div id="feedback-panel" class="hidden bg-brand-chalk border-4 border-brand-dark rounded-xl p-6 mt-4 animate-fade-in shadow-hard">
-                <div class="flex gap-4">
-                    <div id="feedback-icon-container" class="bg-white border-2 border-brand-dark p-3 rounded-full h-fit shadow-hard-sm">
-                        <i id="feedback-icon" class="w-6 h-6"></i>
+            <!-- Feedback Panel (Slide in) -->
+            <div id="feedback-panel" class="hidden bg-white border-4 border-brand-dark rounded-2xl p-6 shadow-hard animate-bounce-in">
+                <div class="flex gap-5 items-start">
+                    <div id="feedback-icon-box" class="w-14 h-14 flex-shrink-0 flex items-center justify-center rounded-2xl border-2 border-brand-dark shadow-hard-sm transition-colors">
+                        <i id="feedback-icon" class="w-8 h-8"></i>
                     </div>
-                    <div class="flex-1">
-                        <h3 id="feedback-title" class="font-heading text-xl font-bold mb-1"></h3>
-                        <p id="feedback-desc" class="text-slate-700 font-medium"></p>
+                    <div class="flex-grow pt-1">
+                        <h4 id="feedback-title" class="font-heading text-2xl font-bold mb-2"></h4>
+                        <p id="feedback-desc" class="text-slate-700 text-lg leading-relaxed font-medium"></p>
                     </div>
                 </div>
-                <div class="mt-4 flex justify-end">
-                    <button onclick="nextQuestion()" class="neo-btn bg-brand-dark text-white px-6 py-2 rounded-lg border-2 border-white font-heading font-bold shadow-hard hover:bg-slate-800">
-                        Next <i data-lucide="chevron-right" class="inline w-4 h-4 ml-1"></i>
+                <div class="mt-6 flex justify-end">
+                    <button id="next-btn" onclick="nextQuestion()" class="neo-btn bg-brand-dark text-white px-10 py-4 rounded-xl border-2 border-transparent font-heading font-bold text-xl shadow-hard flex items-center gap-2 hover:bg-slate-800">
+                        Continue <i data-lucide="arrow-right" class="w-6 h-6"></i>
                     </button>
                 </div>
             </div>
-        </div>
+        </section>
 
-        <div id="view-results" class="hidden p-10 text-center flex-col items-center justify-center min-h-[400px]">
-            <h2 class="font-heading text-4xl font-bold mb-6">Set Complete!</h2>
-            
-            <div class="relative inline-block mb-8">
-                <div class="w-48 h-48 bg-brand-blue rounded-full border-4 border-brand-dark flex items-center justify-center shadow-hard z-10 relative">
-                    <span id="final-score" class="font-heading text-6xl text-white font-bold"></span>
+        <!-- SECTION: RESULTS -->
+        <section id="view-results" class="w-full max-w-2xl hidden flex-col items-center animate-bounce-in">
+            <div class="w-full bg-white border-4 border-brand-dark rounded-3xl p-10 md:p-14 text-center shadow-hard-lg relative overflow-hidden">
+                
+                <!-- Background decoration -->
+                <div class="absolute top-0 left-0 w-full h-6 bg-brand-dark"></div>
+                
+                <div class="mb-8 inline-flex items-center justify-center w-32 h-32 rounded-full bg-slate-50 border-4 border-brand-dark shadow-hard relative">
+                     <i id="result-icon" class="w-16 h-16 text-brand-dark"></i>
+                     <!-- Stars Container -->
+                     <div id="stars-container" class="absolute -top-2 -right-6 flex gap-1">
+                         <!-- Stars injected -->
+                     </div>
                 </div>
-                <div class="absolute top-0 right-0 transform translate-x-1/4 -translate-y-1/4">
-                    <i data-lucide="star" class="w-16 h-16 text-brand-orange fill-brand-orange drop-shadow-lg"></i>
+
+                <h2 id="result-title" class="font-heading text-5xl md:text-6xl font-bold mb-3 text-brand-dark">Quiz Complete!</h2>
+                <p id="result-subtitle" class="text-slate-500 font-bold text-xl mb-10">Let's see how you did.</p>
+
+                <div class="grid grid-cols-2 gap-6 mb-10">
+                    <div class="bg-brand-chalk p-6 rounded-2xl border-2 border-brand-dark shadow-inner-hard">
+                        <span class="block text-slate-500 text-sm font-black uppercase tracking-widest mb-1">Score</span>
+                        <span id="final-score" class="font-heading text-4xl font-bold text-brand-blue">0/0</span>
+                    </div>
+                    <div class="bg-brand-chalk p-6 rounded-2xl border-2 border-brand-dark shadow-inner-hard">
+                        <span class="block text-slate-500 text-sm font-black uppercase tracking-widest mb-1">Accuracy</span>
+                        <span id="final-percent" class="font-heading text-4xl font-bold text-brand-green">0%</span>
+                    </div>
+                </div>
+
+                <div class="flex flex-col md:flex-row gap-5 justify-center w-full">
+                    <button onclick="goHome()" class="neo-btn bg-white text-brand-dark border-2 border-brand-dark px-8 py-4 rounded-xl font-heading font-bold text-xl shadow-hard w-full hover:bg-slate-50">
+                        Back to Menu
+                    </button>
+                    <button onclick="restartSet()" class="neo-btn bg-brand-orange text-white border-2 border-brand-dark px-8 py-4 rounded-xl font-heading font-bold text-xl shadow-hard w-full hover:bg-orange-500">
+                        Try Again
+                    </button>
                 </div>
             </div>
-
-            <p id="final-message" class="text-xl font-bold text-slate-600 mb-8"></p>
-
-            <div class="flex gap-4">
-                <button onclick="goHome()" class="neo-btn bg-white text-brand-dark border-2 border-brand-dark px-6 py-3 rounded-xl font-heading font-bold text-lg shadow-hard hover:bg-slate-50">
-                    Choose Another Set
-                </button>
-                <button onclick="restartSet()" class="neo-btn bg-brand-green text-brand-dark border-2 border-brand-dark px-6 py-3 rounded-xl font-heading font-bold text-lg shadow-hard hover:bg-green-400">
-                    Retry Set
-                </button>
-            </div>
-        </div>
-
+        </section>
+        
     </main>
 
+    <!-- Footer -->
+    <footer class="w-full bg-brand-dark text-slate-400 py-8 text-center text-sm font-bold border-t-4 border-brand-blue mt-auto">
+        <p>&copy; 2026 English 1 Batam. Built for learning.</p>
+    </footer>
+
     <script>
-        // --- DEFAULT DATA (Fallback) ---
-        let allSets = [
+        // --- FALLBACK DATA (For offline/double-click usage) ---
+        const FALLBACK_DATA = [
             {
-                "id": "grammar_basic",
-                "title": "Grammar Basics",
-                "topic": "English",
-                "icon": "book-type",
-                "color": "bg-brand-pink",
-                "questions": [
-                    { "q": "She ______ to work every day.", "opts": ["walks", "walking", "is walk", "walked"], "a": 0, "exp": "Routine = Present Simple." },
-                    { "q": "Look! It ______ right now.", "opts": ["rains", "is raining", "rained", "rain"], "a": 1, "exp": "Action now = Present Continuous." }
-                ]
-            },
-            {
-                "id": "harry_potter",
-                "title": "Harry Potter Trivia",
-                "topic": "Books",
-                "icon": "sparkles",
-                "color": "bg-brand-orange",
-                "questions": [
-                    { "q": "Who is the Half-Blood Prince?", "opts": ["Harry", "Riddle", "Snape", "Dumbledore"], "a": 2, "exp": "It was Severus Snape." },
-                    { "q": "What is the model of Harry's first broom?", "opts": ["Nimbus 2000", "Firebolt", "Comet 260", "Cleansweep"], "a": 0, "exp": "McGonagall sent him a Nimbus 2000." }
-                ]
-            },
-            {
-                "id": "math_logic",
-                "title": "Math & Logic",
-                "topic": "Stem",
-                "icon": "calculator",
-                "color": "bg-brand-blue",
-                "questions": [
-                    { "q": "What is the square root of 144?", "opts": ["10", "11", "12", "13"], "a": 2, "exp": "12 x 12 = 144." },
-                    { "q": "Binary '10' equals what decimal number?", "opts": ["1", "2", "3", "10"], "a": 1, "exp": "Binary 10 is 2." }
+                id: "offline_grammar",
+                title: "Grammar (Offline Mode)",
+                desc: "Data loaded from fallback because fetch failed.",
+                topic: "English",
+                icon: "wifi-off",
+                color: "bg-brand-pink",
+                questions: [
+                    { q: "She ______ to work yesterday.", opts: ["walks", "walked", "walking", "walk"], a: 1, exp: "Past Simple." },
+                    { q: "They ______ playing football.", opts: ["is", "am", "are", "be"], a: 2, exp: "Plural subject + Continuous." }
                 ]
             }
         ];
 
-        // --- STATE ---
-        let currentSet = null;
+        // --- STATE VARIABLES ---
+        let appData = [];
+        let activeSet = null;
         let currentQIndex = 0;
         let score = 0;
-        let isAnswered = false;
+        let isProcessing = false;
 
-        // --- INIT ---
-        window.onload = () => {
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();
-            renderSetButtons();
-        };
-
-        // --- FILE HANDLING ---
-        document.getElementById('json-input').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const data = JSON.parse(e.target.result);
-                    if (Array.isArray(data)) {
-                        allSets = data; // Replace defaults with uploaded
-                        renderSetButtons();
-                        alert("Sets loaded successfully!");
-                    } else {
-                        alert("JSON must be an array of set objects.");
-                    }
-                } catch (err) {
-                    alert("Invalid JSON format.");
-                }
-            };
-            reader.readAsText(file);
+            fetchData();
         });
 
-        // --- UI RENDERING ---
-        function renderSetButtons() {
-            const container = document.getElementById('sets-container');
-            container.innerHTML = '';
+        // --- DATA FETCHING ---
+        async function fetchData() {
+            const indicator = document.getElementById('loading-indicator');
+            const grid = document.getElementById('sets-grid');
+            const statusDot = document.getElementById('connection-dot');
+            const statusText = document.getElementById('connection-text');
 
-            const colors = ['bg-brand-pink', 'bg-brand-orange', 'bg-brand-blue', 'bg-brand-green'];
-
-            allSets.forEach((set, index) => {
-                // Cycle colors if not defined
-                const colorClass = set.color || colors[index % colors.length];
+            try {
+                // Attempt to fetch local JSON
+                const response = await fetch('questions.json');
+                if (!response.ok) throw new Error("File fetch failed");
+                appData = await response.json();
                 
-                const btn = document.createElement('button');
-                btn.className = `neo-btn flex flex-col items-start p-6 rounded-xl border-4 border-brand-dark shadow-hard ${colorClass} text-white hover:brightness-110`;
-                btn.onclick = () => startQuiz(set);
+                // Success UI
+                statusDot.classList.remove('bg-red-500');
+                statusDot.classList.add('bg-brand-green');
+                statusText.innerText = "Online Mode";
 
-                // Icon logic
-                let iconName = set.icon || 'star';
+            } catch (error) {
+                console.warn("Fetch failed (likely file:// protocol), using fallback data.", error);
                 
-                btn.innerHTML = `
-                    <div class="bg-white/20 p-2 rounded-lg mb-4 border-2 border-brand-dark">
-                        <i data-lucide="${iconName}" class="w-8 h-8 text-white"></i>
+                // Fallback UI
+                appData = FALLBACK_DATA;
+                statusDot.classList.remove('bg-brand-green');
+                statusDot.classList.add('bg-brand-orange');
+                statusText.innerText = "Offline Mode";
+                
+                // If using the AI preview, sometimes files aren't physically there, 
+                // so we might want to use the extended default set if fetch fails.
+                // For this demo, I will inject the full set I wrote in the prompt if fetch fails
+                // to ensure a good preview experience.
+                appData = [
+                  {
+                    "id": "grammar_basic",
+                    "title": "Grammar Foundations",
+                    "desc": "Master the basics of tenses and verbs.",
+                    "topic": "English",
+                    "icon": "book-open-check",
+                    "color": "bg-brand-pink",
+                    "questions": [
+                      { "q": "My brother ______ video games every Sunday.", "opts": ["play", "plays", "playing", "played"], "a": 1, "exp": "Third person singular routine = Present Simple (plays)." },
+                      { "q": "______ you like chocolate?", "opts": ["Does", "Are", "Do", "Is"], "a": 2, "exp": "Question with 'you' = Do." },
+                      { "q": "We ______ to the zoo yesterday.", "opts": ["go", "gone", "went", "going"], "a": 2, "exp": "Past simple irregular verb = went." }
+                    ]
+                  },
+                  {
+                    "id": "harry_potter",
+                    "title": "Wizarding World",
+                    "desc": "Trivia for witches, wizards, and muggles.",
+                    "topic": "Literature",
+                    "icon": "wand-2",
+                    "color": "bg-brand-orange",
+                    "questions": [
+                      { "q": "Who is the Half-Blood Prince?", "opts": ["Harry Potter", "Tom Riddle", "Severus Snape", "Albus Dumbledore"], "a": 2, "exp": "Snape reveals this identity in the 6th book." },
+                      { "q": "What position does Harry play?", "opts": ["Chaser", "Keeper", "Bludger", "Seeker"], "a": 3, "exp": "Harry is the Seeker for Gryffindor." }
+                    ]
+                  },
+                  {
+                    "id": "logic_math",
+                    "title": "Brain Teasers",
+                    "desc": "Sharpen your mind with logic puzzles.",
+                    "topic": "Logic",
+                    "icon": "brain-circuit",
+                    "color": "bg-brand-blue",
+                    "questions": [
+                      { "q": "What comes next: 2, 4, 8, 16, ...?", "opts": ["18", "24", "30", "32"], "a": 3, "exp": "Multiply by 2 each time (Powers of 2)." },
+                      { "q": "Binary '101' equals what decimal?", "opts": ["3", "4", "5", "6"], "a": 2, "exp": "4 + 0 + 1 = 5." }
+                    ]
+                  }
+                ];
+            } finally {
+                indicator.classList.add('hidden');
+                grid.classList.remove('hidden');
+                renderHome();
+            }
+        }
+
+        // --- NAVIGATION ---
+        function switchView(viewId) {
+            ['view-home', 'view-quiz', 'view-results'].forEach(id => {
+                const el = document.getElementById(id);
+                if (id === viewId) {
+                    el.classList.remove('hidden');
+                    if(id !== 'view-home') el.classList.add('flex');
+                    else el.classList.block;
+                } else {
+                    el.classList.add('hidden');
+                    el.classList.remove('flex');
+                }
+            });
+            window.scrollTo(0, 0);
+        }
+
+        function goHome() {
+            switchView('view-home');
+        }
+
+        // --- HOME SCREEN RENDER ---
+        function renderHome() {
+            const grid = document.getElementById('sets-grid');
+            grid.innerHTML = '';
+
+            appData.forEach(set => {
+                const card = document.createElement('div');
+                card.className = `neo-card group relative bg-white border-4 border-brand-dark rounded-2xl p-6 shadow-hard flex flex-col justify-between h-full cursor-pointer overflow-hidden`;
+                card.onclick = () => startQuiz(set);
+
+                // Decorative stripe
+                const stripe = document.createElement('div');
+                stripe.className = `absolute top-0 left-0 w-full h-3 ${set.color}`;
+                card.appendChild(stripe);
+
+                card.innerHTML += `
+                    <div class="pt-4">
+                        <div class="flex justify-between items-start mb-5">
+                            <div class="${set.color} w-16 h-16 rounded-2xl border-2 border-brand-dark flex items-center justify-center text-white shadow-hard-sm group-hover:rotate-6 transition-transform">
+                                <i data-lucide="${set.icon}" class="w-9 h-9"></i>
+                            </div>
+                            <span class="bg-brand-dark text-white text-xs font-black px-3 py-1 rounded-lg uppercase tracking-wider border-2 border-transparent group-hover:border-white/20">${set.topic}</span>
+                        </div>
+                        <h3 class="font-heading text-3xl font-bold mb-3 text-brand-dark group-hover:text-brand-blue transition-colors leading-tight">${set.title}</h3>
+                        <p class="text-slate-600 font-medium text-base leading-relaxed">${set.desc}</p>
                     </div>
-                    <div class="text-left">
-                        <span class="text-xs font-heading uppercase tracking-wider bg-brand-dark text-white px-2 py-1 rounded mb-1 inline-block">${set.topic || 'Quiz'}</span>
-                        <h3 class="font-heading text-2xl font-bold leading-tight">${set.title}</h3>
-                        <p class="text-sm opacity-90 font-medium mt-1">${set.questions.length} Questions</p>
+                    <div class="mt-8 pt-4 border-t-2 border-slate-100 flex items-center justify-between">
+                        <span class="text-sm font-bold text-slate-400 flex items-center gap-2">
+                            <i data-lucide="layers" class="w-4 h-4"></i> ${set.questions.length} Qs
+                        </span>
+                        <span class="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center border-2 border-brand-dark group-hover:bg-brand-green group-hover:text-brand-dark transition-colors">
+                            <i data-lucide="play" class="w-5 h-5 fill-current ml-0.5"></i>
+                        </span>
                     </div>
                 `;
-                container.appendChild(btn);
+                grid.appendChild(card);
             });
             lucide.createIcons();
         }
 
-        // --- GAME LOGIC ---
+        // --- QUIZ LOGIC ---
         function startQuiz(set) {
-            currentSet = set;
+            activeSet = set;
             currentQIndex = 0;
             score = 0;
-            isAnswered = false;
-
-            // UI Switch
-            document.getElementById('view-selector').classList.add('hidden');
-            document.getElementById('view-quiz').classList.remove('hidden');
-            document.getElementById('view-quiz').classList.add('flex');
-            document.getElementById('view-results').classList.add('hidden');
-            document.getElementById('view-results').classList.remove('flex');
-            document.getElementById('score-container').classList.remove('hidden');
-
-            // Set Info
-            document.getElementById('topic-badge').innerText = set.topic || 'Quiz';
+            isProcessing = false;
             
-            updateScoreUI();
+            // Update Headers
+            document.getElementById('q-total').innerText = set.questions.length;
+            
+            switchView('view-quiz');
             loadQuestion();
         }
 
         function loadQuestion() {
-            const q = currentSet.questions[currentQIndex];
-            isAnswered = false;
-
-            // Reset UI
+            isProcessing = false;
+            const q = activeSet.questions[currentQIndex];
+            
+            // UI Reset
             document.getElementById('feedback-panel').classList.add('hidden');
+            document.getElementById('q-current').innerText = currentQIndex + 1;
             document.getElementById('question-text').innerText = q.q;
-            
-            // Progress
-            const pct = Math.round(((currentQIndex) / currentSet.questions.length) * 100);
-            document.getElementById('progress-bar').style.width = `${pct}%`;
-            document.getElementById('progress-text').innerText = `${pct}%`;
 
-            // Options
-            const grid = document.getElementById('options-grid');
-            grid.innerHTML = '';
-            
+            // Progress Bar
+            const progress = (currentQIndex / activeSet.questions.length) * 100;
+            document.getElementById('progress-bar').style.width = `${progress}%`;
+            document.getElementById('progress-text').innerText = `${Math.round(progress)}%`;
+
+            // Render Options
+            const container = document.getElementById('options-container');
+            container.innerHTML = '';
+
             q.opts.forEach((opt, idx) => {
                 const btn = document.createElement('button');
-                btn.className = `neo-btn w-full bg-white border-2 border-brand-dark rounded-xl p-4 text-left font-bold text-lg shadow-hard-sm hover:bg-slate-50 transition-colors`;
-                btn.innerText = opt;
-                btn.onclick = () => handleAnswer(idx, btn);
-                grid.appendChild(btn);
+                btn.className = `option-btn neo-btn w-full text-left p-6 rounded-xl border-2 border-brand-dark bg-white shadow-hard-sm hover:bg-slate-50 font-bold text-xl text-slate-700 flex items-center gap-4`;
+                
+                // Letter index (A, B, C...)
+                const letter = String.fromCharCode(65 + idx);
+                
+                btn.innerHTML = `
+                    <span class="w-10 h-10 rounded-lg bg-slate-100 border-2 border-slate-300 flex items-center justify-center text-sm font-black text-slate-500 shrink-0">${letter}</span>
+                    <span class="leading-snug">${opt}</span>
+                `;
+                
+                btn.onclick = () => checkAnswer(idx, btn);
+                container.appendChild(btn);
             });
         }
 
-        function handleAnswer(selectedIndex, btnElem) {
-            if (isAnswered) return;
-            isAnswered = true;
+        function checkAnswer(selectedIdx, btnElement) {
+            if (isProcessing) return;
+            isProcessing = true;
 
-            const q = currentSet.questions[currentQIndex];
-            const isCorrect = selectedIndex === q.a;
+            const q = activeSet.questions[currentQIndex];
+            const isCorrect = selectedIdx === q.a;
             
-            // Highlight buttons
-            const allBtns = document.getElementById('options-grid').children;
+            // Styling the buttons
+            const allBtns = document.getElementById('options-container').children;
             
-            // Highlight correct
-            allBtns[q.a].className = `w-full bg-brand-green text-brand-dark border-2 border-brand-dark rounded-xl p-4 text-left font-bold text-lg shadow-hard-active translate-x-1 translate-y-1`;
-            
+            // Reveal Truth
+            Array.from(allBtns).forEach((btn, idx) => {
+                btn.disabled = true;
+                btn.classList.remove('neo-btn', 'hover:bg-slate-50'); // Remove interaction
+                btn.classList.add('opacity-50', 'grayscale');
+                
+                if (idx === q.a) {
+                    // Correct Answer Style
+                    btn.classList.remove('bg-white', 'opacity-50', 'grayscale', 'shadow-hard-sm');
+                    btn.classList.add('bg-brand-green', 'text-brand-dark', 'border-brand-dark', 'shadow-none', 'translate-y-[2px]', 'translate-x-[2px]');
+                    // Change number badge color
+                    const badge = btn.querySelector('span:first-child');
+                    badge.classList.remove('bg-slate-100', 'border-slate-300', 'text-slate-500');
+                    badge.classList.add('bg-white/30', 'border-transparent', 'text-brand-dark');
+                }
+            });
+
             if (isCorrect) {
                 score++;
-                showFeedback(true, "Correct!", q.exp);
+                // Confetti burst from click position
+                confetti({
+                    particleCount: 80,
+                    spread: 80,
+                    origin: { y: 0.65 },
+                    colors: ['#00E676', '#2979FF', '#FF6B95', '#FF8C42']
+                });
             } else {
-                btnElem.className = `w-full bg-brand-pink text-white border-2 border-brand-dark rounded-xl p-4 text-left font-bold text-lg shadow-hard-active translate-x-1 translate-y-1`;
-                showFeedback(false, "Incorrect", q.exp);
+                // Wrong Answer Style
+                btnElement.classList.remove('bg-white', 'opacity-50', 'grayscale');
+                btnElement.classList.add('bg-brand-pink', 'text-white', 'animate-shake');
+                const badge = btnElement.querySelector('span:first-child');
+                badge.classList.remove('bg-slate-100', 'border-slate-300', 'text-slate-500');
+                badge.classList.add('bg-white/30', 'border-transparent', 'text-white');
             }
-            updateScoreUI();
+
+            showFeedback(isCorrect, q.exp);
         }
 
-        function showFeedback(success, title, desc) {
+        function showFeedback(isCorrect, explanation) {
             const panel = document.getElementById('feedback-panel');
+            const iconBox = document.getElementById('feedback-icon-box');
             const icon = document.getElementById('feedback-icon');
-            const iconContainer = document.getElementById('feedback-icon-container');
-            
-            panel.classList.remove('hidden');
-            document.getElementById('feedback-title').innerText = title;
-            document.getElementById('feedback-desc').innerText = desc;
+            const title = document.getElementById('feedback-title');
+            const desc = document.getElementById('feedback-desc');
+            const nextBtn = document.getElementById('next-btn');
 
-            if (success) {
-                document.getElementById('feedback-title').className = "font-heading text-xl font-bold mb-1 text-green-600";
-                icon.setAttribute('data-lucide', 'check');
-                iconContainer.className = "bg-green-100 border-2 border-brand-dark p-3 rounded-full h-fit shadow-hard-sm text-green-600";
+            panel.classList.remove('hidden');
+            
+            if (isCorrect) {
+                iconBox.className = "w-14 h-14 flex-shrink-0 flex items-center justify-center rounded-2xl border-2 border-brand-dark shadow-hard-sm bg-brand-green text-brand-dark";
+                icon.setAttribute('data-lucide', 'check-circle-2');
+                title.innerText = "Brilliant!";
+                title.className = "font-heading text-2xl font-bold mb-2 text-green-600";
             } else {
-                document.getElementById('feedback-title').className = "font-heading text-xl font-bold mb-1 text-red-500";
-                icon.setAttribute('data-lucide', 'x');
-                iconContainer.className = "bg-red-100 border-2 border-brand-dark p-3 rounded-full h-fit shadow-hard-sm text-red-500";
+                iconBox.className = "w-14 h-14 flex-shrink-0 flex items-center justify-center rounded-2xl border-2 border-brand-dark shadow-hard-sm bg-brand-pink text-white";
+                icon.setAttribute('data-lucide', 'x-circle');
+                title.innerText = "Not quite...";
+                title.className = "font-heading text-2xl font-bold mb-2 text-pink-600";
             }
+            
+            desc.innerText = explanation;
+            
+            // Update button text if last question
+            if (currentQIndex === activeSet.questions.length - 1) {
+                nextBtn.innerHTML = `Finish Quiz <i data-lucide="flag" class="w-6 h-6"></i>`;
+                nextBtn.className = "neo-btn bg-brand-blue text-white px-10 py-4 rounded-xl border-2 border-transparent font-heading font-bold text-xl shadow-hard flex items-center gap-2 hover:bg-blue-600";
+            } else {
+                nextBtn.innerHTML = `Continue <i data-lucide="arrow-right" class="w-6 h-6"></i>`;
+                nextBtn.className = "neo-btn bg-brand-dark text-white px-10 py-4 rounded-xl border-2 border-transparent font-heading font-bold text-xl shadow-hard flex items-center gap-2 hover:bg-slate-800";
+            }
+            
             lucide.createIcons();
+            
+            // Auto scroll to feedback on mobile
+            panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
 
         function nextQuestion() {
             currentQIndex++;
-            if (currentQIndex < currentSet.questions.length) {
+            if (currentQIndex < activeSet.questions.length) {
                 loadQuestion();
             } else {
-                finishQuiz();
+                showResults();
             }
         }
 
-        function finishQuiz() {
-            document.getElementById('view-quiz').classList.add('hidden');
-            document.getElementById('view-quiz').classList.remove('flex');
-            document.getElementById('view-results').classList.remove('hidden');
-            document.getElementById('view-results').classList.add('flex');
-            document.getElementById('score-container').classList.add('hidden');
-
-            document.getElementById('final-score').innerText = `${score}/${currentSet.questions.length}`;
-            
-            const pct = (score / currentSet.questions.length);
-            let msg = "Good effort!";
-            if (pct === 1) msg = "Absolutely Flawless!";
-            else if (pct > 0.7) msg = "Great job!";
-            
-            document.getElementById('final-message').innerText = msg;
-        }
-
-        function goHome() {
-            document.getElementById('view-selector').classList.remove('hidden');
-            document.getElementById('view-quiz').classList.add('hidden');
-            document.getElementById('view-quiz').classList.remove('flex');
-            document.getElementById('view-results').classList.add('hidden');
-            document.getElementById('view-results').classList.remove('flex');
-            document.getElementById('score-container').classList.add('hidden');
-            
-            score = 0;
-            currentQIndex = 0;
-        }
-
         function restartSet() {
-            startQuiz(currentSet);
+            startQuiz(activeSet);
         }
 
-        function updateScoreUI() {
-            document.getElementById('score-display').innerText = `Score: ${score}`;
+        // --- RESULTS SCREEN ---
+        function showResults() {
+            switchView('view-results');
+            
+            const total = activeSet.questions.length;
+            const percentage = Math.round((score / total) * 100);
+            
+            document.getElementById('final-score').innerText = `${score}/${total}`;
+            document.getElementById('final-percent').innerText = `${percentage}%`;
+
+            const title = document.getElementById('result-title');
+            const subtitle = document.getElementById('result-subtitle');
+            const icon = document.getElementById('result-icon');
+            const starContainer = document.getElementById('stars-container');
+            
+            starContainer.innerHTML = ''; // Reset stars
+
+            // Calculate Stars
+            let stars = 1;
+            if (percentage >= 50) stars = 2;
+            if (percentage >= 90) stars = 3;
+
+            // Generate Stars
+            for(let i=0; i<3; i++) {
+                const isFilled = i < stars;
+                const star = document.createElement('i');
+                star.setAttribute('data-lucide', 'star');
+                star.className = `w-10 h-10 ${isFilled ? 'text-brand-yellow fill-brand-yellow drop-shadow-md' : 'text-slate-200 fill-slate-100'} transform ${isFilled ? 'scale-110' : 'scale-90'}`;
+                starContainer.appendChild(star);
+            }
+
+            if (percentage === 100) {
+                title.innerText = "Perfect Score!";
+                subtitle.innerText = "You are absolutely legendary!";
+                icon.setAttribute('data-lucide', 'trophy');
+                icon.className = "w-16 h-16 text-brand-yellow fill-brand-yellow";
+                confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
+            } else if (percentage >= 70) {
+                title.innerText = "Great Job!";
+                subtitle.innerText = "You're getting really good at this.";
+                icon.setAttribute('data-lucide', 'thumbs-up');
+                icon.className = "w-16 h-16 text-brand-green";
+            } else {
+                title.innerText = "Good Effort";
+                subtitle.innerText = "Keep practicing, you'll get there!";
+                icon.setAttribute('data-lucide', 'target');
+                icon.className = "w-16 h-16 text-brand-orange";
+            }
+            lucide.createIcons();
         }
 
     </script>
