@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flashcard Maker - English 1 Batam</title>
+    
+    <!-- External Libraries -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        pink: '#FF6B95',
+                        orange: '#FF8C42',
+                        green: '#00E676',
+                        blue: '#2979FF',
+                        dark: '#1e293b', 
+                        chalk: '#f8fafc',
+                    },
+                    fontFamily: {
+                        heading: ['Fredoka', 'sans-serif'], 
+                        body: ['Nunito', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'hard': '4px 4px 0px 0px rgba(30, 41, 59, 1)',
+                        'hard-sm': '2px 2px 0px 0px rgba(30, 41, 59, 1)',
+                        'hard-lg': '8px 8px 0px 0px rgba(30, 41, 59, 1)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style id="printOrientationStyle">
+        @page { size: portrait; margin: 0; }
+    </style>
+    
+    <style>
+        /* Base Styles */
+        :root {
+            --color-dark: #1e293b;
+        }
+
+        body { 
+            font-family: 'Nunito', sans-serif;
+            background-color: #f8fafc; /* Chalk */
+            color: #1e293b;
+        }
+
+        /* Scrollbar Polish */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Workspace Background (Graph Paper) */
+        .preview-area {
+            background-color: #f8fafc;
+            background-image: 
+                linear-gradient(rgba(30, 41, 59, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(30, 41, 59, 0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px;
+            overflow-y: auto;
+            gap: 40px; 
+        }
+
+        .sidebar {
+            width: 380px;
+            background: white;
+            border-right: 4px solid #1e293b;
+            height: 100vh;
+            position: sticky;
+            top: 0;
+            overflow-y: auto;
+            z-index: 50;
+        }
+
+        /* A4 Page Simulation */
+        .page-wrapper {
+            position: relative;
+            transition: transform 0.2s ease;
+        }
+
+        .a4-page {
+            background: white;
+            display: grid;
+            position: relative;
+            overflow: hidden;
+            box-sizing: border-box;
+            border: 4px solid #1e293b;
+            box-shadow: 12px 12px 0px rgba(30, 41, 59, 0.15);
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        .a4-portrait { width: 210mm; height: 297mm; }
+        .a4-landscape { width: 297mm; height: 210mm; }
+
+        /* Print Overrides */
+        @media print {
+            @page { size: auto; margin: 0; }
+            body, html { background: white !important; margin: 0 !important; padding: 0 !important; display: block !important; }
+            .no-print { display: none !important; }
+            .preview-area { padding: 0 !important; display: block !important; background: none !important; gap: 0 !important; }
+            
+            .page-wrapper {
+                break-after: page;
+                page-break-after: always;
+                margin-bottom: 0 !important;
+                transform: none !important;
+            }
+
+            .a4-page { 
+                margin: 0 !important; 
+                box-shadow: none !important; 
+                border: none !important; 
+                position: relative !important; 
+                width: 100% !important;
+                height: 100vh !important; 
+            }
+            
+            .page-wrapper:last-child {
+                break-after: auto;
+                page-break-after: auto;
+            }
+
+            [contenteditable]:empty:before { content: "" !important; }
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        }
+
+        /* Card Styles */
+        .brutalist-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            box-sizing: border-box;
+            background: white;
+            position: relative;
+            z-index: 10;
+            overflow: hidden;
+            transition: background-color 0.2s;
+        }
+        
+        /* Drag and Drop visual cue */
+        .brutalist-card.drag-over {
+            background-color: #e2e8f0 !important;
+            outline: 4px dashed #1e293b;
+            outline-offset: -4px;
+        }
+
+        /* Top Left Input Style */
+        .card-label-input {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            min-width: 24px;
+            padding: 2px 6px;
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
+            font-size: 11px;
+            background: rgba(255, 255, 255, 0.8);
+            color: #1e293b;
+            border-radius: 6px;
+            z-index: 40;
+            text-align: center;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+        }
+        .card-label-input:hover { border-color: #1e293b; background: white; }
+        .card-label-input:focus { background: white; border: 2px solid #1e293b; outline: none; box-shadow: 2px 2px 0px #1e293b; }
+        .card-label-input:empty:before { content: "#"; opacity: 0.3; }
+
+        /* Cutting Guides */
+        .guide-line {
+            position: absolute;
+            background: transparent;
+            border: 0.5pt dashed rgba(30, 41, 59, 0.4);
+            pointer-events: none;
+            z-index: 100;
+        }
+        .guide-h { width: 100%; height: 0; left: 0; border-bottom-width: 0.5pt; }
+        .guide-v { width: 0; height: 100%; top: 0; border-right-width: 0.5pt; }
+
+        /* UI Components */
+        .btn-chunky {
+            @apply border-2 border-dark font-heading font-bold uppercase transition-all duration-100 text-sm tracking-wide;
+            box-shadow: 4px 4px 0px #1e293b;
+        }
+        .btn-chunky:hover { transform: translateY(-1px); }
+        .btn-chunky:active { transform: translate(2px, 2px); box-shadow: 0px 0px 0px #1e293b; }
+        .btn-chunky.active { @apply bg-dark text-white translate-x-[2px] translate-y-[2px] shadow-none; }
+
+        /* Editor Styles */
+        [contenteditable] { 
+            outline: none; 
+            font-family: 'Fredoka', sans-serif; 
+            font-weight: 700; 
+            text-transform: uppercase; 
+            width: 100%; 
+            padding: 0 0.5rem; 
+            word-break: break-word;
+            line-height: 1.1;
+        }
+        [contenteditable]:empty:before { content: "TEXT"; color: rgba(30, 41, 59, 0.2); }
+        [contenteditable]:focus { background: rgba(255, 255, 255, 0.3); border-radius: 4px; }
+
+        .image-container { width: 100%; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+        .text-container { 
+            width: 100%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            overflow: hidden; 
+            position: relative;
+        }
+        .image-preview { width: 100%; height: 100%; }
+        .image-preview.contain { object-fit: contain; padding: 4px; }
+        .image-preview.cover { object-fit: cover; }
+
+        /* Toggle Switch */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #f8fafc;
+            padding: 0.75rem 1rem;
+            border: 2px solid #1e293b;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .toggle-container:hover { background: #f1f5f9; }
+        .toggle-switch {
+            width: 44px;
+            height: 24px;
+            background: #cbd5e1;
+            border-radius: 12px;
+            position: relative;
+            transition: background 0.2s;
+            border: 2px solid #1e293b;
+        }
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 2px solid #1e293b;
+        }
+        .toggle-container.active .toggle-switch { background: #00E676; }
+        .toggle-container.active .toggle-switch::after { transform: translateX(20px); }
+
+        /* Page Controls */
+        .page-number {
+            position: absolute;
+            top: -30px;
+            left: 0;
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
+            color: #94a3b8;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .delete-page-btn {
+            position: absolute;
+            top: -35px;
+            right: 0;
+            background: #ef4444;
+            color: white;
+            border: 2px solid #1e293b;
+            padding: 4px 12px;
+            border-radius: 8px;
+            font-family: 'Fredoka', sans-serif;
+            font-weight: bold;
+            font-size: 12px;
+            cursor: pointer;
+            box-shadow: 2px 2px 0px #1e293b;
+            transition: all 0.1s;
+        }
+        .delete-page-btn:hover { transform: scale(1.05); }
+        .delete-page-btn:active { transform: translate(1px, 1px); box-shadow: 0 0 0; }
+        
+        .section-label {
+            @apply text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 block font-heading;
+        }
+    </style>
+</head>
+<body class="flex min-h-screen">
+
+    <!-- SIDEBAR CONTROLS -->
+    <aside class="sidebar no-print flex flex-col p-6">
+        <!-- Header -->
+        <div class="mb-8 border-b-2 border-slate-100 pb-6">
+            <h1 class="text-3xl font-heading text-dark tracking-tight leading-none">
+                FLASHCARD<span class="text-blue">MAKER</span>
+            </h1>
+            <div class="flex items-center gap-2 mt-2">
+                <span class="px-2 py-0.5 rounded bg-dark text-white text-[10px] font-bold uppercase tracking-widest">English 1</span>
+                <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Batam Edition</span>
+            </div>
+        </div>
+
+        <!-- Scrollable Controls -->
+        <div class="space-y-8 flex-1 overflow-y-auto pr-2 custom-scrollbar">
+            
+            <!-- Actions -->
+            <section>
+                <button onclick="addNewPage()" class="w-full btn-chunky bg-blue text-white py-3 rounded-xl flex items-center justify-center gap-2 mb-3 shadow-hard hover:bg-blue-600">
+                    <i data-lucide="plus-circle" class="w-5 h-5"></i> Add New Page
+                </button>
+            </section>
+
+            <!-- Layout -->
+            <section>
+                <label class="section-label">Orientation & Layout</label>
+                <div class="flex gap-3 mb-3">
+                    <button id="btnPortrait" onclick="setOrientation('portrait')" class="flex-1 btn-chunky py-2 rounded-xl bg-white flex items-center justify-center gap-2">
+                        <i data-lucide="file" class="w-4 h-4"></i> Vertical
+                    </button>
+                    <button id="btnLandscape" onclick="setOrientation('landscape')" class="flex-1 btn-chunky py-2 rounded-xl bg-white flex items-center justify-center gap-2">
+                        <i data-lucide="file-minus" class="w-4 h-4"></i> Horizontal
+                    </button>
+                </div>
+                
+                <div class="bg-slate-50 border-2 border-dark rounded-xl p-3">
+                    <div class="grid grid-cols-2 gap-3 mb-3">
+                        <div class="relative">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 uppercase">Cols</span>
+                            <input type="number" id="inputCols" value="3" min="1" max="10" oninput="handleCustomGrid()" class="w-full border-2 border-dark rounded-lg p-2 pl-12 font-bold bg-white outline-none focus:border-blue focus:ring-1 focus:ring-blue transition-colors text-center">
+                        </div>
+                        <div class="relative">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 uppercase">Rows</span>
+                            <input type="number" id="inputRows" value="3" min="1" max="10" oninput="handleCustomGrid()" class="w-full border-2 border-dark rounded-lg p-2 pl-12 font-bold bg-white outline-none focus:border-orange focus:ring-1 focus:ring-orange transition-colors text-center">
+                        </div>
+                    </div>
+                    <select id="gridSelect" onchange="syncFromPreset()" class="w-full border-2 border-dark rounded-lg p-2 font-bold bg-white outline-none text-sm cursor-pointer hover:bg-slate-50">
+                        <option value="" disabled selected>-- Select Preset --</option>
+                        <option value="3,3">Standard (3 x 3)</option>
+                        <option value="2,2">Large (2 x 2)</option>
+                        <option value="4,4">Small (4 x 4)</option>
+                        <option value="2,4">Flashcards (2 x 4)</option>
+                        <option value="1,1">Poster (1 x 1)</option>
+                    </select>
+                </div>
+            </section>
+
+            <!-- Card Design -->
+            <section>
+                <label class="section-label">Card Design</label>
+                
+                <!-- Image Size -->
+                <div class="mb-4">
+                    <div class="flex justify-between items-end mb-1">
+                        <span class="text-xs font-bold text-dark">Image Size</span>
+                        <span id="imgSizeLabel" class="text-[10px] font-bold text-blue">50%</span>
+                    </div>
+                    <div class="flex gap-1">
+                        <button id="img-0" onclick="setImageSize(0)" class="flex-1 btn-chunky py-1.5 rounded-lg bg-white text-[10px]" title="Text Only">0%</button>
+                        <button id="img-25" onclick="setImageSize(25)" class="flex-1 btn-chunky py-1.5 rounded-lg bg-white text-[10px]">25%</button>
+                        <button id="img-50" onclick="setImageSize(50)" class="flex-1 btn-chunky py-1.5 rounded-lg bg-white text-[10px]">50%</button>
+                        <button id="img-75" onclick="setImageSize(75)" class="flex-1 btn-chunky py-1.5 rounded-lg bg-white text-[10px]">75%</button>
+                        <button id="img-100" onclick="setImageSize(100)" class="flex-1 btn-chunky py-1.5 rounded-lg bg-white text-[10px]" title="Image Only">100%</button>
+                    </div>
+                </div>
+
+                <!-- Font Size -->
+                <div class="mb-4">
+                    <span class="text-xs font-bold text-dark block mb-1">Font Size</span>
+                    <div class="grid grid-cols-4 gap-2">
+                        <button id="font-1.2" onclick="setFontSize(1.2)" class="btn-chunky py-2 rounded-lg bg-white">S</button>
+                        <button id="font-2" onclick="setFontSize(2)" class="btn-chunky py-2 rounded-lg bg-white">M</button>
+                        <button id="font-3.5" onclick="setFontSize(3.5)" class="btn-chunky py-2 rounded-lg bg-white">L</button>
+                        <button id="font-5" onclick="setFontSize(5)" class="btn-chunky py-2 rounded-lg bg-white">XL</button>
+                    </div>
+                </div>
+
+                <!-- Colors -->
+                <div>
+                    <span class="text-xs font-bold text-dark block mb-1">Background Color</span>
+                    <div class="flex justify-between p-2 bg-slate-50 border-2 border-dark rounded-xl">
+                        <button onclick="setGlobalColor('#FF6B95')" class="w-8 h-8 rounded-full border-2 border-dark bg-pink hover:scale-110 hover:-translate-y-1 transition-transform" title="Playful Pink"></button>
+                        <button onclick="setGlobalColor('#FF8C42')" class="w-8 h-8 rounded-full border-2 border-dark bg-orange hover:scale-110 hover:-translate-y-1 transition-transform" title="Energy Orange"></button>
+                        <button onclick="setGlobalColor('#00E676')" class="w-8 h-8 rounded-full border-2 border-dark bg-green hover:scale-110 hover:-translate-y-1 transition-transform" title="Success Green"></button>
+                        <button onclick="setGlobalColor('#2979FF')" class="w-8 h-8 rounded-full border-2 border-dark bg-blue hover:scale-110 hover:-translate-y-1 transition-transform" title="Logic Blue"></button>
+                        <button onclick="setGlobalColor('#FFFFFF')" class="w-8 h-8 rounded-full border-2 border-dark bg-white hover:scale-110 hover:-translate-y-1 transition-transform" title="Plain White"></button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Options -->
+            <section>
+                <label class="section-label">Settings</label>
+                <div id="toggleAutoFit" onclick="toggleAutoFit()" class="toggle-container group mb-4">
+                    <div class="flex flex-col">
+                        <span class="text-xs font-bold text-dark uppercase tracking-tight">Auto-Fit Text</span>
+                        <span class="text-[10px] text-slate-400 font-bold">Resize text to fit box</span>
+                    </div>
+                    <div class="toggle-switch"></div>
+                </div>
+            </section>
+            
+            <!-- Data Management -->
+             <section class="border-t-2 border-slate-100 pt-4">
+                <label class="section-label">Data Management</label>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="exportData()" class="btn-chunky bg-white py-2 rounded-xl text-xs flex items-center justify-center gap-1">
+                        <i data-lucide="download" class="w-3 h-3"></i> Save File
+                    </button>
+                    <button onclick="document.getElementById('importFile').click()" class="btn-chunky bg-white py-2 rounded-xl text-xs flex items-center justify-center gap-1">
+                        <i data-lucide="upload" class="w-3 h-3"></i> Open File
+                    </button>
+                </div>
+                <input type="file" id="importFile" accept=".json" class="hidden" onchange="importData(this)">
+             </section>
+        </div>
+
+        <!-- Footer Actions -->
+        <div class="mt-4 space-y-2 pt-4 border-t-2 border-dark">
+            <button onclick="window.print()" class="w-full btn-chunky bg-green py-3 rounded-xl text-lg flex items-center justify-center gap-2 shadow-hard hover:bg-green-400 text-dark">
+                <i data-lucide="printer"></i> PRINT ALL
+            </button>
+            <button onclick="resetTool()" class="w-full py-1 text-[10px] font-bold text-slate-400 hover:text-red-500 transition-colors flex items-center justify-center gap-2 uppercase tracking-tighter">
+                <i data-lucide="trash-2" class="w-3 h-3"></i> Clear Workspace
+            </button>
+        </div>
+    </aside>
+
+    <!-- MAIN PREVIEW AREA -->
+    <main id="pagesContainer" class="preview-area">
+        <!-- Pages generated via JS -->
+    </main>
+
+    <!-- Drag & Drop Overlay Template (Hidden) -->
+    <div id="dragOverlay" class="hidden fixed inset-0 bg-blue/20 z-[200] flex items-center justify-center pointer-events-none backdrop-blur-sm border-8 border-blue m-4 rounded-3xl border-dashed">
+        <div class="bg-white p-6 rounded-2xl border-4 border-dark shadow-hard transform rotate-2">
+            <h2 class="font-heading text-2xl font-bold text-dark flex items-center gap-2">
+                <i data-lucide="image-plus"></i> Drop Image Here
+            </h2>
+        </div>
+    </div>
+
+    <script>
+        // --- State Management ---
+        const pagesContainer = document.getElementById('pagesContainer');
+        const gridSelect = document.getElementById('gridSelect');
+        const inputCols = document.getElementById('inputCols');
+        const inputRows = document.getElementById('inputRows');
+        const printStyle = document.getElementById('printOrientationStyle');
+        
+        let state = {
+            orientation: 'portrait',
+            gridCols: 3,
+            gridRows: 3,
+            color: '#FFFFFF',
+            imgHeight: 50,
+            fontSize: 2,
+            autoFit: false,
+            pages: [ [] ] // Array of pages, each containing array of card objects
+        };
+
+        // --- Core Functions ---
+
+        function loadState() {
+            const saved = localStorage.getItem('flashcard_batam_state_v5');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    // Merge saved state with defaults to handle version upgrades
+                    state = { ...state, ...parsed };
+                    
+                    // Restore UI Controls
+                    inputCols.value = state.gridCols || 3;
+                    inputRows.value = state.gridRows || 3;
+                    
+                    // Apply visual settings (without saving again to avoid loops)
+                    setOrientation(state.orientation, false);
+                    setGlobalColor(state.color, false);
+                    setImageSize(state.imgHeight ?? 50, false);
+                    setFontSize(state.fontSize || 2, false);
+                    updateToggleUI();
+                } catch (e) { console.error("Load Error:", e); }
+            }
+            // Ensure at least one page exists
+            if (!state.pages || state.pages.length === 0) {
+                state.pages = [[]];
+            }
+            renderAllPages(false);
+            lucide.createIcons();
+        }
+
+        function saveState() {
+            // Harvest data from DOM
+            const pageWrappers = document.querySelectorAll('.page-wrapper');
+            
+            state.pages = Array.from(pageWrappers).map((wrapper) => {
+                const cards = [];
+                const cardElements = wrapper.querySelectorAll('.brutalist-card');
+                
+                cardElements.forEach((card) => {
+                    const labelElement = card.querySelector('.card-label-input');
+                    const textElement = card.querySelector('[contenteditable]:not(.card-label-input)');
+                    const imgElement = card.querySelector('.image-preview');
+                    
+                    const label = labelElement ? labelElement.innerText : '';
+                    const text = textElement ? textElement.innerText : '';
+                    const imgSrc = imgElement ? imgElement.src : '';
+                    // Check if image is actually visible/set. If src is empty or hidden, save empty string.
+                    const hasImage = imgElement && !imgElement.classList.contains('hidden') && imgSrc && !imgSrc.includes('w3.org'); // Check against SVG placeholder url if needed
+                    
+                    cards.push({ 
+                        text: text, 
+                        img: hasImage ? imgSrc : '', 
+                        label: label 
+                    });
+                });
+                return cards;
+            });
+
+            localStorage.setItem('flashcard_batam_state_v5', JSON.stringify(state));
+        }
+
+        function exportData() {
+            saveState(); // Ensure latest
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
+            const downloadAnchorNode = document.createElement('a');
+            downloadAnchorNode.setAttribute("href", dataStr);
+            const date = new Date().toISOString().slice(0,10);
+            downloadAnchorNode.setAttribute("download", `Flashcards_Batam_${date}.json`);
+            document.body.appendChild(downloadAnchorNode); // required for firefox
+            downloadAnchorNode.click();
+            downloadAnchorNode.remove();
+        }
+
+        function importData(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    state = { ...state, ...parsed };
+                    
+                    // Update UI inputs
+                    inputCols.value = state.gridCols;
+                    inputRows.value = state.gridRows;
+                    
+                    renderAllPages();
+                    // Apply settings
+                    setOrientation(state.orientation);
+                    setGlobalColor(state.color);
+                    setImageSize(state.imgHeight);
+                    setFontSize(state.fontSize);
+                    updateToggleUI();
+                    
+                    alert("Flashcards loaded successfully!");
+                } catch (err) {
+                    alert("Error loading file. Make sure it's a valid JSON file.");
+                    console.error(err);
+                }
+            };
+            reader.readAsText(file);
+            input.value = ''; // Reset input
+        }
+
+        // --- Page Manipulation ---
+
+        function addNewPage() {
+            saveState();
+            state.pages.push([]);
+            renderAllPages();
+            // Scroll to new page
+            setTimeout(() => {
+                const wrappers = document.querySelectorAll('.page-wrapper');
+                wrappers[wrappers.length - 1].scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+        }
+
+        function deletePage(index) {
+            if (state.pages.length <= 1) {
+                alert("You need at least one page.");
+                return;
+            }
+            if (confirm(`Delete Page ${index + 1}? This cannot be undone.`)) {
+                saveState(); // Save current state of other pages first
+                state.pages.splice(index, 1);
+                renderAllPages();
+            }
+        }
+
+        // --- Styling & Settings ---
+
+        function setImageSize(size, shouldSave = true) {
+            state.imgHeight = size;
+            document.getElementById('imgSizeLabel').innerText = size + '%';
+            [0, 25, 50, 75, 100].forEach(b => {
+                const btn = document.getElementById(`img-${b}`);
+                if (btn) btn.classList.toggle('active', b === size);
+            });
+            updateCardDisplay();
+            if (shouldSave) saveState();
+        }
+
+        function setFontSize(size, shouldSave = true) {
+            state.fontSize = size;
+            const sizes = [1.2, 2, 3.5, 5];
+            sizes.forEach(s => {
+                const btn = document.getElementById(`font-${s}`);
+                if (btn) btn.classList.toggle('active', s === parseFloat(size));
+            });
+            updateCardDisplay();
+            if (shouldSave) saveState();
+        }
+
+        function toggleAutoFit() {
+            state.autoFit = !state.autoFit;
+            updateToggleUI();
+            updateCardDisplay();
+            saveState();
+        }
+
+        function updateToggleUI() {
+            document.getElementById('toggleAutoFit').classList.toggle('active', state.autoFit);
+        }
+
+        function autoFitText(element) {
+            if (!state.autoFit || element.classList.contains('card-label-input')) return;
+            const container = element.parentElement;
+            if (!container || container.clientHeight === 0) return;
+            
+            // Binary search for best fit font size
+            let minSize = 0.5;
+            let maxSize = 15; // Max REM
+            let optimal = state.fontSize; // Start with current preference
+
+            // Temporary set to max to see bounds
+            element.style.fontSize = maxSize + 'rem';
+            
+            // Simple iterative reduction
+            let current = maxSize;
+            while (current > minSize) {
+                element.style.fontSize = current + 'rem';
+                if (element.scrollHeight <= container.clientHeight && element.scrollWidth <= container.clientWidth) {
+                    optimal = current;
+                    break; 
+                }
+                current -= 0.5;
+            }
+            // Fine tuning
+            element.style.fontSize = optimal + 'rem';
+        }
+
+        function updateCardDisplay() {
+            const isFullImg = state.imgHeight === 100;
+            const isNoImg = state.imgHeight === 0;
+
+            document.querySelectorAll('.image-container').forEach(c => {
+                c.style.height = `${state.imgHeight}%`;
+                c.style.display = isNoImg ? 'none' : 'flex';
+            });
+            
+            document.querySelectorAll('.text-container').forEach(c => {
+                c.style.height = `${100 - state.imgHeight}%`;
+                c.style.display = isFullImg ? 'none' : 'flex';
+            });
+
+            document.querySelectorAll('[contenteditable]:not(.card-label-input)').forEach(t => {
+                if (state.autoFit) {
+                    autoFitText(t);
+                } else {
+                    t.style.fontSize = `${state.fontSize}rem`;
+                }
+            });
+
+            document.querySelectorAll('.brutalist-card').forEach(card => {
+                // If full image or no image, remove padding for cleaner look
+                card.style.padding = (isFullImg || isNoImg) ? '0' : '10px';
+                card.style.backgroundColor = state.color;
+            });
+
+            document.querySelectorAll('.image-preview').forEach(img => {
+                if (isFullImg) {
+                    img.classList.remove('contain');
+                    img.classList.add('cover');
+                } else {
+                    img.classList.remove('cover');
+                    img.classList.add('contain');
+                }
+            });
+        }
+
+        function setOrientation(type, shouldSave = true) {
+            state.orientation = type;
+            const isP = type === 'portrait';
+            document.getElementById('btnPortrait').classList.toggle('active', isP);
+            document.getElementById('btnLandscape').classList.toggle('active', !isP);
+            
+            document.querySelectorAll('.a4-page').forEach(page => {
+                page.classList.remove('a4-portrait', 'a4-landscape');
+                page.classList.add(`a4-${type}`);
+            });
+            
+            printStyle.innerHTML = `@page { size: ${type}; margin: 0; }`;
+            if (shouldSave) saveState();
+        }
+
+        function setGlobalColor(color, shouldSave = true) {
+            state.color = color;
+            document.querySelectorAll('.brutalist-card').forEach(c => c.style.backgroundColor = color);
+            if (shouldSave) saveState();
+        }
+
+        function handleCustomGrid() {
+            state.gridCols = Math.max(1, Math.min(10, parseInt(inputCols.value) || 1));
+            state.gridRows = Math.max(1, Math.min(10, parseInt(inputRows.value) || 1));
+            gridSelect.value = ""; // clear preset selection
+            saveState();
+            renderAllPages();
+        }
+
+        function syncFromPreset() {
+            if (!gridSelect.value) return;
+            const [cols, rows] = gridSelect.value.split(',').map(Number);
+            inputCols.value = cols;
+            inputRows.value = rows;
+            state.gridCols = cols;
+            state.gridRows = rows;
+            saveState();
+            renderAllPages();
+        }
+
+        function removeImage(pageIndex, cardIndex) {
+            const uid = `${pageIndex}-${cardIndex}`;
+            const img = document.getElementById(`img-${uid}`);
+            const icon = document.getElementById(`icon-${uid}`);
+            const delBtn = document.getElementById(`del-${uid}`);
+            
+            if (img) { 
+                img.src = ''; 
+                img.classList.add('hidden'); 
+            }
+            if (icon) icon.classList.remove('hidden');
+            if (delBtn) delBtn.classList.add('hidden');
+            saveState();
+        }
+
+        // --- Rendering ---
+
+        function renderAllPages(shouldSave = true) {
+            pagesContainer.innerHTML = '';
+            
+            state.pages.forEach((pageData, pageIndex) => {
+                renderSinglePage(pageIndex, pageData);
+            });
+            
+            setOrientation(state.orientation, false);
+            setGlobalColor(state.color, false);
+            updateCardDisplay(); // Applies fonts, sizes, visibility
+            lucide.createIcons();
+            
+            if (shouldSave) saveState();
+        }
+
+        function renderSinglePage(pageIndex, pageData) {
+            const cols = state.gridCols;
+            const rows = state.gridRows;
+            
+            const wrapper = document.createElement('div');
+            wrapper.className = 'page-wrapper no-break-inside';
+            
+            // Page Metadata
+            const pageLabel = document.createElement('div');
+            pageLabel.className = 'page-number no-print';
+            pageLabel.innerText = `Page ${pageIndex + 1}`;
+            wrapper.appendChild(pageLabel);
+
+            if (state.pages.length > 1) {
+                const delBtn = document.createElement('button');
+                delBtn.className = 'delete-page-btn no-print';
+                delBtn.innerHTML = `DELETE PAGE ${pageIndex + 1}`;
+                delBtn.onclick = () => deletePage(pageIndex);
+                wrapper.appendChild(delBtn);
+            }
+
+            // The Actual Page
+            const a4Page = document.createElement('div');
+            a4Page.className = `a4-page a4-${state.orientation}`;
+            a4Page.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+            a4Page.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+
+            const totalCardsPerPage = cols * rows;
+
+            for (let i = 0; i < totalCardsPerPage; i++) {
+                const card = document.createElement('div');
+                card.className = 'brutalist-card group';
+                
+                const savedCard = (pageData && pageData[i]) ? pageData[i] : { text: '', img: '', label: '' };
+                const uid = `${pageIndex}-${i}`;
+
+                // --- Card Contents ---
+
+                // 1. Label Input (Top Left)
+                const labelInput = document.createElement('div');
+                labelInput.className = 'card-label-input';
+                labelInput.contentEditable = true;
+                labelInput.innerText = savedCard.label || '';
+                labelInput.onblur = () => saveState();
+                labelInput.onkeydown = (e) => e.stopPropagation(); // Allow typing without triggering global hotkeys
+                
+                // 2. Remove Image Button
+                const delBtn = document.createElement('button');
+                delBtn.id = `del-${uid}`;
+                delBtn.className = `no-print absolute top-2 right-2 bg-red-500 text-white rounded-md p-1 border-2 border-dark shadow-sm z-50 hover:scale-110 transition-transform ${savedCard.img ? '' : 'hidden'}`;
+                delBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="M18 6L6 18M6 6l12 12"/></svg>`;
+                delBtn.onclick = (e) => { e.stopPropagation(); removeImage(pageIndex, i); };
+
+                // 3. Image Container
+                const imgContainer = document.createElement('div');
+                imgContainer.className = 'image-container cursor-pointer';
+                // Click to upload
+                imgContainer.onclick = (e) => { 
+                    if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
+                        document.getElementById(`file-${uid}`).click(); 
+                    }
+                };
+
+                const img = document.createElement('img');
+                img.className = `image-preview ${savedCard.img ? '' : 'hidden'}`;
+                img.id = `img-${uid}`;
+                img.src = savedCard.img || '';
+
+                const icon = document.createElement('div');
+                icon.className = `no-print opacity-20 group-hover:opacity-100 transition-opacity duration-200 ${savedCard.img ? 'hidden' : ''}`;
+                icon.id = `icon-${uid}`;
+                icon.innerHTML = `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
+
+                // 4. Text Container
+                const textContainer = document.createElement('div');
+                textContainer.className = 'text-container';
+                const text = document.createElement('div');
+                text.contentEditable = true;
+                text.className = 'outline-none text-dark';
+                text.innerText = savedCard.text || '';
+                text.oninput = () => { if (state.autoFit) autoFitText(text); };
+                text.onblur = () => saveState();
+                
+                // PASTE SANITIZATION
+                text.addEventListener('paste', (e) => {
+                    e.preventDefault();
+                    const textContent = (e.clipboardData || window.clipboardData).getData('text');
+                    document.execCommand('insertText', false, textContent);
+                });
+
+                // 5. Hidden File Input
+                const fileInput = document.createElement('input');
+                fileInput.type = 'file';
+                fileInput.id = `file-${uid}`;
+                fileInput.className = 'hidden';
+                fileInput.accept = 'image/*';
+                fileInput.onchange = (e) => handleFileSelect(e.target.files[0], uid, pageIndex);
+
+                // --- Drag and Drop Handlers ---
+                card.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    card.classList.add('drag-over');
+                });
+
+                card.addEventListener('dragleave', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    card.classList.remove('drag-over');
+                });
+
+                card.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    card.classList.remove('drag-over');
+                    const file = e.dataTransfer.files[0];
+                    if (file && file.type.startsWith('image/')) {
+                        handleFileSelect(file, uid, pageIndex);
+                    }
+                });
+
+                // Assemble Card
+                imgContainer.append(img, icon);
+                textContainer.append(text);
+                card.append(labelInput, delBtn, imgContainer, textContainer, fileInput);
+                a4Page.appendChild(card);
+            }
+
+            // Grid Guide Lines
+            for (let i = 1; i < cols; i++) {
+                const line = document.createElement('div');
+                line.className = 'guide-line guide-v';
+                line.style.left = `${(i / cols) * 100}%`;
+                a4Page.appendChild(line);
+            }
+            for (let i = 1; i < rows; i++) {
+                const line = document.createElement('div');
+                line.className = 'guide-line guide-h';
+                line.style.top = `${(i / rows) * 100}%`;
+                a4Page.appendChild(line);
+            }
+
+            wrapper.appendChild(a4Page);
+            pagesContainer.appendChild(wrapper);
+        }
+
+        function handleFileSelect(file, uid, pageIndex) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (re) => {
+                const img = document.getElementById(`img-${uid}`);
+                const icon = document.getElementById(`icon-${uid}`);
+                const delBtn = document.getElementById(`del-${uid}`);
+                
+                img.src = reader.result;
+                img.classList.remove('hidden');
+                icon.classList.add('hidden');
+                delBtn.classList.remove('hidden');
+                
+                // Check if full image mode is on, if so, update object fit
+                if (state.imgHeight === 100) {
+                    img.classList.remove('contain');
+                    img.classList.add('cover');
+                } else {
+                    img.classList.add('contain');
+                }
+                
+                saveState();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function resetTool() {
+            if(confirm("Clear everything? This will delete all cards and pages.")) {
+                localStorage.removeItem('flashcard_batam_state_v5');
+                location.reload();
+            }
+        }
+
+        // --- Init ---
+        window.onload = loadState;
+        window.onresize = () => {
+            if (state.autoFit) document.querySelectorAll('[contenteditable]:not(.card-label-input)').forEach(autoFitText);
+        };
+    </script>
+</body>
+</html>
