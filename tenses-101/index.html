@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English 1 • Tense Master</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            pink: '#FF6B95',
+                            orange: '#FF8C42',
+                            green: '#00E676',
+                            blue: '#2979FF',
+                            purple: '#A855F7',
+                            dark: '#1e293b',
+                            chalk: '#f8fafc',
+                        }
+                    },
+                    fontFamily: {
+                        heading: ['Fredoka', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'neo': '4px 4px 0px 0px rgba(30, 41, 59, 1)',
+                        'neo-sm': '2px 2px 0px 0px rgba(30, 41, 59, 1)',
+                        'neo-lg': '6px 6px 0px 0px rgba(30, 41, 59, 1)',
+                    },
+                    borderWidth: {
+                        '3': '3px',
+                    },
+                    backgroundImage: {
+                        'tape-pattern': "repeating-linear-gradient(-45deg, transparent, transparent 5px, rgba(255,255,255,0.3) 5px, rgba(255,255,255,0.3) 10px)",
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style type="text/tailwindcss">
+        body {
+            @apply bg-brand-chalk text-brand-dark font-body min-h-screen flex flex-col;
+            background-image: 
+                linear-gradient(#e2e8f0 1px, transparent 1px),
+                linear-gradient(90deg, #e2e8f0 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        /* --- COMPONENTS --- */
+        .btn-neo {
+            @apply border-3 border-brand-dark rounded-xl shadow-neo transition-all duration-150 font-heading font-bold px-4 py-2 flex items-center justify-center gap-2 bg-white active:translate-y-1 active:shadow-none select-none;
+        }
+        .btn-neo:hover {
+            @apply -translate-y-0.5 shadow-neo-lg;
+        }
+
+        .card-neo {
+            @apply bg-white border-3 border-brand-dark rounded-2xl shadow-neo p-6 relative overflow-hidden;
+        }
+
+        /* --- TIMELINE ELEMENTS --- */
+        .draggable-item {
+            cursor: grab;
+            user-select: none;
+            touch-action: none;
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .draggable-item:active { cursor: grabbing; transform: scale(1.05); }
+
+        /* Custom Scrollbar */
+        .preset-scroll::-webkit-scrollbar { height: 8px; }
+        .preset-scroll::-webkit-scrollbar-track { background: transparent; }
+        .preset-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; border: 2px solid #f8fafc; }
+        .preset-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Animation */
+        @keyframes pop {
+            0% { transform: scale(0.95); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop { animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        
+        .timeline-track {
+            background-image: repeating-linear-gradient(90deg, transparent, transparent 19px, #94a3b8 19px, #94a3b8 20px);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- NAV HEADER -->
+    <nav class="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b-3 border-brand-dark px-4 py-3 shadow-sm">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="bg-brand-blue p-2 rounded-xl border-2 border-brand-dark shadow-sm transform -rotate-3">
+                    <i data-lucide="graduation-cap" class="w-6 h-6 text-white"></i>
+                </div>
+                <h1 class="text-xl md:text-2xl font-heading font-black tracking-tight text-brand-dark">
+                    English 1 <span class="text-brand-blue">Master</span>
+                </h1>
+            </div>
+            
+            <div class="flex gap-2 bg-brand-chalk p-1 rounded-xl border-2 border-brand-dark">
+                <button onclick="setMode('study')" id="btn-mode-study" class="px-4 py-1.5 rounded-lg font-heading font-bold text-sm transition-all border-2 border-transparent">
+                    Study
+                </button>
+                <button onclick="setMode('game')" id="btn-mode-game" class="px-4 py-1.5 rounded-lg font-heading font-bold text-sm transition-all border-2 border-transparent">
+                    Quiz
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- MAIN CONTAINER -->
+    <main class="flex-grow w-full max-w-6xl mx-auto p-4 flex flex-col items-center">
+
+        <!-- ================= STUDY MODE ================= -->
+        <div id="view-study" class="w-full flex flex-col gap-6 animate-pop">
+            
+            <!-- 1. Tense Selector (Horizontal Scroll) -->
+            <div class="w-full overflow-x-auto preset-scroll pb-4 -mx-4 px-4 md:mx-0 md:px-0">
+                <div class="flex gap-4 w-max mx-auto">
+                    
+                    <!-- Simple Group -->
+                    <div class="flex flex-col gap-2 p-3 bg-brand-pink/5 rounded-2xl border-3 border-brand-pink/20 min-w-[140px]">
+                        <span class="text-[10px] font-black uppercase tracking-widest text-brand-pink text-center bg-white rounded-md border-2 border-brand-pink/20 py-1 mb-1">Simple</span>
+                        <button onclick="loadTense('pastSimple')" class="btn-neo text-xs whitespace-nowrap hover:bg-brand-pink hover:text-white hover:border-brand-dark w-full justify-start">Past Simple</button>
+                        <button onclick="loadTense('presentSimple')" class="btn-neo text-xs whitespace-nowrap hover:bg-brand-pink hover:text-white hover:border-brand-dark w-full justify-start">Present Simple</button>
+                        <button onclick="loadTense('futureSimple')" class="btn-neo text-xs whitespace-nowrap hover:bg-brand-pink hover:text-white hover:border-brand-dark w-full justify-start">Future Simple</button>
+                    </div>
+
+                    <!-- Continuous Group -->
+                    <div class="flex flex-col gap-2 p-3 bg-brand-orange/5 rounded-2xl border-3 border-brand-orange/20 min-w-[140px]">
+                        <span class="text-[10px] font-black uppercase tracking-widest text-brand-orange text-center bg-white rounded-md border-2 border-brand-orange/20 py-1 mb-1">Continuous</span>
+                        <button onclick="loadTense('pastCont')" class="btn-neo text-xs whitespace-nowrap hover:bg-brand-orange hover:text-white hover:border-brand-dark w-full justify-start">Past Cont.</button>
+                        <button onclick="loadTense('presentCont')" class="btn-neo text-xs whitespace-nowrap hover:bg-brand-orange hover:text-white hover:border-brand-dark w-full justify-start">Present Cont.</button>
+                        <button onclick="loadTense('futureCont')" class="btn-neo text-xs whitespace-nowrap hover:bg-brand-orange hover:text-white hover:border-brand-dark w-full justify-start">Future Cont.</button>
+                    </div>
+
+                    <!-- Perfect Group -->
+                    <div class="flex flex-col gap-2 p-3 bg-brand-blue/5 rounded-2xl border-3 border-brand-blue/20 min-w-[140px]">
+                        <span class="text-[10px] font-black uppercase tracking-widest text-brand-blue text-center bg-white rounded-md border-2 border-brand-blue/20 py-1 mb-1">Perfect</span>
+                        <button onclick="loadTense('presentPerfect')" class="btn-neo text-xs whitespace-nowrap hover:bg-brand-blue hover:text-white hover:border-brand-dark w-full justify-start">Pres. Perfect</button>
+                        <button onclick="loadTense('pastPerfect')" class="btn-neo text-xs whitespace-nowrap hover:bg-brand-blue hover:text-white hover:border-brand-dark w-full justify-start">Past Perfect</button>
+                        <button onclick="loadTense('futurePerfect')" class="btn-neo text-xs whitespace-nowrap hover:bg-brand-blue hover:text-white hover:border-brand-dark w-full justify-start">Future Perfect</button>
+                    </div>
+
+                    <!-- Perfect Continuous Group -->
+                    <div class="flex flex-col gap-2 p-3 bg-brand-purple/5 rounded-2xl border-3 border-brand-purple/20 min-w-[140px]">
+                        <span class="text-[10px] font-black uppercase tracking-widest text-brand-purple text-center bg-white rounded-md border-2 border-brand-purple/20 py-1 mb-1">Perf. Cont.</span>
+                        <button onclick="loadTense('presentPerfectCont')" class="btn-neo text-xs whitespace-nowrap hover:bg-brand-purple hover:text-white hover:border-brand-dark w-full justify-start">Pr. Perf. Cont.</button>
+                        <button onclick="loadTense('pastPerfectCont')" class="btn-neo text-xs whitespace-nowrap hover:bg-brand-purple hover:text-white hover:border-brand-dark w-full justify-start">Pa. Perf. Cont.</button>
+                        <button onclick="loadTense('futurePerfectCont')" class="btn-neo text-xs whitespace-nowrap hover:bg-brand-purple hover:text-white hover:border-brand-dark w-full justify-start">Fu. Perf. Cont.</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Display Card -->
+            <div class="card-neo w-full flex flex-col items-center text-center gap-6 bg-white min-h-[200px] justify-center">
+                <div class="w-full">
+                    <h2 id="tense-title" class="text-3xl md:text-5xl font-heading font-black text-brand-dark mb-2 transition-colors duration-300">Select a Tense</h2>
+                    <p id="tense-desc" class="text-slate-500 font-bold text-lg max-w-2xl mx-auto">Click a button above to visualize how the tense works on the timeline.</p>
+                </div>
+                
+                <div class="w-full max-w-2xl relative group transform transition-transform hover:scale-[1.01]">
+                    <div class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">
+                        <i data-lucide="message-square" class="w-6 h-6"></i>
+                    </div>
+                    <input type="text" id="sentence-input" 
+                           class="w-full pl-12 pr-4 py-4 bg-slate-50 border-3 border-brand-dark rounded-xl font-heading font-bold text-xl md:text-2xl text-brand-dark focus:outline-none focus:ring-4 focus:ring-brand-blue/20 transition-all text-center shadow-inner placeholder:text-slate-300"
+                           placeholder="Example sentence appears here..." readonly>
+                </div>
+            </div>
+
+            <!-- 3. The Timeline (The Core Tool) -->
+            <div class="card-neo w-full h-[360px] bg-slate-50 relative border-3 border-brand-dark select-none" id="timeline-box">
+                <!-- Grid Background -->
+                <div class="absolute inset-0 opacity-10 pointer-events-none" 
+                     style="background-image: linear-gradient(#94a3b8 1px, transparent 1px), linear-gradient(90deg, #94a3b8 1px, transparent 1px); background-size: 20px 20px;">
+                </div>
+
+                <!-- Labels -->
+                <div class="absolute top-6 left-6 flex items-center gap-2 opacity-50">
+                    <i data-lucide="arrow-left" class="w-5 h-5"></i>
+                    <span class="font-black text-slate-400 uppercase tracking-widest text-sm">PAST</span>
+                </div>
+                <div class="absolute top-6 right-6 flex items-center gap-2 opacity-50">
+                    <span class="font-black text-slate-400 uppercase tracking-widest text-sm">FUTURE</span>
+                    <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                </div>
+
+                <!-- Central Track -->
+                <div class="absolute top-1/2 left-0 right-0 h-8 bg-slate-200 border-y-2 border-slate-300 transform -translate-y-1/2 timeline-track opacity-50"></div>
+                
+                <!-- "NOW" Line -->
+                <div class="absolute top-12 bottom-12 left-1/2 w-0.5 border-r-4 border-dashed border-brand-green/40 z-0 transform -translate-x-1/2"></div>
+                <div class="absolute top-[15%] left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-brand-green text-white text-[11px] font-black px-3 py-1 rounded-lg border-3 border-brand-dark z-10 shadow-neo-sm tracking-widest">NOW</div>
+
+                <!-- Dynamic Layer -->
+                <div id="timeline-layer" class="absolute inset-0 z-20 overflow-hidden">
+                    <!-- JS will inject items here -->
+                </div>
+            </div>
+            
+            <div class="flex justify-center gap-6 text-xs font-bold text-slate-400 uppercase tracking-widest">
+                <span class="flex items-center gap-1"><i data-lucide="mouse-pointer-2" class="w-3 h-3"></i> Drag to adjust</span>
+                <span class="flex items-center gap-1"><i data-lucide="box" class="w-3 h-3"></i> Represents Action</span>
+                <span class="flex items-center gap-1"><i data-lucide="move-horizontal" class="w-3 h-3"></i> Represents Duration</span>
+            </div>
+        </div>
+
+
+        <!-- ================= GAME MODE ================= -->
+        <div id="view-game" class="w-full max-w-2xl hidden flex-col items-center gap-6 animate-pop">
+            
+            <!-- Score Header -->
+            <div class="w-full flex justify-between items-center bg-white border-3 border-brand-dark p-4 rounded-2xl shadow-neo">
+                <div class="flex flex-col">
+                    <span class="text-xs font-black text-slate-400 uppercase tracking-widest">SCORE</span>
+                    <span id="score-val" class="text-3xl font-heading font-black text-brand-orange">0</span>
+                </div>
+                <div class="flex flex-col items-end">
+                    <span class="text-xs font-black text-slate-400 uppercase tracking-widest">TIMER</span>
+                    <span id="timer-val" class="text-3xl font-heading font-black text-brand-pink">20s</span>
+                </div>
+            </div>
+
+            <!-- Question Card -->
+            <div id="game-card" class="card-neo w-full text-center py-12 flex flex-col items-center gap-6">
+                <div class="bg-brand-blue/10 p-5 rounded-full border-3 border-brand-blue mb-2 shadow-sm">
+                    <i data-lucide="gamepad-2" class="w-12 h-12 text-brand-blue"></i>
+                </div>
+                <h2 id="q-text" class="text-3xl md:text-4xl font-heading font-bold leading-tight text-brand-dark">
+                    Ready to Challenge<br>Your Grammar?
+                </h2>
+                
+                <div id="options-area" class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full mt-4 hidden">
+                    <!-- Buttons go here -->
+                </div>
+
+                <button id="btn-start" onclick="startGame()" class="btn-neo bg-brand-green text-white text-xl px-10 py-5 mt-4 w-full md:w-auto shadow-neo border-brand-dark hover:bg-brand-green/90">
+                    Start Game
+                </button>
+            </div>
+
+            <!-- Feedback Overlay (Hidden by default) -->
+            <div id="feedback-area" class="hidden w-full bg-brand-dark text-white p-8 rounded-2xl border-3 border-white/20 text-center shadow-neo relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-brand-pink via-brand-orange to-brand-blue"></div>
+                <div id="fb-icon" class="mx-auto mb-4 w-16 h-16 rounded-full flex items-center justify-center border-4 border-white/20 text-2xl"></div>
+                <h3 id="fb-title" class="text-3xl font-heading font-bold mb-3">Correct!</h3>
+                <p id="fb-desc" class="text-slate-300 text-lg mb-8 leading-relaxed">Explanation goes here.</p>
+                <button onclick="nextQuestion()" class="btn-neo bg-white text-brand-dark w-full py-3 text-lg">Next Question <i data-lucide="arrow-right" class="w-5 h-5 ml-2"></i></button>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- SCRIPTS -->
+    <script>
+        // --- DATA ---
+        const TENSES = {
+            // SIMPLE
+            pastSimple: {
+                title: "Past Simple",
+                desc: "Action finished at a specific time in the past.",
+                sentence: "I visited Batam last year.",
+                color: 'pink',
+                items: [
+                    { type: 'pin', left: 25, label: 'Visited' },
+                    { type: 'time', left: 25, label: 'Last Year' }
+                ]
+            },
+            presentSimple: {
+                title: "Present Simple",
+                desc: "Facts, habits, or routines.",
+                sentence: "I teach English every day.",
+                color: 'pink',
+                items: [
+                    { type: 'pin', left: 15, label: 'Teach' },
+                    { type: 'pin', left: 35, label: 'Teach' },
+                    { type: 'pin', left: 50, label: 'Teach' }, // Now
+                    { type: 'pin', left: 65, label: 'Teach' },
+                    { type: 'pin', left: 85, label: 'Teach' },
+                    { type: 'arrow', left: 15, width: 70, label: 'Routine' }
+                ]
+            },
+            futureSimple: {
+                title: "Future Simple",
+                desc: "Decisions made now or predictions.",
+                sentence: "I will call you later.",
+                color: 'pink',
+                items: [
+                    { type: 'pin', left: 75, label: 'Call You' },
+                    { type: 'arrow', left: 50, width: 25, label: 'Decision' }
+                ]
+            },
+            // CONTINUOUS
+            pastCont: {
+                title: "Past Continuous",
+                desc: "Action in progress in the past.",
+                sentence: "I was reading when you called.",
+                color: 'orange',
+                items: [
+                    { type: 'duration', left: 15, width: 30, label: 'Reading...' },
+                    { type: 'time', left: 35, label: 'You Called' }
+                ]
+            },
+            presentCont: {
+                title: "Present Continuous",
+                desc: "Happening right now.",
+                sentence: "I am explaining this tool.",
+                color: 'orange',
+                items: [
+                    { type: 'duration', left: 40, width: 20, label: 'Happening Now' }
+                ]
+            },
+            futureCont: {
+                title: "Future Continuous",
+                desc: "In progress at a future time.",
+                sentence: "I will be flying at 8 PM.",
+                color: 'orange',
+                items: [
+                    { type: 'duration', left: 65, width: 25, label: 'Flying...' },
+                    { type: 'time', left: 78, label: '8 PM' }
+                ]
+            },
+            // PERFECT
+            presentPerfect: {
+                title: "Present Perfect",
+                desc: "Past action with result in present.",
+                sentence: "I have lost my keys.",
+                color: 'blue',
+                items: [
+                    { type: 'pin', left: 35, label: 'Lost Keys' },
+                    { type: 'arrow', left: 35, width: 15, label: 'Result Now' }
+                ]
+            },
+            pastPerfect: {
+                title: "Past Perfect",
+                desc: "Action before another past action.",
+                sentence: "Train had left before I arrived.",
+                color: 'blue',
+                items: [
+                    { type: 'pin', left: 15, label: 'Train Left' },
+                    { type: 'time', left: 35, label: 'I Arrived' },
+                    { type: 'arrow', left: 15, width: 20, label: 'Before' }
+                ]
+            },
+            futurePerfect: {
+                title: "Future Perfect",
+                desc: "Action completed before a future time.",
+                sentence: "I will have finished by 5 PM.",
+                color: 'blue',
+                items: [
+                    { type: 'pin', left: 70, label: 'Finished' },
+                    { type: 'time', left: 85, label: '5 PM' },
+                    { type: 'arrow', left: 50, width: 35, label: 'Before' }
+                ]
+            },
+            // PERFECT CONTINUOUS
+            presentPerfectCont: {
+                title: "Pres. Perfect Continuous",
+                desc: "Started in past and continues to now.",
+                sentence: "I have been waiting for 2 hours.",
+                color: 'purple',
+                items: [
+                    { type: 'duration', left: 20, width: 30, label: 'Waiting...' },
+                    { type: 'arrow', left: 20, width: 30, label: '2 Hours' }
+                ]
+            },
+            pastPerfectCont: {
+                title: "Past Perfect Continuous",
+                desc: "Duration leading up to a past moment.",
+                sentence: "It had been raining when I woke up.",
+                color: 'purple',
+                items: [
+                    { type: 'duration', left: 10, width: 25, label: 'Raining...' },
+                    { type: 'time', left: 35, label: 'Woke Up' }
+                ]
+            },
+            futurePerfectCont: {
+                title: "Future Perfect Continuous",
+                desc: "Duration leading up to a future moment.",
+                sentence: "I will have been teaching for 10 years by 2030.",
+                color: 'purple',
+                items: [
+                    { type: 'duration', left: 40, width: 45, label: 'Teaching...' },
+                    { type: 'time', left: 85, label: 'By 2030' }
+                ]
+            }
+        };
+
+        const QUESTIONS = [
+            { q: "She ______ to work every day.", opts: ["walks", "walking", "is walk", "walked"], a: 0, exp: "Routine = Present Simple (walks)." },
+            { q: "Look! It ______ right now.", opts: ["rains", "is raining", "rained", "rain"], a: 1, exp: "Now = Present Continuous (is raining)." },
+            { q: "I ______ sushi last night.", opts: ["eat", "have eaten", "ate", "eating"], a: 2, exp: "Specific past time = Past Simple (ate)." },
+            { q: "They ______ when the phone rang.", opts: ["slept", "were sleeping", "sleep", "have slept"], a: 1, exp: "Interrupted action = Past Continuous." },
+            { q: "I ______ him for 10 years.", opts: ["know", "am knowing", "have known", "knew"], a: 2, exp: "Started in past, continues now = Present Perfect." },
+            { q: "By next year, I ______ here for 5 years.", opts: ["will work", "work", "will have been working", "worked"], a: 2, exp: "Duration up to a future point = Future Perfect Continuous." },
+            { q: "The train ______ when we arrived.", opts: ["left", "has left", "had left", "leaving"], a: 2, exp: "Action before past action = Past Perfect." },
+            { q: "At 8 PM tomorrow, I ______ TV.", opts: ["watch", "will watch", "will be watching", "watched"], a: 2, exp: "Action in progress at a specific future time = Future Continuous." },
+            { q: "Your eyes are red. ______?", opts: ["Have you cried", "Did you cry", "Do you cry", "Have you been crying"], a: 3, exp: "Recent activity with visible present evidence = Pres. Perf. Cont." },
+            { q: "I ______ hungry because I hadn't eaten.", opts: ["am", "was", "have been", "had been"], a: 1, exp: "Past result ('was') of a Past Perfect cause." },
+            { q: "By the time you arrive, I ______ the food.", opts: ["will cook", "will have cooked", "cook", "cooked"], a: 1, exp: "Action completed before a future moment = Future Perfect." },
+            { q: "This soup ______ delicious!", opts: ["is tasting", "tastes", "has tasted", "taste"], a: 1, exp: "Stative verbs (senses) usually take Simple tenses." },
+            { q: "We ______ for hours before the bus came.", opts: ["have waited", "waited", "were waiting", "had been waiting"], a: 3, exp: "Duration leading up to a past event = Past Perf. Cont." },
+            { q: "I haven't seen him ______ 2020.", opts: ["for", "since", "until", "ago"], a: 1, exp: "'Since' is used with a specific starting point." },
+            { q: "Look at those clouds! It ______.", opts: ["will rain", "rains", "is going to rain", "rained"], a: 2, exp: "Prediction based on present evidence = 'going to'." }
+        ];
+
+        // --- DOM ELEMENTS ---
+        const viewStudy = document.getElementById('view-study');
+        const viewGame = document.getElementById('view-game');
+        const timelineLayer = document.getElementById('timeline-layer');
+        const sentenceInput = document.getElementById('sentence-input');
+        
+        // --- LOGIC: MODE SWITCH ---
+        function setMode(mode) {
+            if(mode === 'study') {
+                viewStudy.classList.remove('hidden');
+                viewGame.classList.add('hidden');
+                
+                const btnStudy = document.getElementById('btn-mode-study');
+                btnStudy.classList.add('bg-brand-orange', 'text-white', 'border-brand-dark', 'shadow-neo-sm');
+                btnStudy.classList.remove('border-transparent', 'text-brand-dark');
+
+                const btnGame = document.getElementById('btn-mode-game');
+                btnGame.classList.remove('bg-brand-orange', 'text-white', 'border-brand-dark', 'shadow-neo-sm');
+                btnGame.classList.add('border-transparent', 'text-brand-dark');
+                
+            } else {
+                viewStudy.classList.add('hidden');
+                viewGame.classList.remove('hidden');
+                
+                const btnGame = document.getElementById('btn-mode-game');
+                btnGame.classList.add('bg-brand-orange', 'text-white', 'border-brand-dark', 'shadow-neo-sm');
+                btnGame.classList.remove('border-transparent', 'text-brand-dark');
+
+                const btnStudy = document.getElementById('btn-mode-study');
+                btnStudy.classList.remove('bg-brand-orange', 'text-white', 'border-brand-dark', 'shadow-neo-sm');
+                btnStudy.classList.add('border-transparent', 'text-brand-dark');
+            }
+        }
+
+        // --- LOGIC: TIMELINE RENDERER ---
+        function loadTense(key) {
+            const data = TENSES[key];
+            if(!data) return;
+
+            // Animate Text Update
+            const titleEl = document.getElementById('tense-title');
+            titleEl.style.opacity = '0';
+            setTimeout(() => {
+                titleEl.innerText = data.title;
+                titleEl.className = `text-3xl md:text-5xl font-heading font-black mb-2 transition-all duration-300 text-brand-${data.color}`;
+                titleEl.style.opacity = '1';
+            }, 150);
+
+            document.getElementById('tense-desc').innerText = data.desc;
+            sentenceInput.value = data.sentence;
+
+            // Clear Timeline with Fade
+            timelineLayer.style.opacity = '0';
+            setTimeout(() => {
+                timelineLayer.innerHTML = '';
+                renderItems(data);
+                timelineLayer.style.opacity = '1';
+                lucide.createIcons();
+            }, 200);
+        }
+
+        function renderItems(data) {
+            data.items.forEach(item => {
+                const el = document.createElement('div');
+                el.className = 'draggable-item absolute group flex flex-col items-center justify-center';
+                
+                // Position
+                el.style.left = item.left + '%';
+                el.style.top = '50%'; // Baseline center
+
+                // Content based on type
+                if(item.type === 'pin') {
+                    el.innerHTML = `
+                        <div class="relative z-10 -mt-8 flex flex-col items-center">
+                            <div class="bg-brand-${data.color} text-white w-10 h-10 rounded-full border-3 border-brand-dark shadow-neo flex items-center justify-center hover:-translate-y-1 transition-transform">
+                                <i data-lucide="map-pin" class="w-5 h-5"></i>
+                            </div>
+                            <div class="w-1.5 h-12 bg-brand-dark"></div>
+                            <div class="w-4 h-4 bg-brand-dark rounded-full -mt-2"></div>
+                            <span class="absolute -top-10 bg-white border-3 border-brand-dark px-3 py-1 rounded-lg text-xs font-heading font-black uppercase whitespace-nowrap shadow-neo-sm opacity-0 group-hover:opacity-100 transition-all text-brand-dark">${item.label}</span>
+                        </div>
+                    `;
+                } else if (item.type === 'duration') {
+                    el.style.width = item.width + '%';
+                    el.style.transform = 'translate(0, -50%)'; // Center Y
+                    el.innerHTML = `
+                        <div class="w-full h-12 bg-brand-${data.color} border-3 border-brand-dark rounded-xl shadow-neo opacity-90 flex items-center justify-center relative bg-tape-pattern hover:scale-105 transition-transform">
+                             <span class="bg-white px-2 py-0.5 rounded border-2 border-brand-dark text-brand-dark text-[10px] font-black uppercase tracking-widest shadow-sm z-10">${item.label}</span>
+                        </div>
+                    `;
+                } else if (item.type === 'arrow') {
+                    el.style.width = item.width + '%';
+                    el.style.top = '70%';
+                    el.innerHTML = `
+                        <div class="w-full h-3 bg-brand-dark rounded-full relative flex items-center justify-center opacity-60">
+                            <div class="absolute -right-1 w-0 h-0 border-t-[8px] border-t-transparent border-l-[12px] border-l-brand-dark border-b-[8px] border-b-transparent"></div>
+                            <span class="absolute -bottom-6 text-[10px] font-black uppercase text-brand-dark bg-white px-1 rounded border border-brand-dark">${item.label}</span>
+                        </div>
+                    `;
+                } else if (item.type === 'time') {
+                    el.style.top = '30%';
+                    el.innerHTML = `
+                        <div class="flex flex-col items-center group-hover:-translate-y-1 transition-transform">
+                            <span class="bg-brand-dark text-white px-3 py-1 rounded-lg border-2 border-brand-dark text-[11px] font-black uppercase mb-1 shadow-sm">${item.label}</span>
+                            <div class="h-20 w-1 border-l-4 border-dashed border-brand-dark opacity-30"></div>
+                        </div>
+                    `;
+                }
+
+                makeDraggable(el);
+                timelineLayer.appendChild(el);
+            });
+        }
+
+        // Simple Drag Logic (Constrained)
+        function makeDraggable(elmnt) {
+            let pos1 = 0, pos3 = 0;
+            elmnt.onmousedown = dragMouseDown;
+            elmnt.ontouchstart = dragMouseDown;
+
+            function dragMouseDown(e) {
+                e = e || window.event;
+                // e.preventDefault();
+                pos3 = e.clientX || e.touches[0].clientX;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+                document.ontouchend = closeDragElement;
+                document.ontouchmove = elementDrag;
+            }
+
+            function elementDrag(e) {
+                e = e || window.event;
+                // e.preventDefault();
+                const clientX = e.clientX || e.touches[0].clientX;
+                pos1 = pos3 - clientX;
+                pos3 = clientX;
+                
+                // Calculate percentage based on parent width
+                const parentW = timelineLayer.offsetWidth;
+                let newLeft = elmnt.offsetLeft - pos1;
+                
+                // Boundary checks
+                if(newLeft < 0) newLeft = 0;
+                if(newLeft > parentW - 30) newLeft = parentW - 30;
+
+                elmnt.style.left = newLeft + "px";
+            }
+
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+                document.ontouchend = null;
+                document.ontouchmove = null;
+            }
+        }
+
+        // --- LOGIC: QUIZ GAME ---
+        let currentQIndex = 0;
+        let score = 0;
+        let timer = 20;
+        let timerInterval;
+
+        function startGame() {
+            document.getElementById('btn-start').classList.add('hidden');
+            document.getElementById('options-area').classList.remove('hidden');
+            document.getElementById('options-area').classList.add('grid');
+            currentQIndex = 0;
+            score = 0;
+            updateScore();
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            if(currentQIndex >= QUESTIONS.length) {
+                endGame();
+                return;
+            }
+            const q = QUESTIONS[currentQIndex];
+            document.getElementById('q-text').innerText = q.q;
+            document.getElementById('feedback-area').classList.add('hidden');
+            document.getElementById('game-card').classList.remove('hidden');
+            
+            const area = document.getElementById('options-area');
+            area.innerHTML = '';
+            
+            q.opts.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'btn-neo bg-white hover:bg-slate-50 border-3 border-brand-dark w-full py-4 text-lg justify-start relative group overflow-hidden';
+                btn.innerHTML = `
+                    <span class="absolute left-0 top-0 bottom-0 w-2 bg-brand-dark group-hover:w-full transition-all duration-300 opacity-10"></span>
+                    <span class="bg-brand-dark text-white w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black mr-3 relative z-10">${['A','B','C','D'][idx]}</span> 
+                    <span class="font-bold text-slate-700 relative z-10 text-left flex-1">${opt}</span>
+                `;
+                btn.onclick = () => checkAnswer(idx);
+                area.appendChild(btn);
+            });
+
+            // Reset Timer
+            clearInterval(timerInterval);
+            timer = 20;
+            const timerEl = document.getElementById('timer-val');
+            timerEl.innerText = timer + 's';
+            timerEl.style.color = '#FF6B95';
+            
+            timerInterval = setInterval(() => {
+                timer--;
+                timerEl.innerText = timer + 's';
+                if(timer <= 5) timerEl.classList.add('animate-pulse');
+                else timerEl.classList.remove('animate-pulse');
+                
+                if(timer <= 0) {
+                    checkAnswer(-1); // Time out
+                }
+            }, 1000);
+        }
+
+        function checkAnswer(idx) {
+            clearInterval(timerInterval);
+            const q = QUESTIONS[currentQIndex];
+            const isCorrect = (idx === q.a);
+
+            if(isCorrect) score += 100;
+            updateScore();
+
+            document.getElementById('game-card').classList.add('hidden');
+            const fb = document.getElementById('feedback-area');
+            fb.classList.remove('hidden');
+            
+            const fbIcon = document.getElementById('fb-icon');
+            if(isCorrect) {
+                fbIcon.innerHTML = '<i data-lucide="check" class="w-10 h-10"></i>';
+                fbIcon.className = 'mx-auto mb-4 w-20 h-20 rounded-full flex items-center justify-center border-4 border-white/20 text-white bg-brand-green shadow-neo';
+                document.getElementById('fb-title').innerText = "Correct!";
+            } else {
+                fbIcon.innerHTML = '<i data-lucide="x" class="w-10 h-10"></i>';
+                fbIcon.className = 'mx-auto mb-4 w-20 h-20 rounded-full flex items-center justify-center border-4 border-white/20 text-white bg-brand-pink shadow-neo';
+                document.getElementById('fb-title').innerText = idx === -1 ? "Time's Up!" : "Incorrect";
+            }
+            
+            document.getElementById('fb-desc').innerHTML = `
+                <div class="bg-white/10 p-4 rounded-xl border-2 border-white/10 mb-2">
+                    <span class="block text-xs uppercase tracking-widest opacity-70 mb-1">Correct Answer</span>
+                    <strong class="text-xl text-brand-orange">${q.opts[q.a]}</strong>
+                </div>
+                <div class="opacity-80">${q.exp}</div>
+            `;
+            
+            lucide.createIcons();
+        }
+
+        function nextQuestion() {
+            currentQIndex++;
+            loadQuestion();
+        }
+
+        function updateScore() {
+            document.getElementById('score-val').innerText = score;
+        }
+
+        function endGame() {
+            clearInterval(timerInterval);
+            document.getElementById('game-card').classList.remove('hidden');
+            document.getElementById('options-area').innerHTML = '';
+            document.getElementById('options-area').classList.add('hidden');
+            document.getElementById('feedback-area').classList.add('hidden');
+            
+            document.getElementById('q-text').innerHTML = `Game Over!<br><span class="text-base text-slate-400">You scored</span>`;
+            
+            const btn = document.getElementById('btn-start');
+            btn.classList.remove('hidden');
+            btn.innerText = "Play Again";
+            btn.onclick = startGame;
+            
+            const finalScoreDisplay = document.createElement('div');
+            finalScoreDisplay.className = 'animate-pop';
+            finalScoreDisplay.innerHTML = `
+                <div class="text-8xl font-black text-brand-orange drop-shadow-sm mb-4">${score}</div>
+                <div class="text-slate-400 font-bold uppercase tracking-widest">Points</div>
+            `;
+            
+            // Clear previous score if any
+            const prevScore = document.getElementById('final-score-display');
+            if(prevScore) prevScore.remove();
+            
+            finalScoreDisplay.id = 'final-score-display';
+            document.getElementById('game-card').insertBefore(finalScoreDisplay, btn);
+        }
+
+        // Init
+        lucide.createIcons();
+        setMode('study'); // Ensure Study mode is set visually
+        loadTense('presentSimple'); // Load default
+    </script>
+</body>
+</html>
