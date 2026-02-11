@@ -251,7 +251,11 @@
                 <h2 id="q-text" class="text-3xl md:text-4xl font-heading font-bold leading-tight text-brand-dark">
                     Ready to Challenge<br>Your Grammar?
                 </h2>
-                <div id="loading-msg" class="text-sm font-bold text-slate-400 animate-pulse hidden">Loading questions...</div>
+                
+                <div id="loading-msg" class="flex flex-col items-center gap-2 hidden">
+                    <div class="w-8 h-8 border-4 border-brand-blue border-t-transparent rounded-full animate-spin"></div>
+                    <span class="text-sm font-bold text-slate-400">Loading questions from ./questions.json...</span>
+                </div>
 
                 <div id="options-area" class="grid grid-cols-1 md:grid-cols-2 gap-4 w-full mt-4 hidden">
                     <!-- Buttons go here -->
@@ -277,7 +281,7 @@
 
     <!-- SCRIPTS -->
     <script>
-        // --- DATA ---
+        // --- DATA FOR TIMELINE ---
         const TENSES = {
             // SIMPLE
             pastSimple: {
@@ -410,29 +414,46 @@
             }
         };
 
-        // --- QUESTIONS LOGIC (FETCH) ---
+        // --- QUESTIONS DATA (Loaded via Fetch) ---
         let QUESTIONS = [];
 
         async function loadQuestions() {
             const startBtn = document.getElementById('btn-start');
             const loadingMsg = document.getElementById('loading-msg');
+            const qText = document.getElementById('q-text');
             
             try {
-                startBtn.disabled = true;
+                // UI Loading State
+                startBtn.classList.add('hidden');
                 loadingMsg.classList.remove('hidden');
                 
-                const response = await fetch('./questions.json');
-                if (!response.ok) throw new Error("File not found");
+                // --- FETCH FROM RELATIVE PATH ---
+                // Since this file is ./tenses-101/index.html and json is ./tenses-101/questions.json
+                // We use ./questions.json
+                const response = await fetch('./questions.json'); 
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
                 
                 QUESTIONS = await response.json();
                 
-                startBtn.disabled = false;
+                // UI Success State
                 loadingMsg.classList.add('hidden');
-                console.log("Questions loaded:", QUESTIONS.length);
+                startBtn.classList.remove('hidden');
+                console.log("Questions loaded successfully:", QUESTIONS.length);
+
             } catch (error) {
                 console.error("Error loading questions:", error);
-                loadingMsg.innerText = "Error loading questions. Ensure you are running this on a local server.";
-                loadingMsg.className = "text-sm font-bold text-red-500";
+                
+                // UI Error State
+                loadingMsg.innerHTML = `
+                    <div class="text-red-500 font-bold mb-2">Failed to load questions.</div>
+                    <div class="text-xs text-slate-500 max-w-xs text-left bg-slate-100 p-2 rounded border border-slate-300">
+                        <strong>Tip:</strong> If you are opening this file directly (file://), browsers block external files for security.<br><br>
+                        Please use a local server (e.g., VS Code "Live Server") or put the questions directly in the HTML code.
+                    </div>
+                `;
             }
         }
 
@@ -468,7 +489,7 @@
                 btnStudy.classList.remove('bg-brand-orange', 'text-white', 'border-brand-dark', 'shadow-neo-sm');
                 btnStudy.classList.add('border-transparent', 'text-brand-dark');
 
-                // Load questions only when entering game mode (if not loaded)
+                // Lazy load questions when entering game mode
                 if(QUESTIONS.length === 0) {
                     loadQuestions();
                 }
@@ -605,7 +626,7 @@
 
         function startGame() {
             if(QUESTIONS.length === 0) {
-                alert("Questions are still loading or failed to load. Please check your connection or server.");
+                // If user clicks too fast or fetch failed, try again
                 loadQuestions();
                 return;
             }
