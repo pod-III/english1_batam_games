@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English 1 Batam: Universal Quiz</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300..700&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Nunito', 'sans-serif'],
+                        heading: ['Fredoka', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            pink: '#FF6B95',
+                            orange: '#FF8C42',
+                            green: '#00E676',
+                            blue: '#2979FF',
+                            dark: '#1e293b',
+                            chalk: '#f8fafc'
+                        }
+                    },
+                    boxShadow: {
+                        'hard': '4px 4px 0px 0px rgba(30, 41, 59, 1)',
+                        'hard-sm': '2px 2px 0px 0px rgba(30, 41, 59, 1)',
+                        'hard-active': '0px 0px 0px 0px rgba(30, 41, 59, 1)',
+                    },
+                    animation: {
+                        'bounce-slight': 'bounce-slight 0.3s infinite alternate',
+                    },
+                    keyframes: {
+                        'bounce-slight': {
+                            '0%': { transform: 'translateY(0)' },
+                            '100%': { transform: 'translateY(-5px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* English 1 Batam: Graph Paper Background */
+        body {
+            background-color: #f8fafc; 
+            background-image: linear-gradient(#cbd5e1 1px, transparent 1px), linear-gradient(90deg, #cbd5e1 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        
+        /* Physical Button Feel */
+        .neo-btn {
+            transition: all 0.1s ease;
+        }
+        .neo-btn:active {
+            transform: translate(4px, 4px);
+            box-shadow: 0px 0px 0px 0px rgba(30, 41, 59, 1);
+        }
+    </style>
+</head>
+<body class="min-h-screen text-brand-dark flex flex-col items-center p-4">
+
+    <header class="w-full max-w-4xl mb-6 flex justify-between items-center bg-white border-4 border-brand-dark p-4 rounded-xl shadow-hard">
+        <div class="flex items-center gap-3">
+            <div class="bg-brand-pink p-2 border-2 border-brand-dark rounded-lg text-white">
+                <i data-lucide="layers" class="w-6 h-6"></i>
+            </div>
+            <h1 class="font-heading text-2xl md:text-3xl font-bold tracking-wide">Quiz Hub</h1>
+        </div>
+        <div id="score-container" class="hidden bg-brand-chalk border-2 border-brand-dark rounded-lg px-4 py-2 font-heading font-bold shadow-hard-sm flex items-center gap-2">
+            <i data-lucide="trophy" class="w-5 h-5 text-brand-orange"></i>
+            <span id="score-display">Score: 0</span>
+        </div>
+    </header>
+
+    <main class="w-full max-w-4xl bg-white border-4 border-brand-dark shadow-hard rounded-2xl overflow-hidden min-h-[500px] flex flex-col">
+        
+        <div id="view-selector" class="p-8 flex-1 flex flex-col">
+            <div class="text-center mb-8">
+                <h2 class="font-heading text-3xl font-bold mb-2">Choose Your Challenge</h2>
+                <p class="text-slate-600 font-bold">Select a topic below or upload your own file.</p>
+            </div>
+
+            <div class="mb-8">
+                <label class="flex flex-col items-center justify-center w-full h-32 border-4 border-brand-dark border-dashed rounded-xl cursor-pointer bg-brand-chalk hover:bg-white transition-colors">
+                    <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                        <i data-lucide="upload" class="w-8 h-8 mb-2 text-slate-500"></i>
+                        <p class="mb-2 text-sm text-slate-500 font-bold"><span class="font-heading text-brand-blue">Click to upload</span> custom JSON</p>
+                    </div>
+                    <input type="file" id="json-input" accept=".json" class="hidden" />
+                </label>
+            </div>
+
+            <div id="sets-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                </div>
+        </div>
+
+        <div id="view-quiz" class="hidden p-6 md:p-10 flex-col h-full">
+            <div class="flex justify-between items-center mb-6">
+                <button onclick="goHome()" class="neo-btn px-4 py-2 bg-slate-200 border-2 border-brand-dark rounded-lg font-bold text-sm shadow-hard-sm hover:bg-slate-300">
+                    <i data-lucide="arrow-left" class="inline w-4 h-4 mr-1"></i> Exit
+                </button>
+                <div class="bg-brand-blue text-white px-4 py-1 border-2 border-brand-dark rounded-full font-heading font-bold shadow-hard-sm">
+                    <span id="topic-badge">General</span>
+                </div>
+            </div>
+
+            <div class="w-full bg-slate-200 border-2 border-brand-dark rounded-full h-6 overflow-hidden mb-8 relative">
+                <div id="progress-bar" class="bg-brand-green h-full w-0 transition-all duration-300 border-r-2 border-brand-dark"></div>
+                <span id="progress-text" class="absolute inset-0 flex items-center justify-center text-xs font-bold text-brand-dark">0%</span>
+            </div>
+
+            <div class="flex-1 flex flex-col justify-center">
+                <h2 id="question-text" class="font-heading text-2xl md:text-4xl font-bold mb-8 text-center leading-tight"></h2>
+
+                <div id="options-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    </div>
+            </div>
+
+            <div id="feedback-panel" class="hidden bg-brand-chalk border-4 border-brand-dark rounded-xl p-6 mt-4 animate-fade-in shadow-hard">
+                <div class="flex gap-4">
+                    <div id="feedback-icon-container" class="bg-white border-2 border-brand-dark p-3 rounded-full h-fit shadow-hard-sm">
+                        <i id="feedback-icon" class="w-6 h-6"></i>
+                    </div>
+                    <div class="flex-1">
+                        <h3 id="feedback-title" class="font-heading text-xl font-bold mb-1"></h3>
+                        <p id="feedback-desc" class="text-slate-700 font-medium"></p>
+                    </div>
+                </div>
+                <div class="mt-4 flex justify-end">
+                    <button onclick="nextQuestion()" class="neo-btn bg-brand-dark text-white px-6 py-2 rounded-lg border-2 border-white font-heading font-bold shadow-hard hover:bg-slate-800">
+                        Next <i data-lucide="chevron-right" class="inline w-4 h-4 ml-1"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-results" class="hidden p-10 text-center flex-col items-center justify-center min-h-[400px]">
+            <h2 class="font-heading text-4xl font-bold mb-6">Set Complete!</h2>
+            
+            <div class="relative inline-block mb-8">
+                <div class="w-48 h-48 bg-brand-blue rounded-full border-4 border-brand-dark flex items-center justify-center shadow-hard z-10 relative">
+                    <span id="final-score" class="font-heading text-6xl text-white font-bold"></span>
+                </div>
+                <div class="absolute top-0 right-0 transform translate-x-1/4 -translate-y-1/4">
+                    <i data-lucide="star" class="w-16 h-16 text-brand-orange fill-brand-orange drop-shadow-lg"></i>
+                </div>
+            </div>
+
+            <p id="final-message" class="text-xl font-bold text-slate-600 mb-8"></p>
+
+            <div class="flex gap-4">
+                <button onclick="goHome()" class="neo-btn bg-white text-brand-dark border-2 border-brand-dark px-6 py-3 rounded-xl font-heading font-bold text-lg shadow-hard hover:bg-slate-50">
+                    Choose Another Set
+                </button>
+                <button onclick="restartSet()" class="neo-btn bg-brand-green text-brand-dark border-2 border-brand-dark px-6 py-3 rounded-xl font-heading font-bold text-lg shadow-hard hover:bg-green-400">
+                    Retry Set
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // --- DEFAULT DATA (Fallback) ---
+        let allSets = [
+            {
+                "id": "grammar_basic",
+                "title": "Grammar Basics",
+                "topic": "English",
+                "icon": "book-type",
+                "color": "bg-brand-pink",
+                "questions": [
+                    { "q": "She ______ to work every day.", "opts": ["walks", "walking", "is walk", "walked"], "a": 0, "exp": "Routine = Present Simple." },
+                    { "q": "Look! It ______ right now.", "opts": ["rains", "is raining", "rained", "rain"], "a": 1, "exp": "Action now = Present Continuous." }
+                ]
+            },
+            {
+                "id": "harry_potter",
+                "title": "Harry Potter Trivia",
+                "topic": "Books",
+                "icon": "sparkles",
+                "color": "bg-brand-orange",
+                "questions": [
+                    { "q": "Who is the Half-Blood Prince?", "opts": ["Harry", "Riddle", "Snape", "Dumbledore"], "a": 2, "exp": "It was Severus Snape." },
+                    { "q": "What is the model of Harry's first broom?", "opts": ["Nimbus 2000", "Firebolt", "Comet 260", "Cleansweep"], "a": 0, "exp": "McGonagall sent him a Nimbus 2000." }
+                ]
+            },
+            {
+                "id": "math_logic",
+                "title": "Math & Logic",
+                "topic": "Stem",
+                "icon": "calculator",
+                "color": "bg-brand-blue",
+                "questions": [
+                    { "q": "What is the square root of 144?", "opts": ["10", "11", "12", "13"], "a": 2, "exp": "12 x 12 = 144." },
+                    { "q": "Binary '10' equals what decimal number?", "opts": ["1", "2", "3", "10"], "a": 1, "exp": "Binary 10 is 2." }
+                ]
+            }
+        ];
+
+        // --- STATE ---
+        let currentSet = null;
+        let currentQIndex = 0;
+        let score = 0;
+        let isAnswered = false;
+
+        // --- INIT ---
+        window.onload = () => {
+            lucide.createIcons();
+            renderSetButtons();
+        };
+
+        // --- FILE HANDLING ---
+        document.getElementById('json-input').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (Array.isArray(data)) {
+                        allSets = data; // Replace defaults with uploaded
+                        renderSetButtons();
+                        alert("Sets loaded successfully!");
+                    } else {
+                        alert("JSON must be an array of set objects.");
+                    }
+                } catch (err) {
+                    alert("Invalid JSON format.");
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        // --- UI RENDERING ---
+        function renderSetButtons() {
+            const container = document.getElementById('sets-container');
+            container.innerHTML = '';
+
+            const colors = ['bg-brand-pink', 'bg-brand-orange', 'bg-brand-blue', 'bg-brand-green'];
+
+            allSets.forEach((set, index) => {
+                // Cycle colors if not defined
+                const colorClass = set.color || colors[index % colors.length];
+                
+                const btn = document.createElement('button');
+                btn.className = `neo-btn flex flex-col items-start p-6 rounded-xl border-4 border-brand-dark shadow-hard ${colorClass} text-white hover:brightness-110`;
+                btn.onclick = () => startQuiz(set);
+
+                // Icon logic
+                let iconName = set.icon || 'star';
+                
+                btn.innerHTML = `
+                    <div class="bg-white/20 p-2 rounded-lg mb-4 border-2 border-brand-dark">
+                        <i data-lucide="${iconName}" class="w-8 h-8 text-white"></i>
+                    </div>
+                    <div class="text-left">
+                        <span class="text-xs font-heading uppercase tracking-wider bg-brand-dark text-white px-2 py-1 rounded mb-1 inline-block">${set.topic || 'Quiz'}</span>
+                        <h3 class="font-heading text-2xl font-bold leading-tight">${set.title}</h3>
+                        <p class="text-sm opacity-90 font-medium mt-1">${set.questions.length} Questions</p>
+                    </div>
+                `;
+                container.appendChild(btn);
+            });
+            lucide.createIcons();
+        }
+
+        // --- GAME LOGIC ---
+        function startQuiz(set) {
+            currentSet = set;
+            currentQIndex = 0;
+            score = 0;
+            isAnswered = false;
+
+            // UI Switch
+            document.getElementById('view-selector').classList.add('hidden');
+            document.getElementById('view-quiz').classList.remove('hidden');
+            document.getElementById('view-quiz').classList.add('flex');
+            document.getElementById('view-results').classList.add('hidden');
+            document.getElementById('view-results').classList.remove('flex');
+            document.getElementById('score-container').classList.remove('hidden');
+
+            // Set Info
+            document.getElementById('topic-badge').innerText = set.topic || 'Quiz';
+            
+            updateScoreUI();
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            const q = currentSet.questions[currentQIndex];
+            isAnswered = false;
+
+            // Reset UI
+            document.getElementById('feedback-panel').classList.add('hidden');
+            document.getElementById('question-text').innerText = q.q;
+            
+            // Progress
+            const pct = Math.round(((currentQIndex) / currentSet.questions.length) * 100);
+            document.getElementById('progress-bar').style.width = `${pct}%`;
+            document.getElementById('progress-text').innerText = `${pct}%`;
+
+            // Options
+            const grid = document.getElementById('options-grid');
+            grid.innerHTML = '';
+            
+            q.opts.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = `neo-btn w-full bg-white border-2 border-brand-dark rounded-xl p-4 text-left font-bold text-lg shadow-hard-sm hover:bg-slate-50 transition-colors`;
+                btn.innerText = opt;
+                btn.onclick = () => handleAnswer(idx, btn);
+                grid.appendChild(btn);
+            });
+        }
+
+        function handleAnswer(selectedIndex, btnElem) {
+            if (isAnswered) return;
+            isAnswered = true;
+
+            const q = currentSet.questions[currentQIndex];
+            const isCorrect = selectedIndex === q.a;
+            
+            // Highlight buttons
+            const allBtns = document.getElementById('options-grid').children;
+            
+            // Highlight correct
+            allBtns[q.a].className = `w-full bg-brand-green text-brand-dark border-2 border-brand-dark rounded-xl p-4 text-left font-bold text-lg shadow-hard-active translate-x-1 translate-y-1`;
+            
+            if (isCorrect) {
+                score++;
+                showFeedback(true, "Correct!", q.exp);
+            } else {
+                btnElem.className = `w-full bg-brand-pink text-white border-2 border-brand-dark rounded-xl p-4 text-left font-bold text-lg shadow-hard-active translate-x-1 translate-y-1`;
+                showFeedback(false, "Incorrect", q.exp);
+            }
+            updateScoreUI();
+        }
+
+        function showFeedback(success, title, desc) {
+            const panel = document.getElementById('feedback-panel');
+            const icon = document.getElementById('feedback-icon');
+            const iconContainer = document.getElementById('feedback-icon-container');
+            
+            panel.classList.remove('hidden');
+            document.getElementById('feedback-title').innerText = title;
+            document.getElementById('feedback-desc').innerText = desc;
+
+            if (success) {
+                document.getElementById('feedback-title').className = "font-heading text-xl font-bold mb-1 text-green-600";
+                icon.setAttribute('data-lucide', 'check');
+                iconContainer.className = "bg-green-100 border-2 border-brand-dark p-3 rounded-full h-fit shadow-hard-sm text-green-600";
+            } else {
+                document.getElementById('feedback-title').className = "font-heading text-xl font-bold mb-1 text-red-500";
+                icon.setAttribute('data-lucide', 'x');
+                iconContainer.className = "bg-red-100 border-2 border-brand-dark p-3 rounded-full h-fit shadow-hard-sm text-red-500";
+            }
+            lucide.createIcons();
+        }
+
+        function nextQuestion() {
+            currentQIndex++;
+            if (currentQIndex < currentSet.questions.length) {
+                loadQuestion();
+            } else {
+                finishQuiz();
+            }
+        }
+
+        function finishQuiz() {
+            document.getElementById('view-quiz').classList.add('hidden');
+            document.getElementById('view-quiz').classList.remove('flex');
+            document.getElementById('view-results').classList.remove('hidden');
+            document.getElementById('view-results').classList.add('flex');
+            document.getElementById('score-container').classList.add('hidden');
+
+            document.getElementById('final-score').innerText = `${score}/${currentSet.questions.length}`;
+            
+            const pct = (score / currentSet.questions.length);
+            let msg = "Good effort!";
+            if (pct === 1) msg = "Absolutely Flawless!";
+            else if (pct > 0.7) msg = "Great job!";
+            
+            document.getElementById('final-message').innerText = msg;
+        }
+
+        function goHome() {
+            document.getElementById('view-selector').classList.remove('hidden');
+            document.getElementById('view-quiz').classList.add('hidden');
+            document.getElementById('view-quiz').classList.remove('flex');
+            document.getElementById('view-results').classList.add('hidden');
+            document.getElementById('view-results').classList.remove('flex');
+            document.getElementById('score-container').classList.add('hidden');
+            
+            score = 0;
+            currentQIndex = 0;
+        }
+
+        function restartSet() {
+            startQuiz(currentSet);
+        }
+
+        function updateScoreUI() {
+            document.getElementById('score-display').innerText = `Score: ${score}`;
+        }
+
+    </script>
+</body>
+</html>
