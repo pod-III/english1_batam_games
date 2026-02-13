@@ -5,18 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Undercover Game - English 1 Batam</title>
     
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Google Fonts: Fredoka & Nunito -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300..700&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
     
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
-    <!-- Design System Configuration -->
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -47,6 +43,7 @@
                         'bounce-slight': 'bounce-slight 2s infinite',
                         'slide-up': 'slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
                         'pop-in': 'popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                        'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                     },
                     keyframes: {
                         'bounce-slight': {
@@ -100,19 +97,32 @@
             transform: translateY(-6px);
             box-shadow: 10px 10px 0px 0px rgba(30, 41, 59, 1);
         }
+
+        /* Blur effect for teacher view */
+        .blur-secret {
+            filter: blur(8px);
+            transition: filter 0.3s;
+            cursor: pointer;
+        }
+        .blur-secret:hover, .blur-secret:active {
+            filter: blur(0px);
+        }
     </style>
 </head>
 <body class="font-nunito text-e1dark min-h-screen flex flex-col selection:bg-e1pink selection:text-white dark:bg-slate-900 dark:text-white">
 
     <header class="bg-white dark:bg-slate-800 border-b-4 border-e1dark px-6 py-4 sticky top-0 z-50 shadow-sm">
         <div class="container mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="initGame()">
                 <div class="bg-e1pink p-2 rounded-xl border-3 border-e1dark shadow-hard-sm transform -rotate-3">
                     <i data-lucide="graduation-cap" class="text-white w-6 h-6"></i>
                 </div>
                 <span class="font-fredoka font-bold text-2xl tracking-wide hidden sm:block">English 1 Batam</span>
             </div>
             <div class="flex items-center gap-4">
+                <button onclick="toggleTeacherView()" class="bg-e1orange text-white px-3 py-2 rounded-lg border-2 border-e1dark shadow-hard-sm btn-press" title="Teacher Eyes Only">
+                    <i data-lucide="eye" class="w-5 h-5"></i>
+                </button>
                 <button onclick="initGame()" class="font-fredoka font-bold text-sm bg-e1blue text-white px-4 py-2 rounded-lg border-2 border-e1dark shadow-hard-sm btn-press">
                     <i data-lucide="home" class="w-4 h-4 inline mr-1"></i> Home
                 </button>
@@ -120,9 +130,34 @@
         </div>
     </header>
 
-    <main id="app" class="flex-grow container mx-auto px-4 py-12 flex flex-col items-center justify-start max-w-4xl">
-        <!-- Content injected by JS -->
-    </main>
+    <main id="app" class="flex-grow container mx-auto px-4 py-8 flex flex-col items-center justify-start max-w-4xl">
+        </main>
+
+    <div id="teacherModal" class="fixed inset-0 z-[60] hidden flex-col items-center justify-center bg-e1dark/90 backdrop-blur-sm p-4">
+        <div class="bg-white border-4 border-e1dark rounded-3xl shadow-hard-lg max-w-2xl w-full flex flex-col max-h-[90vh]">
+            <div class="p-6 border-b-4 border-e1dark bg-slate-50 rounded-t-3xl flex justify-between items-center">
+                <h2 class="font-fredoka text-3xl font-black text-e1dark flex items-center gap-2">
+                    <i data-lucide="glasses" class="text-e1blue"></i> Teacher View
+                </h2>
+                <button onclick="toggleTeacherView()" class="bg-e1pink text-white p-2 rounded-xl border-3 border-e1dark shadow-hard-sm hover:scale-95 transition">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+            
+            <div class="p-8 overflow-y-auto">
+                <div class="bg-yellow-100 border-3 border-yellow-500 text-yellow-800 p-4 rounded-xl mb-6 font-bold text-center">
+                    <i data-lucide="alert-triangle" class="inline w-5 h-5 mb-1 mr-1"></i> 
+                    Hover over the blurred area below to reveal answers. <br>Ensure projector is FREEZE or OFF if mirroring screen!
+                </div>
+
+                <div class="blur-secret bg-slate-100 p-6 rounded-2xl border-3 border-dashed border-slate-400">
+                    <h3 class="font-black text-xl mb-4 text-center underline decoration-wavy decoration-e1pink">CURRENT GAME STATE</h3>
+                    <div id="teacherContent" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>
         const WORD_PAIRS = [
@@ -138,10 +173,15 @@
         const state = {
             screen: 'instructions',
             lastScreen: null,
+            timer: null,
+            timeLeft: 0,
             config: {
                 playerNames: [], 
                 spies: 1,
-                mrWhite: 0
+                mrWhite: 0,
+                useCustomWords: false,
+                customWord1: '',
+                customWord2: ''
             },
             game: {
                 players: [], 
@@ -163,44 +203,128 @@
             render();
         }
 
+        function toggleTeacherView() {
+            const modal = document.getElementById('teacherModal');
+            const content = document.getElementById('teacherContent');
+            
+            if (modal.classList.contains('hidden')) {
+                // Open
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                
+                // Populate content
+                if (state.game.players.length === 0) {
+                    content.innerHTML = '<p class="col-span-2 text-center font-bold text-slate-400">Game has not started yet.</p>';
+                } else {
+                    let html = state.game.players.map(p => {
+                        let color = 'text-e1blue';
+                        if(p.role === 'Undercover') color = 'text-e1pink';
+                        if(p.role === 'Mr. White') color = 'text-e1orange';
+                        
+                        return `
+                            <div class="bg-white border-2 border-e1dark p-3 rounded-lg shadow-sm flex justify-between items-center">
+                                <span class="font-bold text-e1dark">${p.name}</span>
+                                <div class="text-right">
+                                    <div class="text-xs font-black uppercase ${color}">${p.role}</div>
+                                    <div class="text-sm font-bold text-slate-500">${p.word}</div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                    
+                    content.innerHTML = `
+                        <div class="col-span-2 text-center mb-2">
+                            <span class="bg-e1blue text-white px-2 py-1 rounded text-xs font-bold">Civilian: ${state.game.civWord}</span>
+                            <span class="bg-e1pink text-white px-2 py-1 rounded text-xs font-bold">Spy: ${state.game.spyWord}</span>
+                        </div>
+                        ${html}
+                    `;
+                }
+            } else {
+                // Close
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
         function startGame() {
-            const pair = WORD_PAIRS[Math.floor(Math.random() * WORD_PAIRS.length)];
-            const flip = Math.random() > 0.5;
-            state.game.civWord = flip ? pair[0] : pair[1];
-            state.game.spyWord = flip ? pair[1] : pair[0];
+            // Word Selection Logic
+            if (state.config.useCustomWords && state.config.customWord1 && state.config.customWord2) {
+                state.game.civWord = state.config.customWord1;
+                state.game.spyWord = state.config.customWord2;
+                // Randomize which is which
+                if (Math.random() > 0.5) {
+                    [state.game.civWord, state.game.spyWord] = [state.game.spyWord, state.game.civWord];
+                }
+            } else {
+                const pair = WORD_PAIRS[Math.floor(Math.random() * WORD_PAIRS.length)];
+                const flip = Math.random() > 0.5;
+                state.game.civWord = flip ? pair[0] : pair[1];
+                state.game.spyWord = flip ? pair[1] : pair[0];
+            }
 
             let total = state.config.playerNames.length;
             let roles = Array(total).fill('Civilian');
             let spyCount = state.config.spies;
             let whiteCount = state.config.mrWhite;
 
-            for(let i=0; i < total; i++) {
-                if(spyCount > 0) {
-                    roles[i] = 'Undercover';
-                    spyCount--;
-                } else if (whiteCount > 0) {
-                    roles[i] = 'Mr. White';
-                    whiteCount--;
-                }
-            }
+            // Assign special roles
+            let indices = Array.from({length: total}, (_, i) => i);
+            indices.sort(() => Math.random() - 0.5); // Shuffle indices
 
-            roles.sort(() => Math.random() - 0.5);
+            for (let i = 0; i < spyCount; i++) roles[indices.pop()] = 'Undercover';
+            for (let i = 0; i < whiteCount; i++) roles[indices.pop()] = 'Mr. White';
 
-            state.game.players = roles.map((role, idx) => ({
+            // Build Players
+            state.game.players = state.config.playerNames.map((name, idx) => ({
                 id: idx,
-                name: state.config.playerNames[idx],
-                role: role,
-                word: role === 'Civilian' ? state.game.civWord : (role === 'Undercover' ? state.game.spyWord : '???'),
+                name: name,
+                role: roles[idx],
+                word: roles[idx] === 'Civilian' ? state.game.civWord : (roles[idx] === 'Undercover' ? state.game.spyWord : '???'),
                 isAlive: true,
                 avatarId: idx % 6 
             }));
+
+            // Randomize turn order for variety, but keep mapping consistent
+            state.game.players.sort(() => Math.random() - 0.5);
 
             state.game.currentTurnIndex = 0;
             state.game.winner = null;
             setScreen('pass');
         }
 
+        // Timer Logic
+        function startTimer(seconds) {
+            clearInterval(state.timer);
+            state.timeLeft = seconds;
+            renderTimer();
+            state.timer = setInterval(() => {
+                state.timeLeft--;
+                renderTimer();
+                if (state.timeLeft <= 0) {
+                    clearInterval(state.timer);
+                    document.getElementById('timerDisplay').classList.add('animate-pulse-fast', 'text-red-500');
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(state.timer);
+            state.timeLeft = 0;
+            renderTimer();
+        }
+
+        function renderTimer() {
+            const el = document.getElementById('timerDisplay');
+            if (el) {
+                const mins = Math.floor(state.timeLeft / 60);
+                const secs = state.timeLeft % 60;
+                el.innerText = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+            }
+        }
+
         function handleEliminate(playerIdx) {
+            stopTimer(); // Stop timer if eliminating
             const player = state.game.players[playerIdx];
             state.game.eliminatedPlayer = player;
             
@@ -261,9 +385,14 @@
             if (state.screen === 'setup') {
                 document.getElementById('playerNameInput')?.focus();
             }
+            if (state.screen === 'discussion' && isTransition) {
+                // Optional: Auto start timer? Better to let teacher start it.
+            }
             
             state.lastScreen = state.screen;
         }
+
+        /* --- HTML Generators --- */
 
         function getInstructionsHTML() {
             return `
@@ -271,8 +400,6 @@
                     <h1 class="font-fredoka text-6xl font-black text-e1dark mb-2 tracking-tight">How to Play?</h1>
                     <p class="text-slate-500 font-bold text-xl uppercase tracking-widest">Undercover Edition</p>
                 </div>
-
-                <!-- Roles Section -->
                 <div class="bg-white border-4 border-e1dark rounded-3xl shadow-hard p-8 mb-10 w-full">
                     <h2 class="font-fredoka text-3xl font-bold mb-6 flex items-center gap-3">
                         <i data-lucide="users" class="text-e1blue w-8 h-8"></i> The Roles
@@ -283,7 +410,7 @@
                                 <i data-lucide="user-check" class="text-e1blue w-5 h-5"></i>
                                 <h4 class="font-fredoka text-xl font-bold text-e1blue uppercase">Civilian</h4>
                             </div>
-                            <p class="text-sm font-bold text-slate-600 leading-tight">Most players. You have the <span class="text-e1dark underline decoration-2">true secret word</span>. Find the impostors!</p>
+                            <p class="text-sm font-bold text-slate-600 leading-tight">Most players. You have the <span class="text-e1dark underline decoration-2">true secret word</span>.</p>
                         </div>
                         <div class="p-5 bg-pink-50 border-3 border-e1dark rounded-2xl">
                             <div class="flex items-center gap-2 mb-2">
@@ -297,30 +424,10 @@
                                 <i data-lucide="ghost" class="text-e1orange w-5 h-5"></i>
                                 <h4 class="font-fredoka text-xl font-bold text-e1orange uppercase">Mr. White</h4>
                             </div>
-                            <p class="text-sm font-bold text-slate-600 leading-tight">You have <span class="text-e1dark underline decoration-2">NO word</span> at all. Try to guess what others are talking about.</p>
+                            <p class="text-sm font-bold text-slate-600 leading-tight">You have <span class="text-e1dark underline decoration-2">NO word</span>. Guess the topic!</p>
                         </div>
                     </div>
                 </div>
-
-                <!-- Steps Section -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10 w-full">
-                    <div class="bg-white border-4 border-e1dark rounded-2xl shadow-hard p-6 card-hover transition-all">
-                        <div class="w-12 h-12 bg-e1pink rounded-xl border-3 border-e1dark shadow-hard-sm flex items-center justify-center mb-4 transform rotate-6">
-                            <i data-lucide="message-square" class="text-white w-6 h-6"></i>
-                        </div>
-                        <h3 class="font-fredoka text-2xl font-bold mb-2">1. Describe Clues</h3>
-                        <p class="font-nunito font-bold text-slate-600">Each player says one sentence about their word. Be careful—Mr. White is listening to copy you!</p>
-                    </div>
-
-                    <div class="bg-white border-4 border-e1dark rounded-2xl shadow-hard p-6 card-hover transition-all">
-                        <div class="w-12 h-12 bg-e1orange rounded-xl border-3 border-e1dark shadow-hard-sm flex items-center justify-center mb-4 transform rotate-3">
-                            <i data-lucide="gavel" class="text-white w-6 h-6"></i>
-                        </div>
-                        <h3 class="font-fredoka text-2xl font-bold mb-2">2. Vote & Guess</h3>
-                        <p class="font-nunito font-bold text-slate-600">Vote for the suspect. If Mr. White is caught, they get one chance to guess the Civilian word to steal the win!</p>
-                    </div>
-                </div>
-
                 <button onclick="setScreen('setup')" class="w-full bg-e1green text-white font-fredoka font-bold text-3xl py-6 rounded-2xl border-4 border-e1dark shadow-hard-lg btn-press flex justify-center items-center gap-4">
                     Got it, Let's Setup! <i data-lucide="arrow-right" class="w-8 h-8"></i>
                 </button>
@@ -340,52 +447,74 @@
             return `
                 <div class="text-center mb-8">
                     <h1 class="font-fredoka text-5xl font-black text-e1dark mb-2">Class Setup</h1>
-                    <p class="text-slate-500 font-bold">Add the names of students playing</p>
+                    <p class="text-slate-500 font-bold">Add students and choose words</p>
                 </div>
                 
-                <div class="bg-white w-full border-4 border-e1dark rounded-3xl shadow-hard p-8 relative">
+                <div class="bg-white w-full border-4 border-e1dark rounded-3xl shadow-hard p-8 relative mb-8">
                     <div class="mb-10">
                         <label class="font-fredoka text-2xl font-bold mb-4 flex items-center gap-3 text-e1blue">
                             <i data-lucide="user-plus" class="w-8 h-8"></i> Add Students
                         </label>
-                        
                         <div class="flex gap-4 mb-6">
                             <input type="text" id="playerNameInput" placeholder="Name..." 
                                 onkeydown="if(event.key==='Enter') addName()"
-                                class="flex-grow bg-e1chalk border-4 border-e1dark rounded-2xl px-6 py-4 font-black text-xl focus:outline-none focus:ring-8 focus:ring-e1blue/10 transition-all placeholder:text-slate-300">
+                                class="flex-grow bg-e1chalk border-4 border-e1dark rounded-2xl px-6 py-4 font-black text-xl focus:outline-none focus:ring-4 focus:ring-e1blue/20 transition-all placeholder:text-slate-300">
                             <button onclick="addName()" class="bg-e1blue text-white px-8 rounded-2xl border-4 border-e1dark shadow-hard-sm btn-press font-fredoka font-bold text-xl">ADD</button>
                         </div>
-
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto p-4 bg-slate-50 rounded-2xl border-3 border-dashed border-slate-300">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-40 overflow-y-auto p-4 bg-slate-50 rounded-2xl border-3 border-dashed border-slate-300">
                             ${namesList || '<p class="col-span-2 text-center py-6 text-slate-400 font-bold italic">No students joined yet...</p>'}
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
-                        <div class="p-5 bg-pink-50 rounded-2xl border-4 border-e1dark shadow-hard-sm">
-                            <div class="flex justify-between items-center mb-4">
-                                <label class="font-fredoka text-xl font-bold flex items-center gap-2"><i data-lucide="user-x" class="w-5 h-5"></i> Undercovers</label>
-                                <span class="bg-e1pink text-white w-10 h-10 flex items-center justify-center rounded-xl border-2 border-e1dark font-black shadow-hard-sm">${state.config.spies}</span>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-4">
+                            <div class="p-4 bg-pink-50 rounded-2xl border-4 border-e1dark shadow-hard-sm">
+                                <div class="flex justify-between items-center mb-2">
+                                    <label class="font-fredoka font-bold flex items-center gap-2"><i data-lucide="user-x" class="w-4 h-4"></i> Spies</label>
+                                    <span class="bg-e1pink text-white px-3 py-1 rounded-lg border-2 border-e1dark font-black">${state.config.spies}</span>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button onclick="adjustConfig('spies', -1)" class="flex-1 bg-white border-2 border-e1dark rounded-lg py-1 font-black hover:bg-slate-50">-</button>
+                                    <button onclick="adjustConfig('spies', 1)" class="flex-1 bg-white border-2 border-e1dark rounded-lg py-1 font-black hover:bg-slate-50">+</button>
+                                </div>
                             </div>
-                            <div class="flex gap-3">
-                                <button onclick="adjustConfig('spies', -1)" class="flex-1 bg-white border-3 border-e1dark rounded-xl py-2 font-black text-2xl hover:bg-slate-50 transition">-</button>
-                                <button onclick="adjustConfig('spies', 1)" class="flex-1 bg-white border-3 border-e1dark rounded-xl py-2 font-black text-2xl hover:bg-slate-50 transition">+</button>
+                            <div class="p-4 bg-orange-50 rounded-2xl border-4 border-e1dark shadow-hard-sm">
+                                <div class="flex justify-between items-center mb-2">
+                                    <label class="font-fredoka font-bold flex items-center gap-2"><i data-lucide="ghost" class="w-4 h-4"></i> Mr. White</label>
+                                    <span class="bg-e1orange text-white px-3 py-1 rounded-lg border-2 border-e1dark font-black">${state.config.mrWhite}</span>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button onclick="adjustConfig('mrWhite', -1)" class="flex-1 bg-white border-2 border-e1dark rounded-lg py-1 font-black hover:bg-slate-50">-</button>
+                                    <button onclick="adjustConfig('mrWhite', 1)" class="flex-1 bg-white border-2 border-e1dark rounded-lg py-1 font-black hover:bg-slate-50">+</button>
+                                </div>
                             </div>
                         </div>
-                        <div class="p-5 bg-orange-50 rounded-2xl border-4 border-e1dark shadow-hard-sm">
-                            <div class="flex justify-between items-center mb-4">
-                                <label class="font-fredoka text-xl font-bold flex items-center gap-2"><i data-lucide="ghost" class="w-5 h-5"></i> Mr. White</label>
-                                <span class="bg-e1orange text-white w-10 h-10 flex items-center justify-center rounded-xl border-2 border-e1dark font-black shadow-hard-sm">${state.config.mrWhite}</span>
+
+                        <div class="p-5 bg-e1chalk rounded-2xl border-4 border-e1dark shadow-hard-sm flex flex-col justify-center">
+                            <label class="font-fredoka text-xl font-bold mb-4 flex items-center gap-2">
+                                <i data-lucide="book-open" class="text-e1green"></i> Word Source
+                            </label>
+                            
+                            <div class="flex bg-white rounded-xl border-3 border-e1dark p-1 mb-4">
+                                <button onclick="setWordMode(false)" class="flex-1 py-2 rounded-lg font-bold transition-all ${!state.config.useCustomWords ? 'bg-e1green text-white shadow-sm' : 'text-slate-400'}">Random</button>
+                                <button onclick="setWordMode(true)" class="flex-1 py-2 rounded-lg font-bold transition-all ${state.config.useCustomWords ? 'bg-e1blue text-white shadow-sm' : 'text-slate-400'}">Custom</button>
                             </div>
-                            <div class="flex gap-3">
-                                <button onclick="adjustConfig('mrWhite', -1)" class="flex-1 bg-white border-3 border-e1dark rounded-xl py-2 font-black text-2xl hover:bg-slate-50 transition">-</button>
-                                <button onclick="adjustConfig('mrWhite', 1)" class="flex-1 bg-white border-3 border-e1dark rounded-xl py-2 font-black text-2xl hover:bg-slate-50 transition">+</button>
-                            </div>
+
+                            ${state.config.useCustomWords ? `
+                                <div class="flex flex-col gap-2 animate-pop-in">
+                                    <input type="text" id="customWord1" placeholder="Civilian Word (e.g. Tea)" onchange="state.config.customWord1 = this.value" value="${state.config.customWord1}" class="w-full border-3 border-e1dark rounded-xl px-3 py-2 font-bold focus:outline-none focus:border-e1blue">
+                                    <input type="text" id="customWord2" placeholder="Spy Word (e.g. Coffee)" onchange="state.config.customWord2 = this.value" value="${state.config.customWord2}" class="w-full border-3 border-e1dark rounded-xl px-3 py-2 font-bold focus:outline-none focus:border-e1pink">
+                                </div>
+                            ` : `
+                                <div class="text-center py-4 opacity-50 font-bold text-slate-500 animate-pop-in">
+                                    Words will be chosen randomly from category list.
+                                </div>
+                            `}
                         </div>
                     </div>
 
                     <button onclick="startGame()" ${state.config.playerNames.length < 3 ? 'disabled opacity-50 cursor-not-allowed' : ''} 
-                        class="w-full bg-e1green text-white font-fredoka font-bold text-3xl py-6 rounded-2xl border-4 border-e1dark shadow-hard btn-press flex justify-center items-center gap-4 transition-all">
+                        class="w-full mt-8 bg-e1green text-white font-fredoka font-bold text-3xl py-6 rounded-2xl border-4 border-e1dark shadow-hard btn-press flex justify-center items-center gap-4 transition-all">
                         ${state.config.playerNames.length < 3 ? 'Need 3+ Players' : 'START LESSON!'}
                         <i data-lucide="sparkles" class="w-8 h-8"></i>
                     </button>
@@ -495,7 +624,7 @@
 
             return `
                 <div class="w-full">
-                    <div class="flex flex-col sm:flex-row justify-between items-center mb-10 gap-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-center mb-8 gap-6">
                         <div class="flex items-center gap-4">
                             <div class="bg-e1orange text-white p-3 rounded-2xl border-4 border-e1dark shadow-hard transform rotate-6">
                                 <i data-lucide="message-circle" class="w-8 h-8"></i>
@@ -505,7 +634,15 @@
                                 <p class="font-bold text-slate-400 uppercase tracking-widest text-sm">Find the Spy!</p>
                             </div>
                         </div>
-                        <button onclick="initGame()" class="bg-white text-e1dark px-6 py-3 rounded-2xl border-4 border-e1dark shadow-hard-sm font-black text-sm btn-press">RESTART</button>
+                        
+                        <div class="flex items-center gap-2 bg-white border-3 border-e1dark rounded-2xl p-2 shadow-hard-sm">
+                             <div id="timerDisplay" class="font-fredoka font-black text-3xl w-24 text-center text-e1dark">0:00</div>
+                             <div class="flex gap-1">
+                                <button onclick="startTimer(60)" class="bg-e1blue text-white p-2 rounded-lg border-2 border-e1dark font-bold text-xs hover:bg-e1blue/90">1m</button>
+                                <button onclick="startTimer(180)" class="bg-e1blue text-white p-2 rounded-lg border-2 border-e1dark font-bold text-xs hover:bg-e1blue/90">3m</button>
+                                <button onclick="stopTimer()" class="bg-red-400 text-white p-2 rounded-lg border-2 border-e1dark hover:bg-red-500"><i data-lucide="square" class="w-4 h-4"></i></button>
+                             </div>
+                        </div>
                     </div>
 
                     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 mb-12">${playersGrid}</div>
@@ -516,6 +653,9 @@
                             <i data-lucide="mic-2"></i> Teacher's Guide
                         </h3>
                         <p class="font-bold text-lg text-slate-600 leading-relaxed italic text-center">Encourage students to use English to describe their word. Remember: Spies and Mr. White will try to echo the Civilians to survive!</p>
+                        <div class="mt-4 flex justify-center">
+                            <button onclick="initGame()" class="bg-white text-e1dark px-6 py-2 rounded-xl border-3 border-e1dark shadow-hard-sm font-black text-xs hover:bg-slate-50">RESTART GAME</button>
+                        </div>
                     </div>
                 </div>
             `;
@@ -573,6 +713,8 @@
             `;
         }
 
+        /* --- Logic --- */
+
         function addName() {
             const input = document.getElementById('playerNameInput');
             const name = input.value.trim();
@@ -587,6 +729,11 @@
         function removeName(index) {
             state.config.playerNames.splice(index, 1);
             updateSpiesLogic();
+            render();
+        }
+
+        function setWordMode(isCustom) {
+            state.config.useCustomWords = isCustom;
             render();
         }
 
