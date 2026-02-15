@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>English 1 Poster Studio v2.5</title>
+    <title>English 1 Poster Studio v2.7</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -239,6 +239,43 @@
                     </div>
                 `
             },
+            comic: {
+                icon: 'film', color: 'pink', label: 'Comic Strip',
+                default: { cap1: 'First...', cap2: 'Then...', cap3: 'Finally...' },
+                inputs: (id, d) => {
+                    const mkPanel = (n) => {
+                        const img = Store.imgCache.get(d[`img${n}`]) || '';
+                        return `
+                        <div class="p-2 bg-slate-50 border border-slate-200 rounded-lg mb-2">
+                            <label class="l">Panel ${n}</label>
+                            <div class="flex gap-2 mb-2 h-16">
+                                <div onclick="App.openImageSelector('${id}', 'img${n}')" class="w-16 h-16 bg-white border border-slate-300 rounded cursor-pointer flex items-center justify-center overflow-hidden hover:border-brand-dark">
+                                    ${img ? `<img src="${img}" class="w-full h-full object-cover">` : `<i data-lucide="image-plus" class="w-4 h-4 text-slate-300"></i>`}
+                                </div>
+                                <textarea class="inp-area h-full flex-1 text-xs" oninput="Store.updateMod('${id}','data.cap${n}',this.value)" placeholder="Caption...">${d[`cap${n}`]||''}</textarea>
+                            </div>
+                        </div>`;
+                    }
+                    return `<div>${mkPanel(1)}${mkPanel(2)}${mkPanel(3)}</div>`;
+                },
+                render: (d, c, fs) => {
+                    const mkP = (n) => {
+                        const imgId = d[`img${n}`];
+                        const src = Store.imgCache.get(imgId);
+                        return `
+                        <div class="flex-1 flex flex-col gap-2">
+                            <div class="aspect-square bg-slate-100 border-4 border-brand-dark rounded-xl overflow-hidden relative shadow-sm">
+                                ${imgId ? `<img data-idb-id="${imgId}" src="${src||''}" class="w-full h-full object-cover">` : ''}
+                                <div class="absolute top-2 left-2 bg-brand-dark text-white font-black text-xs w-6 h-6 flex items-center justify-center rounded-full">${n}</div>
+                            </div>
+                            <div class="bg-white border-2 border-brand-dark rounded-xl p-3 shadow-neo-sm min-h-[4rem] flex items-center justify-center text-center">
+                                <p class="font-hand font-bold text-xl leading-tight">${d[`cap${n}`]||''}</p>
+                            </div>
+                        </div>`;
+                    };
+                    return `<div class="h-full flex gap-4 p-4 items-center justify-center">${mkP(1)}${mkP(2)}${mkP(3)}</div>`;
+                }
+            },
             grammar_structure: {
                 icon: 'layers', color: 'blue', label: 'Formula',
                 default: { formula: 'S + V + O', example: 'I eat apples.' },
@@ -389,8 +426,11 @@
                 
                 // If waiting for selection, auto select
                 if(App.currentImageModId) {
-                    Store.updateMod(App.currentImageModId, 'data.imageId', imgId);
-                    Store.updateMod(App.currentImageModId, 'data.url', null);
+                    const key = App.currentImageKey || 'imageId';
+                    Store.updateMod(App.currentImageModId, `data.${key}`, imgId);
+                    // Clear legacy/single URL if exists
+                    if(key === 'imageId') Store.updateMod(App.currentImageModId, 'data.url', null);
+                    
                     Editor.render(App.currentImageModId);
                     App.closeImageLibrary();
                 } else {
@@ -445,6 +485,7 @@
         const App = {
             confirmCallback: null,
             currentImageModId: null,
+            currentImageKey: 'imageId',
 
             init() {
                 Store.init().then(() => {
@@ -540,14 +581,16 @@
             },
 
             // Image Library Logic
-            openImageSelector(modId) {
+            openImageSelector(modId, key = 'imageId') {
                 App.currentImageModId = modId;
+                App.currentImageKey = key;
                 document.getElementById('image-modal').classList.remove('hidden');
                 App.refreshImageLibrary();
             },
             closeImageLibrary() {
                 document.getElementById('image-modal').classList.add('hidden');
                 App.currentImageModId = null;
+                App.currentImageKey = 'imageId';
             },
             handleImageUpload(input) {
                 Store.uploadImage(input);
@@ -573,8 +616,11 @@
             },
             selectImage(imgId) {
                 if(App.currentImageModId) {
-                    Store.updateMod(App.currentImageModId, 'data.imageId', imgId);
-                    Store.updateMod(App.currentImageModId, 'data.url', null);
+                    const key = App.currentImageKey || 'imageId';
+                    Store.updateMod(App.currentImageModId, `data.${key}`, imgId);
+                    
+                    if(key === 'imageId') Store.updateMod(App.currentImageModId, 'data.url', null);
+
                     Editor.render(App.currentImageModId);
                     App.closeImageLibrary();
                 }
