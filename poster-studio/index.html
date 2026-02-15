@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>English 1 Poster Studio v2.7</title>
+    <title>English 1 Poster Studio v3.3</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -50,17 +50,22 @@
         .slide-in-bottom { animation: slideInBottom 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
         @keyframes slideInBottom { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
-        /* DRAG & DROP */
-        .draggable-item { cursor: grab; transition: transform 0.2s, box-shadow 0.2s; }
-        .draggable-item:active { cursor: grabbing; }
-        .draggable-item.dragging { opacity: 0.5; background: #f1f5f9; border-style: dashed; border-color: #94a3b8; transform: scale(0.95); }
-        .draggable-item.over { border-top: 4px solid #2979FF; padding-top: 4px; }
+        /* CANVAS INTERACTIVITY */
+        .module-wrapper { transition: all 0.2s ease; cursor: pointer; }
+        .module-wrapper:hover { transform: scale(1.01); box-shadow: 0 0 0 4px #2979FF; z-index: 20; }
+        .module-wrapper:active { transform: scale(0.99); }
 
         /* MODES */
-        body.zen-mode aside { display: none !important; }
-        body.zen-mode #poster-viewport { padding: 0; }
+        body.zen-mode #top-bar, body.zen-mode #bottom-dock { display: none !important; }
+        /* Fix Zen Mode Centering: Remove the bottom padding used for the dock */
+        body.zen-mode #poster-viewport { padding-bottom: 2rem !important; }
+        
+        /* EXIT ZEN BUTTON - Hidden by default, shown in Zen Mode */
+        #exit-zen-btn { display: none; }
+        body.zen-mode #exit-zen-btn { display: flex; }
+
         @media print {
-            .no-print, aside, button, .zoom-controls { display: none !important; }
+            .no-print, #top-bar, #bottom-dock, button, .zoom-controls, #exit-zen-btn { display: none !important; }
             body, html, main, #poster-viewport { margin: 0; padding: 0; background: white; overflow: visible; height: auto; }
             #poster-wrapper { transform: none !important; width: 100%; margin: 0; }
             #poster-area { border: none; box-shadow: none; width: 100% !important; height: 100vh !important; background: white !important; page-break-after: always; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -68,77 +73,108 @@
     </style>
 </head>
 
-<body class="bg-brand-surface h-screen w-screen overflow-hidden text-brand-dark font-body selection:bg-brand-yellow/50">
+<body class="bg-brand-surface h-screen w-screen overflow-hidden text-brand-dark font-body selection:bg-brand-yellow/50 flex flex-col">
 
-    <div class="flex h-full">
-        <aside class="w-[380px] h-full flex flex-col bg-white border-r-4 border-brand-dark shrink-0 relative z-30 no-print shadow-2xl">
+    <!-- EXIT ZEN BUTTON (Visible only in Zen Mode) -->
+    <button onclick="App.toggleFullScreen()" id="exit-zen-btn" class="fixed top-6 left-6 z-50 neo-btn bg-white border-2 border-brand-dark text-brand-dark px-4 py-2 gap-2 shadow-neo hover:bg-slate-50 transition-all">
+        <i data-lucide="minimize" class="w-4 h-4"></i>
+        <span class="font-heading font-black text-sm uppercase">Exit Zen Mode</span>
+    </button>
+
+    <!-- TOP BAR: Project & Global Settings -->
+    <header id="top-bar" class="h-20 bg-white border-b-4 border-brand-dark shrink-0 flex items-center px-4 gap-4 z-40 shadow-sm relative">
+        <div class="flex items-center gap-2 mr-4">
+            <div class="w-10 h-10 bg-brand-pink rounded-lg border-2 border-brand-dark flex items-center justify-center font-heading font-black text-white text-xl">E1</div>
+            <h1 class="font-heading font-black text-xl text-brand-dark tracking-tight leading-none hidden md:block">POSTER<br><span class="text-brand-pink">STUDIO</span></h1>
+        </div>
+
+        <div class="flex-1 flex gap-2 items-center overflow-x-auto no-scrollbar">
+            <!-- Nav -->
+            <div class="flex gap-1 p-1 bg-slate-100 rounded-lg border-2 border-brand-dark shrink-0">
+                <button onclick="App.cyclePoster(-1)" class="w-8 h-8 flex items-center justify-center hover:bg-slate-200 rounded"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+                <div class="relative group w-40">
+                    <select id="project-select" onchange="App.switchPoster(this.value)" class="w-full h-full pl-2 pr-6 bg-transparent font-heading font-bold text-sm text-brand-dark appearance-none cursor-pointer outline-none truncate"></select>
+                    <i data-lucide="chevron-down" class="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none"></i>
+                </div>
+                <button onclick="App.cyclePoster(1)" class="w-8 h-8 flex items-center justify-center hover:bg-slate-200 rounded"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+            </div>
             
-            <div class="p-3 border-b-4 border-brand-dark bg-slate-50 relative z-20">
-                <div class="flex items-center justify-between mb-2">
-                    <h1 class="font-heading font-black text-xl text-brand-dark tracking-tight">POSTER <span class="text-brand-pink">STUDIO</span></h1>
-                </div>
+            <div class="h-8 w-0.5 bg-slate-300 mx-2 hidden md:block"></div>
 
-                <div class="mb-2 p-1 bg-brand-dark rounded-lg flex gap-1 shadow-neo-sm">
-                    <button onclick="App.cyclePoster(-1)" class="p-1.5 bg-slate-700 text-white rounded hover:bg-slate-600"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
-                    <div class="flex-1 relative group">
-                        <select id="project-select" onchange="App.switchPoster(this.value)" class="w-full h-full pl-2 pr-6 bg-slate-800 rounded font-heading font-bold text-sm text-white appearance-none cursor-pointer outline-none"></select>
-                        <i data-lucide="chevron-down" class="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none"></i>
-                    </div>
-                    <button onclick="App.cyclePoster(1)" class="p-1.5 bg-slate-700 text-white rounded hover:bg-slate-600"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
-                    <button onclick="App.createNewPoster()" class="p-1.5 bg-brand-green text-brand-dark rounded hover:bg-green-400"><i data-lucide="plus" class="w-4 h-4"></i></button>
-                </div>
-
-                <div class="grid grid-cols-4 gap-2">
-                    <input type="text" id="global_badge" class="neo-input col-span-1 text-center" placeholder="#">
-                    <input type="text" id="global_title" class="neo-input col-span-3" placeholder="TITLE">
-                    <input type="text" id="global_subtitle" class="neo-input col-span-4 font-body font-semibold text-xs" placeholder="Subtitle...">
-                </div>
+            <!-- Global Inputs -->
+            <div class="flex gap-2 flex-1 min-w-[300px]">
+                <input type="text" id="global_badge" class="neo-input w-16 text-center" placeholder="#">
+                <input type="text" id="global_title" class="neo-input flex-1" placeholder="POSTER TITLE">
+                <input type="text" id="global_subtitle" class="neo-input flex-1 hidden lg:block" placeholder="Subtitle...">
             </div>
+        </div>
 
-            <div class="p-3 border-b-4 border-brand-dark bg-white z-10">
-                <label class="block font-heading font-bold text-[10px] text-slate-400 mb-2 uppercase tracking-widest">Add Module</label>
-                <div class="grid grid-cols-4 gap-2" id="module-toolbox">
-                    </div>
-            </div>
-
-            <div class="flex-1 overflow-y-auto p-4 bg-slate-50 custom-scrollbar relative">
-                <div id="editor-container" class="space-y-2 pb-24">
-                    </div>
-            </div>
-
-            <div class="p-4 border-t-4 border-brand-dark bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-20 flex gap-2">
-                <button onclick="Store.save(true)" id="save-btn" class="flex-1 neo-btn bg-brand-dark text-white py-3 gap-2"><i data-lucide="save" class="w-4 h-4"></i> Save</button>
-                <div class="flex border-2 border-brand-dark rounded-xl overflow-hidden shadow-neo bg-white">
-                    <button onclick="App.exportPoster()" class="px-4 hover:bg-slate-100 border-r-2 border-brand-dark" title="Export JSON"><i data-lucide="download" class="w-5 h-5"></i></button>
-                    <button onclick="document.getElementById('import-file').click()" class="px-4 hover:bg-slate-100" title="Import JSON"><i data-lucide="upload" class="w-5 h-5"></i></button>
+        <!-- Actions -->
+        <div class="flex gap-2 shrink-0">
+            <button onclick="Store.save(true)" id="save-btn" class="neo-btn bg-brand-dark text-white px-4 py-2 gap-2 h-10"><i data-lucide="save" class="w-4 h-4"></i> <span class="hidden sm:inline">Save</span></button>
+            <div class="relative group">
+                <button class="neo-btn bg-white w-10 h-10 p-0"><i data-lucide="more-vertical" class="w-5 h-5"></i></button>
+                <div class="absolute right-0 top-full mt-2 w-48 bg-white border-2 border-brand-dark rounded-xl shadow-neo hidden group-hover:block z-50">
+                    <button onclick="App.openLibrary()" class="w-full text-left px-4 py-3 hover:bg-slate-50 font-bold border-b-2 border-brand-dark flex gap-2"><i data-lucide="folder-open" class="w-4 h-4"></i> Open Library</button>
+                    <button onclick="App.createNewPoster()" class="w-full text-left px-4 py-3 hover:bg-slate-50 font-bold border-b-2 border-brand-dark flex gap-2"><i data-lucide="plus" class="w-4 h-4"></i> New Project</button>
+                    <button onclick="document.getElementById('import-file').click()" class="w-full text-left px-4 py-3 hover:bg-slate-50 font-bold border-b-2 border-brand-dark flex gap-2"><i data-lucide="upload" class="w-4 h-4"></i> Import JSON</button>
+                    <button onclick="App.exportPoster()" class="w-full text-left px-4 py-3 hover:bg-slate-50 font-bold border-b-2 border-brand-dark flex gap-2"><i data-lucide="download" class="w-4 h-4"></i> Export JSON</button>
+                    <button onclick="App.toggleFullScreen()" class="w-full text-left px-4 py-3 hover:bg-slate-50 font-bold flex gap-2"><i data-lucide="maximize" class="w-4 h-4"></i> Zen Mode</button>
                 </div>
             </div>
-        </aside>
+        </div>
+    </header>
 
-        <main class="flex-1 h-full relative overflow-hidden flex flex-col bg-brand-surface">
-            
-            <div class="absolute top-4 right-4 z-40 flex gap-2 no-print">
-                <div class="bg-white border-2 border-brand-dark rounded-xl shadow-neo flex items-center p-1 gap-1">
-                    <button onclick="App.changeZoom(-0.1)" class="p-2 hover:bg-slate-100 rounded-lg"><i data-lucide="minus" class="w-4 h-4"></i></button>
-                    <span id="zoom-display" class="font-heading font-bold text-xs w-10 text-center">50%</span>
-                    <button onclick="App.changeZoom(0.1)" class="p-2 hover:bg-slate-100 rounded-lg"><i data-lucide="plus" class="w-4 h-4"></i></button>
-                    <button onclick="App.fitToScreen()" class="px-2 py-1 bg-brand-yellow/30 text-brand-dark rounded text-[10px] font-black uppercase">FIT</button>
-                </div>
-                <button onclick="App.openLibrary()" class="neo-btn bg-brand-yellow w-10 h-10 p-0"><i data-lucide="folder-open" class="w-5 h-5"></i></button>
-                <button onclick="App.toggleFullScreen()" class="neo-btn bg-white w-10 h-10 p-0"><i data-lucide="maximize" class="w-5 h-5"></i></button>
-                <button onclick="window.print()" class="neo-btn bg-brand-blue text-white w-10 h-10 p-0"><i data-lucide="printer" class="w-5 h-5"></i></button>
+    <!-- MAIN CANVAS -->
+    <main class="flex-1 relative overflow-hidden flex flex-col bg-brand-surface">
+        
+        <!-- Zoom & Print Controls -->
+        <div class="absolute top-4 right-4 z-30 flex gap-2 no-print opacity-50 hover:opacity-100 transition-opacity">
+            <div class="bg-white border-2 border-brand-dark rounded-xl shadow-neo flex items-center p-1 gap-1">
+                <button onclick="App.changeZoom(-0.1)" class="p-2 hover:bg-slate-100 rounded-lg"><i data-lucide="minus" class="w-4 h-4"></i></button>
+                <span id="zoom-display" class="font-heading font-bold text-xs w-10 text-center">50%</span>
+                <button onclick="App.changeZoom(0.1)" class="p-2 hover:bg-slate-100 rounded-lg"><i data-lucide="plus" class="w-4 h-4"></i></button>
+                <button onclick="App.fitToScreen()" class="px-2 py-1 bg-brand-yellow/30 text-brand-dark rounded text-[10px] font-black uppercase">FIT</button>
             </div>
+            <button onclick="window.print()" class="neo-btn bg-brand-blue text-white w-10 h-10 p-0 shadow-sm"><i data-lucide="printer" class="w-5 h-5"></i></button>
+        </div>
 
-            <div id="poster-viewport" class="flex-1 w-full h-full overflow-auto p-8 flex justify-center items-center transition-all duration-300">
-                <div id="poster-wrapper">
-                    <div id="poster-area" class="w-[2560px] h-[1440px] bg-brand-chalk bg-graph-paper relative shadow-neo-lg overflow-hidden border-4 border-brand-dark"></div>
-                </div>
+        <div id="poster-viewport" class="flex-1 w-full h-full overflow-auto p-8 flex justify-center items-center transition-all duration-300 pb-32">
+            <div id="poster-wrapper">
+                <div id="poster-area" class="w-[2560px] h-[1440px] bg-brand-chalk bg-graph-paper relative shadow-neo-lg overflow-hidden border-4 border-brand-dark"></div>
             </div>
-        </main>
+        </div>
+    </main>
+
+    <!-- BOTTOM DOCK (Add Modules) -->
+    <div id="bottom-dock" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-white/90 backdrop-blur border-2 border-brand-dark rounded-2xl shadow-neo-lg p-2 flex gap-2 items-center overflow-x-auto max-w-[90vw] no-print">
+        <div class="px-2 font-heading font-black text-xs text-brand-dark uppercase opacity-50 shrink-0">Add<br>Layer</div>
+        <div class="h-8 w-0.5 bg-slate-200 shrink-0"></div>
+        <div id="module-toolbox" class="flex gap-2"></div>
+    </div>
+
+    <!-- EDIT MODAL (Replaces Sidebar) -->
+    <div id="editor-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-brand-dark/20 backdrop-blur-sm">
+        <div class="bg-white w-[90%] max-w-lg max-h-[90vh] flex flex-col rounded-2xl border-4 border-brand-dark shadow-[12px_12px_0px_0px_#1e293b] overflow-hidden slide-in-bottom">
+            <div id="editor-header" class="p-4 border-b-4 border-brand-dark flex justify-between items-center bg-slate-50">
+                <span class="font-heading font-black text-xl uppercase flex items-center gap-2" id="editor-title">Edit Layer</span>
+                <button onclick="App.closeEditor()" class="p-2 hover:bg-slate-200 rounded-lg"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div id="editor-content" class="flex-1 overflow-y-auto p-6 bg-white custom-scrollbar space-y-6">
+                <!-- Inputs rendered here -->
+            </div>
+            <div class="p-4 bg-slate-50 border-t-4 border-brand-dark flex gap-2">
+                <button onclick="App.moveModule(-1)" class="flex-1 neo-btn bg-white text-brand-dark py-3 text-xs gap-1" title="Move Backward"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back</button>
+                <button onclick="App.moveModule(1)" class="flex-1 neo-btn bg-white text-brand-dark py-3 text-xs gap-1" title="Move Forward">Fwd <i data-lucide="arrow-right" class="w-4 h-4"></i></button>
+                <div class="w-0.5 bg-slate-300 mx-1"></div>
+                <button onclick="App.duplicateCurrent()" class="flex-1 neo-btn bg-brand-blue text-white py-3 text-xs gap-1"><i data-lucide="copy" class="w-4 h-4"></i> Copy</button>
+                <button onclick="App.deleteCurrent()" class="flex-1 neo-btn bg-red-100 text-brand-red py-3 text-xs gap-1"><i data-lucide="trash-2" class="w-4 h-4"></i> Del</button>
+            </div>
+        </div>
     </div>
 
     <!-- LIBRARY MODAL -->
-    <div id="library-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-brand-dark/60 backdrop-blur-sm">
+    <div id="library-modal" class="fixed inset-0 z-[110] hidden items-center justify-center bg-brand-dark/60 backdrop-blur-sm">
         <div class="bg-white w-[90%] max-w-3xl max-h-[85vh] flex flex-col rounded-2xl border-4 border-brand-dark shadow-[8px_8px_0px_0px_#1e293b] overflow-hidden">
             <div class="p-5 border-b-4 border-brand-dark bg-slate-50 flex justify-between items-center">
                 <h2 class="font-heading font-black text-2xl">MY PROJECTS</h2>
@@ -152,7 +188,7 @@
     </div>
 
     <!-- IMAGE LIBRARY MODAL -->
-    <div id="image-modal" class="fixed inset-0 z-[105] hidden items-center justify-center bg-brand-dark/60 backdrop-blur-sm">
+    <div id="image-modal" class="fixed inset-0 z-[115] hidden items-center justify-center bg-brand-dark/60 backdrop-blur-sm">
         <div class="bg-white w-[90%] max-w-4xl max-h-[85vh] flex flex-col rounded-2xl border-4 border-brand-dark shadow-[8px_8px_0px_0px_#1e293b] overflow-hidden slide-in-bottom">
             <div class="p-5 border-b-4 border-brand-dark bg-brand-teal text-white flex justify-between items-center">
                 <div class="flex items-center gap-3">
@@ -175,8 +211,8 @@
         </div>
     </div>
 
-    <!-- CONFIRMATION MODAL v2 -->
-    <div id="confirm-modal" class="fixed inset-0 z-[110] hidden items-center justify-center bg-brand-dark/20 backdrop-blur-sm">
+    <!-- CONFIRMATION MODAL -->
+    <div id="confirm-modal" class="fixed inset-0 z-[120] hidden items-center justify-center bg-brand-dark/20 backdrop-blur-sm">
         <div class="bg-white w-[90%] max-w-md flex flex-col rounded-2xl border-4 border-brand-dark shadow-[12px_12px_0px_0px_#1e293b] overflow-hidden slide-in-bottom">
             <div class="h-4 bg-brand-red border-b-4 border-brand-dark flex gap-2 items-center px-3">
                 <div class="w-2 h-2 rounded-full bg-white/50"></div>
@@ -216,7 +252,7 @@
                 render: (d, c, fs) => `<ul class="p-6 bg-white h-full flex flex-col justify-center">${(d.list||'').split('\n').map(x=>`<li class="flex items-center gap-4 mb-2"><div class="w-4 h-4 bg-brand-${c} border border-brand-dark shadow-[1px_1px_0_0_#1e293b] shrink-0"></div><span class="font-body font-bold text-brand-dark ${CONFIG.sizes.vocab[fs]||CONFIG.sizes.vocab.md}">${x}</span></li>`).join('')}</ul>`
             },
             dodont: {
-                icon: 'shield-alert', color: 'red', label: "Do's & Don'ts",
+                icon: 'shield-alert', color: 'red', label: "Do's/Don'ts",
                 default: { wrong: 'I go to home.', correct: 'I go home.' },
                 inputs: (id, d) => `
                     <label class="l text-red-500">Don't Say (Wrong)</label>
@@ -240,7 +276,7 @@
                 `
             },
             comic: {
-                icon: 'film', color: 'pink', label: 'Comic Strip',
+                icon: 'film', color: 'pink', label: 'Comic',
                 default: { cap1: 'First...', cap2: 'Then...', cap3: 'Finally...' },
                 inputs: (id, d) => {
                     const mkPanel = (n) => {
@@ -249,8 +285,9 @@
                         <div class="p-2 bg-slate-50 border border-slate-200 rounded-lg mb-2">
                             <label class="l">Panel ${n}</label>
                             <div class="flex gap-2 mb-2 h-16">
-                                <div onclick="App.openImageSelector('${id}', 'img${n}')" class="w-16 h-16 bg-white border border-slate-300 rounded cursor-pointer flex items-center justify-center overflow-hidden hover:border-brand-dark">
+                                <div onclick="App.openImageSelector('${id}', 'img${n}')" class="w-16 h-16 bg-white border border-slate-300 rounded cursor-pointer flex items-center justify-center overflow-hidden hover:border-brand-dark relative group">
                                     ${img ? `<img src="${img}" class="w-full h-full object-cover">` : `<i data-lucide="image-plus" class="w-4 h-4 text-slate-300"></i>`}
+                                    <div class="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 flex items-center justify-center"><i data-lucide="edit" class="w-4 h-4 text-white drop-shadow"></i></div>
                                 </div>
                                 <textarea class="inp-area h-full flex-1 text-xs" oninput="Store.updateMod('${id}','data.cap${n}',this.value)" placeholder="Caption...">${d[`cap${n}`]||''}</textarea>
                             </div>
@@ -263,7 +300,7 @@
                         const imgId = d[`img${n}`];
                         const src = Store.imgCache.get(imgId);
                         return `
-                        <div class="flex-1 flex flex-col gap-2">
+                        <div class="flex-1 flex flex-col gap-2 min-w-[50px]">
                             <div class="aspect-square bg-slate-100 border-4 border-brand-dark rounded-xl overflow-hidden relative shadow-sm">
                                 ${imgId ? `<img data-idb-id="${imgId}" src="${src||''}" class="w-full h-full object-cover">` : ''}
                                 <div class="absolute top-2 left-2 bg-brand-dark text-white font-black text-xs w-6 h-6 flex items-center justify-center rounded-full">${n}</div>
@@ -403,7 +440,7 @@
             },
 
             // Updates
-            updateGlobal(key, val) { Store.current.global[key] = val; Renderer.renderPoster(); App.updateUI(); Store.triggerSave(); },
+            updateGlobal(key, val) { Store.current.global[key] = val; Renderer.renderPoster(); }, // Removed full UI update for inputs
             updateMod(id, key, val) {
                 const m = Store.current.modules.find(x => x.id === id);
                 if(!m) return;
@@ -412,43 +449,32 @@
                 Renderer.renderPoster(); Store.triggerSave();
             },
             
+            // ... (Image logic same as before) ...
             async uploadImage(input) {
                 const file = input.files[0]; if(!file) return;
                 const imgId = crypto.randomUUID();
                 const blob = new Blob([file], {type: file.type});
-                
-                // Cache
                 Store.imgCache.set(imgId, URL.createObjectURL(blob));
-                
-                // DB
                 const tx = Store.db.transaction('imgs', 'readwrite');
                 tx.objectStore('imgs').put(blob, imgId);
                 
-                // If waiting for selection, auto select
                 if(App.currentImageModId) {
                     const key = App.currentImageKey || 'imageId';
                     Store.updateMod(App.currentImageModId, `data.${key}`, imgId);
-                    // Clear legacy/single URL if exists
                     if(key === 'imageId') Store.updateMod(App.currentImageModId, 'data.url', null);
-                    
                     Editor.render(App.currentImageModId);
                     App.closeImageLibrary();
                 } else {
-                    App.refreshImageLibrary(); // Just uploaded via manager
+                    App.refreshImageLibrary();
                 }
             },
-
             async deleteImage(id) {
                 return new Promise(res => {
                     const tx = Store.db.transaction('imgs', 'readwrite');
                     tx.objectStore('imgs').delete(id);
-                    tx.oncomplete = () => {
-                        Store.imgCache.delete(id);
-                        res();
-                    }
+                    tx.oncomplete = () => { Store.imgCache.delete(id); res(); }
                 });
             },
-
             async getAllImages() {
                 return new Promise(res => {
                     const tx = Store.db.transaction('imgs', 'readonly');
@@ -464,7 +490,6 @@
                     };
                 });
             },
-
             async getImage(id) {
                 if(Store.imgCache.has(id)) return Store.imgCache.get(id);
                 return new Promise(res => {
@@ -478,6 +503,19 @@
                         } else res(null);
                     }
                 });
+            },
+            
+            // Helpers
+            moveMod(id, dir) {
+                const idx = Store.current.modules.findIndex(m => m.id === id);
+                const target = idx + dir;
+                if(target >= 0 && target < Store.current.modules.length) {
+                    const temp = Store.current.modules[idx];
+                    Store.current.modules[idx] = Store.current.modules[target];
+                    Store.current.modules[target] = temp;
+                    Store.save();
+                    Renderer.renderPoster();
+                }
             }
         };
 
@@ -486,6 +524,7 @@
             confirmCallback: null,
             currentImageModId: null,
             currentImageKey: 'imageId',
+            editingId: null,
 
             init() {
                 Store.init().then(() => {
@@ -498,19 +537,21 @@
 
                 // Listeners
                 ['title','subtitle','badge'].forEach(k => {
-                    document.getElementById(`global_${k}`).addEventListener('input', e => Store.updateGlobal(k, e.target.value));
+                    document.getElementById(`global_${k}`).addEventListener('input', e => {
+                        Store.updateGlobal(k, e.target.value);
+                        Store.triggerSave();
+                    });
                 });
             },
 
             renderToolbox() {
                 const box = document.getElementById('module-toolbox');
                 box.innerHTML = Object.entries(ModuleRegistry).map(([k, v]) => `
-                    <button onclick="App.addModule('${k}')" class="flex flex-col items-center justify-center p-2 bg-white border-2 border-brand-dark rounded-xl shadow-[2px_2px_0px_0px_rgba(30,41,59,1)] hover:shadow-none hover:translate-y-0.5 hover:bg-slate-50 transition-all">
+                    <button onclick="App.addModule('${k}')" class="flex flex-col items-center justify-center p-2 min-w-[70px] bg-white border-2 border-brand-dark rounded-xl shadow-[2px_2px_0px_0px_rgba(30,41,59,1)] hover:shadow-none hover:translate-y-0.5 hover:bg-slate-50 transition-all shrink-0">
                         <i data-lucide="${v.icon}" class="w-5 h-5 text-brand-${v.color} mb-1"></i>
                         <span class="font-heading font-bold text-[10px] text-slate-600 uppercase leading-none">${v.label}</span>
                     </button>
                 `).join('');
-
                 lucide.createIcons();
             },
 
@@ -534,36 +575,57 @@
                 };
                 Store.current.modules.push(mod);
                 Store.save();
-                Editor.renderList();
                 Renderer.renderPoster();
-                // Scroll to bottom
-                setTimeout(() => document.getElementById('editor-container').lastElementChild?.scrollIntoView({behavior:'smooth'}), 100);
+                
+                // Automatically open the editor for the new module
+                App.openEditor(mod.id);
             },
 
-            deleteModule(id) {
-                App.showConfirm('Are you sure you want to delete this layer? The content will be lost.', () => {
-                    Store.current.modules = Store.current.modules.filter(m => m.id !== id);
-                    if(Editor.editingId === id) Editor.editingId = null;
-                    Store.save();
-                    Editor.renderList();
-                    Renderer.renderPoster();
-                });
+            // EDITING INTERACTION
+            openEditor(id) {
+                App.editingId = id;
+                const m = Store.current.modules.find(x => x.id === id);
+                if(!m) return;
+                
+                document.getElementById('editor-title').innerText = `Edit ${m.title}`;
+                document.getElementById('editor-modal').classList.remove('hidden');
+                document.getElementById('editor-modal').classList.add('flex');
+                
+                Editor.render(id);
+            },
+            closeEditor() {
+                App.editingId = null;
+                document.getElementById('editor-modal').classList.add('hidden');
+                document.getElementById('editor-modal').classList.remove('flex');
             },
             
-            duplicateModule(id) {
-                const idx = Store.current.modules.findIndex(m => m.id === id);
-                if(idx === -1) return;
+            // Module Actions inside Editor
+            deleteCurrent() {
+                if(!App.editingId) return;
+                App.showConfirm('Delete this layer?', () => {
+                    Store.current.modules = Store.current.modules.filter(m => m.id !== App.editingId);
+                    Store.save();
+                    Renderer.renderPoster();
+                    App.closeEditor();
+                });
+            },
+            duplicateCurrent() {
+                if(!App.editingId) return;
+                const idx = Store.current.modules.findIndex(m => m.id === App.editingId);
                 const original = Store.current.modules[idx];
                 const copy = JSON.parse(JSON.stringify(original));
                 copy.id = crypto.randomUUID();
-                copy.title += ' (Copy)';
                 Store.current.modules.splice(idx + 1, 0, copy);
                 Store.save();
-                Editor.renderList();
                 Renderer.renderPoster();
+                App.closeEditor(); // Close to avoid confusion or re-open for new one? Close is safer.
+            },
+            moveModule(dir) {
+                if(!App.editingId) return;
+                Store.moveMod(App.editingId, dir);
             },
 
-            // Confirmation Logic
+            // Confirmation
             showConfirm(msg, callback) {
                 document.getElementById('confirm-msg').innerText = msg;
                 App.confirmCallback = callback;
@@ -575,12 +637,9 @@
                 document.getElementById('confirm-modal').classList.remove('flex');
                 App.confirmCallback = null;
             },
-            handleConfirmYes() {
-                if (App.confirmCallback) App.confirmCallback();
-                App.closeConfirm();
-            },
+            handleConfirmYes() { if (App.confirmCallback) App.confirmCallback(); App.closeConfirm(); },
 
-            // Image Library Logic
+            // Image Library
             openImageSelector(modId, key = 'imageId') {
                 App.currentImageModId = modId;
                 App.currentImageKey = key;
@@ -592,65 +651,32 @@
                 App.currentImageModId = null;
                 App.currentImageKey = 'imageId';
             },
-            handleImageUpload(input) {
-                Store.uploadImage(input);
-                input.value = ''; // Reset
-            },
+            handleImageUpload(input) { Store.uploadImage(input); input.value = ''; },
             async refreshImageLibrary() {
                 const grid = document.getElementById('image-grid');
-                grid.innerHTML = '<div class="col-span-full text-center p-4 text-slate-400 font-bold">Loading images...</div>';
-                
+                grid.innerHTML = '<div class="col-span-full text-center p-4 text-slate-400 font-bold">Loading...</div>';
                 const images = await Store.getAllImages();
-                if(images.length === 0) {
-                    grid.innerHTML = '<div class="col-span-full text-center p-8 text-slate-400 font-bold border-2 border-dashed border-slate-300 rounded-xl">No images in library</div>';
-                    return;
-                }
-                
+                if(images.length === 0) { grid.innerHTML = '<div class="col-span-full text-center p-8 text-slate-400 font-bold border-2 border-dashed border-slate-300 rounded-xl">No images</div>'; return; }
                 grid.innerHTML = images.map(img => `
                     <div class="relative group aspect-square bg-slate-200 rounded-xl border-2 border-brand-dark overflow-hidden cursor-pointer shadow-sm hover:shadow-neo-sm transition-all" onclick="App.selectImage('${img.id}')">
                         <img src="${img.url}" class="w-full h-full object-cover">
                         <button onclick="event.stopPropagation(); App.deleteImageAsset('${img.id}')" class="absolute top-1 right-1 p-1 bg-red-500 text-white rounded border border-brand-dark opacity-0 group-hover:opacity-100 transition-opacity"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                    </div>
-                `).join('');
+                    </div>`).join('');
                 lucide.createIcons();
             },
-            selectImage(imgId) {
-                if(App.currentImageModId) {
-                    const key = App.currentImageKey || 'imageId';
-                    Store.updateMod(App.currentImageModId, `data.${key}`, imgId);
-                    
-                    if(key === 'imageId') Store.updateMod(App.currentImageModId, 'data.url', null);
-
-                    Editor.render(App.currentImageModId);
-                    App.closeImageLibrary();
-                }
-            },
-            deleteImageAsset(id) {
-                if(confirm('Delete this image permanently?')) {
-                    Store.deleteImage(id).then(App.refreshImageLibrary);
-                }
-            },
+            selectImage(imgId) { Store.selectImage(imgId); },
+            deleteImageAsset(id) { if(confirm('Delete image?')) Store.deleteImage(id).then(App.refreshImageLibrary); },
 
             // Nav
-            switchPoster(id) {
-                Store.state.currentId = id;
-                Store.loadCurrent();
-                Editor.editingId = null;
-                App.updateUI();
-                Editor.renderList();
-                Renderer.renderPoster();
-                App.fitToScreen();
-            },
+            switchPoster(id) { Store.state.currentId = id; Store.loadCurrent(); App.updateUI(); Renderer.renderPoster(); App.fitToScreen(); },
             createNewPoster() {
                 const newP = { id: crypto.randomUUID(), lastModified: Date.now(), zoom: 0.5, global: { title: 'UNTITLED', subtitle: 'New Project', badge: '1' }, modules: [] };
-                Store.state.posters.push(newP);
-                App.switchPoster(newP.id);
+                Store.state.posters.push(newP); App.switchPoster(newP.id);
             },
             cyclePoster(dir) {
                 const idx = Store.state.posters.findIndex(p => p.id === Store.current.id);
                 let next = idx + dir;
-                if(next >= Store.state.posters.length) next = 0;
-                if(next < 0) next = Store.state.posters.length - 1;
+                if(next >= Store.state.posters.length) next = 0; if(next < 0) next = Store.state.posters.length - 1;
                 App.switchPoster(Store.state.posters[next].id);
             },
 
@@ -660,8 +686,7 @@
             fitToScreen() {
                 const vp = document.getElementById('poster-viewport');
                 const scale = Math.min((vp.clientWidth-60)/2560, (vp.clientHeight-60)/1440);
-                Store.current.zoom = scale;
-                Renderer.applyZoom();
+                Store.current.zoom = scale; Renderer.applyZoom();
             },
 
             // Library
@@ -679,32 +704,9 @@
                 lucide.createIcons();
                 document.getElementById('library-modal').classList.remove('hidden');
             },
-            deletePoster(id) {
-                App.showConfirm('Are you sure you want to delete this project?', () => {
-                    Store.state.posters = Store.state.posters.filter(p => p.id !== id);
-                    if(id === Store.current.id) App.switchPoster(Store.state.posters[0].id);
-                    else { Store.save(); App.openLibrary(); }
-                });
-            },
-            exportPoster() {
-                const a = document.createElement('a');
-                a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(Store.current));
-                a.download = `Poster_${Store.current.global.title}.json`;
-                a.click();
-            },
-            handleFileImport(input) {
-                const f = input.files[0]; if(!f) return;
-                const r = new FileReader();
-                r.onload = e => {
-                    try {
-                        const j = JSON.parse(e.target.result);
-                        j.id = crypto.randomUUID();
-                        Store.state.posters.push(j);
-                        App.switchPoster(j.id);
-                    } catch(err) { alert('Invalid file'); }
-                };
-                r.readAsText(f);
-            }
+            deletePoster(id) { App.showConfirm('Delete Project?', () => { Store.state.posters = Store.state.posters.filter(p => p.id !== id); if(id === Store.current.id) App.switchPoster(Store.state.posters[0].id); else { Store.save(); App.openLibrary(); } }); },
+            exportPoster() { const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(Store.current)); a.download = `Poster_${Store.current.global.title}.json`; a.click(); },
+            handleFileImport(input) { const f = input.files[0]; if(!f) return; const r = new FileReader(); r.onload = e => { try { const j = JSON.parse(e.target.result); j.id = crypto.randomUUID(); Store.state.posters.push(j); App.switchPoster(j.id); } catch(err) { alert('Invalid file'); } }; r.readAsText(f); }
         };
 
         // --- 4. RENDERER (Canvas) ---
@@ -713,32 +715,29 @@
                 const g = Store.current.global;
                 const area = document.getElementById('poster-area');
                 
-                // Header
                 const header = `
-                    <div class="col-span-12 row-span-2 flex items-start justify-between border-b-4 border-brand-dark pb-4">
+                    <div class="col-span-12 row-span-2 flex items-start justify-between border-b-4 border-brand-dark pb-4 pointer-events-none">
                         <div><h1 class="font-heading font-black text-8xl text-brand-dark leading-none mb-4">${g.title}</h1><p class="font-body font-bold text-4xl text-slate-500">${g.subtitle}</p></div>
                         <div class="h-32 min-w-[180px] px-10 flex items-center justify-center bg-brand-yellow border-4 border-brand-dark rounded-full shadow-neo transform rotate-2">
                             <span class="font-heading font-black text-6xl text-brand-dark">${g.badge}</span>
                         </div>
                     </div>`;
                 
-                // Grid
                 const mods = Store.current.modules.map(m => {
                     const cfg = ModuleRegistry[m.type];
-                    // SAFEGUARD: If module type was removed (e.g. logic/qa), skip rendering to prevent crash
                     if (!cfg) return ''; 
-
-                    // Classes - Expanded Options
                     const spans = {
                         size: { xs: 'col-span-2', sm: 'col-span-4', md: 'col-span-6', lg: 'col-span-8', xl: 'col-span-10', full: 'col-span-12' },
                         height: { mini: 'row-span-1', short: 'row-span-2', auto: 'row-span-3', tall: 'row-span-6', grand: 'row-span-9', full: 'row-span-12' }
                     };
                     const inner = cfg.render(m.data, m.color, m.fontSize||'md');
                     
+                    // Added: onclick -> App.openEditor
                     return `
-                        <div class="${spans.size[m.size]||'col-span-6'} ${spans.height[m.height]||'row-span-3'} bg-white border-4 border-brand-dark rounded-2xl overflow-hidden shadow-neo relative flex flex-col group">
+                        <div onclick="App.openEditor('${m.id}')" class="module-wrapper ${spans.size[m.size]||'col-span-6'} ${spans.height[m.height]||'row-span-3'} bg-white border-4 border-brand-dark rounded-2xl overflow-hidden shadow-neo relative flex flex-col group">
                             <div class="bg-brand-${m.color} px-6 py-3 border-b-4 border-brand-dark flex justify-between items-center relative z-10 shrink-0">
                                 <h3 class="font-heading font-black text-white text-2xl uppercase tracking-wide truncate">${m.title}</h3>
+                                <div class="opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded p-1"><i data-lucide="edit-3" class="w-5 h-5 text-white"></i></div>
                             </div>
                             <div class="flex-1 overflow-hidden relative">${inner}</div>
                             <div class="tape-strip"></div>
@@ -749,6 +748,7 @@
                 
                 Renderer.applyZoom();
                 Renderer.hydrateImages();
+                lucide.createIcons();
             },
             applyZoom() {
                 const z = Store.current.zoom || 0.5;
@@ -764,116 +764,45 @@
             }
         };
 
-        // --- 5. EDITOR (Sidebar) ---
+        // --- 5. EDITOR (Modal) ---
         const Editor = {
-            editingId: null,
-
-            renderList() {
-                const con = document.getElementById('editor-container');
-                con.innerHTML = '';
-                
-                if(Editor.editingId) return Editor.render(Editor.editingId);
-
-                if(!Store.current.modules.length) {
-                    con.innerHTML = `<div class="text-center p-8 border-2 border-dashed border-slate-300 rounded-xl mt-4 opacity-50"><i data-lucide="layers" class="w-8 h-8 mx-auto mb-2 text-slate-400"></i><p class="text-xs font-bold text-slate-400 uppercase">No layers yet</p></div>`;
-                    lucide.createIcons(); return;
-                }
-
-                Store.current.modules.forEach((mod, idx) => {
-                    const el = document.createElement('div');
-                    el.className = 'draggable-item relative group flex items-center gap-3 p-3 rounded-xl border-2 bg-white border-slate-200 hover:border-brand-dark mb-2 select-none';
-                    el.draggable = true;
-                    // DnD Events
-                    el.ondragstart = e => { e.dataTransfer.setData('text/plain', idx); e.target.classList.add('dragging'); };
-                    el.ondragend = e => { e.target.classList.remove('dragging'); document.querySelectorAll('.draggable-item').forEach(x=>x.classList.remove('over')); };
-                    el.ondragover = e => { e.preventDefault(); };
-                    el.ondragenter = e => e.currentTarget.classList.add('over');
-                    el.ondragleave = e => e.currentTarget.classList.remove('over');
-                    el.ondrop = e => {
-                        e.preventDefault();
-                        const from = parseInt(e.dataTransfer.getData('text/plain'));
-                        const to = idx;
-                        if(from !== to) {
-                            const item = Store.current.modules.splice(from, 1)[0];
-                            Store.current.modules.splice(to, 0, item);
-                            Store.save();
-                            Editor.renderList();
-                            Renderer.renderPoster();
-                        }
-                    };
-
-                    el.innerHTML = `
-                        <div class="cursor-grab text-slate-300 group-hover:text-slate-500"><i data-lucide="grip-vertical" class="w-4 h-4"></i></div>
-                        <div class="w-2 h-8 rounded-full bg-brand-${mod.color}"></div>
-                        <div class="flex-1 min-w-0 cursor-pointer" onclick="Editor.editingId='${mod.id}'; Editor.renderList()">
-                            <div class="flex items-center gap-2"><span class="text-[9px] font-black uppercase text-slate-400">${mod.type}</span></div>
-                            <h4 class="font-heading font-bold text-brand-dark text-sm truncate">${mod.title}</h4>
-                        </div>
-                        <button onclick="App.duplicateModule('${mod.id}')" class="p-2 text-slate-300 hover:text-brand-blue" title="Duplicate"><i data-lucide="copy" class="w-4 h-4"></i></button>
-                        <button onclick="App.deleteModule('${mod.id}')" class="p-2 text-slate-300 hover:text-red-500" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                    `;
-                    con.appendChild(el);
-                });
-                lucide.createIcons();
-            },
-
             render(id) {
                 const m = Store.current.modules.find(x => x.id === id);
-                if(!m) { Editor.editingId = null; return Editor.renderList(); }
+                if(!m) return;
                 const cfg = ModuleRegistry[m.type];
-                
-                // SAFEGUARD: If editing a removed module type, go back to list
-                if (!cfg) { Editor.editingId = null; return Editor.renderList(); }
-
-                const con = document.getElementById('editor-container');
+                const con = document.getElementById('editor-content');
 
                 // Color Picker
-                const colors = CONFIG.colors.map(c => `<button onclick="Store.updateMod('${id}','color','${c}'); Editor.render('${id}')" class="w-6 h-6 rounded-full bg-brand-${c} ${m.color===c?'border-2 border-brand-dark scale-110':'border border-white opacity-50'}"></button>`).join('');
+                const colors = CONFIG.colors.map(c => `<button onclick="Store.updateMod('${id}','color','${c}'); Editor.render('${id}')" class="w-8 h-8 rounded-full bg-brand-${c} ${m.color===c?'border-4 border-brand-dark scale-110':'border-2 border-white opacity-50 ring-2 ring-transparent'}"></button>`).join('');
                 
-                // Segments Helper - EXPANDED for rows
                 const mkSeg = (lbl, key, opts) => `
                     <div class="mb-3"><label class="lbl">${lbl}</label><div class="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl border-2 border-slate-200">
-                    ${opts.map((o,i) => `<button onclick="Store.updateMod('${id}','${key}','${o.v}'); Editor.render('${id}')" class="py-1.5 text-[9px] font-black uppercase rounded-lg border-2 transition-all ${(m[key]||o.def)===o.v ? 'bg-brand-dark text-white border-brand-dark shadow-sm':'bg-white text-slate-500 border-transparent hover:border-slate-300'}">${o.l}</button>`).join('')}
+                    ${opts.map((o,i) => `<button onclick="Store.updateMod('${id}','${key}','${o.v}'); Editor.render('${id}')" class="py-1.5 text-[10px] font-black uppercase rounded-lg border-2 transition-all ${(m[key]||o.def)===o.v ? 'bg-brand-dark text-white border-brand-dark shadow-sm':'bg-white text-slate-500 border-transparent hover:border-slate-300'}">${o.l}</button>`).join('')}
                     </div></div>`;
 
                 con.innerHTML = `
-                    <div class="h-full flex flex-col slide-in-bottom -m-2">
-                        <div class="bg-brand-${m.color} bg-opacity-10 border-b-4 border-brand-${m.color} p-4 flex justify-between items-start">
-                            <div class="flex-1 mr-4">
-                                <span class="text-[9px] font-black uppercase opacity-50 flex items-center gap-1"><i data-lucide="pen-tool" class="w-3 h-3"></i> ${cfg.label} Layer</span>
-                                <input type="text" value="${m.title}" class="w-full font-heading font-black text-2xl text-brand-dark bg-transparent border-b-2 border-transparent hover:border-slate-300 focus:border-brand-dark outline-none" oninput="Store.updateMod('${id}','title',this.value)">
+                    <div class="space-y-6">
+                        <div>
+                            <label class="lbl">Layer Title</label>
+                            <input type="text" value="${m.title}" class="w-full font-heading font-black text-2xl text-brand-dark bg-transparent border-b-2 border-slate-200 hover:border-brand-dark focus:border-brand-blue outline-none py-1" oninput="Store.updateMod('${id}','title',this.value)">
+                        </div>
+
+                        <div class="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
+                            <label class="lbl mb-2">Style & Color</label>
+                            <div class="flex gap-2 mb-4 overflow-x-auto pb-2">${colors}</div>
+                            
+                            <div class="grid grid-cols-2 gap-4">
+                                ${mkSeg('Width', 'size', [{v:'sm',l:'SM'}, {v:'md',l:'MD',def:true}, {v:'full',l:'FULL'}])}
+                                ${mkSeg('Height', 'height', [{v:'short',l:'SM'}, {v:'auto',l:'MD',def:true}, {v:'tall',l:'LG'}])}
                             </div>
-                            <button onclick="Editor.editingId=null; Editor.renderList()" class="w-8 h-8 rounded bg-white border-2 border-brand-dark flex items-center justify-center hover:bg-slate-100"><i data-lucide="x" class="w-4 h-4"></i></button>
+                            ${mkSeg('Text Size', 'fontSize', [{v:'sm',l:'Small'},{v:'md',l:'Normal',def:true},{v:'lg',l:'Large'}])}
                         </div>
                         
-                        <div class="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                            <div class="bg-white p-3 rounded-xl border-2 border-brand-dark shadow-sm mb-4">
-                                <label class="lbl">Color Theme</label><div class="flex gap-2 mb-4 overflow-x-auto pb-2">${colors}</div>
-                                
-                                ${mkSeg('Width', 'size', [
-                                    {v:'xs',l:'XS'}, {v:'sm',l:'SM'}, {v:'md',l:'MD',def:true},
-                                    {v:'lg',l:'LG'}, {v:'xl',l:'XL'}, {v:'full',l:'FULL'}
-                                ])}
-                                ${mkSeg('Height', 'height', [
-                                    {v:'mini',l:'XS'}, {v:'short',l:'SM'}, {v:'auto',l:'MD',def:true},
-                                    {v:'tall',l:'LG'}, {v:'grand',l:'XL'}, {v:'full',l:'MAX'}
-                                ])}
-                                
-                                ${mkSeg('Text Size', 'fontSize', [{v:'sm',l:'Small'},{v:'md',l:'Normal',def:true},{v:'lg',l:'Large'}])}
-                            </div>
-                            
-                            <div class="bg-white p-3 rounded-xl border-2 border-brand-dark shadow-sm">
-                                ${cfg.inputs(id, m.data)}
-                            </div>
-                            
-                            <div class="flex gap-2 mt-8">
-                                <button onclick="App.duplicateModule('${id}')" class="flex-1 flex items-center justify-center gap-1 py-3 rounded-lg font-bold text-xs bg-brand-blue text-white hover:bg-blue-600"><i data-lucide="copy" class="w-3 h-3"></i> Duplicate</button>
-                                <button onclick="App.deleteModule('${id}')" class="flex-1 flex items-center justify-center gap-1 py-3 rounded-lg font-bold text-xs bg-red-100 text-red-500 hover:bg-red-200"><i data-lucide="trash-2" class="w-3 h-3"></i> Delete</button>
-                            </div>
+                        <div class="bg-white p-4 rounded-xl border-2 border-brand-dark shadow-sm">
+                            ${cfg.inputs(id, m.data)}
                         </div>
                     </div>`;
                 
-                // Style fix helper
                 const style = document.createElement('style');
                 style.innerHTML = `.lbl { display:block; font-weight:900; font-size:10px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px; } .inp { width:100%; background:transparent; border-bottom:2px dashed #cbd5e1; outline:none; padding:4px 0; } .inp:focus { border-color:#1e293b; } .inp-area { width:100%; background:#f8fafc; border:2px solid #e2e8f0; border-radius:8px; padding:8px; font-size:14px; outline:none; resize:none; } .inp-area:focus { border-color:#1e293b; background:white; }`;
                 con.appendChild(style);
