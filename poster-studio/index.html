@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>English 1 Poster Studio v3.4</title>
+    <title>English 1 Poster Studio v3.7</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -51,9 +51,19 @@
         @keyframes slideInBottom { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
         /* CANVAS INTERACTIVITY */
-        .module-wrapper { transition: all 0.2s ease; cursor: pointer; }
-        .module-wrapper:hover { transform: scale(1.01); box-shadow: 0 0 0 4px #2979FF; z-index: 20; }
-        .module-wrapper:active { transform: scale(0.99); }
+        .module-wrapper { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .module-wrapper:hover { transform: scale(1.005); box-shadow: 0 0 0 4px #2979FF; z-index: 20; }
+        
+        /* DRAG AND DROP STATES */
+        .module-wrapper.dragging { opacity: 0.2; transform: scale(0.95); z-index: 50; }
+        .module-wrapper.drag-over { 
+            border-color: #FF6B95; /* Pink Highlight */
+            border-width: 4px;
+            border-style: dashed;
+            background-color: #fff1f2;
+            transform: scale(1.02);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
 
         /* MODES */
         body.zen-mode #top-bar, body.zen-mode #bottom-dock { display: none !important; }
@@ -153,10 +163,13 @@
     </div>
 
     <!-- EDIT MODAL -->
-    <div id="editor-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-brand-dark/30 backdrop-blur-sm">
+    <div id="editor-modal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-brand-dark/30 backdrop-blur-sm" onclick="if(event.target === this) App.closeEditor()">
         <div class="bg-white w-[90%] max-w-lg max-h-[90vh] flex flex-col rounded-2xl border-4 border-brand-dark shadow-[16px_16px_0px_0px_#1e293b] overflow-hidden slide-in-bottom">
             <div id="editor-header" class="p-4 border-b-4 border-brand-dark flex justify-between items-center bg-slate-50">
-                <span class="font-heading font-black text-xl uppercase flex items-center gap-2" id="editor-title">Edit Layer</span>
+                <div class="flex items-center gap-2">
+                    <span class="font-heading font-black text-xl uppercase" id="editor-title">Edit Layer</span>
+                    <button onclick="App.duplicateCurrent()" class="p-1.5 bg-brand-blue text-white rounded hover:bg-blue-600 ml-2" title="Duplicate"><i data-lucide="copy" class="w-4 h-4"></i></button>
+                </div>
                 <button onclick="App.closeEditor()" class="p-2 hover:bg-slate-200 rounded-lg"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
             <div id="editor-content" class="flex-1 overflow-y-auto p-6 bg-white custom-scrollbar space-y-6"></div>
@@ -164,14 +177,13 @@
                 <button onclick="App.moveModule(-1)" class="flex-1 neo-btn bg-white text-brand-dark py-3 text-xs gap-1" title="Move Backward"><i data-lucide="arrow-left" class="w-4 h-4"></i> Back</button>
                 <button onclick="App.moveModule(1)" class="flex-1 neo-btn bg-white text-brand-dark py-3 text-xs gap-1" title="Move Forward">Fwd <i data-lucide="arrow-right" class="w-4 h-4"></i></button>
                 <div class="w-0.5 bg-slate-300 mx-1"></div>
-                <button onclick="App.duplicateCurrent()" class="flex-1 neo-btn bg-brand-blue text-white py-3 text-xs gap-1"><i data-lucide="copy" class="w-4 h-4"></i> Copy</button>
                 <button onclick="App.deleteCurrent()" class="flex-1 neo-btn bg-red-100 text-brand-red py-3 text-xs gap-1"><i data-lucide="trash-2" class="w-4 h-4"></i> Del</button>
             </div>
         </div>
     </div>
 
     <!-- HELP MODAL -->
-    <div id="help-modal" class="fixed inset-0 z-[120] hidden items-center justify-center bg-brand-dark/30 backdrop-blur-sm">
+    <div id="help-modal" class="fixed inset-0 z-[120] hidden items-center justify-center bg-brand-dark/30 backdrop-blur-sm" onclick="if(event.target === this) App.toggleHelp()">
         <div class="bg-white w-[90%] max-w-2xl max-h-[85vh] flex flex-col rounded-2xl border-4 border-brand-dark shadow-[12px_12px_0px_0px_#1e293b] overflow-hidden slide-in-bottom">
             <div class="p-6 border-b-4 border-brand-dark bg-brand-yellow flex justify-between items-center">
                 <h2 class="font-heading font-black text-3xl text-brand-dark">QUICK GUIDE</h2>
@@ -182,36 +194,27 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="bg-blue-50 border-2 border-brand-blue rounded-xl p-4 shadow-sm">
                         <div class="flex items-center gap-2 mb-2 text-brand-blue font-heading font-black text-lg"><i data-lucide="plus-square" class="w-6 h-6"></i> 1. ADD LAYERS</div>
-                        <p class="text-sm font-bold text-slate-600">Use the <span class="bg-white border border-brand-dark px-1 rounded text-xs">BOTTOM DOCK</span> to add new modules like Vocab lists, Rules, or Images.</p>
+                        <p class="text-sm font-bold text-slate-600">Use the <span class="bg-white border border-brand-dark px-1 rounded text-xs">BOTTOM DOCK</span> to add new modules.</p>
                     </div>
                     <div class="bg-pink-50 border-2 border-brand-pink rounded-xl p-4 shadow-sm">
                         <div class="flex items-center gap-2 mb-2 text-brand-pink font-heading font-black text-lg"><i data-lucide="edit-3" class="w-6 h-6"></i> 2. EDIT CONTENT</div>
-                        <p class="text-sm font-bold text-slate-600"><span class="bg-white border border-brand-dark px-1 rounded text-xs">CLICK</span> any block on the poster to open the editor. Change text, colors, and sizes instantly.</p>
+                        <p class="text-sm font-bold text-slate-600"><span class="bg-white border border-brand-dark px-1 rounded text-xs">CLICK</span> any block to open the editor. Change Text, Color, and Sizes.</p>
                     </div>
                     <div class="bg-purple-50 border-2 border-brand-purple rounded-xl p-4 shadow-sm">
-                        <div class="flex items-center gap-2 mb-2 text-brand-purple font-heading font-black text-lg"><i data-lucide="move" class="w-6 h-6"></i> 3. ARRANGE</div>
-                        <p class="text-sm font-bold text-slate-600">Inside the editor, use <span class="bg-white border border-brand-dark px-1 rounded text-xs">BACK</span> and <span class="bg-white border border-brand-dark px-1 rounded text-xs">FWD</span> to change layer order. Use <span class="bg-white border border-brand-dark px-1 rounded text-xs">COPY</span> to duplicate.</p>
+                        <div class="flex items-center gap-2 mb-2 text-brand-purple font-heading font-black text-lg"><i data-lucide="move" class="w-6 h-6"></i> 3. DRAG & DROP</div>
+                        <p class="text-sm font-bold text-slate-600">Click and hold the <span class="bg-white border border-brand-dark px-1 rounded text-xs"><i data-lucide="move" class="w-3 h-3 inline"></i></span> icon on any card to drag it to a new position.</p>
                     </div>
                     <div class="bg-green-50 border-2 border-brand-green rounded-xl p-4 shadow-sm">
                         <div class="flex items-center gap-2 mb-2 text-brand-green font-heading font-black text-lg"><i data-lucide="save" class="w-6 h-6"></i> 4. SAVE & SHARE</div>
-                        <p class="text-sm font-bold text-slate-600">Your work auto-saves locally. Use <span class="bg-white border border-brand-dark px-1 rounded text-xs">CTRL + S</span> to force save. Export as JSON to backup.</p>
+                        <p class="text-sm font-bold text-slate-600">Auto-saves locally. Use <span class="bg-white border border-brand-dark px-1 rounded text-xs">CTRL + S</span> to force save.</p>
                     </div>
-                </div>
-
-                <div class="border-t-2 border-dashed border-slate-300 pt-6">
-                    <h3 class="font-heading font-black text-xl mb-2">PRO TIPS</h3>
-                    <ul class="list-disc list-inside font-bold text-slate-500 space-y-1">
-                        <li>Toggle <strong>Zen Mode</strong> for a distraction-free presentation view.</li>
-                        <li>Use the <strong>Do's & Don'ts</strong> module for grammar correction.</li>
-                        <li>Images are stored in your browser's database, so they persist after refresh!</li>
-                    </ul>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- LIBRARY MODAL -->
-    <div id="library-modal" class="fixed inset-0 z-[110] hidden items-center justify-center bg-brand-dark/60 backdrop-blur-sm">
+    <div id="library-modal" class="fixed inset-0 z-[110] hidden items-center justify-center bg-brand-dark/60 backdrop-blur-sm" onclick="if(event.target === this) document.getElementById('library-modal').classList.add('hidden')">
         <div class="bg-white w-[90%] max-w-3xl max-h-[85vh] flex flex-col rounded-2xl border-4 border-brand-dark shadow-[8px_8px_0px_0px_#1e293b] overflow-hidden">
             <div class="p-5 border-b-4 border-brand-dark bg-slate-50 flex justify-between items-center">
                 <h2 class="font-heading font-black text-2xl">MY PROJECTS</h2>
@@ -225,7 +228,7 @@
     </div>
 
     <!-- IMAGE LIBRARY MODAL -->
-    <div id="image-modal" class="fixed inset-0 z-[115] hidden items-center justify-center bg-brand-dark/60 backdrop-blur-sm">
+    <div id="image-modal" class="fixed inset-0 z-[115] hidden items-center justify-center bg-brand-dark/60 backdrop-blur-sm" onclick="if(event.target === this) App.closeImageLibrary()">
         <div class="bg-white w-[90%] max-w-4xl max-h-[85vh] flex flex-col rounded-2xl border-4 border-brand-dark shadow-[8px_8px_0px_0px_#1e293b] overflow-hidden slide-in-bottom">
             <div class="p-5 border-b-4 border-brand-dark bg-brand-teal text-white flex justify-between items-center">
                 <div class="flex items-center gap-3">
@@ -242,7 +245,9 @@
                 </label>
                 <div class="text-xs font-bold text-slate-400 uppercase tracking-wide">Stored locally in Browser</div>
             </div>
-            <div id="image-grid" class="flex-1 overflow-y-auto p-5 bg-slate-100 custom-scrollbar grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 content-start"></div>
+            <div id="image-grid" class="flex-1 overflow-y-auto p-5 bg-slate-100 custom-scrollbar grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 content-start">
+                <!-- Images rendered here -->
+            </div>
         </div>
     </div>
 
@@ -551,6 +556,14 @@
                     Store.save();
                     Renderer.renderPoster();
                 }
+            },
+            // Reorder for DnD
+            reorderModules(fromIdx, toIdx) {
+                if (fromIdx < 0 || fromIdx >= Store.current.modules.length || toIdx < 0 || toIdx >= Store.current.modules.length) return;
+                const item = Store.current.modules.splice(fromIdx, 1)[0];
+                Store.current.modules.splice(toIdx, 0, item);
+                Store.save();
+                Renderer.renderPoster();
             }
         };
 
@@ -560,6 +573,7 @@
             currentImageModId: null,
             currentImageKey: 'imageId',
             editingId: null,
+            isDragging: false, // Flag to prevent click event
 
             init() {
                 Store.init().then(() => {
@@ -587,6 +601,7 @@
                 });
             },
 
+            // ... (renderToolbox, updateUI same as before) ...
             renderToolbox() {
                 const box = document.getElementById('module-toolbox');
                 box.innerHTML = Object.entries(ModuleRegistry).map(([k, v]) => `
@@ -626,6 +641,9 @@
 
             // EDITING INTERACTION
             openEditor(id) {
+                // Safety check: Don't open if dragging just finished
+                if(App.isDragging) return;
+
                 App.editingId = id;
                 const m = Store.current.modules.find(x => x.id === id);
                 if(!m) return;
@@ -642,7 +660,7 @@
                 document.getElementById('editor-modal').classList.remove('flex');
             },
             
-            // Module Actions inside Editor
+            // ... (Module Actions, Confirmation, Help, Image Library same as before) ...
             deleteCurrent() {
                 if(!App.editingId) return;
                 App.showConfirm('Delete this layer?', () => {
@@ -661,14 +679,12 @@
                 Store.current.modules.splice(idx + 1, 0, copy);
                 Store.save();
                 Renderer.renderPoster();
-                App.closeEditor(); // Close to avoid confusion or re-open for new one? Close is safer.
+                App.closeEditor();
             },
             moveModule(dir) {
                 if(!App.editingId) return;
                 Store.moveMod(App.editingId, dir);
             },
-
-            // Confirmation
             showConfirm(msg, callback) {
                 document.getElementById('confirm-msg').innerText = msg;
                 App.confirmCallback = callback;
@@ -681,20 +697,10 @@
                 App.confirmCallback = null;
             },
             handleConfirmYes() { if (App.confirmCallback) App.confirmCallback(); App.closeConfirm(); },
-
-            // Help Modal
             toggleHelp() {
                 const el = document.getElementById('help-modal');
-                if(el.classList.contains('hidden')) {
-                    el.classList.remove('hidden');
-                    el.classList.add('flex');
-                } else {
-                    el.classList.add('hidden');
-                    el.classList.remove('flex');
-                }
+                if(el.classList.contains('hidden')) { el.classList.remove('hidden'); el.classList.add('flex'); } else { el.classList.add('hidden'); el.classList.remove('flex'); }
             },
-
-            // Image Library
             openImageSelector(modId, key = 'imageId') {
                 App.currentImageModId = modId;
                 App.currentImageKey = key;
@@ -721,8 +727,6 @@
             },
             selectImage(imgId) { Store.selectImage(imgId); },
             deleteImageAsset(id) { if(confirm('Delete image?')) Store.deleteImage(id).then(App.refreshImageLibrary); },
-
-            // Nav
             switchPoster(id) { Store.state.currentId = id; Store.loadCurrent(); App.updateUI(); Renderer.renderPoster(); App.fitToScreen(); },
             createNewPoster() {
                 const newP = { id: crypto.randomUUID(), lastModified: Date.now(), zoom: 0.5, global: { title: 'UNTITLED', subtitle: 'New Project', badge: '1' }, modules: [] };
@@ -734,8 +738,6 @@
                 if(next >= Store.state.posters.length) next = 0; if(next < 0) next = Store.state.posters.length - 1;
                 App.switchPoster(Store.state.posters[next].id);
             },
-
-            // View
             toggleFullScreen() { document.body.classList.toggle('zen-mode'); setTimeout(App.fitToScreen, 300); },
             changeZoom(d) { Store.current.zoom = Math.max(0.1, Math.min(2, (Store.current.zoom||0.5)+d)); Renderer.applyZoom(); },
             fitToScreen() {
@@ -743,8 +745,6 @@
                 const scale = Math.min((vp.clientWidth-60)/2560, (vp.clientHeight-60)/1440);
                 Store.current.zoom = scale; Renderer.applyZoom();
             },
-
-            // Library
             openLibrary() {
                 const list = document.getElementById('library-list');
                 list.innerHTML = Store.state.posters.sort((a,b)=>b.lastModified-a.lastModified).map(p => `
@@ -761,7 +761,39 @@
             },
             deletePoster(id) { App.showConfirm('Delete Project?', () => { Store.state.posters = Store.state.posters.filter(p => p.id !== id); if(id === Store.current.id) App.switchPoster(Store.state.posters[0].id); else { Store.save(); App.openLibrary(); } }); },
             exportPoster() { const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(Store.current)); a.download = `Poster_${Store.current.global.title}.json`; a.click(); },
-            handleFileImport(input) { const f = input.files[0]; if(!f) return; const r = new FileReader(); r.onload = e => { try { const j = JSON.parse(e.target.result); j.id = crypto.randomUUID(); Store.state.posters.push(j); App.switchPoster(j.id); } catch(err) { alert('Invalid file'); } }; r.readAsText(f); }
+            handleFileImport(input) { const f = input.files[0]; if(!f) return; const r = new FileReader(); r.onload = e => { try { const j = JSON.parse(e.target.result); j.id = crypto.randomUUID(); Store.state.posters.push(j); App.switchPoster(j.id); } catch(err) { alert('Invalid file'); } }; r.readAsText(f); },
+
+            // --- DRAG AND DROP HANDLERS ---
+            handleDragStart(e, idx) {
+                App.isDragging = true;
+                e.dataTransfer.setData('text/plain', idx);
+                e.dataTransfer.effectAllowed = 'move';
+                // Slight delay to allow ghost image to be generated from original
+                setTimeout(() => e.target.classList.add('dragging'), 0);
+            },
+            handleDragEnd(e) {
+                e.target.classList.remove('dragging');
+                // Use small timeout to ensure click event doesn't fire after drag
+                setTimeout(() => App.isDragging = false, 100);
+            },
+            handleDragOver(e) {
+                e.preventDefault(); // Necessary to allow dropping
+                e.dataTransfer.dropEffect = 'move';
+                const card = e.currentTarget;
+                if (!card.classList.contains('drag-over')) card.classList.add('drag-over');
+            },
+            handleDragLeave(e) {
+                e.currentTarget.classList.remove('drag-over');
+            },
+            handleDrop(e, targetIdx) {
+                e.preventDefault();
+                e.currentTarget.classList.remove('drag-over');
+                const sourceIdx = parseInt(e.dataTransfer.getData('text/plain'));
+                
+                if (sourceIdx !== parseInt(targetIdx)) {
+                    Store.reorderModules(sourceIdx, parseInt(targetIdx));
+                }
+            }
         };
 
         // --- 4. RENDERER (Canvas) ---
@@ -790,7 +822,7 @@
                         </div>
                     </div>`;
                 } else {
-                    contentHTML = Store.current.modules.map(m => {
+                    contentHTML = Store.current.modules.map((m, idx) => {
                         const cfg = ModuleRegistry[m.type];
                         if (!cfg) return ''; 
                         const spans = {
@@ -800,13 +832,23 @@
                         const inner = cfg.render(m.data, m.color, m.fontSize||'md');
                         
                         return `
-                            <div onclick="App.openEditor('${m.id}')" class="module-wrapper ${spans.size[m.size]||'col-span-6'} ${spans.height[m.height]||'row-span-3'} bg-white border-4 border-brand-dark rounded-2xl overflow-hidden shadow-neo relative flex flex-col group">
+                            <div 
+                                draggable="true"
+                                ondragstart="App.handleDragStart(event, '${idx}')"
+                                ondragend="App.handleDragEnd(event)"
+                                ondragover="App.handleDragOver(event)"
+                                ondragleave="App.handleDragLeave(event)"
+                                ondrop="App.handleDrop(event, '${idx}')"
+                                onclick="App.openEditor('${m.id}')" 
+                                class="module-wrapper ${spans.size[m.size]||'col-span-6'} ${spans.height[m.height]||'row-span-3'} bg-white border-4 border-brand-dark rounded-2xl overflow-hidden shadow-neo relative flex flex-col group">
                                 <div class="bg-brand-${m.color} px-6 py-3 border-b-4 border-brand-dark flex justify-between items-center relative z-10 shrink-0">
-                                    <h3 class="font-heading font-black text-white text-2xl uppercase tracking-wide truncate">${m.title}</h3>
-                                    <div class="opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded p-1"><i data-lucide="edit-3" class="w-5 h-5 text-white"></i></div>
+                                    <h3 class="font-heading font-black text-white text-2xl uppercase tracking-wide truncate pointer-events-none">${m.title}</h3>
+                                    <div class="opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 rounded p-1 flex gap-1 cursor-grab active:cursor-grabbing hover:bg-black/30" onmousedown="event.stopPropagation()">
+                                        <i data-lucide="move" class="w-5 h-5 text-white"></i>
+                                    </div>
                                 </div>
-                                <div class="flex-1 overflow-hidden relative">${inner}</div>
-                                <div class="tape-strip"></div>
+                                <div class="flex-1 overflow-hidden relative pointer-events-none">${inner}</div>
+                                <div class="tape-strip pointer-events-none"></div>
                             </div>`;
                     }).join('');
                 }
@@ -842,9 +884,10 @@
                 // Color Picker
                 const colors = CONFIG.colors.map(c => `<button onclick="Store.updateMod('${id}','color','${c}'); Editor.render('${id}')" class="w-8 h-8 rounded-full bg-brand-${c} ${m.color===c?'border-4 border-brand-dark scale-110':'border-2 border-white opacity-50 ring-2 ring-transparent'}"></button>`).join('');
                 
+                // Enhanced Segment Control for Responsiveness
                 const mkSeg = (lbl, key, opts) => `
-                    <div class="mb-3"><label class="lbl">${lbl}</label><div class="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl border-2 border-slate-200">
-                    ${opts.map((o,i) => `<button onclick="Store.updateMod('${id}','${key}','${o.v}'); Editor.render('${id}')" class="py-1.5 text-[10px] font-black uppercase rounded-lg border-2 transition-all ${(m[key]||o.def)===o.v ? 'bg-brand-dark text-white border-brand-dark shadow-sm':'bg-white text-slate-500 border-transparent hover:border-slate-300'}">${o.l}</button>`).join('')}
+                    <div class="mb-3"><label class="lbl">${lbl}</label><div class="grid grid-cols-3 sm:grid-cols-6 gap-1 bg-slate-100 p-1 rounded-xl border-2 border-slate-200">
+                    ${opts.map((o,i) => `<button onclick="Store.updateMod('${id}','${key}','${o.v}'); Editor.render('${id}')" class="py-1.5 text-[9px] font-black uppercase rounded-lg border-2 transition-all ${(m[key]||o.def)===o.v ? 'bg-brand-dark text-white border-brand-dark shadow-sm':'bg-white text-slate-500 border-transparent hover:border-slate-300'}">${o.l}</button>`).join('')}
                     </div></div>`;
 
                 con.innerHTML = `
@@ -856,13 +899,19 @@
 
                         <div class="bg-slate-50 p-4 rounded-xl border-2 border-slate-200">
                             <label class="lbl mb-2">Style & Color</label>
-                            <div class="flex gap-2 mb-4 overflow-x-auto pb-2">${colors}</div>
+                            <div class="flex gap-2 mb-4 overflow-x-auto pb-2 custom-scrollbar">${colors}</div>
                             
-                            <div class="grid grid-cols-2 gap-4">
-                                ${mkSeg('Width', 'size', [{v:'sm',l:'SM'}, {v:'md',l:'MD',def:true}, {v:'full',l:'FULL'}])}
-                                ${mkSeg('Height', 'height', [{v:'short',l:'SM'}, {v:'auto',l:'MD',def:true}, {v:'tall',l:'LG'}])}
+                            <div class="space-y-1">
+                                ${mkSeg('Width', 'size', [
+                                    {v:'xs',l:'XS'}, {v:'sm',l:'SM'}, {v:'md',l:'MD',def:true},
+                                    {v:'lg',l:'LG'}, {v:'xl',l:'XL'}, {v:'full',l:'FULL'}
+                                ])}
+                                ${mkSeg('Height', 'height', [
+                                    {v:'mini',l:'XS'}, {v:'short',l:'SM'}, {v:'auto',l:'MD',def:true},
+                                    {v:'tall',l:'LG'}, {v:'grand',l:'XL'}, {v:'full',l:'MAX'}
+                                ])}
                             </div>
-                            ${mkSeg('Text Size', 'fontSize', [{v:'sm',l:'Small'},{v:'md',l:'Normal',def:true},{v:'lg',l:'Large'}])}
+                            ${mkSeg('Text Size', 'fontSize', [{v:'sm',l:'Small'},{v:'md',l:'Normal',def:true},{v:'lg',l:'Large'},{v:'xl',l:'Huge'}])}
                         </div>
                         
                         <div class="bg-white p-4 rounded-xl border-2 border-brand-dark shadow-sm">
