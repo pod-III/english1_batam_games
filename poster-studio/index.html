@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>English 1 Poster Studio v2.4</title>
+    <title>English 1 Poster Studio v2.5</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -214,6 +214,30 @@
                 default: { list: 'Apple\nBanana\nCherry' },
                 inputs: (id, d) => `<label class="l">Items</label><textarea class="inp-area h-32" oninput="Store.updateMod('${id}','data.list',this.value)">${d.list||''}</textarea>`,
                 render: (d, c, fs) => `<ul class="p-6 bg-white h-full flex flex-col justify-center">${(d.list||'').split('\n').map(x=>`<li class="flex items-center gap-4 mb-2"><div class="w-4 h-4 bg-brand-${c} border border-brand-dark shadow-[1px_1px_0_0_#1e293b] shrink-0"></div><span class="font-body font-bold text-brand-dark ${CONFIG.sizes.vocab[fs]||CONFIG.sizes.vocab.md}">${x}</span></li>`).join('')}</ul>`
+            },
+            dodont: {
+                icon: 'shield-alert', color: 'red', label: "Do's & Don'ts",
+                default: { wrong: 'I go to home.', correct: 'I go home.' },
+                inputs: (id, d) => `
+                    <label class="l text-red-500">Don't Say (Wrong)</label>
+                    <textarea class="inp-area h-20 border-red-200 bg-red-50 focus:border-red-500 mb-2" oninput="Store.updateMod('${id}','data.wrong',this.value)">${d.wrong||''}</textarea>
+                    <label class="l text-green-500">Do Say (Correct)</label>
+                    <textarea class="inp-area h-20 border-green-200 bg-green-50 focus:border-green-500" oninput="Store.updateMod('${id}','data.correct',this.value)">${d.correct||''}</textarea>
+                `,
+                render: (d, c, fs) => `
+                    <div class="h-full flex flex-col">
+                        <div class="flex-1 bg-red-100 p-4 flex flex-col justify-center items-center text-center relative border-b-2 border-brand-dark">
+                            <div class="absolute top-2 left-2 p-1 bg-red-500 text-white rounded shadow-sm"><i data-lucide="x" class="w-4 h-4"></i></div>
+                            <p class="font-heading font-black text-brand-red opacity-50 text-xs uppercase tracking-widest mb-1">DON'T SAY</p>
+                            <p class="font-hand text-brand-dark ${fs==='sm'?'text-xl':(fs==='md'?'text-3xl':(fs==='lg'?'text-5xl':'text-6xl'))} line-through decoration-brand-red decoration-4">${d.wrong||''}</p>
+                        </div>
+                        <div class="flex-1 bg-green-100 p-4 flex flex-col justify-center items-center text-center relative">
+                            <div class="absolute top-2 left-2 p-1 bg-brand-green text-brand-dark rounded shadow-sm"><i data-lucide="check" class="w-4 h-4"></i></div>
+                            <p class="font-heading font-black text-brand-green opacity-50 text-xs uppercase tracking-widest mb-1">DO SAY</p>
+                            <p class="font-hand text-brand-dark ${fs==='sm'?'text-xl':(fs==='md'?'text-3xl':(fs==='lg'?'text-5xl':'text-6xl'))}">${d.correct||''}</p>
+                        </div>
+                    </div>
+                `
             },
             grammar_structure: {
                 icon: 'layers', color: 'blue', label: 'Formula',
@@ -484,6 +508,19 @@
                     Renderer.renderPoster();
                 });
             },
+            
+            duplicateModule(id) {
+                const idx = Store.current.modules.findIndex(m => m.id === id);
+                if(idx === -1) return;
+                const original = Store.current.modules[idx];
+                const copy = JSON.parse(JSON.stringify(original));
+                copy.id = crypto.randomUUID();
+                copy.title += ' (Copy)';
+                Store.current.modules.splice(idx + 1, 0, copy);
+                Store.save();
+                Editor.renderList();
+                Renderer.renderPoster();
+            },
 
             // Confirmation Logic
             showConfirm(msg, callback) {
@@ -726,7 +763,8 @@
                             <div class="flex items-center gap-2"><span class="text-[9px] font-black uppercase text-slate-400">${mod.type}</span></div>
                             <h4 class="font-heading font-bold text-brand-dark text-sm truncate">${mod.title}</h4>
                         </div>
-                        <button onclick="App.deleteModule('${mod.id}')" class="p-2 text-slate-300 hover:text-red-500"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        <button onclick="App.duplicateModule('${mod.id}')" class="p-2 text-slate-300 hover:text-brand-blue" title="Duplicate"><i data-lucide="copy" class="w-4 h-4"></i></button>
+                        <button onclick="App.deleteModule('${mod.id}')" class="p-2 text-slate-300 hover:text-red-500" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                     `;
                     con.appendChild(el);
                 });
@@ -782,7 +820,10 @@
                                 ${cfg.inputs(id, m.data)}
                             </div>
                             
-                            <button onclick="App.deleteModule('${id}')" class="mt-8 mx-auto flex items-center gap-1 text-xs font-bold text-red-400 hover:text-red-600"><i data-lucide="trash-2" class="w-3 h-3"></i> Delete Layer</button>
+                            <div class="flex gap-2 mt-8">
+                                <button onclick="App.duplicateModule('${id}')" class="flex-1 flex items-center justify-center gap-1 py-3 rounded-lg font-bold text-xs bg-brand-blue text-white hover:bg-blue-600"><i data-lucide="copy" class="w-3 h-3"></i> Duplicate</button>
+                                <button onclick="App.deleteModule('${id}')" class="flex-1 flex items-center justify-center gap-1 py-3 rounded-lg font-bold text-xs bg-red-100 text-red-500 hover:bg-red-200"><i data-lucide="trash-2" class="w-3 h-3"></i> Delete</button>
+                            </div>
                         </div>
                     </div>`;
                 
