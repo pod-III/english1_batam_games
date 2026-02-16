@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Mystery Box: English 1 Batam</title>
+    <title>Mystery Box: English 1 Batam (Persistent)</title>
     
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -161,7 +161,6 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            /* Prevents gaps on some screens */
             margin: -1px; 
         }
         
@@ -182,7 +181,6 @@
         }
         .tile:hover::after { border-color: #93C5FD; }
 
-        /* Animation: Pop Out */
         .tile.revealed {
             animation: popOut 0.4s forwards cubic-bezier(0.175, 0.885, 0.32, 1.275);
             pointer-events: none;
@@ -194,7 +192,6 @@
             100% { transform: scale(0) rotate(-10deg); opacity: 0; }
         }
 
-        /* Drag & Drop Overlay */
         #drag-overlay {
             background-image: repeating-linear-gradient(45deg, #2979FF 0, #2979FF 20px, #ffffff 20px, #ffffff 40px);
             opacity: 0.1;
@@ -203,14 +200,24 @@
         .dragging #drag-overlay { opacity: 0.2; }
         .dragging .console-frame { transform: scale(0.98); border-color: #2979FF; }
 
-        /* Mobile Helper Classes */
         .hidden-panel-mobile { transform: translateY(100%); }
         .hidden-panel-desktop { margin-left: -24rem; }
+        
+        /* Loader Overlay */
+        #db-loader {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(4px);
+        }
     </style>
 </head>
 <body class="h-screen w-screen flex flex-col items-center justify-center p-2 md:p-6 overflow-hidden">
 
     <div id="drag-overlay" class="fixed inset-0 z-0 transition-opacity duration-300"></div>
+    
+    <div id="db-loader" class="fixed inset-0 z-[60] flex flex-col items-center justify-center hidden">
+        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue"></div>
+        <span class="mt-4 font-heading font-bold text-dark text-lg animate-pulse">SAVING DATA...</span>
+    </div>
 
     <div class="console-frame w-full h-full relative flex-col md:flex-row max-w-[1600px] mx-auto z-10">
         
@@ -223,7 +230,7 @@
                     </h1>
                     <div class="flex items-center gap-2 mt-2">
                         <span class="px-2 py-0.5 bg-dark text-white text-[10px] font-bold rounded uppercase">English 1</span>
-                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Batam Edition</span>
+                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Saved</span>
                     </div>
                 </div>
                 <button onclick="UI.togglePanel(true)" class="md:hidden p-2 bg-pink/10 text-pink border-2 border-dark rounded-lg shadow-hard-sm active:translate-y-1 active:shadow-none transition-all">
@@ -235,7 +242,7 @@
                 
                 <div class="space-y-3">
                     <label class="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                        <i data-lucide="folder-open" class="w-4 h-4 text-blue"></i> Load Content
+                        <i data-lucide="database" class="w-4 h-4 text-blue"></i> Add to Library
                     </label>
                     <div class="relative w-full h-24 border-4 border-dashed border-slate-200 rounded-2xl hover:border-blue hover:bg-blue/5 transition-all cursor-pointer group flex flex-col items-center justify-center gap-2">
                         <input type="file" id="file-input" accept="image/*" multiple class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
@@ -243,7 +250,7 @@
                             <i data-lucide="upload-cloud" class="w-5 h-5 text-slate-400 group-hover:text-blue"></i>
                         </div>
                         <span class="text-[10px] text-slate-400 font-bold group-hover:text-blue uppercase tracking-wide" id="file-label">
-                            Browse or Drop Files
+                            Append Images
                         </span>
                     </div>
                 </div>
@@ -269,14 +276,12 @@
                     <div class="absolute top-0 right-0 p-1 bg-blue text-white rounded-bl-lg">
                         <i data-lucide="sparkles" class="w-3 h-3"></i>
                     </div>
-                    
                     <div class="flex justify-between items-center">
                         <label class="text-xs font-black text-blue uppercase tracking-widest">Auto Speed</label>
                         <div class="flex items-center gap-2">
                              <span id="speed-label" class="text-[10px] font-bold text-blue font-mono">1.5s</span>
                         </div>
                     </div>
-
                     <div class="flex items-center gap-2 mb-2">
                         <i data-lucide="rabbit" class="w-4 h-4 text-blue/50"></i>
                         <input type="range" id="speed-slider" min="100" max="3000" step="100" value="1500" class="w-full accent-blue">
@@ -286,6 +291,10 @@
 
                 <button onclick="Game.resetLevel()" class="w-full btn-chunky bg-white text-dark py-3 rounded-xl text-sm tracking-wider flex items-center justify-center gap-2 hover:bg-pink/5 hover:text-pink hover:border-pink">
                     <i data-lucide="rotate-ccw" class="w-5 h-5"></i> RESET PUZZLE
+                </button>
+
+                <button onclick="DB.clearLibrary()" class="w-full btn-chunky bg-white text-slate-400 py-3 rounded-xl text-sm tracking-wider flex items-center justify-center gap-2 hover:bg-red-50 hover:text-red-500 hover:border-red-500 group">
+                    <i data-lucide="trash-2" class="w-5 h-5 group-hover:scale-110 transition-transform"></i> CLEAR LIBRARY
                 </button>
 
             </div>
@@ -360,7 +369,7 @@
                     </div>
                 </div>
 
-                <div id="toast" class="absolute bottom-10 bg-dark text-white px-6 py-3 rounded-xl font-bold font-heading shadow-hard-sm transform translate-y-20 transition-transform opacity-0">
+                <div id="toast" class="absolute bottom-10 bg-dark text-white px-6 py-3 rounded-xl font-bold font-heading shadow-hard-sm transform translate-y-20 transition-transform opacity-0 z-50">
                     Action Completed
                 </div>
 
@@ -370,8 +379,113 @@
 
     <script>
         /**
+         * INDEXED DB MANAGER
+         * Handles persistence of images and game state
+         */
+        const DB = {
+            dbName: 'MysteryBoxDB',
+            dbVersion: 1,
+            db: null,
+
+            init() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(this.dbName, this.dbVersion);
+
+                    request.onupgradeneeded = (event) => {
+                        const db = event.target.result;
+                        // Store for Images
+                        if (!db.objectStoreNames.contains('images')) {
+                            db.createObjectStore('images', { keyPath: 'id', autoIncrement: true });
+                        }
+                        // Store for Game State (progress)
+                        if (!db.objectStoreNames.contains('state')) {
+                            db.createObjectStore('state', { keyPath: 'key' });
+                        }
+                    };
+
+                    request.onsuccess = (event) => {
+                        this.db = event.target.result;
+                        resolve();
+                    };
+
+                    request.onerror = (event) => {
+                        console.error("IDB Error:", event.target.error);
+                        reject(event.target.error);
+                    };
+                });
+            },
+
+            async saveImages(imageStrings) {
+                if (!this.db) await this.init();
+                
+                UI.toggleLoader(true);
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction(['images'], 'readwrite');
+                    const store = transaction.objectStore('images');
+                    
+                    let savedCount = 0;
+                    imageStrings.forEach(imgStr => {
+                        store.add({ data: imgStr, created: Date.now() });
+                        savedCount++;
+                    });
+
+                    transaction.oncomplete = () => {
+                        UI.toggleLoader(false);
+                        resolve(savedCount);
+                    };
+                    
+                    transaction.onerror = (e) => {
+                        UI.toggleLoader(false);
+                        reject(e);
+                    };
+                });
+            },
+
+            async getAllImages() {
+                if (!this.db) await this.init();
+
+                return new Promise((resolve, reject) => {
+                    const transaction = this.db.transaction(['images'], 'readonly');
+                    const store = transaction.objectStore('images');
+                    const request = store.getAll();
+
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            },
+
+            async saveState(key, value) {
+                if (!this.db) return;
+                const transaction = this.db.transaction(['state'], 'readwrite');
+                transaction.objectStore('state').put({ key, value });
+            },
+
+            async getState(key) {
+                if (!this.db) await this.init();
+                return new Promise((resolve) => {
+                    const transaction = this.db.transaction(['state'], 'readonly');
+                    const request = transaction.objectStore('state').get(key);
+                    request.onsuccess = () => resolve(request.result ? request.result.value : null);
+                    request.onerror = () => resolve(null);
+                });
+            },
+
+            async clearLibrary() {
+                if (!confirm("Are you sure? This will delete all saved images.")) return;
+                
+                if (!this.db) await this.init();
+                const transaction = this.db.transaction(['images', 'state'], 'readwrite');
+                transaction.objectStore('images').clear();
+                transaction.objectStore('state').clear();
+
+                transaction.oncomplete = () => {
+                    location.reload();
+                };
+            }
+        };
+
+        /**
          * AUDIO CONTROLLER
-         * Handles Tone.js logic and sound effects
          */
         const Audio = {
             enabled: true,
@@ -412,8 +526,7 @@
         };
 
         /**
-         * AUTO REVEAL CONTROLLER (UPDATED)
-         * Handles the slow reveal logic with new button position
+         * AUTO REVEAL CONTROLLER
          */
         const AutoReveal = {
             intervalId: null,
@@ -446,11 +559,10 @@
                 this.isPlaying = true;
                 const btn = document.getElementById('auto-reveal-btn');
                 
-                // Update UI: Switch to White background, Blue text (Inverted)
                 btn.innerHTML = `<i data-lucide="pause" class="w-4 h-4 md:w-5 md:h-5 fill-current"></i> <span class="hidden md:inline">PAUSE</span>`;
                 btn.classList.replace('bg-blue', 'bg-white');
                 btn.classList.replace('text-white', 'text-blue');
-                btn.classList.add('border-blue'); // Add border to keep visual weight
+                btn.classList.add('border-blue'); 
                 lucide.createIcons();
 
                 this.intervalId = setInterval(() => {
@@ -470,7 +582,6 @@
                 
                 const btn = document.getElementById('auto-reveal-btn');
                 
-                // Update UI: Switch back to Blue background, White text
                 btn.innerHTML = `<i data-lucide="play" class="w-4 h-4 md:w-5 md:h-5 fill-current"></i> <span class="hidden md:inline">AUTO</span>`;
                 btn.classList.replace('bg-white', 'bg-blue');
                 btn.classList.replace('text-blue', 'text-white');
@@ -483,13 +594,13 @@
          * CORE GAME ENGINE
          */
         const Game = {
-            images: [],
+            images: [], // Array of strings (DataURLs)
             currentIndex: 0,
             gridSize: 4,
             tilesRemaining: 0,
 
-            init() {
-                // Restore Settings
+            async init() {
+                // Restore UI Settings
                 const savedGrid = localStorage.getItem('mb_grid');
                 if(savedGrid) {
                     Game.gridSize = parseInt(savedGrid);
@@ -498,29 +609,63 @@
                 }
 
                 const savedAudio = localStorage.getItem('mb_audio');
-                if(savedAudio === 'false') Audio.toggle(); // Default is true
+                if(savedAudio === 'false') Audio.toggle(); 
 
                 // Init modules
                 AutoReveal.init();
+
+                // CHECK DB FOR PERSISTED DATA
+                try {
+                    await DB.init();
+                    const savedImages = await DB.getAllImages();
+                    const savedIndex = await DB.getState('currentIndex');
+
+                    if (savedImages && savedImages.length > 0) {
+                        // Extract just the data strings
+                        const imageList = savedImages.map(item => item.data);
+                        this.currentIndex = savedIndex !== null ? savedIndex : 0;
+                        
+                        this.start(imageList, true); // true = don't reset index
+                        UI.showToast(`Restored ${savedImages.length} Saved Images`);
+                    }
+                } catch (e) {
+                    console.error("Failed to load DB", e);
+                }
             },
 
-            start(fileList) {
-                this.images = fileList;
-                this.currentIndex = 0;
+            start(fileList, restoring = false) {
+                if (!fileList || fileList.length === 0) return;
+
+                // Merge new files into existing if not restoring
+                if (!restoring) {
+                    this.images = [...this.images, ...fileList];
+                } else {
+                    this.images = fileList;
+                }
+                
                 document.getElementById('empty-state').style.display = 'none';
+                
+                // If not restoring, jump to the first new image (or stay if just appending)
+                if(!restoring && this.images.length === fileList.length) {
+                    this.currentIndex = 0;
+                }
+
                 this.loadLevel();
                 
-                // Mobile QoL: Hide sidebar on start
                 if(window.innerWidth < 768) UI.togglePanel(true);
             },
 
             loadLevel() {
+                // Bounds check
                 if (this.currentIndex >= this.images.length) this.currentIndex = 0;
                 
                 // Update Image
                 document.getElementById('target-image').src = this.images[this.currentIndex];
                 document.getElementById('round-display').textContent = `${this.currentIndex + 1} / ${this.images.length}`;
                 
+                // Save Persistence
+                DB.saveState('currentIndex', this.currentIndex);
+
                 // Reset State
                 document.getElementById('next-round-btn').disabled = true;
                 AutoReveal.stop();
@@ -538,11 +683,9 @@
                 for (let i = 0; i < this.tilesRemaining; i++) {
                     const tile = document.createElement('div');
                     tile.className = 'tile';
-                    // Alternate text colors for texture
                     const numColor = (i % 2 === 0) ? 'text-slate-200' : 'text-slate-300';
                     tile.innerHTML = `<span class="text-3xl font-heading ${numColor} pointer-events-none select-none">${i + 1}</span>`;
                     
-                    // Interaction
                     tile.onmousedown = () => this.revealTile(tile);
                     grid.appendChild(tile);
                 }
@@ -550,8 +693,6 @@
 
             revealTile(tile) {
                 if (tile.classList.contains('revealed')) return;
-
-                // Ensure Audio Context is ready
                 if (Tone.context.state !== 'running') Tone.start();
 
                 tile.classList.add('revealed');
@@ -565,14 +706,12 @@
             revealAll() {
                 if(this.tilesRemaining === 0) return;
                 
-                AutoReveal.stop(); // Stop auto if running
+                AutoReveal.stop();
                 const tiles = document.querySelectorAll('.tile:not(.revealed)');
                 
-                // Staggered cascade
                 tiles.forEach((t, i) => {
                     setTimeout(() => {
                         t.classList.add('revealed');
-                        // Play sound occasionally to avoid chaos
                         if(i % 3 === 0) Audio.playPop();
                     }, i * 30);
                 });
@@ -587,10 +726,8 @@
             win() {
                 Audio.playWin();
                 UI.fireConfetti();
-                
-                AutoReveal.stop(); // Reset button state
+                AutoReveal.stop();
 
-                // Enable Next Button
                 const btn = document.getElementById('next-round-btn');
                 btn.disabled = false;
                 btn.classList.add('animate-bounce');
@@ -604,7 +741,7 @@
 
             nextLevel() {
                 this.currentIndex++;
-                if(this.currentIndex >= this.images.length) this.currentIndex = 0; // Loop
+                if(this.currentIndex >= this.images.length) this.currentIndex = 0; 
                 this.loadLevel();
             },
 
@@ -612,7 +749,6 @@
                 this.gridSize = parseInt(val);
                 document.getElementById('grid-val').textContent = `${val} x ${val}`;
                 localStorage.setItem('mb_grid', val);
-                // Only rebuild if game is active
                 if(this.images.length > 0) this.buildGrid();
             }
         };
@@ -632,8 +768,6 @@
                 } else {
                     panel.classList.remove('hidden-panel-mobile', 'hidden-panel-desktop');
                 }
-                
-                // Fix grid layout glitch on resize
                 setTimeout(() => window.dispatchEvent(new Event('resize')), 300);
             },
 
@@ -656,28 +790,44 @@
                 const t = document.getElementById('toast');
                 t.innerText = msg;
                 t.classList.remove('opacity-0', 'translate-y-20');
-                setTimeout(() => t.classList.add('opacity-0', 'translate-y-20'), 2000);
+                setTimeout(() => t.classList.add('opacity-0', 'translate-y-20'), 3000);
+            },
+
+            toggleLoader(show) {
+                const l = document.getElementById('db-loader');
+                if(show) l.classList.remove('hidden');
+                else l.classList.add('hidden');
             }
         };
 
         // --- EVENT BINDINGS ---
         
-        // 1. Inputs
         document.getElementById('grid-slider').addEventListener('input', (e) => Game.updateGridSize(e.target.value));
         document.getElementById('sound-toggle').addEventListener('click', Audio.toggle);
         
-        // 2. File Loading
+        // 2. File Loading & Persistence
         const handleFiles = (files) => {
             const list = [];
             let loaded = 0;
+            
+            // Show loader immediately
+            UI.toggleLoader(true);
+
             Array.from(files).forEach(f => {
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     list.push(e.target.result);
                     loaded++;
                     if(loaded === files.length) {
-                        Game.start(list);
-                        UI.showToast(`Loaded ${loaded} Images!`);
+                        // SAVE TO DB FIRST
+                        DB.saveImages(list).then((count) => {
+                            Game.start(list);
+                            UI.showToast(`Saved ${count} Images to Library!`);
+                        }).catch(err => {
+                            console.error(err);
+                            UI.toggleLoader(false);
+                            UI.showToast("Error saving images!");
+                        });
                     }
                 };
                 reader.readAsDataURL(f);
@@ -700,7 +850,7 @@
             if(e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files);
         });
 
-        // 4. Keyboard Shortcuts (Quality of Life)
+        // 4. Keyboard Shortcuts
         document.addEventListener('keydown', (e) => {
             if(Game.images.length === 0) return;
             switch(e.code) {
@@ -713,7 +863,6 @@
             }
         });
 
-        // 5. Responsive Logic
         window.addEventListener('resize', () => {
              const panel = document.getElementById('controls');
              if(window.innerWidth >= 768) panel.classList.remove('hidden-panel-mobile'); 
