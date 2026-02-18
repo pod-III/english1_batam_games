@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeopardy Ultimate - English 1 Batam</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            pink: '#FF6B95',
+                            orange: '#FF8C42',
+                            green: '#00E676',
+                            blue: '#2979FF',
+                            dark: '#1e293b',
+                            chalk: '#f8fafc',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Nunito', 'sans-serif'],
+                        heading: ['Fredoka', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'neo': '4px 4px 0px 0px rgba(30, 41, 59, 1)',
+                        'neo-sm': '2px 2px 0px 0px rgba(30, 41, 59, 1)',
+                        'neo-lg': '8px 8px 0px 0px rgba(30, 41, 59, 1)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* --- Global Backgrounds (Graph Paper) --- */
+        body {
+            background-color: #f8fafc;
+            background-image: 
+                linear-gradient(rgba(30, 41, 59, 0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(30, 41, 59, 0.07) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        .dark body {
+            background-color: #0f172a;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+        }
+
+        /* --- Neo-Brutalism Interactions --- */
+        .btn-neo {
+            transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .btn-neo:hover:not(:disabled) {
+            transform: translate(-1px, -1px);
+            box-shadow: 6px 6px 0px 0px rgba(30, 41, 59, 1);
+        }
+        .btn-neo:active:not(:disabled) {
+            transform: translate(4px, 4px) !important;
+            box-shadow: 0px 0px 0px 0px rgba(30, 41, 59, 1) !important;
+        }
+        .btn-neo:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            background-color: #cbd5e1;
+            color: #94a3b8;
+            box-shadow: none;
+            border-color: #94a3b8;
+            transform: none;
+        }
+
+        /* --- Edit Mode Pulse --- */
+        .edit-active .tile-card {
+            border-style: dashed !important;
+        }
+        .edit-active .tile-card:hover {
+            background-color: #fff1f2;
+            animation: pulse-border 1.5s infinite;
+        }
+        @keyframes pulse-border {
+            0% { border-color: #1e293b; }
+            50% { border-color: #FF6B95; }
+            100% { border-color: #1e293b; }
+        }
+
+        /* --- Utilities --- */
+        .custom-scrollbar::-webkit-scrollbar { height: 12px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #1e293b; border-radius: 6px; border: 3px solid #f1f5f9; }
+    </style>
+</head>
+<body class="text-brand-dark min-h-screen flex flex-col font-sans transition-colors duration-300">
+
+    <header class="w-full max-w-7xl mx-auto p-4 flex flex-col md:flex-row gap-4 justify-between items-center z-20">
+        <div class="flex items-center gap-3 bg-white dark:bg-slate-800 border-4 border-brand-dark shadow-neo rounded-xl px-6 py-3 select-none w-full md:w-auto">
+            <div class="p-2 bg-brand-pink rounded-lg border-2 border-brand-dark text-white transform rotate-3">
+                <i data-lucide="layout-grid" class="w-8 h-8"></i>
+            </div>
+            <div>
+                <h1 class="font-heading text-3xl font-bold dark:text-brand-chalk leading-none tracking-tight">JEOPARDY</h1>
+                <div id="status-indicator" class="text-xs font-bold text-brand-blue uppercase tracking-widest mt-1">Classroom Edition</div>
+            </div>
+        </div>
+        
+        <div class="flex gap-2 items-center bg-white dark:bg-slate-800 p-2 rounded-xl border-4 border-brand-dark shadow-neo overflow-x-auto w-full md:w-auto justify-center md:justify-end">
+            <button onclick="Jeopardy.toggleEditMode()" id="btn-edit-toggle" class="btn-neo flex items-center gap-2 px-4 py-2 rounded-lg font-bold border-2 border-brand-dark bg-brand-chalk hover:bg-slate-100 dark:bg-slate-700 transition-colors whitespace-nowrap mr-2">
+                <div class="w-10 h-6 bg-slate-300 rounded-full relative transition-colors border-2 border-brand-dark" id="toggle-track">
+                    <div class="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full border-2 border-brand-dark transition-transform" id="toggle-dot"></div>
+                </div>
+                <span class="font-heading text-brand-dark dark:text-white text-sm">DESIGN MODE</span>
+            </button>
+
+            <button onclick="Jeopardy.resetBoardState()" class="btn-neo p-2.5 bg-brand-orange text-white rounded-lg border-2 border-brand-dark" title="Reset Visited Tiles">
+                <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+            </button>
+            <button onclick="Jeopardy.exportData()" class="btn-neo p-2.5 bg-brand-blue text-white rounded-lg border-2 border-brand-dark" title="Save/Load Data">
+                <i data-lucide="save" class="w-5 h-5"></i>
+            </button>
+            <button onclick="Jeopardy.toggleTheme()" class="btn-neo p-2.5 bg-brand-dark text-white rounded-lg border-2 border-brand-dark" title="Dark Mode">
+                <i data-lucide="moon" class="w-5 h-5"></i>
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-grow w-full max-w-7xl mx-auto p-4 flex flex-col justify-center">
+        <div class="w-full overflow-x-auto pb-4 custom-scrollbar">
+            <div class="min-w-[900px] mx-auto">
+                <div id="category-row" class="grid grid-cols-5 gap-4 mb-4"></div>
+                <div id="game-board" class="grid grid-cols-5 gap-4"></div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="w-full max-w-7xl mx-auto p-4 sticky bottom-0 z-30 pointer-events-none">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pointer-events-auto" id="scoreboard-container">
+            </div>
+    </footer>
+
+    <div id="modal-play" class="fixed inset-0 bg-brand-dark/95 hidden z-50 flex items-center justify-center p-4 backdrop-blur-md">
+        <div class="bg-white dark:bg-slate-800 w-full max-w-6xl aspect-video rounded-3xl border-[6px] border-brand-dark shadow-neo-lg flex flex-col relative overflow-hidden">
+            
+            <div class="bg-brand-dark p-4 flex justify-between items-center text-white border-b-4 border-brand-dark">
+                <h2 id="play-cat" class="font-heading text-2xl font-bold uppercase tracking-widest text-brand-chalk opacity-90">Category</h2>
+                <div class="flex items-center gap-4">
+                    <div id="play-points" class="font-mono text-3xl text-brand-orange font-black bg-brand-dark px-3 py-1 rounded border-2 border-brand-orange">$100</div>
+                    <button onclick="Jeopardy.closePlayModal()" class="hover:text-brand-pink transition transform hover:rotate-90 duration-300"><i data-lucide="x" class="w-8 h-8"></i></button>
+                </div>
+            </div>
+
+            <div class="w-full h-3 bg-slate-200 border-b-4 border-brand-dark">
+                <div id="timer-bar" class="h-full bg-brand-orange w-full transition-all duration-1000 ease-linear"></div>
+            </div>
+
+            <div class="flex-grow flex flex-col items-center justify-center p-8 md:p-16 text-center relative">
+                
+                <div id="view-question" class="w-full h-full flex flex-col justify-center items-center">
+                    <div id="play-text" class="font-heading text-5xl md:text-7xl font-bold text-brand-dark dark:text-white leading-tight animate-in zoom-in-95 duration-300 drop-shadow-sm">
+                        ...
+                    </div>
+                    
+                    <div class="mt-auto pt-10 flex gap-4">
+                        <button onclick="Jeopardy.startTimer()" id="btn-timer" class="btn-neo bg-white text-brand-dark font-heading font-bold text-xl px-8 py-4 rounded-xl border-4 border-brand-dark shadow-neo flex items-center gap-3">
+                            <i data-lucide="timer" class="text-brand-pink"></i> Start Timer
+                        </button>
+                        <button onclick="Jeopardy.revealAnswer()" class="btn-neo bg-brand-blue text-white font-heading font-bold text-2xl px-12 py-4 rounded-xl border-4 border-brand-dark shadow-neo">
+                            Reveal Answer
+                        </button>
+                    </div>
+                </div>
+
+                <div id="view-answer" class="hidden absolute inset-0 bg-brand-chalk/95 dark:bg-slate-900/95 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in duration-300 z-10">
+                    <div class="bg-brand-green text-white font-heading font-bold text-xl px-8 py-2 rounded-full mb-8 border-4 border-brand-dark shadow-neo transform -rotate-2">
+                        CORRECT ANSWER
+                    </div>
+                    <div id="play-answer" class="font-heading text-6xl md:text-8xl font-bold text-brand-dark dark:text-brand-green drop-shadow-md p-4 text-center">
+                        ...
+                    </div>
+                    <button onclick="Jeopardy.closePlayModal()" class="mt-12 btn-neo bg-brand-dark text-white font-heading font-bold text-2xl px-16 py-4 rounded-xl border-4 border-slate-600 shadow-neo hover:bg-slate-800">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-edit" class="fixed inset-0 bg-brand-dark/60 hidden z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white dark:bg-slate-800 w-full max-w-lg rounded-2xl border-4 border-brand-dark shadow-neo-lg p-6 animate-in zoom-in-95 duration-200">
+            <h2 class="font-heading text-2xl font-bold mb-4 flex items-center gap-2 text-brand-dark dark:text-white">
+                <div class="bg-brand-pink text-white p-2 rounded-lg border-2 border-brand-dark"><i data-lucide="edit-3"></i></div>
+                Edit Tile Content
+            </h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-sm font-bold text-brand-dark dark:text-slate-300 uppercase tracking-wider">Question (Prompt)</label>
+                    <textarea id="edit-q" class="w-full border-4 border-brand-dark rounded-xl p-3 font-sans text-lg focus:ring-4 ring-brand-blue/20 outline-none dark:bg-slate-900 dark:text-white transition-all" rows="3"></textarea>
+                </div>
+                <div>
+                    <label class="text-sm font-bold text-brand-dark dark:text-slate-300 uppercase tracking-wider">Answer (Reveal)</label>
+                    <textarea id="edit-a" class="w-full border-4 border-brand-dark rounded-xl p-3 font-sans text-lg focus:ring-4 ring-brand-green/20 outline-none dark:bg-slate-900 dark:text-white transition-all" rows="2"></textarea>
+                </div>
+                <div class="flex gap-3 pt-4">
+                    <button onclick="Jeopardy.saveEdit()" class="flex-1 btn-neo bg-brand-green text-white font-bold py-3 rounded-xl border-4 border-brand-dark shadow-neo font-heading text-lg">Save</button>
+                    <button onclick="Jeopardy.closeEditModal()" class="flex-1 btn-neo bg-slate-200 text-brand-dark font-bold py-3 rounded-xl border-4 border-brand-dark shadow-neo font-heading text-lg">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-data" class="fixed inset-0 bg-brand-dark/60 hidden z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white dark:bg-slate-800 w-full max-w-2xl rounded-2xl border-4 border-brand-dark shadow-neo-lg p-6">
+            <h2 class="font-heading text-2xl font-bold mb-2 text-brand-dark dark:text-white">Game Data (JSON)</h2>
+            <p class="text-slate-500 mb-2 text-sm">Copy this code to save your game, or paste code here to load a game.</p>
+            <textarea id="data-json" class="w-full border-4 border-brand-dark rounded-xl p-4 font-mono text-xs h-64 mb-4 dark:bg-slate-900 dark:text-brand-green focus:outline-none"></textarea>
+            <div class="flex gap-3">
+                <button onclick="Jeopardy.importData()" class="flex-1 btn-neo bg-brand-blue text-white font-bold py-3 rounded-xl border-4 border-brand-dark shadow-neo">Load JSON</button>
+                <button onclick="Jeopardy.closeDataModal()" class="flex-1 btn-neo bg-slate-200 text-brand-dark font-bold py-3 rounded-xl border-4 border-brand-dark shadow-neo">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-system" class="fixed inset-0 bg-brand-dark/80 hidden z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white dark:bg-slate-800 w-full max-w-md rounded-2xl border-4 border-brand-dark shadow-neo-lg p-0 overflow-hidden animate-in zoom-in-95 duration-200">
+            <div id="sys-header" class="bg-brand-blue p-4 border-b-4 border-brand-dark">
+                <h3 id="sys-title" class="font-heading font-bold text-white text-xl">System Message</h3>
+            </div>
+            <div class="p-6">
+                <p id="sys-msg" class="text-brand-dark dark:text-white font-sans text-lg font-bold mb-4">Message goes here...</p>
+                
+                <input type="text" id="sys-input" class="hidden w-full border-4 border-brand-dark rounded-xl p-3 font-sans text-lg mb-4 dark:bg-slate-900 dark:text-white focus:outline-none focus:border-brand-pink" autocomplete="off">
+
+                <div class="flex gap-3 justify-end mt-2" id="sys-actions">
+                    </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const Jeopardy = (function() {
+            
+            // --- Config & State ---
+            const DEFAULT_STATE = {
+                categories: ["Grammar", "Vocab", "Spelling", "Mystery", "Speaking"],
+                teams: ["Team 1", "Team 2", "Team 3", "Team 4"],
+                questions: Array(5).fill().map(() => Array(5).fill({ q: "Edit Me", a: "Answer" })),
+                visited: Array(5).fill().map(() => Array(5).fill(false)),
+                scores: [0, 0, 0, 0]
+            };
+
+            let state = JSON.parse(localStorage.getItem('eng1_jeopardy_v3')) || JSON.parse(JSON.stringify(DEFAULT_STATE));
+            let isEditMode = false;
+            let currentEdit = { row: 0, col: 0 };
+            
+            // --- DOM Elements ---
+            const els = {
+                grid: document.getElementById('game-board'),
+                cats: document.getElementById('category-row'),
+                scores: document.getElementById('scoreboard-container'),
+                status: document.getElementById('status-indicator'),
+                modals: {
+                    play: document.getElementById('modal-play'),
+                    edit: document.getElementById('modal-edit'),
+                    data: document.getElementById('modal-data'),
+                    system: document.getElementById('modal-system')
+                },
+                play: {
+                    q: document.getElementById('view-question'),
+                    a: document.getElementById('view-answer'),
+                    text: document.getElementById('play-text'),
+                    answer: document.getElementById('play-answer'),
+                    cat: document.getElementById('play-cat'),
+                    points: document.getElementById('play-points'),
+                    timerBar: document.getElementById('timer-bar')
+                },
+                inputs: {
+                    q: document.getElementById('edit-q'),
+                    a: document.getElementById('edit-a')
+                },
+                sys: {
+                    title: document.getElementById('sys-title'),
+                    msg: document.getElementById('sys-msg'),
+                    input: document.getElementById('sys-input'),
+                    actions: document.getElementById('sys-actions'),
+                    header: document.getElementById('sys-header')
+                }
+            };
+
+            // --- Core Functions ---
+
+            function init() {
+                if(!state.teams) state.teams = ["Team 1", "Team 2", "Team 3", "Team 4"];
+                lucide.createIcons();
+                renderBoard();
+                renderScoreboard();
+                updateEditUI();
+            }
+
+            // --- The "System Modal" (Replaces Alert/Confirm/Prompt) ---
+            function showSystemModal(options) {
+                const { type, title, message, defaultValue, onConfirm } = options;
+                
+                // Reset
+                els.sys.title.textContent = title || "Notification";
+                els.sys.msg.textContent = message || "";
+                els.sys.input.value = defaultValue || "";
+                els.sys.input.classList.add('hidden');
+                els.sys.actions.innerHTML = '';
+                
+                // Color coding
+                const colors = { alert: 'bg-brand-blue', confirm: 'bg-brand-orange', prompt: 'bg-brand-pink' };
+                els.sys.header.className = `p-4 border-b-4 border-brand-dark ${colors[type] || 'bg-brand-dark'}`;
+
+                // Setup based on type
+                if (type === 'prompt') {
+                    els.sys.input.classList.remove('hidden');
+                    setTimeout(() => els.sys.input.focus(), 100);
+                }
+
+                // Buttons
+                const btnCancel = document.createElement('button');
+                btnCancel.className = "btn-neo px-6 py-2 rounded-xl font-bold border-2 border-brand-dark bg-slate-200 text-brand-dark";
+                btnCancel.textContent = type === 'alert' ? "Close" : "Cancel";
+                btnCancel.onclick = () => els.modals.system.classList.add('hidden');
+
+                const btnConfirm = document.createElement('button');
+                btnConfirm.className = "btn-neo px-6 py-2 rounded-xl font-bold border-2 border-brand-dark bg-brand-green text-white";
+                btnConfirm.textContent = "Confirm";
+                btnConfirm.onclick = () => {
+                    const val = els.sys.input.value;
+                    els.modals.system.classList.add('hidden');
+                    if (onConfirm) onConfirm(type === 'prompt' ? val : true);
+                };
+
+                if (type !== 'alert') els.sys.actions.appendChild(btnCancel);
+                els.sys.actions.appendChild(btnConfirm);
+
+                els.modals.system.classList.remove('hidden');
+            }
+
+            // --- Render Logic ---
+
+            function renderBoard() {
+                els.cats.innerHTML = '';
+                els.grid.innerHTML = '';
+
+                // Categories
+                const catColors = ['bg-brand-pink', 'bg-brand-orange', 'bg-brand-green', 'bg-brand-blue', 'bg-brand-pink'];
+                state.categories.forEach((cat, idx) => {
+                    const div = document.createElement('div');
+                    div.className = `${catColors[idx%4]} text-white border-4 border-brand-dark rounded-xl py-4 px-2 flex items-center justify-center shadow-neo relative cursor-pointer select-none transition-transform hover:scale-[1.02] active:scale-95`;
+                    div.innerHTML = `<span class="font-heading font-bold text-lg md:text-xl uppercase text-center leading-tight drop-shadow-md tracking-wide">${cat}</span>`;
+                    
+                    if(isEditMode) {
+                        div.innerHTML += `<div class="absolute -top-2 -right-2 bg-white text-brand-dark border-2 border-brand-dark rounded-full p-1"><i data-lucide="edit-2" class="w-3 h-3"></i></div>`;
+                        div.onclick = () => {
+                            showSystemModal({
+                                type: 'prompt',
+                                title: 'Rename Category',
+                                message: `Enter new name for "${cat}":`,
+                                defaultValue: cat,
+                                onConfirm: (val) => {
+                                    if(val) { state.categories[idx] = val; save(); renderBoard(); }
+                                }
+                            });
+                        };
+                    }
+                    els.cats.appendChild(div);
+                });
+
+                // Grid
+                for(let r=0; r<5; r++) {
+                    for(let c=0; c<5; c++) {
+                        const cell = state.questions[r][c];
+                        const visited = state.visited[r][c];
+                        const points = (r+1)*100;
+
+                        const btn = document.createElement('button');
+                        let cls = "tile-card w-full h-24 md:h-28 rounded-xl border-4 border-brand-dark flex items-center justify-center font-heading font-bold text-4xl shadow-neo btn-neo transition-all relative overflow-hidden ";
+                        
+                        if(visited && !isEditMode) {
+                            cls += "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none border-slate-300 opacity-60";
+                            btn.disabled = true;
+                        } else {
+                            cls += "bg-white text-brand-blue hover:z-10 dark:bg-slate-800 dark:text-brand-blue";
+                        }
+                        
+                        if(isEditMode && cell.q === "Edit Me") {
+                            cls += " bg-red-50 text-red-300 border-dashed border-red-300";
+                        }
+
+                        btn.className = cls;
+                        btn.innerHTML = `<span class="relative z-10">$${points}</span>`;
+                        
+                        // Decorative pattern on tiles
+                        if(!visited) {
+                             btn.innerHTML += `<div class="absolute -bottom-4 -right-4 w-12 h-12 bg-slate-100 dark:bg-slate-700 rounded-full z-0"></div>`;
+                        }
+
+                        btn.onclick = () => handleTileClick(r, c);
+                        els.grid.appendChild(btn);
+                    }
+                }
+                lucide.createIcons();
+            }
+
+            function renderScoreboard() {
+                els.scores.innerHTML = '';
+                const colors = ['pink', 'orange', 'blue', 'green'];
+
+                state.scores.forEach((score, idx) => {
+                    const color = colors[idx % 4];
+                    const teamName = state.teams[idx];
+                    
+                    const div = document.createElement('div');
+                    div.className = "bg-white dark:bg-slate-800 border-4 border-brand-dark shadow-neo rounded-xl p-3 flex flex-col items-center relative overflow-hidden transition-all group";
+                    
+                    div.innerHTML = `
+                        <div class="absolute top-0 left-0 w-full h-3 bg-brand-${color} border-b-2 border-brand-dark"></div>
+                        
+                        <button onclick="Jeopardy.renameTeam(${idx})" class="font-heading font-bold text-lg mt-3 dark:text-white hover:text-brand-${color} hover:underline decoration-2 underline-offset-4 truncate max-w-full z-10">
+                            ${teamName}
+                        </button>
+                        
+                        <button onclick="Jeopardy.editScore(${idx})" class="text-4xl md:text-5xl font-black font-sans my-2 text-brand-dark dark:text-brand-chalk hover:scale-110 transition-transform cursor-pointer z-10" title="Click to edit manually">
+                            ${score}
+                        </button>
+                        
+                        <div class="flex gap-2 w-full mt-auto z-10">
+                            <button onclick="Jeopardy.modScore(${idx}, 100)" class="flex-1 btn-neo py-2 rounded-lg bg-brand-green text-white border-2 border-brand-dark font-bold shadow-sm text-lg hover:bg-green-400">+</button>
+                            <button onclick="Jeopardy.modScore(${idx}, -100)" class="flex-1 btn-neo py-2 rounded-lg bg-brand-pink text-white border-2 border-brand-dark font-bold shadow-sm text-lg hover:bg-pink-400">-</button>
+                        </div>
+                    `;
+                    els.scores.appendChild(div);
+                });
+            }
+
+            // --- Actions ---
+
+            function handleTileClick(r, c) {
+                if(isEditMode) {
+                    currentEdit = { r, c };
+                    els.inputs.q.value = state.questions[r][c].q;
+                    els.inputs.a.value = state.questions[r][c].a;
+                    els.modals.edit.classList.remove('hidden');
+                } else {
+                    state.visited[r][c] = true;
+                    save();
+                    renderBoard();
+                    openPlayModal(state.questions[r][c], state.categories[c], (r+1)*100);
+                }
+            }
+
+            function renameTeam(idx) {
+                showSystemModal({
+                    type: 'prompt',
+                    title: 'Rename Team',
+                    message: `Enter name for Team ${idx + 1}:`,
+                    defaultValue: state.teams[idx],
+                    onConfirm: (val) => {
+                        if(val) {
+                            state.teams[idx] = val;
+                            save();
+                            renderScoreboard();
+                        }
+                    }
+                });
+            }
+
+            function editScore(idx) {
+                showSystemModal({
+                    type: 'prompt',
+                    title: 'Adjust Score',
+                    message: `Manually set score for ${state.teams[idx]}:`,
+                    defaultValue: state.scores[idx],
+                    onConfirm: (val) => {
+                        if(val !== null && !isNaN(val)) {
+                            state.scores[idx] = parseInt(val);
+                            save();
+                            renderScoreboard();
+                        }
+                    }
+                });
+            }
+
+            function modScore(idx, val) {
+                state.scores[idx] += val;
+                save();
+                renderScoreboard();
+            }
+
+            // --- Play Mode ---
+
+            function openPlayModal(data, cat, points) {
+                els.play.q.classList.remove('hidden');
+                els.play.a.classList.add('hidden');
+                
+                els.play.cat.textContent = cat;
+                els.play.points.textContent = `$${points}`;
+                els.play.text.textContent = data.q;
+                els.play.answer.textContent = data.a;
+
+                stopTimer();
+                els.play.timerBar.style.width = '100%';
+                
+                els.modals.play.classList.remove('hidden');
+            }
+
+            function startTimer() {
+                const duration = 15; 
+                // Reset
+                els.play.timerBar.style.transition = 'none';
+                els.play.timerBar.style.width = '100%';
+                void els.play.timerBar.offsetWidth; 
+
+                // Animate
+                els.play.timerBar.style.transition = `width ${duration}s linear`;
+                els.play.timerBar.style.width = '0%';
+            }
+
+            function stopTimer() {
+                els.play.timerBar.style.transition = 'none';
+                els.play.timerBar.style.width = '100%';
+            }
+
+            function revealAnswer() {
+                els.play.q.classList.add('hidden');
+                els.play.a.classList.remove('hidden');
+                els.play.a.classList.add('flex');
+            }
+
+            function closePlayModal() {
+                els.modals.play.classList.add('hidden');
+            }
+
+            // --- Edit Logic ---
+
+            function saveEdit() {
+                const { r, c } = currentEdit;
+                state.questions[r][c].q = els.inputs.q.value;
+                state.questions[r][c].a = els.inputs.a.value;
+                save();
+                renderBoard();
+                closeEditModal();
+            }
+
+            function closeEditModal() {
+                els.modals.edit.classList.add('hidden');
+            }
+
+            function toggleEditMode() {
+                isEditMode = !isEditMode;
+                updateEditUI();
+                renderBoard();
+            }
+
+            function updateEditUI() {
+                const track = document.getElementById('toggle-track');
+                const dot = document.getElementById('toggle-dot');
+                const btn = document.getElementById('btn-edit-toggle');
+                
+                if(isEditMode) {
+                    document.body.classList.add('edit-active');
+                    track.classList.replace('bg-slate-300', 'bg-brand-green');
+                    dot.style.transform = 'translateX(100%)';
+                    els.status.textContent = "DESIGN MODE ACTIVE";
+                    els.status.className = "text-xs font-bold text-brand-pink uppercase tracking-widest animate-pulse";
+                    btn.classList.add('bg-slate-100');
+                } else {
+                    document.body.classList.remove('edit-active');
+                    track.classList.replace('bg-brand-green', 'bg-slate-300');
+                    dot.style.transform = 'translateX(0)';
+                    els.status.textContent = "Ready to Play";
+                    els.status.className = "text-xs font-bold text-brand-green uppercase tracking-widest";
+                    btn.classList.remove('bg-slate-100');
+                }
+            }
+
+            // --- Persistence ---
+
+            function save() {
+                localStorage.setItem('eng1_jeopardy_v3', JSON.stringify(state));
+            }
+
+            function exportData() {
+                document.getElementById('data-json').value = JSON.stringify(state, null, 2);
+                els.modals.data.classList.remove('hidden');
+            }
+
+            function importData() {
+                try {
+                    const raw = JSON.parse(document.getElementById('data-json').value);
+                    if(raw.questions && raw.categories) {
+                        state = raw;
+                        save();
+                        init();
+                        closeDataModal();
+                        showSystemModal({ type: 'alert', title: 'Success', message: 'Game Loaded Successfully!' });
+                    } else throw new Error();
+                } catch(e) {
+                    showSystemModal({ type: 'alert', title: 'Error', message: 'Invalid Data JSON' });
+                }
+            }
+
+            function closeDataModal() {
+                els.modals.data.classList.add('hidden');
+            }
+
+            function resetBoardState() {
+                showSystemModal({
+                    type: 'confirm',
+                    title: 'Reset Board?',
+                    message: "This will mark all tiles as 'unplayed'. Scores will remain.",
+                    onConfirm: () => {
+                        state.visited = state.visited.map(row => row.map(() => false));
+                        save();
+                        renderBoard();
+                    }
+                });
+            }
+
+            function toggleTheme() {
+                document.documentElement.classList.toggle('dark');
+            }
+
+            return {
+                init, toggleEditMode, handleTileClick,
+                renameTeam, editScore, modScore,
+                saveEdit, closeEditModal,
+                openPlayModal, closePlayModal, revealAnswer, startTimer,
+                exportData, importData, closeDataModal,
+                resetBoardState, toggleTheme
+            };
+        })();
+
+        Jeopardy.init();
+
+    </script>
+</body>
+</html>
