@@ -183,6 +183,8 @@
 </head>
 <body class="h-screen flex flex-col text-dark">
 
+    <input type="file" id="importInput" accept=".json" class="hidden" onchange="processImport(this)">
+
     <header class="bg-white border-b-3 border-dark z-40 flex-none sticky top-0">
         <div class="max-w-screen-2xl mx-auto px-6 h-20 flex items-center justify-between">
             <div class="flex items-center gap-4">
@@ -196,17 +198,27 @@
             </div>
             
             <div class="flex items-center gap-3">
-                <button onclick="toggleZenMode()" class="neo-btn bg-white text-dark px-4 py-2 rounded-xl text-sm flex items-center gap-2" title="Toggle Zen Mode">
+                <button onclick="toggleZenMode()" class="neo-btn bg-white text-dark px-3 py-2 rounded-xl text-sm flex items-center gap-2" title="Toggle Zen Mode">
                     <i id="zenModeIcon" data-lucide="maximize-2" class="w-4 h-4"></i>
-                    <span id="zenModeText" class="hidden md:inline">Zen Mode</span>
+                    <span id="zenModeText" class="hidden xl:inline">Zen</span>
                 </button>
-                <button onclick="toggleOutline()" class="neo-btn bg-white text-dark px-4 py-2 rounded-xl text-sm flex items-center gap-2" title="Toggle Outline">
+                <button onclick="toggleOutline()" class="neo-btn bg-white text-dark px-3 py-2 rounded-xl text-sm flex items-center gap-2" title="Toggle Outline">
                     <i data-lucide="list-tree" class="w-4 h-4"></i>
-                    <span class="hidden md:inline">Outline</span>
+                    <span class="hidden xl:inline">Outline</span>
                 </button>
-                <button onclick="exportPDF()" class="neo-btn bg-pink text-white px-4 py-2 rounded-xl text-sm flex items-center gap-2">
+                
+                <button onclick="exportJSON()" class="neo-btn bg-blue text-white px-3 py-2 rounded-xl text-sm flex items-center gap-2" title="Backup Notes">
+                    <i data-lucide="save" class="w-4 h-4"></i>
+                    <span class="hidden lg:inline">Backup</span>
+                </button>
+                <button onclick="triggerImport()" class="neo-btn bg-orange text-white px-3 py-2 rounded-xl text-sm flex items-center gap-2" title="Restore Notes">
+                    <i data-lucide="upload-cloud" class="w-4 h-4"></i>
+                    <span class="hidden lg:inline">Restore</span>
+                </button>
+
+                <button onclick="exportPDF()" class="neo-btn bg-pink text-white px-3 py-2 rounded-xl text-sm flex items-center gap-2">
                     <i data-lucide="download" class="w-4 h-4"></i>
-                    <span class="hidden md:inline">Export PDF</span>
+                    <span class="hidden lg:inline">PDF</span>
                 </button>
             </div>
         </div>
@@ -315,7 +327,7 @@
     <div id="customModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-pop">
         <div class="neo-card max-w-md w-full p-8 flex flex-col items-center text-center border-pink">
             <div class="w-20 h-20 rounded-full flex items-center justify-center mb-6 bg-pink/20 text-pink border-3 border-pink">
-                <i data-lucide="trash-2" class="w-10 h-10"></i>
+                <i id="modalIcon" data-lucide="trash-2" class="w-10 h-10"></i>
             </div>
             <h3 id="modalTitle" class="text-3xl font-heading font-bold text-dark mb-2">Move to Trash?</h3>
             <p id="modalDesc" class="text-gray-600 font-bold mb-8">You can restore this note later from the Trash bin.</p>
@@ -437,6 +449,72 @@
                 sidebar.classList.add('w-0', 'opacity-0');
             }
         }
+
+        // --- EXPORT / IMPORT LOGIC ---
+
+        function exportJSON() {
+            const dataStr = JSON.stringify(notes, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `english1_backup_${new Date().toISOString().split('T')[0]}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        }
+
+        function triggerImport() {
+            document.getElementById('importInput').click();
+        }
+
+        async function processImport(inputElement) {
+            const file = inputElement.files[0];
+            if (!file) return;
+
+            // Ask for confirmation
+            const confirmed = await showModal(
+                'Import Backup?', 
+                'WARNING: This will REPLACE all current notes with the backup file. This cannot be undone.', 
+                'Yes, Replace All',
+                'alert-triangle'
+            );
+
+            if (!confirmed) {
+                inputElement.value = ''; // Reset input
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedNotes = JSON.parse(e.target.result);
+                    if (Array.isArray(importedNotes)) {
+                        notes = importedNotes;
+                        saveToStorage();
+                        
+                        // Reset UI
+                        if(isTrashMode) toggleTrashMode(); // Exit trash mode if active
+                        
+                        // Load first note
+                        const firstNote = notes.find(n => !n.deleted);
+                        if(firstNote) loadNote(firstNote.id);
+                        else createNewNote();
+                        
+                        renderNotesList();
+                        alert('Backup restored successfully!');
+                    } else {
+                        alert('Invalid backup file format.');
+                    }
+                } catch (err) {
+                    alert('Error parsing JSON file.');
+                    console.error(err);
+                }
+            };
+            reader.readAsText(file);
+            inputElement.value = ''; // Reset input so same file can be selected again
+        }
+
 
         // --- TRASH MODE LOGIC ---
 
@@ -708,18 +786,24 @@
             html2pdf().set(opt).from(printEl).save().then(() => { printEl.classList.add('hidden'); });
         }
 
-        function showModal(title, desc, confirmText) {
+        function showModal(title, desc, confirmText, iconName) {
             return new Promise((resolve) => {
                 const modal = document.getElementById('customModal');
                 const titleEl = document.getElementById('modalTitle');
                 const descEl = document.getElementById('modalDesc');
                 const confirmBtn = document.getElementById('modalConfirm');
                 const cancelBtn = document.getElementById('modalCancel');
+                const iconEl = document.getElementById('modalIcon');
                 
                 // Customize Modal
                 if(title) titleEl.innerText = title;
                 if(desc) descEl.innerText = desc;
                 if(confirmText) confirmBtn.innerText = confirmText;
+                
+                if(iconName) {
+                    iconEl.setAttribute('data-lucide', iconName);
+                    lucide.createIcons();
+                }
 
                 modal.classList.remove('hidden');
                 
@@ -727,6 +811,9 @@
                     modal.classList.add('hidden');
                     confirmBtn.onclick = null;
                     cancelBtn.onclick = null;
+                    // Reset icon default
+                    iconEl.setAttribute('data-lucide', 'trash-2');
+                    lucide.createIcons();
                     resolve(value);
                 };
                 confirmBtn.onclick = () => cleanup(true);
