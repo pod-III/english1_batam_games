@@ -160,14 +160,56 @@
     </div>
 
     <script>
+        // Massive expansion of word pairs
         const WORD_PAIRS = [
+            // School & Education
             ["School", "University"], ["Teacher", "Professor"], ["Student", "Pupil"],
-            ["Apple", "Pear"], ["Coffee", "Tea"], ["Car", "Bus"],
-            ["Guitar", "Violin"], ["Soccer", "Basketball"], ["Beach", "Pool"],
-            ["Cinema", "Netflix"], ["Book", "Magazine"], ["Pen", "Pencil"],
-            ["Laptop", "Tablet"], ["Cat", "Dog"], ["Doctor", "Nurse"],
-            ["Summer", "Spring"], ["Happy", "Excited"], ["King", "President"],
-            ["Chair", "Sofa"], ["Shoes", "Sandals"]
+            ["Pen", "Pencil"], ["Notebook", "Textbook"], ["Library", "Bookstore"],
+            ["Eraser", "Whiteout"], ["Homework", "Assignment"], ["Recess", "Break"],
+            ["Math", "Physics"], ["Exam", "Quiz"], ["Desk", "Table"],
+
+            // Food & Drink
+            ["Apple", "Pear"], ["Coffee", "Tea"], ["Burger", "Sandwich"],
+            ["Pizza", "Pasta"], ["Cake", "Pie"], ["Cookie", "Biscuit"],
+            ["Chocolate", "Candy"], ["Lemon", "Lime"], ["Soup", "Stew"],
+            ["Breakfast", "Lunch"], ["Fork", "Spoon"], ["Water", "Soda"],
+            ["Rice", "Noodle"], ["Chicken", "Duck"], ["Milk", "Yogurt"],
+            ["Salt", "Sugar"], ["Ketchup", "Mustard"], ["Butter", "Cheese"],
+            ["Strawberry", "Raspberry"], ["Orange", "Tangerine"],
+
+            // Animals
+            ["Cat", "Dog"], ["Tiger", "Lion"], ["Horse", "Donkey"],
+            ["Eagle", "Falcon"], ["Shark", "Whale"], ["Frog", "Toad"],
+            ["Butterfly", "Moth"], ["Bee", "Wasp"], ["Rabbit", "Hare"],
+            ["Turtle", "Tortoise"], ["Crocodile", "Alligator"], ["Dolphin", "Porpoise"],
+            ["Monkey", "Gorilla"], ["Snake", "Lizard"], ["Wolf", "Fox"],
+
+            // Objects & Tech
+            ["Laptop", "Tablet"], ["iPhone", "Samsung"], ["Mouse", "Trackpad"],
+            ["Headphones", "Earbuds"], ["Facebook", "Instagram"], ["Youtube", "TikTok"],
+            ["Car", "Bus"], ["Motorcycle", "Bicycle"], ["Train", "Subway"],
+            ["Helicopter", "Airplane"], ["Boat", "Ship"], ["Clock", "Watch"],
+            ["Glass", "Cup"], ["Door", "Gate"], ["Key", "Password"],
+            ["Shoes", "Sandals"], ["Hat", "Cap"], ["Glasses", "Sunglasses"],
+            
+            // Concepts & Feelings
+            ["Happy", "Excited"], ["Sad", "Depressed"], ["Angry", "Annoyed"],
+            ["Love", "Like"], ["Run", "Jog"], ["Walk", "Stroll"],
+            ["Sing", "Hum"], ["Laugh", "Smile"], ["Cry", "Sob"],
+            ["King", "President"], ["Queen", "Princess"], ["Ghost", "Zombie"],
+            ["Vampire", "Werewolf"], ["Angel", "Fairy"], ["Hero", "Villain"],
+
+            // Places & Nature
+            ["Beach", "Pool"], ["River", "Lake"], ["Ocean", "Sea"],
+            ["Mountain", "Hill"], ["Forest", "Jungle"], ["City", "Town"],
+            ["Sun", "Moon"], ["Star", "Planet"], ["Rain", "Snow"],
+            ["Summer", "Spring"], ["Winter", "Autumn"], ["Cinema", "Netflix"],
+            ["Park", "Garden"], ["Hotel", "Motel"], ["Kitchen", "Restaurant"],
+
+            // Sports & Hobbies
+            ["Soccer", "Basketball"], ["Tennis", "Badminton"], ["Swimming", "Diving"],
+            ["Guitar", "Violin"], ["Piano", "Keyboard"], ["Painting", "Drawing"],
+            ["Chess", "Checkers"], ["Video Game", "Board Game"], ["Running", "Hiking"]
         ];
 
         const state = {
@@ -175,6 +217,7 @@
             lastScreen: null,
             timer: null,
             timeLeft: 0,
+            usedIndices: [], // Tracks played words to avoid repetition
             config: {
                 playerNames: [], 
                 spies: 1,
@@ -248,7 +291,7 @@
         }
 
         function startGame() {
-            // Word Selection Logic
+            // Word Selection Logic with History Tracking
             if (state.config.useCustomWords && state.config.customWord1 && state.config.customWord2) {
                 state.game.civWord = state.config.customWord1;
                 state.game.spyWord = state.config.customWord2;
@@ -257,7 +300,23 @@
                     [state.game.civWord, state.game.spyWord] = [state.game.spyWord, state.game.civWord];
                 }
             } else {
-                const pair = WORD_PAIRS[Math.floor(Math.random() * WORD_PAIRS.length)];
+                // Filter out indices that have already been played
+                let availableIndices = WORD_PAIRS.map((_, i) => i).filter(i => !state.usedIndices.includes(i));
+                
+                // If we've used all words, reset the history
+                if (availableIndices.length === 0) {
+                    state.usedIndices = [];
+                    availableIndices = WORD_PAIRS.map((_, i) => i);
+                }
+
+                // Pick random from available
+                const randomIndex = Math.floor(Math.random() * availableIndices.length);
+                const selectedPairIndex = availableIndices[randomIndex];
+
+                // Remember this index
+                state.usedIndices.push(selectedPairIndex);
+
+                const pair = WORD_PAIRS[selectedPairIndex];
                 const flip = Math.random() > 0.5;
                 state.game.civWord = flip ? pair[0] : pair[1];
                 state.game.spyWord = flip ? pair[1] : pair[0];
