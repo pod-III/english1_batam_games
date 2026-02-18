@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Classroom Visualizer - English 1 Batam</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        heading: ['Fredoka', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            pink: '#FF6B95',
+                            orange: '#FF8C42',
+                            green: '#00E676',
+                            blue: '#2979FF',
+                            dark: '#1e293b',
+                            chalk: '#f8fafc',
+                        }
+                    },
+                    boxShadow: {
+                        'hard': '4px 4px 0px 0px rgba(30, 41, 59, 1)',
+                        'hard-sm': '2px 2px 0px 0px rgba(30, 41, 59, 1)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            overscroll-behavior: none;
+        }
+        
+        /* Light Mode Grid */
+        .bg-grid {
+            background-color: #f8fafc;
+            background-image: linear-gradient(#cbd5e1 1px, transparent 1px),
+            linear-gradient(90deg, #cbd5e1 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        /* Dark Mode Grid */
+        .dark .bg-grid {
+            background-color: #0f172a;
+            background-image: linear-gradient(#334155 1px, transparent 1px),
+            linear-gradient(90deg, #334155 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        canvas {
+            touch-action: none;
+        }
+    </style>
+</head>
+<body class="bg-grid text-brand-dark min-h-screen flex flex-col overflow-hidden transition-colors duration-300">
+
+    <!-- Header -->
+    <header class="bg-brand-pink border-b-4 border-brand-dark p-3 md:p-4 flex justify-between items-center z-20 shadow-hard relative">
+        <div class="flex items-center gap-3">
+            <div class="bg-white p-2 rounded-xl border-2 border-brand-dark shadow-hard-sm hidden md:block">
+                <i data-lucide="layout-grid" class="w-6 h-6 text-brand-dark"></i>
+            </div>
+            <h1 class="font-heading text-xl md:text-2xl font-bold text-white text-shadow-sm" style="text-shadow: 2px 2px 0 #1e293b;">
+                Classroom Visualizer
+            </h1>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="toggleDarkMode()" class="bg-brand-dark text-white p-2 rounded-xl border-2 border-white/50 hover:bg-slate-700 transition-all">
+                <i data-lucide="moon" class="w-5 h-5"></i>
+            </button>
+            <button onclick="toggleHelp()" class="bg-brand-blue text-white font-heading font-bold py-2 px-4 rounded-xl border-2 border-brand-dark shadow-hard hover:-translate-y-1 active:translate-y-0 transition-all flex items-center gap-2">
+                <span class="hidden md:inline">Help</span>
+                <i data-lucide="help-circle" class="w-5 h-5"></i>
+            </button>
+        </div>
+    </header>
+
+    <div class="flex flex-1 h-full relative overflow-hidden">
+        <!-- Sidebar Controls -->
+        <aside class="w-24 md:w-72 bg-white dark:bg-slate-800 border-r-4 border-brand-dark flex flex-col shadow-hard z-10 transition-colors duration-300">
+            <div class="p-2 md:p-6 flex flex-col gap-6 overflow-y-auto h-full">
+                
+                <!-- Tools Section -->
+                <div class="flex flex-col gap-2">
+                    <h2 class="hidden md:flex font-heading text-xl font-bold mb-2 items-center gap-2 dark:text-white">
+                        <i data-lucide="users" class="w-5 h-5 text-brand-green"></i> People
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3">
+                        <button onclick="addItem('student')" title="Add Student" class="bg-brand-green text-brand-dark font-heading font-bold py-3 px-2 rounded-xl border-2 border-brand-dark shadow-hard hover:-translate-y-0.5 active:translate-y-0.5 transition-all flex flex-col items-center justify-center gap-1 text-xs md:text-sm">
+                            <i data-lucide="user" class="w-6 h-6 md:w-5 md:h-5"></i> 
+                            <span class="hidden md:inline">Student</span>
+                        </button>
+                        <button onclick="addItem('teacher')" title="Add Teacher" class="bg-brand-orange text-brand-dark font-heading font-bold py-3 px-2 rounded-xl border-2 border-brand-dark shadow-hard hover:-translate-y-0.5 active:translate-y-0.5 transition-all flex flex-col items-center justify-center gap-1 text-xs md:text-sm">
+                            <i data-lucide="monitor" class="w-6 h-6 md:w-5 md:h-5"></i> 
+                            <span class="hidden md:inline">Teacher</span>
+                        </button>
+                    </div>
+                </div>
+
+                <hr class="border-2 border-brand-dark border-dashed opacity-50">
+
+                <!-- Presets Section -->
+                <div class="flex flex-col gap-2">
+                    <h2 class="hidden md:flex font-heading text-xl font-bold mb-2 items-center gap-2 dark:text-white">
+                        <i data-lucide="layout" class="w-5 h-5 text-brand-pink"></i> Presets
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3">
+                        <button onclick="applyPreset('rows')" title="Rows" class="bg-brand-chalk text-brand-dark font-heading font-bold py-2 px-2 rounded-xl border-2 border-brand-dark shadow-hard hover:bg-white active:translate-y-0.5 transition-all flex items-center justify-center gap-2 text-sm">
+                            <i data-lucide="align-justify" class="w-5 h-5 md:w-4 md:h-4"></i> <span class="hidden md:inline">Rows</span>
+                        </button>
+                        <button onclick="applyPreset('groups')" title="Groups" class="bg-brand-chalk text-brand-dark font-heading font-bold py-2 px-2 rounded-xl border-2 border-brand-dark shadow-hard hover:bg-white active:translate-y-0.5 transition-all flex items-center justify-center gap-2 text-sm">
+                            <i data-lucide="grid" class="w-5 h-5 md:w-4 md:h-4"></i> <span class="hidden md:inline">Groups</span>
+                        </button>
+                        <button onclick="applyPreset('ushape')" title="U-Shape" class="bg-brand-chalk text-brand-dark font-heading font-bold py-2 px-2 rounded-xl border-2 border-brand-dark shadow-hard hover:bg-white active:translate-y-0.5 transition-all flex items-center justify-center gap-2 text-sm">
+                            <i data-lucide="u-turn-down" class="w-5 h-5 md:w-4 md:h-4"></i> <span class="hidden md:inline">U-Shape</span>
+                        </button>
+                        <button onclick="applyPreset('circle')" title="Circle" class="bg-brand-chalk text-brand-dark font-heading font-bold py-2 px-2 rounded-xl border-2 border-brand-dark shadow-hard hover:bg-white active:translate-y-0.5 transition-all flex items-center justify-center gap-2 text-sm">
+                            <i data-lucide="circle" class="w-5 h-5 md:w-4 md:h-4"></i> <span class="hidden md:inline">Circle</span>
+                        </button>
+                    </div>
+                </div>
+
+                <hr class="border-2 border-brand-dark border-dashed opacity-50">
+
+                <!-- Furniture Section -->
+                <div class="flex flex-col gap-2">
+                    <h2 class="hidden md:flex font-heading text-xl font-bold mb-2 items-center gap-2 dark:text-white">
+                        <i data-lucide="armchair" class="w-5 h-5 text-brand-blue"></i> Furniture
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3">
+                        <button onclick="addItem('table_rect')" title="Rect Table" class="bg-brand-blue/20 text-brand-dark dark:text-brand-blue font-heading font-bold py-2 px-2 rounded-xl border-2 border-brand-dark shadow-hard hover:bg-brand-blue/30 active:translate-y-0.5 transition-all flex items-center justify-center gap-2 text-xs md:text-sm">
+                            <i data-lucide="square" class="w-5 h-5 md:w-4 md:h-4"></i> <span class="hidden md:inline">Table</span>
+                        </button>
+                        <button onclick="addItem('table_round')" title="Round Table" class="bg-brand-blue/20 text-brand-dark dark:text-brand-blue font-heading font-bold py-2 px-2 rounded-xl border-2 border-brand-dark shadow-hard hover:bg-brand-blue/30 active:translate-y-0.5 transition-all flex items-center justify-center gap-2 text-xs md:text-sm">
+                            <i data-lucide="circle" class="w-5 h-5 md:w-4 md:h-4"></i> <span class="hidden md:inline">Round</span>
+                        </button>
+                        <button onclick="addItem('bookshelf')" title="Bookshelf" class="bg-brand-blue/20 text-brand-dark dark:text-brand-blue font-heading font-bold py-2 px-2 rounded-xl border-2 border-brand-dark shadow-hard hover:bg-brand-blue/30 active:translate-y-0.5 transition-all flex items-center justify-center gap-2 text-xs md:text-sm">
+                            <i data-lucide="library" class="w-5 h-5 md:w-4 md:h-4"></i> <span class="hidden md:inline">Shelf</span>
+                        </button>
+                        <button onclick="addItem('whiteboard')" title="Whiteboard" class="bg-brand-blue/20 text-brand-dark dark:text-brand-blue font-heading font-bold py-2 px-2 rounded-xl border-2 border-brand-dark shadow-hard hover:bg-brand-blue/30 active:translate-y-0.5 transition-all flex items-center justify-center gap-2 text-xs md:text-sm">
+                            <i data-lucide="presentation" class="w-5 h-5 md:w-4 md:h-4"></i> <span class="hidden md:inline">Board</span>
+                        </button>
+                    </div>
+                </div>
+
+                <hr class="border-2 border-brand-dark border-dashed opacity-50">
+
+                <!-- Actions Section -->
+                <div class="flex flex-col gap-2">
+                    <h2 class="hidden md:flex font-heading text-xl font-bold mb-2 items-center gap-2 dark:text-white">
+                        <i data-lucide="settings-2" class="w-5 h-5 text-brand-pink"></i> Actions
+                    </h2>
+                    <div class="flex flex-col gap-2 md:gap-3">
+                         <button onclick="editTitle()" title="Edit Name" class="bg-white text-brand-dark font-heading font-bold py-2 px-2 md:px-4 rounded-xl border-2 border-brand-dark shadow-hard hover:bg-slate-50 transition-all flex items-center justify-center md:justify-start gap-2">
+                            <i data-lucide="type" class="w-5 h-5 md:w-4 md:h-4"></i> <span class="hidden md:inline">Edit Title</span>
+                        </button>
+                        
+                        <!-- REMOVE SELECTED BUTTON -->
+                        <button onclick="deleteSelected()" title="Remove Selected" class="bg-orange-100 text-brand-dark font-heading font-bold py-2 px-2 md:px-4 rounded-xl border-2 border-brand-dark shadow-hard hover:bg-orange-200 transition-all flex items-center justify-center md:justify-start gap-2">
+                            <i data-lucide="eraser" class="w-5 h-5 md:w-4 md:h-4"></i> <span class="hidden md:inline">Remove Selected</span>
+                        </button>
+
+                        <button onclick="clearCanvas()" title="Clear" class="bg-red-400 text-brand-dark font-heading font-bold py-2 px-2 md:px-4 rounded-xl border-2 border-brand-dark shadow-hard hover:bg-red-500 transition-all flex items-center justify-center md:justify-start gap-2">
+                            <i data-lucide="trash-2" class="w-5 h-5 md:w-4 md:h-4"></i> <span class="hidden md:inline">Reset Room</span>
+                        </button>
+                        <button onclick="exportImage()" title="Screenshot" class="bg-brand-chalk text-brand-dark font-heading font-bold py-2 px-2 md:px-4 rounded-xl border-2 border-brand-dark shadow-hard hover:bg-slate-100 transition-all flex items-center justify-center md:justify-start gap-2">
+                            <i data-lucide="camera" class="w-5 h-5 md:w-4 md:h-4"></i> <span class="hidden md:inline">Snap</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Canvas Area -->
+        <main class="flex-1 relative overflow-hidden bg-transparent" id="canvas-container">
+            <canvas id="classCanvas" class="block"></canvas>
+            
+            <!-- Instructions Overlay -->
+            <div class="absolute top-4 right-4 pointer-events-none opacity-60">
+                <div class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm p-3 rounded-xl border-2 border-brand-dark text-xs font-bold font-heading">
+                    Drag empty space to Select • Press Delete to Remove
+                </div>
+            </div>
+            
+            <!-- Footer Brand -->
+            <div class="absolute bottom-6 right-6 bg-white dark:bg-slate-800 border-2 border-brand-dark rounded-xl px-4 py-2 shadow-hard pointer-events-none opacity-90 z-0">
+                <p class="font-heading font-bold text-sm dark:text-white">Fahrul's Class Visualizer</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="customModal" class="fixed inset-0 bg-slate-900/50 hidden items-center justify-center z-50 backdrop-blur-sm px-4">
+        <div class="bg-white dark:bg-slate-800 w-full max-w-md rounded-2xl border-4 border-brand-dark shadow-[8px_8px_0px_0px_rgba(30,41,59,1)] p-6 transform transition-all scale-100">
+            <div class="flex justify-between items-start mb-4">
+                <h3 id="modalTitle" class="font-heading text-2xl font-bold text-brand-dark dark:text-white">Edit Name</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-brand-pink transition-colors">
+                    <i data-lucide="x-circle" class="w-6 h-6"></i>
+                </button>
+            </div>
+            
+            <div id="modalContent">
+                <input type="text" id="modalInput" class="w-full font-body text-lg p-3 rounded-xl border-2 border-brand-dark focus:outline-none focus:ring-4 focus:ring-brand-blue/30 mb-6 bg-brand-chalk dark:bg-slate-700 dark:text-white" placeholder="Enter name..." autocomplete="off">
+            </div>
+
+            <div class="flex justify-end gap-3">
+                <button onclick="closeModal()" class="font-heading font-bold text-slate-500 dark:text-slate-400 hover:text-slate-700 px-4 py-2">Cancel</button>
+                <button id="modalActionBtn" class="bg-brand-green text-brand-dark font-heading font-bold py-2 px-6 rounded-xl border-2 border-brand-dark shadow-hard active:translate-y-1 active:shadow-none transition-all">
+                    Save
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Notification Modal -->
+    <div id="notifyModal" class="fixed inset-0 bg-slate-900/50 hidden items-center justify-center z-50 px-4">
+        <div class="bg-white dark:bg-slate-800 w-full max-w-sm rounded-2xl border-4 border-brand-dark shadow-[8px_8px_0px_0px_rgba(30,41,59,1)] p-6 text-center">
+            <div class="mb-4 flex justify-center">
+                <div class="bg-brand-pink/20 p-3 rounded-full border-2 border-brand-pink">
+                    <i data-lucide="info" class="w-8 h-8 text-brand-pink"></i>
+                </div>
+            </div>
+            <h3 id="notifyTitle" class="font-heading text-xl font-bold mb-2 dark:text-white">Notice</h3>
+            <p id="notifyMessage" class="font-body text-slate-600 dark:text-slate-300 mb-6">Message goes here.</p>
+            <button onclick="closeNotify()" class="w-full bg-brand-blue text-white font-heading font-bold py-2 rounded-xl border-2 border-brand-dark shadow-hard active:translate-y-0.5 active:shadow-sm">
+                Got it
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. Canvas & Theme Setup ---
+        const canvas = document.getElementById('classCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvas-container');
+        
+        let isDarkMode = false;
+        
+        const THEMES = {
+            light: {
+                student: '#FF6B95',
+                teacher: '#FF8C42',
+                furniture: '#e2e8f0', 
+                chair: '#cbd5e1',
+                border: '#1e293b',
+                text: '#1e293b',
+                titleText: '#1e293b',
+                gridLine: '#cbd5e1',
+                selection: 'rgba(41, 121, 255, 0.2)',
+                selectionBorder: '#2979FF'
+            },
+            dark: {
+                student: '#be185d',
+                teacher: '#c2410c',
+                furniture: '#334155', 
+                chair: '#475569',
+                border: '#e2e8f0',
+                text: '#e2e8f0',
+                titleText: '#f8fafc',
+                gridLine: '#334155',
+                selection: 'rgba(41, 121, 255, 0.3)',
+                selectionBorder: '#60a5fa'
+            }
+        };
+
+        let currentTheme = THEMES.light;
+        let items = [];
+        let moduleName = "English Class: Module 1";
+        
+        // --- 2. State Management ---
+        let isDragging = false;
+        let dragOffsets = []; 
+        let isSelecting = false;
+        let selectionStart = { x: 0, y: 0 };
+        let selectionEnd = { x: 0, y: 0 };
+        let selectedItemIds = new Set(); 
+        let lastTap = 0; 
+
+        // Resize Logic
+        function resizeCanvas() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            draw();
+        }
+        window.addEventListener('resize', resizeCanvas);
+        
+        function toggleDarkMode() {
+            document.documentElement.classList.toggle('dark');
+            isDarkMode = !isDarkMode;
+            currentTheme = isDarkMode ? THEMES.dark : THEMES.light;
+            draw();
+        }
+
+        // --- 3. Item Class ---
+        class Item {
+            constructor(x, y, type, name = '') {
+                this.id = Date.now() + Math.random(); 
+                this.x = x;
+                this.y = y;
+                this.type = type;
+                
+                // Defaults
+                if(type === 'student') {
+                    this.w = 60; this.h = 60; this.radius = 35;
+                    this.name = name || 'Student';
+                } else if (type === 'teacher') {
+                    this.w = 160; this.h = 90;
+                    this.name = name || 'Teacher';
+                } else if (type === 'table_rect') {
+                    this.w = 200; this.h = 100;
+                    this.name = name || 'Table';
+                } else if (type === 'table_round') {
+                    this.w = 140; this.h = 140; this.radius = 70;
+                    this.name = name || 'Round Table';
+                } else if (type === 'whiteboard') {
+                    this.w = 300; this.h = 20;
+                    this.name = name || 'Whiteboard';
+                } else if (type === 'bookshelf') {
+                    this.w = 120; this.h = 60;
+                    this.name = name || 'Shelf';
+                }
+            }
+
+            draw(context, isSelected) {
+                // Highlight
+                if (isSelected) {
+                    context.save();
+                    context.strokeStyle = currentTheme.selectionBorder;
+                    context.lineWidth = 2;
+                    context.setLineDash([5, 5]);
+                    const padding = 10;
+                    
+                    if(this.type === 'student' || this.type === 'table_round') {
+                        const r = this.radius || (this.w/2);
+                        const cx = this.x + (this.type === 'student' ? this.radius : this.radius);
+                        const cy = this.y + (this.type === 'student' ? this.radius : this.radius);
+                        let drawR = r + padding;
+                        if(this.type === 'student') drawR += 5;
+                        context.beginPath();
+                        context.arc(cx, cy, drawR, 0, Math.PI*2);
+                        context.stroke();
+                    } else {
+                        context.strokeRect(this.x - padding, this.y - padding, this.w + padding*2, this.h + padding*2);
+                    }
+                    context.restore();
+                }
+
+                if(this.type === 'student') this.drawStudent(context);
+                else if(this.type === 'teacher') this.drawTeacher(context);
+                else this.drawFurniture(context);
+            }
+
+            drawStudent(context) {
+                const centerX = this.x + this.radius;
+                const centerY = this.y + this.radius;
+
+                // Chair Back
+                const chairW = this.radius * 2.2;
+                const chairH = this.radius * 2;
+                context.fillStyle = currentTheme.chair;
+                context.strokeStyle = currentTheme.border;
+                context.lineWidth = 3;
+                context.beginPath();
+                context.roundRect(centerX - chairW/2, centerY - this.radius - 5, chairW, chairH, 15);
+                context.fill();
+                context.stroke();
+
+                // Avatar Shadow & Body
+                context.fillStyle = isDarkMode ? 'rgba(0,0,0,0.5)' : 'rgba(30, 41, 59, 1)';
+                context.beginPath();
+                context.arc(centerX + 3, centerY + 3, this.radius, 0, Math.PI * 2);
+                context.fill();
+
+                context.fillStyle = currentTheme.student;
+                context.strokeStyle = currentTheme.border;
+                context.beginPath();
+                context.arc(centerX, centerY, this.radius, 0, Math.PI * 2);
+                context.fill();
+                context.stroke();
+
+                // Silhouette
+                context.fillStyle = isDarkMode ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.9)'; 
+                context.beginPath();
+                context.arc(centerX, centerY - 8, 12, 0, Math.PI * 2);
+                context.fill();
+                context.save();
+                context.beginPath();
+                context.arc(centerX, centerY, this.radius - 3, 0, Math.PI * 2); 
+                context.clip();
+                context.beginPath();
+                context.ellipse(centerX, centerY + 25, 20, 18, 0, 0, Math.PI * 2);
+                context.fill();
+                context.restore();
+
+                this.drawText(context, centerX, centerY + this.radius + 15);
+            }
+
+            drawTeacher(context) {
+                this.drawRectBase(context, currentTheme.teacher);
+                
+                // --- REDESIGNED DESK ---
+                // Darker Orange Strip for writing surface / keyboard tray
+                context.fillStyle = isDarkMode ? '#9a3412' : '#ea580c';
+                context.fillRect(this.x + 10, this.y + this.h - 25, this.w - 20, 15);
+                
+                // Small paper stack visual on the side
+                context.fillStyle = '#f1f5f9';
+                context.fillRect(this.x + 20, this.y + 20, 25, 30);
+                context.strokeRect(this.x + 20, this.y + 20, 25, 30);
+                context.fillStyle = 'rgba(0,0,0,0.1)'; // Text lines
+                context.fillRect(this.x + 24, this.y + 26, 17, 2);
+                context.fillRect(this.x + 24, this.y + 32, 17, 2);
+
+                this.drawText(context, this.x + this.w / 2, this.y + this.h / 2 + 5, true);
+            }
+
+            drawFurniture(context) {
+                if(this.type === 'table_round') {
+                    const cx = this.x + this.radius;
+                    const cy = this.y + this.radius;
+                    // Shadow
+                    context.fillStyle = isDarkMode ? 'rgba(0,0,0,0.5)' : 'rgba(30, 41, 59, 1)';
+                    context.beginPath();
+                    context.arc(cx + 4, cy + 4, this.radius, 0, Math.PI*2);
+                    context.fill();
+                    // Table
+                    context.fillStyle = currentTheme.furniture;
+                    context.strokeStyle = currentTheme.border;
+                    context.lineWidth = 3;
+                    context.beginPath();
+                    context.arc(cx, cy, this.radius, 0, Math.PI*2);
+                    context.fill();
+                    context.stroke();
+                    // Highlight
+                    context.fillStyle = 'rgba(255,255,255,0.2)';
+                    context.beginPath();
+                    context.arc(cx, cy, this.radius - 5, 0, Math.PI*2);
+                    context.fill();
+                    this.drawText(context, cx, cy);
+                } else {
+                    let color = currentTheme.furniture;
+                    if(this.type === 'whiteboard') color = '#f1f5f9';
+                    this.drawRectBase(context, color);
+                    if(this.type === 'bookshelf') {
+                        context.beginPath();
+                        context.moveTo(this.x + 10, this.y + 10);
+                        context.lineTo(this.x + this.w - 10, this.y + 10);
+                        context.moveTo(this.x + 10, this.y + 30);
+                        context.lineTo(this.x + this.w - 10, this.y + 30);
+                        context.strokeStyle = 'rgba(0,0,0,0.2)';
+                        context.stroke();
+                    }
+                    this.drawText(context, this.x + this.w / 2, this.y + this.h / 2, true);
+                }
+            }
+
+            drawRectBase(context, color) {
+                context.fillStyle = isDarkMode ? 'rgba(0,0,0,0.5)' : 'rgba(30, 41, 59, 1)';
+                context.fillRect(this.x + 4, this.y + 4, this.w, this.h);
+                context.fillStyle = color;
+                context.strokeStyle = currentTheme.border;
+                context.lineWidth = 3;
+                context.beginPath();
+                context.roundRect(this.x, this.y, this.w, this.h, 8);
+                context.fill();
+                context.stroke();
+            }
+
+            drawText(context, x, y, centerMiddle = false) {
+                context.fillStyle = currentTheme.text;
+                context.font = "bold 14px 'Fredoka'";
+                context.textAlign = "center";
+                context.textBaseline = centerMiddle ? "middle" : "top";
+                let displayText = this.name;
+                if (displayText.length > 12) displayText = displayText.slice(0, 10) + '..';
+                context.fillText(displayText, x, y);
+            }
+
+            isHit(mx, my) {
+                if (this.type === 'student' || this.type === 'table_round') {
+                    const r = this.radius;
+                    const cx = this.x + r;
+                    const cy = this.y + r;
+                    const dist = Math.sqrt((mx - cx) ** 2 + (my - cy) ** 2);
+                    return dist <= r + (this.type === 'student' ? 10 : 0);
+                } else {
+                    return mx >= this.x && mx <= this.x + this.w && my >= this.y && my <= this.y + this.h;
+                }
+            }
+            
+            isInsideRect(rX, rY, rW, rH) {
+                const rx = rW < 0 ? rX + rW : rX;
+                const ry = rH < 0 ? rY + rH : rY;
+                const rw = Math.abs(rW);
+                const rh = Math.abs(rH);
+                const cx = this.x + (this.w ? this.w/2 : this.radius);
+                const cy = this.y + (this.h ? this.h/2 : this.radius);
+                return cx >= rx && cx <= rx + rw && cy >= ry && cy <= ry + rh;
+            }
+        }
+
+        // --- 4. Drawing Loop ---
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Title
+            ctx.fillStyle = currentTheme.titleText;
+            ctx.font = "bold 28px 'Fredoka'";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "top";
+            
+            if(!isDarkMode) {
+                ctx.fillStyle = 'rgba(30,41,59,0.1)';
+                ctx.fillText(moduleName, canvas.width / 2 + 2, 42);
+            }
+            ctx.fillStyle = currentTheme.titleText;
+            ctx.fillText(moduleName, canvas.width / 2, 40);
+
+            // Zone Line
+            const zoneY = 190;
+            ctx.strokeStyle = currentTheme.gridLine;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([10, 10]);
+            ctx.beginPath();
+            ctx.moveTo(40, zoneY);
+            ctx.lineTo(canvas.width - 40, zoneY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = isDarkMode ? '#475569' : '#94a3b8';
+            ctx.font = "bold 12px 'Nunito'";
+            ctx.textAlign = "left";
+            ctx.fillText("TEACHER ZONE", 80, zoneY - 15);
+
+            // Items (Sorted by Y)
+            items.sort((a, b) => a.y - b.y);
+            
+            items.forEach(item => {
+                const isSelected = selectedItemIds.has(item.id);
+                item.draw(ctx, isSelected);
+            });
+
+            // Selection Box
+            if (isSelecting) {
+                ctx.save();
+                ctx.strokeStyle = currentTheme.selectionBorder;
+                ctx.fillStyle = currentTheme.selection;
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                
+                const w = selectionEnd.x - selectionStart.x;
+                const h = selectionEnd.y - selectionStart.y;
+                
+                ctx.fillRect(selectionStart.x, selectionStart.y, w, h);
+                ctx.strokeRect(selectionStart.x, selectionStart.y, w, h);
+                ctx.restore();
+            }
+        }
+
+        // --- 5. Interaction Logic ---
+        function getPointerPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            if (e.touches && e.touches.length > 0) {
+                return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+            }
+            return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        }
+
+        function handleStart(e) {
+            if(e.type === 'touchstart') e.preventDefault(); 
+            const pos = getPointerPos(e);
+            
+            const currentTime = new Date().getTime();
+            if (currentTime - lastTap < 300) {
+                handleDoubleTap(pos);
+                return;
+            }
+            lastTap = currentTime;
+
+            let clickedItem = null;
+            for (let i = items.length - 1; i >= 0; i--) {
+                if (items[i].isHit(pos.x, pos.y)) {
+                    clickedItem = items[i];
+                    break;
+                }
+            }
+
+            if (clickedItem) {
+                isDragging = true;
+                isSelecting = false;
+                if (!selectedItemIds.has(clickedItem.id)) {
+                    selectedItemIds.clear();
+                    selectedItemIds.add(clickedItem.id);
+                }
+                dragOffsets = [];
+                items.forEach(item => {
+                    if (selectedItemIds.has(item.id)) {
+                        dragOffsets.push({
+                            id: item.id,
+                            offsetX: pos.x - item.x,
+                            offsetY: pos.y - item.y
+                        });
+                    }
+                });
+            } else {
+                isDragging = false;
+                isSelecting = true;
+                selectedItemIds.clear(); 
+                selectionStart = { x: pos.x, y: pos.y };
+                selectionEnd = { x: pos.x, y: pos.y };
+            }
+            draw();
+        }
+
+        function handleMove(e) {
+            if(e.type === 'touchmove') e.preventDefault();
+            const pos = getPointerPos(e);
+
+            if (isDragging) {
+                items.forEach(item => {
+                    if (selectedItemIds.has(item.id)) {
+                        const offset = dragOffsets.find(d => d.id === item.id);
+                        if (offset) {
+                            item.x = pos.x - offset.offsetX;
+                            item.y = pos.y - offset.offsetY;
+                        }
+                    }
+                });
+                draw();
+            } else if (isSelecting) {
+                selectionEnd = { x: pos.x, y: pos.y };
+                draw();
+            } else {
+                let hover = false;
+                for (let i = items.length - 1; i >= 0; i--) {
+                    if (items[i].isHit(pos.x, pos.y)) { hover = true; break; }
+                }
+                if (isMouseOverTitle(pos.x, pos.y)) hover = true;
+                canvas.style.cursor = hover ? 'pointer' : 'default';
+            }
+        }
+
+        function handleEnd(e) {
+            if (isSelecting) {
+                const w = selectionEnd.x - selectionStart.x;
+                const h = selectionEnd.y - selectionStart.y;
+                items.forEach(item => {
+                    if (item.isInsideRect(selectionStart.x, selectionStart.y, w, h)) {
+                        selectedItemIds.add(item.id);
+                    }
+                });
+            }
+            isDragging = false;
+            isSelecting = false;
+            draw();
+        }
+
+        function handleDoubleTap(pos) {
+            if (isMouseOverTitle(pos.x, pos.y)) {
+                editTitle();
+                return;
+            }
+            for (let i = items.length - 1; i >= 0; i--) {
+                if (items[i].isHit(pos.x, pos.y)) {
+                    openEditModal(items[i]);
+                    return;
+                }
+            }
+        }
+
+        function isMouseOverTitle(mx, my) {
+            const cx = canvas.width / 2;
+            return (mx > cx - 200 && mx < cx + 200 && my > 20 && my < 80);
+        }
+
+        // KEYBOARD SUPPORT
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                if (document.activeElement.tagName !== 'INPUT') {
+                    deleteSelected();
+                }
+            }
+        });
+
+        canvas.addEventListener('mousedown', handleStart);
+        canvas.addEventListener('mousemove', handleMove);
+        canvas.addEventListener('mouseup', handleEnd);
+        canvas.addEventListener('dblclick', (e) => handleDoubleTap(getPointerPos(e)));
+
+        canvas.addEventListener('touchstart', handleStart, {passive: false});
+        canvas.addEventListener('touchmove', handleMove, {passive: false});
+        canvas.addEventListener('touchend', handleEnd);
+
+        // --- 6. UI Logic ---
+        function addItem(type) {
+            const x = 50 + Math.random() * 100;
+            const y = 280 + Math.random() * 100;
+            let name = "";
+            if (type === 'student') name = `Student ${items.filter(i=>i.type==='student').length + 1}`;
+            items.push(new Item(x, y, type, name));
+            draw();
+        }
+
+        function clearCanvas() {
+            items = [];
+            draw();
+            showNotify("Canvas Cleared", "Room is empty.");
+        }
+
+        function deleteSelected() {
+            if (selectedItemIds.size === 0) {
+                showNotify("No Selection", "Tap items to select them first.");
+                return;
+            }
+            items = items.filter(item => !selectedItemIds.has(item.id));
+            selectedItemIds.clear();
+            isDragging = false;
+            draw();
+            showNotify("Removed", "Selected items deleted.");
+        }
+
+        function editTitle() {
+            openEditModal(null, true);
+        }
+
+        // --- 7. Modals ---
+        const customModal = document.getElementById('customModal');
+        const modalInput = document.getElementById('modalInput');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalActionBtn = document.getElementById('modalActionBtn');
+        const notifyModal = document.getElementById('notifyModal');
+        
+        let editingItem = null;
+        let editingTitle = false;
+
+        function openEditModal(item, isTitle = false) {
+            editingItem = item;
+            editingTitle = isTitle;
+            if (isTitle) {
+                modalTitle.innerText = "Edit Module Title";
+                modalInput.value = moduleName;
+            } else {
+                modalTitle.innerText = "Edit Name";
+                modalInput.value = item.name;
+            }
+            customModal.classList.remove('hidden');
+            customModal.classList.add('flex');
+            setTimeout(() => modalInput.focus(), 100);
+            modalActionBtn.onclick = saveEdit;
+        }
+
+        function saveEdit() {
+            if (editingTitle) {
+                moduleName = modalInput.value;
+            } else if (editingItem) {
+                editingItem.name = modalInput.value;
+            }
+            draw();
+            closeModal();
+        }
+
+        function closeModal() {
+            customModal.classList.add('hidden');
+            customModal.classList.remove('flex');
+            editingItem = null;
+        }
+        
+        modalInput.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") { e.preventDefault(); modalActionBtn.click(); }
+        });
+
+        function showNotify(title, msg) {
+            document.getElementById('notifyTitle').innerText = title;
+            document.getElementById('notifyMessage').innerText = msg;
+            notifyModal.classList.remove('hidden');
+            notifyModal.classList.add('flex');
+        }
+
+        function closeNotify() {
+            notifyModal.classList.add('hidden');
+            notifyModal.classList.remove('flex');
+        }
+        
+        function toggleHelp() {
+            showNotify("How to Use", "1. DRAG empty space to Multi-Select.\n2. Add Furniture from sidebar.\n3. Double-tap items to rename.");
+        }
+
+        function exportImage() {
+            const link = document.createElement('a');
+            link.download = 'classroom.png';
+            link.href = canvas.toDataURL();
+            link.click();
+            showNotify("Saved", "Screenshot downloaded.");
+        }
+
+        // --- 8. PRESET LOGIC ---
+        function applyPreset(type) {
+            // Keep Teacher & Furniture
+            let keepItems = items.filter(i => i.type !== 'student');
+            let studentCount = items.filter(i => i.type === 'student').length;
+            
+            // Ensure at least one teacher
+            let teacher = keepItems.find(i => i.type === 'teacher');
+            if(!teacher) {
+                teacher = new Item(canvas.width/2 - 80, 120, 'teacher');
+                keepItems.push(teacher);
+            } else {
+                teacher.x = canvas.width/2 - 80;
+                teacher.y = 120;
+            }
+
+            // Create Students list
+            let students = [];
+            const count = Math.max(8, studentCount); // Minimum 8 students for preset demo
+            for(let i=0; i<count; i++) {
+                students.push(new Item(0,0,'student', `Student ${i+1}`));
+            }
+
+            // Spacing Config
+            const startY = 280;
+            const centerX = canvas.width / 2;
+            const availableWidth = canvas.width;
+            const unitSize = 80; // Size including gap
+
+            if(type === 'rows') {
+                const cols = Math.floor((availableWidth - 50) / (unitSize + 20));
+                const safeCols = Math.min(Math.max(3, cols), 8);
+                const spacingX = unitSize + 20; 
+                const spacingY = 110; 
+                const totalBlockWidth = (safeCols - 1) * spacingX;
+                const startX = centerX - (totalBlockWidth / 2); 
+
+                students.forEach((s, i) => {
+                    const row = Math.floor(i / safeCols);
+                    const col = i % safeCols;
+                    s.x = startX + (col * spacingX) - s.radius; 
+                    s.y = startY + (row * spacingY) - s.radius;
+                });
+
+            } else if (type === 'groups') {
+                const groupSize = 160; 
+                const groupGap = 70;
+                const groupsPerRow = Math.max(2, Math.floor(availableWidth / (groupSize + groupGap)));
+                
+                students.forEach((s, i) => {
+                    const groupIndex = Math.floor(i / 4);
+                    const posInGroup = i % 4; 
+                    const groupRow = Math.floor(groupIndex / groupsPerRow);
+                    const groupCol = groupIndex % groupsPerRow;
+                    
+                    const groupBlockWidth = (groupsPerRow * groupSize) + ((groupsPerRow - 1) * groupGap);
+                    const startX = (availableWidth - groupBlockWidth) / 2 + (groupSize/2);
+                    
+                    const gCenterX = startX + (groupCol * (groupSize + groupGap));
+                    const gCenterY = startY + 60 + (groupRow * (groupSize + 80));
+
+                    const offsetX = (posInGroup % 2 === 0) ? -40 : 40; 
+                    const offsetY = (posInGroup < 2) ? -40 : 40;
+
+                    s.x = gCenterX + offsetX - s.radius;
+                    s.y = gCenterY + offsetY - s.radius;
+                });
+
+            } else if (type === 'ushape') {
+                const sideCount = Math.ceil(count / 3);
+                const padding = Math.max(40, canvas.width * 0.1);
+                const leftX = padding;
+                const rightX = canvas.width - padding;
+                const spacingY = Math.min(80, (canvas.height - startY - 100) / sideCount);
+                
+                let idx = 0;
+                // Left
+                for(let i=0; i<sideCount && idx < count; i++) {
+                    students[idx].x = leftX - students[idx].radius;
+                    students[idx].y = startY + (i * spacingY);
+                    idx++;
+                }
+                // Right
+                for(let i=0; i<sideCount && idx < count; i++) {
+                    students[idx].x = rightX - students[idx].radius;
+                    students[idx].y = startY + (i * spacingY);
+                    idx++;
+                }
+                // Bottom
+                const remaining = count - idx;
+                if(remaining > 0) {
+                     const bottomY = startY + ((sideCount - 1) * spacingY) + 80;
+                     const innerWidth = rightX - leftX;
+                     const bSpacing = innerWidth / (remaining + 1);
+                     for(let i=0; i<remaining; i++) {
+                         students[idx].x = leftX + ((i+1) * bSpacing) - students[idx].radius;
+                         students[idx].y = bottomY;
+                         idx++;
+                     }
+                }
+
+            } else if (type === 'circle') {
+                const radius = Math.min(canvas.width / 2, (canvas.height - startY) / 2) - 50;
+                const circleCY = startY + radius + 10;
+                const angleStep = (2 * Math.PI) / count;
+
+                students.forEach((s, i) => {
+                    const angle = i * angleStep - (Math.PI / 2);
+                    s.x = centerX + radius * Math.cos(angle) - s.radius;
+                    s.y = circleCY + radius * Math.sin(angle) - s.radius;
+                });
+            }
+
+            items = [...keepItems, ...students];
+            draw();
+            showNotify("Preset Applied", `Arranged students in ${type} formation.`);
+        }
+
+        // Init
+        lucide.createIcons();
+        resizeCanvas();
+        setTimeout(() => {
+            addItem('teacher');
+            for(let i=0; i<6; i++) addItem('student');
+            addItem('whiteboard');
+            items.find(i=>i.type === 'whiteboard').x = canvas.width/2 - 150;
+            items.find(i=>i.type === 'whiteboard').y = 90;
+            applyPreset('groups');
+        }, 100);
+
+    </script>
+</body>
+</html>
