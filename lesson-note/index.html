@@ -57,7 +57,6 @@
         body {
             font-family: 'Nunito', sans-serif;
             background-color: #f8fafc;
-            /* Graph Paper Pattern */
             background-image: 
                 linear-gradient(#e2e8f0 1px, transparent 1px), 
                 linear-gradient(90deg, #e2e8f0 1px, transparent 1px);
@@ -118,8 +117,14 @@
             border: 3px solid #1e293b;
             box-shadow: 4px 4px 0px 0px #2979FF; 
         }
+        /* Active state for Trash Items */
+        .note-item.active-trash {
+            background-color: #fff1f2; /* Light pink bg */
+            border: 3px solid #1e293b;
+            box-shadow: 4px 4px 0px 0px #FF6B95; 
+        }
 
-        /* Quill Customization - Neo Brutalist */
+        /* Quill Customization */
         .ql-toolbar.ql-snow {
             border: none;
             border-bottom: 3px solid #1e293b;
@@ -141,13 +146,11 @@
         .ql-editor h1 { font-family: 'Fredoka', sans-serif; font-size: 2.2em; font-weight: 700; color: #1e293b; border-bottom: 3px solid #f1f5f9; padding-bottom: 0.2em; margin-top: 0.5em;}
         .ql-editor h2 { font-family: 'Fredoka', sans-serif; font-size: 1.6em; font-weight: 600; color: #334155; margin-top: 1em; }
         
-        /* Custom Scrollbar */
         .custom-scrollbar::-webkit-scrollbar { width: 8px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; border: 1px solid #94a3b8; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         
-        /* Outline specific styles */
         .outline-link {
             transition: all 0.2s;
             border: 2px solid transparent;
@@ -159,7 +162,6 @@
             transform: translate(-1px, -1px);
         }
 
-        /* Input Fields */
         .neo-input {
             border: 3px solid #1e293b;
             border-radius: 0.75rem;
@@ -169,6 +171,13 @@
         .neo-input:focus {
             outline: none;
             box-shadow: 4px 4px 0px 0px rgba(30, 41, 59, 1);
+        }
+        
+        /* Utility for Trash Mode */
+        .bg-pattern-trash {
+            background-color: #fff1f2;
+            background-image: radial-gradient(#FF6B95 1px, transparent 1px);
+            background-size: 20px 20px;
         }
     </style>
 </head>
@@ -208,17 +217,26 @@
         <aside id="sidebar" class="w-80 bg-chalk border-r-3 border-dark flex flex-col transition-all duration-300 absolute z-30 h-full md:relative transform md:transform-none -translate-x-full md:translate-x-0 overflow-hidden">
             
             <div class="min-w-[20rem] h-full flex flex-col">
-                <div class="p-5 border-b-3 border-dark bg-white">
-                    <button id="newNoteBtn" onclick="createNewNote()" class="w-full neo-btn bg-blue text-white py-3 rounded-xl font-heading text-lg flex items-center justify-center gap-2 mb-4">
-                        <i data-lucide="plus" class="w-5 h-5"></i> 
-                        NEW NOTE
-                    </button>
+                <div class="p-5 border-b-3 border-dark bg-white" id="sidebarHeader">
+                    <div class="flex gap-2 mb-4">
+                        <button id="newNoteBtn" onclick="createNewNote()" class="flex-grow neo-btn bg-blue text-white py-3 rounded-xl font-heading text-lg flex items-center justify-center gap-2">
+                            <i data-lucide="plus" class="w-5 h-5"></i> 
+                            NEW NOTE
+                        </button>
+                        <button id="trashToggleBtn" onclick="toggleTrashMode()" class="w-14 neo-btn bg-gray-200 text-dark py-3 rounded-xl flex items-center justify-center transition-colors" title="View Trash">
+                            <i data-lucide="trash" class="w-5 h-5"></i>
+                        </button>
+                    </div>
                     
                     <div class="relative group">
                         <i data-lucide="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-dark w-4 h-4"></i>
                         <input type="text" id="searchInput" placeholder="Search notes..." 
                             class="neo-input w-full pl-10 pr-4 py-2 text-sm font-bold text-dark">
                     </div>
+                </div>
+                
+                <div id="trashHeader" class="hidden bg-pink text-white p-3 text-center font-heading font-bold text-sm border-b-3 border-dark flex items-center justify-center gap-2">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i> TRASH BIN MODE
                 </div>
 
                 <div id="notesList" class="flex-grow overflow-y-auto p-4 space-y-3 custom-scrollbar">
@@ -240,9 +258,20 @@
                     
                     <div class="h-10 w-px bg-dark"></div>
                     
-                    <button onclick="deleteCurrentNote()" class="text-gray-400 hover:text-pink transition-colors p-2" title="Delete Note">
-                        <i data-lucide="trash-2" class="w-6 h-6"></i>
-                    </button>
+                    <div id="actionButtons" class="flex items-center gap-2">
+                        <button id="softDeleteBtn" onclick="softDeleteCurrentNote()" class="text-gray-400 hover:text-pink transition-colors p-2" title="Move to Trash">
+                            <i data-lucide="trash-2" class="w-6 h-6"></i>
+                        </button>
+
+                        <div id="trashButtons" class="hidden flex gap-2">
+                             <button onclick="restoreCurrentNote()" class="neo-btn-sm bg-green text-dark px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1" title="Restore Note">
+                                <i data-lucide="refresh-ccw" class="w-3 h-3"></i> Restore
+                            </button>
+                            <button onclick="permanentDeleteCurrentNote()" class="neo-btn-sm bg-pink text-white px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1" title="Delete Forever">
+                                <i data-lucide="x" class="w-3 h-3"></i> Delete Forever
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="flex-grow neo-card flex flex-col overflow-hidden relative">
@@ -250,8 +279,8 @@
                 </div>
                 
                 <div class="flex items-center justify-center gap-2 pb-4 opacity-60">
-                     <div class="w-3 h-3 rounded-full bg-green border-2 border-dark"></div>
-                     <span class="text-xs text-dark font-bold tracking-widest uppercase">Auto-saved</span>
+                     <div id="statusIndicator" class="w-3 h-3 rounded-full bg-green border-2 border-dark"></div>
+                     <span id="statusText" class="text-xs text-dark font-bold tracking-widest uppercase">Auto-saved</span>
                 </div>
             </div>
         </main>
@@ -284,18 +313,18 @@
     </div>
 
     <div id="customModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-pop">
-        <div id="modalContent" class="neo-card max-w-md w-full p-8 flex flex-col items-center text-center border-pink">
+        <div class="neo-card max-w-md w-full p-8 flex flex-col items-center text-center border-pink">
             <div class="w-20 h-20 rounded-full flex items-center justify-center mb-6 bg-pink/20 text-pink border-3 border-pink">
                 <i data-lucide="trash-2" class="w-10 h-10"></i>
             </div>
-            <h3 class="text-3xl font-heading font-bold text-dark mb-2">Delete Note?</h3>
-            <p class="text-gray-600 font-bold mb-8">This action cannot be undone. Are you sure?</p>
+            <h3 id="modalTitle" class="text-3xl font-heading font-bold text-dark mb-2">Move to Trash?</h3>
+            <p id="modalDesc" class="text-gray-600 font-bold mb-8">You can restore this note later from the Trash bin.</p>
             <div class="flex gap-4 w-full">
                 <button id="modalCancel" class="flex-1 neo-btn bg-white text-dark py-3 rounded-xl text-lg">
                     Cancel
                 </button>
                 <button id="modalConfirm" class="flex-1 neo-btn bg-pink text-white py-3 rounded-xl text-lg">
-                    Delete
+                    Trash It
                 </button>
             </div>
         </div>
@@ -303,22 +332,31 @@
 
     <script>
         let notes = JSON.parse(localStorage.getItem('e1_lesson_notes')) || [];
+        // Ensure all notes have a 'deleted' property for backward compatibility
+        notes = notes.map(n => ({ ...n, deleted: n.deleted || false }));
+        
         let currentNoteId = null;
         let quill;
         let isZenMode = false;
         let isOutlineOpen = false;
+        let isTrashMode = false;
 
         document.addEventListener('DOMContentLoaded', () => {
             initQuill();
-            renderNotesList(); 
             
-            if(notes.length === 0) {
+            // Initial load logic
+            if(notes.filter(n => !n.deleted).length === 0) {
                 createNewNote();
             } else {
                 const lastActiveId = localStorage.getItem('e1_last_active_note');
-                const noteToLoad = notes.find(n => n.id === lastActiveId) || notes[0];
-                loadNote(noteToLoad.id);
+                // Try to find the last active note, ensure it is NOT deleted
+                const noteToLoad = notes.find(n => n.id === lastActiveId && !n.deleted) 
+                                || notes.find(n => !n.deleted); 
+                if(noteToLoad) loadNote(noteToLoad.id);
+                else createNewNote();
             }
+
+            renderNotesList(); 
 
             document.getElementById('noteTitle').addEventListener('input', saveCurrentNote);
             quill.on('text-change', () => {
@@ -400,12 +438,84 @@
             }
         }
 
+        // --- TRASH MODE LOGIC ---
+
+        function toggleTrashMode() {
+            isTrashMode = !isTrashMode;
+            const trashBtn = document.getElementById('trashToggleBtn');
+            const trashHeader = document.getElementById('trashHeader');
+            const newNoteBtn = document.getElementById('newNoteBtn');
+            const sidebar = document.getElementById('sidebar');
+
+            if(isTrashMode) {
+                // UI Changes for Trash Mode
+                trashBtn.classList.replace('bg-gray-200', 'bg-pink');
+                trashBtn.classList.replace('text-dark', 'text-white');
+                trashHeader.classList.remove('hidden');
+                newNoteBtn.classList.add('opacity-50', 'pointer-events-none'); // Disable new note
+                
+                // Load first trash note if exists
+                const firstTrash = notes.find(n => n.deleted);
+                if(firstTrash) {
+                    loadNote(firstTrash.id);
+                } else {
+                    // If no trash, clear editor or show placeholder
+                    currentNoteId = null;
+                    document.getElementById('noteTitle').value = "";
+                    quill.root.innerHTML = "<p>Trash is empty.</p>";
+                    quill.disable();
+                    renderNotesList();
+                }
+            } else {
+                // UI Changes for Active Mode
+                trashBtn.classList.replace('bg-pink', 'bg-gray-200');
+                trashBtn.classList.replace('text-white', 'text-dark');
+                trashHeader.classList.add('hidden');
+                newNoteBtn.classList.remove('opacity-50', 'pointer-events-none');
+                
+                quill.enable();
+                
+                // Load first active note
+                const firstActive = notes.find(n => !n.deleted);
+                if(firstActive) loadNote(firstActive.id);
+                else createNewNote();
+            }
+            renderNotesList();
+            updateUIState();
+        }
+
+        function updateUIState() {
+            const softDelBtn = document.getElementById('softDeleteBtn');
+            const trashButtons = document.getElementById('trashButtons');
+            const statusIndicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+            
+            if(isTrashMode) {
+                softDelBtn.classList.add('hidden');
+                trashButtons.classList.remove('hidden');
+                statusIndicator.className = "w-3 h-3 rounded-full bg-pink border-2 border-dark";
+                statusText.innerText = "Deleted Note";
+                document.getElementById('noteTitle').disabled = true;
+                quill.disable(); // Read-only in trash
+            } else {
+                softDelBtn.classList.remove('hidden');
+                trashButtons.classList.add('hidden');
+                statusIndicator.className = "w-3 h-3 rounded-full bg-green border-2 border-dark";
+                statusText.innerText = "Auto-saved";
+                document.getElementById('noteTitle').disabled = false;
+                quill.enable();
+            }
+        }
+
         function createNewNote() {
+            if(isTrashMode) return; // Prevent creation in trash mode
+
             const newNote = {
                 id: Date.now().toString(),
                 title: '',
                 content: '',
-                updatedAt: Date.now()
+                updatedAt: Date.now(),
+                deleted: false
             };
             notes.unshift(newNote);
             saveToStorage();
@@ -415,23 +525,30 @@
 
         function loadNote(id) {
             currentNoteId = id;
-            localStorage.setItem('e1_last_active_note', id);
+            if(!isTrashMode) localStorage.setItem('e1_last_active_note', id);
+            
             const note = notes.find(n => n.id === id);
             if(!note) return;
+            
             document.getElementById('noteTitle').value = note.title;
             quill.root.innerHTML = note.content; 
+            
             renderNotesList(); 
             updateOutline();
+            updateUIState();
         }
 
         function saveCurrentNote() {
             if(!currentNoteId) return;
+            if(isTrashMode) return; // Don't save changes if in trash mode
+
             const noteIndex = notes.findIndex(n => n.id === currentNoteId);
             if(noteIndex !== -1) {
                 const note = notes[noteIndex];
                 note.title = document.getElementById('noteTitle').value;
                 note.content = quill.root.innerHTML;
                 note.updatedAt = Date.now();
+                // Move to top
                 notes.splice(noteIndex, 1);
                 notes.unshift(note);
                 saveToStorage();
@@ -439,44 +556,114 @@
             }
         }
 
-        async function deleteCurrentNote() {
+        async function softDeleteCurrentNote() {
             if(!currentNoteId) return;
-            const confirmed = await showModal();
+            
+            // Show modal
+            const confirmed = await showModal('Move to Trash?', 'You can restore this note later from the Trash bin.', 'Trash It');
+            if(confirmed) {
+                const noteIndex = notes.findIndex(n => n.id === currentNoteId);
+                if(noteIndex !== -1) {
+                    notes[noteIndex].deleted = true;
+                    notes[noteIndex].updatedAt = Date.now();
+                    saveToStorage();
+                    
+                    // Load next available note
+                    const nextNote = notes.find(n => !n.deleted);
+                    if(nextNote) loadNote(nextNote.id);
+                    else createNewNote(); // Create new if all deleted
+                }
+            }
+        }
+
+        async function permanentDeleteCurrentNote() {
+            if(!currentNoteId) return;
+            
+            const confirmed = await showModal('Delete Forever?', 'This action cannot be undone. The note will be gone.', 'Delete Forever');
             if(confirmed) {
                 notes = notes.filter(n => n.id !== currentNoteId);
                 saveToStorage();
-                if(notes.length > 0) loadNote(notes[0].id);
-                else createNewNote();
+                
+                // Find another trash note or clear view
+                const nextTrash = notes.find(n => n.deleted);
+                if(nextTrash) {
+                    loadNote(nextTrash.id);
+                } else {
+                    currentNoteId = null;
+                    document.getElementById('noteTitle').value = "";
+                    quill.root.innerHTML = "<p>Trash is empty.</p>";
+                    renderNotesList();
+                }
             }
+        }
+
+        function restoreCurrentNote() {
+             if(!currentNoteId) return;
+             const noteIndex = notes.findIndex(n => n.id === currentNoteId);
+             if(noteIndex !== -1) {
+                 notes[noteIndex].deleted = false;
+                 notes[noteIndex].updatedAt = Date.now();
+                 saveToStorage();
+                 
+                 // Switch back to active view? Or stay in trash and remove from list?
+                 // Let's remove from list and load next trash
+                 const nextTrash = notes.find(n => n.deleted);
+                 if(nextTrash) loadNote(nextTrash.id);
+                 else {
+                     // Empty trash, maybe go back to active mode?
+                     toggleTrashMode(); 
+                     loadNote(notes[noteIndex].id); // Go to the restored note
+                     return;
+                 }
+                 renderNotesList();
+             }
         }
 
         function renderNotesList() {
             const list = document.getElementById('notesList');
             const search = document.getElementById('searchInput').value.toLowerCase();
             list.innerHTML = '';
-            const filtered = notes.filter(n => (n.title || 'Untitled').toLowerCase().includes(search) || stripHtml(n.content).toLowerCase().includes(search));
+            
+            // Filter based on Trash Mode
+            const filtered = notes.filter(n => {
+                const matchesSearch = (n.title || 'Untitled').toLowerCase().includes(search) || stripHtml(n.content).toLowerCase().includes(search);
+                const matchesMode = isTrashMode ? n.deleted === true : n.deleted !== true;
+                return matchesSearch && matchesMode;
+            });
+
             if(filtered.length === 0) {
-                list.innerHTML = `<div class="text-center py-8 text-gray-400 font-bold text-sm">No notes found.</div>`;
+                list.innerHTML = `<div class="text-center py-8 text-gray-400 font-bold text-sm">${isTrashMode ? 'Trash is empty.' : 'No notes found.'}</div>`;
                 return;
             }
+            
             filtered.forEach(note => {
                 const el = document.createElement('div');
                 const title = note.title || 'Untitled Lesson';
                 const date = new Date(note.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                 const isActive = note.id === currentNoteId;
                 
-                // Neo-Brutalist active state logic
-                el.className = `note-item p-4 rounded-xl cursor-pointer mb-2 relative overflow-hidden ${isActive ? 'active' : ''}`;
+                // Style Logic
+                let baseClasses = "note-item p-4 rounded-xl cursor-pointer mb-2 relative overflow-hidden";
+                if(isActive) {
+                    baseClasses += isTrashMode ? " active-trash" : " active";
+                }
+                
+                el.className = baseClasses;
                 
                 el.onclick = () => {
                     loadNote(note.id);
                     if(window.innerWidth < 768) toggleSidebar();
                 };
                 const rawText = stripHtml(note.content).substring(0, 60);
+                
+                // Color logic based on active state
+                const titleColor = isActive ? (isTrashMode ? 'text-pink text-lg' : 'text-blue text-lg') : 'text-dark text-base';
+                const badgeColor = isActive ? (isTrashMode ? 'bg-pink text-white border-2 border-dark' : 'bg-blue text-white border-2 border-dark') : 'bg-gray-200 text-gray-500';
+
                 el.innerHTML = `
                     <div class="flex justify-between items-start mb-1.5 relative z-10">
-                        <h4 class="font-heading font-bold truncate pr-2 ${isActive ? 'text-blue text-lg' : 'text-dark text-base'}">${title}</h4>
-                        <span class="text-[10px] font-bold ${isActive ? 'bg-blue text-white border-2 border-dark' : 'bg-gray-200 text-gray-500'} px-2 py-1 rounded-md">${date}</span>
+                        <h4 class="font-heading font-bold truncate pr-2 ${titleColor}">${title}</h4>
+                        <span class="text-[10px] font-bold ${badgeColor} px-2 py-1 rounded-md">${date}</span>
                     </div>
                     <p class="text-xs ${isActive ? 'text-dark' : 'text-gray-400'} truncate font-bold relative z-10">${rawText || 'Empty note...'}</p>
                 `;
@@ -521,12 +708,21 @@
             html2pdf().set(opt).from(printEl).save().then(() => { printEl.classList.add('hidden'); });
         }
 
-        function showModal() {
+        function showModal(title, desc, confirmText) {
             return new Promise((resolve) => {
                 const modal = document.getElementById('customModal');
+                const titleEl = document.getElementById('modalTitle');
+                const descEl = document.getElementById('modalDesc');
                 const confirmBtn = document.getElementById('modalConfirm');
                 const cancelBtn = document.getElementById('modalCancel');
+                
+                // Customize Modal
+                if(title) titleEl.innerText = title;
+                if(desc) descEl.innerText = desc;
+                if(confirmText) confirmBtn.innerText = confirmText;
+
                 modal.classList.remove('hidden');
+                
                 const cleanup = (value) => {
                     modal.classList.add('hidden');
                     confirmBtn.onclick = null;
