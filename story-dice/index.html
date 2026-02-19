@@ -43,7 +43,6 @@
     </script>
 
     <style>
-        /* Fallback for grid background if styles.css fails to load */
         body {
             background-color: #F8FAFC;
             background-image:
@@ -53,7 +52,6 @@
             color: #1e293b;
         }
 
-        /* 3D Dice Styles */
         .scene {
             perspective: 1000px;
             display: flex;
@@ -67,7 +65,7 @@
             height: 110px;
             position: relative;
             transform-style: preserve-3d;
-            transition: transform 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: transform 1.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
         @media (min-width: 768px) {
@@ -79,7 +77,7 @@
             width: 100%;
             height: 100%;
             border-radius: 1.2rem;
-            border: 4px solid #1e293b; /* Chunky border */
+            border: 4px solid #1e293b;
             background: white;
             display: flex;
             flex-direction: column;
@@ -89,7 +87,6 @@
             box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
         }
 
-        /* Standard Cube Mappings */
         .cube__face--front  { transform: rotateY(  0deg) translateZ(55px); }
         .cube__face--right  { transform: rotateY( 90deg) translateZ(55px); }
         .cube__face--back   { transform: rotateY(180deg) translateZ(55px); }
@@ -106,17 +103,6 @@
             .cube__face--bottom { transform: rotateX(-90deg) translateZ(75px); }
         }
 
-        /* Animation Classes */
-        .is-spinning {
-            animation: spinCube 0.4s infinite linear;
-        }
-
-        @keyframes spinCube {
-            0% { transform: rotateX(0deg) rotateY(0deg); }
-            100% { transform: rotateX(360deg) rotateY(360deg); }
-        }
-
-        /* UI Polishing */
         .btn-chunky {
             border: 3px solid #1e293b;
             box-shadow: 0 4px 0 #1e293b;
@@ -134,7 +120,7 @@
 </head>
 <body class="min-h-screen flex flex-col overflow-x-hidden selection:bg-pink selection:text-white pb-32">
 
-    <header class="max-w-6xl mx-auto w-full mt-4 md:mt-8 px-4 z-50">
+    <header class="max-w-6xl mx-auto w-full mt-4 md:mt-8 px-4 z-40">
         <div class="bg-white border-4 border-dark rounded-3xl p-4 md:p-5 shadow-hard flex flex-col md:flex-row justify-between items-center gap-4">
             
             <div class="flex items-center gap-4">
@@ -151,14 +137,17 @@
             </div>
 
             <div class="flex flex-wrap items-center justify-center gap-3 bg-slate-100 p-2.5 rounded-2xl border-2 border-slate-300">
-                
                 <div class="flex gap-2 mr-2">
                     <button onclick="setDiceCount(1)" id="mode-1" class="btn-chunky bg-white px-4 py-2 rounded-xl text-sm font-bold text-dark hover:bg-pink hover:text-white hover:border-dark transition-colors">1</button>
-                    <button onclick="setDiceCount(3)" id="mode-3" class="btn-chunky bg-dark text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors">3</button>
+                    <button onclick="setDiceCount(3)" id="mode-3" class="btn-chunky bg-dark text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors active">3</button>
                     <button onclick="setDiceCount(5)" id="mode-5" class="btn-chunky bg-white px-4 py-2 rounded-xl text-sm font-bold text-dark hover:bg-blue hover:text-white hover:border-dark transition-colors">5</button>
                 </div>
 
                 <div class="w-px h-8 bg-slate-300 mx-1"></div>
+
+                <button onclick="toggleHistory()" class="btn-chunky w-11 h-11 flex items-center justify-center rounded-xl bg-blue text-white" title="Roll History">
+                    <i data-lucide="history" class="w-5 h-5"></i>
+                </button>
 
                 <button onclick="toggleLabels()" id="btn-labels" class="btn-chunky w-11 h-11 flex items-center justify-center rounded-xl bg-green text-white" title="Toggle Words">
                     <i data-lucide="type" class="w-5 h-5"></i>
@@ -167,339 +156,39 @@
                 <button onclick="toggleSound()" id="btn-sound" class="btn-chunky w-11 h-11 flex items-center justify-center rounded-xl bg-white text-dark hover:bg-slate-200" title="Toggle Sound">
                     <i data-lucide="volume-2" class="w-5 h-5"></i>
                 </button>
-
-                <a href="../index.html" class="btn-chunky w-11 h-11 flex items-center justify-center rounded-xl bg-red-500 text-white ml-2" title="Exit">
-                    <i data-lucide="x" class="w-6 h-6"></i>
-                </a>
             </div>
         </div>
     </header>
 
     <main class="flex-grow flex flex-col items-center justify-center relative p-4">
-        
-        <div id="legend" class="mt-8 mb-4 flex flex-wrap justify-center gap-3 text-xs font-bold uppercase tracking-widest text-slate-500">
-            </div>
-
-        <div id="dice-container" class="flex flex-wrap justify-center gap-8 md:gap-12 w-full max-w-6xl py-6">
-            </div>
-
+        <div id="legend" class="mt-8 mb-4 flex flex-wrap justify-center gap-3 text-xs font-bold uppercase tracking-widest text-slate-500"></div>
+        <div id="dice-container" class="flex flex-wrap justify-center gap-8 md:gap-12 w-full max-w-6xl py-6"></div>
     </main>
 
-    <div class="fixed bottom-0 left-0 w-full flex justify-center z-40 p-6 pointer-events-none bg-gradient-to-t from-slate-100/90 to-transparent">
+    <div class="fixed bottom-0 left-0 w-full flex justify-center z-30 p-6 pointer-events-none bg-gradient-to-t from-slate-100/90 to-transparent">
         <button onclick="rollAll()" class="pointer-events-auto btn-chunky group relative px-12 py-5 bg-blue text-white rounded-2xl font-heading text-4xl tracking-widest shadow-hard-lg hover:translate-y-[-4px] active:translate-y-[2px] active:shadow-none transition-all">
             <span class="flex items-center gap-4">
-                ROLL DICE <i data-lucide="refresh-cw" class="w-8 h-8 group-hover:rotate-180 transition-transform duration-500"></i>
+                ROLL <i data-lucide="refresh-cw" class="w-8 h-8 group-hover:rotate-180 transition-transform duration-500"></i>
             </span>
         </button>
     </div>
 
-    <script>
-        // --- CONFIG & DATA ---
-        let soundEnabled = true;
-        let showLabels = true;
-        let diceCount = 3;
-        let isRolling = false;
-
-        // Expanded Data Set
-        const DATA = {
-            character: [
-                // Generic
-                { icon: 'user', label: 'Person' }, { icon: 'user-plus', label: 'Friend' }, 
-                // Roles
-                { icon: 'crown', label: 'King' }, { icon: 'crown', label: 'Queen' }, 
-                { icon: 'baby', label: 'Baby' }, { icon: 'skull', label: 'Pirate' },
-                { icon: 'ghost', label: 'Ghost' }, { icon: 'bot', label: 'Robot' },
-                // Jobs
-                { icon: 'stethoscope', label: 'Doctor' }, { icon: 'hard-hat', label: 'Builder' },
-                { icon: 'graduation-cap', label: 'Student' }, { icon: 'shield', label: 'Police' },
-                { icon: 'utensils', label: 'Chef' }, { icon: 'plane', label: 'Pilot' },
-                { icon: 'palette', label: 'Artist' }, { icon: 'music', label: 'Singer' },
-                { icon: 'camera', label: 'Photographer' }, { icon: 'flask-conical', label: 'Scientist' },
-                // Fantasy/Other
-                { icon: 'sparkles', label: 'Wizard' }, { icon: 'zap', label: 'Hero' },
-                // Animals
-                { icon: 'cat', label: 'Cat' }, { icon: 'dog', label: 'Dog' },
-                { icon: 'fish', label: 'Fish' }, { icon: 'bug', label: 'Monster' }
-            ],
-            setting: [
-                // Nature
-                { icon: 'trees', label: 'Forest' }, { icon: 'mountain', label: 'Mountain' },
-                { icon: 'sun', label: 'Beach' }, { icon: 'moon', label: 'Night' },
-                { icon: 'cloud-rain', label: 'Storm' }, { icon: 'waves', label: 'Ocean' },
-                { icon: 'snowflake', label: 'Snow' }, { icon: 'sunset', label: 'Sunset' },
-                // Buildings
-                { icon: 'home', label: 'House' }, { icon: 'building', label: 'City' },
-                { icon: 'castle', label: 'Castle' }, { icon: 'tent', label: 'Camp' },
-                { icon: 'school', label: 'School' }, { icon: 'landmark', label: 'Museum' },
-                { icon: 'store', label: 'Shop' }, { icon: 'factory', label: 'Factory' },
-                { icon: 'hospital', label: 'Hospital' }, { icon: 'church', label: 'Church' },
-                // Special
-                { icon: 'rocket', label: 'Space' }, { icon: 'ship', label: 'Ship' },
-                { icon: 'plane', label: 'Airport' }, { icon: 'train', label: 'Station' },
-                { icon: 'library', label: 'Library' }, { icon: 'coffee', label: 'Cafe' },
-                { icon: 'trophy', label: 'Stadium' }, { icon: 'flask-conical', label: 'Lab' }
-            ],
-            object: [
-                // Food
-                { icon: 'apple', label: 'Apple' }, { icon: 'pizza', label: 'Pizza' },
-                { icon: 'coffee', label: 'Drink' }, { icon: 'cake', label: 'Cake' },
-                // Tech
-                { icon: 'smartphone', label: 'Phone' }, { icon: 'watch', label: 'Clock' },
-                { icon: 'laptop', label: 'Computer' }, { icon: 'camera', label: 'Camera' },
-                { icon: 'lightbulb', label: 'Idea' }, { icon: 'tv', label: 'TV' },
-                // Items
-                { icon: 'book', label: 'Book' }, { icon: 'key', label: 'Key' },
-                { icon: 'gift', label: 'Gift' }, { icon: 'map', label: 'Map' },
-                { icon: 'gem', label: 'Treasure' }, { icon: 'sword', label: 'Sword' },
-                { icon: 'car', label: 'Car' }, { icon: 'bike', label: 'Bike' },
-                { icon: 'coins', label: 'Money' }, { icon: 'ticket', label: 'Ticket' },
-                { icon: 'glasses', label: 'Glasses' }, { icon: 'umbrella', label: 'Umbrella' },
-                { icon: 'backpack', label: 'Bag' }, { icon: 'music', label: 'Music' }
-            ],
-            action: [
-                // Movement
-                { icon: 'footprints', label: 'Walk' }, { icon: 'zap', label: 'Run' },
-                { icon: 'plane', label: 'Fly' }, { icon: 'car', label: 'Drive' },
-                { icon: 'waves', label: 'Swim' }, { icon: 'arrow-up', label: 'Jump' },
-                // Interaction
-                { icon: 'message-circle', label: 'Talk' }, { icon: 'search', label: 'Find' },
-                { icon: 'heart', label: 'Love' }, { icon: 'thumbs-up', label: 'Like' },
-                { icon: 'gift', label: 'Give' }, { icon: 'shopping-cart', label: 'Buy' },
-                // Activities
-                { icon: 'utensils', label: 'Eat' }, { icon: 'moon', label: 'Sleep' },
-                { icon: 'gamepad-2', label: 'Play' }, { icon: 'hammer', label: 'Build' },
-                { icon: 'music', label: 'Sing' }, { icon: 'pen-tool', label: 'Write' },
-                { icon: 'book-open', label: 'Read' }, { icon: 'eye', label: 'See' },
-                { icon: 'ear', label: 'Listen' }, { icon: 'smile', label: 'Laugh' },
-                { icon: 'frown', label: 'Cry' }, { icon: 'scissors', label: 'Cut' }
-            ]
-        };
-
-        // --- AUDIO ENGINE ---
-        const Audio = {
-            ctx: null,
-            init: () => {
-                if(!Audio.ctx) {
-                    Audio.ctx = new (window.AudioContext || window.webkitAudioContext)();
-                    Tone.start();
-                }
-            },
-            playRoll: () => {
-                if(!soundEnabled) return;
-                Audio.init();
-                const noise = new Tone.Noise("pink").toDestination();
-                const filter = new Tone.AutoFilter({
-                    frequency: "10n",
-                    baseFrequency: 200,
-                    octaves: 4
-                }).toDestination().start();
-                
-                noise.connect(filter);
-                noise.start();
-                noise.volume.rampTo(-5, 0.1);
-                setTimeout(() => noise.stop(), 300);
-            },
-            playLand: (delay = 0) => {
-                if(!soundEnabled) return;
-                Audio.init();
-                setTimeout(() => {
-                    const synth = new Tone.MembraneSynth().toDestination();
-                    synth.volume.value = -8;
-                    synth.triggerAttackRelease("C2", "32n");
-                }, delay * 1000);
-            }
-        };
-
-        // --- LOGIC ---
-
-        function getDieConfig(index, total) {
-            // Updated Colors to match text-colors
-            if (total === 1) return { type: 'random', colorClass: 'text-slate-500', bgClass: 'bg-slate-100' };
-            
-            if (total === 3) {
-                if (index === 0) return { type: 'character', colorClass: 'text-pink', bgClass: 'bg-pink/10' };
-                if (index === 1) return { type: 'setting', colorClass: 'text-green', bgClass: 'bg-green/10' };
-                return { type: 'object', colorClass: 'text-blue', bgClass: 'bg-blue/10' };
-            }
-
-            if (total === 5) {
-                if (index === 0) return { type: 'character', colorClass: 'text-pink', bgClass: 'bg-pink/10' };
-                if (index === 1) return { type: 'action', colorClass: 'text-orange', bgClass: 'bg-orange/10' };
-                if (index === 2) return { type: 'setting', colorClass: 'text-green', bgClass: 'bg-green/10' };
-                if (index === 3) return { type: 'object', colorClass: 'text-blue', bgClass: 'bg-blue/10' };
-                return { type: 'character', colorClass: 'text-pink', bgClass: 'bg-pink/10' };
-            }
-        }
-
-        function getRandomItem(type) {
-            let pool = [];
-            if(type === 'random') {
-                pool = [...DATA.character, ...DATA.setting, ...DATA.object, ...DATA.action];
-            } else {
-                pool = DATA[type];
-            }
-            return pool[Math.floor(Math.random() * pool.length)];
-        }
-
-        function createDiceHTML(index, config) {
-            const item = getRandomItem(config.type);
-            
-            return `
-            <div class="scene">
-                <div class="cube" id="cube-${index}">
-                    <div class="cube__face cube__face--front ${config.colorClass}">
-                        <div class="bg-slate-50 w-full h-full rounded-2xl flex flex-col items-center justify-center border-2 border-slate-100">
-                            <i data-lucide="${item.icon}" class="w-12 h-12 md:w-16 md:h-16 mb-2 stroke-[2.5px]"></i>
-                            <span class="text-sm md:text-xl font-heading font-bold uppercase tracking-wide ${showLabels ? '' : 'hidden'} label-text text-dark">${item.label}</span>
-                        </div>
-                    </div>
-                    <div class="cube__face cube__face--back text-slate-200">
-                        <i data-lucide="help-circle" class="w-12 h-12"></i>
-                    </div>
-                    <div class="cube__face cube__face--right text-slate-200"></div>
-                    <div class="cube__face cube__face--left text-slate-200"></div>
-                    <div class="cube__face cube__face--top text-slate-200"></div>
-                    <div class="cube__face cube__face--bottom text-slate-200"></div>
-                </div>
+    <div id="history-modal" class="fixed inset-0 bg-dark/50 z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-200">
+        <div class="bg-white border-4 border-dark rounded-3xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-[8px_8px_0px_0px_rgba(30,41,59,1)] transform scale-95 transition-transform duration-200" id="history-content">
+            <div class="flex justify-between items-center p-6 border-b-4 border-dark bg-slate-50 rounded-t-2xl">
+                <h2 class="text-2xl font-heading font-bold text-dark flex items-center gap-2">
+                    <i data-lucide="history" class="w-6 h-6 text-blue"></i> Roll History
+                </h2>
+                <button onclick="toggleHistory()" class="btn-chunky w-10 h-10 flex items-center justify-center rounded-xl bg-red-500 text-white">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
             </div>
-            `;
-        }
+            <div class="p-6 overflow-y-auto flex-grow bg-slate-100" id="history-list">
+                <p class="text-center font-body text-slate-500 font-bold mt-4">No rolls yet. Start rolling to build your story!</p>
+            </div>
+        </div>
+    </div>
 
-        function initBoard() {
-            const container = document.getElementById('dice-container');
-            container.innerHTML = '';
-            
-            for(let i=0; i<diceCount; i++) {
-                const config = getDieConfig(i, diceCount);
-                container.innerHTML += createDiceHTML(i, config);
-            }
-            lucide.createIcons();
-            updateLegend();
-        }
-
-        function updateLegend() {
-            const legend = document.getElementById('legend');
-            let html = '';
-            
-            const pill = (color, text) => `
-                <div class="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border-2 border-dark shadow-hard-sm">
-                    <div class="w-3 h-3 rounded-full ${color} border border-dark"></div> ${text}
-                </div>`;
-
-            if(diceCount === 1) {
-                html = pill('bg-slate-400', 'Random');
-            } else if (diceCount === 3) {
-                html += pill('bg-pink', 'Character');
-                html += pill('bg-green', 'Setting');
-                html += pill('bg-blue', 'Object');
-            } else {
-                html += pill('bg-pink', 'Who');
-                html += pill('bg-orange', 'Action');
-                html += pill('bg-green', 'Where');
-                html += pill('bg-blue', 'What');
-            }
-            legend.innerHTML = html;
-        }
-
-        function rollAll() {
-            if(isRolling) return;
-            isRolling = true;
-            Audio.playRoll();
-
-            for(let i=0; i<diceCount; i++) {
-                const cube = document.getElementById(`cube-${i}`);
-                const config = getDieConfig(i, diceCount);
-                const item = getRandomItem(config.type);
-
-                cube.classList.add('is-spinning');
-                
-                const delay = 300 + (i * 150); 
-
-                setTimeout(() => {
-                    cube.classList.remove('is-spinning');
-                    
-                    // Force redraw front face content
-                    const frontFace = cube.querySelector('.cube__face--front');
-                    frontFace.className = `cube__face cube__face--front ${config.colorClass}`;
-                    frontFace.innerHTML = `
-                        <div class="bg-slate-50 w-full h-full rounded-2xl flex flex-col items-center justify-center border-2 border-slate-100">
-                            <i data-lucide="${item.icon}" class="w-12 h-12 md:w-16 md:h-16 mb-2 stroke-[2.5px]"></i>
-                            <span class="text-sm md:text-xl font-heading font-bold uppercase tracking-wide ${showLabels ? '' : 'hidden'} label-text text-dark">${item.label}</span>
-                        </div>
-                    `;
-                    lucide.createIcons();
-                    
-                    // Simple flip animation
-                    cube.style.transform = `rotateX(${360 * 2}deg) rotateY(${360 * 2}deg)`;
-                    Audio.playLand();
-                    
-                    setTimeout(() => {
-                        cube.style.transition = 'none';
-                        cube.style.transform = 'rotateX(0deg) rotateY(0deg)';
-                        setTimeout(() => cube.style.transition = '', 50);
-                    }, 1100);
-
-                }, delay);
-            }
-
-            setTimeout(() => {
-                isRolling = false;
-            }, 1000 + (diceCount * 200));
-        }
-
-        function setDiceCount(n) {
-            diceCount = n;
-            
-            [1,3,5].forEach(num => {
-                const btn = document.getElementById(`mode-${num}`);
-                if (num === n) {
-                    btn.classList.add('bg-dark', 'text-white');
-                    btn.classList.remove('bg-white', 'text-dark');
-                    btn.classList.add('active');
-                } else {
-                    btn.classList.remove('bg-dark', 'text-white', 'active');
-                    btn.classList.add('bg-white', 'text-dark');
-                }
-            });
-
-            initBoard();
-        }
-
-        function toggleLabels() {
-            showLabels = !showLabels;
-            const labels = document.querySelectorAll('.label-text');
-            labels.forEach(el => {
-                if(showLabels) el.classList.remove('hidden');
-                else el.classList.add('hidden');
-            });
-            
-            const btn = document.getElementById('btn-labels');
-            if(showLabels) {
-                btn.classList.remove('bg-white', 'text-dark');
-                btn.classList.add('bg-green', 'text-white');
-            } else {
-                btn.classList.add('bg-white', 'text-dark');
-                btn.classList.remove('bg-green', 'text-white');
-            }
-        }
-
-        function toggleSound() {
-            soundEnabled = !soundEnabled;
-            const btn = document.getElementById('btn-sound');
-            if(soundEnabled) {
-                btn.innerHTML = '<i data-lucide="volume-2" class="w-5 h-5"></i>';
-                btn.classList.remove('text-red-500');
-            } else {
-                btn.innerHTML = '<i data-lucide="volume-x" class="w-5 h-5"></i>';
-                btn.classList.add('text-red-500');
-            }
-            lucide.createIcons();
-        }
-
-        window.onload = () => {
-            initBoard();
-            lucide.createIcons();
-        };
-    </script>
+    <script src="script.js"></script>
 </body>
 </html>
