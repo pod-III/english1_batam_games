@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fill in the Blanks Game - Teacher Edition</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        pink: '#FF6B95',
+                        orange: '#FF8C42',
+                        green: '#00E676',
+                        blue: '#2979FF',
+                        dark: '#1e293b',
+                        chalk: '#f8fafc',
+                    },
+                    fontFamily: {
+                        fredoka: ['Fredoka', 'sans-serif'],
+                        nunito: ['Nunito', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        /* Desktop-friendly Graph Paper Background */
+        body {
+            background-color: #f8fafc;
+            background-image: linear-gradient(#cbd5e1 1px, transparent 1px), linear-gradient(90deg, #cbd5e1 1px, transparent 1px);
+            background-size: 30px 30px;
+            font-family: 'Nunito', sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Blackboard Mode Graph Paper */
+        .dark body {
+            background-color: #0f172a;
+            background-image: linear-gradient(#334155 1px, transparent 1px), linear-gradient(90deg, #334155 1px, transparent 1px);
+        }
+
+        /* Chunky Neo-Brutalism Utilities */
+        .brutal-shadow {
+            box-shadow: 4px 4px 0px 0px rgba(30, 41, 59, 1);
+        }
+        
+        .dark .brutal-shadow {
+            box-shadow: 4px 4px 0px 0px rgba(148, 163, 184, 1);
+        }
+
+        .brutal-btn {
+            transition: all 0.1s ease-in-out;
+            cursor: pointer;
+        }
+
+        .brutal-btn:hover {
+            transform: translate(-2px, -2px) rotate(-1deg);
+            box-shadow: 6px 6px 0px 0px rgba(30, 41, 59, 1);
+        }
+
+        .brutal-btn:active {
+            transform: translate(2px, 2px) rotate(0deg);
+            box-shadow: 2px 2px 0px 0px rgba(30, 41, 59, 1);
+        }
+        
+        .dark .brutal-btn:hover {
+            box-shadow: 6px 6px 0px 0px rgba(148, 163, 184, 1);
+        }
+        .dark .brutal-btn:active {
+            box-shadow: 2px 2px 0px 0px rgba(148, 163, 184, 1);
+        }
+
+        /* Input styling for the game board */
+        .blank-input {
+            width: 140px;
+            text-align: center;
+            border-bottom-width: 4px;
+            border-color: #1e293b;
+            background: transparent;
+            outline: none;
+            font-weight: bold;
+            color: #2979FF;
+            margin: 0 10px;
+        }
+        .dark .blank-input {
+            border-color: #f8fafc;
+            color: #FF6B95;
+        }
+
+        /* Scrollbar styling for the editor */
+        .editor-scroll::-webkit-scrollbar {
+            width: 12px;
+        }
+        .editor-scroll::-webkit-scrollbar-track {
+            background: #f8fafc;
+            border-left: 3px solid #1e293b;
+        }
+        .dark .editor-scroll::-webkit-scrollbar-track {
+            background: #0f172a;
+            border-left: 3px solid #94a3b8;
+        }
+        .editor-scroll::-webkit-scrollbar-thumb {
+            background-color: #FF8C42;
+            border: 3px solid #1e293b;
+            border-radius: 10px;
+        }
+        .dark .editor-scroll::-webkit-scrollbar-thumb {
+            border: 3px solid #94a3b8;
+        }
+    </style>
+</head>
+<body class="text-dark dark:text-white min-h-screen flex flex-col items-center py-10 px-4">
+
+    <input type="file" id="import-file" accept=".json" class="hidden" onchange="importJSON(event)">
+
+    <div class="w-full max-w-5xl flex justify-between items-center mb-10">
+        <button onclick="toggleDarkMode()" class="bg-blue text-white font-fredoka px-5 py-3 border-4 border-dark dark:border-slate-400 rounded-2xl brutal-shadow brutal-btn flex items-center gap-2">
+            <i data-lucide="moon" class="w-5 h-5"></i> Blackboard Mode
+        </button>
+        <div class="bg-white dark:bg-slate-800 border-4 border-dark dark:border-slate-400 rounded-2xl px-6 py-3 brutal-shadow font-fredoka text-2xl flex items-center gap-3">
+            <i data-lucide="star" class="text-orange w-6 h-6 fill-current"></i>
+            Score: <span id="score-display">0</span>
+        </div>
+        <button onclick="openManageModal()" class="bg-orange text-dark font-fredoka px-5 py-3 border-4 border-dark dark:border-slate-400 rounded-2xl brutal-shadow brutal-btn flex items-center gap-2">
+            <i data-lucide="settings" class="w-5 h-5"></i> Manage Questions
+        </button>
+    </div>
+
+    <main class="w-full max-w-3xl bg-white dark:bg-slate-900 border-4 border-dark dark:border-slate-400 rounded-2xl brutal-shadow p-10 text-center relative mt-8">
+        <h1 class="font-fredoka text-5xl mb-4 text-pink drop-shadow-sm">Fill in the Blanks!</h1>
+        <p class="text-xl mb-10 font-nunito">Read carefully and type the missing word.</p>
+
+        <div class="bg-chalk dark:bg-slate-800 border-4 border-dark dark:border-slate-400 rounded-2xl p-8 mb-10 brutal-shadow min-h-[160px] flex items-center justify-center">
+            <p id="sentence-container" class="text-3xl font-nunito leading-loose"></p>
+        </div>
+
+        <div class="flex gap-6">
+            <button onclick="skipQuestion()" class="bg-chalk text-dark font-fredoka text-xl px-6 py-4 border-4 border-dark dark:border-slate-400 rounded-2xl brutal-shadow brutal-btn flex items-center gap-2">
+                <i data-lucide="skip-forward"></i> Skip
+            </button>
+            <button onclick="checkAnswer()" class="flex-1 bg-green text-dark font-fredoka text-3xl px-8 py-4 border-4 border-dark dark:border-slate-400 rounded-2xl brutal-shadow brutal-btn">
+                Submit Answer
+            </button>
+        </div>
+    </main>
+
+    <div id="manage-modal" class="fixed inset-0 bg-dark/70 backdrop-blur-md hidden flex items-center justify-center z-40 p-4">
+        <div class="bg-white dark:bg-slate-900 border-4 border-dark dark:border-slate-400 rounded-2xl w-full max-w-6xl h-[85vh] flex flex-col brutal-shadow">
+            
+            <div class="border-b-4 border-dark dark:border-slate-400 p-6 flex justify-between items-center bg-chalk dark:bg-slate-800 rounded-t-xl">
+                <div>
+                    <h2 class="font-fredoka text-3xl text-blue flex items-center gap-3">
+                        <i data-lucide="edit-3" class="w-8 h-8"></i> Question Editor
+                    </h2>
+                    <p class="font-nunito text-sm mt-1">Use an underscore (_) in the sentence to create a blank. Edit directly below.</p>
+                </div>
+                <div class="flex gap-4">
+                    <button onclick="exportJSON()" class="bg-blue text-white font-fredoka px-4 py-2 border-3 border-dark dark:border-slate-400 rounded-xl brutal-shadow brutal-btn flex items-center gap-2">
+                        <i data-lucide="download" class="w-5 h-5"></i> Export JSON
+                    </button>
+                    <button onclick="document.getElementById('import-file').click()" class="bg-pink text-dark font-fredoka px-4 py-2 border-3 border-dark dark:border-slate-400 rounded-xl brutal-shadow brutal-btn flex items-center gap-2">
+                        <i data-lucide="upload" class="w-5 h-5"></i> Import JSON
+                    </button>
+                    <button onclick="closeManageModal()" class="bg-chalk text-dark p-2 border-3 border-dark dark:border-slate-400 rounded-xl brutal-shadow brutal-btn ml-4">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="editor-list" class="flex-1 overflow-y-auto editor-scroll p-6 space-y-4 bg-white dark:bg-slate-900">
+                </div>
+
+            <div class="border-t-4 border-dark dark:border-slate-400 p-6 flex gap-4 bg-chalk dark:bg-slate-800 rounded-b-xl">
+                <button onclick="addNewRow()" class="bg-orange text-dark font-fredoka text-lg px-6 py-3 border-4 border-dark dark:border-slate-400 rounded-xl brutal-shadow brutal-btn flex items-center gap-2">
+                    <i data-lucide="plus"></i> Add New Row
+                </button>
+                <div class="flex-1"></div>
+                <button onclick="closeManageModal()" class="bg-white dark:bg-slate-700 text-dark dark:text-white font-fredoka text-lg px-6 py-3 border-4 border-dark dark:border-slate-400 rounded-xl brutal-shadow brutal-btn">
+                    Cancel
+                </button>
+                <button onclick="saveAllQuestions()" class="bg-green text-dark font-fredoka text-lg px-8 py-3 border-4 border-dark dark:border-slate-400 rounded-xl brutal-shadow brutal-btn flex items-center gap-2">
+                    <i data-lucide="save"></i> Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="alert-modal" class="fixed inset-0 bg-dark/60 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-white dark:bg-slate-900 border-4 border-dark dark:border-slate-400 rounded-2xl p-8 w-full max-w-md brutal-shadow text-center transform transition-all">
+            <div id="alert-icon" class="flex justify-center mb-6"></div>
+            <h2 id="alert-title" class="font-fredoka text-4xl mb-3"></h2>
+            <p id="alert-message" class="font-nunito text-xl mb-8 leading-relaxed"></p>
+            <button onclick="closeAlertAndNext()" class="bg-pink text-dark font-fredoka text-2xl w-full px-4 py-4 border-4 border-dark dark:border-slate-400 rounded-xl brutal-shadow brutal-btn">
+                Got it!
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Icons
+        lucide.createIcons();
+
+        // Default Curriculum
+        const defaultQuestions = [
+            { sentence: "The cat sat on the _.", answer: "mat" },
+            { sentence: "She likes to _ a book every night.", answer: "read" },
+            { sentence: "An apple a day keeps the _ away.", answer: "doctor" }
+        ];
+
+        let questions = [];
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let alertCallback = null;
+
+        // --- Game Logic ---
+
+        function initGame() {
+            const savedQuestions = localStorage.getItem('englishGameQuestions');
+            const savedScore = localStorage.getItem('englishGameScore');
+
+            if (savedQuestions) {
+                questions = JSON.parse(savedQuestions);
+            } else {
+                questions = [...defaultQuestions];
+                localStorage.setItem('englishGameQuestions', JSON.stringify(questions));
+            }
+
+            if (savedScore) {
+                score = parseInt(savedScore);
+                document.getElementById('score-display').innerText = score;
+            }
+
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            if (questions.length === 0) {
+                document.getElementById('sentence-container').innerHTML = `<span class="text-orange">No questions available! Please add or import some via 'Manage Questions'.</span>`;
+                return;
+            }
+            
+            currentQuestionIndex = Math.floor(Math.random() * questions.length);
+            const currentQ = questions[currentQuestionIndex];
+            
+            const parts = currentQ.sentence.split('_');
+            if (parts.length === 1) parts.push(''); 
+            
+            const formattedHTML = parts[0] + '<input type="text" id="answer-input" class="blank-input" autocomplete="off">' + (parts[1] || '');
+            
+            document.getElementById('sentence-container').innerHTML = formattedHTML;
+            
+            setTimeout(() => {
+                const input = document.getElementById('answer-input');
+                if(input) input.focus();
+            }, 100);
+        }
+
+        function checkAnswer() {
+            if (questions.length === 0) return;
+            
+            const inputEl = document.getElementById('answer-input');
+            if (!inputEl) return;
+            
+            const userAnswer = inputEl.value.trim().toLowerCase();
+            const correctAnswer = questions[currentQuestionIndex].answer.toLowerCase();
+
+            if (userAnswer === correctAnswer) {
+                score += 10;
+                updateScore();
+                showAlert("Correct!", "Awesome job! Keep going.", "text-green", "check-circle", loadQuestion);
+            } else {
+                showAlert("Not Quite!", `The correct word was "${correctAnswer}".`, "text-pink", "x-circle", loadQuestion);
+            }
+        }
+
+        function skipQuestion() {
+            loadQuestion();
+        }
+
+        function updateScore() {
+            localStorage.setItem('englishGameScore', score);
+            document.getElementById('score-display').innerText = score;
+        }
+
+        // --- Question Manager Logic ---
+
+        function openManageModal() {
+            renderEditorList();
+            document.getElementById('manage-modal').classList.remove('hidden');
+        }
+
+        function closeManageModal() {
+            document.getElementById('manage-modal').classList.add('hidden');
+        }
+
+        function renderEditorList() {
+            const listContainer = document.getElementById('editor-list');
+            listContainer.innerHTML = '';
+
+            if (questions.length === 0) {
+                listContainer.innerHTML = `<div class="text-center font-nunito text-lg p-6">No questions found. Add a new row below!</div>`;
+                return;
+            }
+
+            questions.forEach((q, index) => {
+                const row = document.createElement('div');
+                row.className = "flex gap-4 items-center bg-chalk dark:bg-slate-800 p-4 border-3 border-dark dark:border-slate-400 rounded-xl brutal-shadow editor-row";
+                
+                row.innerHTML = `
+                    <div class="flex-1 flex gap-4">
+                        <div class="flex-1">
+                            <label class="block text-xs font-bold mb-1 opacity-70">Sentence (use _ for blank)</label>
+                            <input type="text" value="${q.sentence.replace(/"/g, '&quot;')}" class="w-full border-3 border-dark dark:border-slate-400 rounded-lg p-3 font-nunito bg-white dark:bg-slate-700 outline-none row-sentence">
+                        </div>
+                        <div class="w-1/3">
+                            <label class="block text-xs font-bold mb-1 opacity-70">Answer</label>
+                            <input type="text" value="${q.answer.replace(/"/g, '&quot;')}" class="w-full border-3 border-dark dark:border-slate-400 rounded-lg p-3 font-nunito bg-white dark:bg-slate-700 outline-none row-answer">
+                        </div>
+                    </div>
+                    <button onclick="deleteRow(this)" class="bg-pink text-dark p-4 border-3 border-dark dark:border-slate-400 rounded-xl brutal-shadow brutal-btn self-end mb-[2px]">
+                        <i data-lucide="trash-2" class="w-5 h-5"></i>
+                    </button>
+                `;
+                listContainer.appendChild(row);
+            });
+            lucide.createIcons();
+        }
+
+        function addNewRow() {
+            const listContainer = document.getElementById('editor-list');
+            
+            if (listContainer.querySelector('.text-center')) {
+                listContainer.innerHTML = '';
+            }
+
+            const row = document.createElement('div');
+            row.className = "flex gap-4 items-center bg-chalk dark:bg-slate-800 p-4 border-3 border-dark dark:border-slate-400 rounded-xl brutal-shadow editor-row";
+            row.innerHTML = `
+                <div class="flex-1 flex gap-4">
+                    <div class="flex-1">
+                        <label class="block text-xs font-bold mb-1 opacity-70">Sentence (use _ for blank)</label>
+                        <input type="text" placeholder="The sky is _ today." class="w-full border-3 border-dark dark:border-slate-400 rounded-lg p-3 font-nunito bg-white dark:bg-slate-700 outline-none row-sentence">
+                    </div>
+                    <div class="w-1/3">
+                        <label class="block text-xs font-bold mb-1 opacity-70">Answer</label>
+                        <input type="text" placeholder="blue" class="w-full border-3 border-dark dark:border-slate-400 rounded-lg p-3 font-nunito bg-white dark:bg-slate-700 outline-none row-answer">
+                    </div>
+                </div>
+                <button onclick="deleteRow(this)" class="bg-pink text-dark p-4 border-3 border-dark dark:border-slate-400 rounded-xl brutal-shadow brutal-btn self-end mb-[2px]">
+                    <i data-lucide="trash-2" class="w-5 h-5"></i>
+                </button>
+            `;
+            listContainer.appendChild(row);
+            lucide.createIcons();
+            
+            listContainer.scrollTop = listContainer.scrollHeight;
+        }
+
+        function deleteRow(btn) {
+            btn.closest('.editor-row').remove();
+        }
+
+        function saveAllQuestions() {
+            const rows = document.querySelectorAll('.editor-row');
+            const newQuestions = [];
+            let hasError = false;
+
+            rows.forEach((row, index) => {
+                const sentence = row.querySelector('.row-sentence').value.trim();
+                const answer = row.querySelector('.row-answer').value.trim();
+
+                if (sentence === '' && answer === '') return; 
+
+                if (sentence === '' || answer === '') {
+                    hasError = true;
+                    return;
+                }
+
+                if (!sentence.includes('_')) {
+                    hasError = true;
+                    return;
+                }
+
+                newQuestions.push({ sentence, answer });
+            });
+
+            if (hasError) {
+                showAlert("Formatting Error", "Make sure all filled rows have both a sentence and an answer, and every sentence includes an underscore (_).", "text-orange", "alert-triangle");
+                return;
+            }
+
+            questions = newQuestions;
+            localStorage.setItem('englishGameQuestions', JSON.stringify(questions));
+            closeManageModal();
+            showAlert("Saved!", "Your questions have been successfully updated.", "text-blue", "save", loadQuestion);
+        }
+
+        // --- JSON Export / Import ---
+
+        function exportJSON() {
+            if (questions.length === 0) {
+                showAlert("No Data", "There are no questions to export.", "text-orange", "alert-circle");
+                return;
+            }
+            
+            const dataStr = JSON.stringify(questions, null, 2);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "english_blanks_questions.json";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showAlert("Exported!", "Your question set has been downloaded successfully.", "text-blue", "download");
+        }
+
+        function importJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    
+                    if (Array.isArray(importedData)) {
+                        const isValid = importedData.every(q => q.sentence && q.answer && typeof q.sentence === 'string' && q.sentence.includes('_'));
+                        
+                        if (isValid) {
+                            questions = importedData;
+                            localStorage.setItem('englishGameQuestions', JSON.stringify(questions));
+                            renderEditorList();
+                            showAlert("Imported!", "Questions successfully loaded from the JSON file.", "text-green", "check-circle", loadQuestion);
+                        } else {
+                            showAlert("Invalid Data", "The JSON file must contain valid sentences with an underscore (_) and an answer.", "text-pink", "alert-triangle");
+                        }
+                    } else {
+                        showAlert("Invalid Format", "The JSON file must be an array of questions.", "text-pink", "alert-triangle");
+                    }
+                } catch (err) {
+                    showAlert("Error", "Could not parse the JSON file. Ensure it is formatted correctly.", "text-pink", "x-octagon");
+                }
+                
+                // Reset input to allow re-uploading the same file if needed
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        // --- Custom Alert Logic ---
+
+        function showAlert(title, message, colorClass, iconName, callback = null) {
+            alertCallback = callback;
+            
+            document.getElementById('alert-title').innerText = title;
+            document.getElementById('alert-title').className = `font-fredoka text-4xl mb-3 ${colorClass}`;
+            document.getElementById('alert-message').innerText = message;
+            
+            const iconHtml = `<i data-lucide="${iconName}" class="w-16 h-16 ${colorClass}"></i>`;
+            document.getElementById('alert-icon').innerHTML = iconHtml;
+            lucide.createIcons();
+
+            document.getElementById('alert-modal').classList.remove('hidden');
+        }
+
+        function closeAlertAndNext() {
+            document.getElementById('alert-modal').classList.add('hidden');
+            if (alertCallback) {
+                alertCallback();
+                alertCallback = null;
+            }
+        }
+
+        // --- Utilities ---
+
+        function toggleDarkMode() {
+            const html = document.documentElement;
+            html.classList.toggle('dark');
+        }
+
+        // Initialize on load
+        window.onload = initGame;
+        
+        // Listen for "Enter" key on game input
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const gameInput = document.getElementById('answer-input');
+                if (document.activeElement === gameInput) {
+                    checkAnswer();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
