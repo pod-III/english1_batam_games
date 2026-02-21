@@ -264,11 +264,10 @@
 
         <dialog
             id="guideModal"
-            class="p-0 rounded-2xl border-4 border-engDark shadow-neo-lg bg-transparent backdrop:bg-slate-900/50 w-full max-w-2xl m-auto"
+            class="p-0 rounded-2xl border-4 border-engDark shadow-neo-lg bg-transparent backdrop:bg-slate-900/50 w-full max-w-2xl m-auto relative"
         >
             <div class="bg-white dark:bg-slate-800 flex flex-col max-h-[90vh]">
                 <div
-                    id="modalHeader"
                     class="p-6 border-b-4 border-engDark flex justify-between items-center bg-engChalk dark:bg-slate-900"
                 >
                     <h2
@@ -337,8 +336,15 @@
                 </div>
 
                 <div
-                    class="p-6 border-t-4 border-engDark bg-slate-50 dark:bg-slate-900 flex justify-end"
+                    class="p-6 border-t-4 border-engDark bg-slate-50 dark:bg-slate-900 flex justify-between items-center gap-4 flex-wrap"
                 >
+                    <button
+                        id="modalCopyBtn"
+                        class="btn-neo bg-white dark:bg-slate-800 text-engDark dark:text-white font-headings font-bold px-5 py-3 rounded-xl border-2 border-engDark shadow-neo flex items-center gap-2 hover:bg-slate-100 dark:hover:bg-slate-700"
+                    >
+                        <i data-lucide="copy" class="w-5 h-5"></i> Copy Steps
+                    </button>
+
                     <button
                         onclick="closeModal()"
                         class="btn-neo bg-engDark text-white font-headings font-bold px-8 py-3 rounded-xl border-2 border-engDark shadow-neo"
@@ -347,18 +353,17 @@
                     </button>
                 </div>
             </div>
+
+            <div
+                id="toast"
+                class="fixed bottom-10 left-1/2 transform -translate-x-1/2 hidden bg-engDark text-white px-6 py-3 rounded-xl border-2 border-engGreen shadow-neo font-bold flex items-center gap-2 w-max"
+            >
+                <i data-lucide="check-circle" class="w-5 h-5 text-engGreen"></i>
+                Steps copied to clipboard!
+            </div>
         </dialog>
 
-        <div
-            id="toast"
-            class="fixed bottom-10 left-1/2 transform -translate-x-1/2 hidden bg-engDark text-white px-6 py-3 rounded-xl border-2 border-engGreen shadow-neo font-bold z-50 flex items-center gap-2"
-        >
-            <i data-lucide="check-circle" class="w-5 h-5 text-engGreen"></i>
-            Copied to clipboard!
-        </div>
-
         <script>
-            // Global state variable
             let activities = [];
 
             // --- FETCH LOGIC ---
@@ -373,7 +378,7 @@
                     }
                     activities = await response.json();
                     renderActivities(activities);
-                    lucide.createIcons(); // Re-init icons after render
+                    lucide.createIcons();
                 } catch (error) {
                     console.error("Error loading activities:", error);
                     grid.innerHTML = `
@@ -437,7 +442,6 @@
                     const diffInfo = getDifficultyInfo(activity.difficulty);
 
                     const card = document.createElement("article");
-                    // Added stagger animation class
                     card.style.animationDelay = `${index * 50}ms`;
                     card.className =
                         "card-enter card-hover bg-white dark:bg-slate-800 rounded-2xl border-4 border-engDark shadow-neo overflow-hidden flex flex-col h-full relative group";
@@ -451,11 +455,9 @@
                     card.innerHTML = `
                     <div class="${headerColor} p-4 border-b-4 border-engDark flex justify-between items-center relative overflow-hidden">
                         <div class="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-
                         <span class="font-headings font-bold text-white text-lg flex items-center gap-2 relative z-10">
                             <i data-lucide="${iconType}" class="w-5 h-5"></i> ${activity.type.toUpperCase()}
                         </span>
-
                         <div class="flex gap-2 relative z-10">
                              <span class="bg-white text-engDark text-xs font-black px-2 py-1 rounded-lg border-2 border-engDark uppercase shadow-sm">
                                 ${activity.difficulty}
@@ -473,11 +475,9 @@
                                 <i data-lucide="${activity.icon}" class="w-6 h-6 text-slate-400 dark:text-slate-300"></i>
                             </div>
                         </div>
-
                         <p class="text-slate-600 dark:text-slate-300 font-medium mb-6 text-sm leading-relaxed flex-grow">
                             ${activity.desc}
                         </p>
-
                         <div class="mt-auto pt-4 border-t-2 border-dashed border-slate-200 dark:border-slate-700">
                             <div class="flex flex-wrap gap-2">
                                 ${skillsHtml}
@@ -485,11 +485,8 @@
                         </div>
                     </div>
 
-                    <div class="p-4 bg-slate-50 dark:bg-slate-900 border-t-4 border-engDark flex gap-3">
-                         <button onclick="copyToClipboard('${activity.desc.replace(/'/g, "\\'")}')" class="btn-neo w-12 h-12 flex-shrink-0 bg-white dark:bg-slate-800 text-engDark dark:text-white rounded-xl border-2 border-engDark shadow-neo flex justify-center items-center group/btn hover:bg-slate-100 dark:hover:bg-slate-700" title="Copy Description">
-                            <i data-lucide="copy" class="w-5 h-5 group-hover/btn:scale-110 transition-transform"></i>
-                        </button>
-                        <button onclick="openModal(${activity.id})" class="flex-grow btn-neo bg-engDark text-white font-headings font-bold py-2 rounded-xl border-2 border-engDark shadow-neo flex justify-center items-center gap-2 group/btn">
+                    <div class="p-4 bg-slate-50 dark:bg-slate-900 border-t-4 border-engDark flex">
+                        <button onclick="openModal(${activity.id})" class="w-full btn-neo bg-engDark text-white font-headings font-bold py-2 rounded-xl border-2 border-engDark shadow-neo flex justify-center items-center gap-2 group/btn">
                             View Guide <i data-lucide="arrow-right" class="w-4 h-4 group-hover/btn:translate-x-1 transition-transform"></i>
                         </button>
                     </div>
@@ -506,12 +503,10 @@
                 const act = activities.find((a) => a.id === id);
                 if (!act) return;
 
-                // Populate Text
                 document.getElementById("modalTitle").innerText = act.title;
                 document.getElementById("modalVariation").innerText =
                     act.variation;
 
-                // Populate Badges
                 const typeBadge = document.getElementById("modalType");
                 typeBadge.innerText = act.type;
                 typeBadge.className = `px-3 py-1 rounded-lg border-2 border-engDark font-bold text-sm text-white ${act.type === "Stirrer" ? "bg-engOrange" : "bg-engBlue"}`;
@@ -523,7 +518,6 @@
                 diffBadge.innerText = act.difficulty;
                 diffBadge.className = `px-3 py-1 rounded-lg border-2 border-engDark font-bold text-sm ${diffInfo.class}`;
 
-                // Populate Steps
                 const stepsList = document.getElementById("modalSteps");
                 stepsList.innerHTML = act.steps
                     .map(
@@ -536,7 +530,15 @@
                     )
                     .join("");
 
-                // Show Modal
+                // Setup Copy Button
+                const copyBtn = document.getElementById("modalCopyBtn");
+                copyBtn.onclick = () => {
+                    const numberedText = act.steps
+                        .map((step, index) => `${index + 1}. ${step}`)
+                        .join("\\n");
+                    copyToClipboard(numberedText);
+                };
+
                 modal.showModal();
             }
 
@@ -557,18 +559,39 @@
                 }
             });
 
-            // --- CLIPBOARD LOGIC ---
-            function copyToClipboard(text) {
-                const textarea = document.createElement("textarea");
-                textarea.value = text;
-                textarea.setAttribute("readonly", "");
-                textarea.style.position = "absolute";
-                textarea.style.left = "-9999px";
-                document.body.appendChild(textarea);
-                textarea.select();
-                document.execCommand("copy");
-                document.body.removeChild(textarea);
-                showToast();
+            // --- MODERN CLIPBOARD LOGIC ---
+            async function copyToClipboard(text) {
+                // Formatting newlines properly
+                const formattedText = text.replace(/\\n/g, "\n");
+
+                try {
+                    // Modern API (Requires secure context / HTTPS or Localhost)
+                    await navigator.clipboard.writeText(formattedText);
+                    showToast();
+                } catch (err) {
+                    console.error(
+                        "Modern clipboard API failed, trying fallback...",
+                        err,
+                    );
+
+                    // Fallback for older browsers
+                    const textarea = document.createElement("textarea");
+                    textarea.value = formattedText;
+                    textarea.setAttribute("readonly", "");
+                    textarea.style.position = "fixed"; // Prevents scrolling
+                    textarea.style.left = "-9999px";
+                    document.body.appendChild(textarea);
+                    textarea.select();
+
+                    try {
+                        document.execCommand("copy");
+                        showToast();
+                    } catch (fallbackErr) {
+                        console.error("Fallback clipboard failed", fallbackErr);
+                    } finally {
+                        document.body.removeChild(textarea);
+                    }
+                }
             }
 
             function showToast() {
