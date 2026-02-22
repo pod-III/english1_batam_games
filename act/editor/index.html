@@ -205,6 +205,14 @@
                         </button>
                     </div>
 
+                    <button
+                        onclick="reindexIds()"
+                        class="w-full mt-3 bg-brand-yellow text-brand-dark border-2 border-brand-dark rounded-xl py-3 font-heading font-bold neo-shadow-sm neo-btn flex justify-center items-center gap-2"
+                    >
+                        <i data-lucide="list-ordered" class="w-5 h-5"></i>
+                        Re-index IDs
+                    </button>
+
                     <div
                         class="bg-white border-4 border-brand-dark rounded-2xl neo-shadow flex flex-col h-[550px]"
                     >
@@ -893,6 +901,40 @@
                 if (originalEditingId === id) resetForm();
                 updateActivityList();
                 showToast(`Activity #${id} Deleted.`, true);
+            }
+
+            function reindexIds() {
+                if (activities.length === 0)
+                    return showToast("No activities to re-index!", true);
+
+                // Sort activities by their current ID first to maintain logical order
+                activities.sort((a, b) => a.id - b.id);
+
+                let wasEditing = originalEditingId !== null;
+                let newEditingId = null;
+
+                // Loop through and reassign IDs starting from 1
+                activities.forEach((act, index) => {
+                    const newId = index + 1;
+
+                    // If we are currently editing an activity, update its ID tracker
+                    if (wasEditing && act.id === originalEditingId) {
+                        newEditingId = newId;
+                    }
+
+                    act.id = newId;
+                });
+
+                // Update the form if the user was in the middle of editing
+                if (wasEditing) {
+                    originalEditingId = newEditingId;
+                    document.getElementById("activityId").value = newEditingId;
+                } else {
+                    setNextAvailableId();
+                }
+
+                updateActivityList();
+                showToast("All IDs successfully re-indexed!");
             }
 
             function resetForm() {
