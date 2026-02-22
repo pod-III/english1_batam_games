@@ -206,6 +206,16 @@
                     </div>
 
                     <button
+                        onclick="
+                            document.getElementById('pasteModal').showModal()
+                        "
+                        class="w-full mt-3 bg-brand-pink text-brand-dark border-2 border-brand-dark rounded-xl py-3 font-heading font-bold neo-shadow-sm neo-btn flex justify-center items-center gap-2"
+                    >
+                        <i data-lucide="clipboard-paste" class="w-5 h-5"></i>
+                        Paste JSON
+                    </button>
+
+                    <button
                         onclick="reindexIds()"
                         class="w-full mt-3 bg-brand-yellow text-brand-dark border-2 border-brand-dark rounded-xl py-3 font-heading font-bold neo-shadow-sm neo-btn flex justify-center items-center gap-2"
                     >
@@ -552,6 +562,49 @@
             </div>
         </dialog>
 
+        <dialog
+            id="pasteModal"
+            class="p-0 rounded-2xl border-4 border-brand-dark neo-shadow m-auto w-[90%] max-w-2xl bg-white"
+        >
+            <div class="flex flex-col h-full max-h-[80vh]">
+                <div
+                    class="p-4 border-b-4 border-brand-dark bg-brand-chalk flex justify-between items-center shrink-0"
+                >
+                    <h3
+                        class="font-heading text-xl font-bold flex items-center gap-2"
+                    >
+                        <i data-lucide="clipboard-paste"></i> Paste JSON Data
+                    </h3>
+                    <button
+                        onclick="document.getElementById('pasteModal').close()"
+                        class="p-2 border-2 border-brand-dark rounded-lg hover:bg-brand-pink hover:text-white transition-colors"
+                    >
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <div
+                    class="p-6 overflow-y-auto custom-scrollbar flex flex-col gap-4"
+                >
+                    <p class="font-bold text-sm text-slate-600">
+                        Paste a single activity object or an array of activities
+                        here. New IDs will be assigned automatically.
+                    </p>
+                    <textarea
+                        id="pasteArea"
+                        rows="10"
+                        class="w-full px-4 py-3 rounded-xl font-bold resize-y font-mono text-sm bg-brand-chalk border-2 border-brand-dark neo-shadow-sm focus:outline-none focus:ring-0"
+                        placeholder='[{ "title": "New Activity", "type": "Stirrer"... }]'
+                    ></textarea>
+                    <button
+                        onclick="processPastedJson()"
+                        class="w-full bg-brand-green border-4 border-brand-dark rounded-xl py-4 font-heading text-xl font-bold neo-shadow neo-btn mt-2"
+                    >
+                        Add to Workspace
+                    </button>
+                </div>
+            </div>
+        </dialog>
+
         <div
             id="toast"
             class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 transform translate-y-32 opacity-0 transition-all duration-300"
@@ -655,6 +708,57 @@
                     document.execCommand("copy");
                     document.body.removeChild(textarea);
                     showToast("JSON Copied to Clipboard!");
+                }
+            }
+
+            function processPastedJson() {
+                const raw = document.getElementById("pasteArea").value.trim();
+                if (!raw)
+                    return showToast("Please paste some JSON first!", true);
+
+                try {
+                    let parsed = JSON.parse(raw);
+
+                    // If they pasted a single object, wrap it in an array
+                    if (!Array.isArray(parsed)) {
+                        parsed = [parsed];
+                    }
+
+                    let addedCount = 0;
+                    // Find the current highest ID to prevent collisions
+                    let maxId =
+                        activities.length > 0
+                            ? Math.max(...activities.map((a) => a.id))
+                            : 0;
+
+                    parsed.forEach((act) => {
+                        if (typeof act === "object" && act !== null) {
+                            maxId++;
+                            act.id = maxId; // Assign a fresh ID
+                            activities.push(act);
+                            addedCount++;
+                        }
+                    });
+
+                    if (addedCount > 0) {
+                        updateActivityList();
+                        setNextAvailableId();
+
+                        // Clean up and close
+                        document.getElementById("pasteArea").value = "";
+                        document.getElementById("pasteModal").close();
+
+                        // Re-render icons since we added new elements to the DOM
+                        lucide.createIcons();
+
+                        showToast(
+                            `Successfully added ${addedCount} activities!`,
+                        );
+                    } else {
+                        showToast("No valid activity objects found.", true);
+                    }
+                } catch (err) {
+                    showToast("Invalid JSON format!", true);
                 }
             }
 
