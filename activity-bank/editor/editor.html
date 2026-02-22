@@ -77,12 +77,14 @@
             }
 
             input[type="text"],
+            input[type="number"],
             select,
             textarea {
                 border: 2px solid #1e293b !important;
                 box-shadow: 2px 2px 0px 0px rgba(30, 41, 59, 1);
             }
             input[type="text"]:focus,
+            input[type="number"]:focus,
             select:focus,
             textarea:focus {
                 outline: none;
@@ -90,7 +92,6 @@
                 transform: translate(-1px, -1px);
             }
 
-            /* Custom Checkbox Styling for the Ages filter */
             input[type="checkbox"] {
                 appearance: none;
                 width: 1.5rem;
@@ -102,7 +103,7 @@
                 position: relative;
             }
             input[type="checkbox"]:checked {
-                background-color: #00e676; /* brand-green */
+                background-color: #00e676;
             }
             input[type="checkbox"]:checked::after {
                 content: "✓";
@@ -125,6 +126,11 @@
                 background: #1e293b;
                 border-radius: 10px;
                 border: 2px solid #f8fafc;
+            }
+
+            dialog::backdrop {
+                background: rgba(30, 41, 59, 0.7);
+                backdrop-filter: blur(4px);
             }
         </style>
     </head>
@@ -225,18 +231,18 @@
                     >
                         <div
                             id="formHeader"
-                            class="bg-brand-pink border-b-4 border-brand-dark p-6 flex justify-between items-center"
+                            class="bg-brand-pink border-b-4 border-brand-dark p-6 flex justify-between items-center transition-colors"
                         >
                             <h2
                                 id="formTitle"
-                                class="font-heading text-2xl font-bold flex items-center gap-3"
+                                class="font-heading text-2xl font-bold flex items-center gap-3 text-brand-dark"
                             >
                                 <i data-lucide="pen-tool"></i> Adding New
                                 Activity
                             </h2>
                             <span
                                 id="idBadge"
-                                class="text-xs font-black bg-brand-dark/20 px-2 py-1 rounded"
+                                class="text-xs font-black bg-brand-dark/10 text-brand-dark px-3 py-1 rounded-lg border-2 border-brand-dark"
                                 >NEW</span
                             >
                         </div>
@@ -246,8 +252,20 @@
                             class="p-6 md:p-8 space-y-8"
                             onsubmit="saveActivity(event)"
                         >
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div class="space-y-2">
+                            <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+                                <div class="space-y-2 md:col-span-2">
+                                    <label class="font-bold text-sm uppercase"
+                                        >JSON ID</label
+                                    >
+                                    <input
+                                        type="number"
+                                        id="activityId"
+                                        required
+                                        placeholder="e.g. 1"
+                                        class="w-full px-4 py-3 rounded-xl font-bold bg-brand-chalk"
+                                    />
+                                </div>
+                                <div class="space-y-2 md:col-span-6">
                                     <label class="font-bold text-sm uppercase"
                                         >Activity Title</label
                                     >
@@ -259,24 +277,36 @@
                                         class="w-full px-4 py-3 rounded-xl font-bold"
                                     />
                                 </div>
-                                <div class="space-y-2">
+                                <div class="space-y-2 md:col-span-4">
                                     <label class="font-bold text-sm uppercase"
-                                        >Icon Name (Lucide)</label
+                                        >Icon</label
                                     >
-                                    <input
-                                        type="text"
-                                        id="icon"
-                                        required
-                                        placeholder="e.g. headphones"
-                                        class="w-full px-4 py-3 rounded-xl font-bold"
-                                    />
+                                    <div class="flex gap-2">
+                                        <input
+                                            type="text"
+                                            id="icon"
+                                            required
+                                            placeholder="e.g. headphones"
+                                            class="w-full px-4 py-3 rounded-xl font-bold"
+                                        />
+                                        <button
+                                            type="button"
+                                            onclick="openIconPicker()"
+                                            class="shrink-0 bg-brand-dark text-white px-4 rounded-xl border-2 border-brand-dark neo-btn flex items-center justify-center"
+                                        >
+                                            <i
+                                                data-lucide="search"
+                                                class="w-5 h-5"
+                                            ></i>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div class="space-y-2">
                                     <label class="font-bold text-sm uppercase"
-                                        >Type</label
+                                        >Energy Type</label
                                     >
                                     <select
                                         id="type"
@@ -318,7 +348,7 @@
                             </div>
 
                             <div
-                                class="grid grid-cols-1 md:grid-cols-3 gap-6 p-4 bg-brand-chalk border-2 border-brand-dark rounded-xl border-dashed"
+                                class="grid grid-cols-1 md:grid-cols-3 gap-6 p-5 bg-brand-chalk border-2 border-brand-dark rounded-xl border-dashed"
                             >
                                 <div class="space-y-2">
                                     <label class="font-bold text-sm uppercase"
@@ -422,15 +452,9 @@
                                     />
                                 </div>
                                 <div class="space-y-2">
-                                    <label
-                                        class="font-bold text-sm uppercase flex items-center gap-2"
+                                    <label class="font-bold text-sm uppercase"
+                                        >Materials (Comma separated)</label
                                     >
-                                        Materials
-                                        <span
-                                            class="text-xs text-slate-400 normal-case"
-                                            >(Comma separated)</span
-                                        >
-                                    </label>
                                     <input
                                         type="text"
                                         id="materials"
@@ -455,7 +479,11 @@
                                         onclick="addStep()"
                                         class="bg-brand-blue text-white border-2 border-brand-dark rounded-xl px-4 py-2 font-heading font-bold neo-shadow-sm neo-btn flex items-center gap-2"
                                     >
-                                        <i data-lucide="plus"></i> Add Step
+                                        <i
+                                            data-lucide="plus"
+                                            class="w-5 h-5"
+                                        ></i>
+                                        Add Step
                                     </button>
                                 </div>
                                 <div
@@ -489,6 +517,33 @@
             </div>
         </main>
 
+        <dialog
+            id="iconModal"
+            class="p-0 rounded-2xl border-4 border-brand-dark neo-shadow m-auto w-[90%] max-w-2xl bg-white"
+        >
+            <div class="flex flex-col h-full max-h-[80vh]">
+                <div
+                    class="p-4 border-b-4 border-brand-dark bg-brand-chalk flex justify-between items-center shrink-0"
+                >
+                    <h3 class="font-heading text-xl font-bold">
+                        Select an Icon
+                    </h3>
+                    <button
+                        onclick="document.getElementById('iconModal').close()"
+                        class="p-2 border-2 border-brand-dark rounded-lg hover:bg-brand-pink hover:text-white transition-colors"
+                    >
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <div class="p-6 overflow-y-auto custom-scrollbar">
+                    <div
+                        id="iconGrid"
+                        class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4"
+                    ></div>
+                </div>
+            </div>
+        </dialog>
+
         <div
             id="toast"
             class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 transform translate-y-32 opacity-0 transition-all duration-300"
@@ -503,9 +558,41 @@
 
         <script>
             let activities = [];
-            let editingId = null;
+            let originalEditingId = null; // Tracks the ID we started editing, in case user changes it
 
-            // Initialize Icons
+            const commonIcons = [
+                "activity",
+                "anchor",
+                "arrow-left-right",
+                "book",
+                "book-open",
+                "bus",
+                "check",
+                "clock",
+                "edit",
+                "eye",
+                "eye-off",
+                "flag",
+                "flame",
+                "headphones",
+                "help-circle",
+                "image",
+                "lightbulb",
+                "message-square",
+                "mic",
+                "music",
+                "pen-tool",
+                "play",
+                "scissors",
+                "smile",
+                "star",
+                "users",
+                "video",
+                "zap",
+                "hash",
+                "list",
+            ];
+
             lucide.createIcons();
 
             // --- FILE & DATA HANDLING ---
@@ -519,6 +606,7 @@
                         try {
                             activities = JSON.parse(event.target.result);
                             updateActivityList();
+                            setNextAvailableId();
                             showToast("Data Imported Successfully!");
                         } catch (err) {
                             showToast("Error: Invalid JSON format!", true);
@@ -545,38 +633,28 @@
             async function copyJson() {
                 if (activities.length === 0)
                     return showToast("Nothing to copy!", true);
-
-                // Format JSON with 2-space indentation for readability
                 const jsonString = JSON.stringify(activities, null, 2);
-
                 try {
-                    // Try modern Clipboard API
                     await navigator.clipboard.writeText(jsonString);
                     showToast("JSON Copied to Clipboard!");
                 } catch (err) {
-                    // Fallback for older browsers
                     const textarea = document.createElement("textarea");
                     textarea.value = jsonString;
                     textarea.style.position = "fixed";
                     textarea.style.left = "-9999px";
                     document.body.appendChild(textarea);
                     textarea.select();
-                    try {
-                        document.execCommand("copy");
-                        showToast("JSON Copied to Clipboard!");
-                    } catch (fallbackErr) {
-                        showToast("Failed to copy JSON", true);
-                    } finally {
-                        document.body.removeChild(textarea);
-                    }
+                    document.execCommand("copy");
+                    document.body.removeChild(textarea);
+                    showToast("JSON Copied to Clipboard!");
                 }
             }
 
             // --- LIST MANAGEMENT ---
             function updateActivityList() {
                 const list = document.getElementById("activityList");
-                const count = document.getElementById("activityCount");
-                count.innerText = activities.length;
+                document.getElementById("activityCount").innerText =
+                    activities.length;
 
                 if (activities.length === 0) {
                     list.innerHTML = `<div class="text-center py-20 text-slate-400 font-bold italic">No activities found.</div>`;
@@ -584,70 +662,117 @@
                 }
 
                 list.innerHTML = activities
+                    .sort((a, b) => a.id - b.id)
                     .map(
                         (act) => `
-                <div class="bg-white border-2 border-brand-dark rounded-xl p-3 neo-shadow-sm flex justify-between items-center group ${editingId === act.id ? "ring-4 ring-brand-blue/30 border-brand-blue" : ""}">
-                    <div class="truncate pr-4">
-                        <p class="font-bold text-sm truncate">${act.title}</p>
-                        <p class="text-[10px] font-black uppercase text-brand-blue">${act.type} • Ages: ${(act.target_ages || []).join(", ") || "All"}</p>
+                    <div class="bg-white border-2 border-brand-dark rounded-xl p-3 neo-shadow-sm flex justify-between items-center group ${originalEditingId === act.id ? "ring-4 ring-brand-blue/30 border-brand-blue bg-brand-blue/5" : ""}">
+                        <div class="truncate pr-4 flex items-center gap-3">
+                            <span class="bg-brand-dark text-white text-xs font-bold px-2 py-1 rounded border border-brand-dark">#${act.id}</span>
+                            <div>
+                                <p class="font-bold text-sm truncate">${act.title}</p>
+                                <p class="text-[10px] font-black uppercase text-brand-blue">${act.type}</p>
+                            </div>
+                        </div>
+                        <div class="flex gap-2 shrink-0">
+                            <button type="button" onclick="editActivity(${act.id})" class="p-2 border-2 border-brand-dark rounded-lg hover:bg-brand-blue hover:text-white transition-colors">
+                                <i data-lucide="edit-3" class="w-4 h-4"></i>
+                            </button>
+                            <button type="button" onclick="deleteActivity(${act.id})" class="p-2 border-2 border-brand-dark rounded-lg hover:bg-brand-pink hover:text-white transition-colors">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
                     </div>
-                    <div class="flex gap-2 shrink-0">
-                        <button onclick="editActivity(${act.id})" class="p-2 border-2 border-brand-dark rounded-lg hover:bg-brand-blue hover:text-white transition-colors">
-                            <i data-lucide="edit-3" class="w-4 h-4"></i>
-                        </button>
-                        <button onclick="deleteActivity(${act.id})" class="p-2 border-2 border-brand-dark rounded-lg hover:bg-brand-pink hover:text-white transition-colors">
-                            <i data-lucide="trash-2" class="w-4 h-4"></i>
-                        </button>
-                    </div>
-                </div>
-            `,
+                `,
                     )
                     .join("");
                 lucide.createIcons();
             }
 
             // --- FORM LOGIC ---
+            function setNextAvailableId() {
+                if (originalEditingId !== null) return;
+                let maxId = 0;
+                activities.forEach((a) => {
+                    if (a.id > maxId) maxId = a.id;
+                });
+                document.getElementById("activityId").value = maxId + 1;
+            }
+
             function addStep(val = "") {
                 const container = document.getElementById("stepsContainer");
                 const stepDiv = document.createElement("div");
-                stepDiv.className = "flex gap-3 group items-center";
+                stepDiv.className = "flex gap-2 group items-center step-item";
                 stepDiv.innerHTML = `
-                <div class="flex-shrink-0 w-8 h-8 bg-brand-dark text-white rounded-lg flex items-center justify-center font-bold neo-shadow-sm">
-                    ${container.children.length + 1}
-                </div>
-                <input type="text" required value="${val.replace(/"/g, "&quot;")}" class="flex-grow px-4 py-2 rounded-xl font-bold text-sm" placeholder="Actionable step description...">
-                <button type="button" onclick="this.parentElement.remove(); reorderSteps();" class="text-brand-pink opacity-0 group-hover:opacity-100 transition-opacity">
-                    <i data-lucide="x-circle" class="w-5 h-5"></i>
-                </button>
-            `;
+                    <div class="flex flex-col gap-1 shrink-0">
+                        <button type="button" onclick="moveStep(this, -1)" class="p-1 hover:bg-brand-chalk rounded text-slate-400 hover:text-brand-dark transition-colors"><i data-lucide="chevron-up" class="w-4 h-4"></i></button>
+                        <button type="button" onclick="moveStep(this, 1)" class="p-1 hover:bg-brand-chalk rounded text-slate-400 hover:text-brand-dark transition-colors"><i data-lucide="chevron-down" class="w-4 h-4"></i></button>
+                    </div>
+                    <div class="step-num flex-shrink-0 w-8 h-8 bg-brand-dark text-white rounded-lg flex items-center justify-center font-bold neo-shadow-sm border-2 border-brand-dark">
+                        ${container.children.length + 1}
+                    </div>
+                    <input type="text" required value="${val.replace(/"/g, "&quot;")}" class="flex-grow px-4 py-2 rounded-xl font-bold text-sm" placeholder="Actionable step description...">
+                    <button type="button" onclick="this.parentElement.remove(); reorderSteps();" class="shrink-0 p-2 text-brand-pink hover:bg-brand-pink/10 rounded-lg transition-colors border-2 border-transparent hover:border-brand-pink">
+                        <i data-lucide="x-circle" class="w-5 h-5"></i>
+                    </button>
+                `;
                 container.appendChild(stepDiv);
                 lucide.createIcons();
+                reorderSteps();
+            }
+
+            function moveStep(btn, direction) {
+                const stepDiv = btn.closest(".step-item");
+                const container = document.getElementById("stepsContainer");
+                if (direction === -1 && stepDiv.previousElementSibling) {
+                    container.insertBefore(
+                        stepDiv,
+                        stepDiv.previousElementSibling,
+                    );
+                } else if (direction === 1 && stepDiv.nextElementSibling) {
+                    container.insertBefore(stepDiv.nextElementSibling, stepDiv);
+                }
+                reorderSteps();
             }
 
             function reorderSteps() {
                 const steps = document.querySelectorAll(
-                    "#stepsContainer > div",
+                    "#stepsContainer > .step-item",
                 );
                 steps.forEach((s, i) => {
-                    s.querySelector("div").innerText = i + 1;
+                    s.querySelector(".step-num").innerText = i + 1;
+                    // Disable up button on first, down button on last
+                    const btns = s.querySelectorAll("button");
+                    btns[0].style.opacity = i === 0 ? "0.2" : "1";
+                    btns[1].style.opacity =
+                        i === steps.length - 1 ? "0.2" : "1";
                 });
             }
 
             function saveActivity(e) {
                 e.preventDefault();
 
-                // Extract Steps
+                const inputId = parseInt(
+                    document.getElementById("activityId").value,
+                );
+                if (isNaN(inputId))
+                    return showToast("ID must be a number!", true);
+
+                // ID Duplication check
+                const isDuplicate = activities.some(
+                    (a) => a.id === inputId && a.id !== originalEditingId,
+                );
+                if (isDuplicate)
+                    return showToast(`ID #${inputId} is already in use!`, true);
+
                 const stepInputs = document.querySelectorAll(
                     '#stepsContainer input[type="text"]',
                 );
                 const steps = Array.from(stepInputs)
                     .map((i) => i.value.trim())
                     .filter((val) => val !== "");
-
                 if (steps.length === 0)
                     return showToast("Add at least one step!", true);
 
-                // Extract Target Ages
                 const checkedAges = Array.from(
                     document.querySelectorAll(
                         "#targetAgesContainer input:checked",
@@ -659,9 +784,8 @@
                         true,
                     );
 
-                // Build Data Object (matching new structure)
                 const data = {
-                    id: editingId || Date.now(),
+                    id: inputId,
                     title: document.getElementById("title").value.trim(),
                     type: document.getElementById("type").value,
                     difficulty: document.getElementById("difficulty").value,
@@ -682,21 +806,24 @@
                         .value.split(",")
                         .map((s) => s.trim())
                         .filter((s) => s),
-                    icon: document.getElementById("icon").value.trim(),
+                    icon:
+                        document.getElementById("icon").value.trim() ||
+                        "activity",
                     steps: steps,
                     variation: document
                         .getElementById("variation")
                         .value.trim(),
                 };
 
-                // Update or Push
-                if (editingId) {
-                    const idx = activities.findIndex((a) => a.id === editingId);
-                    activities[idx] = data;
-                    showToast("Activity Updated!");
+                if (originalEditingId !== null) {
+                    const idx = activities.findIndex(
+                        (a) => a.id === originalEditingId,
+                    );
+                    if (idx > -1) activities[idx] = data;
+                    showToast(`Activity #${inputId} Updated!`);
                 } else {
                     activities.push(data);
-                    showToast("New Activity Added!");
+                    showToast(`Activity #${inputId} Added!`);
                 }
 
                 resetForm();
@@ -707,15 +834,21 @@
                 const act = activities.find((a) => a.id === id);
                 if (!act) return;
 
-                editingId = id;
+                originalEditingId = id;
                 document.getElementById("formTitle").innerHTML =
                     `<i data-lucide="edit"></i> Editing Activity`;
                 document
                     .getElementById("formHeader")
                     .classList.replace("bg-brand-pink", "bg-brand-blue");
-                document.getElementById("idBadge").innerText = "ID: " + id;
+                document
+                    .getElementById("formHeader")
+                    .classList.replace("text-brand-dark", "text-white");
 
-                // Fill basic fields
+                document.getElementById("idBadge").innerText = "EDITING";
+                document.getElementById("idBadge").className =
+                    "text-xs font-black bg-white text-brand-blue px-3 py-1 rounded-lg border-2 border-white";
+
+                document.getElementById("activityId").value = act.id;
                 document.getElementById("title").value = act.title || "";
                 document.getElementById("icon").value = act.icon || "";
                 document.getElementById("type").value = act.type || "Stirrer";
@@ -725,14 +858,10 @@
                 document.getElementById("desc").value = act.desc || "";
                 document.getElementById("variation").value =
                     act.variation || "";
-
-                // Fill new logic fields
                 document.getElementById("grouping").value =
                     act.grouping || "Whole Class";
                 document.getElementById("prep_time").value =
                     act.prep_time || "";
-
-                // Arrays to strings
                 document.getElementById("skills").value = (
                     act.skills || []
                 ).join(", ");
@@ -740,7 +869,6 @@
                     act.materials || []
                 ).join(", ");
 
-                // Set checkboxes for target_ages
                 const ageCheckboxes = document.querySelectorAll(
                     "#targetAgesContainer input",
                 );
@@ -750,7 +878,6 @@
                         : false;
                 });
 
-                // Rebuild Steps
                 const container = document.getElementById("stepsContainer");
                 container.innerHTML = "";
                 (act.steps || []).forEach((s) => addStep(s));
@@ -763,28 +890,58 @@
             function deleteActivity(id) {
                 if (!confirm("Remove this activity forever?")) return;
                 activities = activities.filter((a) => a.id !== id);
-                if (editingId === id) resetForm();
+                if (originalEditingId === id) resetForm();
                 updateActivityList();
-                showToast("Activity Deleted.", true);
+                showToast(`Activity #${id} Deleted.`, true);
             }
 
             function resetForm() {
-                editingId = null;
+                originalEditingId = null;
                 document.getElementById("activityForm").reset();
 
-                // Explicitly clear dynamic fields and UI states
                 document.getElementById("stepsContainer").innerHTML = "";
                 document.getElementById("formTitle").innerHTML =
                     `<i data-lucide="pen-tool"></i> Adding New Activity`;
-                document
-                    .getElementById("formHeader")
-                    .classList.replace("bg-brand-blue", "bg-brand-pink");
-                document.getElementById("idBadge").innerText = "NEW";
 
+                const header = document.getElementById("formHeader");
+                header.classList.remove("bg-brand-blue", "text-white");
+                header.classList.add("bg-brand-pink", "text-brand-dark");
+
+                const badge = document.getElementById("idBadge");
+                badge.innerText = "NEW";
+                badge.className =
+                    "text-xs font-black bg-brand-dark/10 text-brand-dark px-3 py-1 rounded-lg border-2 border-brand-dark";
+
+                setNextAvailableId();
                 addStep();
+                updateActivityList();
                 lucide.createIcons();
             }
 
+            // --- ICON PICKER LOGIC ---
+            function openIconPicker() {
+                const grid = document.getElementById("iconGrid");
+                grid.innerHTML = commonIcons
+                    .map(
+                        (iconName) => `
+                    <button type="button" onclick="selectIcon('${iconName}')" class="flex flex-col items-center justify-center p-4 gap-2 border-2 border-transparent hover:border-brand-dark hover:bg-brand-chalk rounded-xl transition-colors group">
+                        <i data-lucide="${iconName}" class="w-8 h-8 text-brand-dark group-hover:text-brand-pink transition-colors"></i>
+                        <span class="text-[10px] font-bold text-slate-500 truncate w-full text-center">${iconName}</span>
+                    </button>
+                `,
+                    )
+                    .join("");
+
+                document.getElementById("iconModal").showModal();
+                lucide.createIcons();
+            }
+
+            function selectIcon(iconName) {
+                document.getElementById("icon").value = iconName;
+                document.getElementById("iconModal").close();
+            }
+
+            // --- TOAST UI ---
             function showToast(msg, isError = false) {
                 const toast = document.getElementById("toast");
                 document.getElementById("toastMsg").innerText = msg;
@@ -811,8 +968,8 @@
                 }, 3000);
             }
 
-            // Init Form
             window.onload = () => {
+                setNextAvailableId();
                 addStep();
                 updateActivityList();
             };

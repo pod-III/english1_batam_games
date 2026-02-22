@@ -740,7 +740,9 @@
 
             async function fetchActivities() {
                 try {
-                    const response = await fetch("activities.json");
+                    const response = await fetch(
+                        "activities.json?v=" + new Date().getTime(),
+                    );
                     if (!response.ok)
                         throw new Error(
                             `HTTP error! status: ${response.status}`,
@@ -1000,6 +1002,9 @@
                 const act = AppState.activities.find((a) => a.id === id);
                 if (!act) return;
 
+                // 1. Save current scroll position before opening
+                AppState.scrollPosition = window.scrollY;
+
                 // Tab 1 & 2 Text
                 document.getElementById("modalTitle").innerText = act.title;
                 document.getElementById("modalVariation").innerText =
@@ -1046,11 +1051,11 @@
                 document.getElementById("modalSteps").innerHTML = act.steps
                     .map(
                         (step, i) => `
-                    <li class="flex gap-5 items-start p-4 rounded-2xl bg-slate-50 dark:bg-slate-700/30 border-2 border-transparent hover:border-engDark/10 transition-colors">
-                        <span class="flex-shrink-0 w-10 h-10 rounded-xl bg-engPink text-white flex items-center justify-center font-headings font-bold text-lg border-4 border-engDark shadow-sm">${i + 1}</span>
-                        <span class="mt-1 text-lg leading-relaxed">${step}</span>
-                    </li>
-                `,
+                                <li class="flex gap-5 items-start p-4 rounded-2xl bg-slate-50 dark:bg-slate-700/30 border-2 border-transparent hover:border-engDark/10 transition-colors">
+                                    <span class="flex-shrink-0 w-10 h-10 rounded-xl bg-engPink text-white flex items-center justify-center font-headings font-bold text-lg border-4 border-engDark shadow-sm">${i + 1}</span>
+                                    <span class="mt-1 text-lg leading-relaxed">${step}</span>
+                                </li>
+                            `,
                     )
                     .join("");
 
@@ -1063,17 +1068,29 @@
 
                 switchModalTab("steps");
                 document.getElementById("guideModal").showModal();
-                lucide.createIcons(); // Re-render material icons inside modal
+
+                // 2. Lock the background scrolling
+                document.body.style.overflow = "hidden";
+                lucide.createIcons();
             }
 
             function closeModal() {
                 document.getElementById("guideModal").close();
+                // 3. Restore scrolling and exact position
+                document.body.style.overflow = "auto";
+                window.scrollTo(0, AppState.scrollPosition);
             }
+
             function openConfirmModal() {
+                AppState.scrollPosition = window.scrollY;
                 document.getElementById("confirmModal").showModal();
+                document.body.style.overflow = "hidden";
             }
+
             function closeConfirmModal() {
                 document.getElementById("confirmModal").close();
+                document.body.style.overflow = "auto";
+                window.scrollTo(0, AppState.scrollPosition);
             }
 
             function confirmClearLessonPlan() {
@@ -1088,9 +1105,16 @@
                 showToast("Plan cleared", "trash-2");
             }
 
+            // 4. Ensure clicking outside the modal also restores scroll
             document.querySelectorAll("dialog").forEach((dialog) => {
                 dialog.addEventListener("click", (e) => {
-                    if (e.target === dialog) dialog.close();
+                    if (e.target === dialog) {
+                        dialog.close();
+                        document.body.style.overflow = "auto";
+                        if (AppState.scrollPosition !== undefined) {
+                            window.scrollTo(0, AppState.scrollPosition);
+                        }
+                    }
                 });
             });
 
