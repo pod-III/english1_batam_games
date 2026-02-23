@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spelling Game - Polished</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        pink: '#FF6B95',
+                        orange: '#FF8C42',
+                        green: '#00E676',
+                        blue: '#2979FF',
+                        dark: '#1e293b',
+                        chalk: '#f8fafc'
+                    },
+                    fontFamily: {
+                        heading: ['Fredoka', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif']
+                    },
+                    boxShadow: {
+                        brutal: '4px 4px 0px 0px rgba(30, 41, 59, 1)',
+                        brutal_dark: '4px 4px 0px 0px rgba(148, 163, 184, 1)'
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        /* Grid Pattern Background */
+        body {
+            background-color: #f8fafc;
+            background-image: 
+                linear-gradient(to right, rgba(30, 41, 59, 0.1) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(30, 41, 59, 0.1) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        
+        .dark body {
+            background-color: #0f172a;
+            background-image: 
+                linear-gradient(to right, rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+        }
+
+        /* Neo-brutalist interaction classes */
+        .btn-brutal {
+            transition: all 0.1s ease-in-out;
+        }
+        .btn-brutal:hover {
+            transform: translateY(-2px) rotate(1deg);
+        }
+        .btn-brutal:active {
+            transform: translateY(4px);
+            box-shadow: 0px 0px 0px 0px rgba(30, 41, 59, 1) !important;
+        }
+        .dark .btn-brutal:active {
+            box-shadow: 0px 0px 0px 0px rgba(148, 163, 184, 1) !important;
+        }
+
+        /* Custom Animations */
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            70% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop {
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-10px); }
+            40%, 80% { transform: translateX(10px); }
+        }
+        .animate-shake {
+            animation: shake 0.4s ease-in-out;
+        }
+
+        /* Pulse for empty slots */
+        @keyframes subtlePulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.8; }
+        }
+        .empty-slot {
+            animation: subtlePulse 2s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="font-body text-dark dark:text-white min-h-screen flex flex-col items-center justify-center p-8 transition-colors duration-300">
+
+    <div class="absolute top-6 right-6 flex gap-4">
+        <button onclick="openSettings()" class="btn-brutal bg-blue text-white p-3 rounded-xl border-4 border-dark shadow-brutal dark:shadow-brutal_dark dark:border-slate-400 flex items-center justify-center" aria-label="Settings">
+            <i data-lucide="settings" class="w-6 h-6 stroke-[3]"></i>
+        </button>
+        <button onclick="toggleDarkMode()" class="btn-brutal bg-orange text-white p-3 rounded-xl border-4 border-dark shadow-brutal dark:shadow-brutal_dark dark:border-slate-400 flex items-center justify-center" aria-label="Toggle Dark Mode">
+            <i data-lucide="moon" id="theme-icon" class="w-6 h-6 stroke-[3]"></i>
+        </button>
+    </div>
+
+    <div id="game-board" class="w-full max-w-4xl bg-white dark:bg-slate-800 border-4 border-dark dark:border-slate-400 rounded-2xl shadow-brutal dark:shadow-brutal_dark p-8 md:p-12 flex flex-col items-center gap-8 relative transition-transform">
+        
+        <div id="progress-badge" class="absolute top-6 left-6 bg-pink text-dark font-heading font-bold px-4 py-2 rounded-xl border-4 border-dark shadow-brutal dark:shadow-brutal_dark dark:border-slate-400">
+            Word 1 of 3
+        </div>
+
+        <h1 class="font-heading text-4xl md:text-5xl font-bold text-center text-blue mt-8 md:mt-4 mb-2">
+            Spell the Word!
+        </h1>
+        <p class="font-bold opacity-70 mb-2">Click the letters or use your keyboard.</p>
+        
+        <div id="slots-container" class="flex flex-wrap gap-4 justify-center min-h-[96px] p-4">
+            </div>
+
+        <div class="w-full h-1 bg-dark dark:bg-slate-400 rounded-full opacity-20 my-2"></div>
+
+        <div class="w-full bg-slate-100 dark:bg-slate-700/50 rounded-2xl p-6 border-4 border-transparent dark:border-slate-600/30">
+            <div id="letters-container" class="flex flex-wrap gap-4 justify-center min-h-[96px]">
+                </div>
+        </div>
+        
+    </div>
+
+    <div id="alert-modal" class="hidden fixed inset-0 bg-dark/50 backdrop-blur-sm flex items-center justify-center z-50">
+        <div class="bg-chalk dark:bg-slate-800 border-4 border-dark dark:border-slate-400 rounded-2xl shadow-brutal dark:shadow-brutal_dark p-8 max-w-sm w-full text-center animate-pop">
+            <h2 id="alert-title" class="font-heading text-4xl font-bold text-green mb-4">Awesome!</h2>
+            <p id="alert-message" class="text-xl font-bold mb-8 dark:text-white text-dark">You spelled it right.</p>
+            <button id="alert-btn" onclick="handleAlertAction()" class="btn-brutal bg-green text-dark font-heading font-bold text-xl py-3 px-8 rounded-xl border-4 border-dark shadow-brutal w-full focus:outline-none focus:ring-4 focus:ring-green/50">
+                Next Word
+            </button>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="hidden fixed inset-0 bg-dark/50 backdrop-blur-sm flex items-center justify-center z-50">
+        <div class="bg-chalk dark:bg-slate-800 border-4 border-dark dark:border-slate-400 rounded-2xl shadow-brutal dark:shadow-brutal_dark p-8 max-w-md w-full animate-pop">
+            <h2 class="font-heading text-3xl font-bold text-blue mb-2">Set Word List</h2>
+            <p class="mb-6 font-bold opacity-80">Enter words separated by commas.</p>
+            
+            <textarea id="words-input" rows="4" class="w-full bg-white dark:bg-slate-700 border-4 border-dark dark:border-slate-400 rounded-xl p-4 font-heading text-xl uppercase font-bold text-left mb-6 focus:outline-none focus:border-pink transition-colors resize-none" placeholder="e.g. ENGLISH, BATAM, CODING"></textarea>
+            
+            <div class="flex gap-4">
+                <button onclick="closeSettings()" class="btn-brutal bg-slate-200 dark:bg-slate-600 text-dark dark:text-white font-heading font-bold text-xl py-3 px-4 rounded-xl border-4 border-dark dark:border-slate-400 shadow-brutal dark:shadow-brutal_dark flex-1">
+                    Cancel
+                </button>
+                <button onclick="saveWords()" class="btn-brutal bg-blue text-white font-heading font-bold text-xl py-3 px-4 rounded-xl border-4 border-dark dark:border-slate-400 shadow-brutal dark:shadow-brutal_dark flex-1">
+                    Save List
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        // Game State
+        let wordList = [];
+        let currentWordIndex = 0;
+        let targetWord = "";
+        let letterTiles = []; 
+        let placedLetters = []; 
+        let currentAlertAction = "close";
+
+        // DOM Elements
+        const gameBoard = document.getElementById('game-board');
+        const slotsContainer = document.getElementById('slots-container');
+        const lettersContainer = document.getElementById('letters-container');
+        const progressBadge = document.getElementById('progress-badge');
+        const alertModal = document.getElementById('alert-modal');
+        const alertTitle = document.getElementById('alert-title');
+        const alertMessage = document.getElementById('alert-message');
+        const alertBtn = document.getElementById('alert-btn');
+        const settingsModal = document.getElementById('settings-modal');
+        const wordsInput = document.getElementById('words-input');
+
+        // Dark Mode
+        function toggleDarkMode() {
+            const html = document.documentElement;
+            const icon = document.getElementById('theme-icon');
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                icon.setAttribute('data-lucide', 'moon');
+                localStorage.setItem('theme', 'light');
+            } else {
+                html.classList.add('dark');
+                icon.setAttribute('data-lucide', 'sun');
+                localStorage.setItem('theme', 'dark');
+            }
+            lucide.createIcons();
+        }
+
+        function loadTheme() {
+            if (localStorage.getItem('theme') === 'dark') {
+                document.documentElement.classList.add('dark');
+                document.getElementById('theme-icon').setAttribute('data-lucide', 'sun');
+                lucide.createIcons();
+            }
+        }
+
+        // Initialize Game
+        function initGame() {
+            const savedWords = localStorage.getItem('spellingWordList');
+            if (savedWords) {
+                wordList = JSON.parse(savedWords);
+            } else {
+                wordList = ["ENGLISH", "BATAM", "CODING"];
+            }
+            if (wordList.length === 0) wordList = ["HELLO"];
+            
+            currentWordIndex = 0;
+            loadCurrentWord();
+        }
+
+        function loadCurrentWord() {
+            targetWord = wordList[currentWordIndex].toUpperCase();
+            progressBadge.textContent = `Word ${currentWordIndex + 1} of ${wordList.length}`;
+
+            let chars = targetWord.split('');
+            for (let i = chars.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [chars[i], chars[j]] = [chars[j], chars[i]];
+            }
+
+            letterTiles = chars.map((char, index) => ({
+                id: `tile-${index}`,
+                char: char,
+                isPlaced: false
+            }));
+
+            placedLetters = new Array(targetWord.length).fill(null);
+            renderBoard();
+        }
+
+        function renderBoard(animateTileId = null) {
+            slotsContainer.innerHTML = '';
+            placedLetters.forEach((tileId, index) => {
+                const slotDiv = document.createElement('div');
+                slotDiv.className = `w-16 h-20 md:w-20 md:h-24 flex items-center justify-center border-4 border-dashed rounded-xl transition-all cursor-pointer ${
+                    tileId ? 'border-transparent' : 'border-dark/40 dark:border-slate-400/50 empty-slot hover:bg-dark/5 dark:hover:bg-slate-400/10'
+                }`;
+                slotDiv.onclick = () => handleSlotClick(index);
+
+                if (tileId) {
+                    const tile = letterTiles.find(t => t.id === tileId);
+                    const isAnimating = tileId === animateTileId;
+                    slotDiv.appendChild(createTileElement(tile, true, isAnimating));
+                }
+                slotsContainer.appendChild(slotDiv);
+            });
+
+            lettersContainer.innerHTML = '';
+            letterTiles.forEach(tile => {
+                if (!tile.isPlaced) {
+                    const isAnimating = tile.id === animateTileId;
+                    lettersContainer.appendChild(createTileElement(tile, false, isAnimating));
+                }
+            });
+        }
+
+        function createTileElement(tile, inSlot, shouldAnimate) {
+            const btn = document.createElement('button');
+            btn.className = `btn-brutal w-16 h-20 md:w-20 md:h-24 font-heading text-3xl md:text-4xl font-bold flex items-center justify-center border-4 border-dark rounded-xl shadow-brutal dark:shadow-brutal_dark dark:border-slate-400 ${
+                inSlot ? 'bg-green text-dark' : 'bg-pink text-dark hover:bg-pink/90'
+            } ${shouldAnimate ? 'animate-pop' : ''}`;
+            
+            btn.textContent = tile.char;
+            
+            if (!inSlot) {
+                btn.onclick = () => handleLetterClick(tile.id);
+            }
+            return btn;
+        }
+
+        // Mechanics
+        function handleLetterClick(tileId) {
+            const emptyIndex = placedLetters.indexOf(null);
+            if (emptyIndex !== -1) {
+                placedLetters[emptyIndex] = tileId;
+                const tile = letterTiles.find(t => t.id === tileId);
+                tile.isPlaced = true;
+                renderBoard(tileId); // Pass tileId to trigger pop animation in slot
+                checkWin();
+            }
+        }
+
+        function handleSlotClick(slotIndex) {
+            const tileId = placedLetters[slotIndex];
+            if (tileId) {
+                placedLetters[slotIndex] = null;
+                const tile = letterTiles.find(t => t.id === tileId);
+                tile.isPlaced = false;
+                renderBoard(tileId); // Pass tileId to trigger pop animation back in pool
+            }
+        }
+
+        function checkWin() {
+            if (placedLetters.includes(null)) return; 
+
+            let spelledWord = placedLetters.map(id => letterTiles.find(t => t.id === id).char).join('');
+            
+            if (spelledWord === targetWord) {
+                if (currentWordIndex < wordList.length - 1) {
+                    setTimeout(() => showAlert("Awesome!", "You spelled it right!", true, "next"), 300);
+                } else {
+                    setTimeout(() => showAlert("Level Complete!", "You spelled all the words perfectly!", true, "finish"), 300);
+                }
+            } else {
+                // Shake animation for error
+                gameBoard.classList.remove('animate-shake');
+                void gameBoard.offsetWidth; // Trigger reflow to restart animation
+                gameBoard.classList.add('animate-shake');
+                
+                setTimeout(() => showAlert("Oops!", "That's not quite right. Try again!", false, "close"), 500);
+            }
+        }
+
+        // Keyboard Support
+        document.addEventListener('keydown', (e) => {
+            // Ignore if modals are open
+            if (!alertModal.classList.contains('hidden') || !settingsModal.classList.contains('hidden')) {
+                if(e.key === 'Enter' && !alertModal.classList.contains('hidden')) {
+                    handleAlertAction();
+                }
+                return;
+            }
+
+            const key = e.key.toUpperCase();
+            
+            // Handle Backspace (remove last placed letter)
+            if (key === 'BACKSPACE') {
+                for (let i = placedLetters.length - 1; i >= 0; i--) {
+                    if (placedLetters[i] !== null) {
+                        handleSlotClick(i);
+                        break;
+                    }
+                }
+                return;
+            }
+
+            // Handle letter typing
+            if (/^[A-Z]$/.test(key)) {
+                // Find first unplaced tile that matches the typed letter
+                const targetTile = letterTiles.find(t => !t.isPlaced && t.char === key);
+                if (targetTile) {
+                    handleLetterClick(targetTile.id);
+                }
+            }
+        });
+
+        // Modals
+        function showAlert(title, message, isSuccess, actionType) {
+            alertTitle.textContent = title;
+            alertMessage.textContent = message;
+            alertTitle.className = `font-heading text-4xl font-bold mb-4 ${isSuccess ? 'text-green' : 'text-pink'}`;
+            currentAlertAction = actionType;
+            
+            if (actionType === "next") {
+                alertBtn.textContent = "Next Word";
+                alertBtn.className = "btn-brutal bg-green text-dark font-heading font-bold text-xl py-3 px-8 rounded-xl border-4 border-dark shadow-brutal w-full focus:outline-none focus:ring-4 focus:ring-green/50";
+            } else if (actionType === "finish") {
+                alertBtn.textContent = "Play Again";
+                alertBtn.className = "btn-brutal bg-orange text-white font-heading font-bold text-xl py-3 px-8 rounded-xl border-4 border-dark shadow-brutal w-full focus:outline-none focus:ring-4 focus:ring-orange/50";
+            } else {
+                alertBtn.textContent = "Try Again";
+                alertBtn.className = "btn-brutal bg-slate-200 text-dark font-heading font-bold text-xl py-3 px-8 rounded-xl border-4 border-dark shadow-brutal w-full focus:outline-none focus:ring-4 focus:ring-dark/20";
+            }
+            
+            alertModal.classList.remove('hidden');
+            setTimeout(() => alertBtn.focus(), 100); // Auto-focus button so "Enter" works
+        }
+
+        function handleAlertAction() {
+            alertModal.classList.add('hidden');
+            if (currentAlertAction === "next") {
+                currentWordIndex++;
+                loadCurrentWord();
+            } else if (currentAlertAction === "finish") {
+                initGame(); 
+            }
+        }
+
+        function openSettings() {
+            wordsInput.value = wordList.join(', ');
+            settingsModal.classList.remove('hidden');
+            wordsInput.focus();
+        }
+
+        function closeSettings() {
+            settingsModal.classList.add('hidden');
+        }
+
+        function saveWords() {
+            const rawText = wordsInput.value;
+            const newList = rawText.split(',')
+                .map(w => w.trim().toUpperCase().replace(/[^A-Z]/g, ''))
+                .filter(w => w.length > 0);
+
+            if (newList.length > 0) {
+                localStorage.setItem('spellingWordList', JSON.stringify(newList));
+                closeSettings();
+                initGame();
+                showAlert("Success", "New word list saved!", true, "close");
+            } else {
+                showAlert("Error", "Please enter at least one valid word.", false, "close");
+            }
+        }
+
+        // Boot
+        loadTheme();
+        initGame();
+    </script>
+</body>
+</html>
