@@ -419,6 +419,27 @@
                     </button>
                 </div>
             </div>
+
+            <div id="customAlertModal" class="fixed inset-0 bg-slate-900/90 z-[200] hidden flex items-center justify-center backdrop-blur-sm p-4">
+                <div class="bg-white max-w-sm w-full rounded-2xl border-[6px] border-e1dark shadow-hard-lg flex flex-col overflow-hidden animate-pop text-center p-6">
+                    <i data-lucide="alert-circle" class="w-16 h-16 text-e1orange mx-auto mb-4"></i>
+                    <h3 class="font-display font-bold text-2xl text-e1dark mb-2">Notice</h3>
+                    <p id="customAlertMessage" class="text-gray-600 font-bold mb-6"></p>
+                    <button onclick="closeCustomAlert()" class="btn-push w-full bg-e1blue text-white py-3 rounded-xl border-4 border-e1dark shadow-hard font-display font-bold text-lg">GOT IT</button>
+                </div>
+            </div>
+
+            <div id="customConfirmModal" class="fixed inset-0 bg-slate-900/90 z-[200] hidden flex items-center justify-center backdrop-blur-sm p-4">
+                <div class="bg-white max-w-sm w-full rounded-2xl border-[6px] border-e1dark shadow-hard-lg flex flex-col overflow-hidden animate-pop text-center p-6">
+                    <i data-lucide="help-circle" class="w-16 h-16 text-e1pink mx-auto mb-4"></i>
+                    <h3 class="font-display font-bold text-2xl text-e1dark mb-2">Confirm</h3>
+                    <p id="customConfirmMessage" class="text-gray-600 font-bold mb-6"></p>
+                    <div class="flex gap-4">
+                        <button onclick="closeCustomConfirm(false)" class="btn-push flex-1 bg-white text-e1dark py-3 rounded-xl border-4 border-e1dark shadow-hard font-display font-bold text-lg">CANCEL</button>
+                        <button onclick="closeCustomConfirm(true)" class="btn-push flex-1 bg-red-500 text-white py-3 rounded-xl border-4 border-e1dark shadow-hard font-display font-bold text-lg">DELETE</button>
+                    </div>
+                </div>
+            </div>
         </main>
 
         <div
@@ -767,6 +788,35 @@
                 lucide.createIcons();
             }
 
+            // MODAL CONTROLLERS
+            function customAlert(msg) {
+                playSound("click");
+                document.getElementById("customAlertMessage").innerText = msg;
+                document.getElementById("customAlertModal").classList.remove("hidden");
+            }
+
+            function closeCustomAlert() {
+                playSound("click");
+                document.getElementById("customAlertModal").classList.add("hidden");
+            }
+
+            let confirmCallback = null;
+            function customConfirm(msg, callback) {
+                playSound("click");
+                document.getElementById("customConfirmMessage").innerText = msg;
+                confirmCallback = callback;
+                document.getElementById("customConfirmModal").classList.remove("hidden");
+            }
+
+            function closeCustomConfirm(result) {
+                playSound("click");
+                document.getElementById("customConfirmModal").classList.add("hidden");
+                if (result && confirmCallback) {
+                    confirmCallback();
+                }
+                confirmCallback = null;
+            }
+
             // INIT: Defaults to empty game instead of forcing a preset
             function init() {
                 updateSoundIcon();
@@ -824,6 +874,14 @@
                 renderBuilder();
             }
 
+            function duplicateSlide(sIdx) {
+                playSound("click");
+                const slideToCopy = editorData[sIdx];
+                const newSlide = JSON.parse(JSON.stringify(slideToCopy));
+                editorData.splice(sIdx + 1, 0, newSlide);
+                renderBuilder();
+            }
+
             function renderBuilder() {
                 const container = document.getElementById("builderContainer");
                 container.innerHTML = "";
@@ -839,9 +897,14 @@
                             <span class="bg-e1dark text-white font-display text-xs w-6 h-6 rounded flex items-center justify-center shrink-0">${sIdx + 1}</span>
                             <input type="text" value="${slide.question}" onchange="updateQuestion(${sIdx}, this.value)" placeholder="Enter Question or Category..." class="font-display text-lg w-full bg-transparent border-b-2 border-dashed border-gray-300 focus:border-e1blue outline-none px-2 py-1 text-e1dark">
                         </div>
-                        <button onclick="deleteSlide(${sIdx})" class="btn-push shrink-0 ml-4 w-8 h-8 rounded-lg bg-red-50 text-red-500 border-2 border-red-200 hover:border-red-500 hover:bg-red-500 hover:text-white flex items-center justify-center transition-colors">
-                            <i data-lucide="trash-2" class="w-4 h-4"></i>
-                        </button>
+                        <div class="flex gap-2 shrink-0 ml-4">
+                            <button onclick="duplicateSlide(${sIdx})" title="Duplicate" class="btn-push w-8 h-8 rounded-lg bg-blue-50 text-e1blue border-2 border-blue-200 hover:border-e1blue hover:bg-e1blue hover:text-white flex items-center justify-center transition-colors">
+                                <i data-lucide="copy" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="deleteSlide(${sIdx})" title="Delete" class="btn-push w-8 h-8 rounded-lg bg-red-50 text-red-500 border-2 border-red-200 hover:border-red-500 hover:bg-red-500 hover:text-white flex items-center justify-center transition-colors">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 `;
@@ -912,10 +975,10 @@
             }
 
             function deleteSlide(sIdx) {
-                if (confirm("Delete this slide?")) {
+                customConfirm("Are you sure you want to delete this slide?", () => {
                     editorData.splice(sIdx, 1);
                     renderBuilder();
-                }
+                });
             }
 
             function saveAndStart() {
@@ -926,8 +989,8 @@
                 );
 
                 if (validData.length === 0) {
-                    alert(
-                        "Please add at least one valid slide with completed options before saving.",
+                    customAlert(
+                        "Please add at least one valid slide with completed options before saving."
                     );
                     return;
                 }
@@ -943,7 +1006,7 @@
             function startGame() {
                 // INTERCEPT: If the user hits Play Now without setting up a game
                 if (questions.length === 0) {
-                    alert("Your game is empty! Let's build one first.");
+                    customAlert("Your game is empty! Let's build one first.");
                     openSetupModal();
                     return;
                 }
