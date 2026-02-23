@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spelling Game - Polished</title>
+    <title>Spelling Game - Chromebook Widescreen</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -31,7 +31,9 @@
                     },
                     boxShadow: {
                         brutal: '4px 4px 0px 0px rgba(30, 41, 59, 1)',
-                        brutal_dark: '4px 4px 0px 0px rgba(148, 163, 184, 1)'
+                        brutal_dark: '4px 4px 0px 0px rgba(148, 163, 184, 1)',
+                        brutal_inset: 'inset 4px 4px 0px 0px rgba(30, 41, 59, 0.1)',
+                        brutal_inset_dark: 'inset 4px 4px 0px 0px rgba(0, 0, 0, 0.3)'
                     }
                 }
             }
@@ -43,21 +45,21 @@
         body {
             background-color: #f8fafc;
             background-image: 
-                linear-gradient(to right, rgba(30, 41, 59, 0.1) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(30, 41, 59, 0.1) 1px, transparent 1px);
+                linear-gradient(to right, rgba(30, 41, 59, 0.05) 2px, transparent 2px),
+                linear-gradient(to bottom, rgba(30, 41, 59, 0.05) 2px, transparent 2px);
             background-size: 40px 40px;
         }
         
         .dark body {
             background-color: #0f172a;
             background-image: 
-                linear-gradient(to right, rgba(255, 255, 255, 0.1) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+                linear-gradient(to right, rgba(255, 255, 255, 0.03) 2px, transparent 2px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 2px, transparent 2px);
         }
 
         /* Neo-brutalist interaction classes */
         .btn-brutal {
-            transition: all 0.1s ease-in-out;
+            transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.1s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .btn-brutal:hover {
             transform: translateY(-2px) rotate(1deg);
@@ -82,79 +84,87 @@
 
         @keyframes shake {
             0%, 100% { transform: translateX(0); }
-            20%, 60% { transform: translateX(-10px); }
-            40%, 80% { transform: translateX(10px); }
+            20%, 60% { transform: translateX(-12px); }
+            40%, 80% { transform: translateX(12px); }
         }
         .animate-shake {
             animation: shake 0.4s ease-in-out;
         }
-
-        /* Pulse for empty slots */
-        @keyframes subtlePulse {
-            0%, 100% { opacity: 0.4; }
-            50% { opacity: 0.8; }
-        }
-        .empty-slot {
-            animation: subtlePulse 2s infinite ease-in-out;
-        }
     </style>
 </head>
-<body class="font-body text-dark dark:text-white min-h-screen flex flex-col items-center justify-center p-8 transition-colors duration-300">
+<body class="font-body text-dark dark:text-white min-h-screen flex flex-col transition-colors duration-300 overflow-x-hidden">
 
-    <div class="absolute top-6 right-6 flex gap-4">
-        <button onclick="openSettings()" class="btn-brutal bg-blue text-white p-3 rounded-xl border-4 border-dark shadow-brutal dark:shadow-brutal_dark dark:border-slate-400 flex items-center justify-center" aria-label="Settings">
-            <i data-lucide="settings" class="w-6 h-6 stroke-[3]"></i>
+    <div class="fixed top-4 right-4 flex gap-3 z-20">
+        <button onclick="toggleReachMode()" class="btn-brutal bg-pink text-dark p-2 md:p-3 rounded-xl border-4 border-dark shadow-brutal dark:shadow-brutal_dark dark:border-slate-400 flex items-center justify-center group" aria-label="Toggle Reach Mode">
+            <i data-lucide="arrow-down" id="reach-icon" class="w-5 h-5 md:w-6 md:h-6 stroke-[3] transition-transform group-hover:scale-110"></i>
         </button>
-        <button onclick="toggleDarkMode()" class="btn-brutal bg-orange text-white p-3 rounded-xl border-4 border-dark shadow-brutal dark:shadow-brutal_dark dark:border-slate-400 flex items-center justify-center" aria-label="Toggle Dark Mode">
-            <i data-lucide="moon" id="theme-icon" class="w-6 h-6 stroke-[3]"></i>
+        <button onclick="openSettings()" class="btn-brutal bg-blue text-white p-2 md:p-3 rounded-xl border-4 border-dark shadow-brutal dark:shadow-brutal_dark dark:border-slate-400 flex items-center justify-center group" aria-label="Settings">
+            <i data-lucide="settings" class="w-5 h-5 md:w-6 md:h-6 stroke-[3] transition-transform group-hover:rotate-45"></i>
+        </button>
+        <button onclick="toggleDarkMode()" class="btn-brutal bg-orange text-white p-2 md:p-3 rounded-xl border-4 border-dark shadow-brutal dark:shadow-brutal_dark dark:border-slate-400 flex items-center justify-center group" aria-label="Toggle Dark Mode">
+            <i data-lucide="moon" id="theme-icon" class="w-5 h-5 md:w-6 md:h-6 stroke-[3] transition-transform group-hover:-rotate-12"></i>
         </button>
     </div>
 
-    <div id="game-board" class="w-full max-w-4xl bg-white dark:bg-slate-800 border-4 border-dark dark:border-slate-400 rounded-2xl shadow-brutal dark:shadow-brutal_dark p-8 md:p-12 flex flex-col items-center gap-8 relative transition-transform">
+    <div id="main-wrapper" class="flex flex-col flex-grow w-full items-center justify-center p-4 md:p-8 transition-all duration-500 ease-in-out">
         
-        <div id="progress-badge" class="absolute top-6 left-6 bg-pink text-dark font-heading font-bold px-4 py-2 rounded-xl border-4 border-dark shadow-brutal dark:shadow-brutal_dark dark:border-slate-400">
-            Word 1 of 3
-        </div>
+        <div id="game-board" class="w-11/12 max-w-6xl bg-white dark:bg-slate-800 border-4 border-dark dark:border-slate-400 rounded-3xl shadow-brutal dark:shadow-brutal_dark p-6 md:p-10 flex flex-col items-center gap-6 md:gap-8 relative transition-transform">
+            
+            <div class="w-full flex flex-col items-center mt-2 relative">
+                <div id="progress-badge" class="md:absolute md:left-0 md:top-2 bg-pink text-dark font-heading font-bold px-4 py-2 rounded-xl border-4 border-dark shadow-brutal dark:shadow-brutal_dark dark:border-slate-400 mb-2 md:mb-0 transform -rotate-2 text-sm md:text-base">
+                    Word 1 of 3
+                </div>
 
-        <h1 class="font-heading text-4xl md:text-5xl font-bold text-center text-blue mt-8 md:mt-4 mb-2">
-            Spell the Word!
-        </h1>
-        <p class="font-bold opacity-70 mb-2">Click the letters or use your keyboard.</p>
-        
-        <div id="slots-container" class="flex flex-wrap gap-4 justify-center min-h-[96px] p-4">
+                <div class="flex flex-col md:flex-row items-center gap-4 z-10">
+                    <h1 class="font-heading text-4xl md:text-5xl font-bold text-center text-blue tracking-wide drop-shadow-sm">
+                        Spell the Word!
+                    </h1>
+                    <button onclick="playTargetWordAudio()" class="btn-brutal bg-blue text-white p-3 md:p-4 rounded-2xl border-4 border-dark shadow-brutal dark:shadow-brutal_dark dark:border-slate-400 flex items-center justify-center hover:bg-blue/90" aria-label="Listen to word">
+                        <i data-lucide="play" class="w-6 h-6 md:w-8 md:h-8 stroke-[3] ml-1"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="w-full bg-chalk dark:bg-slate-900 rounded-2xl p-6 md:p-8 border-4 border-dark dark:border-slate-500 shadow-brutal_inset dark:shadow-brutal_inset_dark flex items-center justify-center min-h-[140px]">
+                <div id="slots-container" class="flex flex-wrap gap-4 md:gap-6 justify-center">
+                    </div>
             </div>
 
-        <div class="w-full h-1 bg-dark dark:bg-slate-400 rounded-full opacity-20 my-2"></div>
-
-        <div class="w-full bg-slate-100 dark:bg-slate-700/50 rounded-2xl p-6 border-4 border-transparent dark:border-slate-600/30">
-            <div id="letters-container" class="flex flex-wrap gap-4 justify-center min-h-[96px]">
-                </div>
+            <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-2xl p-6 md:p-8 border-4 border-dark/20 dark:border-slate-500/30 flex flex-col items-center relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-2 bg-dark/5 dark:bg-black/20"></div>
+                <p class="font-heading font-bold opacity-50 text-center mb-6 text-base md:text-lg uppercase tracking-widest text-dark dark:text-white">Letter Pool</p>
+                <div id="letters-container" class="flex flex-wrap gap-4 md:gap-6 justify-center min-h-[100px] z-10">
+                    </div>
+            </div>
+            
         </div>
-        
     </div>
 
-    <div id="alert-modal" class="hidden fixed inset-0 bg-dark/50 backdrop-blur-sm flex items-center justify-center z-50">
-        <div class="bg-chalk dark:bg-slate-800 border-4 border-dark dark:border-slate-400 rounded-2xl shadow-brutal dark:shadow-brutal_dark p-8 max-w-sm w-full text-center animate-pop">
-            <h2 id="alert-title" class="font-heading text-4xl font-bold text-green mb-4">Awesome!</h2>
-            <p id="alert-message" class="text-xl font-bold mb-8 dark:text-white text-dark">You spelled it right.</p>
-            <button id="alert-btn" onclick="handleAlertAction()" class="btn-brutal bg-green text-dark font-heading font-bold text-xl py-3 px-8 rounded-xl border-4 border-dark shadow-brutal w-full focus:outline-none focus:ring-4 focus:ring-green/50">
+    <div id="alert-modal" class="hidden fixed inset-0 bg-dark/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+        <div class="bg-chalk dark:bg-slate-800 border-4 border-dark dark:border-slate-400 rounded-3xl shadow-[8px_8px_0px_0px_rgba(30,41,59,1)] dark:shadow-[8px_8px_0px_0px_rgba(148,163,184,1)] p-8 md:p-10 max-w-md w-full text-center animate-pop">
+            <h2 id="alert-title" class="font-heading text-4xl md:text-5xl font-bold text-green mb-4 transform -rotate-2 inline-block">Awesome!</h2>
+            <p id="alert-message" class="text-xl md:text-2xl font-bold mb-8 md:mb-10 dark:text-white text-dark opacity-80">You spelled it right.</p>
+            <button id="alert-btn" onclick="handleAlertAction()" class="btn-brutal bg-green text-dark font-heading font-bold text-2xl md:text-3xl py-3 md:py-4 px-8 rounded-2xl border-4 border-dark shadow-brutal w-full focus:outline-none">
                 Next Word
             </button>
         </div>
     </div>
 
-    <div id="settings-modal" class="hidden fixed inset-0 bg-dark/50 backdrop-blur-sm flex items-center justify-center z-50">
-        <div class="bg-chalk dark:bg-slate-800 border-4 border-dark dark:border-slate-400 rounded-2xl shadow-brutal dark:shadow-brutal_dark p-8 max-w-md w-full animate-pop">
-            <h2 class="font-heading text-3xl font-bold text-blue mb-2">Set Word List</h2>
-            <p class="mb-6 font-bold opacity-80">Enter words separated by commas.</p>
+    <div id="settings-modal" class="hidden fixed inset-0 bg-dark/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+        <div class="bg-chalk dark:bg-slate-800 border-4 border-dark dark:border-slate-400 rounded-3xl shadow-[8px_8px_0px_0px_rgba(30,41,59,1)] dark:shadow-[8px_8px_0px_0px_rgba(148,163,184,1)] p-8 md:p-10 max-w-lg w-full animate-pop">
+            <div class="flex items-center gap-3 mb-4">
+                <i data-lucide="settings" class="w-6 h-6 md:w-8 md:h-8 stroke-[3] text-blue"></i>
+                <h2 class="font-heading text-3xl md:text-4xl font-bold text-blue">Settings</h2>
+            </div>
+            <p class="mb-6 md:mb-8 font-bold opacity-70 text-base md:text-lg">Enter word list separated by commas.</p>
             
-            <textarea id="words-input" rows="4" class="w-full bg-white dark:bg-slate-700 border-4 border-dark dark:border-slate-400 rounded-xl p-4 font-heading text-xl uppercase font-bold text-left mb-6 focus:outline-none focus:border-pink transition-colors resize-none" placeholder="e.g. ENGLISH, BATAM, CODING"></textarea>
+            <textarea id="words-input" rows="4" class="w-full bg-white dark:bg-slate-700 border-4 border-dark dark:border-slate-400 rounded-2xl p-4 md:p-6 font-heading text-xl md:text-2xl uppercase font-bold text-left mb-6 md:mb-8 focus:outline-none focus:border-pink transition-colors resize-none shadow-brutal_inset dark:shadow-brutal_inset_dark" placeholder="e.g. ENGLISH, BATAM, CODING"></textarea>
             
             <div class="flex gap-4">
-                <button onclick="closeSettings()" class="btn-brutal bg-slate-200 dark:bg-slate-600 text-dark dark:text-white font-heading font-bold text-xl py-3 px-4 rounded-xl border-4 border-dark dark:border-slate-400 shadow-brutal dark:shadow-brutal_dark flex-1">
+                <button onclick="closeSettings()" class="btn-brutal bg-slate-200 dark:bg-slate-600 text-dark dark:text-white font-heading font-bold text-xl md:text-2xl py-3 md:py-4 px-4 rounded-2xl border-4 border-dark dark:border-slate-400 shadow-brutal dark:shadow-brutal_dark flex-1">
                     Cancel
                 </button>
-                <button onclick="saveWords()" class="btn-brutal bg-blue text-white font-heading font-bold text-xl py-3 px-4 rounded-xl border-4 border-dark dark:border-slate-400 shadow-brutal dark:shadow-brutal_dark flex-1">
+                <button onclick="saveWords()" class="btn-brutal bg-blue text-white font-heading font-bold text-xl md:text-2xl py-3 md:py-4 px-4 rounded-2xl border-4 border-dark dark:border-slate-400 shadow-brutal dark:shadow-brutal_dark flex-1">
                     Save List
                 </button>
             </div>
@@ -171,8 +181,10 @@
         let letterTiles = []; 
         let placedLetters = []; 
         let currentAlertAction = "close";
+        let isReachMode = false;
 
         // DOM Elements
+        const mainWrapper = document.getElementById('main-wrapper');
         const gameBoard = document.getElementById('game-board');
         const slotsContainer = document.getElementById('slots-container');
         const lettersContainer = document.getElementById('letters-container');
@@ -183,6 +195,52 @@
         const alertBtn = document.getElementById('alert-btn');
         const settingsModal = document.getElementById('settings-modal');
         const wordsInput = document.getElementById('words-input');
+        const reachIcon = document.getElementById('reach-icon');
+
+        // Natural Audio via Free Dictionary API
+        async function playTargetWordAudio() {
+            try {
+                const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${targetWord.toLowerCase()}`);
+                const data = await response.json();
+                
+                let audioUrl = "";
+                if (data[0] && data[0].phonetics) {
+                    for (let phonetic of data[0].phonetics) {
+                        if (phonetic.audio) {
+                            audioUrl = phonetic.audio;
+                            break;
+                        }
+                    }
+                }
+
+                if (audioUrl) {
+                    const audio = new Audio(audioUrl);
+                    audio.play();
+                }
+            } catch (error) {
+                console.log("Audio not found for word.");
+            }
+        }
+
+        // TV Reach Mode
+        function toggleReachMode() {
+            isReachMode = !isReachMode;
+            localStorage.setItem('spellingReachMode', isReachMode);
+            applyReachMode();
+        }
+
+        function applyReachMode() {
+            if (isReachMode) {
+                mainWrapper.classList.remove('justify-center');
+                mainWrapper.classList.add('justify-end', 'pb-0', 'md:pb-2');
+                reachIcon.setAttribute('data-lucide', 'arrow-up');
+            } else {
+                mainWrapper.classList.remove('justify-end', 'pb-0', 'md:pb-2');
+                mainWrapper.classList.add('justify-center');
+                reachIcon.setAttribute('data-lucide', 'arrow-down');
+            }
+            lucide.createIcons();
+        }
 
         // Dark Mode
         function toggleDarkMode() {
@@ -200,12 +258,18 @@
             lucide.createIcons();
         }
 
-        function loadTheme() {
+        function loadPreferences() {
             if (localStorage.getItem('theme') === 'dark') {
                 document.documentElement.classList.add('dark');
                 document.getElementById('theme-icon').setAttribute('data-lucide', 'sun');
-                lucide.createIcons();
             }
+            
+            const savedReach = localStorage.getItem('spellingReachMode');
+            if (savedReach !== null) {
+                isReachMode = savedReach === 'true';
+            }
+            applyReachMode();
+            lucide.createIcons();
         }
 
         // Initialize Game
@@ -246,8 +310,8 @@
             slotsContainer.innerHTML = '';
             placedLetters.forEach((tileId, index) => {
                 const slotDiv = document.createElement('div');
-                slotDiv.className = `w-16 h-20 md:w-20 md:h-24 flex items-center justify-center border-4 border-dashed rounded-xl transition-all cursor-pointer ${
-                    tileId ? 'border-transparent' : 'border-dark/40 dark:border-slate-400/50 empty-slot hover:bg-dark/5 dark:hover:bg-slate-400/10'
+                slotDiv.className = `w-14 h-16 md:w-20 md:h-24 flex items-center justify-center border-4 rounded-2xl transition-all cursor-pointer bg-white dark:bg-slate-800 ${
+                    tileId ? 'border-transparent shadow-none' : 'border-dark/20 dark:border-slate-500 border-dashed hover:bg-dark/5 dark:hover:bg-slate-600/50'
                 }`;
                 slotDiv.onclick = () => handleSlotClick(index);
 
@@ -270,8 +334,8 @@
 
         function createTileElement(tile, inSlot, shouldAnimate) {
             const btn = document.createElement('button');
-            btn.className = `btn-brutal w-16 h-20 md:w-20 md:h-24 font-heading text-3xl md:text-4xl font-bold flex items-center justify-center border-4 border-dark rounded-xl shadow-brutal dark:shadow-brutal_dark dark:border-slate-400 ${
-                inSlot ? 'bg-green text-dark' : 'bg-pink text-dark hover:bg-pink/90'
+            btn.className = `btn-brutal w-14 h-16 md:w-20 md:h-24 font-heading text-4xl md:text-5xl font-bold flex items-center justify-center border-4 border-dark rounded-2xl shadow-brutal dark:shadow-brutal_dark dark:border-slate-400 ${
+                inSlot ? 'bg-orange text-dark hover:bg-orange/90' : 'bg-pink text-dark hover:bg-pink/90'
             } ${shouldAnimate ? 'animate-pop' : ''}`;
             
             btn.textContent = tile.char;
@@ -286,10 +350,11 @@
         function handleLetterClick(tileId) {
             const emptyIndex = placedLetters.indexOf(null);
             if (emptyIndex !== -1) {
-                placedLetters[emptyIndex] = tileId;
                 const tile = letterTiles.find(t => t.id === tileId);
+                
+                placedLetters[emptyIndex] = tileId;
                 tile.isPlaced = true;
-                renderBoard(tileId); // Pass tileId to trigger pop animation in slot
+                renderBoard(tileId); 
                 checkWin();
             }
         }
@@ -300,7 +365,7 @@
                 placedLetters[slotIndex] = null;
                 const tile = letterTiles.find(t => t.id === tileId);
                 tile.isPlaced = false;
-                renderBoard(tileId); // Pass tileId to trigger pop animation back in pool
+                renderBoard(tileId); 
             }
         }
 
@@ -311,23 +376,21 @@
             
             if (spelledWord === targetWord) {
                 if (currentWordIndex < wordList.length - 1) {
-                    setTimeout(() => showAlert("Awesome!", "You spelled it right!", true, "next"), 300);
+                    setTimeout(() => showAlert("Awesome!", "You spelled it right!", true, "next"), 400);
                 } else {
-                    setTimeout(() => showAlert("Level Complete!", "You spelled all the words perfectly!", true, "finish"), 300);
+                    setTimeout(() => showAlert("Level Complete!", "You spelled all the words perfectly!", true, "finish"), 400);
                 }
             } else {
-                // Shake animation for error
                 gameBoard.classList.remove('animate-shake');
-                void gameBoard.offsetWidth; // Trigger reflow to restart animation
+                void gameBoard.offsetWidth; 
                 gameBoard.classList.add('animate-shake');
                 
-                setTimeout(() => showAlert("Oops!", "That's not quite right. Try again!", false, "close"), 500);
+                setTimeout(() => showAlert("Oops!", "That's not quite right. Try again!", false, "close"), 600);
             }
         }
 
         // Keyboard Support
         document.addEventListener('keydown', (e) => {
-            // Ignore if modals are open
             if (!alertModal.classList.contains('hidden') || !settingsModal.classList.contains('hidden')) {
                 if(e.key === 'Enter' && !alertModal.classList.contains('hidden')) {
                     handleAlertAction();
@@ -337,7 +400,6 @@
 
             const key = e.key.toUpperCase();
             
-            // Handle Backspace (remove last placed letter)
             if (key === 'BACKSPACE') {
                 for (let i = placedLetters.length - 1; i >= 0; i--) {
                     if (placedLetters[i] !== null) {
@@ -348,9 +410,7 @@
                 return;
             }
 
-            // Handle letter typing
             if (/^[A-Z]$/.test(key)) {
-                // Find first unplaced tile that matches the typed letter
                 const targetTile = letterTiles.find(t => !t.isPlaced && t.char === key);
                 if (targetTile) {
                     handleLetterClick(targetTile.id);
@@ -362,22 +422,22 @@
         function showAlert(title, message, isSuccess, actionType) {
             alertTitle.textContent = title;
             alertMessage.textContent = message;
-            alertTitle.className = `font-heading text-4xl font-bold mb-4 ${isSuccess ? 'text-green' : 'text-pink'}`;
+            alertTitle.className = `font-heading text-4xl md:text-5xl font-bold mb-4 transform -rotate-2 inline-block ${isSuccess ? 'text-green' : 'text-pink'}`;
             currentAlertAction = actionType;
             
             if (actionType === "next") {
                 alertBtn.textContent = "Next Word";
-                alertBtn.className = "btn-brutal bg-green text-dark font-heading font-bold text-xl py-3 px-8 rounded-xl border-4 border-dark shadow-brutal w-full focus:outline-none focus:ring-4 focus:ring-green/50";
+                alertBtn.className = "btn-brutal bg-green text-dark font-heading font-bold text-2xl md:text-3xl py-3 md:py-4 px-8 rounded-2xl border-4 border-dark shadow-brutal w-full";
             } else if (actionType === "finish") {
                 alertBtn.textContent = "Play Again";
-                alertBtn.className = "btn-brutal bg-orange text-white font-heading font-bold text-xl py-3 px-8 rounded-xl border-4 border-dark shadow-brutal w-full focus:outline-none focus:ring-4 focus:ring-orange/50";
+                alertBtn.className = "btn-brutal bg-blue text-white font-heading font-bold text-2xl md:text-3xl py-3 md:py-4 px-8 rounded-2xl border-4 border-dark shadow-brutal w-full";
             } else {
                 alertBtn.textContent = "Try Again";
-                alertBtn.className = "btn-brutal bg-slate-200 text-dark font-heading font-bold text-xl py-3 px-8 rounded-xl border-4 border-dark shadow-brutal w-full focus:outline-none focus:ring-4 focus:ring-dark/20";
+                alertBtn.className = "btn-brutal bg-slate-200 text-dark font-heading font-bold text-2xl md:text-3xl py-3 md:py-4 px-8 rounded-2xl border-4 border-dark shadow-brutal w-full";
             }
             
             alertModal.classList.remove('hidden');
-            setTimeout(() => alertBtn.focus(), 100); // Auto-focus button so "Enter" works
+            setTimeout(() => alertBtn.focus(), 100); 
         }
 
         function handleAlertAction() {
@@ -410,14 +470,14 @@
                 localStorage.setItem('spellingWordList', JSON.stringify(newList));
                 closeSettings();
                 initGame();
-                showAlert("Success", "New word list saved!", true, "close");
+                showAlert("Success!", "New word list saved.", true, "close");
             } else {
-                showAlert("Error", "Please enter at least one valid word.", false, "close");
+                showAlert("Error", "Please enter valid words.", false, "close");
             }
         }
 
         // Boot
-        loadTheme();
+        loadPreferences();
         initGame();
     </script>
 </body>
