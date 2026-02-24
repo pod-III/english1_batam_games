@@ -1,0 +1,1006 @@
+<!doctype html>
+<html lang="en" class="transition-colors duration-300">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Mystery Case Builder (Vanilla)</title>
+
+        <!-- Tailwind CSS -->
+        <script src="https://cdn.tailwindcss.com"></script>
+
+        <!-- Lucide Icons -->
+        <script src="https://unpkg.com/lucide@latest"></script>
+
+        <!-- Google Fonts -->
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700&display=swap"
+            rel="stylesheet"
+        />
+
+        <script>
+            tailwind.config = {
+                darkMode: "class",
+                theme: {
+                    extend: {
+                        colors: {
+                            pink: "#FF6B95",
+                            orange: "#FF8C42",
+                            green: "#00E676",
+                            blue: "#2979FF",
+                            dark: "#1e293b",
+                            chalk: "#f8fafc",
+                        },
+                        fontFamily: {
+                            heading: ["Fredoka", "sans-serif"],
+                            body: ["Nunito", "sans-serif"],
+                        },
+                    },
+                },
+            };
+        </script>
+
+        <style>
+            /* Custom Scrollbar for Neo-Brutalism feel */
+            ::-webkit-scrollbar {
+                width: 12px;
+                height: 12px;
+            }
+            ::-webkit-scrollbar-track {
+                background: #f8fafc;
+                border-left: 4px solid #1e293b;
+            }
+            .dark ::-webkit-scrollbar-track {
+                background: #0f172a;
+                border-left: 4px solid #94a3b8;
+            }
+            ::-webkit-scrollbar-thumb {
+                background: #ff8c42;
+                border: 4px solid #1e293b;
+                border-radius: 10px;
+            }
+            .dark ::-webkit-scrollbar-thumb {
+                border: 4px solid #94a3b8;
+            }
+
+            /* Graph Paper Background */
+            .bg-graph {
+                background-color: #f8fafc;
+                background-image:
+                    linear-gradient(#cbd5e1 1px, transparent 1px),
+                    linear-gradient(90deg, #cbd5e1 1px, transparent 1px);
+                background-size: 24px 24px;
+            }
+            .dark .bg-graph {
+                background-color: #0f172a;
+                background-image:
+                    linear-gradient(#1e293b 1px, transparent 1px),
+                    linear-gradient(90deg, #1e293b 1px, transparent 1px);
+            }
+
+            /* Base styles to apply fonts */
+            body {
+                font-family: "Nunito", sans-serif;
+            }
+            h1,
+            h2,
+            h3,
+            h4,
+            h5,
+            h6,
+            button,
+            .font-heading {
+                font-family: "Fredoka", sans-serif;
+            }
+
+            /* Reusable brutal input/textarea styles */
+            .brutal-input {
+                width: 100%;
+                padding: 0.5rem 0.75rem;
+                background-color: #ffffff;
+                color: #0f172a;
+                border: 4px solid #1e293b;
+                border-radius: 0.75rem;
+                outline: none;
+                transition: all 0.2s;
+                box-shadow: 4px 4px 0px 0px rgba(30, 41, 59, 1);
+            }
+            .brutal-input:focus {
+                box-shadow:
+                    4px 4px 0px 0px rgba(30, 41, 59, 1),
+                    0 0 0 4px rgba(255, 140, 66, 0.5);
+            }
+            .dark .brutal-input {
+                background-color: #1e293b;
+                color: #ffffff;
+                border-color: #94a3b8;
+                box-shadow: 4px 4px 0px 0px rgba(148, 163, 184, 1);
+            }
+            .dark .brutal-input:focus {
+                box-shadow:
+                    4px 4px 0px 0px rgba(148, 163, 184, 1),
+                    0 0 0 4px rgba(255, 140, 66, 0.5);
+            }
+
+            /* Reusable Brutal Button styles */
+            .brutal-btn {
+                font-weight: 700;
+                padding: 0.5rem 1rem;
+                border: 4px solid #1e293b;
+                border-radius: 0.75rem;
+                box-shadow: 4px 4px 0px 0px rgba(30, 41, 59, 1);
+                transition: all 0.1s;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 0.5rem;
+                cursor: pointer;
+            }
+            .dark .brutal-btn {
+                border-color: #94a3b8;
+                box-shadow: 4px 4px 0px 0px rgba(148, 163, 184, 1);
+            }
+            .brutal-btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 6px 6px 0px 0px rgba(30, 41, 59, 1);
+            }
+            .dark .brutal-btn:hover {
+                box-shadow: 6px 6px 0px 0px rgba(148, 163, 184, 1);
+            }
+            .brutal-btn:active {
+                transform: translateY(2px);
+                box-shadow: none !important;
+            }
+
+            .btn-pink {
+                background-color: #ff6b95;
+                color: white;
+            }
+            .btn-orange {
+                background-color: #ff8c42;
+                color: white;
+            }
+            .btn-green {
+                background-color: #00e676;
+                color: #1e293b;
+            }
+            .btn-blue {
+                background-color: #2979ff;
+                color: white;
+            }
+            .btn-white {
+                background-color: #ffffff;
+                color: #1e293b;
+            }
+            .btn-dark {
+                background-color: #1e293b;
+                color: white;
+            }
+            .dark .btn-white {
+                background-color: #334155;
+                color: white;
+            }
+        </style>
+    </head>
+    <body
+        class="min-h-screen bg-graph text-slate-900 dark:text-slate-100 flex flex-col"
+    >
+        <!-- Header Navigation -->
+        <header
+            class="sticky top-0 z-50 p-4 border-b-4 border-slate-900 dark:border-slate-400 bg-white dark:bg-slate-900 flex flex-wrap items-center justify-between gap-4 shadow-md"
+        >
+            <div class="flex items-center gap-3">
+                <div
+                    class="w-12 h-12 bg-pink rounded-xl border-4 border-slate-900 dark:border-slate-400 flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(30,41,59,1)]"
+                >
+                    <span class="font-heading font-bold text-2xl text-white"
+                        >M</span
+                    >
+                </div>
+                <h1
+                    class="text-2xl font-heading font-bold text-slate-900 dark:text-white"
+                >
+                    Case Builder
+                </h1>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <button
+                    id="tab-editor"
+                    class="brutal-btn btn-orange"
+                    onclick="switchTab('editor')"
+                >
+                    <i data-lucide="layout-list" class="w-5 h-5"></i> Editor
+                </button>
+                <button
+                    id="tab-json"
+                    class="brutal-btn btn-white"
+                    onclick="switchTab('json')"
+                >
+                    <i data-lucide="file-json" class="w-5 h-5"></i> JSON Tools
+                </button>
+                <button
+                    class="brutal-btn btn-dark px-3"
+                    onclick="toggleDarkMode()"
+                >
+                    <i
+                        data-lucide="moon"
+                        id="icon-theme"
+                        class="w-5 h-5 text-white"
+                    ></i>
+                </button>
+            </div>
+        </header>
+
+        <main class="flex-1 max-w-[1600px] w-full mx-auto p-4 md:p-6 lg:p-8">
+            <!-- EDITOR VIEW -->
+            <div id="view-editor" class="flex flex-col lg:flex-row gap-8">
+                <!-- Sidebar - Case List -->
+                <aside class="w-full lg:w-80 flex-shrink-0 flex flex-col gap-4">
+                    <div
+                        class="bg-blue border-4 border-slate-900 dark:border-slate-400 rounded-2xl p-4 shadow-[6px_6px_0px_0px_rgba(30,41,59,1)] dark:shadow-[6px_6px_0px_0px_rgba(148,163,184,1)]"
+                    >
+                        <h2
+                            class="text-xl font-heading font-bold text-white mb-4 flex items-center gap-2"
+                        >
+                            <i data-lucide="layout-list" class="w-6 h-6"></i>
+                            Directory
+                        </h2>
+                        <div id="case-list" class="flex flex-col gap-3">
+                            <!-- Case list generated by JS -->
+                        </div>
+                        <div class="mt-4 flex flex-col gap-3">
+                            <button
+                                class="brutal-btn btn-white w-full"
+                                onclick="addNewCase()"
+                            >
+                                <i data-lucide="plus" class="w-5 h-5"></i> New
+                                Case
+                            </button>
+                            <div class="grid grid-cols-2 gap-3">
+                                <button
+                                    class="brutal-btn btn-orange w-full text-sm px-2"
+                                    onclick="
+                                        document
+                                            .getElementById('file-upload')
+                                            .click()
+                                    "
+                                >
+                                    <i data-lucide="upload" class="w-4 h-4"></i>
+                                    Import
+                                </button>
+                                <button
+                                    class="brutal-btn btn-green w-full text-sm px-2"
+                                    onclick="exportToFile()"
+                                >
+                                    <i
+                                        data-lucide="download"
+                                        class="w-4 h-4"
+                                    ></i>
+                                    Export
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </aside>
+
+                <!-- Main Form Area -->
+                <div id="form-area" class="flex-1 flex flex-col gap-6 hidden">
+                    <!-- Basic Info Card -->
+                    <section
+                        class="bg-white dark:bg-slate-900 border-4 border-slate-900 dark:border-slate-400 rounded-2xl p-6 md:p-8 shadow-[8px_8px_0px_0px_rgba(30,41,59,1)] dark:shadow-[8px_8px_0px_0px_rgba(148,163,184,1)]"
+                    >
+                        <div class="flex justify-between items-center mb-6">
+                            <h2
+                                class="text-3xl font-heading font-bold text-orange"
+                            >
+                                Case Details
+                            </h2>
+                            <button
+                                class="brutal-btn btn-pink"
+                                onclick="deleteActiveCase()"
+                            >
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                Delete Case
+                            </button>
+                        </div>
+
+                        <div
+                            class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6"
+                        >
+                            <div class="flex flex-col gap-1">
+                                <label
+                                    class="text-sm font-bold font-heading text-slate-800 dark:text-slate-200"
+                                    >Case ID (Unique)</label
+                                >
+                                <input
+                                    type="text"
+                                    data-field="id"
+                                    class="brutal-input"
+                                />
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <label
+                                    class="text-sm font-bold font-heading text-slate-800 dark:text-slate-200"
+                                    >Difficulty</label
+                                >
+                                <input
+                                    type="text"
+                                    data-field="difficulty"
+                                    class="brutal-input"
+                                />
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <label
+                                    class="text-sm font-bold font-heading text-slate-800 dark:text-slate-200"
+                                    >Title</label
+                                >
+                                <input
+                                    type="text"
+                                    data-field="title"
+                                    class="brutal-input"
+                                />
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <label
+                                    class="text-sm font-bold font-heading text-slate-800 dark:text-slate-200"
+                                    >Subtitle</label
+                                >
+                                <input
+                                    type="text"
+                                    data-field="subtitle"
+                                    class="brutal-input"
+                                />
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <label
+                                    class="text-sm font-bold font-heading text-slate-800 dark:text-slate-200"
+                                    >Time Limit (seconds)</label
+                                >
+                                <input
+                                    type="number"
+                                    data-field="time"
+                                    class="brutal-input"
+                                />
+                            </div>
+                            <div class="flex flex-col gap-1">
+                                <label
+                                    class="text-sm font-bold font-heading text-slate-800 dark:text-slate-200"
+                                    >Culprit Name</label
+                                >
+                                <input
+                                    type="text"
+                                    data-field="culprit"
+                                    class="brutal-input"
+                                />
+                            </div>
+                            <div class="flex flex-col gap-1 col-span-full">
+                                <label
+                                    class="text-sm font-bold font-heading text-slate-800 dark:text-slate-200"
+                                    >Image URL/Path</label
+                                >
+                                <input
+                                    type="text"
+                                    data-field="image"
+                                    class="brutal-input"
+                                />
+                            </div>
+                            <div class="flex flex-col gap-1 col-span-full">
+                                <label
+                                    class="text-sm font-bold font-heading text-slate-800 dark:text-slate-200"
+                                    >Brief (Intro text)</label
+                                >
+                                <textarea
+                                    data-field="brief"
+                                    rows="3"
+                                    class="brutal-input resize-y"
+                                ></textarea>
+                            </div>
+                            <div class="flex flex-col gap-1 col-span-full">
+                                <label
+                                    class="text-sm font-bold font-heading text-slate-800 dark:text-slate-200"
+                                    >Solution Text (Ending)</label
+                                >
+                                <textarea
+                                    data-field="text"
+                                    rows="3"
+                                    class="brutal-input resize-y"
+                                ></textarea>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Clues Section -->
+                    <section
+                        class="bg-[#f8fafc] dark:bg-slate-800 border-4 border-slate-900 dark:border-slate-400 rounded-2xl p-6 md:p-8 shadow-[8px_8px_0px_0px_rgba(30,41,59,1)] dark:shadow-[8px_8px_0px_0px_rgba(148,163,184,1)]"
+                    >
+                        <div class="flex justify-between items-center mb-6">
+                            <h2
+                                class="text-3xl font-heading font-bold text-blue"
+                            >
+                                Evidence & Clues
+                            </h2>
+                            <button
+                                class="brutal-btn btn-green"
+                                onclick="addClue()"
+                            >
+                                <i data-lucide="plus" class="w-4 h-4"></i> Add
+                                Clue
+                            </button>
+                        </div>
+                        <div id="clues-container" class="flex flex-col gap-6">
+                            <!-- Clues generated by JS -->
+                        </div>
+                    </section>
+
+                    <!-- Suspects Section -->
+                    <section
+                        class="bg-white dark:bg-slate-900 border-4 border-slate-900 dark:border-slate-400 rounded-2xl p-6 md:p-8 shadow-[8px_8px_0px_0px_rgba(30,41,59,1)] dark:shadow-[8px_8px_0px_0px_rgba(148,163,184,1)]"
+                    >
+                        <div class="flex justify-between items-center mb-6">
+                            <h2
+                                class="text-3xl font-heading font-bold text-pink"
+                            >
+                                Suspects
+                            </h2>
+                            <button
+                                class="brutal-btn btn-green"
+                                onclick="addSuspect()"
+                            >
+                                <i data-lucide="plus" class="w-4 h-4"></i> Add
+                                Suspect
+                            </button>
+                        </div>
+                        <div
+                            id="suspects-container"
+                            class="flex flex-col gap-6"
+                        >
+                            <!-- Suspects generated by JS -->
+                        </div>
+                    </section>
+                </div>
+            </div>
+
+            <!-- JSON VIEW -->
+            <div id="view-json" class="hidden flex-col gap-6 max-w-4xl mx-auto">
+                <div
+                    class="bg-white dark:bg-slate-900 border-4 border-slate-900 dark:border-slate-400 rounded-2xl p-6 md:p-8 shadow-[8px_8px_0px_0px_rgba(30,41,59,1)] dark:shadow-[8px_8px_0px_0px_rgba(148,163,184,1)]"
+                >
+                    <h2 class="text-3xl font-heading font-bold text-blue mb-6">
+                        JSON Source
+                    </h2>
+
+                    <textarea
+                        id="json-input"
+                        rows="20"
+                        class="w-full p-4 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono text-sm border-4 border-slate-900 dark:border-slate-400 rounded-xl outline-none focus:ring-4 focus:ring-blue/50 shadow-inner mb-6"
+                        spellcheck="false"
+                    ></textarea>
+
+                    <!-- Hidden File Input -->
+                    <input
+                        type="file"
+                        id="file-upload"
+                        accept=".json"
+                        class="hidden"
+                        onchange="handleFileUpload(event)"
+                    />
+
+                    <div class="flex flex-wrap gap-4">
+                        <button
+                            class="brutal-btn btn-orange"
+                            onclick="
+                                document.getElementById('file-upload').click()
+                            "
+                        >
+                            <i data-lucide="upload" class="w-5 h-5"></i> Import
+                            File
+                        </button>
+                        <button
+                            class="brutal-btn btn-green"
+                            onclick="exportToFile()"
+                        >
+                            <i data-lucide="download" class="w-5 h-5"></i>
+                            Export JSON
+                        </button>
+                        <button
+                            class="brutal-btn btn-pink"
+                            onclick="copyJSON()"
+                        >
+                            <i data-lucide="copy" class="w-5 h-5"></i> Copy JSON
+                        </button>
+                        <button
+                            class="brutal-btn btn-blue"
+                            onclick="loadJSON()"
+                        >
+                            <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+                            Apply Textarea
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Application Logic -->
+        <script>
+              // --- Initial Data ---
+              let cases = [
+                {
+                  "id": "office",
+                  "title": "The CEO's Office",
+                  "subtitle": "Homicide / High-Rise",
+                  "difficulty": "HARD",
+                  "time": 600,
+                  "culprit": "Vance",
+                  "image": "./img/office.webp",
+                  "brief": "Wall Street CEO Richard Harrington found bludgeoned in his penthouse office at midnight. The reinforced doors were magnetically locked from the inside. A classic sealed-room mystery.",
+                  "text": "The Heavy Bronze Bookend was the weapon. Vance, his aggressive VP, was seen arguing over the corporate buyout. He bypassed the security grid through the ventilation shaft and cut the power.",
+                  "clues": [
+                    {
+                      "id": "e1",
+                      "name": "Bronze Bookend",
+                      "desc": "A massive desk ornament. Dark stains on the base.",
+                      "hidden": "FORENSICS: Dust disturbed, recently moved. Fingerprints match Vance.",
+                      "icon": "book",
+                      "pos": { "x": 0.35, "y": 0.65 }
+                    },
+                    {
+                      "id": "e2",
+                      "name": "Shattered Aviators",
+                      "desc": "Wireframe glasses found trampled near the leather sofa.",
+                      "hidden": "ANALYSIS: The prescription indicates extreme near-sightedness.",
+                      "icon": "glasses",
+                      "pos": { "x": 0.6, "y": 0.85 }
+                    },
+                    {
+                      "id": "e3",
+                      "name": "Shredded Contract",
+                      "desc": "Half-destroyed document wedged in the paper shredder.",
+                      "hidden": "DOCUMENT: Vance was being forced out of the firm.",
+                      "icon": "scroll",
+                      "pos": { "x": 0.75, "y": 0.55 }
+                    },
+                    {
+                      "id": "e4",
+                      "name": "Ash Footprint",
+                      "desc": "Tracked near the office entrance.",
+                      "hidden": "TRACE: Matches the imported cigar ash from the executive lounge.",
+                      "icon": "footprints",
+                      "pos": { "x": 0.2, "y": 0.9 }
+                    }
+                  ],
+                  "suspects": [
+                    { "name": "Sarah", "role": "Secretary", "hint": "ALIBI: Making photocopies on the lower floor." },
+                    { "name": "Vance", "role": "VP", "hint": "MOTIVE: Facing bankruptcy and losing his job." },
+                    { "name": "George", "role": "Security", "hint": "CHECK: Has perfect 20/20 vision. Doesn't wear glasses." },
+                    { "name": "Mrs. P", "role": "Wife", "hint": "ALIBI: Passed out in her condo downtown." }
+                  ]
+                },
+                {
+                  "id": "diner",
+                  "title": "The Ice Tea Alibi",
+                  "subtitle": "Poisoning / Midnight Diner",
+                  "difficulty": "EXTREME",
+                  "time": 600,
+                  "culprit": "Julian",
+                  "image": "./img/diner.webp",
+                  "brief": "A corporate informant collapsed in a gritty 24-hour diner. He shared a pitcher of iced tea with a rival. Both drank the exact same tea, but only the informant died.",
+                  "text": "The poison was frozen inside the **ice cubes**. Julian drank his tea quickly before the ice could melt, surviving unscathed. The victim sipped slowly, allowing the lethal ice to dissolve into his drink.",
+                  "clues": [
+                    {
+                      "id": "e1",
+                      "name": "Victim's Glass",
+                      "desc": "Half-full glass of tea. The ice is completely melted.",
+                      "hidden": "LAB: Highly concentrated liquid toxin found mixed in the drink.",
+                      "icon": "glass-water",
+                      "pos": { "x": 0.45, "y": 0.6 }
+                    },
+                    {
+                      "id": "e2",
+                      "name": "Julian's Glass",
+                      "desc": "Completely drained glass. Large ice cubes remain intact.",
+                      "hidden": "LAB: Zero trace of poison found in the leftover ice.",
+                      "icon": "cup-soda",
+                      "pos": { "x": 0.65, "y": 0.65 }
+                    },
+                    {
+                      "id": "e3",
+                      "name": "Manila Folder",
+                      "desc": "Dropped on the booth seat. Glossy photos spilling out.",
+                      "hidden": "MOTIVE: Photographic proof of Julian's massive embezzlement.",
+                      "icon": "folder-open",
+                      "pos": { "x": 0.3, "y": 0.8 }
+                    },
+                    {
+                      "id": "e4",
+                      "name": "Sugar Dispenser",
+                      "desc": "Classic diner sugar shaker next to the napkin holder.",
+                      "hidden": "ANALYSIS: Tested completely clean. Used as a distraction.",
+                      "icon": "cylinder",
+                      "pos": { "x": 0.75, "y": 0.45 }
+                    }
+                  ],
+                  "suspects": [
+                    { "name": "Waitress", "role": "Server", "hint": "ALIBI: Poured both glasses from the exact same pitcher." },
+                    { "name": "Julian", "role": "Rival", "hint": "FACT: Shared the tea, but nervously drank his in one gulp." },
+                    { "name": "Cook", "role": "Chef", "hint": "CHECK: Never left the kitchen. Doesn't handle ice." },
+            <!-- Application Logic -->
+            <script>
+              // --- Initial Data ---
+              let cases = [];
+
+              let activeCaseId = null;
+              let isDarkMode = false;
+              let currentTab = 'editor';
+
+              // --- Utility: Escape HTML to prevent injection bugs ---
+              function escapeHTML(str) {
+                if (typeof str !== 'string') return str;
+                return str.replace(/[&<>'"]/g,
+                  tag => ({
+                      '&': '&amp;',
+                      '<': '&lt;',
+                      '>': '&gt;',
+                      "'": '&#39;',
+                      '"': '&quot;'
+                  }[tag] || tag)
+                );
+              }
+
+              // --- State & Rendering Engine ---
+
+              function getActiveCase() {
+                return cases.find(c => c.id === activeCaseId) || null;
+              }
+
+              function renderSidebar() {
+                const container = document.getElementById('case-list');
+                container.innerHTML = '';
+
+                cases.forEach(c => {
+                  const btn = document.createElement('button');
+                  const isActive = c.id === activeCaseId;
+
+                  btn.className = `text-left p-3 rounded-xl border-4 border-slate-900 dark:border-slate-400 font-bold transition-all ${
+                    isActive
+                      ? 'bg-green text-slate-900 shadow-[4px_4px_0px_0px_rgba(30,41,59,1)] translate-x-2'
+                      : 'bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700'
+                  }`;
+                  btn.onclick = () => selectCase(c.id);
+
+                  btn.innerHTML = `
+                    <div class="text-sm opacity-80 font-normal">#${escapeHTML(c.id)}</div>
+                    <div class="truncate">${escapeHTML(c.title) || 'Untitled Case'}</div>
+                  `;
+                  container.appendChild(btn);
+                });
+              }
+
+              function renderActiveCase() {
+                const c = getActiveCase();
+                const formArea = document.getElementById('form-area');
+
+                if (!c) {
+                  formArea.classList.add('hidden');
+                  return;
+                }
+                formArea.classList.remove('hidden');
+
+                // Populate base form fields
+                document.querySelector('input[data-field="id"]').value = c.id || '';
+                document.querySelector('input[data-field="difficulty"]').value = c.difficulty || '';
+                document.querySelector('input[data-field="title"]').value = c.title || '';
+                document.querySelector('input[data-field="subtitle"]').value = c.subtitle || '';
+                document.querySelector('input[data-field="time"]').value = c.time || 0;
+                document.querySelector('input[data-field="culprit"]').value = c.culprit || '';
+                document.querySelector('input[data-field="image"]').value = c.image || '';
+                document.querySelector('textarea[data-field="brief"]').value = c.brief || '';
+                document.querySelector('textarea[data-field="text"]').value = c.text || '';
+
+                renderClues();
+                renderSuspects();
+                lucide.createIcons();
+              }
+
+              function renderClues() {
+                const c = getActiveCase();
+                const container = document.getElementById('clues-container');
+                container.innerHTML = '';
+
+                if (!c.clues) c.clues = [];
+
+                c.clues.forEach((clue, idx) => {
+                  const clueHTML = `
+                    <div class="bg-white dark:bg-slate-900 border-4 border-slate-900 dark:border-slate-400 rounded-xl p-5 relative shadow-[4px_4px_0px_0px_rgba(30,41,59,1)] dark:shadow-[4px_4px_0px_0px_rgba(148,163,184,1)]">
+                      <button onclick="deleteClue(${idx})" class="absolute -top-4 -right-4 bg-pink text-white p-2 rounded-xl border-4 border-slate-900 dark:border-slate-400 shadow-[2px_2px_0px_0px_rgba(30,41,59,1)] hover:scale-110 active:scale-95 transition-transform" title="Delete Clue">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                      </button>
+                      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="flex flex-col gap-1">
+                          <label class="text-sm font-bold font-heading">Clue ID</label>
+                          <input type="text" data-list="clues" data-index="${idx}" data-field="id" value="${escapeHTML(clue.id)}" class="brutal-input">
+                        </div>
+                        <div class="flex flex-col gap-1">
+                          <label class="text-sm font-bold font-heading">Icon Name</label>
+                          <input type="text" data-list="clues" data-index="${idx}" data-field="icon" value="${escapeHTML(clue.icon)}" class="brutal-input">
+                        </div>
+                        <div class="flex flex-col gap-1 col-span-full">
+                          <label class="text-sm font-bold font-heading">Name</label>
+                          <input type="text" data-list="clues" data-index="${idx}" data-field="name" value="${escapeHTML(clue.name)}" class="brutal-input">
+                        </div>
+                        <div class="flex flex-col gap-1 col-span-full">
+                          <label class="text-sm font-bold font-heading">Description (Public)</label>
+                          <textarea data-list="clues" data-index="${idx}" data-field="desc" rows="2" class="brutal-input resize-y">${escapeHTML(clue.desc)}</textarea>
+                        </div>
+                        <div class="flex flex-col gap-1 col-span-full">
+                          <label class="text-sm font-bold font-heading">Hidden Insight (Scanned)</label>
+                          <textarea data-list="clues" data-index="${idx}" data-field="hidden" rows="2" class="brutal-input resize-y">${escapeHTML(clue.hidden)}</textarea>
+                        </div>
+                        <div class="col-span-full grid grid-cols-2 gap-4 bg-slate-100 dark:bg-slate-800 p-4 rounded-xl border-2 border-slate-300 dark:border-slate-600 mt-2">
+                          <div class="flex flex-col gap-1">
+                            <label class="text-sm font-bold font-heading">Pos X (0-1)</label>
+                            <input type="number" step="0.01" data-list="clues" data-index="${idx}" data-field="x" data-is-pos="true" value="${clue.pos ? clue.pos.x : 0}" class="brutal-input">
+                          </div>
+                          <div class="flex flex-col gap-1">
+                            <label class="text-sm font-bold font-heading">Pos Y (0-1)</label>
+                            <input type="number" step="0.01" data-list="clues" data-index="${idx}" data-field="y" data-is-pos="true" value="${clue.pos ? clue.pos.y : 0}" class="brutal-input">
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  `;
+                  container.insertAdjacentHTML('beforeend', clueHTML);
+                });
+              }
+
+              function renderSuspects() {
+                const c = getActiveCase();
+                const container = document.getElementById('suspects-container');
+                container.innerHTML = '';
+
+                if (!c.suspects) c.suspects = [];
+
+                c.suspects.forEach((suspect, idx) => {
+                  const suspectHTML = `
+                    <div class="bg-white dark:bg-slate-900 border-4 border-slate-900 dark:border-slate-400 rounded-xl p-5 relative shadow-[4px_4px_0px_0px_rgba(30,41,59,1)] dark:shadow-[4px_4px_0px_0px_rgba(148,163,184,1)]">
+                      <button onclick="deleteSuspect(${idx})" class="absolute -top-4 -right-4 bg-pink text-white p-2 rounded-xl border-4 border-slate-900 dark:border-slate-400 shadow-[2px_2px_0px_0px_rgba(30,41,59,1)] hover:scale-110 active:scale-95 transition-transform" title="Delete Suspect">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                      </button>
+                      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="flex flex-col gap-1">
+                          <label class="text-sm font-bold font-heading">Name</label>
+                          <input type="text" data-list="suspects" data-index="${idx}" data-field="name" value="${escapeHTML(suspect.name)}" class="brutal-input">
+                        </div>
+                        <div class="flex flex-col gap-1">
+                          <label class="text-sm font-bold font-heading">Role</label>
+                          <input type="text" data-list="suspects" data-index="${idx}" data-field="role" value="${escapeHTML(suspect.role)}" class="brutal-input">
+                        </div>
+                        <div class="flex flex-col gap-1 col-span-full">
+                          <label class="text-sm font-bold font-heading">Hint / Alibi</label>
+                          <textarea data-list="suspects" data-index="${idx}" data-field="hint" rows="2" class="brutal-input resize-y">${escapeHTML(suspect.hint)}</textarea>
+                        </div>
+                      </div>
+                    </div>
+                  `;
+                  container.insertAdjacentHTML('beforeend', suspectHTML);
+                });
+              }
+
+              // --- Input Data Binding ---
+
+              // Listen to all inputs and textareas in the form area to update state in real time
+              document.getElementById('form-area').addEventListener('input', (e) => {
+                const target = e.target;
+                if (!target.matches('input, textarea')) return;
+
+                const c = getActiveCase();
+                if (!c) return;
+
+                const field = target.getAttribute('data-field');
+                const list = target.getAttribute('data-list');
+                const index = target.getAttribute('data-index');
+                const isPos = target.getAttribute('data-is-pos');
+
+                let val = target.type === 'number' ? parseFloat(target.value) || 0 : target.value;
+
+                if (list) {
+                  // Handling nested arrays (clues / suspects)
+                  if (isPos) {
+                    if (!c[list][index].pos) c[list][index].pos = { x: 0, y: 0 };
+                    c[list][index].pos[field] = val;
+                  } else {
+                    c[list][index][field] = val;
+                  }
+                } else {
+                  // Handling root fields
+                  c[field] = val;
+
+                  // Update sidebar immediately if id or title changes
+                  if (field === 'id') {
+                    activeCaseId = val; // follow the id change
+                    renderSidebar();
+                  }
+                  if (field === 'title') {
+                    renderSidebar();
+                  }
+                }
+              });
+
+              // --- Actions ---
+
+              function selectCase(id) {
+                activeCaseId = id;
+                renderSidebar();
+                renderActiveCase();
+              }
+
+              function addNewCase() {
+                const newId = `case_${Date.now()}`;
+                cases.push({
+                  id: newId, title: "New Case", subtitle: "", difficulty: "NORMAL", time: 300, culprit: "", image: "", brief: "", text: "",
+                  clues: [], suspects: []
+                });
+                selectCase(newId);
+              }
+
+              function deleteActiveCase() {
+                if (confirm("Are you sure you want to delete this case?")) {
+                  cases = cases.filter(c => c.id !== activeCaseId);
+                  activeCaseId = cases.length > 0 ? cases[0].id : null;
+                  renderSidebar();
+                  renderActiveCase();
+                }
+              }
+
+              function addClue() {
+                const c = getActiveCase();
+                c.clues.push({
+                  id: `c_${Date.now()}`, name: "New Clue", desc: "", hidden: "", icon: "search", pos: { x: 0.5, y: 0.5 }
+                });
+                renderClues();
+                lucide.createIcons();
+              }
+
+              function deleteClue(index) {
+                const c = getActiveCase();
+                c.clues.splice(index, 1);
+                renderClues();
+                lucide.createIcons();
+              }
+
+              function addSuspect() {
+                const c = getActiveCase();
+                c.suspects.push({ name: "New Suspect", role: "", hint: "" });
+                renderSuspects();
+                lucide.createIcons();
+              }
+
+              function deleteSuspect(index) {
+                const c = getActiveCase();
+                c.suspects.splice(index, 1);
+                renderSuspects();
+                lucide.createIcons();
+              }
+
+              // --- JSON Tools ---
+
+              function handleFileUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                  try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (Array.isArray(parsed)) {
+                      cases = parsed;
+                      activeCaseId = cases.length > 0 ? cases[0].id : null;
+                      document.getElementById('json-input').value = JSON.stringify(cases, null, 2);
+                      alert("JSON Imported Successfully!");
+                      renderSidebar();
+                      renderActiveCase();
+                      lucide.createIcons();
+                    } else {
+                      alert("Invalid JSON format. Expected an array of cases.");
+                    }
+                  } catch (err) {
+                    alert("Error parsing JSON file: " + err);
+                  }
+                };
+                reader.readAsText(file);
+                event.target.value = ''; // Reset input
+              }
+
+              function exportToFile() {
+                if (cases.length === 0) {
+                  alert("No cases to export!");
+                  return;
+                }
+                const jsonStr = JSON.stringify(cases, null, 2);
+                const blob = new Blob([jsonStr], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = "cases.json";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+              }
+
+              function loadJSON() {
+                const input = document.getElementById('json-input').value;
+                try {
+                  const parsed = JSON.parse(input);
+                  if (Array.isArray(parsed)) {
+                    cases = parsed;
+                    if (cases.length > 0) activeCaseId = cases[0].id;
+                    alert("JSON Loaded Successfully!");
+                    switchTab('editor');
+                  } else {
+                    alert("Invalid JSON format. Expected an array of cases.");
+                  }
+                } catch (e) {
+                  alert("Error parsing JSON. Please check the syntax.");
+                }
+              }
+
+              function copyJSON() {
+                const jsonStr = JSON.stringify(cases, null, 2);
+                navigator.clipboard.writeText(jsonStr).then(() => {
+                  alert("JSON Copied to Clipboard!");
+                }).catch(err => {
+                  alert("Failed to copy text: " + err);
+                });
+              }
+
+              // --- UI State Management ---
+
+              function switchTab(tab) {
+                currentTab = tab;
+
+                const btnEditor = document.getElementById('tab-editor');
+                const btnJson = document.getElementById('tab-json');
+                const viewEditor = document.getElementById('view-editor');
+                const viewJson = document.getElementById('view-json');
+
+                if (tab === 'editor') {
+                  btnEditor.className = "brutal-btn btn-orange";
+                  btnJson.className = "brutal-btn btn-white";
+                  viewEditor.classList.remove('hidden');
+                  viewJson.classList.add('hidden');
+                  renderSidebar();
+                  renderActiveCase();
+                } else {
+                  btnEditor.className = "brutal-btn btn-white";
+                  btnJson.className = "brutal-btn btn-blue";
+                  viewEditor.classList.add('hidden');
+                  viewJson.classList.remove('hidden');
+                  document.getElementById('json-input').value = JSON.stringify(cases, null, 2);
+                }
+              }
+
+              function toggleDarkMode() {
+                isDarkMode = !isDarkMode;
+                const html = document.documentElement;
+                const icon = document.getElementById('icon-theme');
+
+                if (isDarkMode) {
+                  html.classList.add('dark');
+                  icon.setAttribute('data-lucide', 'sun');
+                } else {
+                  html.classList.remove('dark');
+                  icon.setAttribute('data-lucide', 'moon');
+                }
+                lucide.createIcons();
+              }
+
+              // --- Initialization ---
+              window.onload = () => {
+                renderSidebar();
+                renderActiveCase();
+                lucide.createIcons();
+              };
+        </script>
+    </body>
+</html>
