@@ -1,376 +1,1349 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rapid Presenter</title>
-    
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <script src="https://unpkg.com/lucide@latest"></script>
-
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        pink: '#FF6B95',
-                        orange: '#FF8C42',
-                        green: '#00E676',
-                        blue: '#2979FF',
-                        dark: '#1e293b',
-                        chalk: '#f8fafc',
-                    },
-                    fontFamily: {
-                        fredoka: ['Fredoka', 'sans-serif'],
-                        nunito: ['Nunito', 'sans-serif'],
-                    },
-                    boxShadow: {
-                        'brutal': '4px 4px 0px 0px rgba(30, 41, 59, 1)',
-                        'brutal-white': '4px 4px 0px 0px rgba(255, 255, 255, 1)',
-                    }
-                }
-            }
-        }
-    </script>
-    
-    <style>
-        body {
-            font-family: 'Nunito', sans-serif;
-            transition: background-color 0.3s;
-        }
-
-        h1, h2, h3, .font-title {
-            font-family: 'Fredoka', sans-serif;
-        }
-
-        /* Graph Paper Background */
-        .bg-grid {
-            background-color: #f8fafc;
-            background-size: 40px 40px;
-            background-image: 
-                linear-gradient(to right, rgba(30, 41, 59, 0.05) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(30, 41, 59, 0.05) 1px, transparent 1px);
-        }
-
-        /* Blackboard Mode Grid */
-        .dark .bg-grid {
-            background-color: #0f172a;
-            background-image: 
-                linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-        }
-
-        /* Presentation Mode */
-        #presentation-mode {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            z-index: 50;
-            display: none; 
-            align-items: center;
-            justify-content: center;
-            outline: none;
-        }
-
-        .slide-text {
-            animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            text-shadow: 4px 4px 0px rgba(30, 41, 59, 1);
-        }
-
-        @keyframes popIn {
-            from { transform: scale(0.8); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
-        }
-
-        /* Brutalist Button Interactions */
-        .btn-brutal {
-            transition: all 0.1s ease-in-out;
-        }
-        .btn-brutal:hover {
-            transform: translateY(-2px);
-        }
-        .btn-brutal:active {
-            transform: translateY(4px);
-            box-shadow: 0px 0px 0px 0px rgba(30, 41, 59, 1) !important;
-        }
-        .dark .btn-brutal:active {
-            box-shadow: 0px 0px 0px 0px rgba(255, 255, 255, 1) !important;
-        }
-    </style>
-</head>
-<body class="bg-grid min-h-screen flex flex-col items-center justify-center text-dark dark:text-chalk p-6">
-
-    <div class="absolute top-6 right-6 flex gap-4">
-        <button onclick="app.toggleDarkMode()" class="btn-brutal bg-orange text-dark border-4 border-dark rounded-xl p-3 shadow-brutal flex items-center justify-center">
-            <i data-lucide="moon" class="w-6 h-6 dark:hidden"></i>
-            <i data-lucide="sun" class="w-6 h-6 hidden dark:block"></i>
-        </button>
-    </div>
-
-    <div class="max-w-3xl w-full bg-chalk dark:bg-slate-800 border-4 border-dark dark:border-slate-400 rounded-2xl shadow-brutal dark:shadow-brutal-white overflow-hidden">
-        
-        <div class="bg-pink border-b-4 border-dark dark:border-slate-400 p-6 flex items-center justify-between">
-            <div class="flex items-center gap-3 text-dark">
-                <i data-lucide="monitor-play" class="w-8 h-8"></i>
-                <h1 class="text-3xl font-bold font-title tracking-wide">Rapid Presenter</h1>
-            </div>
-            <div class="bg-chalk dark:bg-slate-800 border-2 border-dark dark:border-slate-400 px-3 py-1 rounded-lg shadow-[2px_2px_0px_0px_rgba(30,41,59,1)] dark:shadow-[2px_2px_0px_0px_rgba(255,255,255,1)]">
-                <span id="item-count" class="font-bold text-dark dark:text-chalk">0 items</span>
-            </div>
-        </div>
-
-        <div class="p-8">
-            <label class="block font-title font-bold mb-2 text-xl">
-                Enter your content
-            </label>
-            <p class="text-dark/70 dark:text-chalk/70 text-base mb-4">
-                Separate items with a <strong>newline</strong> (Enter) or a <strong>semicolon</strong> (;).
-            </p>
-            
-            <textarea 
-                id="word-input" 
-                class="w-full h-56 p-4 bg-white dark:bg-slate-900 border-4 border-dark dark:border-slate-400 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue/50 text-xl font-medium resize-none text-dark dark:text-chalk placeholder-dark/30 dark:placeholder-chalk/30 shadow-[inset_0px_4px_0px_0px_rgba(0,0,0,0.05)]"
-                placeholder="Paste your list here..."
-            ></textarea>
-
-            <div class="mt-6 flex flex-wrap gap-4">
-                <button onclick="app.startPresentation(false)" class="btn-brutal flex-1 bg-green text-dark font-title font-bold text-xl py-4 px-6 border-4 border-dark dark:border-slate-400 rounded-xl shadow-brutal dark:shadow-brutal-white flex items-center justify-center gap-2">
-                    <i data-lucide="play" class="w-6 h-6"></i> Start
-                </button>
-                
-                <button onclick="app.startPresentation(true)" class="btn-brutal flex-1 bg-blue text-dark font-title font-bold text-xl py-4 px-6 border-4 border-dark dark:border-slate-400 rounded-xl shadow-brutal dark:shadow-brutal-white flex items-center justify-center gap-2">
-                    <i data-lucide="shuffle" class="w-6 h-6"></i> Shuffle & Start
-                </button>
-
-                <button onclick="app.openClearModal()" class="btn-brutal bg-chalk dark:bg-slate-700 text-dark dark:text-chalk font-title font-bold text-xl py-4 px-6 border-4 border-dark dark:border-slate-400 rounded-xl shadow-brutal dark:shadow-brutal-white flex items-center justify-center gap-2">
-                    <i data-lucide="trash-2" class="w-6 h-6 text-pink"></i> Clear
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <div id="presentation-mode" tabindex="0">
-        <div id="slide-content" class="text-center p-10 max-w-[90vw]">
-            <h1 id="display-word" class="text-chalk font-title slide-text break-words" style="font-size: 10vw; line-height: 1.1;">
-                Word
-            </h1>
-        </div>
-        
-        <div class="absolute bottom-8 left-0 w-full text-center pointer-events-none">
-            <div class="inline-block bg-dark text-chalk border-4 border-dark px-6 py-3 rounded-2xl text-lg font-bold shadow-[4px_4px_0px_0px_rgba(0,0,0,0.5)]">
-                <span>Slide <span id="slide-number">1</span> / <span id="total-slides">1</span></span>
-                <span class="mx-3 opacity-50">|</span>
-                <span><i data-lucide="arrow-left-right" class="inline w-5 h-5 mb-1"></i> Use Arrows or Click</span>
-            </div>
-        </div>
-        
-        <button onclick="app.stopPresentation()" class="btn-brutal absolute top-6 right-6 bg-pink text-dark border-4 border-dark rounded-xl p-3 shadow-brutal z-50 pointer-events-auto">
-            <i data-lucide="x" class="w-8 h-8"></i>
-        </button>
-    </div>
-
-    <div id="clear-modal" class="fixed inset-0 bg-dark/80 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
-        <div class="bg-chalk dark:bg-slate-800 border-4 border-dark dark:border-slate-400 rounded-2xl shadow-brutal dark:shadow-brutal-white max-w-sm w-full p-6 transform scale-100 transition-all">
-            <div class="flex items-center gap-3 mb-4">
-                <div class="bg-pink p-3 rounded-xl border-2 border-dark">
-                    <i data-lucide="alert-triangle" class="w-6 h-6 text-dark"></i>
-                </div>
-                <h2 class="text-2xl font-title font-bold text-dark dark:text-chalk">Clear Text?</h2>
-            </div>
-            <p class="mb-8 text-dark/70 dark:text-chalk/70 font-medium">Are you sure you want to delete all entered content? This cannot be undone.</p>
-            <div class="flex gap-4">
-                <button onclick="app.closeClearModal()" class="btn-brutal flex-1 bg-chalk dark:bg-slate-700 text-dark dark:text-chalk font-title font-bold py-3 px-4 border-4 border-dark dark:border-slate-400 rounded-xl shadow-brutal">
-                    Cancel
-                </button>
-                <button onclick="app.confirmClear()" class="btn-brutal flex-1 bg-pink text-dark font-title font-bold py-3 px-4 border-4 border-dark rounded-xl shadow-brutal">
-                    Yes, Clear
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        // Initialize Lucide Icons
-        lucide.createIcons();
-
-        const app = {
-            words: [],
-            currentIndex: 0,
-            colors: ['#FF6B95', '#FF8C42', '#00E676', '#2979FF'], // E1 Palette: Pink, Orange, Green, Blue
-            
-            init() {
-                // Dark Mode initialization
-                if (localStorage.getItem('e1_theme') === 'dark' || (!('e1_theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                    document.documentElement.classList.add('dark');
-                }
-
-                // Auto-load saved text
-                const saved = localStorage.getItem('e1_rapid_text');
-                const textarea = document.getElementById('word-input');
-                if (saved) {
-                    textarea.value = saved;
-                }
-                this.updateCount();
-
-                // Keyboard listeners for presentation
-                window.addEventListener('keydown', (e) => {
-                    const overlay = document.getElementById('presentation-mode');
-                    if (overlay.style.display === 'flex') {
-                        if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter') this.nextSlide();
-                        if (e.key === 'ArrowLeft') this.prevSlide();
-                        if (e.key === 'Escape') this.stopPresentation();
-                    }
-                });
-
-                // Click to advance
-                document.getElementById('presentation-mode').addEventListener('click', (e) => {
-                    if(!e.target.closest('button')) {
-                        this.nextSlide();
-                    }
-                });
-                
-                // Auto-save and count update on typing
-                textarea.addEventListener('input', (e) => {
-                    localStorage.setItem('e1_rapid_text', e.target.value);
-                    this.updateCount();
-                });
-            },
-
-            toggleDarkMode() {
-                document.documentElement.classList.toggle('dark');
-                if (document.documentElement.classList.contains('dark')) {
-                    localStorage.setItem('e1_theme', 'dark');
-                } else {
-                    localStorage.setItem('e1_theme', 'light');
-                }
-            },
-
-            parseInput() {
-                const raw = document.getElementById('word-input').value;
-                if (!raw.trim()) return [];
-                
-                // Split by newline OR semicolon, trim, remove empty
-                return raw.split(/[;\n]+/)
-                    .map(w => w.trim())
-                    .filter(w => w.length > 0);
-            },
-
-            updateCount() {
-                const words = this.parseInput();
-                document.getElementById('item-count').innerText = `${words.length} item${words.length !== 1 ? 's' : ''}`;
-            },
-
-            shuffleArray(array) {
-                for (let i = array.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [array[i], array[j]] = [array[j], array[i]];
-                }
-                return array;
-            },
-
-            startPresentation(shuffle = false) {
-                this.words = this.parseInput();
-                
-                if (this.words.length === 0) {
-                    this.words = ["Enter words first!"];
-                } else if (shuffle) {
-                    this.words = this.shuffleArray([...this.words]);
-                }
-                
-                this.currentIndex = 0;
-                const overlay = document.getElementById('presentation-mode');
-                overlay.style.display = 'flex';
-                overlay.focus();
-                
-                // Try Fullscreen safely
-                try {
-                    if (document.documentElement.requestFullscreen) {
-                        document.documentElement.requestFullscreen().catch(() => {});
-                    }
-                } catch(e) {}
-
-                this.renderSlide();
-            },
-
-            stopPresentation() {
-                const overlay = document.getElementById('presentation-mode');
-                overlay.style.display = 'none';
-                
-                try {
-                    if (document.exitFullscreen && document.fullscreenElement) {
-                        document.exitFullscreen().catch(() => {});
-                    }
-                } catch(e) {}
-            },
-
-            nextSlide() {
-                if (this.currentIndex < this.words.length - 1) {
-                    this.currentIndex++;
-                } else {
-                    this.currentIndex = 0; // Loop back
-                }
-                this.renderSlide();
-            },
-
-            prevSlide() {
-                if (this.currentIndex > 0) {
-                    this.currentIndex--;
-                } else {
-                    this.currentIndex = this.words.length - 1; // Loop to end
-                }
-                this.renderSlide();
-            },
-
-            renderSlide() {
-                const display = document.getElementById('display-word');
-                const overlay = document.getElementById('presentation-mode');
-                
-                display.innerText = this.words[this.currentIndex];
-                
-                // Re-trigger animation
-                display.classList.remove('slide-text');
-                void display.offsetWidth; // trigger reflow
-                display.classList.add('slide-text');
-
-                // Cycle through E1 palette colors based on index
-                const colorIndex = this.currentIndex % this.colors.length;
-                overlay.style.backgroundColor = this.colors[colorIndex];
-
-                // Update counters
-                document.getElementById('slide-number').innerText = this.currentIndex + 1;
-                document.getElementById('total-slides').innerText = this.words.length;
-            },
-
-            // Modal Logic
-            openClearModal() {
-                const modal = document.getElementById('clear-modal');
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
-            },
-
-            closeClearModal() {
-                const modal = document.getElementById('clear-modal');
-                modal.classList.add('hidden');
-                modal.classList.remove('flex');
-            },
-
-            confirmClear() {
-                document.getElementById('word-input').value = "";
-                localStorage.removeItem('e1_rapid_text');
-                this.updateCount();
-                this.closeClearModal();
-            }
-        };
-
-        window.onload = () => app.init();
-    </script>
-</body>
-</html>
+{
+  "version": "1.1.9",
+  "lastUpdated": "2026-02-24",
+  "metadata": {
+    "totalGames": 51,
+    "categories": [
+      "tool",
+      "game"
+    ],
+    "tags": [
+      "vocabulary",
+      "grammar",
+      "creative",
+      "interactive",
+      "classroom-management",
+      "spelling",
+      "reading",
+      "writing",
+      "teacher",
+      "teamwork",
+      "instruction",
+      "classroom management",
+      "quiz",
+      "activities",
+      "classroom",
+      "phonics",
+      "presentation"
+    ]
+  },
+  "games": [
+    {
+      "id": "actbank",
+      "title": "Activity Bank",
+      "category": "tool",
+      "path": "./act/index.html",
+      "icon": "database",
+      "color": "text-pink",
+      "description": "Classroom Activities",
+      "tags": [
+        "vocabulary",
+        "grammar",
+        "activities",
+        "classroom"
+      ],
+      "difficulty": "easy",
+      "ageRange": "Teacher",
+      "featured": true,
+      "active": true,
+      "guide": {
+        "short": "Select a the activity you want, check it and copy it to you lesson plan!",
+        "steps": [
+          "Find the activity based on the skills or type of activities.",
+          "Click the card to see the detail steps of the activities.",
+          "Use side panel to save the activity.",
+          "Copy the activity steps to your lesson plan."
+        ]
+      }
+    },
+    {
+      "id": "bingomaker",
+      "title": "Bingo Maker",
+      "category": "tool",
+      "path": "./bingo/index.html",
+      "icon": "grid-3x3",
+      "color": "text-orange",
+      "description": "Card Maker & Caller",
+      "tags": [
+        "vocabulary",
+        "interactive",
+        "materials",
+        "printable"
+      ],
+      "difficulty": "easy",
+      "ageRange": "6+",
+      "guide": {
+        "short": "Create printable and digital Bingo cards",
+        "steps": [
+          "Enter vocabulary words in setup",
+          "Generate cards for printing or digital play",
+          "Use Caller Mode to draw words for the class"
+        ]
+      },
+      "featured": true,
+      "active": true
+    },
+    {
+      "id": "cardmatch",
+      "title": "Card Match",
+      "category": "game",
+      "path": "./card-match/index.html",
+      "icon": "layers",
+      "color": "text-green",
+      "description": "Memory Game",
+      "tags": [
+        "vocabulary",
+        "memory",
+        "interactive"
+      ],
+      "difficulty": "medium",
+      "ageRange": "6+",
+      "guide": {
+        "short": "Memory matching card game",
+        "steps": [
+          "Create word pairs in setup",
+          "Flip cards to find matches",
+          "Remember card positions to win"
+        ]
+      },
+      "featured": true,
+      "active": true
+    },
+    {
+      "id": "card-maker",
+      "title": "Cards Maker",
+      "category": "tool",
+      "path": "./card-maker/index.html",
+      "icon": "layout",
+      "color": "text-blue",
+      "description": "Printable Cards",
+      "tags": [
+        "vocabulary",
+        "reading",
+        "creative",
+        "materials"
+      ],
+      "difficulty": "easy",
+      "ageRange": "6+",
+      "guide": {
+        "short": "Design and print custom flashcards",
+        "steps": [
+          "Select your grid layout (X and Y axis)",
+          "Upload images or type vocabulary words",
+          "Adjust theme colors and font sizes",
+          "Print to A4 with built-in cutting guides"
+        ]
+      },
+      "featured": true,
+      "active": true
+    },
+    {
+      "id": "classtally",
+      "title": "Class Tally",
+      "category": "tool",
+      "path": "./class-tally/index.html",
+      "icon": "star",
+      "color": "text-pink",
+      "description": "Behavior Tracker",
+      "tags": [
+        "classroom-management",
+        "behavior"
+      ],
+      "difficulty": "easy",
+      "ageRange": "6+",
+      "guide": {
+        "short": "Track student behavior with stars and warnings",
+        "steps": [
+          "Add student names in settings",
+          "Click names to add Stars or Warnings",
+          "Review behavior patterns over time"
+        ]
+      },
+      "featured": false,
+      "active": true
+    },
+    {
+      "id": "clockcalendar",
+      "title": "Clock",
+      "category": "tool",
+      "path": "./clock/index.html",
+      "icon": "clock",
+      "color": "text-orange",
+      "description": "Time & Calendar",
+      "tags": [
+        "classroom-management",
+        "time"
+      ],
+      "difficulty": "easy",
+      "ageRange": "6+",
+      "guide": {
+        "short": "Display time, calendar, and manage timers",
+        "steps": [
+          "Switch between clock, timer, stopwatch or calendar modes",
+          "Use the built-in stopwatch/timer for activities",
+          "Toggle Full Screen for better visibility"
+        ]
+      },
+      "featured": false,
+      "active": true
+    },
+    {
+      "id": "connect-four",
+      "title": "Connect Four",
+      "category": "game",
+      "path": "./connect-four/index.html",
+      "icon": "columns-4",
+      "color": "text-green",
+      "description": "Team Strategy",
+      "tags": [
+        "interactive",
+        "strategy",
+        "team-building",
+        "logic"
+      ],
+      "difficulty": "medium",
+      "ageRange": "6+",
+      "guide": {
+        "short": "Classic vertical strategy game for two teams.",
+        "steps": [
+          "Divide the class into Team Pink and Team Green.",
+          "Teams take turns choosing a column to drop their piece.",
+          "The first team to connect four pieces (horizontal, vertical, or diagonal) wins."
+        ]
+      },
+      "featured": true,
+      "active": true
+    },
+    {
+      "id": "crossword",
+      "title": "Crossword",
+      "category": "game",
+      "path": "./crossword/index.html",
+      "icon": "pencil",
+      "color": "text-blue",
+      "description": "Puzzle Maker",
+      "tags": [
+        "vocabulary",
+        "spelling",
+        "reading"
+      ],
+      "difficulty": "hard",
+      "ageRange": "10+",
+      "guide": {
+        "short": "Create and solve crossword puzzles",
+        "steps": [
+          "Enter words and clues in setup",
+          "Grid auto-generates puzzle layout",
+          "Solve by filling in correct answers"
+        ]
+      },
+      "featured": false,
+      "active": true
+    },
+    {
+      "id": "downtimescreen",
+      "title": "Downtime Screen",
+      "category": "tool",
+      "path": "./down-time-screen/index.html",
+      "icon": "brain-circuit",
+      "color": "text-pink",
+      "description": "Downtime management",
+      "tags": [
+        "vocabulary",
+        "instruction",
+        "classroom management"
+      ],
+      "difficulty": "easy",
+      "ageRange": "3-6",
+      "featured": true,
+      "active": true,
+      "guide": {
+        "short": "Simple instruction for children to follow during their down time.",
+        "steps": [
+          "Adjust the type of instruction on the bottom panel.",
+          "Click ready when you are ready with your class activity."
+        ]
+      }
+    },
+    {
+      "id": "fillit",
+      "title": "Fill in The Blank",
+      "category": "game",
+      "path": "./fill-it/index.html",
+      "icon": "edit-3",
+      "color": "text-orange",
+      "description": "Vocabulary Trainer",
+      "tags": [
+        "vocabulary",
+        "grammar"
+      ],
+      "difficulty": "easy",
+      "ageRange": "6+",
+      "featured": true,
+      "active": true,
+      "guide": {
+        "short": "Edit the questions in the setting and play!",
+        "steps": [
+          "Edit the questions in the setting to your liking, and save it.",
+          "Play the game as much as you like."
+        ]
+      }
+    },
+    {
+      "id": "word-flashcard",
+      "title": "Flashcards",
+      "category": "game",
+      "path": "./word-flashcard/index.html",
+      "icon": "copy",
+      "color": "text-green",
+      "description": "Review",
+      "tags": [
+        "vocabulary",
+        "reading"
+      ],
+      "difficulty": "easy",
+      "ageRange": "6+",
+      "guide": {
+        "short": "Digital flashcards for vocabulary",
+        "steps": [
+          "Add word pairs (front/back)",
+          "Click card to flip and reveal",
+          "Shuffle deck for random order"
+        ]
+      },
+      "featured": false,
+      "active": true
+    },
+    {
+      "id": "freezedance",
+      "title": "Freeze Dance",
+      "category": "game",
+      "path": "./freeze-dance/index.html",
+      "icon": "music",
+      "color": "text-blue",
+      "description": "Movement",
+      "tags": [
+        "interactive",
+        "physical",
+        "energy-break"
+      ],
+      "difficulty": "easy",
+      "ageRange": "6+",
+      "guide": {
+        "short": "Dance and freeze game with music",
+        "steps": [
+          "Click start to play music",
+          "Students dance while music plays",
+          "Freeze when music stops"
+        ]
+      },
+      "featured": false,
+      "active": true
+    },
+    {
+      "id": "guessemoji",
+      "title": "Guess the Emoji",
+      "category": "game",
+      "path": "./emoji-game/index.html",
+      "icon": "smile",
+      "color": "text-pink",
+      "description": "Emoji Quiz",
+      "tags": [
+        "vocabulary",
+        "creative",
+        "interactive"
+      ],
+      "difficulty": "medium",
+      "ageRange": "8+",
+      "guide": {
+        "short": "Guess phrases from emoji combinations",
+        "steps": [
+          "Look at the emoji sequence",
+          "Infer the phrase or saying",
+          "Type your answer to check"
+        ]
+      },
+      "featured": false,
+      "active": true
+    },
+    {
+      "id": "guesswho",
+      "title": "Guess Who?",
+      "category": "game",
+      "path": "./guess-who/index.html",
+      "icon": "scan-eye",
+      "color": "text-orange",
+      "description": "Character Deduction",
+      "tags": [
+        "vocabulary",
+        "speaking",
+        "interactive",
+        "logic"
+      ],
+      "difficulty": "medium",
+      "ageRange": "8+",
+      "guide": {
+        "short": "Deduce your opponent's secret character through questions",
+        "steps": [
+          "Pick your own secret identity from the grid",
+          "Ask Yes/No questions about physical traits (e.g., 'Do they have glasses?')",
+          "Click cards to flip them down if they don't match the answer",
+          "The last card standing on your board is your final guess"
+        ]
+      },
+      "featured": true,
+      "active": true
+    },
+    {
+      "id": "hangman",
+      "title": "Hangman",
+      "category": "game",
+      "path": "./hangman/index.html",
+      "icon": "skull",
+      "color": "text-green",
+      "description": "Vocab Game",
+      "tags": [
+        "vocabulary",
+        "spelling",
+        "interactive"
+      ],
+      "difficulty": "medium",
+      "ageRange": "8+",
+      "guide": {
+        "short": "Classic word guessing game",
+        "steps": [
+          "Teacher types secret word",
+          "Students guess letters one at a time",
+          "Solve before running out of tries"
+        ]
+      },
+      "featured": false,
+      "active": true
+    },
+    {
+      "id": "hotseat",
+      "title": "Hot Seat",
+      "category": "game",
+      "path": "./hot-seat/index.html",
+      "icon": "flame",
+      "color": "text-blue",
+      "description": "Guessing",
+      "tags": [
+        "vocabulary",
+        "speaking",
+        "interactive"
+      ],
+      "difficulty": "medium",
+      "ageRange": "8+",
+      "guide": {
+        "short": "Vocabulary guessing game",
+        "steps": [
+          "One student sits facing away from board",
+          "Class gives clues about the word",
+          "Student guesses the word"
+        ]
+      },
+      "featured": true,
+      "active": true
+    },
+    {
+      "id": "labelblitz",
+      "title": "Label Blitz",
+      "category": "game",
+      "path": "./label-blitz/index.html",
+      "icon": "zap",
+      "color": "text-pink",
+      "description": "Find it and Label it",
+      "tags": [
+        "vocabulary",
+        "grammar",
+        "instruction"
+      ],
+      "difficulty": "hard",
+      "ageRange": "10+",
+      "featured": true,
+      "active": true,
+      "guide": {
+        "short": "Display a prompt and student look for the object and label it.",
+        "steps": [
+          "Gives each student/team a label.",
+          "Display the prompt and adjust the time.",
+          "Student race to find the item and label it."
+        ]
+      }
+    },
+    {
+      "id": "findball",
+      "title": "Magic Cups",
+      "category": "game",
+      "path": "./find-the-ball/index.html",
+      "icon": "help-circle",
+      "color": "text-orange",
+      "description": "Find the hidden ball",
+      "tags": [
+        "interactive",
+        "memory"
+      ],
+      "difficulty": "medium",
+      "ageRange": "6+",
+      "guide": {
+        "short": "Classic cup and ball game",
+        "steps": [
+          "Watch cups shuffle carefully",
+          "Track the ball location",
+          "Pick the correct cup to win"
+        ]
+      },
+      "featured": false,
+      "active": true
+    },
+    {
+      "id": "simon-memory",
+      "title": "Memory Block",
+      "category": "game",
+      "path": "./memory-block/index.html",
+      "icon": "brain-circuit",
+      "color": "text-green",
+      "description": "Pattern Challenge",
+      "tags": [
+        "memory",
+        "vocabulary",
+        "interactive",
+        "listening"
+      ],
+      "difficulty": "medium",
+      "ageRange": "6+",
+      "guide": {
+        "short": "Watch, listen, and repeat the pattern sequence.",
+        "steps": [
+          "Watch the sequence of lights and sounds carefully.",
+          "Repeat the pattern exactly by clicking the colored pads.",
+          "Use Setup to customize pads with vocabulary words or images."
+        ]
+      },
+      "featured": true,
+      "active": true
+    },
+    {
+      "id": "cardmemory",
+      "title": "Memory Card",
+      "category": "game",
+      "path": "./card-memory/index.html",
+      "icon": "shapes",
+      "color": "text-blue",
+      "description": "Memorize the cards.",
+      "tags": [
+        "vocabulary"
+      ],
+      "difficulty": "easy",
+      "ageRange": "6+",
+      "featured": true,
+      "active": true,
+      "guide": {
+        "short": "Display the cards, give the time to memorize and the student has to name all of the card.",
+        "steps": [
+          "Input the cards word/image.",
+          "Show the cards to the student, and give time for them to memorize.",
+          "Hide the card and have student name all of them."
+        ]
+      }
+    },
+    {
+      "id": "lessonnotes",
+      "title": "Notes",
+      "category": "tool",
+      "path": "./lesson-note/index.html",
+      "icon": "notebook-pen",
+      "color": "text-pink",
+      "description": "Lesson Plans",
+      "tags": [
+        "classroom-management",
+        "planning"
+      ],
+      "difficulty": "easy",
+      "ageRange": "teacher",
+      "guide": {
+        "short": "Write and save lesson notes",
+        "steps": [
+          "Type your lesson notes and plans",
+          "Content auto-saves to browser storage",
+          "Access notes anytime from any device"
+        ]
+      },
+      "featured": false,
+      "active": true
+    },
+    {
+      "id": "poster",
+      "title": "Poster Display",
+      "category": "tool",
+      "path": "./poster/index.html",
+      "icon": "library",
+      "color": "text-orange",
+      "description": "Word Bank & Posters",
+      "tags": [
+        "vocabulary",
+        "visual",
+        "classroom-management",
+        "teaching"
+      ],
+      "difficulty": "easy",
+      "ageRange": "teacher",
+      "guide": {
+        "short": "Digital word banks and poster display system",
+        "steps": [
+          "Create and organize vocabulary topic decks",
+          "Upload and display classroom posters in high quality",
+          "Use Focus Mode for distraction-free teaching"
+        ]
+      },
+      "featured": true,
+      "active": true
+    },
+    {
+      "id": "poster-studio",
+      "title": "Poster Studio",
+      "category": "tool",
+      "path": "./poster-studio/index.html",
+      "icon": "brush",
+      "color": "text-green",
+      "description": "Create and modified poster.",
+      "tags": [
+        "vocabulary",
+        "creative",
+        "grammar"
+      ],
+      "difficulty": "easy",
+      "ageRange": "Teacher",
+      "featured": true,
+      "active": true,
+      "guide": {
+        "short": "Open the poster Studio, add modules and fill them with information you like.",
+        "steps": [
+          "Click one of the modules you want.",
+          "Edit the modules layout.",
+          "Print the modules to save."
+        ]
+      }
+    },
+    {
+      "id": "puzzlemaker",
+      "title": "Puzzle Maker",
+      "category": "game",
+      "path": "./puzzle-maker/index.html",
+      "icon": "puzzle",
+      "color": "text-blue",
+      "description": "Image Jigsaw",
+      "tags": [
+        "visual",
+        "problem-solving",
+        "printable"
+      ],
+      "difficulty": "easy",
+      "ageRange": "5+",
+      "guide": {
+        "short": "Turn any image into a puzzle",
+        "steps": [
+          "Upload an image from your device",
+          "Choose grid size (Easy, Mid, Hard)",
+          "Play on screen or print as worksheet"
+        ]
+      },
+      "featured": true,
+      "active": true
+    },
+    {
+      "id": "quizblock",
+      "title": "Quiz Block",
+      "category": "game",
+      "path": "./quiz-block/index.html",
+      "icon": "book-open",
+      "color": "text-pink",
+      "description": "Blocks and Questions.",
+      "tags": [
+        "vocabulary",
+        "grammar",
+        "quiz"
+      ],
+      "difficulty": "medium",
+      "ageRange": "7+",
+      "featured": true,
+      "active": true,
+      "guide": {
+        "short": "Open the quiz, filled in the blocks, and play!",
+        "steps": [
+          "Fill in the blocks by entering the edit mode.",
+          "Students get to pick one block and are given 15 seconds to answer the questions.",
+          "Team/Student with the most score win."
+        ]
+      }
+    },
+    {
+      "id": "reveal-picture-game",
+      "title": "Reveal Pic",
+      "category": "game",
+      "path": "./reveal-picture-game/index.html",
+      "icon": "image",
+      "color": "text-orange",
+      "description": "Image Guess",
+      "tags": [
+        "vocabulary",
+        "interactive"
+      ],
+      "difficulty": "easy",
+      "ageRange": "6+",
+      "guide": {
+        "short": "Guess image as tiles are revealed",
+        "steps": [
+          "Upload or select an image",
+          "Click tiles to reveal parts of image",
+          "Guess what the image shows"
+        ]
+      },
+      "featured": false,
+      "active": true
+    },
+    {
+      "id": "role-and-speak",
+      "title": "Role & Speak",
+      "icon": "dices",
+      "color": "text-green",
+      "path": "./role-and-speak/index.html",
+      "category": "game",
+      "difficulty": "medium",
+      "tags": [
+        "dice",
+        "grammar",
+        "vocabulary",
+        "sentence-building",
+        "rounds"
+      ],
+      "description": "Roll a dice and make a sentence",
+      "guide": {
+        "short": "Roll dice to generate sentence challenges",
+        "steps": [
+          "Roll the dice to get a number",
+          "Student must complete the corresponding task",
+          "Pass the dice to the next student"
+        ]
+      },
+      "featured": false,
+      "active": true
+    },
+    {
+      "id": "scoreboard",
+      "title": "Scoreboard",
+      "category": "tool",
+      "path": "./scorecounter/index.html",
+      "icon": "trophy",
+      "color": "text-blue",
+      "description": "Track Points",
+      "tags": [
+        "classroom-management",
+        "gamification"
+      ],
+      "difficulty": "easy",
+      "ageRange": "6+",
+      "guide": {
+        "short": "Track team scores and points",
+        "steps": [
+          "Add teams through the team name box",
+          "Tap numbers or +/- buttons to adjust scores",
+          "Reset scores when starting new rounds"
+        ]
+      },
+      "featured": true,
+      "active": true
+    },
+    {
+      "id": "scrambler",
+      "title": "Scrambler",
+      "category": "tool",
+      "path": "./word-scrambler/index.html",
+      "icon": "shuffle",
+      "color": "text-pink",
+      "description": "Word Mixer",
+      "tags": [
+        "spelling",
+        "vocabulary"
+      ],
+      "difficulty": "easy",
+      "ageRange": "6+",
+      "guide": {
+        "short": "Scramble words for spelling practice",
+        "steps": [
+          "Enter a word to scramble",
+          "Display shows mixed-up letters",
+          "Students unscramble to find the word"
+        ]
+      },
+      "featured": false,
+      "active": true
+    },
+    {
+      "id": "secret-code",
+      "title": "Secret Code",
+      "category": "game",
+      "path": "./secret-code/index.html",
+      "icon": "lock-keyhole",
+      "color": "text-orange",
+      "description": "Decryption",
+      "tags": [
+        "spelling",
+        "reading",
+        "creative"
+      ],
+      "difficulty": "medium",
+      "ageRange": "8+",
+      "guide": {
+        "short": "Encode and decode messages",
+        "steps": [
+          "Type message to encode",
+          "Display cipher key to students",
+          "Students decode the secret message"
+        ]
+      },
+      "featured": false,
+      "active": true
+    },
+    {
+      "id": "sentence-unscrambler",
+      "title": "Sentence Fix",
+      "category": "game",
+      "path": "./sentence-unscrambler/index.html",
+      "icon": "align-left",
+      "color": "text-green",
+      "description": "Grammar Order",
+      "tags": [
+        "grammar",
+        "reading",
+        "interactive"
+      ],
+      "difficulty": "medium",
+      "ageRange": "8+",
+      "guide": {
+        "short": "Rearrange words to form sentences",
+        "steps": [
+          "Enter a sentence",
+          "Words are shuffled randomly",
+          "Drag words to correct order"
+        ]
+      },
+      "featured": false,
+      "active": true
+    },
+    {
+      "id": "random-card-shuffle",
+      "title": "Shuffle",
+      "category": "game",
+      "path": "./random-card-shuffle/index.html",
+      "icon": "box",
+      "color": "text-blue",
+      "description": "Utility",
+      "tags": [
+        "randomizer"
+      ],
+      "difficulty": "easy",
+      "ageRange": "6+",
+      "guide": {
+        "short": "Shuffle and randomize lists",
+        "steps": [
+          "Enter list of items",
+          "Click shuffle to randomize",
+          "Use for ordering or selection"
+        ]
+      },
+      "featured": false,
+      "active": true
+    },
+    {
+      "id": "presentations",
+      "title": "Slides",
+      "category": "tool",
+      "path": "./presentation-maker/index.html",
+      "icon": "monitor-play",
+      "color": "text-pink",
+      "description": "Quick Slides",
+      "tags": [
+        "presentation",
+        "teaching"
+      ],
+      "difficulty": "easy",
+      "ageRange": "teacher",
+      "guide": {
+        "short": "Create simple text presentations",
+        "steps": [
+          "Write slide content in text area",
+          "Use ':' to separate slides",
+          "Present in fullscreen mode"
+        ]
+      },
+      "featured": false,
+      "active": true
+    },
+    {
+      "id": "smart-dictionary",
+      "title": "Smart Dictionary",
+      "category": "tool",
+      "path": "./dictionary/index.html",
+      "icon": "book-a",
+      "color": "text-orange",
+      "description": "Interactive Dictionary",
+      "tags": [
+        "vocabulary",
+        "reference",
+        "tool",
+        "interactive"
+      ],
+      "difficulty": "easy",
+      "ageRange": "6+",
+      "guide": {
+        "short": "Search, learn, and collect vocabulary words",
+        "steps": [
+          "Type a word to find its meaning and pronunciation",
+          "Save words to your personal collection",
+          "Use Teacher Tools to quickly add category sets"
+        ]
+      },
+      "featured": true,
+      "active": true
+    },
+    {
+      "id": "speedyslides",
+      "title": "Speedy Slides",
+      "category": "game",
+      "path": "./presentation-maker/simple/index.html",
+      "icon": "monitor",
+      "color": "text-green",
+      "description": "Quick Slides Maker",
+      "tags": [
+        "presentation",
+        "teacher"
+      ],
+      "difficulty": "easy",
+      "ageRange": "Teacher",
+      "featured": true,
+      "active": true,
+      "guide": {
+        "short": "Put your slides in separated lines or separated by semi colon, and press play.",
+        "steps": [
+          "Put the word or sentences you want, separated by lines or semi colon.",
+          "Press play or shuffle play to randomize.",
+          "Click the slides or the arrow button to navigate."
+        ]
+      }
+    },
+    {
+      "id": "spellit",
+      "title": "Spell It",
+      "category": "game",
+      "path": "./spell-the-word/index.html",
+      "icon": "spell-check",
+      "color": "text-blue",
+      "description": "Spelling Game",
+      "tags": [
+        "vocabulary",
+        "phonics",
+        "spelling"
+      ],
+      "difficulty": "easy",
+      "ageRange": "4+",
+      "featured": true,
+      "active": true,
+      "guide": {
+        "short": "Input the words you want the player to spell. Player click the letter to spell the word.",
+        "steps": [
+          "Input the words you want the students to spell in the setting.",
+          "Click save list to save.",
+          "Students pick the letters to spell."
+        ]
+      }
+    },
+    {
+      "id": "spinwheel",
+      "title": "Spin Wheel",
+      "category": "tool",
+      "path": "./spin-the-wheel/index.html",
+      "icon": "pie-chart",
+      "color": "text-pink",
+      "description": "Randomizer",
+      "tags": [
+        "randomizer",
+        "interactive"
+      ],
+      "difficulty": "easy",
+      "ageRange": "6+",
+      "guide": {
+        "short": "Spin wheel to make random selections",
+        "steps": [
+          "Edit and customize wheel segments",
+          "Click center to spin",
+          "Use for random selection or decision making"
+        ]
+      },
+      "featured": true,
+      "active": true
+    },
+    {
+      "id": "stopthebus",
+      "title": "Stop the Bus",
+      "category": "game",
+      "path": "./stop-the-bus/index.html",
+      "icon": "languages",
+      "color": "text-orange",
+      "description": "Vocabulary Race.",
+      "tags": [
+        "vocabulary",
+        "teamwork"
+      ],
+      "difficulty": "medium",
+      "ageRange": "10+",
+      "featured": true,
+      "active": true,
+      "guide": {
+        "short": "Click the letter spinner, and select a timer and the student writes down one word based on the letter of each category.",
+        "steps": [
+          "Adjust the categories to your liking.",
+          "Click the letter spinner.",
+          "Adjust the timer for the student.",
+          "Student writes down one word for each category."
+        ]
+      }
+    },
+    {
+      "id": "storydice",
+      "title": "Story Dice",
+      "category": "game",
+      "path": "./story-dice/index.html",
+      "icon": "dices",
+      "color": "text-green",
+      "description": "Story Prompts",
+      "tags": [
+        "creative",
+        "writing",
+        "speaking"
+      ],
+      "difficulty": "medium",
+      "ageRange": "8+",
+      "guide": {
+        "short": "Generate story prompts with dice",
+        "steps": [
+          "Click roll to generate random icons",
+          "Use icons as story prompts",
+          "Create stories including all elements"
+        ]
+      },
+      "featured": false,
+      "active": true
+    },
+    {
+      "id": "story-ordering",
+      "title": "Story Order",
+      "category": "game",
+      "path": "./story-ordering/index.html",
+      "icon": "book-open",
+      "color": "text-blue",
+      "description": "Logic Sort",
+      "tags": [
+        "reading",
+        "grammar",
+        "interactive"
+      ],
+      "difficulty": "hard",
+      "ageRange": "10+",
+      "guide": {
+        "short": "Arrange story parts in correct sequence",
+        "steps": [
+          "Input story paragraphs or sentences",
+          "Paragraphs are shuffled",
+          "Drag blocks to correct story order"
+        ]
+      },
+      "featured": false,
+      "active": true
+    },
+    {
+      "id": "taskassigner",
+      "title": "Task Assigner",
+      "category": "tool",
+      "path": "./task-assigner/index.html",
+      "icon": "clipboard-list",
+      "color": "text-pink",
+      "description": "Assign Roles",
+      "tags": [
+        "classroom-management",
+        "randomizer"
+      ],
+      "difficulty": "easy",
+      "ageRange": "6+",
+      "guide": {
+        "short": "Randomly assign tasks to students",
+        "steps": [
+          "Enter list of student names",
+          "Enter list of tasks or roles",
+          "Click assign to randomly pair students with tasks"
+        ]
+      },
+      "featured": false,
+      "active": true
+    },
+    {
+      "id": "teampicker",
+      "title": "Team Picker",
+      "category": "tool",
+      "path": "./team-picker/index.html",
+      "icon": "users",
+      "color": "text-orange",
+      "description": "Random Groups",
+      "tags": [
+        "classroom-management",
+        "randomizer"
+      ],
+      "difficulty": "easy",
+      "ageRange": "6+",
+      "guide": {
+        "short": "Randomly divide students into teams",
+        "steps": [
+          "Paste list of student names",
+          "Choose number of teams needed",
+          "Click 'Pick Teams' to randomize groups"
+        ]
+      },
+      "featured": true,
+      "active": true
+    },
+    {
+      "id": "this-or-that",
+      "title": "This or That",
+      "icon": "move-horizontal",
+      "color": "text-green",
+      "path": "./this-or-that/index.html",
+      "category": "game",
+      "difficulty": "easy",
+      "tags": [
+        "movement",
+        "speaking",
+        "icebreaker",
+        "warm-up"
+      ],
+      "description": "Pick your side.",
+      "guide": {
+        "short": "Movement based choice game",
+        "steps": [
+          "Present two options to the class",
+          "Students move to left or right to vote",
+          "Discuss reasons for their choice"
+        ]
+      },
+      "featured": false,
+      "active": true
+    },
+    {
+      "id": "tictactoe",
+      "title": "Tic-Tac-Toe",
+      "category": "game",
+      "path": "./tic-tac-toe/index.html",
+      "icon": "grid-3x3",
+      "color": "text-blue",
+      "description": "Strategy Game",
+      "tags": [
+        "interactive",
+        "strategy"
+      ],
+      "difficulty": "medium",
+      "ageRange": "6+",
+      "guide": {
+        "short": "Connect marks to win",
+        "steps": [
+          "Select grid size in settings",
+          "Players take turns placing marks",
+          "Connect marks horizontally or vertically to win"
+        ]
+      },
+      "featured": false,
+      "active": true
+    },
+    {
+      "id": "undercover",
+      "title": "Undercover",
+      "category": "game",
+      "path": "./undercover/index.html",
+      "icon": "ghost",
+      "color": "text-pink",
+      "description": "Deduction Game",
+      "tags": [
+        "vocabulary",
+        "speaking",
+        "logic",
+        "interactive"
+      ],
+      "difficulty": "hard",
+      "ageRange": "10+",
+      "guide": {
+        "short": "Deduction game to find hidden impostors among students",
+        "steps": [
+          "Add player names and select role distribution",
+          "Pass the device to each student to reveal their secret role",
+          "Each student describes their word in one English sentence",
+          "Vote to eliminate suspects; Mr. White gets one guess to steal the win"
+        ]
+      },
+      "featured": true,
+      "active": true
+    },
+    {
+      "id": "unscramble",
+      "title": "Unscramble",
+      "category": "game",
+      "path": "./unscramble/index.html",
+      "icon": "type",
+      "color": "text-orange",
+      "description": "Spelling Fix",
+      "tags": [
+        "spelling",
+        "vocabulary"
+      ],
+      "difficulty": "medium",
+      "ageRange": "8+",
+      "guide": {
+        "short": "Unscramble mixed-up words",
+        "steps": [
+          "Add vocabulary words to list",
+          "Words appear scrambled",
+          "Type correct spelling to solve"
+        ]
+      },
+      "featured": false,
+      "active": true
+    },
+    {
+      "id": "whiteboard",
+      "title": "Whiteboard",
+      "category": "tool",
+      "path": "./whiteboard/index.html",
+      "icon": "pen-tool",
+      "color": "text-green",
+      "description": "Draw & Explain",
+      "tags": [
+        "classroom-management",
+        "drawing",
+        "creative"
+      ],
+      "difficulty": "easy",
+      "ageRange": "6+",
+      "guide": {
+        "short": "Digital whiteboard for drawing and explaining",
+        "steps": [
+          "Select colors from the toolbar",
+          "Click the undo button to reverse actions",
+          "Use trash icon to erase the entire board"
+        ]
+      },
+      "featured": true,
+      "active": true
+    },
+    {
+      "id": "worddisplay",
+      "title": "Word Display",
+      "category": "game",
+      "path": "./random-word-display/index.html",
+      "icon": "tv",
+      "color": "text-blue",
+      "description": "Flash Words",
+      "tags": [
+        "vocabulary",
+        "reading"
+      ],
+      "difficulty": "easy",
+      "ageRange": "6+",
+      "guide": {
+        "short": "Display words one at a time",
+        "steps": [
+          "Paste list of words",
+          "Words display one by one",
+          "Use for flashcard-style practice"
+        ]
+      },
+      "featured": false,
+      "active": true
+    },
+    {
+      "id": "wordlist",
+      "title": "Word List",
+      "category": "tool",
+      "path": "./random-word-list/index.html",
+      "icon": "list",
+      "color": "text-pink",
+      "description": "Random Picker",
+      "tags": [
+        "vocabulary",
+        "randomizer"
+      ],
+      "difficulty": "easy",
+      "ageRange": "6+",
+      "guide": {
+        "short": "Randomly select from a list",
+        "steps": [
+          "Input words, names, or items",
+          "Click generate to pick randomly",
+          "Use for selecting students or vocabulary"
+        ]
+      },
+      "featured": false,
+      "active": true
+    },
+    {
+      "id": "word-rush",
+      "title": "Word Rush",
+      "category": "game",
+      "path": "./word-rush/index.html",
+      "icon": "zap",
+      "color": "text-orange",
+      "description": "Vocabulary Race",
+      "tags": [
+        "vocabulary",
+        "speaking",
+        "interactive",
+        "gamification"
+      ],
+      "difficulty": "medium",
+      "ageRange": "8+",
+      "guide": {
+        "short": "Race against time to name words by letter",
+        "steps": [
+          "Select a category and set the turn timer",
+          "Tap a letter and say a matching word",
+          "Pass the turn quickly before time runs out"
+        ]
+      },
+      "featured": true,
+      "active": true
+    },
+    {
+      "id": "wordsearch",
+      "title": "Word Search",
+      "category": "game",
+      "path": "./word-search/index.html",
+      "icon": "grid",
+      "color": "text-green",
+      "description": "Find Words",
+      "tags": [
+        "vocabulary",
+        "spelling",
+        "reading"
+      ],
+      "difficulty": "medium",
+      "ageRange": "8+",
+      "guide": {
+        "short": "Find hidden words in letter grid",
+        "steps": [
+          "Enter vocabulary words to hide",
+          "Words are hidden in the grid",
+          "Click and drag to highlight found words"
+        ]
+      },
+      "featured": true,
+      "active": true
+    }
+  ]
+}
