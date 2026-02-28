@@ -66,7 +66,8 @@ const State = {
       if (game.active === false) return false;
 
       const { category, searchTerm, difficulty, tags } = this.filters;
-      const matchesCategory = category === 'all' || game.category === category;
+      const matchesCategory = category === 'all' ||
+        (category === 'featured' ? game.featured === true : game.category === category);
       const matchesDifficulty = difficulty === 'all' || !game.difficulty || game.difficulty === difficulty;
 
       const searchLower = searchTerm.toLowerCase();
@@ -403,6 +404,16 @@ const Filters = {
   setSearch: Utils.debounce(function (term) {
     State.filters.searchTerm = term.toLowerCase();
     GameGrid.render();
+
+    // Toggle clear search button visibility
+    const clearBtn = document.getElementById('clear-search-btn');
+    if (clearBtn) {
+      if (term.trim() !== '') {
+        clearBtn.classList.remove('hidden');
+      } else {
+        clearBtn.classList.add('hidden');
+      }
+    }
   }, CONFIG.debounceDelay),
 
   updateUI() {
@@ -859,6 +870,15 @@ const Search = {
     const input = document.getElementById('search-input');
     if (!input) return;
     input.addEventListener('input', (e) => Filters.setSearch(e.target.value));
+  },
+
+  clear() {
+    const input = document.getElementById('search-input');
+    if (input) {
+      input.value = '';
+      Filters.setSearch('');
+      input.focus();
+    }
   }
 };
 
@@ -977,6 +997,7 @@ const App = {
       toggleInfo: () => GameModal.toggleInfo(),
       filterGames: (param) => Filters.setCategory(param),
       clearRecent: () => RecentGames.clear(),
+      clearSearch: () => Search.clear(),
       openFeedback: () => window.open(CONFIG.helpUrl, '_blank')
     };
 
