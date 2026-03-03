@@ -429,6 +429,72 @@
             background-color: #334155 !important;
         }
 
+        /* ===== PRINT / PDF STYLES ===== */
+        #print-container {
+            background-color: white !important;
+            color: black !important;
+            padding: 40px !important;
+            font-family: 'Nunito', sans-serif !important;
+        }
+
+        #print-container * {
+            color: black !important;
+            background-color: transparent !important;
+            border-color: black !important;
+        }
+
+        #print-body table {
+            border-collapse: collapse !important;
+            width: 100% !important;
+            margin: 20px 0 !important;
+            border: 2pt solid black !important;
+        }
+
+        #print-body td,
+        #print-body th {
+            border: 1pt solid black !important;
+            padding: 8pt !important;
+            text-align: left !important;
+        }
+
+        #print-body img {
+            max-width: 100% !important;
+            height: auto !important;
+            margin: 10px 0 !important;
+            border-radius: 8px !important;
+        }
+
+        /* Checklist PDF rendering */
+        #print-body .ql-ui {
+            display: none !important;
+        }
+
+        #print-body li[data-list="checked"],
+        #print-body li[data-list="unchecked"] {
+            list-style-type: none !important;
+            position: relative !important;
+            padding-left: 25px !important;
+        }
+
+        #print-body li[data-list="unchecked"]::before {
+            content: "☐" !important;
+            position: absolute !important;
+            left: 0 !important;
+            font-size: 1.2em !important;
+        }
+
+        #print-body li[data-list="checked"]::before {
+            content: "☑" !important;
+            position: absolute !important;
+            left: 0 !important;
+            font-size: 1.2em !important;
+        }
+
+        #print-body li[data-list="checked"] {
+            text-decoration: line-through !important;
+            opacity: 0.7 !important;
+        }
+
         html.dark .ql-toolbar.ql-snow {
             background: #1e293b;
             border-color: #475569 !important;
@@ -1165,6 +1231,25 @@
             return html;
         }
 
+        async function resolveImagesToBase64(html) {
+            const regex = /idb:\/\/([\w_-]+)/g;
+            let m;
+            const replacements = [];
+            while ((m = regex.exec(html)) !== null) {
+                try {
+                    const data = await getImage(m[1]);
+                    if (data) {
+                        const b64 = arrayBufferToBase64(data.data);
+                        replacements.push({ from: `idb://${m[1]}`, to: `data:${data.type};base64,${b64}` });
+                    }
+                } catch (e) { console.warn('PDF image resolve fail', m[1]); }
+            }
+            for (const { from, to } of replacements) {
+                html = html.split(from).join(to);
+            }
+            return html;
+        }
+
         // ===== TABLE HANDLING =====
         function openTableDialog() {
             document.getElementById('tableDialog').classList.remove('hidden');
@@ -1536,16 +1621,40 @@
             lucide.createIcons();
         }
 
-        function exportPDF() {
+        async function exportPDF() {
             const note = notes.find(n => n.id === currentNoteId);
             if (!note) return;
-            const printEl = document.getElementById('print-container');
-            document.getElementById('print-title').textContent = note.title || 'Untitled Lesson';
-            document.getElementById('print-date').textContent = new Date().toLocaleDateString();
-            document.getElementById('print-body').innerHTML = note.content;
-            printEl.classList.remove('hidden');
-            const opt = { margin: 0.5, filename: `${(note.title || 'lesson-note').replace(/\s+/g, '_')}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' } };
-            html2pdf().set(opt).from(printEl).save().then(() => { printEl.classList.add('hidden'); });
+
+            const status = document.getElementById('statusText');
+            if (status) status.textContent = 'Generating PDF...';
+
+            try {
+                const printEl = document.getElementById('print-container');
+                document.getElementById('print-title').textContent = note.title || 'Untitled Lesson';
+                document.getElementById('print-date').textContent = new Date().toLocaleDateString();
+
+                // Resolve all images to base64 for PDF reliability
+                const resolvedHtml = await resolveImagesToBase64(note.content);
+                document.getElementById('print-body').innerHTML = resolvedHtml;
+
+                printEl.classList.remove('hidden');
+
+                const opt = {
+                    margin: 0.5,
+                    filename: `${(note.title || 'lesson-note').replace(/\s+/g, '_')}.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true, logging: false },
+                    jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+                };
+
+                await html2pdf().set(opt).from(printEl).save();
+                printEl.classList.add('hidden');
+                if (status) status.textContent = 'PDF Saved';
+            } catch (err) {
+                console.error('PDF Export Error:', err);
+                alert('Failed to generate PDF. Please try again.');
+                if (status) status.textContent = 'PDF Failed';
+            }
         }
 
         function showModal(title, desc, confirmText, iconName) {
