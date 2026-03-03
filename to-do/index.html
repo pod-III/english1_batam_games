@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fahrul's Tasks - English 1 Batam</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300..700&family=Nunito:wght@400;700&display=swap"
+        rel="stylesheet">
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        heading: ['Fredoka', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                    },
+                    colors: {
+                        e1pink: '#FF6B95',
+                        e1orange: '#FF8C42',
+                        e1green: '#00E676',
+                        e1blue: '#2979FF',
+                        e1dark: '#1e293b',
+                        e1chalk: '#f8fafc',
+                    },
+                    boxShadow: {
+                        'neo': '4px 4px 0px 0px rgba(30, 41, 59, 1)',
+                        'neo-sm': '2px 2px 0px 0px rgba(30, 41, 59, 1)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Utilities for Interactive Elements */
+        .btn-neo {
+            transition: all 0.1s ease;
+        }
+
+        .btn-neo:active {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px 0px rgba(30, 41, 59, 1);
+        }
+
+        .btn-neo:hover {
+            transform: translate(-1px, -1px);
+            box-shadow: 5px 5px 0px 0px rgba(30, 41, 59, 1);
+        }
+    </style>
+</head>
+
+<body class="bg-e1chalk text-e1dark font-body min-h-screen p-4 md:p-8 transition-colors duration-300">
+
+    <main class="max-w-2xl mx-auto space-y-8">
+
+        <header
+            class="bg-e1pink border-4 border-e1dark rounded-2xl p-6 shadow-neo text-center relative overflow-hidden">
+            <h1 class="font-heading text-4xl md:text-5xl font-bold text-white drop-shadow-md mb-2">My Tasks</h1>
+            <p class="font-heading text-white text-lg opacity-90">Stay organized, keep coding.</p>
+
+            <button onclick="toggleTheme()"
+                class="absolute top-4 right-4 bg-white p-2 rounded-xl border-2 border-e1dark shadow-neo btn-neo text-e1dark">
+                <i data-lucide="moon" class="w-6 h-6"></i>
+            </button>
+        </header>
+
+        <div class="bg-white border-4 border-e1dark rounded-2xl p-6 shadow-neo flex flex-col md:flex-row gap-4">
+            <input type="text" id="todoInput" placeholder="What needs to be done?"
+                class="flex-1 bg-e1chalk border-2 border-e1dark rounded-xl px-4 py-3 text-lg focus:outline-none focus:ring-4 focus:ring-e1blue/30 font-bold placeholder-gray-400">
+            <button onclick="addTodo()"
+                class="bg-e1green text-white font-heading font-bold text-xl px-8 py-3 rounded-xl border-2 border-e1dark shadow-neo btn-neo flex items-center justify-center gap-2">
+                <i data-lucide="plus-circle"></i> Add
+            </button>
+        </div>
+
+        <div class="flex flex-wrap justify-between items-center gap-4">
+            <div class="flex gap-2">
+                <button onclick="filterTasks('all')"
+                    class="px-4 py-2 rounded-xl border-2 border-e1dark font-heading font-bold bg-white shadow-neo-sm btn-neo hover:bg-e1blue hover:text-white transition-colors">All</button>
+                <button onclick="filterTasks('active')"
+                    class="px-4 py-2 rounded-xl border-2 border-e1dark font-heading font-bold bg-white shadow-neo-sm btn-neo hover:bg-e1orange hover:text-white transition-colors">Active</button>
+                <button onclick="filterTasks('completed')"
+                    class="px-4 py-2 rounded-xl border-2 border-e1dark font-heading font-bold bg-white shadow-neo-sm btn-neo hover:bg-e1green hover:text-white transition-colors">Done</button>
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="exportTasks()" title="Download JSON"
+                    class="p-3 bg-e1orange text-white rounded-xl border-2 border-e1dark shadow-neo-sm btn-neo">
+                    <i data-lucide="download"></i>
+                </button>
+                <label
+                    class="p-3 bg-e1blue text-white rounded-xl border-2 border-e1dark shadow-neo-sm btn-neo cursor-pointer">
+                    <i data-lucide="upload"></i>
+                    <input type="file" id="importFile" class="hidden" accept=".json" onchange="importTasks(this)">
+                </label>
+            </div>
+        </div>
+
+        <ul id="todoList" class="space-y-4">
+        </ul>
+
+        <div id="emptyState" class="hidden text-center py-12">
+            <div class="inline-block p-4 rounded-full bg-e1chalk border-4 border-e1dark mb-4">
+                <i data-lucide="coffee" class="w-12 h-12 text-e1dark"></i>
+            </div>
+            <h3 class="font-heading text-2xl font-bold">All caught up!</h3>
+            <p class="text-gray-500">Time for some chess or debugging.</p>
+        </div>
+
+    </main>
+
+    <script>
+        // --- State Management ---
+        let todos = JSON.parse(localStorage.getItem('english1_todos')) || [];
+        let currentFilter = 'all';
+
+        // --- DOM Elements ---
+        const listEl = document.getElementById('todoList');
+        const inputEl = document.getElementById('todoInput');
+        const emptyStateEl = document.getElementById('emptyState');
+
+        // --- Core Functions ---
+
+        function save() {
+            localStorage.setItem('english1_todos', JSON.stringify(todos));
+            render();
+        }
+
+        function addTodo() {
+            const text = inputEl.value.trim();
+            if (!text) return;
+
+            const newTodo = {
+                id: Date.now(),
+                text: text,
+                completed: false,
+                createdAt: new Date().toISOString()
+            };
+
+            todos.unshift(newTodo);
+            inputEl.value = '';
+            save();
+        }
+
+        function toggleTodo(id) {
+            todos = todos.map(t => t.id === id ? { ...t, completed: !t.completed } : t);
+            save();
+        }
+
+        function deleteTodo(id) {
+            todos = todos.filter(t => t.id !== id);
+            save();
+        }
+
+        function filterTasks(filterType) {
+            currentFilter = filterType;
+            render();
+        }
+
+        // --- Import / Export ---
+
+        function exportTasks() {
+            const dataStr = JSON.stringify(todos, null, 2);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `tasks_backup_${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function importTasks(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (Array.isArray(imported)) {
+                        // Merge strategy: Add imported tasks to top, remove duplicates by ID
+                        const currentIds = new Set(todos.map(t => t.id));
+                        const newTasks = imported.filter(t => !currentIds.has(t.id));
+                        todos = [...newTasks, ...todos];
+                        save();
+                        alert(`Successfully imported ${newTasks.length} tasks!`);
+                    } else {
+                        alert("Invalid file format.");
+                    }
+                } catch (err) {
+                    alert("Error reading file.");
+                }
+            };
+            reader.readAsText(file);
+            // Reset input so same file can be selected again if needed
+            input.value = '';
+        }
+
+        // --- Dark Mode ---
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+            const isDark = document.documentElement.classList.contains('dark');
+            const body = document.body;
+
+            if (isDark) {
+                body.classList.remove('bg-e1chalk');
+                body.classList.add('bg-slate-900');
+            } else {
+                body.classList.add('bg-e1chalk');
+                body.classList.remove('bg-slate-900');
+            }
+        }
+
+        // --- Rendering ---
+
+        function render() {
+            listEl.innerHTML = '';
+
+            let filteredTodos = todos;
+            if (currentFilter === 'active') filteredTodos = todos.filter(t => !t.completed);
+            if (currentFilter === 'completed') filteredTodos = todos.filter(t => t.completed);
+
+            if (filteredTodos.length === 0) {
+                emptyStateEl.classList.remove('hidden');
+            } else {
+                emptyStateEl.classList.add('hidden');
+            }
+
+            filteredTodos.forEach(todo => {
+                const li = document.createElement('li');
+
+                // Dynamic border color based on status
+                const borderColor = todo.completed ? 'border-gray-400' : 'border-e1dark';
+                const opacity = todo.completed ? 'opacity-60' : 'opacity-100';
+                const decoration = todo.completed ? 'line-through text-gray-500' : 'text-e1dark';
+                const bg = todo.completed ? 'bg-gray-100' : 'bg-white';
+
+                li.className = `flex items-center gap-4 p-4 rounded-xl border-4 ${borderColor} ${bg} ${opacity} shadow-neo transition-all duration-200`;
+
+                li.innerHTML = `
+                    <button onclick="toggleTodo(${todo.id})" class="flex-shrink-0 w-8 h-8 rounded-lg border-2 border-e1dark flex items-center justify-center ${todo.completed ? 'bg-e1green' : 'bg-white'}">
+                        ${todo.completed ? '<i data-lucide="check" class="text-white w-5 h-5"></i>' : ''}
+                    </button>
+                    
+                    <span class="flex-1 font-bold font-body text-lg ${decoration}">${todo.text}</span>
+                    
+                    <button onclick="deleteTodo(${todo.id})" class="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition-colors">
+                        <i data-lucide="trash-2" class="w-5 h-5"></i>
+                    </button>
+                `;
+
+                listEl.appendChild(li);
+            });
+
+            // Re-initialize icons
+            lucide.createIcons();
+        }
+
+        // --- Init ---
+        // Handle Enter key in input
+        inputEl.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') addTodo();
+        });
+
+        render();
+    </script>
+</body>
+
+</html>
