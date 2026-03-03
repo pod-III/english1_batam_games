@@ -39,7 +39,7 @@ const state = {
     stopwatch: { startTime: 0, elapsed: 0, running: false, animFrame: null, laps: [] },
     timer: { timeLeft: 300, initial: 300, lastDuration: 300, running: false, interval: null, mode: 'calm' },
     calendar: { date: new Date(), marked: {}, selected: null },
-    alarm: { targetTimestamp: null, label: '', isAmPm: true, ampm: 'AM', interval: null, soundInterval: null },
+    alarm: { alarms: [], isAmPm: true, ampm: 'AM', soundInterval: null, currentlyRinging: null, lastTriggerMinute: -1 },
     audio: { ctx: null, oscillatorPool: [] },
     darkMode: false,
     sidebarCollapsed: false,
@@ -130,14 +130,26 @@ const audio = {
     },
 
     playAlarmSound() {
+        if (!state.alarm.currentlyRinging) return;
         // Play a repeating alarm pattern: ascending tones
         const baseFreq = 880;
         const tones = [baseFreq, baseFreq * 1.25, baseFreq * 1.5, baseFreq * 1.25];
         tones.forEach((freq, i) => {
-            setTimeout(() => {
-                audio.playTone(freq, 'sine', 0.3, 0.15);
+            const timeoutId = setTimeout(() => {
+                if (state.alarm.currentlyRinging) {
+                    audio.playTone(freq, 'sine', 0.3, 0.15);
+                }
             }, i * 200);
+            if (!this.alarmTimeouts) this.alarmTimeouts = [];
+            this.alarmTimeouts.push(timeoutId);
         });
+    },
+
+    stopAllTones() {
+        if (this.alarmTimeouts) {
+            this.alarmTimeouts.forEach(clearTimeout);
+            this.alarmTimeouts = [];
+        }
     }
 };
 
@@ -748,7 +760,6 @@ const timer = {
 // --- ALARM MODULE ---
 const alarm = {
     elements: null,
-    lastCheckSecond: -1,
 
     cacheElements() {
         if (!this.elements) {
@@ -757,13 +768,9 @@ const alarm = {
                 minInput: DOM.get('alarm-min'),
                 ampmBtn: DOM.get('alarm-ampm-btn'),
                 labelInput: DOM.get('alarm-label'),
-                setView: DOM.get('alarm-set-view'),
-                activeView: DOM.get('alarm-active-view'),
-                targetDisplay: DOM.get('alarm-target-display'),
-                labelDisplay: DOM.get('alarm-label-display'),
-                countdown: DOM.get('alarm-countdown'),
-                indicator: DOM.get('alarm-indicator'),
-                iconContainer: DOM.get('alarm-icon-container'),
+                addForm: DOM.get('alarm-add-form'),
+                listContainer: DOM.get('alarm-list-container'),
+                emptyState: DOM.get('alarm-empty-state'),
                 overlay: DOM.get('alarm-overlay'),
                 overlayLabel: DOM.get('alarm-overlay-label'),
                 overlayTime: DOM.get('alarm-overlay-time'),
@@ -778,7 +785,21 @@ const alarm = {
         els.ampmBtn.textContent = state.alarm.ampm;
     },
 
-    set() {
+    openAddForm() {
+        const els = this.cacheElements();
+        els.addForm.classList.remove('translate-y-full', 'opacity-0');
+    },
+
+    closeAddForm() {
+        const els = this.cacheElements();
+        els.addForm.classList.add('translate-y-full', 'opacity-0');
+        // Reset inputs
+        els.hourInput.value = '07';
+        els.minInput.value = '00';
+        els.labelInput.value = '';
+    },
+
+    saveNew() {
         audio.init();
         const els = this.cacheElements();
         let h = parseInt(els.hourInput.value) || 12;
@@ -786,182 +807,166 @@ const alarm = {
         const ampm = state.alarm.ampm;
         const label = els.labelInput.value.trim() || 'Alarm';
 
-        // Clamp values
         h = Math.max(1, Math.min(12, h));
         const adjustedH = ampm === 'AM' ? (h === 12 ? 0 : h) : (h === 12 ? 12 : h + 12);
 
-        // Calculate next occurrence
-        const now = new Date();
-        const target = new Date(now);
-        target.setHours(adjustedH, m, 0, 0);
+        const newAlarm = {
+            id: Date.now(),
+            h, m, ampm,
+            adjustedH,
+            label,
+            enabled: true
+        };
 
-        // If the time has already passed today, set for tomorrow
-        if (target.getTime() <= now.getTime()) {
-            target.setDate(target.getDate() + 1);
-        }
-
-        state.alarm.targetTimestamp = target.getTime();
-        state.alarm.label = label;
-
-        // Persist
-        alarm.saveState();
-
-        // Show active view
-        alarm.showActiveView(h, m, ampm, label);
+        state.alarm.alarms.push(newAlarm);
+        this.saveState();
+        this.renderList();
+        this.closeAddForm();
     },
 
-    showActiveView(h, m, ampm, label) {
+    renderList() {
         const els = this.cacheElements();
-        const timeStr = `${utils.padZero(h)}:${utils.padZero(m)} ${ampm}`;
-
-        els.targetDisplay.textContent = timeStr;
-        els.labelDisplay.textContent = label;
-
-        els.setView.classList.add('hidden');
-        els.setView.classList.remove('flex');
-        els.activeView.classList.remove('hidden');
-        els.activeView.classList.add('flex');
-        els.indicator.classList.remove('bg-slate-300');
-        els.indicator.classList.add('bg-pink', 'animate-pulse');
-
-        // Start countdown updates
-        alarm.updateCountdown();
-        clearInterval(state.alarm.interval);
-        state.alarm.interval = setInterval(() => alarm.updateCountdown(), 1000);
-
-        lucide.createIcons();
-    },
-
-    updateCountdown() {
-        if (!state.alarm.targetTimestamp) return;
-        const els = this.cacheElements();
-        const now = Date.now();
-        const diff = state.alarm.targetTimestamp - now;
-
-        if (diff <= 0) {
-            els.countdown.textContent = '00:00:00';
+        if (state.alarm.alarms.length === 0) {
+            els.emptyState.classList.remove('hidden');
+            els.emptyState.classList.add('flex');
+            els.listContainer.innerHTML = '';
+            lucide.createIcons();
             return;
         }
 
-        const totalSec = Math.floor(diff / 1000);
-        const hrs = Math.floor(totalSec / 3600);
-        const mins = Math.floor((totalSec % 3600) / 60);
-        const secs = totalSec % 60;
-        els.countdown.textContent = `${utils.padZero(hrs)}:${utils.padZero(mins)}:${utils.padZero(secs)}`;
-    },
+        els.emptyState.classList.add('hidden');
+        els.emptyState.classList.remove('flex');
 
-    cancel() {
-        state.alarm.targetTimestamp = null;
-        state.alarm.label = '';
-        clearInterval(state.alarm.interval);
-        clearInterval(state.alarm.soundInterval);
-        localStorage.removeItem(CONSTANTS.LS_ALARM);
+        // Sort alarms by time
+        const sorted = [...state.alarm.alarms].sort((a, b) => {
+            if (a.adjustedH !== b.adjustedH) return a.adjustedH - b.adjustedH;
+            return a.m - b.m;
+        });
 
-        const els = this.cacheElements();
-        els.activeView.classList.add('hidden');
-        els.activeView.classList.remove('flex');
-        els.setView.classList.remove('hidden');
-        els.setView.classList.add('flex');
-        els.indicator.classList.remove('bg-pink', 'animate-pulse');
-        els.indicator.classList.add('bg-slate-300');
+        const html = sorted.map(al => `
+            <div class="alarm-list-item p-4 rounded-xl border-2 bg-white dark:bg-slate-800 flex items-center justify-between shadow-sm ${!al.enabled ? 'disabled' : ''}" data-id="${al.id}">
+                <div class="flex flex-col text-left">
+                    <div class="flex items-baseline gap-2">
+                        <span class="text-2xl font-mono font-bold" style="color: var(--text-primary);">${utils.padZero(al.h)}:${utils.padZero(al.m)}</span>
+                        <span class="text-sm font-bold text-pink">${al.ampm}</span>
+                    </div>
+                    <div class="text-xs font-bold uppercase tracking-wider" style="color: var(--text-muted);">${al.label}</div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <label class="switch">
+                        <input type="checkbox" ${al.enabled ? 'checked' : ''} onchange="alarm.toggleEnable(${al.id})">
+                        <span class="slider"></span>
+                    </label>
+                    <button onclick="alarm.delete(${al.id})" class="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-slate-400 hover:text-red-500 transition-colors">
+                        <i data-lucide="trash-2" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+        `);
 
+        els.listContainer.innerHTML = html.join('');
         lucide.createIcons();
     },
 
-    // Called every frame by the clock RAF loop
-    check() {
-        if (!state.alarm.targetTimestamp) return;
-        const now = Date.now();
-        const currentSec = Math.floor(now / 1000);
-
-        // Only check once per second
-        if (currentSec === alarm.lastCheckSecond) return;
-        alarm.lastCheckSecond = currentSec;
-
-        if (now >= state.alarm.targetTimestamp) {
-            alarm.trigger();
+    toggleEnable(id) {
+        const al = state.alarm.alarms.find(a => a.id === id);
+        if (al) {
+            al.enabled = !al.enabled;
+            this.saveState();
+            this.renderList();
         }
     },
 
-    trigger() {
-        clearInterval(state.alarm.interval);
-        const els = this.cacheElements();
-
-        // Set overlay info
-        const target = new Date(state.alarm.targetTimestamp);
-        let h = target.getHours();
-        const m = target.getMinutes();
-        const ampm = h >= 12 ? 'PM' : 'AM';
-        h = h % 12 || 12;
-
-        els.overlayLabel.textContent = state.alarm.label || 'Alarm';
-        els.overlayTime.textContent = `${utils.padZero(h)}:${utils.padZero(m)} ${ampm}`;
-
-        // Show overlay
-        els.overlay.style.display = 'flex';
-        setTimeout(() => els.overlay.style.opacity = '1', 10);
-
-        // Play repeating alarm sound
-        audio.init();
-        audio.playAlarmSound();
-        state.alarm.soundInterval = setInterval(() => {
-            audio.playAlarmSound();
-        }, 1500);
-
-        lucide.createIcons();
+    delete(id) {
+        state.alarm.alarms = state.alarm.alarms.filter(a => a.id !== id);
+        this.saveState();
+        this.renderList();
     },
 
-    dismiss() {
-        const els = this.cacheElements();
-        clearInterval(state.alarm.soundInterval);
-
-        // Hide overlay
-        els.overlay.style.opacity = '0';
-        setTimeout(() => els.overlay.style.display = 'none', 300);
-
-        // Clear alarm
-        alarm.cancel();
-    },
-
-    // --- Persistence ---
     saveState() {
-        const data = {
-            targetTimestamp: state.alarm.targetTimestamp,
-            label: state.alarm.label,
-            ampm: state.alarm.ampm,
-        };
-        localStorage.setItem(CONSTANTS.LS_ALARM, JSON.stringify(data));
+        localStorage.setItem(CONSTANTS.LS_ALARM, JSON.stringify(state.alarm.alarms));
     },
 
     restoreState() {
         try {
             const raw = localStorage.getItem(CONSTANTS.LS_ALARM);
-            if (!raw) return;
-            const data = JSON.parse(raw);
-            if (!data || !data.targetTimestamp) return;
-
-            const now = Date.now();
-            state.alarm.targetTimestamp = data.targetTimestamp;
-            state.alarm.label = data.label || 'Alarm';
-            state.alarm.ampm = data.ampm || 'AM';
-
-            // Compute display values
-            const target = new Date(data.targetTimestamp);
-            let h = target.getHours();
-            const m = target.getMinutes();
-            const ampm = h >= 12 ? 'PM' : 'AM';
-            h = h % 12 || 12;
-
-            if (now >= data.targetTimestamp) {
-                // Already expired — trigger immediately
-                alarm.showActiveView(h, m, ampm, state.alarm.label);
-                // trigger will be called by check() in the RAF loop
-            } else {
-                // Show active view with countdown
-                alarm.showActiveView(h, m, ampm, state.alarm.label);
+            if (raw) {
+                state.alarm.alarms = JSON.parse(raw);
+                this.renderList();
             }
         } catch (e) {
-            console.warn('Failed to restore alarm state:', e);
+            console.warn('Failed to restore alarms:', e);
+        }
+    },
+
+    // Called every frame by the clock RAF loop
+    check() {
+        if (state.alarm.currentlyRinging) return;
+
+        const now = new Date();
+        const currentH = now.getHours();
+        const currentM = now.getMinutes();
+        const currentS = now.getSeconds();
+        const absoluteMin = currentH * 60 + currentM;
+
+        // Only check at second 0, and if we haven't already triggered this minute
+        if (currentS !== 0 || state.alarm.lastTriggerMinute === absoluteMin) return;
+
+        for (const al of state.alarm.alarms) {
+            if (al.enabled && al.adjustedH === currentH && al.m === currentM) {
+                state.alarm.lastTriggerMinute = absoluteMin;
+                this.trigger(al);
+                break; // Only trigger one alarm at a time
+            }
+        }
+    },
+
+    trigger(al) {
+        state.alarm.currentlyRinging = al;
+        const els = this.cacheElements();
+
+        els.overlayLabel.textContent = al.label;
+        els.overlayTime.textContent = `${utils.padZero(al.h)}:${utils.padZero(al.m)} ${al.ampm}`;
+
+        els.overlay.style.display = 'flex';
+        setTimeout(() => els.overlay.style.opacity = '1', 10);
+
+        audio.init();
+        this.stopSound(); // Ensure no existing interval
+        audio.playAlarmSound();
+        state.alarm.soundInterval = setInterval(() => {
+            if (state.alarm.currentlyRinging) {
+                audio.playAlarmSound();
+            } else {
+                this.stopSound();
+            }
+        }, 2000);
+
+        lucide.createIcons();
+    },
+
+    stopSound() {
+        if (state.alarm.soundInterval) {
+            clearInterval(state.alarm.soundInterval);
+            state.alarm.soundInterval = null;
+        }
+        audio.stopAllTones();
+    },
+
+    dismiss() {
+        const els = this.cacheElements();
+        this.stopSound();
+
+        els.overlay.style.opacity = '0';
+        setTimeout(() => els.overlay.style.display = 'none', 300);
+
+        // Auto-disable the alarm that just rang
+        if (state.alarm.currentlyRinging) {
+            const al = state.alarm.alarms.find(a => a.id === state.alarm.currentlyRinging.id);
+            if (al) al.enabled = false;
+            state.alarm.currentlyRinging = null;
+            this.saveState();
+            this.renderList();
         }
     }
 };
@@ -1194,6 +1199,8 @@ window.calNav = (delta) => calendar.navigate(delta);
 window.toggleDarkMode = () => darkMode.toggle();
 window.toggleSidebar = () => sidebar.toggle();
 window.alarmToggleAmPm = () => alarm.toggleAmPm();
-window.alarmSet = () => alarm.set();
-window.alarmCancel = () => alarm.cancel();
+window.alarmOpenAddForm = () => alarm.openAddForm();
+window.alarmCloseAddForm = () => alarm.closeAddForm();
+window.alarmSaveNew = () => alarm.saveNew();
 window.alarmDismiss = () => alarm.dismiss();
+window.alarm = alarm; // Expose alarm object for inline handlers like onchange
