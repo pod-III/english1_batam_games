@@ -18,9 +18,7 @@ const ClassTallyApp = (function () {
         currentAvatar: '😀',
         timerSeconds: 0,
         isPicking: false,
-
-        ruleType: 'allowed',
-        isRulesPanelOpen: false,
+        cardSize: 1,
 
         // NEW STATE PROPERTY FOR NON-REPEATING PICKER
         pickedQueue: [],
@@ -82,100 +80,6 @@ const ClassTallyApp = (function () {
         ],
     };
 
-    // --- RULES MODULE ---
-    const Rules = {
-        TYPES: {
-            allowed: { bg: 'bg-emerald-500', border: 'border-emerald-600', text: 'text-white' },
-            warning: { bg: 'bg-amber-400', border: 'border-amber-500', text: 'text-slate-900' },
-            info: { bg: 'bg-blue-500', border: 'border-blue-600', text: 'text-white' },
-            prohibited: { bg: 'bg-red-500', border: 'border-red-600', text: 'text-white' },
-        },
-        EMOJI_PICKER: [
-            '🚭', '🚷', '📵', '🚯', '🤫', '🙋‍♂️', '🙋‍♀️', '🚮', '✅', '❌', '⚠️', '👮', '🎒', '🏫',
-            '🚶', '🏃', '🗣️', '👂', '👀', '🤐', '✋', '⏰', '📝', '📚', '🤝', '🛑', '🚽', '💧'
-        ],
-        setType: (t) => {
-            State.ruleType = t;
-            document.querySelectorAll('.rule-type-btn').forEach(b => b.classList.remove('ring-4', 'ring-offset-2', 'ring-slate-300'));
-            document.getElementById(`rule-type-${t}`).classList.add('ring-4', 'ring-offset-2', 'ring-slate-300');
-        },
-        setEmoji: (e) => {
-            document.getElementById('rule-emoji-input').value = e;
-        },
-        initPicker: () => {
-            const grid = document.getElementById('rule-emoji-grid');
-            grid.innerHTML = Rules.EMOJI_PICKER.map(e =>
-                `<button onclick="ClassTallyApp.Rules.setEmoji('${e}')" class="w-9 h-9 flex items-center justify-center text-xl bg-slate-50 hover:bg-slate-200 rounded-lg transition-colors border border-slate-100">${e}</button>`
-            ).join('');
-            Rules.setType(State.ruleType);
-        },
-        add: () => {
-            const text = document.getElementById('rule-text').value.trim();
-            const emoji = document.getElementById('rule-emoji-input').value.trim();
-
-            if (!text) {
-                document.getElementById('rule-text').focus();
-                document.getElementById('rule-text').classList.add('animate-shake', 'border-red-500');
-                setTimeout(() => document.getElementById('rule-text').classList.remove('animate-shake', 'border-red-500'), 500);
-                return;
-            }
-
-            State.rules.push({
-                id: Date.now(),
-                text: text,
-                type: State.ruleType,
-                content: emoji || '📝',
-                isImage: false
-            });
-
-            document.getElementById('rule-text').value = '';
-            Persistence.save();
-            Rules.render();
-            Audio.playGood();
-        },
-        remove: (id) => {
-            State.rules = State.rules.filter(r => r.id !== id);
-            Persistence.save();
-            Rules.render();
-        },
-        render: () => {
-            const row = document.getElementById('rules-show-row');
-            const emptyState = document.getElementById('rules-empty-state');
-
-            if (!row) return;
-
-            if (State.rules.length === 0) {
-                row.innerHTML = '';
-                if (emptyState) emptyState.style.display = 'flex';
-            } else {
-                if (emptyState) emptyState.style.display = 'none';
-                row.innerHTML = State.rules.map(r => {
-                    const style = Rules.TYPES[r.type];
-                    return `
-                        <div class="relative group animate-pop-in">
-                            <div class="street-sign ${style.bg} ${style.border} rounded-2xl p-2 shadow-lg hover:shadow-xl">
-                                <div class="bolt tl"></div><div class="bolt tr"></div>
-                                <div class="bolt bl"></div><div class="bolt br"></div>
-                                
-                                <div class="flex-grow flex items-center justify-center w-full overflow-hidden z-10">
-                                    <span class="text-6xl filter drop-shadow-md leading-none select-none">${r.content}</span>
-                                </div>
-                                
-                                <div class="bg-black/10 backdrop-blur-sm rounded-lg px-2 py-1.5 w-[90%] text-center z-10 border border-white/10 mt-1 mb-1 shadow-inner">
-                                    <span class="text-xs font-black uppercase tracking-widest ${style.text} block text-shadow-sm">${r.text}</span>
-                                </div>
-                            </div>
-                            
-                            <button onclick="ClassTallyApp.Rules.remove(${r.id})" class="absolute -top-2 -right-2 bg-white text-red-500 rounded-full p-1.5 shadow-lg opacity-0 group-hover:opacity-100 transition-all z-30 hover:scale-110 ring-2 ring-red-50 hover:bg-red-50">
-                                <i data-lucide="x" class="w-3 h-3"></i>
-                            </button>
-                        </div>
-                    `;
-                }).join('');
-            }
-            lucide.createIcons();
-        }
-    };
 
     // --- TEAMS MODULE ---
     const Teams = {
@@ -388,12 +292,12 @@ const ClassTallyApp = (function () {
         save: () => {
             const dataToSave = {
                 students: State.students,
-                rules: State.rules,
                 sound: State.soundEnabled,
                 good: State.currentGood,
                 bad: State.currentBad,
                 // Save the pickedQueue to maintain state across sessions
-                pickedQueue: State.pickedQueue
+                pickedQueue: State.pickedQueue,
+                cardSize: State.cardSize
             };
             localStorage.setItem('class_tally_v1', JSON.stringify(dataToSave));
         },
@@ -403,12 +307,12 @@ const ClassTallyApp = (function () {
                 try {
                     const o = JSON.parse(d);
                     State.students = o.students || [];
-                    State.rules = o.rules || [];
                     State.soundEnabled = o.sound !== undefined ? o.sound : true;
                     State.currentGood = o.good || '⭐️';
                     State.currentBad = o.bad || '⚠️';
                     // Load the pickedQueue
                     State.pickedQueue = o.pickedQueue || [];
+                    State.cardSize = o.cardSize || 1;
                 } catch (e) {
                     console.error("Error loading saved state:", e);
                     State.students = [];
@@ -660,19 +564,11 @@ const ClassTallyApp = (function () {
         },
         handleModalAction: (y) => { UI.hideModal(); if (modalCallback) { modalCallback(y); modalCallback = null; } },
 
-        toggleRulesPanel: () => {
-            State.isRulesPanelOpen = !State.isRulesPanelOpen;
-            const editor = document.getElementById('rules-editor-panel');
-            const btn = document.getElementById('btn-toggle-rules');
-
-            if (State.isRulesPanelOpen) {
-                editor.classList.remove('collapsed');
-                btn.classList.add('bg-slate-100', 'text-slate-900', 'ring-2', 'ring-slate-200');
-                Rules.render();
-            } else {
-                editor.classList.add('collapsed');
-                btn.classList.remove('bg-slate-100', 'text-slate-900', 'ring-2', 'ring-slate-200');
-            }
+        // CARD RESIZING
+        setCardSize: (val) => {
+            State.cardSize = val;
+            document.documentElement.style.setProperty('--card-scale', val);
+            Persistence.save();
         },
 
         toggleGoodDropdown: (e) => {
@@ -728,22 +624,19 @@ const ClassTallyApp = (function () {
         updateCardLogs: (id) => {
             const s = State.students.find(x => x.id === id); if (!s) return;
             const logContainer = document.querySelector(`#card-${id} .custom-scrollbar`);
-            const tapHint = document.querySelector(`#card-${id} .tap-hint`);
+            const goodCounter = document.querySelector(`#card-${id} .good-count`);
+            const badCounter = document.querySelector(`#card-${id} .bad-count`);
 
             if (logContainer) {
-                const goodCount = s.goodLogs.length;
-                const badCount = s.badLogs.length;
-
                 logContainer.innerHTML = `
                     ${s.goodLogs.map((e, i) => `<span onclick="event.stopPropagation(); ClassTallyApp.Student.removeLastPoint(${s.id},'good')" class="tally-item text-xl select-none hover:opacity-50 drop-shadow-sm cursor-pointer">${e}</span>`).join('')}
                     ${s.badLogs.map(e => `<span onclick="event.stopPropagation(); ClassTallyApp.Student.removeLastPoint(${s.id},'bad')" class="tally-item text-lg grayscale opacity-80 hover:opacity-100 drop-shadow-sm cursor-pointer">${e}</span>`).join('')}
-                    ${goodCount === 0 && badCount === 0 ? '<span class="text-xs text-slate-300 font-bold self-center w-full text-center mt-2 uppercase tracking-wide opacity-50">Empty</span>' : ''}
+                    ${s.goodLogs.length === 0 && s.badLogs.length === 0 ? '<span class="text-xs text-slate-300 font-bold self-center w-full text-center mt-2 uppercase tracking-wide opacity-50">Empty</span>' : ''}
                 `;
                 logContainer.scrollTop = logContainer.scrollHeight;
             }
-            if (tapHint) {
-                tapHint.style.display = (s.goodLogs.length > 0 || s.badLogs.length > 0) ? 'block' : 'none';
-            }
+            if (goodCounter) goodCounter.textContent = s.goodLogs.length;
+            if (badCounter) badCounter.textContent = s.badLogs.length;
         },
 
         render: () => {
@@ -773,6 +666,16 @@ const ClassTallyApp = (function () {
                                 <span class="filter drop-shadow-sm group-hover:scale-110 transition-transform duration-500 block">${s.avatar || '😀'}</span>
                             </div>
                         </div>
+
+                        <!-- Numeric Counters -->
+                        <div class="flex gap-2 relative z-10">
+                            <div class="bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-full text-xs font-black text-brand-green flex items-center gap-1 shadow-sm">
+                                <span>${State.currentGood}</span><span class="good-count">${s.goodLogs.length}</span>
+                            </div>
+                            <div class="bg-white/90 backdrop-blur-sm px-2 py-0.5 rounded-full text-xs font-black text-brand-pink flex items-center gap-1 shadow-sm">
+                                <span>${State.currentBad}</span><span class="bad-count">${s.badLogs.length}</span>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="flex-1 flex flex-col p-4 min-w-0 justify-between relative bg-gradient-to-br from-white to-slate-50">
@@ -780,7 +683,7 @@ const ClassTallyApp = (function () {
                             <div class="flex-1 min-w-0 pr-2">
                                 ${s.signatureData ?
                         `<img src="${s.signatureData}" class="h-16 object-contain -ml-2" alt="Signature" />` :
-                        `<h3 class="text-3xl sm:text-4xl font-black text-slate-800 truncate tracking-tight leading-none" title="${s.name}">${s.name}</h3>`
+                        `<h3 class="text-3xl font-black text-slate-800 truncate tracking-tight leading-none" title="${s.name}">${s.name}</h3>`
                     }
                             </div>
                             <button onclick="ClassTallyApp.Student.remove(${s.id})" class="text-slate-200 hover:text-red-400 p-2 -mt-2 -mr-2 rounded-xl hover:bg-red-50 transition-colors">
@@ -789,10 +692,10 @@ const ClassTallyApp = (function () {
                         </div>
 
                         <div class="flex-grow bg-white rounded-xl border border-slate-100 p-2.5 mb-4 relative group/logs overflow-hidden shadow-inner">
-                             <div class="flex flex-wrap content-start gap-1.5 h-full overflow-y-auto custom-scrollbar w-full">
+                             <div class="custom-scrollbar flex flex-wrap content-start gap-1.5 h-full overflow-y-auto w-full">
                                 ${s.goodLogs.map((e, i) => `<span onclick="event.stopPropagation(); ClassTallyApp.Student.removeLastPoint(${s.id},'good')" class="tally-item text-xl select-none hover:opacity-50 drop-shadow-sm cursor-pointer">${e}</span>`).join('')}
                                 ${s.badLogs.map(e => `<span onclick="event.stopPropagation(); ClassTallyApp.Student.removeLastPoint(${s.id},'bad')" class="tally-item text-lg grayscale opacity-80 hover:opacity-100 drop-shadow-sm cursor-pointer">${e}</span>`).join('')}
-                                ${goodCount === 0 && badCount === 0 ? '<span class="text-xs text-slate-300 font-bold self-center w-full text-center mt-2 uppercase tracking-wide opacity-50">Empty</span>' : ''}
+                                ${s.goodLogs.length === 0 && s.badLogs.length === 0 ? '<span class="text-xs text-slate-300 font-bold self-center w-full text-center mt-2 uppercase tracking-wide opacity-50">Empty</span>' : ''}
                             </div>
                              <div class="tap-hint absolute bottom-1 right-2 text-[8px] text-slate-300 font-bold uppercase tracking-widest pointer-events-none opacity-0 group-hover/logs:opacity-100 transition-opacity bg-white px-1 rounded">Click items to remove</div>
                         </div>
@@ -821,14 +724,14 @@ const ClassTallyApp = (function () {
             Persistence.load();
             CanvasDraw.init('signature-canvas');
             UI.initEmojiPickers();
-            Rules.initPicker();
-            Rules.render();
             UI.render();
+            UI.setCardSize(State.cardSize);
+            document.getElementById('card-size-slider').value = State.cardSize;
             document.addEventListener('click', UI.closeAllDropdowns);
             document.getElementById('btn-sound').innerHTML = State.soundEnabled ? '<i data-lucide="volume-2" class="w-5 h-5"></i>' : '<i data-lucide="volume-x" class="w-5 h-5 text-red-400"></i>';
             lucide.createIcons();
         },
-        Student, Teams, UI, Timer, CanvasDraw, Rules
+        Student, Teams, UI, Timer, CanvasDraw
     };
 })();
 
