@@ -19,6 +19,7 @@ const ClassTallyApp = (function () {
         timerSeconds: 0,
         isPicking: false,
         cardSize: 1,
+        isAutoFit: false,
 
         // NEW STATE PROPERTY FOR NON-REPEATING PICKER
         pickedQueue: [],
@@ -297,7 +298,8 @@ const ClassTallyApp = (function () {
                 bad: State.currentBad,
                 // Save the pickedQueue to maintain state across sessions
                 pickedQueue: State.pickedQueue,
-                cardSize: State.cardSize
+                cardSize: State.cardSize,
+                isAutoFit: State.isAutoFit
             };
             localStorage.setItem('class_tally_v1', JSON.stringify(dataToSave));
         },
@@ -313,6 +315,7 @@ const ClassTallyApp = (function () {
                     // Load the pickedQueue
                     State.pickedQueue = o.pickedQueue || [];
                     State.cardSize = o.cardSize || 1;
+                    State.isAutoFit = o.isAutoFit || false;
                 } catch (e) {
                     console.error("Error loading saved state:", e);
                     State.students = [];
@@ -621,6 +624,89 @@ const ClassTallyApp = (function () {
             confetti({ particleCount: 60, spread: 50, origin: { x: (r.left + r.width / 2) / window.innerWidth, y: (r.top + r.height / 2) / window.innerHeight } });
         },
 
+        // CARD RESIZING & AUTO-FIT
+        toggleAutoFit: () => {
+            State.isAutoFit = !State.isAutoFit;
+            UI.updateAutoFitUI();
+            if (State.isAutoFit) {
+                UI.calculateAutoFitScale();
+            } else {
+                UI.setCardSize(1); // Reset to default when turning off
+            }
+            Persistence.save();
+        },
+
+        updateAutoFitUI: () => {
+            const btn = document.getElementById('btn-autofit');
+            if (!btn) return;
+            if (State.isAutoFit) {
+                btn.classList.add('bg-brand-blue', 'text-white', 'border-brand-blue');
+                btn.classList.remove('text-slate-500', 'border-slate-100');
+            } else {
+                btn.classList.remove('bg-brand-blue', 'text-white', 'border-brand-blue');
+                btn.classList.add('text-slate-500', 'border-slate-100');
+            }
+        },
+
+        calculateAutoFitScale: () => {
+            if (!State.isAutoFit) {
+                document.documentElement.style.removeProperty('--grid-cols');
+                return;
+            }
+            if (State.students.length === 0) {
+                UI.setCardSize(1);
+                document.documentElement.style.removeProperty('--grid-cols');
+                return;
+            }
+
+            const container = document.getElementById('grid-container');
+            const appBody = document.getElementById('app-body');
+            if (!container || !appBody) return;
+
+            // Base dimensions
+            const cardBaseWidth = 400;
+            const cardBaseHeight = 256;
+            const gapBase = 40; // matches 2.5rem in CSS
+            const padding = 80; // generous padding for safe containment
+
+            const availableWidth = appBody.clientWidth - padding;
+            const availableHeight = appBody.clientHeight - padding;
+            const count = State.students.length;
+
+            let bestScale = 0.4;
+            let bestCols = 1;
+
+            // Try different column counts (from 1 to count) to find the best fit
+            for (let cols = 1; cols <= Math.min(count, 10); cols++) {
+                const rows = Math.ceil(count / cols);
+                const totalWidthNeeded = (cols * cardBaseWidth) + ((cols - 1) * gapBase);
+                const totalHeightNeeded = (rows * cardBaseHeight) + ((rows - 1) * gapBase);
+
+                const scaleW = availableWidth / totalWidthNeeded;
+                const scaleH = availableHeight / totalHeightNeeded;
+
+                // We want to fit within BOTH width and height
+                const scale = Math.min(scaleW, scaleH);
+
+                if (scale > bestScale) {
+                    bestScale = scale;
+                    bestCols = cols;
+                }
+            }
+
+            // Constrain scale to reasonable limits
+            bestScale = Math.min(Math.max(bestScale, 0.4), 1.1);
+
+            // Explicitly set the number of columns to prevent auto-fill overflow
+            document.documentElement.style.setProperty('--grid-cols', bestCols);
+            UI.setCardSize(bestScale);
+        },
+
+        setCardSize: (val) => {
+            State.cardSize = val;
+            document.documentElement.style.setProperty('--card-scale', val);
+        },
+
         updateCardLogs: (id) => {
             const s = State.students.find(x => x.id === id); if (!s) return;
             const logContainer = document.querySelector(`#card-${id} .custom-scrollbar`);
@@ -725,8 +811,20 @@ const ClassTallyApp = (function () {
             CanvasDraw.init('signature-canvas');
             UI.initEmojiPickers();
             UI.render();
-            UI.setCardSize(State.cardSize);
-            document.getElementById('card-size-slider').value = State.cardSize;
+            UI.updateAutoFitUI();
+
+            if (State.isAutoFit) {
+                UI.calculateAutoFitScale();
+            } else {
+                UI.setCardSize(State.cardSize);
+            }
+
+            // Resize observer for Auto-Fit
+            const resizeObserver = new ResizeObserver(() => {
+                if (State.isAutoFit) UI.calculateAutoFitScale();
+            });
+            resizeObserver.observe(document.getElementById('app-body'));
+
             document.addEventListener('click', UI.closeAllDropdowns);
             document.getElementById('btn-sound').innerHTML = State.soundEnabled ? '<i data-lucide="volume-2" class="w-5 h-5"></i>' : '<i data-lucide="volume-x" class="w-5 h-5 text-red-400"></i>';
             lucide.createIcons();
