@@ -538,8 +538,8 @@
             textY: 0
         };
 
-        let strokeBatch = [];
-        let strokeBatchTimer = null;
+        // 🖐️ Multi-pointer state tracking
+        let activePointers = new Map();
 
         let undoStack = [];
         let undoIndex = -1;
@@ -597,26 +597,18 @@
 
         function getCoords(e) {
             const rect = canvasMain.getBoundingClientRect();
-            let cx = e.touches ? e.touches[0].clientX : e.clientX;
-            let cy = e.touches ? e.touches[0].clientY : e.clientY;
+            // Using e.clientX directly for PointerEvents
             return {
-                x: (cx - rect.left) / state.scale,
-                y: (cy - rect.top) / state.scale
+                x: (e.clientX - rect.left) / state.scale,
+                y: (e.clientY - rect.top) / state.scale
             };
         }
 
-        wrapper.addEventListener('mousedown', startDraw);
-        wrapper.addEventListener('mousemove', moveDraw);
-        wrapper.addEventListener('mouseup', endDraw);
-        wrapper.addEventListener('mouseout', endDraw);
-
-        wrapper.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) startDraw(e);
-        }, { passive: false });
-        wrapper.addEventListener('touchmove', (e) => {
-            if (e.touches.length === 1) moveDraw(e);
-        }, { passive: false });
-        wrapper.addEventListener('touchend', endDraw);
+        wrapper.addEventListener('pointerdown', startDraw);
+        wrapper.addEventListener('pointermove', moveDraw);
+        wrapper.addEventListener('pointerup', endDraw);
+        wrapper.addEventListener('pointercancel', endDraw);
+        wrapper.addEventListener('pointerleave', endDraw);
 
         // ✨ Mouse wheel zoom support
         wrapper.addEventListener('wheel', (e) => {
@@ -655,6 +647,7 @@
 
         function startDraw(e) {
             if (e.target === textInput) return;
+            wrapper.setPointerCapture(e.pointerId);
 
             if (state.tool === 'text' && textInput.style.display === 'block') {
                 commitText();
@@ -665,8 +658,9 @@
 
             if (state.tool === 'hand' || isSpacePan) {
                 state.isPanning = true;
-                state.panStartX = (e.touches ? e.touches[0].clientX : e.clientX) - state.panX;
-                state.panStartY = (e.touches ? e.touches[0].clientY : e.clientY) - state.panY;
+                state.panStartX = e.clientX - state.panX;
+                state.panStartY = e.clientY - state.panY;
+                activePointers.set(e.pointerId, { type: 'pan' });
                 wrapper.style.cursor = 'grabbing';
                 return;
             }
@@ -682,56 +676,73 @@
             checkAndExpandCanvas(coords.x, coords.y);
 
             state.isDrawing = true;
-            state.startX = coords.x;
-            state.startY = coords.y;
 
-            ctxMain.beginPath();
-            ctxMain.moveTo(coords.x, coords.y);
+            const pointerState = {
+                startX: coords.x,
+                startY: coords.y,
+                lastX: coords.x,
+                lastY: coords.y,
+                type: 'draw',
+                strokeBatch: [],
+                strokeBatchTimer: null
+            };
+            activePointers.set(e.pointerId, pointerState);
 
-            if (state.tool === 'pen' || state.tool === 'eraser') {
-                drawFreehand(coords.x, coords.y);
+            if (['pen', 'eraser'].includes(state.tool)) {
+                drawFreehand(e.pointerId, coords.x, coords.y);
+            } else {
+                state.startX = coords.x; // For single-pointer shapes
+                state.startY = coords.y;
             }
         }
 
         function moveDraw(e) {
             if (e.preventDefault) e.preventDefault();
 
-            if (state.isPanning) {
-                const cx = e.touches ? e.touches[0].clientX : e.clientX;
-                const cy = e.touches ? e.touches[0].clientY : e.clientY;
-                state.panX = cx - state.panStartX;
-                state.panY = cy - state.panStartY;
+            const p = activePointers.get(e.pointerId);
+            if (!p) return;
+
+            if (p.type === 'pan') {
+                state.panX = e.clientX - state.panStartX;
+                state.panY = e.clientY - state.panStartY;
                 updateView();
                 return;
             }
 
-            if (!state.isDrawing) return;
-
             const coords = getCoords(e);
 
             if (state.tool === 'pen' || state.tool === 'eraser') {
-                drawFreehand(coords.x, coords.y);
-            } else {
+                drawFreehand(e.pointerId, coords.x, coords.y);
+            } else if (state.isDrawing) {
                 drawPreviewShape(coords.x, coords.y);
             }
         }
 
         function endDraw(e) {
-            if (state.isPanning) {
+            const p = activePointers.get(e.pointerId);
+            if (!p) return;
+
+            if (p.type === 'pan') {
                 state.isPanning = false;
                 wrapper.style.cursor = state.tool === 'hand' ? 'grab' : 'crosshair';
+                activePointers.delete(e.pointerId);
                 return;
             }
 
-            if (!state.isDrawing) return;
-            state.isDrawing = false;
-
             // ✨ Flush any remaining batched strokes
-            if (strokeBatch.length > 0) {
+            if (p.strokeBatch && p.strokeBatch.length > 0) {
+                // Final stroke from lastX/lastY to current point (or just end current path)
+                ctxMain.lineWidth = state.size;
+                if (state.tool === 'eraser') {
+                    ctxMain.globalCompositeOperation = 'destination-out';
+                    ctxMain.lineWidth = state.size * 5;
+                } else {
+                    ctxMain.globalCompositeOperation = 'source-over';
+                    ctxMain.strokeStyle = state.color;
+                }
                 ctxMain.stroke();
-                strokeBatch = [];
-                clearTimeout(strokeBatchTimer);
-                strokeBatchTimer = null;
+                p.strokeBatch = [];
+                clearTimeout(p.strokeBatchTimer);
             }
 
             if (['line', 'rect', 'circle'].includes(state.tool)) {
@@ -740,44 +751,42 @@
                 ctxTemp.clearRect(0, 0, canvasTemp.width, canvasTemp.height);
             }
 
-            ctxMain.beginPath();
-            saveState();
+            activePointers.delete(e.pointerId);
+            if (activePointers.size === 0) {
+                state.isDrawing = false;
+                saveState();
+            }
         }
 
-        function drawFreehand(x, y) {
+        function drawFreehand(pointerId, x, y) {
+            const p = activePointers.get(pointerId);
+            if (!p) return;
+
             // Add point to batch
-            strokeBatch.push({ x, y });
+            p.strokeBatch.push({ x, y });
 
-            // Setup context on first point
-            if (strokeBatch.length === 1) {
-                ctxMain.lineWidth = state.size;
-
-                if (state.tool === 'eraser') {
-                    ctxMain.globalCompositeOperation = 'destination-out';
-                    ctxMain.lineWidth = state.size * 5;
-                } else {
-                    ctxMain.globalCompositeOperation = 'source-over';
-                    ctxMain.strokeStyle = state.color;
-                }
-
-                ctxMain.lineTo(x, y);
-                ctxMain.stroke();
-                ctxMain.beginPath();
-                ctxMain.moveTo(x, y);
+            // Setup context
+            ctxMain.lineWidth = state.size;
+            if (state.tool === 'eraser') {
+                ctxMain.globalCompositeOperation = 'destination-out';
+                ctxMain.lineWidth = state.size * 5;
+            } else {
+                ctxMain.globalCompositeOperation = 'source-over';
+                ctxMain.strokeStyle = state.color;
             }
 
-            // Add to path
+            // Draw line from last position to current position
+            ctxMain.beginPath();
+            ctxMain.moveTo(p.lastX, p.lastY);
             ctxMain.lineTo(x, y);
+            ctxMain.stroke();
 
-            // Flush batch periodically (every 16ms = ~60fps)
-            if (!strokeBatchTimer) {
-                strokeBatchTimer = setTimeout(() => {
-                    if (strokeBatch.length > 0) {
-                        ctxMain.stroke();
-                    }
-                    strokeBatchTimer = null;
-                }, 16);
-            }
+            p.lastX = x;
+            p.lastY = y;
+
+            // Note: Batching here is less critical since we draw segment by segment for multi-touch,
+            // but we can still use it for potential performance if needed. 
+            // For multi-touch simultaneous lines, drawing segments is more reliable than one long path.
         }
 
         function drawPreviewShape(x, y) {
@@ -827,6 +836,7 @@
             const coords = getCoords(e);
             state.textX = coords.x;
             state.textY = coords.y;
+            activePointers.set(e.pointerId, { type: 'text' });
         }
 
         function commitText() {
@@ -850,6 +860,10 @@
             }
             textInput.style.display = 'none';
             textInput.value = '';
+            // Clear any text pointer state
+            for (let [id, p] of activePointers) {
+                if (p.type === 'text') activePointers.delete(id);
+            }
         }
 
         textInput.addEventListener('keydown', (e) => {
