@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fantasy VTT | Game Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    
+    <style>
+        body { 
+            font-family: 'Lora', serif; 
+            overscroll-behavior: none; 
+            background-color: #0c0a09; /* Deep stone */
+            background-image: url('https://www.transparenttextures.com/patterns/stardust.png');
+        }
+        h1, h2, h3, .font-cinzel { font-family: 'Cinzel', serif; }
+        
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1c1917; }
+        ::-webkit-scrollbar-thumb { background: #78350f; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #92400e; }
+        
+        /* Flex & margin:auto centers the canvas while preserving scroll ability */
+        #canvas-wrapper { position: relative; width: 100%; height: 100%; overflow: auto; touch-action: none; display: flex; }
+        #canvas-container { 
+            margin: auto; /* Magic centering */
+            position: relative; 
+            cursor: crosshair; 
+            box-shadow: 0 0 40px rgba(0,0,0,0.8);
+            border: 2px solid #78350f;
+        }
+        canvas { position: absolute; top: 0; left: 0; transform-origin: top left; touch-action: none; }
+    </style>
+</head>
+<body class="text-stone-300 h-screen w-screen overflow-hidden flex flex-col selection:bg-amber-500/30">
+
+    <header class="bg-stone-900 border-b border-amber-900/50 p-4 flex justify-between items-center z-50 shrink-0 shadow-md">
+        <h1 class="text-xl font-bold text-amber-500 flex items-center gap-3 font-cinzel tracking-wider">
+            <i data-lucide="scroll" class="w-6 h-6"></i>
+            Arcane Tabletop
+        </h1>
+        <button id="mode-toggle" class="bg-amber-700 hover:bg-amber-600 text-stone-100 px-6 py-2 rounded font-cinzel font-semibold transition-colors shadow-lg shadow-amber-900/20 flex items-center gap-2 border border-amber-500/30">
+            <i data-lucide="user" class="w-4 h-4"></i> Enter Player View
+        </button>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden relative">
+        <aside id="dm-sidebar" class="w-80 bg-stone-900 border-r border-amber-900/50 flex flex-col shadow-2xl z-40 shrink-0 transition-transform duration-300">
+            <div class="flex-1 overflow-y-auto p-6 space-y-8">
+                
+                <section class="space-y-4">
+                    <h2 class="text-xs font-semibold text-amber-600 uppercase tracking-widest flex items-center gap-2 font-cinzel">
+                        <i data-lucide="map" class="w-4 h-4"></i> Cartography
+                    </h2>
+                    
+                    <select id="map-select" class="w-full bg-stone-950 border border-amber-900/50 rounded px-3 py-2 text-sm focus:outline-none focus:border-amber-500 text-stone-300 font-lora">
+                        <option value="">-- Select Map --</option>
+                    </select>
+
+                    <label class="flex items-center justify-center gap-2 w-full cursor-pointer bg-stone-800 hover:bg-stone-700 transition-colors p-3 rounded text-sm font-medium border border-stone-700 font-cinzel">
+                        <i data-lucide="image-plus" class="w-4 h-4"></i> Upload New Map
+                        <input type="file" id="map-upload" accept="image/*" class="hidden">
+                    </label>
+                </section>
+
+                <section class="space-y-4">
+                    <h2 class="text-xs font-semibold text-amber-600 uppercase tracking-widest flex items-center gap-2 font-cinzel">
+                        <i data-lucide="swords" class="w-4 h-4"></i> Miniatures
+                    </h2>
+                    <input type="text" id="token-name" placeholder="Character Name..." class="w-full bg-stone-950 border border-amber-900/50 rounded px-4 py-2 text-sm focus:outline-none focus:border-amber-500 transition-colors font-lora italic">
+                    <label class="flex w-full cursor-pointer bg-amber-700 hover:bg-amber-600 transition-colors p-3 rounded text-center text-sm font-medium shadow-lg shadow-amber-900/20 items-center justify-center gap-2 border border-amber-500/30 font-cinzel">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Place Miniature
+                        <input type="file" id="token-upload" accept="image/*" class="hidden">
+                    </label>
+                </section>
+
+                <section class="space-y-4">
+                    <h2 class="text-xs font-semibold text-amber-600 uppercase tracking-widest flex items-center gap-2 font-cinzel">
+                        <i data-lucide="wand-2" class="w-4 h-4"></i> DM Tools
+                    </h2>
+                    <div class="grid grid-cols-1 gap-3 font-lora">
+                        <button id="tool-drag" class="bg-stone-800 hover:bg-stone-700 border border-stone-700 p-3 rounded text-sm transition-colors flex items-center justify-start gap-3 ring-2 ring-amber-500">
+                            <i data-lucide="hand" class="w-5 h-5 text-stone-400"></i> Move Miniatures
+                        </button>
+                        <button id="tool-fog-draw" class="bg-stone-800 hover:bg-stone-700 border border-stone-700 p-3 rounded text-sm transition-colors flex items-center justify-start gap-3">
+                            <i data-lucide="cloud-fog" class="w-5 h-5 text-stone-400"></i> Draw Darkness
+                        </button>
+                        <button id="tool-fog-toggle" class="bg-stone-800 hover:bg-stone-700 border border-stone-700 p-3 rounded text-sm transition-colors flex items-center justify-start gap-3">
+                            <i data-lucide="eye" class="w-5 h-5 text-stone-400"></i> Tap to Reveal/Hide
+                        </button>
+                    </div>
+                    <button id="fog-clear" class="w-full bg-stone-800 hover:bg-stone-700 border border-stone-700 p-2 rounded text-xs transition-colors text-red-400 mt-2 font-cinzel">Dispeller (Clear Fog)</button>
+                </section>
+            </div>
+        </aside>
+
+        <main id="canvas-wrapper">
+            <div id="canvas-container">
+                <canvas id="layer-map"></canvas>
+                <canvas id="layer-token"></canvas>
+                <canvas id="layer-fog"></canvas>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        // --- State Management ---
+        let isDMMode = true;
+        let currentTool = 'drag'; 
+        
+        let mapsList = []; 
+        let currentMapId = null;
+        let mapImage = null;
+        let tokens = [];
+        let fogShapes = []; 
+        let currentDrawPoints = [];
+        
+        let activeToken = null;
+        let isDrawing = false;
+        const gridSize = 50;
+
+        // --- Canvas Setup ---
+        const wrapper = document.getElementById('canvas-wrapper');
+        const container = document.getElementById('canvas-container');
+        const mapCanvas = document.getElementById('layer-map');
+        const tokenCanvas = document.getElementById('layer-token');
+        const fogCanvas = document.getElementById('layer-fog');
+        
+        const mapCtx = mapCanvas.getContext('2d');
+        const tokenCtx = tokenCanvas.getContext('2d');
+        const fogCtx = fogCanvas.getContext('2d');
+
+        // --- UI Interactions ---
+        document.getElementById('mode-toggle').addEventListener('click', (e) => {
+            isDMMode = !isDMMode;
+            const sidebar = document.getElementById('dm-sidebar');
+            const btn = e.currentTarget;
+            
+            if (isDMMode) {
+                sidebar.style.display = 'flex';
+                btn.innerHTML = `<i data-lucide="user" class="w-4 h-4"></i> Enter Player View`;
+                btn.classList.replace('bg-stone-700', 'bg-amber-700');
+                btn.classList.replace('hover:bg-stone-600', 'hover:bg-amber-600');
+            } else {
+                sidebar.style.display = 'none';
+                btn.innerHTML = `<i data-lucide="shield" class="w-4 h-4"></i> Enter DM View`;
+                btn.classList.replace('bg-amber-700', 'bg-stone-700');
+                btn.classList.replace('hover:bg-amber-600', 'hover:bg-stone-600');
+            }
+            lucide.createIcons();
+            renderFog(); 
+        });
+
+        function setTool(tool, btnId) {
+            currentTool = tool;
+            ['tool-drag', 'tool-fog-draw', 'tool-fog-toggle'].forEach(id => {
+                document.getElementById(id).classList.remove('ring-2', 'ring-amber-500');
+            });
+            document.getElementById(btnId).classList.add('ring-2', 'ring-amber-500');
+        }
+
+        document.getElementById('tool-drag').addEventListener('click', () => setTool('drag', 'tool-drag'));
+        document.getElementById('tool-fog-draw').addEventListener('click', () => setTool('fog-draw', 'tool-fog-draw'));
+        document.getElementById('tool-fog-toggle').addEventListener('click', () => setTool('fog-toggle', 'tool-fog-toggle'));
+        document.getElementById('fog-clear').addEventListener('click', () => { fogShapes = []; renderFog(); });
+
+        // --- Database & Multiple Map Handling ---
+        const dbName = "ArcaneVTT_DB";
+        let db;
+        const request = indexedDB.open(dbName, 1);
+        
+        request.onupgradeneeded = (e) => {
+            db = e.target.result;
+            if (!db.objectStoreNames.contains('maps')) {
+                db.createObjectStore('maps', { keyPath: 'id' });
+            }
+        };
+
+        request.onsuccess = (e) => {
+            db = e.target.result;
+            loadMapList();
+        };
+
+        function loadMapList() {
+            const tx = db.transaction('maps', 'readonly');
+            const store = tx.objectStore('maps');
+            const req = store.getAll();
+            req.onsuccess = () => {
+                mapsList = req.result || [];
+                updateMapDropdown();
+                if (mapsList.length > 0 && !currentMapId) {
+                    loadMap(mapsList[0].id);
+                }
+            };
+        }
+
+        function updateMapDropdown() {
+            const select = document.getElementById('map-select');
+            select.innerHTML = '<option value="">-- Select Map --</option>';
+            mapsList.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m.id;
+                opt.textContent = m.name;
+                select.appendChild(opt);
+            });
+            select.value = currentMapId || "";
+        }
+
+        document.getElementById('map-select').addEventListener('change', (e) => {
+            if (e.target.value) loadMap(parseInt(e.target.value));
+        });
+
+        document.getElementById('map-upload').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            // Generate a clean name from the file
+            let defaultName = file.name.replace(/\.[^/.]+$/, "").replace(/_/g, " ");
+            const mapName = prompt("Name this map:", defaultName) || defaultName;
+            
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const newMap = {
+                    id: Date.now(),
+                    name: mapName,
+                    data: event.target.result
+                };
+                
+                const tx = db.transaction('maps', 'readwrite');
+                tx.objectStore('maps').put(newMap);
+                tx.oncomplete = () => {
+                    mapsList.push(newMap);
+                    updateMapDropdown();
+                    loadMap(newMap.id);
+                };
+            };
+            reader.readAsDataURL(file);
+        });
+
+        function loadMap(id) {
+            currentMapId = id;
+            document.getElementById('map-select').value = id;
+            
+            const mapData = mapsList.find(m => m.id === id);
+            if (!mapData) return;
+
+            // Clear current tokens and fog when changing maps
+            tokens = [];
+            fogShapes = [];
+
+            const img = new Image();
+            img.onload = () => {
+                mapImage = img;
+                const w = img.width; const h = img.height;
+                container.style.width = w + 'px'; container.style.height = h + 'px';
+                [mapCanvas, tokenCanvas, fogCanvas].forEach(c => { c.width = w; c.height = h; });
+                renderMap(); renderTokens(); renderFog();
+            };
+            img.src = mapData.data;
+        }
+
+        // --- Token Upload ---
+        document.getElementById('token-upload').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            const nameInput = document.getElementById('token-name').value;
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                    // Spawn token in center of current view
+                    const rect = wrapper.getBoundingClientRect();
+                    tokens.push({
+                        id: Date.now(),
+                        img: img,
+                        name: nameInput,
+                        x: wrapper.scrollLeft + (rect.width / 2),
+                        y: wrapper.scrollTop + (rect.height / 2)
+                    });
+                    renderTokens();
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+            document.getElementById('token-name').value = ''; 
+        });
+
+        // --- Rendering Logic ---
+        function renderMap() {
+            if (!mapImage) return;
+            mapCtx.clearRect(0, 0, mapCanvas.width, mapCanvas.height);
+            mapCtx.drawImage(mapImage, 0, 0);
+        }
+
+        function renderTokens() {
+            tokenCtx.clearRect(0, 0, tokenCanvas.width, tokenCanvas.height);
+            tokens.forEach(t => {
+                // Draw Token Base
+                tokenCtx.save();
+                tokenCtx.beginPath();
+                tokenCtx.arc(t.x, t.y, gridSize/2, 0, Math.PI * 2);
+                tokenCtx.closePath();
+                tokenCtx.clip();
+                tokenCtx.drawImage(t.img, t.x - gridSize/2, t.y - gridSize/2, gridSize, gridSize);
+                tokenCtx.restore();
+                
+                // Draw Token Ring (Gold)
+                tokenCtx.strokeStyle = '#d97706'; // Amber 600
+                tokenCtx.lineWidth = 3;
+                tokenCtx.beginPath();
+                tokenCtx.arc(t.x, t.y, gridSize/2, 0, Math.PI * 2);
+                tokenCtx.stroke();
+
+                if(t.name) {
+                    tokenCtx.fillStyle = 'rgba(12, 10, 9, 0.9)'; // Dark stone
+                    const textWidth = tokenCtx.measureText(t.name).width;
+                    tokenCtx.roundRect(t.x - textWidth/2 - 6, t.y + gridSize/2 + 4, textWidth + 12, 20, 4);
+                    tokenCtx.fill();
+                    
+                    tokenCtx.strokeStyle = '#78350f'; // border
+                    tokenCtx.lineWidth = 1;
+                    tokenCtx.stroke();
+
+                    tokenCtx.fillStyle = '#fde68a'; // Amber 200
+                    tokenCtx.font = '12px Lora, serif';
+                    tokenCtx.textAlign = 'center';
+                    tokenCtx.fillText(t.name, t.x, t.y + gridSize/2 + 18);
+                }
+            });
+        }
+
+        function renderFog() {
+            fogCtx.clearRect(0, 0, fogCanvas.width, fogCanvas.height);
+            
+            fogShapes.forEach(shape => {
+                if (shape.isHidden || isDMMode) {
+                    fogCtx.beginPath();
+                    fogCtx.moveTo(shape.points[0].x, shape.points[0].y);
+                    shape.points.forEach(p => fogCtx.lineTo(p.x, p.y));
+                    fogCtx.closePath();
+                    
+                    if (shape.isHidden) {
+                        // DM sees translucent dark purple/black, Players see pitch black
+                        fogCtx.fillStyle = isDMMode ? 'rgba(0,0,0,0.6)' : '#000000';
+                        fogCtx.fill();
+                    } else if (isDMMode && !shape.isHidden) {
+                        fogCtx.strokeStyle = 'rgba(217, 119, 6, 0.5)'; // Translucent Gold outline for revealed areas
+                        fogCtx.lineWidth = 2;
+                        fogCtx.stroke();
+                    }
+                }
+            });
+
+            if (isDrawing && currentDrawPoints.length > 0) {
+                fogCtx.beginPath();
+                fogCtx.moveTo(currentDrawPoints[0].x, currentDrawPoints[0].y);
+                currentDrawPoints.forEach(p => fogCtx.lineTo(p.x, p.y));
+                fogCtx.strokeStyle = '#d97706'; // Amber line while drawing
+                fogCtx.lineWidth = 3;
+                fogCtx.stroke();
+            }
+        }
+
+        // --- Touch & Mouse Pointer Events ---
+        function getPointerPos(evt) {
+            const rect = fogCanvas.getBoundingClientRect();
+            return {
+                x: (evt.clientX - rect.left),
+                y: (evt.clientY - rect.top)
+            };
+        }
+
+        function processFogTap(pos, playerMode = false) {
+            for (let i = fogShapes.length - 1; i >= 0; i--) {
+                const shape = fogShapes[i];
+                fogCtx.beginPath();
+                fogCtx.moveTo(shape.points[0].x, shape.points[0].y);
+                shape.points.forEach(p => fogCtx.lineTo(p.x, p.y));
+                fogCtx.closePath();
+                
+                if (fogCtx.isPointInPath(pos.x, pos.y)) {
+                    if (playerMode && !shape.isHidden) return;
+                    shape.isHidden = playerMode ? false : !shape.isHidden;
+                    renderFog();
+                    break;
+                }
+            }
+        }
+
+        fogCanvas.addEventListener('pointerdown', (e) => {
+            const pos = getPointerPos(e);
+            let tokenHit = false;
+
+            if (!isDMMode || currentTool === 'drag') {
+                for (let i = tokens.length - 1; i >= 0; i--) {
+                    const t = tokens[i];
+                    if (Math.hypot(pos.x - t.x, pos.y - t.y) < gridSize / 2) {
+                        activeToken = t;
+                        tokenHit = true;
+                        fogCanvas.setPointerCapture(e.pointerId);
+                        break;
+                    }
+                }
+            }
+
+            if (tokenHit) return;
+
+            if (isDMMode) {
+                if (currentTool === 'fog-draw') {
+                    isDrawing = true;
+                    currentDrawPoints = [pos];
+                    fogCanvas.setPointerCapture(e.pointerId);
+                } else if (currentTool === 'fog-toggle') {
+                    processFogTap(pos);
+                }
+            } else {
+                processFogTap(pos, true);
+            }
+        });
+
+        fogCanvas.addEventListener('pointermove', (e) => {
+            const pos = getPointerPos(e);
+
+            if (activeToken) {
+                activeToken.x = pos.x;
+                activeToken.y = pos.y;
+                renderTokens();
+            } 
+            else if (isDMMode && currentTool === 'fog-draw' && isDrawing) {
+                const lastPos = currentDrawPoints[currentDrawPoints.length - 1];
+                if (Math.hypot(pos.x - lastPos.x, pos.y - lastPos.y) > 5) {
+                    currentDrawPoints.push(pos);
+                    renderFog();
+                }
+            }
+        });
+
+        fogCanvas.addEventListener('pointerup', (e) => {
+            fogCanvas.releasePointerCapture(e.pointerId);
+
+            if (activeToken) {
+                activeToken = null;
+            } 
+            else if (isDMMode && currentTool === 'fog-draw' && isDrawing) {
+                isDrawing = false;
+                if (currentDrawPoints.length > 3) {
+                    fogShapes.push({ id: Date.now(), points: currentDrawPoints, isHidden: true });
+                }
+                currentDrawPoints = [];
+                renderFog();
+            }
+        });
+    </script>
+</body>
+</html>
