@@ -293,30 +293,7 @@ const RecentGames = {
   }
 };
 
-// --- STATS ---
-const Stats = {
-  render() {
-    const games = State.games.filter(g => g.active !== false);
-    const tools = games.filter(g => g.category === 'tool');
-    const gamesList = games.filter(g => g.category === 'game');
-
-    this.animateCounter('stat-total', games.length);
-    this.animateCounter('stat-tools', tools.length);
-    this.animateCounter('stat-games', gamesList.length);
-  },
-
-  animateCounter(elementId, target) {
-    const el = document.getElementById(elementId);
-    if (!el) return;
-    let current = 0;
-    const step = Math.max(1, Math.ceil(target / 20));
-    const interval = setInterval(() => {
-      current = Math.min(current + step, target);
-      el.textContent = current;
-      if (current >= target) clearInterval(interval);
-    }, 40);
-  }
-};
+// Stats module removed
 
 // --- FEATURED SECTION ---
 const FeaturedSection = {
@@ -1093,7 +1070,6 @@ const App = {
 
       GameGrid.render();
       RecentGames.render();
-      Stats.render();
       FeaturedSection.render();
       Footer.render();
       Search.setup();
