@@ -8,7 +8,7 @@ const CONFIG = {
   helpUrl: "https://forms.gle/VRqg4f3KFHoJXFUu9",
   dataSource: "games.json",
   maxRecentGames: 5,
-  maxTabs: 8,
+  maxTabs: 20,
   debounceDelay: 300,
   loadTimeout: 5000,
   storageKeys: {
@@ -293,6 +293,74 @@ const RecentGames = {
   }
 };
 
+// --- STATS ---
+const Stats = {
+  render() {
+    const games = State.games.filter(g => g.active !== false);
+    const tools = games.filter(g => g.category === 'tool');
+    const gamesList = games.filter(g => g.category === 'game');
+
+    this.animateCounter('stat-total', games.length);
+    this.animateCounter('stat-tools', tools.length);
+    this.animateCounter('stat-games', gamesList.length);
+  },
+
+  animateCounter(elementId, target) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    let current = 0;
+    const step = Math.max(1, Math.ceil(target / 20));
+    const interval = setInterval(() => {
+      current = Math.min(current + step, target);
+      el.textContent = current;
+      if (current >= target) clearInterval(interval);
+    }, 40);
+  }
+};
+
+// --- FEATURED SECTION ---
+const FeaturedSection = {
+  render() {
+    const featured = State.games.filter(g => g.featured === true && g.active !== false);
+    const section = document.getElementById('featured-section');
+    const list = document.getElementById('featured-list');
+    const badge = document.getElementById('featured-count-badge');
+    if (!section || !list) return;
+
+    if (featured.length === 0) {
+      section.classList.add('hidden');
+      return;
+    }
+
+    section.classList.remove('hidden');
+    if (badge) badge.textContent = `${featured.length} apps`;
+
+    list.innerHTML = featured.map(game => {
+      const baseColor = game.color.replace('text-', '').split('-')[0];
+      const bgClass = `bg-${baseColor}`;
+      const bgLightClass = `bg-${baseColor}/15`;
+      return `
+        <div class="featured-card" data-action="openGame" data-param="${game.id}" role="button" tabindex="0"
+          aria-label="Launch ${game.title}">
+          <div class="featured-card-visual ${bgLightClass}">
+            <div class="bg-white dark:bg-slate-700 p-4 rounded-2xl border-2 border-dark dark:border-slate-400 shadow-hard dark:shadow-neon-sm relative z-10">
+              <i data-lucide="${game.icon}" class="w-10 h-10 ${game.color} dark:text-white"></i>
+            </div>
+          </div>
+          <div class="featured-card-body">
+            <div class="featured-card-title">${game.title}</div>
+            <div class="featured-card-desc">${game.description}</div>
+            <div class="featured-card-action ${bgClass}">
+              <i data-lucide="play" class="w-4 h-4 fill-current"></i> LAUNCH
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+    Utils.refreshIcons();
+  }
+};
+
 // --- GAME GRID ---
 const GameGrid = {
   render(games = null) {
@@ -304,19 +372,53 @@ const GameGrid = {
 
     if (gamesToRender.length === 0) {
       grid.innerHTML = `
-        <div class="col-span-full text-center p-10">
-          <i data-lucide="search-x" class="w-16 h-16 text-slate-300 dark:text-slate-600 mx-auto mb-4"></i>
-          <p class="text-lg font-bold text-slate-400 dark:text-slate-500">No activities found</p>
-          <p class="text-sm text-slate-400 dark:text-slate-600 mt-2">Try adjusting your filters</p>
+        <div class="empty-state">
+          <i data-lucide="search-x" class="empty-state-icon"></i>
+          <p class="empty-state-title">No activities found</p>
+          <p class="empty-state-subtitle">Try adjusting your filters</p>
         </div>
       `;
       Utils.refreshIcons();
       return;
     }
 
-    grid.innerHTML = gamesToRender.map(game => this.createCard(game)).join('');
+    // Group by category
+    const tools = gamesToRender.filter(g => g.category === 'tool');
+    const gamesList = gamesToRender.filter(g => g.category === 'game');
+    const other = gamesToRender.filter(g => g.category !== 'tool' && g.category !== 'game');
+
+    let html = '';
+
+    if (tools.length > 0) {
+      html += this.renderCategorySection('tools', 'wrench', 'var(--color-blue)', 'Teaching Tools', tools);
+    }
+    if (gamesList.length > 0) {
+      html += this.renderCategorySection('games', 'gamepad-2', 'var(--color-green)', 'Classroom Games', gamesList);
+    }
+    if (other.length > 0) {
+      html += this.renderCategorySection('other', 'box', 'var(--color-orange)', 'Other', other);
+    }
+
+    grid.innerHTML = html;
     Utils.refreshIcons();
     this.initCardEffects();
+  },
+
+  renderCategorySection(id, icon, color, title, games) {
+    return `
+      <section class="category-section" id="category-${id}">
+        <div class="section-header">
+          <div class="section-header-icon" style="background: ${color};">
+            <i data-lucide="${icon}" class="w-4 h-4"></i>
+          </div>
+          <h3 class="section-header-title">${title}</h3>
+          <span class="section-header-badge">${games.length}</span>
+        </div>
+        <div class="category-grid">
+          ${games.map(game => this.createCard(game)).join('')}
+        </div>
+      </section>
+    `;
   },
 
   createCard(game) {
@@ -493,10 +595,11 @@ const TabManager = {
     tabIcon.className = `side-panel-tab${tab.loading ? ' loading' : ''}`;
     tabIcon.dataset.tabId = tab.id;
     tabIcon.dataset.color = tab.color;
-    tabIcon.title = tab.title;
+    tabIcon.setAttribute('data-title', tab.title);
     tabIcon.setAttribute('role', 'tab');
     tabIcon.setAttribute('aria-selected', 'false');
     tabIcon.setAttribute('aria-label', `Switch to ${tab.title}`);
+    tabIcon.draggable = true;
     tabIcon.innerHTML = `
       <i data-lucide="${tab.icon}" class="side-panel-tab-icon"></i>
       <button class="side-panel-tab-close" data-tab-id="${tab.id}" aria-label="Close ${tab.title}" type="button">
@@ -511,6 +614,38 @@ const TabManager = {
       }
     });
 
+    // Drag and Drop implementation
+    tabIcon.addEventListener('dragstart', (e) => {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', tab.id);
+      setTimeout(() => tabIcon.classList.add('dragging'), 0);
+    });
+
+    tabIcon.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      tabIcon.classList.add('drag-over');
+    });
+
+    tabIcon.addEventListener('dragleave', () => {
+      tabIcon.classList.remove('drag-over');
+    });
+
+    tabIcon.addEventListener('drop', (e) => {
+      e.preventDefault();
+      tabIcon.classList.remove('drag-over');
+      const draggedTabId = e.dataTransfer.getData('text/plain');
+      if (draggedTabId && draggedTabId !== tab.id) {
+        this.reorderTabs(draggedTabId, tab.id);
+        AudioEngine.click();
+      }
+    });
+
+    tabIcon.addEventListener('dragend', () => {
+      tabIcon.classList.remove('dragging');
+      document.querySelectorAll('.side-panel-tab').forEach(el => el.classList.remove('drag-over'));
+    });
+
     const closeBtn = tabIcon.querySelector('.side-panel-tab-close');
     if (closeBtn) {
       closeBtn.addEventListener('click', (e) => {
@@ -523,6 +658,24 @@ const TabManager = {
     sidePanelTabs.appendChild(tabIcon);
     Utils.refreshIcons();
     tab.iconElement = tabIcon;
+  },
+
+  reorderTabs(draggedId, targetId) {
+    const draggedIndex = this.tabs.findIndex(t => t.id === draggedId);
+    const targetIndex = this.tabs.findIndex(t => t.id === targetId);
+    if (draggedIndex === -1 || targetIndex === -1) return;
+
+    // Rearrange in array
+    const [draggedTab] = this.tabs.splice(draggedIndex, 1);
+    this.tabs.splice(targetIndex, 0, draggedTab);
+
+    // Rearrange in DOM
+    const sidePanelTabs = document.getElementById('side-panel-tabs');
+    this.tabs.forEach(t => {
+      if (t.iconElement) sidePanelTabs.appendChild(t.iconElement);
+    });
+
+    this.saveTabsToStorage();
   },
 
   createTabPanel(tab) {
@@ -911,6 +1064,20 @@ const DataLoader = {
   }
 };
 
+// --- FOOTER ---
+const Footer = {
+  render() {
+    const el = document.getElementById('footer-version');
+    if (!el || !State.metadata) return;
+    const version = State.metadata.version || '';
+    const updated = State.metadata.lastUpdated || '';
+    const parts = [];
+    if (version) parts.push(`v${version}`);
+    if (updated) parts.push(`Updated ${updated}`);
+    el.innerHTML = parts.join('<span class="footer-version-dot"></span>');
+  }
+};
+
 // --- APP CONTROLLER ---
 const App = {
   async init() {
@@ -921,9 +1088,14 @@ const App = {
 
       const data = await DataLoader.loadGames();
       State.setGames(data);
+      // Store top-level metadata for footer
+      if (data.version) State.metadata = { ...(State.metadata || {}), version: data.version, lastUpdated: data.lastUpdated };
 
       GameGrid.render();
       RecentGames.render();
+      Stats.render();
+      FeaturedSection.render();
+      Footer.render();
       Search.setup();
 
       document.body.addEventListener('click', () => AudioEngine.init(), { once: true });
