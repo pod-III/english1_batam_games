@@ -232,18 +232,29 @@ const clock = {
     },
 
     initFace() {
-        const markers = DOM.get('clock-face-markers');
-        if (!markers) return;
+    const markers = DOM.get('clock-face-markers');
+    if (!markers) return;
 
-        const fragment = document.createDocumentFragment();
-        for (let i = 0; i < CONSTANTS.CLOCK_MARKERS; i++) {
-            const isHour = i % 5 === 0;
-            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    const fragment = document.createDocumentFragment();
+    const svgNS = "http://www.w3.org/2000/svg"; // Required namespace for SVG
 
-            <line x1="50" y1="4" x2="50" y2="${4 + (isHour ? 7 : 2)}" stroke="rgba(203, 213, 225, 0.6)" stroke-width="${isHour ? 2 : 1}" transform="rotate(${i * 6} 50 50)" />
-        }
-        markers.appendChild(fragment);
-    },
+    for (let i = 0; i < CONSTANTS.CLOCK_MARKERS; i++) {
+        const isHour = i % 5 === 0;
+        const line = document.createElementNS(svgNS, "line");
+
+        // Set attributes programmatically instead of using HTML tags
+        line.setAttribute("x1", "50");
+        line.setAttribute("y1", "4");
+        line.setAttribute("x2", "50");
+        line.setAttribute("y2", isHour ? "11" : "6"); // 4 + 7 or 4 + 2
+        line.setAttribute("stroke", "rgba(203, 213, 225, 0.6)");
+        line.setAttribute("stroke-width", isHour ? "2" : "1");
+        line.setAttribute("transform", `rotate(${i * 6} 50 50)`);
+
+        fragment.appendChild(line);
+    }
+    markers.appendChild(fragment);
+},,
 
     startLoop() {
         const animate = () => {
