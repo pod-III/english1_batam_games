@@ -457,14 +457,14 @@ function updateUIState() {
     if (isTrashMode) {
         softDelBtn.classList.add('hidden');
         trashButtons.classList.remove('hidden');
-        statusIndicator.className = "w-3 h-3 rounded-full bg-pink border-2 border-dark";
+        statusIndicator.className = "w-3 h-3 rounded-full bg-pink border-[1px] border-slate-300 dark:border-white/10";
         statusText.innerText = "Deleted Note";
         document.getElementById('noteTitle').disabled = true;
         quill.disable();
     } else {
         softDelBtn.classList.remove('hidden');
         trashButtons.classList.add('hidden');
-        statusIndicator.className = "w-3 h-3 rounded-full bg-green border-2 border-dark";
+        statusIndicator.className = "w-3 h-3 rounded-full bg-green border-[1px] border-slate-300 dark:border-white/10";
         statusText.innerText = "Auto-saved";
         document.getElementById('noteTitle').disabled = false;
         quill.enable();
@@ -591,7 +591,7 @@ function renderNotesList() {
         el.onclick = () => { loadNote(note.id); if (window.innerWidth < 768) toggleSidebar(); };
         const rawText = stripHtml(note.content).substring(0, 60);
         const titleColor = isActive ? (isTrashMode ? 'text-pink text-lg' : 'text-blue text-lg') : 'text-dark text-base';
-        const badgeColor = isActive ? (isTrashMode ? 'bg-pink text-white border-2 border-dark' : 'bg-blue text-white border-2 border-dark') : 'bg-gray-200 text-gray-500';
+        const badgeColor = isActive ? (isTrashMode ? 'bg-pink text-white border-[1px] border-white/20' : 'bg-blue text-white border-[1px] border-white/20') : 'bg-gray-200 text-gray-500';
         el.innerHTML = `
             <div class="flex justify-between items-start mb-1.5 relative z-10">
                 <h4 class="font-heading font-bold truncate pr-2 ${titleColor}">${title}</h4>
