@@ -240,15 +240,7 @@ const clock = {
             const isHour = i % 5 === 0;
             const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
 
-            line.setAttribute("x1", "50");
-            line.setAttribute("y1", "4");
-            line.setAttribute("x2", "50");
-            line.setAttribute("y2", String(4 + (isHour ? 7 : 2)));
-            line.setAttribute("stroke", "#cbd5e1");
-            line.setAttribute("stroke-width", isHour ? "2" : "1");
-            line.setAttribute("transform", `rotate(${i * 6} 50 50)`);
-
-            fragment.appendChild(line);
+            <line x1="50" y1="4" x2="50" y2="${4 + (isHour ? 7 : 2)}" stroke="rgba(203, 213, 225, 0.6)" stroke-width="${isHour ? 2 : 1}" transform="rotate(${i * 6} 50 50)" />
         }
         markers.appendChild(fragment);
     },
@@ -424,7 +416,6 @@ const stopwatch = {
         sw.laps = [];
         stopwatch.updateDisplay();
 
-        const els = this.cacheElements();
         els.laps.innerHTML =
             '<div class="flex flex-col items-center justify-center h-full gap-2 opacity-60" style="color: var(--text-muted);">' +
             '<i data-lucide="ghost" class="w-6 h-6"></i>' +
@@ -539,19 +530,19 @@ const timer = {
         els.btnBomb.className = 'px-6 py-2 rounded-lg text-sm font-bold uppercase transition-all flex items-center gap-2 border-2 border-transparent';
 
         if (mode === 'calm') {
-            els.btnCalm.classList.add('bg-green', 'text-white', 'shadow-hard-sm');
+            els.btnCalm.classList.add('bg-green', 'text-white', 'shadow-neo-sm');
             els.zenVis.classList.remove('hidden', 'opacity-0');
             els.rushVis.classList.add('hidden', 'opacity-0');
-            els.btnStart.className = "btn-chunky w-24 h-24 rounded-3xl bg-green border-4 text-white flex items-center justify-center mx-4 hover:scale-105 transition-transform shadow-hard-lg";
-            els.btnStart.style.borderColor = 'var(--border-main)';
+            els.btnStart.className = "btn-chunky w-24 h-24 rounded-3xl bg-green border-[1px] text-white flex items-center justify-center mx-4 hover:scale-105 transition-transform shadow-neo-lg";
+            els.btnStart.style.borderColor = 'rgba(255,255,255,0.4)';
             els.card.classList.remove('border-orange');
         } else {
-            els.btnBomb.classList.add('bg-orange', 'text-white', 'shadow-hard-sm');
+            els.btnBomb.classList.add('bg-orange', 'text-white', 'shadow-neo-sm');
             els.zenVis.classList.add('hidden', 'opacity-0');
             els.rushVis.classList.remove('hidden');
             setTimeout(() => els.rushVis.classList.remove('opacity-0'), 10);
-            els.btnStart.className = "btn-chunky w-24 h-24 rounded-3xl bg-orange border-4 text-white flex items-center justify-center mx-4 hover:scale-105 transition-transform shadow-hard-lg";
-            els.btnStart.style.borderColor = 'var(--border-main)';
+            els.btnStart.className = "btn-chunky w-24 h-24 rounded-3xl bg-orange border-[1px] text-white flex items-center justify-center mx-4 hover:scale-105 transition-transform shadow-neo-lg";
+            els.btnStart.style.borderColor = 'rgba(255,255,255,0.4)';
             els.card.classList.add('border-orange');
         }
 
