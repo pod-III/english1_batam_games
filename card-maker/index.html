@@ -135,6 +135,16 @@
             /* Increased gap for controls */
         }
 
+        .dark .preview-area {
+            background-color: #020617;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.05) 1px,
+                    transparent 1px),
+                linear-gradient(90deg,
+                    rgba(255, 255, 255, 0.05) 1px,
+                    transparent 1px);
+        }
+
         .sidebar {
             width: 380px;
             background: rgba(255, 255, 255, 0.85);
@@ -168,6 +178,7 @@
             box-shadow: 12px 12px 0px rgba(30, 41, 59, 0.15);
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+            transition: background-color 0.3s, border-color 0.3s;
         }
 
         .a4-portrait {
@@ -249,7 +260,7 @@
             position: relative;
             z-index: 10;
             overflow: hidden;
-            transition: background-color 0.2s;
+            transition: background-color 0.3s;
         }
 
         /* Drag and Drop visual cue */
@@ -302,6 +313,10 @@
             border: 0.5pt dashed rgba(30, 41, 59, 0.4);
             pointer-events: none;
             z-index: 100;
+        }
+
+        .dark .guide-line {
+            border-color: rgba(255, 255, 255, 0.2);
         }
 
         .guide-h {
@@ -649,9 +664,9 @@
                         <button onclick="setGlobalColor('#1ea7fd')"
                             class="w-8 h-8 rounded-full border-[3px] border-brand-dark bg-brand-blue hover:scale-110 hover:-translate-y-1 transition-transform"
                             title="Logic Blue"></button>
-                        <button onclick="setGlobalColor('#FFFFFF')"
-                            class="w-8 h-8 rounded-full border-[3px] border-brand-dark bg-white hover:scale-110 hover:-translate-y-1 transition-transform"
-                            title="Plain White"></button>
+                        <button onclick="setGlobalColor('default')"
+                            class="w-8 h-8 rounded-full border-[3px] border-brand-dark bg-white dark:bg-slate-800 hover:scale-110 hover:-translate-y-1 transition-transform"
+                            title="Default Theme"></button>
                     </div>
                 </div>
             </section>
@@ -693,10 +708,16 @@
 
         <!-- Footer Actions -->
         <div class="mt-4 space-y-2 pt-4 border-t-2 border-brand-dark dark:border-slate-700">
-            <button onclick="window.print()"
-                class="w-full btn-chunky bg-brand-green py-3 rounded-xl text-lg flex items-center justify-center gap-2 text-brand-dark">
-                <i data-lucide="printer"></i> PRINT ALL
-            </button>
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="window.print()"
+                    class="btn-chunky bg-brand-green py-3 rounded-xl text-sm flex items-center justify-center gap-1 text-brand-dark">
+                    <i data-lucide="printer" class="w-4 h-4"></i> PRINT
+                </button>
+                <button onclick="exportToPNG()"
+                    class="btn-chunky bg-brand-orange py-3 rounded-xl text-sm flex items-center justify-center gap-1 text-brand-dark">
+                    <i data-lucide="image" class="w-4 h-4"></i> SAVE PNG
+                </button>
+            </div>
             <button onclick="resetTool()"
                 class="w-full py-1 text-[10px] font-bold text-slate-400 hover:text-red-500 transition-colors flex items-center justify-center gap-2 uppercase tracking-tighter">
                 <i data-lucide="trash-2" class="w-3 h-3"></i> Clear
@@ -1066,9 +1087,13 @@
 
         function setGlobalColor(color, shouldSave = true) {
             state.color = color;
-            document
-                .querySelectorAll(".brutalist-card")
-                .forEach((c) => (c.style.backgroundColor = color));
+            document.querySelectorAll(".brutalist-card").forEach((card) => {
+                if (color === 'default') {
+                    card.style.backgroundColor = ''; // Revert to CSS class rules (white in light, slate-800 in dark)
+                } else {
+                    card.style.backgroundColor = color;
+                }
+            });
             if (shouldSave) saveState();
         }
 
@@ -1182,6 +1207,9 @@
             for (let i = 0; i < totalCardsPerPage; i++) {
                 const card = document.createElement("div");
                 card.className = "brutalist-card group";
+                if (state.color && state.color !== 'default') {
+                    card.style.backgroundColor = state.color;
+                }
 
                 const savedCard =
                     pageData && pageData[i]
@@ -1354,6 +1382,57 @@
                 localStorage.removeItem("flashcard_batam_state_v5");
                 location.reload();
             }
+        }
+
+        async function exportToPNG() {
+            const pages = document.querySelectorAll(".a4-page");
+            if (pages.length === 0) {
+                alert("No pages to export!");
+                return;
+            }
+
+            // Temporarily hide delete buttons & other UI clutter for pure export
+            document.querySelectorAll('.no-print').forEach(el => {
+                // Ensure del buttons within cards are completely hidden
+                if (el.id && el.id.startsWith('del-')) {
+                    el.style.display = 'none';
+                }
+            });
+
+            // Prevent text placeholders
+            document.querySelectorAll('[contenteditable]').forEach(el => {
+                if (el.innerText.trim() === '') {
+                    el.style.color = 'transparent';
+                }
+            });
+
+            for (let i = 0; i < pages.length; i++) {
+                const page = pages[i];
+
+                // Slightly scale up for better resolution pngs
+                const canvas = await html2canvas(page, {
+                    scale: 2,
+                    useCORS: true,
+                    backgroundColor: '#ffffff'
+                });
+
+                const link = document.createElement("a");
+                link.download = `card_maker_page_${i + 1}.png`;
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+            }
+
+            // Restore UI
+            document.querySelectorAll('.no-print').forEach(el => {
+                if (el.id && el.id.startsWith('del-')) {
+                    el.style.display = '';
+                }
+            });
+            document.querySelectorAll('[contenteditable]').forEach(el => {
+                if (el.innerText.trim() === '') {
+                    el.style.color = '';
+                }
+            });
         }
 
         // --- Init ---
