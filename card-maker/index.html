@@ -25,22 +25,33 @@
             theme: {
                 extend: {
                     colors: {
-                        pink: "#FF6B95",
-                        orange: "#FF8C42",
-                        green: "#00E676",
-                        blue: "#2979FF",
-                        dark: "#1e293b",
-                        chalk: "#f8fafc",
+                        brand: {
+                            pink: '#ff4785',
+                            orange: '#ff7e33',
+                            green: '#00d063',
+                            blue: '#1ea7fd',
+                            dark: '#1e293b',
+                            chalk: '#f8fafc'
+                        }
                     },
                     fontFamily: {
                         heading: ["Fredoka", "sans-serif"],
                         body: ["Nunito", "sans-serif"],
                     },
                     boxShadow: {
-                        hard: "4px 4px 0px 0px rgba(30, 41, 59, 1)",
-                        "hard-sm": "2px 2px 0px 0px rgba(30, 41, 59, 1)",
-                        "hard-lg": "8px 8px 0px 0px rgba(30, 41, 59, 1)",
+                        "neo-sm": "var(--shadow-hard-sm)",
+                        "neo": "var(--shadow-hard-md)",
+                        "neo-lg": "var(--shadow-hard-lg)",
                     },
+                    animation: {
+                        'pop-in': 'pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                    },
+                    keyframes: {
+                        'pop-in': {
+                            '0%': { opacity: '0', transform: 'scale(0.9) translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'scale(1) translateY(0)' },
+                        }
+                    }
                 },
             },
         };
@@ -54,34 +65,52 @@
     </style>
 
     <style>
-        /* Base Styles */
+        /* Base Styles & Standard Variables */
         :root {
+            --color-pink: #ff4785;
+            --color-orange: #ff7e33;
+            --color-green: #00d063;
+            --color-blue: #1ea7fd;
             --color-dark: #1e293b;
+            --color-chalk: #f8fafc;
+
+            --border-primary: var(--color-dark);
+            --shadow-hard-sm: 2px 2px 0px 0px var(--border-primary);
+            --shadow-hard-md: 4px 4px 0px 0px var(--border-primary);
+            --shadow-hard-lg: 8px 8px 0px 0px var(--border-primary);
         }
 
         body {
             font-family: "Nunito", sans-serif;
-            background-color: #f8fafc;
-            /* Chalk */
-            color: #1e293b;
+            background-color: var(--color-chalk);
+            color: var(--color-dark);
+        }
+
+        /* Dark Mode Equivalents */
+        .dark body {
+            background-color: #020617;
+            /* OLED Slate */
+            color: white;
+            --border-primary: #64748b;
         }
 
         /* Scrollbar Polish */
-        ::-webkit-scrollbar {
+        .custom-scrollbar::-webkit-scrollbar {
             width: 8px;
             height: 8px;
         }
 
-        ::-webkit-scrollbar-track {
-            background: #f1f5f9;
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(30, 41, 59, 0.05);
+            border-radius: 4px;
         }
 
-        ::-webkit-scrollbar-thumb {
+        .custom-scrollbar::-webkit-scrollbar-thumb {
             background: #cbd5e1;
             border-radius: 4px;
         }
 
-        ::-webkit-scrollbar-thumb:hover {
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
         }
 
@@ -108,13 +137,19 @@
 
         .sidebar {
             width: 380px;
-            background: white;
-            border-right: 4px solid #1e293b;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(16px);
+            border-right: 4px solid var(--border-primary);
             height: 100vh;
             position: sticky;
             top: 0;
             overflow-y: auto;
             z-index: 50;
+        }
+
+        .dark .sidebar {
+            background: rgba(30, 41, 59, 0.85);
+            /* Slate 800 */
         }
 
         /* A4 Page Simulation */
@@ -285,21 +320,65 @@
 
         /* UI Components */
         .btn-chunky {
-            @apply border-2 border-dark font-heading font-bold uppercase transition-all duration-100 text-sm tracking-wide;
-            box-shadow: 4px 4px 0px #1e293b;
+            @apply border-[3px] border-brand-dark font-heading font-bold uppercase transition-all duration-100;
+            box-shadow: var(--shadow-hard-md);
+        }
+
+        .dark .btn-chunky {
+            @apply border-slate-500;
+            box-shadow: 4px 4px 0px 0px #64748b;
         }
 
         .btn-chunky:hover {
-            transform: translateY(-1px);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-hard-lg);
+        }
+
+        .dark .btn-chunky:hover {
+            box-shadow: 6px 6px 0px 0px #64748b;
         }
 
         .btn-chunky:active {
-            transform: translate(2px, 2px);
-            box-shadow: 0px 0px 0px #1e293b;
+            transform: translate(4px, 4px);
+            box-shadow: none !important;
         }
 
         .btn-chunky.active {
-            @apply bg-dark text-white translate-x-[2px] translate-y-[2px] shadow-none;
+            @apply bg-brand-dark text-white translate-x-[4px] translate-y-[4px] shadow-none;
+        }
+
+        .dark .btn-chunky.active {
+            @apply bg-slate-600 border-slate-500;
+        }
+
+        .input-chunky {
+            @apply w-full border-[3px] border-brand-dark rounded-xl px-4 py-3 font-bold bg-white outline-none focus:ring-4 focus:ring-brand-blue/30 transition-shadow;
+            box-shadow: var(--shadow-hard-sm);
+        }
+
+        .dark .input-chunky {
+            @apply bg-slate-800 border-slate-500 text-white focus:ring-brand-blue/50;
+            box-shadow: 2px 2px 0px 0px #64748b;
+        }
+
+        .hub-card {
+            @apply border-[3px] border-brand-dark rounded-2xl bg-white shadow-neo overflow-hidden relative;
+        }
+
+        .dark .hub-card {
+            @apply bg-slate-800 border-slate-500 text-white;
+            box-shadow: 4px 4px 0px 0px #64748b;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 4px solid var(--border-primary);
+        }
+
+        .dark .glass-panel {
+            background: rgba(30, 41, 59, 0.8);
         }
 
         /* Editor Styles */
@@ -408,22 +487,32 @@
             @apply text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 block font-heading;
         }
     </style>
+    <link rel="stylesheet" href="../css/base.css" />
+    <link rel="stylesheet" href="../css/components.css" />
 </head>
 
-<body class="flex min-h-screen">
+<body class="flex min-h-screen text-brand-dark dark:text-white transition-colors duration-300">
     <!-- SIDEBAR CONTROLS -->
-    <aside class="sidebar no-print flex flex-col p-6">
+    <aside class="sidebar glass-panel no-print flex flex-col p-6">
         <!-- Header -->
-        <div class="mb-8 border-b-2 border-slate-100 pb-6">
-            <h1 class="text-3xl font-heading text-dark tracking-tight leading-none">
-                CARD<span class="text-blue">MAKER</span>
-            </h1>
-            <div class="flex items-center gap-2 mt-2">
-                <span
-                    class="px-2 py-0.5 rounded bg-dark text-white text-[10px] font-bold uppercase tracking-widest">English
-                    1</span>
-                <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Batam Edition</span>
+        <div class="mb-8 border-b-2 border-slate-100 dark:border-slate-700 pb-6 flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-heading text-brand-dark dark:text-white tracking-tight leading-none">
+                    CARD<span class="text-brand-blue">MAKER</span>
+                </h1>
+                <div class="flex items-center gap-2 mt-2">
+                    <span
+                        class="px-2 py-0.5 rounded bg-brand-dark text-white text-[10px] font-bold uppercase tracking-widest">English
+                        1</span>
+                    <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Batam Edition</span>
+                </div>
             </div>
+
+            <button onclick="toggleTheme()"
+                class="bg-white dark:bg-slate-800 text-brand-dark dark:text-white p-2 rounded-full border-2 border-brand-dark dark:border-slate-500 shadow-neo-sm hover:-translate-y-1 transition-all group focus:outline-none">
+                <i data-lucide="moon" class="w-4 h-4 dark:hidden group-hover:rotate-12 transition-transform"></i>
+                <i data-lucide="sun" class="w-4 h-4 hidden dark:block group-hover:rotate-90 transition-transform"></i>
+            </button>
         </div>
 
         <!-- Scrollable Controls -->
@@ -431,7 +520,7 @@
             <!-- Actions -->
             <section>
                 <button onclick="addNewPage()"
-                    class="w-full btn-chunky bg-blue text-white py-3 rounded-xl flex items-center justify-center gap-2 mb-3 shadow-hard hover:bg-blue-600">
+                    class="w-full btn-chunky bg-brand-blue text-white py-3 rounded-xl flex items-center justify-center gap-2 mb-3">
                     <i data-lucide="plus-circle" class="w-5 h-5"></i> Add
                     New Page
                 </button>
@@ -442,33 +531,36 @@
                 <label class="section-label">Orientation & Layout</label>
                 <div class="flex gap-3 mb-3">
                     <button id="btnPortrait" onclick="setOrientation('portrait')"
-                        class="flex-1 btn-chunky py-2 rounded-xl bg-white flex items-center justify-center gap-2">
+                        class="flex-1 btn-chunky py-2 rounded-xl bg-white dark:bg-slate-700 dark:text-white flex items-center justify-center gap-2">
                         <i data-lucide="file" class="w-4 h-4"></i> Vertical
                     </button>
                     <button id="btnLandscape" onclick="setOrientation('landscape')"
-                        class="flex-1 btn-chunky py-2 rounded-xl bg-white flex items-center justify-center gap-2">
+                        class="flex-1 btn-chunky py-2 rounded-xl bg-white dark:bg-slate-700 dark:text-white flex items-center justify-center gap-2">
                         <i data-lucide="file-minus" class="w-4 h-4"></i>
                         Horizontal
                     </button>
                 </div>
 
-                <div class="bg-slate-50 border-2 border-dark rounded-xl p-3">
+                <div
+                    class="bg-slate-50 dark:bg-slate-800 border-[3px] border-brand-dark dark:border-slate-500 rounded-xl p-3">
                     <div class="grid grid-cols-2 gap-3 mb-3">
-                        <div class="relative">
+                        <div
+                            class="relative flex items-center bg-white dark:bg-slate-700 border-[3px] border-brand-dark dark:border-slate-500 rounded-xl px-3 shadow-neo-sm overflow-hidden focus-within:ring-4 focus-within:ring-brand-blue/30 transition-all">
                             <span
-                                class="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 uppercase">Cols</span>
+                                class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-2">Cols</span>
                             <input type="number" id="inputCols" value="3" min="1" max="10" oninput="handleCustomGrid()"
-                                class="w-full border-2 border-dark rounded-lg p-2 pl-12 font-bold bg-white outline-none focus:border-blue focus:ring-1 focus:ring-blue transition-colors text-center" />
+                                class="w-full py-2 bg-transparent outline-none font-bold text-brand-dark dark:text-white text-center" />
                         </div>
-                        <div class="relative">
+                        <div
+                            class="relative flex items-center bg-white dark:bg-slate-700 border-[3px] border-brand-dark dark:border-slate-500 rounded-xl px-3 shadow-neo-sm overflow-hidden focus-within:ring-4 focus-within:ring-brand-blue/30 transition-all">
                             <span
-                                class="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 uppercase">Rows</span>
+                                class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mr-2">Rows</span>
                             <input type="number" id="inputRows" value="3" min="1" max="10" oninput="handleCustomGrid()"
-                                class="w-full border-2 border-dark rounded-lg p-2 pl-12 font-bold bg-white outline-none focus:border-orange focus:ring-1 focus:ring-orange transition-colors text-center" />
+                                class="w-full py-2 bg-transparent outline-none font-bold text-brand-dark dark:text-white text-center" />
                         </div>
                     </div>
                     <select id="gridSelect" onchange="syncFromPreset()"
-                        class="w-full border-2 border-dark rounded-lg p-2 font-bold bg-white outline-none text-sm cursor-pointer hover:bg-slate-50">
+                        class="input-chunky py-2 px-3 text-sm cursor-pointer w-full text-center">
                         <option value="" disabled selected>
                             -- Select Preset --
                         </option>
@@ -488,28 +580,30 @@
                 <!-- Image Size -->
                 <div class="mb-4">
                     <div class="flex justify-between items-end mb-1">
-                        <span class="text-xs font-bold text-dark">Image Size</span>
-                        <span id="imgSizeLabel" class="text-[10px] font-bold text-blue">50%</span>
+                        <span class="text-xs font-bold text-brand-dark dark:text-white">Image Size</span>
+                        <span id="imgSizeLabel" class="text-[10px] font-bold text-brand-blue">50%</span>
                     </div>
                     <div class="flex gap-1">
                         <button id="img-0" onclick="setImageSize(0)"
-                            class="flex-1 btn-chunky py-1.5 rounded-lg bg-white text-[10px]" title="Text Only">
+                            class="flex-1 btn-chunky py-1.5 rounded-lg bg-white dark:bg-slate-700 dark:text-white text-[10px]"
+                            title="Text Only">
                             0%
                         </button>
                         <button id="img-25" onclick="setImageSize(25)"
-                            class="flex-1 btn-chunky py-1.5 rounded-lg bg-white text-[10px]">
+                            class="flex-1 btn-chunky py-1.5 rounded-lg bg-white dark:bg-slate-700 dark:text-white text-[10px]">
                             25%
                         </button>
                         <button id="img-50" onclick="setImageSize(50)"
-                            class="flex-1 btn-chunky py-1.5 rounded-lg bg-white text-[10px]">
+                            class="flex-1 btn-chunky py-1.5 rounded-lg bg-white dark:bg-slate-700 dark:text-white text-[10px]">
                             50%
                         </button>
                         <button id="img-75" onclick="setImageSize(75)"
-                            class="flex-1 btn-chunky py-1.5 rounded-lg bg-white text-[10px]">
+                            class="flex-1 btn-chunky py-1.5 rounded-lg bg-white dark:bg-slate-700 dark:text-white text-[10px]">
                             75%
                         </button>
                         <button id="img-100" onclick="setImageSize(100)"
-                            class="flex-1 btn-chunky py-1.5 rounded-lg bg-white text-[10px]" title="Image Only">
+                            class="flex-1 btn-chunky py-1.5 rounded-lg bg-white dark:bg-slate-700 dark:text-white text-[10px]"
+                            title="Image Only">
                             100%
                         </button>
                     </div>
@@ -517,18 +611,22 @@
 
                 <!-- Font Size -->
                 <div class="mb-4">
-                    <span class="text-xs font-bold text-dark block mb-1">Font Size</span>
+                    <span class="text-xs font-bold text-brand-dark dark:text-white block mb-1">Font Size</span>
                     <div class="grid grid-cols-4 gap-2">
-                        <button id="font-1.2" onclick="setFontSize(1.2)" class="btn-chunky py-2 rounded-lg bg-white">
+                        <button id="font-1.2" onclick="setFontSize(1.2)"
+                            class="btn-chunky py-2 rounded-lg bg-white dark:bg-slate-700 dark:text-white">
                             S
                         </button>
-                        <button id="font-2" onclick="setFontSize(2)" class="btn-chunky py-2 rounded-lg bg-white">
+                        <button id="font-2" onclick="setFontSize(2)"
+                            class="btn-chunky py-2 rounded-lg bg-white dark:bg-slate-700 dark:text-white">
                             M
                         </button>
-                        <button id="font-3.5" onclick="setFontSize(3.5)" class="btn-chunky py-2 rounded-lg bg-white">
+                        <button id="font-3.5" onclick="setFontSize(3.5)"
+                            class="btn-chunky py-2 rounded-lg bg-white dark:bg-slate-700 dark:text-white">
                             L
                         </button>
-                        <button id="font-5" onclick="setFontSize(5)" class="btn-chunky py-2 rounded-lg bg-white">
+                        <button id="font-5" onclick="setFontSize(5)"
+                            class="btn-chunky py-2 rounded-lg bg-white dark:bg-slate-700 dark:text-white">
                             XL
                         </button>
                     </div>
@@ -536,22 +634,23 @@
 
                 <!-- Colors -->
                 <div>
-                    <span class="text-xs font-bold text-dark block mb-1">Background Color</span>
-                    <div class="flex justify-between p-2 bg-slate-50 border-2 border-dark rounded-xl">
-                        <button onclick="setGlobalColor('#FF6B95')"
-                            class="w-8 h-8 rounded-full border-2 border-dark bg-pink hover:scale-110 hover:-translate-y-1 transition-transform"
+                    <span class="text-xs font-bold text-brand-dark dark:text-white block mb-1">Background Color</span>
+                    <div
+                        class="flex justify-between p-2 bg-slate-50 dark:bg-slate-800 border-[3px] border-brand-dark dark:border-slate-500 rounded-xl">
+                        <button onclick="setGlobalColor('#ff4785')"
+                            class="w-8 h-8 rounded-full border-[3px] border-brand-dark bg-brand-pink hover:scale-110 hover:-translate-y-1 transition-transform"
                             title="Playful Pink"></button>
-                        <button onclick="setGlobalColor('#FF8C42')"
-                            class="w-8 h-8 rounded-full border-2 border-dark bg-orange hover:scale-110 hover:-translate-y-1 transition-transform"
+                        <button onclick="setGlobalColor('#ff7e33')"
+                            class="w-8 h-8 rounded-full border-[3px] border-brand-dark bg-brand-orange hover:scale-110 hover:-translate-y-1 transition-transform"
                             title="Energy Orange"></button>
-                        <button onclick="setGlobalColor('#00E676')"
-                            class="w-8 h-8 rounded-full border-2 border-dark bg-green hover:scale-110 hover:-translate-y-1 transition-transform"
+                        <button onclick="setGlobalColor('#00d063')"
+                            class="w-8 h-8 rounded-full border-[3px] border-brand-dark bg-brand-green hover:scale-110 hover:-translate-y-1 transition-transform"
                             title="Success Green"></button>
-                        <button onclick="setGlobalColor('#2979FF')"
-                            class="w-8 h-8 rounded-full border-2 border-dark bg-blue hover:scale-110 hover:-translate-y-1 transition-transform"
+                        <button onclick="setGlobalColor('#1ea7fd')"
+                            class="w-8 h-8 rounded-full border-[3px] border-brand-dark bg-brand-blue hover:scale-110 hover:-translate-y-1 transition-transform"
                             title="Logic Blue"></button>
                         <button onclick="setGlobalColor('#FFFFFF')"
-                            class="w-8 h-8 rounded-full border-2 border-dark bg-white hover:scale-110 hover:-translate-y-1 transition-transform"
+                            class="w-8 h-8 rounded-full border-[3px] border-brand-dark bg-white hover:scale-110 hover:-translate-y-1 transition-transform"
                             title="Plain White"></button>
                     </div>
                 </div>
@@ -562,7 +661,9 @@
                 <label class="section-label">Settings</label>
                 <div id="toggleAutoFit" onclick="toggleAutoFit()" class="toggle-container group mb-4">
                     <div class="flex flex-col">
-                        <span class="text-xs font-bold text-dark uppercase tracking-tight">Auto-Fit Text</span>
+                        <span
+                            class="text-xs font-bold text-brand-dark dark:text-white uppercase tracking-tight">Auto-Fit
+                            Text</span>
                         <span class="text-[10px] text-slate-400 font-bold">Resize text to fit box</span>
                     </div>
                     <div class="toggle-switch"></div>
@@ -570,18 +671,18 @@
             </section>
 
             <!-- Data Management -->
-            <section class="border-t-2 border-slate-100 pt-4">
+            <section class="border-t-2 border-slate-100 dark:border-slate-700 pt-4">
                 <label class="section-label">Data Management</label>
                 <div class="grid grid-cols-2 gap-2">
                     <button onclick="exportData()"
-                        class="btn-chunky bg-white py-2 rounded-xl text-xs flex items-center justify-center gap-1">
+                        class="btn-chunky bg-white dark:bg-slate-700 py-2 rounded-xl text-xs flex items-center justify-center gap-1 dark:text-white">
                         <i data-lucide="download" class="w-3 h-3"></i> Save
                         File
                     </button>
                     <button onclick="
                                 document.getElementById('importFile').click()
                             "
-                        class="btn-chunky bg-white py-2 rounded-xl text-xs flex items-center justify-center gap-1">
+                        class="btn-chunky bg-white dark:bg-slate-700 py-2 rounded-xl text-xs flex items-center justify-center gap-1 dark:text-white">
                         <i data-lucide="upload" class="w-3 h-3"></i> Open
                         File
                     </button>
@@ -591,9 +692,9 @@
         </div>
 
         <!-- Footer Actions -->
-        <div class="mt-4 space-y-2 pt-4 border-t-2 border-dark">
+        <div class="mt-4 space-y-2 pt-4 border-t-2 border-brand-dark dark:border-slate-700">
             <button onclick="window.print()"
-                class="w-full btn-chunky bg-green py-3 rounded-xl text-lg flex items-center justify-center gap-2 shadow-hard hover:bg-green-400 text-dark">
+                class="w-full btn-chunky bg-brand-green py-3 rounded-xl text-lg flex items-center justify-center gap-2 text-brand-dark">
                 <i data-lucide="printer"></i> PRINT ALL
             </button>
             <button onclick="resetTool()"
@@ -639,6 +740,10 @@
         };
 
         // --- Core Functions ---
+
+        function toggleTheme() {
+            document.documentElement.classList.toggle("dark");
+        }
 
         function loadState() {
             const saved = localStorage.getItem("flashcard_batam_state_v5");
@@ -1097,7 +1202,7 @@
                 // 2. Remove Image Button
                 const delBtn = document.createElement("button");
                 delBtn.id = `del-${uid}`;
-                delBtn.className = `no-print absolute top-2 right-2 bg-red-500 text-white rounded-md p-1 border-2 border-dark shadow-sm z-50 hover:scale-110 transition-transform ${savedCard.img ? "" : "hidden"}`;
+                delBtn.className = `no-print absolute top-2 right-2 bg-red-500 text-white rounded-md p-1 border-2 border-brand-dark shadow-sm z-50 hover:scale-110 transition-transform ${savedCard.img ? "" : "hidden"}`;
                 delBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><path d="M18 6L6 18M6 6l12 12"/></svg>`;
                 delBtn.onclick = (e) => {
                     e.stopPropagation();
@@ -1132,7 +1237,7 @@
                 textContainer.className = "text-container";
                 const text = document.createElement("div");
                 text.contentEditable = true;
-                text.className = "outline-none text-dark";
+                text.className = "outline-none text-brand-dark"; // Removed dark:text-white to avoid invisible text on white card
                 text.innerText = savedCard.text || "";
                 text.oninput = () => {
                     if (state.autoFit) autoFitText(text);
@@ -1162,18 +1267,21 @@
                     e.preventDefault();
                     e.stopPropagation();
                     card.classList.add("drag-over");
+                    card.style.opacity = "0.7";
                 });
 
                 card.addEventListener("dragleave", (e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     card.classList.remove("drag-over");
+                    card.style.opacity = "1";
                 });
 
                 card.addEventListener("drop", (e) => {
                     e.preventDefault();
                     e.stopPropagation();
                     card.classList.remove("drag-over");
+                    card.style.opacity = "1";
                     const file = e.dataTransfer.files[0];
                     if (file && file.type.startsWith("image/")) {
                         handleFileSelect(file, uid, pageIndex);
