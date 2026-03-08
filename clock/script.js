@@ -36,7 +36,7 @@ const CONSTANTS = {
 // --- GLOBAL STATE ---
 const state = {
     currentTool: 'clock',
-    clock: { is24Hour: false, isAnalog: false, animFrame: null },
+    clock: { is24Hour: false, isAnalog: false, isZenMode: false, animFrame: null, lastSecond: -1 },
     stopwatch: { startTime: 0, elapsed: 0, running: false, animFrame: null, laps: [] },
     timer: { timeLeft: 300, initial: 300, lastDuration: 300, running: false, interval: null, mode: 'calm' },
     calendar: { date: new Date(), marked: {}, selected: null },
@@ -190,8 +190,13 @@ const clock = {
                 handHour: DOM.get('hand-hour'),
                 btnFormat: DOM.get('clock-btn-format'),
                 btnView: DOM.get('clock-btn-view'),
+                btnZen: DOM.get('clock-btn-zen'),
                 digital: DOM.get('clock-digital'),
-                analog: DOM.get('clock-analog')
+                analog: DOM.get('clock-analog'),
+                mainArea: DOM.get('main-content-area'),
+                sidebar: DOM.get('app-sidebar'),
+                controlsTop: DOM.get('clock-controls-top'),
+                locMarker: DOM.get('clock-location-marker')
             };
         }
         return this.elements;
@@ -218,7 +223,9 @@ const clock = {
     },
     startLoop() {
         const animate = () => {
-            clock.update();
+            if (state.currentTool === 'clock') {
+                clock.update();
+            }
             alarm.check();
             state.clock.animFrame = requestAnimationFrame(animate);
         };
@@ -231,26 +238,32 @@ const clock = {
         const m = now.getMinutes();
         const s = now.getSeconds();
 
-        const displayHour = state.clock.is24Hour ? utils.padZero(h) : (h % 12 || 12);
-        const displayMin = utils.padZero(m);
-        const displaySec = utils.padZero(s);
-        const newTime = `${displayHour}:${displayMin}`;
+        // CPU Optimization: Only update digital DOM text if the second changed
+        if (s !== state.clock.lastSecond) {
+            state.clock.lastSecond = s;
 
-        if (els.time && els.time.innerText !== newTime) els.time.innerText = newTime;
-        if (els.secDig && els.secDig.innerText !== displaySec) els.secDig.innerText = displaySec;
+            const displayHour = state.clock.is24Hour ? utils.padZero(h) : (h % 12 || 12);
+            const displayMin = utils.padZero(m);
+            const displaySec = utils.padZero(s);
+            const newTime = `${displayHour}:${displayMin}`;
 
-        const ampm = h >= 12 ? 'PM' : 'AM';
-        if (els.ampm) {
-            if (els.ampm.innerText !== ampm) els.ampm.innerText = ampm;
-            els.ampm.style.display = state.clock.is24Hour ? 'none' : 'block';
+            if (els.time && els.time.innerText !== newTime) els.time.innerText = newTime;
+            if (els.secDig && els.secDig.innerText !== displaySec) els.secDig.innerText = displaySec;
+
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            if (els.ampm) {
+                if (els.ampm.innerText !== ampm) els.ampm.innerText = ampm;
+                els.ampm.style.display = state.clock.is24Hour ? 'none' : 'block';
+            }
+
+            const dateStr = `${CONSTANTS.DAYS[now.getDay()]}, ${CONSTANTS.MONTHS[now.getMonth()]} ${now.getDate()}`;
+            if (els.date && els.date.innerText !== dateStr) {
+                els.date.innerText = dateStr;
+                if (els.dateAnalog) els.dateAnalog.innerText = dateStr;
+            }
         }
 
-        const dateStr = `${CONSTANTS.DAYS[now.getDay()]}, ${CONSTANTS.MONTHS[now.getMonth()]} ${now.getDate()}`;
-        if (els.date && els.date.innerText !== dateStr) {
-            els.date.innerText = dateStr;
-            if (els.dateAnalog) els.dateAnalog.innerText = dateStr;
-        }
-
+        // CPU Optimization: Only calculate & apply transforms if Analog view is active
         if (state.clock.isAnalog && els.handSec && els.handMin && els.handHour) {
             const secRatio = s / 60;
             const minRatio = (m + secRatio) / 60;
@@ -270,7 +283,7 @@ const clock = {
     toggleView() {
         state.clock.isAnalog = !state.clock.isAnalog;
         const els = this.cacheElements();
-        
+
         if (!els.digital || !els.analog || !els.btnView) return;
 
         if (state.clock.isAnalog) {
@@ -284,8 +297,47 @@ const clock = {
             els.digital.classList.remove('hidden');
             els.btnView.innerText = "ANALOG";
         }
+        // Force an immediate text update since we might have skipped it while hidden
+        state.clock.lastSecond = -1;
+        clock.update();
+    },
+    toggleZenMode() {
+        state.clock.isZenMode = !state.clock.isZenMode;
+        const els = this.cacheElements();
+
+        if (state.clock.isZenMode) {
+            if (els.mainArea) {
+                if (els.mainArea.requestFullscreen) {
+                    els.mainArea.requestFullscreen().catch(err => {
+                        console.warn(`Error attempting to enable fullscreen: ${err.message} (${err.name})`);
+                    });
+                }
+                els.mainArea.classList.add('zen-mode');
+            }
+            if (els.sidebar) els.sidebar.classList.add('hidden');
+            if (els.controlsTop) els.controlsTop.classList.add('opacity-0', 'pointer-events-none');
+            if (els.locMarker) els.locMarker.classList.add('opacity-0');
+            if (els.btnZen) els.btnZen.innerHTML = '<i data-lucide="minimize" class="w-4 h-4"></i>';
+        } else {
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(err => console.warn(err));
+            }
+            if (els.mainArea) els.mainArea.classList.remove('zen-mode');
+            if (els.sidebar) els.sidebar.classList.remove('hidden');
+            if (els.controlsTop) els.controlsTop.classList.remove('opacity-0', 'pointer-events-none');
+            if (els.locMarker) els.locMarker.classList.remove('opacity-0');
+            if (els.btnZen) els.btnZen.innerHTML = '<i data-lucide="maximize" class="w-4 h-4"></i>';
+        }
+        utils.safeIconUpdate();
     }
 };
+
+// Listen for ESC key exiting fullscreen natively
+document.addEventListener('fullscreenchange', () => {
+    if (!document.fullscreenElement && state.clock.isZenMode) {
+        clock.toggleZenMode(); // Sync state if user pressed ESC
+    }
+});
 
 // --- STOPWATCH ---
 const stopwatch = {
@@ -458,16 +510,16 @@ const timer = {
             els.btnCalm.classList.replace('bg-white', 'bg-[#00E676]');
             els.btnCalm.classList.replace('text-[#1e293b]', 'text-white');
             els.btnCalm.classList.add('shadow-[4px_4px_0px_0px_rgba(30,41,59,1)]', '-translate-y-1');
-            
+
             if (els.zenVis) els.zenVis.classList.remove('hidden', 'opacity-0');
             if (els.rushVis) els.rushVis.classList.add('hidden', 'opacity-0');
-            
+
             els.btnStart.className = "w-24 h-24 rounded-2xl bg-[#00E676] border-4 border-[#1e293b] text-white flex items-center justify-center mx-4 hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(30,41,59,1)] active:translate-y-1 active:shadow-none transition-all shadow-[4px_4px_0px_0px_rgba(30,41,59,1)]";
         } else {
             els.btnBomb.classList.replace('bg-white', 'bg-[#FF8C42]');
             els.btnBomb.classList.replace('text-[#1e293b]', 'text-white');
             els.btnBomb.classList.add('shadow-[4px_4px_0px_0px_rgba(30,41,59,1)]', '-translate-y-1');
-            
+
             if (els.zenVis) els.zenVis.classList.add('hidden', 'opacity-0');
             if (els.rushVis) {
                 els.rushVis.classList.remove('hidden');
@@ -753,7 +805,7 @@ const alarm = {
     trigger(al) {
         state.alarm.currentlyRinging = al;
         const els = this.cacheElements();
-        
+
         if (els.overlayLabel) els.overlayLabel.textContent = al.label;
         if (els.overlayTime) els.overlayTime.textContent = `${utils.padZero(al.h)}:${utils.padZero(al.m)} ${al.ampm}`;
         if (els.overlay) {
@@ -808,7 +860,7 @@ const calendar = {
         return this.elements;
     },
     load() {
-        try { state.calendar.marked = JSON.parse(localStorage.getItem('hub_calendar')) || {}; } 
+        try { state.calendar.marked = JSON.parse(localStorage.getItem('hub_calendar')) || {}; }
         catch { state.calendar.marked = {}; }
     },
     save() {
@@ -825,7 +877,7 @@ const calendar = {
         if (!els.grid || !els.monthYear) return;
 
         els.monthYear.innerText = `${CONSTANTS.MONTH_NAMES[cal.date.getMonth()]} ${cal.date.getFullYear()}`;
-        
+
         const year = cal.date.getFullYear();
         const month = cal.date.getMonth();
         const startOffset = (new Date(year, month, 1).getDay() + 6) % 7;
@@ -859,7 +911,7 @@ const calendar = {
     setupEventDelegation() {
         const els = this.cacheElements();
         if (!els.grid) return;
-        
+
         els.grid.addEventListener('click', (e) => {
             const cell = e.target.closest('.cal-day');
             if (!cell || cell.classList.contains('empty')) return;
@@ -879,7 +931,7 @@ const calendar = {
         });
     },
     updateCounter(cellDate) {
-        const diffDays = Math.ceil((new Date(cellDate).setHours(0,0,0,0) - new Date().setHours(0,0,0,0)) / 86400000);
+        const diffDays = Math.ceil((new Date(cellDate).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 86400000);
         let text = "TODAY";
         if (diffDays > 0) text = `${diffDays} DAY${diffDays > 1 ? 'S' : ''} FROM NOW`;
         else if (diffDays < 0) text = `${Math.abs(diffDays)} DAY${Math.abs(diffDays) > 1 ? 'S' : ''} AGO`;
@@ -934,7 +986,7 @@ window.onload = function () {
     utils.safeIconUpdate();
 
     clock.initFace();
-    clock.startLoop(); 
+    clock.startLoop();
 
     calendar.load();
     calendar.setupEventDelegation();
@@ -952,6 +1004,7 @@ window.onload = function () {
 // --- GLOBAL BINDINGS ---
 window.clockToggleFormat = () => clock.toggleFormat();
 window.clockToggleView = () => clock.toggleView();
+window.clockToggleZen = () => clock.toggleZenMode();
 window.swToggle = () => stopwatch.toggle();
 window.swReset = () => stopwatch.reset();
 window.swLap = () => stopwatch.lap();
@@ -969,5 +1022,5 @@ window.alarmOpenAddForm = () => alarm.openAddForm();
 window.alarmCloseAddForm = () => alarm.closeAddForm();
 window.alarmSaveNew = () => alarm.saveNew();
 window.alarmDismiss = () => alarm.dismiss();
-window.switchTool = switchTool; 
+window.switchTool = switchTool;
 window.alarm = alarm;
