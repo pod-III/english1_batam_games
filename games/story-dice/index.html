@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Story Dice - English 1</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    
+    <link rel="stylesheet" href="../../styles.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        pink: '#FF6B95',
+                        orange: '#FF8C42',
+                        green: '#00E676',
+                        blue: '#2979FF',
+                        dark: '#1e293b',
+                        surface: '#FFFFFF'
+                    },
+                    fontFamily: {
+                        heading: ['Fredoka', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'hard': '4px 4px 0px 0px rgba(30, 41, 59, 1)',
+                        'hard-sm': '2px 2px 0px 0px rgba(30, 41, 59, 1)',
+                        'hard-lg': '6px 6px 0px 0px rgba(30, 41, 59, 1)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #F8FAFC;
+            background-image:
+                linear-gradient(#E2E8F0 1px, transparent 1px),
+                linear-gradient(90deg, #E2E8F0 1px, transparent 1px);
+            background-size: 24px 24px;
+            color: #1e293b;
+        }
+
+        .scene {
+            perspective: 1000px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 20px;
+        }
+
+        .cube {
+            width: 110px;
+            height: 110px;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 1.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @media (min-width: 768px) {
+            .cube { width: 150px; height: 150px; }
+        }
+
+        .cube__face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 1.2rem;
+            border: 4px solid #1e293b;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            backface-visibility: hidden;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
+        }
+
+        .cube__face--front  { transform: rotateY(  0deg) translateZ(55px); }
+        .cube__face--right  { transform: rotateY( 90deg) translateZ(55px); }
+        .cube__face--back   { transform: rotateY(180deg) translateZ(55px); }
+        .cube__face--left   { transform: rotateY(-90deg) translateZ(55px); }
+        .cube__face--top    { transform: rotateX( 90deg) translateZ(55px); }
+        .cube__face--bottom { transform: rotateX(-90deg) translateZ(55px); }
+
+        @media (min-width: 768px) {
+            .cube__face--front  { transform: rotateY(  0deg) translateZ(75px); }
+            .cube__face--right  { transform: rotateY( 90deg) translateZ(75px); }
+            .cube__face--back   { transform: rotateY(180deg) translateZ(75px); }
+            .cube__face--left   { transform: rotateY(-90deg) translateZ(75px); }
+            .cube__face--top    { transform: rotateX( 90deg) translateZ(75px); }
+            .cube__face--bottom { transform: rotateX(-90deg) translateZ(75px); }
+        }
+
+        .btn-chunky {
+            border: 3px solid #1e293b;
+            box-shadow: 0 4px 0 #1e293b;
+            transition: all 0.1s;
+        }
+        .btn-chunky:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #1e293b;
+        }
+        .btn-chunky.active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #1e293b;
+        }
+    </style>
+    <link rel="stylesheet" href="../../css/base.css" />
+    <link rel="stylesheet" href="../../css/components.css" />
+</head>
+<body class="min-h-screen flex flex-col overflow-x-hidden selection:bg-pink selection:text-white pb-32">
+
+    <header class="max-w-6xl mx-auto w-full mt-4 md:mt-8 px-4 z-40">
+        <div class="bg-white border-4 border-dark rounded-3xl p-4 md:p-5 shadow-hard flex flex-col md:flex-row justify-between items-center gap-4">
+            
+            <div class="flex items-center gap-4">
+                <div class="w-16 h-16 rounded-2xl bg-orange border-3 border-dark flex items-center justify-center text-white shadow-hard-sm transform rotate-[-3deg]">
+                    <i data-lucide="dices" class="w-9 h-9"></i>
+                </div>
+                <div>
+                    <h1 class="text-3xl font-heading font-bold text-dark leading-none tracking-tight">STORY DICE</h1>
+                    <div class="flex items-center gap-2 mt-1">
+                        <span class="text-xs font-bold bg-pink text-white px-2 py-0.5 rounded border border-dark uppercase">English 1</span>
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Batam</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-center gap-3 bg-slate-100 p-2.5 rounded-2xl border-2 border-slate-300">
+                <div class="flex gap-2 mr-2">
+                    <button onclick="setDiceCount(1)" id="mode-1" class="btn-chunky bg-white px-4 py-2 rounded-xl text-sm font-bold text-dark hover:bg-pink hover:text-white hover:border-dark transition-colors">1</button>
+                    <button onclick="setDiceCount(3)" id="mode-3" class="btn-chunky bg-dark text-white px-4 py-2 rounded-xl text-sm font-bold transition-colors active">3</button>
+                    <button onclick="setDiceCount(5)" id="mode-5" class="btn-chunky bg-white px-4 py-2 rounded-xl text-sm font-bold text-dark hover:bg-blue hover:text-white hover:border-dark transition-colors">5</button>
+                </div>
+
+                <div class="w-px h-8 bg-slate-300 mx-1"></div>
+
+                <button onclick="toggleHistory()" class="btn-chunky w-11 h-11 flex items-center justify-center rounded-xl bg-blue text-white" title="Roll History">
+                    <i data-lucide="history" class="w-5 h-5"></i>
+                </button>
+
+                <button onclick="toggleLabels()" id="btn-labels" class="btn-chunky w-11 h-11 flex items-center justify-center rounded-xl bg-green text-white" title="Toggle Words">
+                    <i data-lucide="type" class="w-5 h-5"></i>
+                </button>
+
+                <button onclick="toggleSound()" id="btn-sound" class="btn-chunky w-11 h-11 flex items-center justify-center rounded-xl bg-white text-dark hover:bg-slate-200" title="Toggle Sound">
+                    <i data-lucide="volume-2" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow flex flex-col items-center justify-center relative p-4">
+        <div id="legend" class="mt-8 mb-4 flex flex-wrap justify-center gap-3 text-xs font-bold uppercase tracking-widest text-slate-500"></div>
+        <div id="dice-container" class="flex flex-wrap justify-center gap-8 md:gap-12 w-full max-w-6xl py-6"></div>
+    </main>
+
+    <div class="fixed bottom-0 left-0 w-full flex justify-center z-30 p-6 pointer-events-none bg-gradient-to-t from-slate-100/90 to-transparent">
+        <button onclick="rollAll()" class="pointer-events-auto btn-chunky group relative px-12 py-5 bg-blue text-white rounded-2xl font-heading text-4xl tracking-widest shadow-hard-lg hover:translate-y-[-4px] active:translate-y-[2px] active:shadow-none transition-all">
+            <span class="flex items-center gap-4">
+                ROLL <i data-lucide="refresh-cw" class="w-8 h-8 group-hover:rotate-180 transition-transform duration-500"></i>
+            </span>
+        </button>
+    </div>
+
+    <div id="history-modal" class="fixed inset-0 bg-dark/50 z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-200">
+        <div class="bg-white border-4 border-dark rounded-3xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-[8px_8px_0px_0px_rgba(30,41,59,1)] transform scale-95 transition-transform duration-200" id="history-content">
+            <div class="flex justify-between items-center p-6 border-b-4 border-dark bg-slate-50 rounded-t-2xl">
+                <h2 class="text-2xl font-heading font-bold text-dark flex items-center gap-2">
+                    <i data-lucide="history" class="w-6 h-6 text-blue"></i> Roll History
+                </h2>
+                <button onclick="toggleHistory()" class="btn-chunky w-10 h-10 flex items-center justify-center rounded-xl bg-red-500 text-white">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto flex-grow bg-slate-100" id="history-list">
+                <p class="text-center font-body text-slate-500 font-bold mt-4">No rolls yet. Start rolling to build your story!</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

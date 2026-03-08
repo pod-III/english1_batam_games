@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flashcard</title>
+
+    <!-- External Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;700;900&family=Fredoka:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap"
+        rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        pink: '#FF6B95',
+                        orange: '#FF8C42',
+                        green: '#00E676',
+                        blue: '#2979FF',
+                        dark: '#1e293b',
+                        surface: '#F8FAFC',
+                        slate100: '#f1f5f9',
+                    },
+                    fontFamily: {
+                        heading: ['Fredoka', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                        bebas: ['Bebas Neue', 'cursive'],
+                    },
+                    boxShadow: {
+                        'hard-xl': '16px 16px 0px 0px #1e293b',
+                        'hard-lg': '10px 10px 0px 0px #1e293b',
+                        'hard-md': '6px 6px 0px 0px #1e293b',
+                        'hard-sm': '3px 3px 0px 0px #1e293b',
+                        'hard-xs': '2px 2px 0px 0px #1e293b',
+                        'inner-hard': 'inset 4px 4px 0px 0px #0f172a',
+                    },
+                    animation: {
+                        'pop-in': 'popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                        'slide-up': 'slideUp 0.5s ease-out forwards',
+                        'bounce-slight': 'bounceSlight 2s infinite',
+                    },
+                    keyframes: {
+                        popIn: {
+                            '0%': { transform: 'scale(0.9)', opacity: '0' },
+                            '100%': { transform: 'scale(1)', opacity: '1' }
+                        },
+                        slideUp: {
+                            '0%': { transform: 'translateY(20px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' }
+                        },
+                        bounceSlight: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-5px)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Nunito', sans-serif;
+            color: #1e293b;
+            background-color: #F8FAFC;
+            background-image:
+                radial-gradient(#CBD5E1 2px, transparent 2px),
+                radial-gradient(#CBD5E1 2px, transparent 2px);
+            background-size: 32px 32px;
+            background-position: 0 0, 16px 16px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+        }
+
+        /* --- Custom Scrollbar for Textarea --- */
+        textarea::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        textarea::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-left: 2px solid #1e293b;
+        }
+
+        textarea::-webkit-scrollbar-thumb {
+            background-color: #1e293b;
+            border: 2px solid #f1f5f9;
+            border-radius: 6px;
+        }
+
+        /* --- Component Styles --- */
+        .card-brutal {
+            background: #FFFFFF;
+            border: 4px solid #1e293b;
+            box-shadow: 10px 10px 0px 0px #1e293b;
+        }
+
+        .btn-brutal {
+            border: 3px solid #1e293b;
+            box-shadow: 4px 4px 0px 0px #1e293b;
+            transition: all 0.1s ease;
+            position: relative;
+            top: 0;
+            left: 0;
+        }
+
+        .btn-brutal:hover:not(:disabled) {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0px 0px #1e293b;
+        }
+
+        .btn-brutal:active:not(:disabled) {
+            transform: translate(2px, 2px);
+            box-shadow: 0px 0px 0px 0px #1e293b;
+        }
+
+        .btn-brutal:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            box-shadow: none;
+            border-style: dashed;
+        }
+
+        .input-brutal {
+            background-color: #f8fafc;
+            border: 3px solid #1e293b;
+            box-shadow: 4px 4px 0px 0px #cbd5e1;
+            transition: all 0.2s;
+        }
+
+        .input-brutal:focus {
+            outline: none;
+            box-shadow: 4px 4px 0px 0px #2979FF;
+            border-color: #2979FF;
+        }
+
+        /* --- Dynamic Text & Progress --- */
+        .word-display {
+            text-shadow: 4px 4px 0px #cbd5e1;
+            -webkit-text-stroke: 2px #1e293b;
+            color: white;
+            /* Fill color */
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .word-display.prep {
+            color: #FF8C42;
+            /* Orange fill for prep */
+            text-shadow: 4px 4px 0px #1e293b;
+            -webkit-text-stroke: 0px;
+        }
+
+        .word-display.active {
+            color: #1e293b;
+            -webkit-text-stroke: 0px;
+            text-shadow: 6px 6px 0px #00E676;
+            /* Green shadow */
+        }
+
+        .word-display.paused {
+            color: #FF6B95;
+            text-shadow: 6px 6px 0px #1e293b;
+        }
+
+        /* Progress Bar Animation */
+        .progress-bar {
+            transition: width 1s linear;
+        }
+
+        /* Badge */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            border: 2px solid #1e293b;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-weight: 800;
+            font-size: 0.85rem;
+            box-shadow: 2px 2px 0px 0px #1e293b;
+        }
+    </style>
+    <link rel="stylesheet" href="../../css/base.css" />
+    <link rel="stylesheet" href="../../css/components.css" />
+</head>
+
+<body>
+
+    <!-- Main Application Container -->
+    <div class="card-brutal w-full max-w-4xl rounded-2xl overflow-hidden animate-pop-in relative">
+
+        <!-- Decoration Dots (Mac window style but brutal) -->
+        <div class="absolute top-4 right-4 flex gap-2 z-10">
+            <div class="w-4 h-4 rounded-full border-2 border-dark bg-pink"></div>
+            <div class="w-4 h-4 rounded-full border-2 border-dark bg-orange"></div>
+            <div class="w-4 h-4 rounded-full border-2 border-dark bg-green"></div>
+        </div>
+
+        <!-- Header -->
+        <div class="bg-slate100 border-b-4 border-dark p-6 flex items-center gap-4">
+            <div
+                class="w-12 h-12 bg-blue border-2 border-dark shadow-hard-sm flex items-center justify-center rounded-lg">
+                <svg class="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+            <div>
+                <h1 class="font-heading text-3xl sm:text-4xl text-dark leading-none">FLASHCARD</h1>
+                <p class="text-xs sm:text-sm font-bold text-slate-500 tracking-wider">TEACHER'S COMPANION</p>
+            </div>
+        </div>
+
+        <!-- 1. CONFIGURATION SCREEN -->
+        <div id="teacher-console" class="p-6 sm:p-10 flex flex-col gap-8">
+
+            <div class="bg-blue/5 border-2 border-blue border-dashed p-4 rounded-xl">
+                <p class="text-dark font-bold text-sm">
+                    💡 <span class="text-blue">Tip:</span> Use spacebar to Pause/Resume and Right Arrow to Skip during
+                    the game.
+                </p>
+            </div>
+
+            <!-- List Manager -->
+            <div class="flex flex-col gap-2">
+                <div class="flex justify-between items-end mb-1">
+                    <label class="font-heading text-xl text-dark">Word List</label>
+                    <select id="word-presets-select"
+                        class="font-bold text-sm bg-white border-2 border-dark rounded-lg px-2 py-1 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue">
+                        <!-- Populated by JS -->
+                    </select>
+                </div>
+                <textarea id="word-list-input" rows="4"
+                    class="input-brutal w-full rounded-xl p-4 text-lg font-mono text-dark placeholder-slate-400 resize-y"
+                    placeholder="PASTE WORDS HERE...&#10;Noun&#10;Verb&#10;Adjective"></textarea>
+                <div class="flex justify-between text-xs font-bold text-slate-500 px-1">
+                    <span>Separate with commas or new lines</span>
+                    <span id="word-count-badge">0 words</span>
+                </div>
+            </div>
+
+            <!-- Settings Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div>
+                    <label class="block font-heading text-xl text-dark mb-2">Duration (Seconds)</label>
+                    <div class="relative">
+                        <input type="number" id="round-duration-input" value="30" min="5"
+                            class="input-brutal w-full rounded-xl p-3 pl-4 text-2xl font-mono">
+                        <div
+                            class="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400 pointer-events-none">
+                            SEC</div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block font-heading text-xl text-dark mb-2">Prep Time</label>
+                    <div class="relative">
+                        <input type="number" id="prep-time-input" value="5" min="0"
+                            class="input-brutal w-full rounded-xl p-3 pl-4 text-2xl font-mono">
+                        <div
+                            class="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400 pointer-events-none">
+                            SEC</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Area -->
+            <div class="pt-4">
+                <button id="start-game-btn"
+                    class="btn-brutal w-full bg-green text-dark py-5 rounded-xl font-heading text-2xl sm:text-3xl tracking-wide hover:bg-[#00c965]">
+                    START SESSION 🚀
+                </button>
+            </div>
+        </div>
+
+        <!-- 2. GAME SCREEN -->
+        <div id="game-screen" class="hidden relative">
+            <!-- Progress Bar Container -->
+            <div class="h-4 w-full bg-slate-200 border-b-4 border-dark flex justify-start">
+                <div id="time-progress-bar" class="h-full bg-green transition-all duration-1000 ease-linear w-full">
+                </div>
+            </div>
+
+            <div class="p-8 sm:p-12 text-center flex flex-col items-center justify-center min-h-[400px]">
+
+                <!-- Status Badge -->
+                <div class="mb-8 flex items-center justify-center gap-3">
+                    <span id="game-phase-badge" class="badge bg-yellow-300 text-dark">PREPARE</span>
+                    <span id="word-counter-badge" class="badge bg-white text-dark">1 / 10</span>
+                </div>
+
+                <!-- THE WORD -->
+                <div class="relative w-full mb-8">
+                    <div id="game-word"
+                        class="word-display text-5xl sm:text-7xl md:text-8xl font-black break-words leading-tight px-4 py-8">
+                        WORD
+                    </div>
+                </div>
+
+                <!-- Timer Circle -->
+                <div class="relative mb-10 group cursor-pointer" id="timer-container">
+                    <div
+                        class="w-32 h-32 rounded-full border-4 border-dark flex items-center justify-center bg-white shadow-hard-md transition-all group-hover:shadow-hard-lg">
+                        <span id="timer-display" class="font-mono text-5xl font-bold text-dark">30</span>
+                    </div>
+                    <!-- Play/Pause Overlay Hint -->
+                    <div id="pause-overlay"
+                        class="absolute inset-0 rounded-full bg-dark/80 flex items-center justify-center opacity-0 transition-opacity">
+                        <span class="text-white font-black text-xs uppercase">Paused</span>
+                    </div>
+                </div>
+
+                <!-- Controls -->
+                <div class="grid grid-cols-2 gap-4 w-full max-w-md">
+                    <button id="pause-resume-btn"
+                        class="btn-brutal bg-blue text-white py-3 rounded-lg font-bold text-lg uppercase tracking-wider flex items-center justify-center gap-2">
+                        <span>Pause</span> <span class="text-xs bg-white/20 px-1 rounded">SPC</span>
+                    </button>
+                    <button id="skip-word-btn"
+                        class="btn-brutal bg-orange text-white py-3 rounded-lg font-bold text-lg uppercase tracking-wider flex items-center justify-center gap-2">
+                        <span>Skip</span> <span class="text-xs bg-white/20 px-1 rounded">→</span>
+                    </button>
+                </div>
+
+                <div class="mt-8">
+                    <button id="abort-btn"
+                        class="text-xs font-bold text-slate-400 hover:text-pink transition-colors underline decoration-2 decoration-dotted">
+                        End Session Early
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. RESULTS SCREEN -->
+        <div id="results-screen" class="hidden p-8 sm:p-12 text-center animate-slide-up">
+            <h2 class="font-heading text-4xl sm:text-5xl text-dark mb-2">SESSION COMPLETE!</h2>
+            <p class="font-bold text-slate-500 mb-8">Great job! Here's what we covered:</p>
+
+            <div
+                class="bg-slate100 border-4 border-dark rounded-xl p-6 mb-8 max-h-[40vh] overflow-y-auto shadow-inner-hard">
+                <div id="final-synonym-list" class="flex flex-wrap gap-3 justify-center">
+                    <!-- Words injected here -->
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <button id="restart-game-btn"
+                    class="btn-brutal bg-pink text-white py-4 px-10 rounded-xl font-heading text-2xl hover:bg-pink/90">
+                    NEW SETUP
+                </button>
+                <button id="replay-same-btn"
+                    class="btn-brutal bg-white text-dark py-4 px-10 rounded-xl font-heading text-2xl hover:bg-slate-50">
+                    REPLAY SAME
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Toast Notification (Hidden by default) -->
+    <div id="toast" class="fixed bottom-6 right-6 transform translate-y-24 transition-transform duration-300 z-50">
+        <div
+            class="bg-dark text-white px-6 py-4 rounded-xl shadow-hard-sm border-2 border-white flex items-center gap-3">
+            <span class="text-2xl">⚠️</span>
+            <span id="toast-msg" class="font-bold font-body">Notification</span>
+        </div>
+    </div>
+
+    <script>
+        // --- CONSTANTS & CONFIG ---
+        const STORAGE_KEYS = {
+            WORDS: 'vocab_words',
+            DURATION: 'vocab_duration',
+            PREP: 'vocab_prep',
+            PRESETS: 'vocab_presets'
+        };
+
+        const PRESETS = {
+            'academic_verbs': {
+                name: 'Academic Verbs',
+                words: 'ANALYZE, SYNTHESIZE, EVALUATE, INFER, CRITIQUE, JUSTIFY, ARTICULATE, DIFFERENTIATE'
+            },
+            'literary': {
+                name: 'Literary Devices',
+                words: 'ALLUSION, OXYMORON, HYPERBOLE, PERSONIFICATION, SIMILE, METAPHOR, ALLITERATION'
+            },
+            'debating': {
+                name: 'Debate Terms',
+                words: 'REBUTTAL, PREMISE, FALLACY, MOTION, STATUS QUO, ASSERTION, CONTENTION'
+            }
+        };
+
+        // --- STATE MANAGEMENT ---
+        const state = {
+            words: [],
+            currentIndex: 0,
+            timerId: null,
+            timeLeft: 0,
+            duration: 30,
+            prepTime: 5,
+            isPaused: false,
+            isPrep: false,
+            audioCtx: null
+        };
+
+        // --- DOM ELEMENTS ---
+        const dom = {
+            console: document.getElementById('teacher-console'),
+            game: document.getElementById('game-screen'),
+            results: document.getElementById('results-screen'),
+            inputs: {
+                list: document.getElementById('word-list-input'),
+                duration: document.getElementById('round-duration-input'),
+                prep: document.getElementById('prep-time-input'),
+                presets: document.getElementById('word-presets-select')
+            },
+            gameUI: {
+                word: document.getElementById('game-word'),
+                timer: document.getElementById('timer-display'),
+                timerContainer: document.getElementById('timer-container'),
+                progressBar: document.getElementById('time-progress-bar'),
+                phaseBadge: document.getElementById('game-phase-badge'),
+                countBadge: document.getElementById('word-counter-badge'),
+                pauseOverlay: document.getElementById('pause-overlay')
+            },
+            buttons: {
+                start: document.getElementById('start-game-btn'),
+                pause: document.getElementById('pause-resume-btn'),
+                skip: document.getElementById('skip-word-btn'),
+                restart: document.getElementById('restart-game-btn'),
+                replay: document.getElementById('replay-same-btn'),
+                abort: document.getElementById('abort-btn')
+            },
+            finalList: document.getElementById('final-synonym-list'),
+            wordCountBadge: document.getElementById('word-count-badge'),
+            toast: {
+                el: document.getElementById('toast'),
+                msg: document.getElementById('toast-msg')
+            }
+        };
+
+        // --- AUDIO ENGINE ---
+        const AudioEngine = {
+            init: () => {
+                if (!state.audioCtx) {
+                    state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (state.audioCtx.state === 'suspended') {
+                    state.audioCtx.resume();
+                }
+            },
+            play: (type) => {
+                if (!state.audioCtx) return;
+                const osc = state.audioCtx.createOscillator();
+                const gain = state.audioCtx.createGain();
+
+                if (type === 'tick') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(800, state.audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.05, state.audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, state.audioCtx.currentTime + 0.05);
+                    osc.start();
+                    osc.stop(state.audioCtx.currentTime + 0.05);
+                } else if (type === 'ding') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(523.25, state.audioCtx.currentTime); // C5
+                    osc.frequency.exponentialRampToValueAtTime(1046.5, state.audioCtx.currentTime + 0.1); // C6
+                    gain.gain.setValueAtTime(0.2, state.audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, state.audioCtx.currentTime + 0.5);
+                    osc.start();
+                    osc.stop(state.audioCtx.currentTime + 0.5);
+                }
+                osc.connect(gain).connect(state.audioCtx.destination);
+            }
+        };
+
+        // --- UTILS ---
+        const showToast = (msg) => {
+            dom.toast.msg.textContent = msg;
+            dom.toast.el.classList.remove('translate-y-24');
+            setTimeout(() => dom.toast.el.classList.add('translate-y-24'), 3000);
+        };
+
+        const updateWordCount = () => {
+            const txt = dom.inputs.list.value;
+            const count = txt.split(/[,|\n]/).filter(w => w.trim().length > 0).length;
+            dom.wordCountBadge.textContent = `${count} words`;
+        };
+
+        const loadPersistedData = () => {
+            dom.inputs.list.value = localStorage.getItem(STORAGE_KEYS.WORDS) || '';
+            dom.inputs.duration.value = localStorage.getItem(STORAGE_KEYS.DURATION) || 30;
+            dom.inputs.prep.value = localStorage.getItem(STORAGE_KEYS.PREP) || 5;
+            updateWordCount();
+        };
+
+        const savePersistedData = () => {
+            localStorage.setItem(STORAGE_KEYS.WORDS, dom.inputs.list.value);
+            localStorage.setItem(STORAGE_KEYS.DURATION, dom.inputs.duration.value);
+            localStorage.setItem(STORAGE_KEYS.PREP, dom.inputs.prep.value);
+        };
+
+        // --- CORE LOGIC ---
+
+        const initPresets = () => {
+            dom.inputs.presets.innerHTML = '<option value="" disabled selected>Load Preset...</option>';
+            Object.keys(PRESETS).forEach(key => {
+                const opt = document.createElement('option');
+                opt.value = key;
+                opt.textContent = PRESETS[key].name;
+                dom.inputs.presets.appendChild(opt);
+            });
+
+            dom.inputs.presets.addEventListener('change', (e) => {
+                const preset = PRESETS[e.target.value];
+                if (preset) {
+                    dom.inputs.list.value = preset.words;
+                    updateWordCount();
+                    savePersistedData();
+                    e.target.value = ''; // Reset select
+                }
+            });
+        };
+
+        const updateGameUI = () => {
+            // Update Timer Text
+            dom.gameUI.timer.textContent = state.timeLeft;
+
+            // Update Progress Bar
+            const totalTime = state.isPrep ? state.prepTime : state.duration;
+            const pct = (state.timeLeft / totalTime) * 100;
+            dom.gameUI.progressBar.style.width = `${pct}%`;
+
+            // Colors based on state and time
+            if (state.isPrep) {
+                dom.gameUI.progressBar.className = 'h-full w-full transition-all duration-1000 linear bg-orange';
+                dom.gameUI.phaseBadge.textContent = "GET READY";
+                dom.gameUI.phaseBadge.className = "badge bg-orange text-white";
+                dom.gameUI.word.className = "word-display prep text-5xl sm:text-7xl md:text-8xl font-black break-words leading-tight px-4 py-8";
+                dom.gameUI.word.textContent = "COMING UP...";
+            } else {
+                dom.gameUI.phaseBadge.textContent = "ACTIVE";
+                dom.gameUI.phaseBadge.className = "badge bg-green text-dark";
+
+                // Urgency colors
+                if (state.timeLeft <= 5) {
+                    dom.gameUI.progressBar.className = 'h-full w-full transition-all duration-1000 linear bg-pink';
+                    dom.gameUI.timerContainer.classList.add('animate-pulse');
+                    dom.gameUI.timer.classList.add('text-pink');
+                } else if (state.timeLeft <= 10) {
+                    dom.gameUI.progressBar.className = 'h-full w-full transition-all duration-1000 linear bg-yellow-400';
+                    dom.gameUI.timer.classList.remove('text-pink');
+                    dom.gameUI.timerContainer.classList.remove('animate-pulse');
+                } else {
+                    dom.gameUI.progressBar.className = 'h-full w-full transition-all duration-1000 linear bg-green';
+                    dom.gameUI.timer.classList.remove('text-pink');
+                    dom.gameUI.timerContainer.classList.remove('animate-pulse');
+                }
+
+                dom.gameUI.word.className = "word-display active text-5xl sm:text-7xl md:text-8xl font-black break-words leading-tight px-4 py-8";
+                dom.gameUI.word.textContent = state.words[state.currentIndex];
+            }
+
+            // Pause UI
+            if (state.isPaused) {
+                dom.buttons.pause.innerHTML = '<span>Resume</span> <span class="text-xs bg-white/20 px-1 rounded">SPC</span>';
+                dom.buttons.pause.className = 'btn-brutal bg-green text-dark py-3 rounded-lg font-bold text-lg uppercase tracking-wider flex items-center justify-center gap-2';
+                dom.gameUI.word.classList.add('paused');
+                dom.gameUI.progressBar.classList.add('opacity-50');
+                dom.gameUI.pauseOverlay.classList.remove('opacity-0');
+            } else {
+                dom.buttons.pause.innerHTML = '<span>Pause</span> <span class="text-xs bg-white/20 px-1 rounded">SPC</span>';
+                dom.buttons.pause.className = 'btn-brutal bg-blue text-white py-3 rounded-lg font-bold text-lg uppercase tracking-wider flex items-center justify-center gap-2';
+                dom.gameUI.word.classList.remove('paused');
+                dom.gameUI.progressBar.classList.remove('opacity-50');
+                dom.gameUI.pauseOverlay.classList.add('opacity-0');
+            }
+
+            // Counter
+            dom.gameUI.countBadge.textContent = `${state.currentIndex + 1} / ${state.words.length}`;
+        };
+
+        const tick = () => {
+            if (state.isPaused) return;
+
+            state.timeLeft--;
+            if (!state.isPrep && state.timeLeft <= 5) {
+                AudioEngine.play('tick');
+            }
+            updateGameUI();
+
+            if (state.timeLeft < 0) {
+                clearInterval(state.timerId);
+                AudioEngine.play('ding');
+
+                if (state.isPrep) {
+                    startWord();
+                } else {
+                    nextWord();
+                }
+            }
+        };
+
+        const startWord = () => {
+            state.isPrep = false;
+            state.timeLeft = state.duration;
+            state.timerId = setInterval(tick, 1000);
+            updateGameUI();
+        };
+
+        const startPrep = () => {
+            clearInterval(state.timerId);
+            state.isPrep = true;
+            state.timeLeft = state.prepTime;
+
+            if (state.prepTime === 0) {
+                startWord();
+            } else {
+                state.timerId = setInterval(tick, 1000);
+                updateGameUI();
+            }
+        };
+
+        const nextWord = () => {
+            clearInterval(state.timerId);
+            state.currentIndex++;
+
+            if (state.currentIndex >= state.words.length) {
+                endGame();
+            } else {
+                startPrep();
+            }
+        };
+
+        const startGame = (wordsList = null) => {
+            AudioEngine.init();
+
+            if (!wordsList) {
+                // Fresh Start
+                const raw = dom.inputs.list.value;
+                state.words = raw.split(/[,|\n]/)
+                    .map(w => w.trim().toUpperCase())
+                    .filter(w => w.length > 0);
+            } else {
+                // Replay
+                state.words = wordsList;
+            }
+
+            if (state.words.length === 0) {
+                showToast('Please enter at least one word!');
+                return;
+            }
+
+            state.duration = parseInt(dom.inputs.duration.value) || 30;
+            state.prepTime = parseInt(dom.inputs.prep.value) || 0;
+            state.currentIndex = 0;
+            state.isPaused = false;
+
+            // Switch Screens
+            dom.console.classList.add('hidden');
+            dom.results.classList.add('hidden');
+            dom.game.classList.remove('hidden');
+
+            savePersistedData();
+            startPrep();
+        };
+
+        const togglePause = () => {
+            state.isPaused = !state.isPaused;
+            updateGameUI();
+        };
+
+        const skipWord = () => {
+            if (state.isPaused) state.isPaused = false;
+            AudioEngine.play('ding');
+            nextWord();
+        };
+
+        const endGame = () => {
+            clearInterval(state.timerId);
+            dom.game.classList.add('hidden');
+            dom.results.classList.remove('hidden');
+
+            // Populate Result List
+            dom.finalList.innerHTML = '';
+            state.words.forEach(word => {
+                const badge = document.createElement('span');
+                badge.className = "inline-block bg-white border-2 border-dark rounded-lg px-3 py-1 text-sm font-bold shadow-hard-xs";
+                badge.textContent = word;
+                dom.finalList.appendChild(badge);
+            });
+
+            // Confetti Effect
+            confetti({
+                particleCount: 150,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ['#FF6B95', '#FF8C42', '#00E676', '#2979FF']
+            });
+        };
+
+        const resetToConsole = () => {
+            dom.results.classList.add('hidden');
+            dom.console.classList.remove('hidden');
+        };
+
+        // --- EVENT LISTENERS ---
+
+        dom.buttons.start.addEventListener('click', () => startGame());
+        dom.buttons.pause.addEventListener('click', togglePause);
+        dom.buttons.skip.addEventListener('click', skipWord);
+        dom.buttons.restart.addEventListener('click', resetToConsole);
+        dom.buttons.replay.addEventListener('click', () => startGame(state.words)); // Re-pass current words
+        dom.buttons.abort.addEventListener('click', endGame);
+
+        // Input Auto-Save Listeners
+        dom.inputs.list.addEventListener('input', () => { updateWordCount(); savePersistedData(); });
+        dom.inputs.duration.addEventListener('input', savePersistedData);
+        dom.inputs.prep.addEventListener('input', savePersistedData);
+
+        // Keyboard Controls
+        document.addEventListener('keydown', (e) => {
+            // Only active if game screen is visible
+            if (dom.game.classList.contains('hidden')) return;
+
+            if (e.code === 'Space') {
+                e.preventDefault(); // Prevent scrolling
+                togglePause();
+            } else if (e.code === 'ArrowRight') {
+                skipWord();
+            }
+        });
+
+        // Initialize
+        window.addEventListener('load', () => {
+            initPresets();
+            loadPersistedData();
+        });
+
+    </script>
+</body>
+
+</html>

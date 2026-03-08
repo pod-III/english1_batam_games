@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English 1 Bingo Maker</title>
+
+    <!-- Global Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;800&display=swap">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Global Styles -->
+    <link rel="stylesheet" href="../../css/base.css">
+    <link rel="stylesheet" href="../../css/components.css">
+
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            pink: '#ff4785',
+                            orange: '#ff7e33',
+                            green: '#00d063',
+                            blue: '#1ea7fd',
+                            dark: '#1e293b',
+                            chalk: '#f8fafc'
+                        }
+                    },
+                    fontFamily: {
+                        heading: ['Fredoka', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'neo-sm': 'var(--shadow-hard-sm)',
+                        'neo': 'var(--shadow-hard-md)',
+                        'neo-lg': 'var(--shadow-hard-lg)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Local specific overrides if necessary */
+
+        /* Hide scrollbar for cleaner UI */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        @keyframes bounce-short {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        .animate-bounce-short {
+            animation: bounce-short 0.3s ease-in-out;
+        }
+
+        @keyframes fade-in {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-fade-in {
+            animation: fade-in 0.3s ease-out forwards;
+        }
+
+        /* Print Styling for A4 Landscape / A5 Cards */
+        @media print {
+            @page {
+                size: A4 landscape;
+                margin: 1cm;
+            }
+
+            body {
+                background: white !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+
+            nav,
+            #view-setup,
+            #view-caller,
+            #modal {
+                display: none !important;
+            }
+
+            #view-print {
+                display: block !important;
+                border: none !important;
+                box-shadow: none !important;
+            }
+
+            main {
+                padding: 0 !important;
+                margin: 0 !important;
+                max-width: none !important;
+            }
+
+            #printGrid {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr !important;
+                gap: 2cm !important;
+                padding: 0 !important;
+                width: 100% !important;
+                margin: 0 !important;
+                border: none !important;
+            }
+
+            #printGrid>div:nth-child(2n) {
+                page-break-after: always;
+                break-after: page;
+            }
+
+            .hub-card {
+                box-shadow: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body class="font-body text-brand-dark dark:text-white min-h-screen flex flex-col transition-colors duration-300">
+
+    <!-- Navbar -->
+    <nav class="sticky top-0 z-50 glass-panel border-b-4 border-brand-dark px-4 py-3 no-print">
+        <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div
+                    class="w-10 h-10 bg-brand-pink rounded-lg border-2 border-brand-dark flex items-center justify-center shadow-neo">
+                    <i data-lucide="grid-3x3" class="text-brand-dark"></i>
+                </div>
+                <h1 class="font-heading text-2xl font-bold text-brand-dark dark:text-white tracking-wide">Bingo Maker
+                </h1>
+            </div>
+
+            <div
+                class="flex gap-2 bg-white dark:bg-slate-800 border-2 border-brand-dark rounded-xl p-1 shadow-neo overflow-x-auto">
+                <button onclick="switchTab('setup')" id="tab-setup"
+                    class="tab-btn px-4 py-2 rounded-lg font-heading font-bold transition-all border-2 border-transparent hover:bg-slate-100 dark:hover:bg-slate-700">
+                    Setup
+                </button>
+                <button onclick="switchTab('print')" id="tab-print"
+                    class="tab-btn px-4 py-2 rounded-lg font-heading font-bold transition-all border-2 border-transparent hover:bg-slate-100 dark:hover:bg-slate-700">
+                    Print Cards
+                </button>
+                <button onclick="switchTab('caller')" id="tab-caller"
+                    class="tab-btn px-4 py-2 rounded-lg font-heading font-bold transition-all border-2 border-transparent hover:bg-slate-100 dark:hover:bg-slate-700">
+                    Caller Mode
+            </div>
+
+            <button onclick="toggleTheme()"
+                class="stick-btn bg-white dark:bg-slate-800 text-brand-dark dark:text-white group">
+                <i data-lucide="moon" class="w-5 h-5 dark:hidden group-hover:rotate-12 transition-transform"></i>
+                <i data-lucide="sun" class="w-5 h-5 hidden dark:block group-hover:rotate-90 transition-transform"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-grow p-4 md:p-8 max-w-6xl mx-auto w-full">
+
+        <!-- SETUP VIEW -->
+        <section id="view-setup" class="view-section animate-fade-in block">
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Inputs -->
+                <div class="space-y-6 flex-1">
+                    <div class="hub-card bg-white dark:bg-slate-800 p-6 relative">
+                        <div
+                            class="absolute top-0 right-0 bg-brand-orange text-white font-heading font-bold px-4 py-1 rounded-bl-xl border-b-2 border-l-2 border-brand-dark">
+                            Step 1: Content
+                        </div>
+                        <h2 class="font-heading text-xl font-bold mb-4 flex items-center gap-2">
+                            <i data-lucide="pencil" class="text-brand-blue"></i> Words / Terms
+                        </h2>
+                        <label class="block text-sm font-bold mb-2">Bingo Title</label>
+                        <input type="text" id="bingoTitle" value="English Vocab Bingo"
+                            class="input-chunky w-full mb-4 px-4 py-3 font-heading text-brand-dark dark:text-white">
+
+                        <label class="block text-sm font-bold mb-2">Word List (Separate by comma or new line)</label>
+                        <textarea id="wordInput"
+                            class="input-chunky w-full h-48 px-4 py-3 font-body font-bold resize-none custom-scrollbar text-brand-dark dark:text-white"
+                            placeholder="Apple, Banana, Cat, Dog...">Apple, Banana, Cherry, Date, Elderberry, Fig, Grape, Honeydew, Kiwi, Lemon, Mango, Nectarine, Orange, Papaya, Quince, Raspberry, Strawberry, Tangerine, Ugli Fruit, Vanilla, Watermelon, Xigua, Yam, Zucchini</textarea>
+                        <p class="text-xs text-slate-500 mt-2 font-bold flex justify-between">
+                            <span>Separate words with commas or new lines.</span>
+                            <span id="wordCount" class="text-brand-pink">24 words</span>
+                        </p>
+                    </div>
+
+                    <div class="hub-card bg-white dark:bg-slate-800 p-6 relative">
+                        <div
+                            class="absolute top-0 right-0 bg-brand-green text-white font-heading font-bold px-4 py-1 rounded-bl-xl border-b-2 border-l-2 border-brand-dark">
+                            Step 2: Settings
+                        </div>
+                        <h2 class="font-heading text-xl font-bold mb-4 flex items-center gap-2">
+                            <i data-lucide="settings" class="text-brand-green"></i> Grid Settings
+                        </h2>
+
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-bold mb-2">Grid Size</label>
+                                <select id="gridSize"
+                                    class="input-chunky w-full px-4 py-3 font-heading text-brand-dark dark:text-white">
+                                    <option value="3">3 x 3 (9 items)</option>
+                                    <option value="4">4 x 4 (16 items)</option>
+                                    <option value="5" selected>5 x 5 (25 items)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-bold mb-2">Free Space?</label>
+                                <select id="freeSpace"
+                                    class="input-chunky w-full px-4 py-3 font-heading text-brand-dark dark:text-white">
+                                    <option value="center">Center (Text)</option>
+                                    <option value="none">None</option>
+                                </select>
+                            </div>
+                        </div>
+                        <label class="block text-sm font-bold mb-2">Theme Color</label>
+                        <div class="flex gap-4 mt-2">
+                            <button onclick="setTheme('pink')"
+                                class="w-12 h-12 rounded-xl bg-brand-pink border-2 border-brand-dark shadow-neo hover:-translate-y-1 transition-transform active:translate-y-1 active:shadow-none focus-ring focus-visible"></button>
+                            <button onclick="setTheme('orange')"
+                                class="w-12 h-12 rounded-xl bg-brand-orange border-2 border-brand-dark shadow-neo hover:-translate-y-1 transition-transform active:translate-y-1 active:shadow-none focus-ring focus-visible"></button>
+                            <button onclick="setTheme('green')"
+                                class="w-12 h-12 rounded-xl bg-brand-green border-2 border-brand-dark shadow-neo hover:-translate-y-1 transition-transform active:translate-y-1 active:shadow-none focus-ring focus-visible"></button>
+                            <button onclick="setTheme('blue')"
+                                class="w-12 h-12 rounded-xl bg-brand-blue border-2 border-brand-dark shadow-neo hover:-translate-y-1 transition-transform active:translate-y-1 active:shadow-none focus-ring focus-visible"></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preview Card -->
+                <div class="flex flex-col items-center justify-center">
+                    <div class="mb-4 font-heading font-bold text-xl text-slate-500">Live Preview</div>
+                    <div id="previewCard" class="w-full max-w-sm transition-all duration-300">
+                        <!-- Card generates here -->
+                    </div>
+                    <div class="mt-8 flex gap-4 w-full px-4 max-w-sm justify-center">
+                        <button onclick="updatePreview()"
+                            class="btn-chunky bg-white dark:bg-slate-700 text-brand-dark dark:text-white px-4 py-3 rounded-xl flex-1 items-center gap-2 group text-sm">
+                            <i data-lucide="refresh-cw"
+                                class="w-5 h-5 group-hover:rotate-180 transition-transform duration-500"></i> Refresh
+                        </button>
+                        <button onclick="switchTab('print')"
+                            class="btn-chunky bg-brand-blue text-white px-4 py-3 rounded-xl flex-1 items-center gap-2 group text-sm">
+                            Print <i data-lucide="arrow-right"
+                                class="w-5 h-5 group-hover:translate-x-1 transition-transform"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- PRINT VIEW -->
+        <section id="view-print" class="view-section hidden">
+            <div class="hub-card bg-white dark:bg-slate-800 p-6 mb-8 no-print">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <h2 class="font-heading text-2xl font-bold mb-1">Print Center</h2>
+                        <p class="text-slate-500 font-bold text-sm">Generate cards for the whole class.</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-4">
+                        <div class="flex items-center gap-2">
+                            <label class="font-bold">Quantity:</label>
+                            <input type="number" id="printCount" value="20" min="1" max="100"
+                                class="input-chunky w-20 px-2 py-2 text-center text-brand-dark dark:text-white">
+                        </div>
+                        <button onclick="generatePrintCards()"
+                            class="btn-chunky bg-brand-green text-brand-dark px-6 py-3 rounded-xl text-sm gap-2">
+                            <i data-lucide="layers" class="w-5 h-5"></i> Generate Cards
+                        </button>
+                        <button onclick="window.print()"
+                            class="btn-chunky bg-brand-dark text-white px-6 py-3 rounded-xl text-sm gap-2">
+                            <i data-lucide="printer" class="w-5 h-5"></i> Print Now
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="printGrid"
+                class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8 print:grid-cols-2 print:gap-4 w-full print:bg-white">
+                <!-- Generated cards go here -->
+                <div
+                    class="flex items-center justify-center p-12 text-slate-400 font-heading text-xl border-4 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl">
+                    Click "Generate Cards" to see layout
+                </div>
+            </div>
+        </section>
+
+        <!-- CALLER MODE -->
+        <section id="view-caller" class="view-section hidden">
+            <div class="grid lg:grid-cols-3 gap-8 h-[calc(100vh-140px)]">
+                <!-- Main Caller Area -->
+                <div class="lg:col-span-2 flex flex-col gap-6">
+                    <div
+                        class="flex-grow hub-card bg-white dark:bg-slate-800 flex flex-col items-center justify-center p-8 relative overflow-hidden group">
+                        <!-- Decorative bg circles -->
+                        <div
+                            class="absolute -top-10 -right-10 w-40 h-40 bg-brand-pink rounded-full opacity-20 group-hover:scale-110 transition-transform duration-700">
+                        </div>
+                        <div
+                            class="absolute -bottom-10 -left-10 w-40 h-40 bg-brand-blue rounded-full opacity-20 group-hover:scale-110 transition-transform duration-700">
+                        </div>
+
+                        <div class="font-heading text-2xl text-slate-400 mb-4 uppercase tracking-widest">Current Word
+                        </div>
+                        <div id="currentCall"
+                            class="font-heading text-5xl md:text-7xl lg:text-8xl font-black text-center text-brand-dark dark:text-white break-words max-w-full z-10 animate-bounce-short">
+                            Ready?
+                        </div>
+                        <div id="itemsRemaining"
+                            class="mt-4 px-3 py-1 bg-slate-100 dark:bg-slate-700/50 rounded-full text-sm font-bold border-2 border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400">
+                            0 / 0 Called
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4 h-24">
+                        <button onclick="callNext()" id="btnCallNext"
+                            class="btn-chunky flex-grow bg-brand-green text-brand-dark rounded-2xl h-full flex items-center justify-center gap-3 text-2xl">
+                            <i data-lucide="play" class="w-8 h-8"></i> Next Word
+                        </button>
+                        <button onclick="resetCaller()"
+                            class="btn-chunky w-24 bg-brand-orange rounded-2xl h-full flex items-center justify-center p-0"
+                            title="Reset Game">
+                            <i data-lucide="rotate-ccw" class="w-8 h-8 text-white"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- History -->
+                <div class="hub-card bg-brand-chalk dark:bg-slate-800 flex flex-col overflow-hidden max-h-[600px]">
+                    <div
+                        class="p-4 bg-brand-dark text-white font-heading font-bold text-lg flex justify-between items-center">
+                        <span>Call History</span>
+                        <i data-lucide="history" class="w-5 h-5"></i>
+                    </div>
+                    <div id="callHistory" class="flex-grow overflow-y-auto custom-scrollbar p-4 space-y-2">
+                        <div class="text-center text-slate-400 italic mt-4 font-bold text-sm">No words called yet.</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Modal for Winner/Alert -->
+    <div id="modal"
+        class="fixed inset-0 z-[100] flex items-center justify-center glass-panel hidden opacity-0 transition-opacity duration-300">
+        <div class="hub-card bg-white dark:bg-slate-800 p-8 max-w-sm w-full text-center transform scale-95 transition-transform duration-300 m-4"
+            id="modalContent">
+            <div
+                class="w-20 h-20 bg-brand-green rounded-full border-4 border-brand-dark mx-auto mb-4 flex items-center justify-center shadow-neo-sm">
+                <i data-lucide="trophy" class="w-10 h-10 text-brand-dark"></i>
+            </div>
+            <h3 id="modalTitle" class="font-heading text-3xl font-black mb-2 text-brand-dark dark:text-white">Winner!
+            </h3>
+            <p id="modalMsg" class="font-body font-bold text-slate-600 dark:text-slate-400 mb-6 text-lg">You have a
+                valid Bingo!</p>
+            <button onclick="closeModal()" class="btn-chunky w-full py-3 bg-brand-dark text-white rounded-xl">
+                Awesome!
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // --- STATE MANAGEMENT ---
+        const state = {
+            words: [],
+            title: "Bingo",
+            gridSize: 5,
+            freeSpace: 'center',
+            theme: 'pink',
+            callerQueue: [],
+            calledHistory: []
+        };
+
+        const themeColors = {
+            pink: 'bg-brand-pink',
+            orange: 'bg-brand-orange',
+            green: 'bg-brand-green',
+            blue: 'bg-brand-blue'
+        };
+
+        // --- LOCAL STORAGE FUNCTIONS ---
+        function saveToLocalStorage() {
+            localStorage.setItem('e1_bingo_title', document.getElementById('bingoTitle').value);
+            localStorage.setItem('e1_bingo_words', document.getElementById('wordInput').value);
+        }
+
+        function loadFromLocalStorage() {
+            const savedTitle = localStorage.getItem('e1_bingo_title');
+            const savedWords = localStorage.getItem('e1_bingo_words');
+
+            if (savedTitle) {
+                document.getElementById('bingoTitle').value = savedTitle;
+            }
+            if (savedWords) {
+                document.getElementById('wordInput').value = savedWords;
+            }
+        }
+
+        // --- INIT ---
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+
+            // 1. Load saved data first
+            loadFromLocalStorage();
+
+            // 2. Add Listeners (Now including save functionality)
+            document.getElementById('wordInput').addEventListener('input', () => {
+                updateStateFromInputs();
+                saveToLocalStorage();
+            });
+            document.getElementById('bingoTitle').addEventListener('input', () => {
+                updateStateFromInputs();
+                saveToLocalStorage();
+            });
+            document.getElementById('gridSize').addEventListener('change', updateStateFromInputs);
+            document.getElementById('freeSpace').addEventListener('change', updateStateFromInputs);
+
+            // 3. Initialize UI
+            updateStateFromInputs();
+            switchTab('setup');
+        });
+
+        function updateStateFromInputs() {
+            const rawText = document.getElementById('wordInput').value;
+            // Split by comma or new line, filter empty
+            state.words = rawText.split(/[\n,]+/).map(w => w.trim()).filter(w => w.length > 0);
+            state.title = document.getElementById('bingoTitle').value || "Bingo";
+            state.gridSize = parseInt(document.getElementById('gridSize').value);
+            state.freeSpace = document.getElementById('freeSpace').value;
+
+            // Update word count UI
+            const countEl = document.getElementById('wordCount');
+            const minWords = state.gridSize * state.gridSize - (state.freeSpace === 'center' && state.gridSize % 2 !== 0 ? 1 : 0);
+            countEl.textContent = `${state.words.length} words (Need ${minWords})`;
+            countEl.className = state.words.length >= minWords ? 'text-brand-green font-bold' : 'text-brand-pink font-bold';
+
+            updatePreview();
+        }
+
+        function setTheme(color) {
+            state.theme = color;
+            updatePreview();
+        }
+
+        function switchTab(tabId) {
+            // Hide all views
+            document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+            // Show target
+            document.getElementById(`view-${tabId}`).classList.remove('hidden');
+            document.getElementById(`view-${tabId}`).classList.add('animate-fade-in');
+
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('bg-brand-pink', 'bg-brand-orange', 'bg-brand-green', 'bg-brand-blue', 'text-brand-dark', 'text-white', 'border-brand-dark', 'shadow-neo');
+                btn.classList.add('border-transparent');
+            });
+
+            const activeBtn = document.getElementById(`tab-${tabId}`);
+            activeBtn.classList.remove('border-transparent');
+            activeBtn.classList.add(themeColors[state.theme], 'text-white', 'border-brand-dark', 'shadow-neo');
+
+            if (tabId === 'caller') {
+                resetCaller();
+            }
+        }
+
+        // --- CARD GENERATION LOGIC ---
+
+        function generateCardHTML() {
+            const size = state.gridSize;
+            const totalCells = size * size;
+
+            // Deep copy and shuffle words
+            let pool = [...state.words];
+
+            // FIX: If input is empty, provide placeholder to prevent infinite loop
+            if (pool.length === 0) {
+                pool = ["Add Words"];
+            }
+
+            if (pool.length < totalCells) {
+                const source = state.words.length > 0 ? state.words : ["Add Words"];
+                while (pool.length < totalCells) {
+                    pool = pool.concat(source);
+                }
+            }
+            pool = pool.sort(() => 0.5 - Math.random()).slice(0, totalCells);
+
+            const centerIndex = Math.floor(totalCells / 2);
+            const hasFreeSpace = state.freeSpace === 'center' && size % 2 !== 0;
+
+            let gridHTML = `
+                <div class="hub-card bg-white rounded-2xl overflow-hidden aspect-[4/5] flex flex-col w-full max-w-[400px] mx-auto break-inside-avoid">
+                    <div class="${themeColors[state.theme]} border-b-4 border-brand-dark p-3 text-center">
+                        <h1 class="font-heading font-black text-4xl tracking-[0.2em] text-brand-dark uppercase drop-shadow-sm">BINGO</h1>
+                    </div>
+                    <div class="grid grid-cols-${size} grid-rows-${size} flex-grow bg-brand-dark gap-0.5 border-b-2 border-brand-dark">
+            `;
+
+            const currentCardValues = [];
+
+            for (let i = 0; i < totalCells; i++) {
+                let content = pool[i];
+                let isFree = false;
+
+                if (hasFreeSpace && i === centerIndex) {
+                    content = "FREE";
+                    isFree = true;
+                }
+
+                currentCardValues.push(content);
+
+                gridHTML += `
+                    <div class="bg-white flex items-center justify-center p-2 text-center font-body font-bold text-xs md:text-sm leading-tight border border-slate-200 aspect-square break-words overflow-hidden">
+                        <span class="${isFree ? 'font-black text-brand-pink text-lg' : 'text-brand-dark'}">${content}</span>
+                    </div>
+                `;
+            }
+
+            gridHTML += `
+                    </div>
+                    <div class="p-2 bg-brand-chalk text-center text-xs font-bold text-slate-400 border-t-2 border-slate-200">
+                        ${state.title}
+                    </div>
+                </div>
+            `;
+
+            return gridHTML;
+        }
+
+        function updatePreview() {
+            document.getElementById('previewCard').innerHTML = generateCardHTML();
+        }
+
+        function generatePrintCards() {
+            const count = parseInt(document.getElementById('printCount').value);
+            const container = document.getElementById('printGrid');
+            container.innerHTML = '';
+
+            for (let i = 0; i < count; i++) {
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = generateCardHTML();
+                container.appendChild(wrapper.firstElementChild);
+            }
+        }
+
+        // --- CALLER LOGIC ---
+
+        function resetCaller() {
+            state.callerQueue = [...state.words].sort(() => 0.5 - Math.random());
+            state.calledHistory = [];
+            document.getElementById('currentCall').textContent = "Ready?";
+            document.getElementById('callHistory').innerHTML = '<div class="text-center text-slate-400 italic mt-4">No words called yet.</div>';
+            document.getElementById('btnCallNext').disabled = false;
+            document.getElementById('itemsRemaining').textContent = `0 / ${state.words.length} Called`;
+        }
+
+        function callNext() {
+            if (state.callerQueue.length === 0) {
+                document.getElementById('currentCall').textContent = "All Done!";
+                document.getElementById('btnCallNext').disabled = true;
+                return;
+            }
+
+            const word = state.callerQueue.pop();
+            state.calledHistory.unshift(word);
+
+            // Update Main Display
+            const display = document.getElementById('currentCall');
+            display.classList.remove('animate-bounce-short');
+            void display.offsetWidth; // trigger reflow
+            display.textContent = word;
+            display.classList.add('animate-bounce-short');
+
+            // Update Counts
+            const total = state.words.length;
+            const called = state.calledHistory.length;
+            document.getElementById('itemsRemaining').textContent = `${called} / ${total} Called`;
+
+            // Update History
+            const historyEl = document.getElementById('callHistory');
+            const newEntry = document.createElement('div');
+            newEntry.className = "p-3 bg-white border-2 border-e1dark rounded-xl shadow-sm font-bold text-e1dark animate-fade-in flex items-center justify-between";
+            newEntry.innerHTML = `<span>${word}</span> <span class="text-xs text-slate-400">#${called}</span>`;
+
+            if (called === 1) historyEl.innerHTML = '';
+            historyEl.prepend(newEntry);
+        }
+
+
+        // --- UTILS ---
+        function showModal(title, msg) {
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalMsg').textContent = msg;
+            document.getElementById('modal').classList.remove('hidden');
+            document.getElementById('modalContent').classList.add('scale-100');
+            document.getElementById('modalContent').classList.remove('scale-95');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.add('hidden');
+            document.getElementById('modalContent').classList.remove('scale-100');
+            document.getElementById('modalContent').classList.add('scale-95');
+        }
+
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+        }
+
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes bounce-short {
+                0%, 100% { transform: translateY(0); }
+                50% { transform: translateY(-10px); }
+            }
+            .animate-bounce-short { animation: bounce-short 0.3s ease-in-out; }
+            
+            @keyframes fade-in {
+                from { opacity: 0; transform: translateY(10px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,853 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Puzzle Maker Pro - English 1 Batam</title>
+
+        <!-- External Libraries -->
+        <script src="https://unpkg.com/lucide@latest"></script>
+        <script src="https://cdn.tailwindcss.com"></script>
+
+        <!-- Fonts -->
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap"
+            rel="stylesheet"
+        />
+
+        <script>
+            tailwind.config = {
+                darkMode: "class",
+                theme: {
+                    extend: {
+                        colors: {
+                            pink: "#FF6B95",
+                            orange: "#FF8C42",
+                            green: "#00E676",
+                            blue: "#2979FF",
+                            dark: "#1e293b",
+                            chalk: "#f8fafc",
+                        },
+                        fontFamily: {
+                            heading: ["Fredoka", "sans-serif"],
+                            body: ["Nunito", "sans-serif"],
+                        },
+                    },
+                },
+            };
+        </script>
+
+        <style type="text/tailwindcss">
+            /* ============================================
+           BASE STYLES
+           ============================================ */
+            :root {
+                --color-pink: #ff6b95;
+                --color-orange: #ff8c42;
+                --color-green: #00e676;
+                --color-blue: #2979ff;
+                --color-dark: #1e293b;
+                --color-chalk: #f8fafc;
+                --bg-primary: #f8fafc;
+                --bg-secondary: #ffffff;
+                --text-primary: #1e293b;
+                --border-primary: #1e293b;
+                --border-width-medium: 4px;
+                --border-width-thick: 6px;
+                --grid-color: #e2e8f0;
+                --grid-size: 24px;
+                --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+                --transition-bounce: 0.3s
+                    cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            }
+
+            body {
+                font-family: "Nunito", sans-serif;
+                background-color: var(--bg-primary);
+                background-image:
+                    linear-gradient(var(--grid-color) 1px, transparent 1px),
+                    linear-gradient(
+                        90deg,
+                        var(--grid-color) 1px,
+                        transparent 1px
+                    );
+                background-size: var(--grid-size) var(--grid-size);
+                color: var(--text-primary);
+                overflow: hidden;
+            }
+
+            /* --- Chunky Buttons --- */
+            .btn-chunky {
+                position: relative;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                font-family: "Fredoka", sans-serif;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                border: var(--border-width-medium) solid var(--border-primary);
+                box-shadow: 0 4px 0 var(--border-primary);
+                cursor: pointer;
+                user-select: none;
+                transition: all var(--transition-fast);
+                transform: translateY(0);
+                @apply rounded-xl px-4 py-3;
+            }
+
+            .btn-chunky:hover:not(:disabled) {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 0 var(--border-primary);
+            }
+
+            .btn-chunky:active:not(:disabled) {
+                transform: translateY(4px);
+                box-shadow: 0 0 0 var(--border-primary);
+            }
+
+            .btn-chunky:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+                box-shadow: 0 2px 0 var(--border-primary);
+                background-color: #e2e8f0;
+                color: #94a3b8;
+            }
+
+            /* --- Round/Page List Items --- */
+            .round-item {
+                @apply flex items-center gap-3 p-2 rounded-xl border-2 border-transparent cursor-pointer transition-all hover:bg-slate-50;
+            }
+            .round-item.active {
+                @apply border-blue bg-blue/5;
+            }
+            .round-item img {
+                @apply w-12 h-12 rounded-lg object-cover border-2 border-slate-200;
+            }
+            .round-item.active img {
+                @apply border-blue;
+            }
+
+            .sidebar {
+                width: 380px;
+                background: var(--bg-secondary);
+                border-right: var(--border-width-thick) solid
+                    var(--border-primary);
+                padding: 1.5rem;
+                height: 100vh;
+                z-index: 50;
+                display: flex;
+                flex-direction: column;
+                box-shadow: 4px 0 0 rgba(30, 41, 59, 0.05);
+                transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+
+            .sidebar.hidden-panel {
+                margin-left: -380px;
+            }
+
+            .main-area {
+                flex: 1;
+                height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 40px;
+                overflow: auto;
+                position: relative;
+            }
+
+            /* Fullscreen Toggle Button */
+            #fullscreenToggle {
+                @apply absolute top-6 left-6 z-40 bg-white border-4 border-dark rounded-xl p-2 cursor-pointer transition-transform hover:scale-105 active:scale-95 text-dark;
+                box-shadow: 4px 4px 0 var(--border-primary);
+            }
+
+            #game-container {
+                position: relative;
+                box-shadow: 12px 12px 0px rgba(30, 41, 59, 0.1);
+                border: var(--border-width-thick) solid var(--border-primary);
+                border-radius: 28px;
+                background: #fff;
+                display: none;
+                overflow: hidden;
+                transition: transform var(--transition-bounce);
+            }
+
+            canvas {
+                display: block;
+                cursor: pointer;
+            }
+
+            .input-label {
+                @apply text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2;
+            }
+
+            .toggle-btn {
+                @apply flex items-center justify-between p-4 rounded-xl border-4 border-dark bg-white transition-all cursor-pointer;
+                box-shadow: 4px 4px 0 var(--border-primary);
+            }
+            .toggle-btn:hover {
+                @apply bg-slate-50;
+            }
+            .toggle-btn:active {
+                transform: translate(2px, 2px);
+                box-shadow: 0px 0px 0 var(--border-primary);
+            }
+            .toggle-btn.active {
+                @apply bg-blue text-white border-blue;
+                box-shadow: 4px 4px 0 var(--color-dark);
+            }
+            .toggle-btn .toggle-icon {
+                @apply transition-transform duration-300;
+            }
+            .toggle-btn.active .toggle-icon {
+                @apply scale-110;
+            }
+
+            @keyframes pop-in {
+                0% {
+                    opacity: 0;
+                    transform: scale(0.9) translateY(10px);
+                }
+                100% {
+                    opacity: 1;
+                    transform: scale(1) translateY(0);
+                }
+            }
+
+            .modal-overlay {
+                @apply fixed inset-0 flex items-center justify-center z-[100] opacity-0 pointer-events-none transition-opacity duration-300;
+                background: rgba(30, 41, 59, 0.6);
+                backdrop-filter: blur(8px);
+            }
+            .modal-overlay.active {
+                @apply opacity-100 pointer-events-auto;
+            }
+
+            .modal-content {
+                @apply bg-white p-10 rounded-[32px] border-4 border-dark w-[90%] max-w-[440px] text-center;
+                box-shadow: 12px 12px 0px rgba(0, 0, 0, 0.2);
+            }
+
+            .modal-overlay.active .modal-content {
+                animation: pop-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)
+                    forwards;
+            }
+
+            #thumb-preview {
+                @apply absolute top-6 right-6 w-32 border-4 border-dark rounded-xl z-10 hidden bg-white p-1;
+                box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.1);
+            }
+
+            #toast {
+                @apply fixed top-6 left-1/2 -translate-x-1/2 bg-dark text-white px-6 py-3 rounded-full shadow-xl transform -translate-y-24 transition-transform duration-300 z-[200] flex items-center gap-3 font-bold;
+            }
+            #toast.active {
+                @apply translate-y-0;
+            }
+
+            /* --- PRINT STYLES --- */
+            #print-area {
+                display: none;
+            }
+
+            @media print {
+                @page {
+                    size: A4;
+                    margin: 0;
+                }
+                body,
+                html {
+                    margin: 0;
+                    padding: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: white;
+                    overflow: visible;
+                }
+
+                .sidebar,
+                .main-area,
+                .modal-overlay,
+                #thumb-preview,
+                #liveStats,
+                #toast,
+                #fullscreenToggle {
+                    display: none !important;
+                }
+
+                #print-area {
+                    display: block !important;
+                    width: 100%;
+                    height: 100%;
+                }
+
+                .print-page {
+                    width: 210mm;
+                    height: 297mm;
+                    page-break-after: always;
+                    position: relative;
+                    padding: 0;
+                    margin: 0;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    box-sizing: border-box;
+                    overflow: hidden;
+                }
+
+                .print-page::after {
+                    content: attr(data-page-num);
+                    position: absolute;
+                    bottom: 10mm;
+                    right: 10mm;
+                    font-size: 10pt;
+                    color: #999;
+                    font-family: sans-serif;
+                }
+
+                .print-page:last-child {
+                    page-break-after: auto;
+                }
+
+                .print-full-img {
+                    width: 100%;
+                    height: 100%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 0;
+                    margin: 0;
+                }
+
+                .print-full-img img {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: contain;
+                    border: none;
+                }
+
+                .print-page-ref {
+                    padding: 10mm;
+                    justify-content: flex-start;
+                }
+
+                .print-header {
+                    width: 100%;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-end;
+                    border-bottom: 3px solid #000;
+                    padding-bottom: 20px;
+                    margin-bottom: 40px;
+                }
+            }
+        </style>
+        <link rel="stylesheet" href="../../css/base.css" />
+    <link rel="stylesheet" href="../../css/components.css" />
+</head>
+    <body class="flex min-h-screen overflow-hidden">
+        <!-- Toast -->
+        <div id="toast">
+            <i data-lucide="save" class="w-4 h-4 text-green"></i>
+            <span>Game Saved</span>
+        </div>
+
+        <!-- Modal: Print Options -->
+        <div id="printModal" class="modal-overlay">
+            <div class="modal-content w-[500px] max-w-[95%]">
+                <div
+                    class="w-20 h-20 bg-green/10 rounded-2xl flex items-center justify-center mx-auto mb-6 border-4 border-green -rotate-3"
+                    style="box-shadow: 4px 4px 0 var(--color-green)"
+                >
+                    <i data-lucide="printer" class="text-green w-10 h-10"></i>
+                </div>
+                <h3 class="font-heading text-3xl mb-2 text-dark">
+                    Print Settings
+                </h3>
+                <p class="text-slate-500 mb-8 font-body">
+                    Configure your worksheet layout.
+                </p>
+
+                <div class="space-y-4 mb-8 text-left">
+                    <!-- Option 1 -->
+                    <div
+                        class="p-4 rounded-xl border-4 border-slate-100 hover:border-blue/30 transition-colors flex items-center justify-between cursor-pointer"
+                        onclick="togglePrintOpt('puzzle')"
+                    >
+                        <div class="flex items-center gap-4">
+                            <div
+                                class="w-10 h-10 bg-blue rounded-lg flex items-center justify-center text-white"
+                            >
+                                <i data-lucide="layers" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-dark font-heading">
+                                    Puzzle Pages
+                                </h4>
+                                <p
+                                    class="text-xs text-slate-400 font-bold uppercase"
+                                >
+                                    Prints all
+                                    <span id="printPageCount">1</span> rounds
+                                </p>
+                            </div>
+                        </div>
+                        <div
+                            class="w-6 h-6 rounded-full bg-blue flex items-center justify-center"
+                        >
+                            <i
+                                data-lucide="check"
+                                class="w-4 h-4 text-white"
+                            ></i>
+                        </div>
+                    </div>
+
+                    <!-- Option 2 -->
+                    <div
+                        id="opt-reference"
+                        class="p-4 rounded-xl border-4 border-slate-100 hover:border-orange/30 transition-colors flex items-center justify-between cursor-pointer"
+                        onclick="togglePrintOpt('reference')"
+                    >
+                        <div class="flex items-center gap-4">
+                            <div
+                                class="w-10 h-10 bg-orange rounded-lg flex items-center justify-center text-white"
+                            >
+                                <i data-lucide="image" class="w-5 h-5"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-dark font-heading">
+                                    Answer Keys
+                                </h4>
+                                <p
+                                    class="text-xs text-slate-400 font-bold uppercase"
+                                >
+                                    Includes reference images
+                                </p>
+                            </div>
+                        </div>
+                        <div
+                            id="check-reference"
+                            class="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center"
+                        ></div>
+                    </div>
+                </div>
+
+                <div class="flex gap-4">
+                    <button
+                        onclick="closeModal('printModal')"
+                        class="flex-1 btn-chunky bg-white text-slate-500 border-slate-300 shadow-none"
+                    >
+                        CANCEL
+                    </button>
+                    <button
+                        onclick="executePrint()"
+                        class="flex-1 btn-chunky bg-green text-dark"
+                    >
+                        PRINT ALL
+                        <i data-lucide="printer" class="w-5 h-5 ml-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Win -->
+        <div id="winnerModal" class="modal-overlay">
+            <div class="modal-content">
+                <div
+                    class="w-24 h-24 bg-green/10 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-green animate-bounce"
+                >
+                    <i data-lucide="trophy" class="text-green w-12 h-12"></i>
+                </div>
+                <h3 class="font-heading text-4xl mb-2 text-dark">AMAZING!</h3>
+                <p class="text-slate-500 mb-8 font-body text-lg">
+                    You finished this page!
+                </p>
+
+                <div class="flex gap-4 mb-8">
+                    <div
+                        class="flex-1 bg-slate-50 p-4 rounded-2xl border-2 border-dark"
+                    >
+                        <span
+                            class="block text-[10px] font-black text-slate-400 uppercase"
+                            >Time</span
+                        >
+                        <span
+                            id="finalTime"
+                            class="text-2xl font-heading text-dark"
+                            >00:00</span
+                        >
+                    </div>
+                    <div
+                        class="flex-1 bg-slate-50 p-4 rounded-2xl border-2 border-dark"
+                    >
+                        <span
+                            class="block text-[10px] font-black text-slate-400 uppercase"
+                            >Moves</span
+                        >
+                        <span
+                            id="finalMoves"
+                            class="text-2xl font-heading text-dark"
+                            >0</span
+                        >
+                    </div>
+                </div>
+
+                <div class="flex gap-4">
+                    <button
+                        onclick="nextRound()"
+                        id="modalNextBtn"
+                        class="flex-1 btn-chunky bg-blue text-white"
+                        style="display: none"
+                    >
+                        NEXT ROUND
+                        <i data-lucide="arrow-right" class="w-4 h-4 ml-2"></i>
+                    </button>
+                    <button
+                        onclick="scramblePuzzle()"
+                        class="flex-1 btn-chunky bg-orange text-white"
+                    >
+                        <i data-lucide="rotate-ccw" class="w-4 h-4 mr-2"></i>
+                        REPLAY
+                    </button>
+                </div>
+                <button
+                    onclick="closeModal('winnerModal')"
+                    class="mt-4 text-xs font-bold text-slate-400 hover:text-dark uppercase"
+                >
+                    Close & Stay Here
+                </button>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <aside class="sidebar no-print" id="sidebar">
+            <header class="mb-6">
+                <div class="inline-flex items-center gap-4">
+                    <div
+                        class="w-14 h-14 bg-pink border-4 border-dark rounded-2xl flex items-center justify-center text-white"
+                        style="box-shadow: 4px 4px 0 var(--color-dark)"
+                    >
+                        <i data-lucide="puzzle" class="w-7 h-7"></i>
+                    </div>
+                    <div class="text-left">
+                        <h1
+                            class="text-2xl font-heading font-bold text-dark leading-none mb-1"
+                        >
+                            Puzzle<span class="text-blue">Maker</span>
+                        </h1>
+                        <p
+                            class="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]"
+                        >
+                            English 1 Hub
+                        </p>
+                    </div>
+                </div>
+            </header>
+
+            <div class="flex-1 space-y-6 overflow-y-auto pr-2 custom-scrollbar">
+                <!-- Step 1: Manage Pages (New) -->
+                <section>
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="input-label mb-0"
+                            ><i data-lucide="layers" class="w-3 h-3"></i> 1.
+                            Pages / Rounds</label
+                        >
+                        <button
+                            onclick="
+                                document.getElementById('fileInput').click()
+                            "
+                            class="text-[10px] font-black text-blue uppercase bg-blue/10 px-2 py-1 rounded hover:bg-blue/20 transition-colors"
+                        >
+                            + Add Page
+                        </button>
+                    </div>
+
+                    <div id="roundsList" class="space-y-2 mb-2">
+                        <!-- Rounds injected here -->
+                    </div>
+
+                    <div class="relative group mt-2" id="uploadBtnContainer">
+                        <button
+                            onclick="
+                                document.getElementById('fileInput').click()
+                            "
+                            class="w-full btn-chunky bg-slate-100 text-slate-400 border-slate-300 h-12 text-sm shadow-none hover:bg-white hover:text-blue hover:border-blue"
+                        >
+                            <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
+                            <span>Add New Image</span>
+                        </button>
+                    </div>
+                    <input
+                        type="file"
+                        id="fileInput"
+                        class="hidden"
+                        accept="image/*"
+                        onchange="handleImageUpload(event)"
+                    />
+                </section>
+
+                <!-- Step 2: Grid -->
+                <section class="space-y-4">
+                    <label class="input-label"
+                        ><i data-lucide="grid" class="w-3 h-3"></i> 2. Grid
+                        Size</label
+                    >
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-2">
+                            <span
+                                class="text-[10px] font-bold text-slate-500 uppercase ml-1"
+                                >Cols</span
+                            >
+                            <div
+                                class="flex items-center border-2 border-dark rounded-xl bg-white overflow-hidden shadow-[2px_2px_0px_#1e293b]"
+                            >
+                                <button
+                                    onclick="adjustGrid('cols', -1)"
+                                    class="w-10 h-10 hover:bg-slate-100 font-bold border-r-2 border-slate-100 transition-colors"
+                                >
+                                    -
+                                </button>
+                                <span
+                                    id="displayCols"
+                                    class="flex-1 text-center font-heading font-bold text-lg text-dark"
+                                    >3</span
+                                >
+                                <button
+                                    onclick="adjustGrid('cols', 1)"
+                                    class="w-10 h-10 hover:bg-slate-100 font-bold border-l-2 border-slate-100 transition-colors"
+                                >
+                                    +
+                                </button>
+                            </div>
+                        </div>
+                        <div class="space-y-2">
+                            <span
+                                class="text-[10px] font-bold text-slate-500 uppercase ml-1"
+                                >Rows</span
+                            >
+                            <div
+                                class="flex items-center border-2 border-dark rounded-xl bg-white overflow-hidden shadow-[2px_2px_0px_#1e293b]"
+                            >
+                                <button
+                                    onclick="adjustGrid('rows', -1)"
+                                    class="w-10 h-10 hover:bg-slate-100 font-bold border-r-2 border-slate-100 transition-colors"
+                                >
+                                    -
+                                </button>
+                                <span
+                                    id="displayRows"
+                                    class="number-display flex-1 text-center font-heading font-bold text-lg text-dark"
+                                    >3</span
+                                >
+                                <button
+                                    onclick="adjustGrid('rows', 1)"
+                                    class="w-10 h-10 hover:bg-slate-100 font-bold border-l-2 border-slate-100 transition-colors"
+                                >
+                                    +
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button
+                            onclick="setPreset(2)"
+                            class="text-[10px] font-black border-2 border-dark rounded-lg py-2 bg-white shadow-[2px_2px_0_#1e293b] text-dark hover:bg-slate-50"
+                        >
+                            EASY
+                        </button>
+                        <button
+                            onclick="setPreset(4)"
+                            class="text-[10px] font-black border-2 border-dark rounded-lg py-2 bg-white shadow-[2px_2px_0_#1e293b] text-dark hover:bg-slate-50"
+                        >
+                            MID
+                        </button>
+                        <button
+                            onclick="setPreset(6)"
+                            class="text-[10px] font-black border-2 border-dark rounded-lg py-2 bg-white shadow-[2px_2px_0_#1e293b] text-dark hover:bg-slate-50"
+                        >
+                            HARD
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Step 3: Options -->
+                <section class="space-y-4">
+                    <label class="input-label"
+                        ><i data-lucide="sliders" class="w-3 h-3"></i> 3. Style
+                        Options</label
+                    >
+                    <div
+                        onclick="togglePuzzleStyle()"
+                        class="toggle-btn"
+                        id="styleToggleBtn"
+                    >
+                        <span
+                            class="text-xs font-black uppercase tracking-wider"
+                            >Jigsaw Edges</span
+                        >
+                        <i
+                            data-lucide="puzzle"
+                            class="w-6 h-6 toggle-icon"
+                            id="styleIcon"
+                        ></i>
+                    </div>
+                    <div
+                        onclick="toggleHints()"
+                        class="toggle-btn"
+                        id="hintToggleBtn"
+                    >
+                        <span
+                            class="text-xs font-black uppercase tracking-wider"
+                            >Number Hints</span
+                        >
+                        <i
+                            data-lucide="circle-dot"
+                            class="w-6 h-6 toggle-icon"
+                            id="hintIcon"
+                        ></i>
+                    </div>
+                </section>
+
+                <!-- Step 4: Play -->
+                <section class="space-y-3 pt-6 border-t-2 border-slate-100">
+                    <button
+                        onclick="scramblePuzzle()"
+                        id="btnScramble"
+                        class="w-full btn-chunky bg-orange text-white h-12"
+                        disabled
+                    >
+                        <i data-lucide="shuffle" class="w-4 h-4 mr-2"></i>
+                        SCRAMBLE & PLAY
+                    </button>
+                    <button
+                        onclick="toggleSolve()"
+                        id="btnSolve"
+                        class="w-full btn-chunky bg-white text-dark h-12"
+                        disabled
+                    >
+                        <i data-lucide="eye" class="w-4 h-4 mr-2"></i> REVEAL
+                        HINT
+                    </button>
+                </section>
+
+                <!-- Step 5: Print -->
+                <section class="pt-6">
+                    <button
+                        onclick="openPrintModal()"
+                        id="btnPrint"
+                        class="w-full btn-chunky bg-green text-dark h-14"
+                        disabled
+                    >
+                        <i data-lucide="printer" class="w-5 h-5 mr-3"></i> PRINT
+                        OPTIONS
+                    </button>
+                </section>
+            </div>
+
+            <button
+                onclick="clearStorage()"
+                class="mt-8 py-3 text-[11px] font-black text-slate-300 hover:text-pink uppercase flex items-center justify-center gap-2 border-t-2 border-dashed border-slate-200 w-full"
+            >
+                <i data-lucide="trash-2" class="w-3 h-3"></i> RESET APP
+            </button>
+        </aside>
+
+        <!-- Main Area -->
+        <main class="main-area">
+            <!-- Fullscreen Toggle Button -->
+            <button id="fullscreenToggle" onclick="toggleSidebar()">
+                <i data-lucide="maximize-2" id="fsIcon" class="w-6 h-6"></i>
+            </button>
+
+            <div
+                id="placeholder"
+                class="text-center p-16 bg-white border-4 border-dark rounded-[48px] max-w-sm"
+                style="box-shadow: 16px 16px 0 rgba(30, 41, 59, 0.1)"
+            >
+                <div
+                    class="w-24 h-24 bg-orange/10 border-4 border-orange rounded-3xl flex items-center justify-center mx-auto mb-8 -rotate-6"
+                    style="box-shadow: 4px 4px 0 var(--color-orange)"
+                >
+                    <i data-lucide="image" class="text-orange w-12 h-12"></i>
+                </div>
+                <h2 class="font-heading text-3xl font-bold text-dark mb-4">
+                    Start Here
+                </h2>
+                <p class="text-slate-500 font-body mb-10 text-lg">
+                    Add your first puzzle page using the sidebar button!
+                </p>
+                <button
+                    onclick="document.getElementById('fileInput').click()"
+                    class="btn-chunky bg-blue text-white mx-auto text-lg px-8"
+                >
+                    SELECT IMAGE
+                </button>
+            </div>
+
+            <!-- Hint Overlay -->
+            <img id="thumb-preview" src="" alt="Hint" />
+
+            <div id="game-container">
+                <canvas id="puzzleCanvas"></canvas>
+            </div>
+
+            <div
+                id="liveStats"
+                class="hidden fixed bottom-10 left-1/2 -translate-x-1/2 flex items-stretch gap-3 no-print z-40"
+            >
+                <!-- Give Up Button -->
+                <button
+                    onclick="giveUp()"
+                    class="bg-white border-4 border-dark px-4 rounded-2xl flex items-center justify-center shadow-[4px_4px_0_rgba(0,0,0,0.2)] hover:bg-pink hover:text-white hover:border-pink transition-colors group"
+                    title="Give Up"
+                >
+                    <i
+                        data-lucide="flag"
+                        class="w-6 h-6 text-pink group-hover:text-white"
+                    ></i>
+                </button>
+
+                <!-- Stats -->
+                <div
+                    class="bg-white border-4 border-dark px-6 py-3 rounded-2xl flex items-center gap-3 shadow-[6px_6px_0_rgba(0,0,0,0.2)]"
+                >
+                    <i data-lucide="timer" class="text-blue w-6 h-6"></i>
+                    <span
+                        id="timerDisplay"
+                        class="font-heading font-bold text-2xl text-dark"
+                        >00:00</span
+                    >
+                </div>
+                <div
+                    class="bg-white border-4 border-dark px-6 py-3 rounded-2xl flex items-center gap-3 shadow-[6px_6px_0_rgba(0,0,0,0.2)]"
+                >
+                    <i
+                        data-lucide="mouse-pointer-2"
+                        class="text-orange w-6 h-6"
+                    ></i>
+                    <span
+                        id="movesDisplay"
+                        class="font-heading font-bold text-2xl text-dark"
+                        >0</span
+                    >
+                </div>
+
+                <!-- Next Button (Hidden unless next exists) -->
+                <button
+                    id="liveNextBtn"
+                    onclick="nextRound()"
+                    class="bg-blue border-4 border-blue px-4 rounded-2xl flex items-center justify-center shadow-[4px_4px_0_rgba(0,0,0,0.2)] text-white hover:-translate-y-1 transition-transform hidden"
+                >
+                    <i data-lucide="arrow-right" class="w-6 h-6"></i>
+                </button>
+            </div>
+        </main>
+
+        <div id="print-area"></div>
+        <script src="./script.js"></script>
+    </body>
+</html>

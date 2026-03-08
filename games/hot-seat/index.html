@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hot Seat - Classroom Edition</title>
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;800&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="style.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            pink: '#ff4785',
+                            orange: '#ff7e33',
+                            green: '#00d063',
+                            blue: '#1ea7fd',
+                            dark: '#1e293b',
+                            chalk: '#f8fafc'
+                        }
+                    },
+                    fontFamily: {
+                        heading: ['Fredoka', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                        hand: ['"Indie Flower"', 'cursive']
+                    },
+                    animation: {
+                        'pop': 'pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                        'float': 'float 3s ease-in-out infinite',
+                        'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+                        'slide-up': 'slideUp 0.5s ease-out forwards',
+                    },
+                    keyframes: {
+                        pop: { '0%': { transform: 'scale(0.9)', opacity: '0' }, '100%': { transform: 'scale(1)', opacity: '1' } },
+                        slideUp: {
+                            '0%': { transform: 'translateY(20px)', opacity: '0' }, '100%': {
+                                transform: 'translateY(0)', opacity: '1'
+                            }
+                        },
+                        float: { '0%, 100%': { transform: 'translateY(0)' }, '50%': { transform: 'translateY(-10px)' } },
+                        shake: {
+                            '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
+                            '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
+                            '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
+                            '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
+                        }
+                    },
+                    boxShadow: {
+                        'neo-sm': 'var(--shadow-hard-sm)',
+                        'neo': 'var(--shadow-hard-md)',
+                        'neo-lg': 'var(--shadow-hard-lg)',
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="../../css/base.css" />
+    <link rel="stylesheet" href="../../css/components.css" />
+</head>
+
+<body
+    class="h-screen w-screen flex flex-col items-center justify-center p-2 md:p-6 overflow-hidden bg-graph-paper transition-colors duration-300">
+
+    <!-- Theme Toggle (Fixed top right) -->
+    <div class="fixed top-4 right-4 z-[200]">
+        <button onclick="toggleTheme()" id="theme-btn"
+            class="w-12 h-12 rounded-xl bg-white dark:bg-slate-800 text-brand-dark dark:text-white border-2 border-brand-dark shadow-neo flex items-center justify-center hover:-translate-y-1 hover:shadow-neo-lg transition-all active:translate-y-1 active:shadow-none focus-visible">
+            <i data-lucide="moon" class="w-6 h-6 moon-icon inline-block dark:hidden"></i>
+            <i data-lucide="sun" class="w-6 h-6 sun-icon hidden dark:inline-block"></i>
+        </button>
+    </div>
+
+    <div id="view-setup"
+        class="view-visible fixed inset-0 z-[100] flex flex-col items-center justify-center p-4 glass-panel">
+        <div class="game-console p-10 flex flex-col items-center max-w-sm w-full shadow-neo-lg relative bg-white dark:bg-slate-800"
+            style="border-color: var(--border-primary)">
+            <div class="absolute -top-6 -right-6 text-6xl">🔥</div>
+            <div class="absolute -bottom-4 -left-6 text-6xl">🎓</div>
+
+            <h1
+                class="text-6xl font-heading mb-1 tracking-wide text-center leading-none text-brand-dark dark:text-white">
+                Hot<br><span class="text-brand-orange">Seat</span></h1>
+            <p class="text-slate-400 mb-6 font-body font-bold text-center uppercase tracking-widest text-sm">English 1
+                Batam</p>
+
+            <div class="w-full space-y-4">
+                <div class="p-1.5 flex gap-2 rounded-xl border-2 shadow-neo-sm"
+                    style="background-color: var(--bg-tertiary); border-color: var(--border-secondary)">
+                    <button onclick="setMode('classic')" id="btn-mode-classic"
+                        class="flex-1 py-3 rounded-lg font-heading text-sm transition-all border-2 border-transparent text-slate-400">CLASSIC
+                        RUN</button>
+                    <button onclick="setMode('single')" id="btn-mode-single"
+                        class="flex-1 py-3 rounded-lg font-heading text-sm transition-all border-2 border-transparent text-slate-400">QUICK
+                        FIRE</button>
+                </div>
+
+                <div class="flex items-center gap-3 rounded-xl p-3 border-2 shadow-neo-sm"
+                    style="background-color: var(--surface-card); border-color: var(--border-secondary)">
+                    <div class="p-2 bg-brand-blue/10 rounded-lg text-brand-blue"><i data-lucide="clock"
+                            class="w-6 h-6"></i></div>
+                    <div class="flex-grow flex flex-col">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase">Timer (Sec)</span>
+                        <input type="number" id="time-input" value="60" min="5" max="300"
+                            class="bg-transparent font-heading text-xl outline-none font-bold w-full text-brand-dark dark:text-white">
+                    </div>
+                </div>
+
+                <button onclick="toggleWords()"
+                    class="w-full flex items-center justify-between gap-3 rounded-xl p-3 border-2 shadow-neo-sm hover:brightness-95 dark:hover:brightness-110 transition-colors group"
+                    style="background-color: var(--surface-card); border-color: var(--border-secondary)">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-brand-pink/10 rounded-lg text-brand-pink"><i data-lucide="list"
+                                class="w-6 h-6"></i></div>
+                        <div class="text-left">
+                            <span class="text-[10px] font-bold text-slate-400 uppercase block">Word List</span>
+                            <span
+                                class="font-heading text-lg font-bold transition-colors text-brand-dark dark:text-white group-hover:text-brand-pink dark:group-hover:text-brand-pink"><span
+                                    id="word-count-display">0</span> Words</span>
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-right" class="w-5 h-5 text-slate-300"></i>
+                </button>
+
+                <button onclick="startGame()"
+                    class="btn-chunky bg-brand-green text-brand-dark px-10 py-4 rounded-xl text-2xl w-full hover:brightness-105 mt-4">START
+                    GAME</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="view-game"
+        class="view-hidden game-console w-full max-w-7xl h-full max-h-[95vh] relative flex-col shadow-neo-lg bg-white dark:bg-slate-800"
+        style="border-color: var(--border-primary)">
+        <div
+            class="absolute top-3 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-slate-200 border-2 border-slate-300 z-50">
+        </div>
+
+        <div class="p-4 flex items-center justify-between shrink-0 h-20 md:h-24 relative z-40 border-b-4"
+            style="background-color: var(--bg-tertiary); border-color: var(--border-primary)">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-pink to-brand-orange border-2 flex items-center justify-center shadow-neo-sm text-white rotate-[-3deg]"
+                    style="border-color: var(--border-primary)">
+                    <i data-lucide="flame" class="w-7 h-7"></i>
+                </div>
+                <div class="leading-tight">
+                    <h1 class="font-heading text-xl md:text-3xl tracking-wide text-brand-dark dark:text-white">Hot Seat
+                    </h1>
+                    <div class="flex gap-2 items-center">
+                        <div class="w-2 h-2 rounded-full bg-brand-green animate-pulse"></div>
+                        <p id="mode-badge"
+                            class="text-[10px] md:text-xs text-slate-400 font-bold uppercase tracking-widest">Classic
+                            Run</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 hidden md:flex bg-white dark:bg-slate-800 border-2 px-6 py-2 rounded-full shadow-neo-sm items-center gap-3"
+                style="border-color: var(--border-primary)">
+                <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Score</span>
+                <span id="score-display" class="text-2xl font-heading text-brand-dark dark:text-white">0</span>
+            </div>
+
+            <button onclick="toggleExitModal()"
+                class="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white dark:bg-slate-800 text-slate-400 border-2 shadow-neo-sm flex items-center justify-center focus-visible hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-500 transition-transform active:scale-95"
+                style="border-color: var(--border-primary)">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+
+        <div class="flex-grow relative overflow-hidden w-full flex flex-col p-4 md:p-8"
+            style="background-color: var(--bg-primary)">
+            <div class="absolute inset-0 opacity-5 pointer-events-none bg-graph-paper"></div>
+            <div id="bg-pulse" class="absolute inset-0 z-0 transition-colors duration-200 pointer-events-none"></div>
+
+            <div class="w-full max-w-3xl mx-auto mb-4 md:mb-8 relative z-10">
+                <div class="flex justify-between text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider px-2">
+                    <span>Time Remaining</span>
+                    <span id="timer-text">60s</span>
+                </div>
+                <div class="timer-container"
+                    style="border-color: var(--border-primary); box-shadow: var(--shadow-hard-sm)">
+                    <div id="timer-bar" class="timer-fill"></div>
+                </div>
+            </div>
+
+            <div class="flex-grow flex items-center justify-center relative z-10 w-full">
+                <div class="md:hidden absolute top-0 right-0 bg-white dark:bg-slate-800 border-2 px-4 py-1 rounded-full shadow-neo-sm"
+                    style="border-color: var(--border-primary)">
+                    <span class="text-[10px] font-bold text-slate-400 uppercase mr-2">Score</span>
+                    <span id="score-display-mobile"
+                        class="text-xl font-heading text-brand-dark dark:text-white">0</span>
+                </div>
+
+                <div id="word-card"
+                    class="word-card p-8 md:p-16 w-full max-w-4xl flex items-center justify-center min-h-[200px] md:min-h-[300px] transition-colors duration-300"
+                    style="background-color: var(--surface-card); border-color: var(--border-primary); box-shadow: var(--shadow-hard-lg)">
+                    <div class="flex flex-col items-center">
+                        <div id="feedback-icon" class="hidden mb-4 animate-pop"></div>
+                        <h1 id="current-word"
+                            class="word-display font-heading text-center break-words leading-none text-brand-dark dark:text-white">
+                            WORD</h1>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-slate-800 border-t-4 p-4 md:p-6 shrink-0 z-40 relative min-h-[140px] flex items-center justify-center"
+            style="border-color: var(--border-primary)">
+            <div id="controls-standard" class="grid grid-cols-2 gap-4 md:gap-6 w-full">
+                <button onclick="handlePass()"
+                    class="btn-chunky bg-white dark:bg-slate-700 text-brand-pink rounded-2xl h-20 md:h-24 flex flex-col items-center justify-center gap-1 hover:brightness-95 dark:hover:brightness-110 group">
+                    <i data-lucide="x" class="w-8 h-8 group-active:scale-90 transition-transform"></i>
+                    <span class="text-lg md:text-2xl tracking-widest">PASS</span>
+                </button>
+                <button onclick="handleCorrect()"
+                    class="btn-chunky bg-brand-green text-brand-dark rounded-2xl h-20 md:h-24 flex flex-col items-center justify-center gap-1 hover:brightness-105 group">
+                    <i data-lucide="check" class="w-8 h-8 group-active:scale-90 transition-transform"></i>
+                    <span class="text-lg md:text-2xl tracking-widest">CORRECT</span>
+                </button>
+            </div>
+            <div id="controls-intermission" class="hidden w-full">
+                <button onclick="resumeQuickFire()"
+                    class="btn-chunky bg-brand-blue text-white rounded-2xl h-20 md:h-24 flex items-center justify-center gap-3 w-full hover:brightness-110 group animate-pop">
+                    <span class="text-2xl md:text-3xl tracking-widest">NEXT WORD</span>
+                    <i data-lucide="arrow-right" class="w-8 h-8 group-hover:translate-x-1 transition-transform"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="view-result" class="view-hidden fixed inset-0 z-[110] flex items-center justify-center p-4 glass-panel">
+        <div class="game-console w-full max-w-lg p-0 animate-slide-up bg-white dark:bg-slate-800 shadow-neo-lg"
+            style="border-color: var(--border-primary)">
+            <div class="p-6 text-center relative overflow-hidden border-b-4"
+                style="background-color: var(--bg-tertiary); border-color: var(--border-primary)">
+                <div
+                    class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-brand-pink via-brand-orange to-brand-green">
+                </div>
+                <h2 id="result-title" class="text-4xl md:text-5xl font-heading mb-1 text-brand-dark dark:text-white">
+                    TIME'S UP!</h2>
+                <p id="result-subtitle" class="text-slate-400 font-bold uppercase tracking-widest text-xs">Great Job!
+                </p>
+            </div>
+            <div class="p-8 flex flex-col items-center gap-6">
+                <div class="text-center">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">Final
+                        Score</span>
+                    <div class="text-8xl font-heading leading-none drop-shadow-sm text-brand-dark dark:text-white"
+                        id="final-score">0</div>
+                </div>
+                <div class="grid grid-cols-2 gap-4 w-full">
+                    <div class="bg-brand-green/10 border-2 border-brand-green rounded-xl p-3 text-center">
+                        <span class="block text-2xl font-bold font-heading text-brand-green" id="final-correct">0</span>
+                        <span class="text-[10px] uppercase font-bold" style="color: var(--color-green)">Correct</span>
+                    </div>
+                    <div class="bg-brand-pink/10 border-2 border-brand-pink rounded-xl p-3 text-center">
+                        <span class="block text-2xl font-bold font-heading text-brand-pink" id="final-passed">0</span>
+                        <span class="text-[10px] uppercase font-bold" style="color: var(--color-pink)">Passed</span>
+                    </div>
+                </div>
+            </div>
+            <div class="p-4 grid grid-cols-2 gap-4 border-t-4"
+                style="background-color: var(--bg-tertiary); border-color: var(--border-primary)">
+                <button onclick="resetGame()"
+                    class="btn-chunky bg-white dark:bg-slate-700 text-brand-dark dark:text-white py-3 rounded-xl text-lg shadow-none border-2">MENU</button>
+                <button onclick="startGame()"
+                    class="btn-chunky bg-brand-blue text-white py-3 rounded-xl text-lg shadow-none border-2">PLAY
+                    AGAIN</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-words" class="hidden fixed inset-0 z-[150] flex items-center justify-center p-4 glass-panel">
+        <div class="game-console w-full max-w-7xl p-0 animate-pop bg-white dark:bg-slate-800 h-[90vh] md:h-[85vh] shadow-neo-lg flex flex-col md:flex-row overflow-hidden"
+            style="border-color: var(--border-primary)">
+
+            <div class="w-full md:w-80 flex flex-col h-[30%] md:h-full shrink-0 z-20 relative border-r-4"
+                style="background-color: var(--bg-tertiary); border-color: var(--border-primary)">
+                <div class="p-4 shrink-0 border-b-2"
+                    style="background-color: var(--bg-tertiary); border-color: var(--border-secondary)">
+                    <h3 class="text-2xl font-heading text-brand-dark dark:text-white">List Manager</h3>
+                </div>
+                <div class="p-4 pb-2 shrink-0" style="background-color: var(--bg-tertiary)">
+                    <div class="flex gap-2">
+                        <button id="tab-presets" onclick="showWordTab('presets')"
+                            class="tab-button bg-white dark:bg-slate-700 text-brand-dark dark:text-white py-2 px-4 rounded-lg text-sm font-heading border-2 shadow-sm"
+                            style="border-color: var(--border-primary)">Presets</button>
+                        <button id="tab-custom" onclick="showWordTab('custom')"
+                            class="tab-button text-slate-500 py-2 px-4 rounded-lg text-sm font-heading hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">My
+                            Lists</button>
+                    </div>
+                </div>
+                <div id="content-presets" class="flex-grow overflow-y-auto custom-scrollbar p-4 pt-0 min-h-0">
+                    <p class="text-xs font-bold text-slate-400 uppercase mb-3 mt-2">Default Lists</p>
+                    <button onclick="loadDefault('easy')"
+                        class="w-full text-left flex items-center justify-between bg-white dark:bg-slate-800 border-2 hover:border-brand-green hover:text-brand-green px-3 py-3 rounded-xl text-brand-dark dark:text-white transition-colors mb-2 group"
+                        style="border-color: var(--border-secondary)">
+                        <span class="font-bold">Default (Easy)</span>
+                        <i data-lucide="chevron-right" class="w-5 h-5 text-slate-300 group-hover:text-brand-green"></i>
+                    </button>
+                    <button onclick="loadDefault('hard')"
+                        class="w-full text-left flex items-center justify-between bg-white dark:bg-slate-800 border-2 hover:border-brand-orange hover:text-brand-orange px-3 py-3 rounded-xl text-brand-dark dark:text-white transition-colors group"
+                        style="border-color: var(--border-secondary)">
+                        <span class="font-bold">Default (Hard)</span>
+                        <i data-lucide="chevron-right" class="w-5 h-5 text-slate-300 group-hover:text-brand-orange"></i>
+                    </button>
+                </div>
+                <div id="content-custom" class="hidden flex-grow overflow-y-auto custom-scrollbar p-4 pt-0 min-h-0">
+                    <p class="text-xs font-bold text-slate-400 uppercase mb-3 mt-2">Your Saved Lists</p>
+                    <div id="custom-list-container" class="space-y-2"></div>
+                    <p id="no-lists-message" class="text-sm text-slate-400 mt-4 hidden italic">No custom lists saved
+                        yet.</p>
+                </div>
+                <div class="p-4 shrink-0 border-t-2"
+                    style="background-color: var(--surface-card); border-color: var(--border-secondary)">
+                    <p class="text-xs font-bold text-slate-400 uppercase">Current List</p>
+                    <p id="active-list-name" class="font-heading text-xl truncate text-brand-dark dark:text-white">
+                        Default (Easy)</p>
+                </div>
+            </div>
+
+            <div class="flex-1 flex flex-col h-[70%] md:h-full overflow-hidden relative z-10"
+                style="background-color: var(--surface-card)">
+                <div class="flex justify-between items-center p-5 shrink-0 border-b-2"
+                    style="border-color: var(--border-secondary)">
+                    <h3 class="text-xl font-heading text-brand-dark dark:text-white">Edit List Content</h3>
+                    <button onclick="toggleWords()"
+                        class="text-slate-400 hover:text-red-500 transition-colors p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700">
+                        <i data-lucide="x-circle" class="w-8 h-8"></i>
+                    </button>
+                </div>
+                <div class="px-5 pt-4 pb-0 shrink-0">
+                    <div id="list-warning"
+                        class="bg-yellow-50 dark:bg-yellow-900/30 border-2 border-yellow-200 dark:border-yellow-700 p-3 rounded-xl flex items-start gap-3">
+                        <i data-lucide="info" class="w-5 h-5 text-yellow-600 dark:text-yellow-400 shrink-0 mt-0.5"></i>
+                        <p class="text-xs md:text-sm text-yellow-800 dark:text-yellow-200 font-bold leading-tight">
+                            Separate words with commas or new lines. Save your list to apply changes to the game!</p>
+                    </div>
+                </div>
+
+                <div class="flex-1 p-5 min-h-0 relative">
+                    <textarea id="word-input"
+                        class="w-full h-full resize-none border-2 rounded-xl p-5 font-body font-bold text-base focus:border-brand-blue outline-none custom-scrollbar leading-relaxed block bg-white dark:bg-slate-800 text-brand-dark dark:text-white"
+                        style="border-color: var(--border-primary)" placeholder="Apple, Banana, Cat..."></textarea>
+                </div>
+
+                <div class="p-5 shrink-0 flex flex-col md:flex-row gap-3 border-t-2"
+                    style="background-color: var(--bg-tertiary); border-color: var(--border-secondary)">
+                    <input type="text" id="save-list-name" placeholder="Name your list (e.g., Vocab Week 3)"
+                        class="flex-grow border-2 rounded-xl p-3 bg-white dark:bg-slate-800 text-brand-dark dark:text-white font-body text-sm outline-none focus:border-brand-blue font-bold"
+                        style="border-color: var(--border-primary)">
+                    <div class="flex gap-2">
+                        <button onclick="saveCurrentList()"
+                            class="btn-chunky bg-brand-orange text-white px-4 py-3 rounded-xl text-sm whitespace-nowrap shadow-none flex-1 md:flex-none">SAVE
+                            NEW</button>
+                        <button onclick="saveWords()"
+                            class="btn-chunky bg-brand-green text-brand-dark px-6 py-3 rounded-xl text-sm whitespace-nowrap shadow-none flex-1 md:flex-none">USE
+                            LIST</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-overwrite-warning"
+        class="hidden fixed inset-0 z-[160] flex items-center justify-center p-4 glass-panel">
+        <div class="game-console p-8 rounded-2xl text-center max-w-sm animate-pop bg-white dark:bg-slate-800"
+            style="border-color: var(--border-primary)">
+            <div
+                class="w-16 h-16 rounded-full bg-brand-orange/10 border-2 border-brand-orange text-brand-orange flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="alert-triangle" class="w-8 h-8"></i>
+            </div>
+            <h3 class="text-2xl font-heading mb-2 text-brand-dark dark:text-white">Overwrite Custom List?</h3>
+            <p class="text-slate-500 mb-8 text-sm font-bold">Your current edits will be lost if you load the default
+                preset.</p>
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="toggleOverwriteModal()"
+                    class="btn-chunky bg-white dark:bg-slate-700 text-slate-500 border-2 text-sm"
+                    style="border-color: var(--border-secondary)">CANCEL</button>
+                <button onclick="confirmLoadDefault()"
+                    class="btn-chunky bg-brand-orange text-white text-sm shadow-none border-2"
+                    style="border-color: var(--border-primary)">OVERWRITE</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-confirm" class="hidden fixed inset-0 z-[160] flex items-center justify-center p-4 glass-panel">
+        <div class="game-console p-8 rounded-2xl text-center max-w-sm animate-pop bg-white dark:bg-slate-800"
+            style="border-color: var(--border-primary)">
+            <div
+                class="w-16 h-16 rounded-full bg-brand-pink/10 border-2 border-brand-pink text-brand-pink flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="alert-circle" class="w-8 h-8"></i>
+            </div>
+            <h3 class="text-2xl font-heading mb-2 text-brand-dark dark:text-white">Stop Game?</h3>
+            <p class="text-slate-400 mb-8 text-sm font-bold">Your current score will be lost.</p>
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="toggleExitModal()"
+                    class="btn-chunky bg-white dark:bg-slate-700 text-slate-500 text-sm border-2"
+                    style="border-color: var(--border-secondary)">CANCEL</button>
+                <button onclick="confirmExit()" class="btn-chunky bg-brand-pink text-white text-sm shadow-none border-2"
+                    style="border-color: var(--border-primary)">QUIT</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

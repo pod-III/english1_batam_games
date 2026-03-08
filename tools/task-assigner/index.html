@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Assigner: English 1 Edition</title>
+    
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        pink: '#FF6B95',
+                        orange: '#FF8C42',
+                        green: '#00E676',
+                        blue: '#2979FF',
+                        dark: '#1e293b',
+                        chalk: '#f8fafc',
+                    },
+                    fontFamily: {
+                        heading: ['Fredoka', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'neo': '4px 4px 0px 0px rgba(30, 41, 59, 1)',
+                        'neo-sm': '2px 2px 0px 0px rgba(30, 41, 59, 1)',
+                        'neo-lg': '8px 8px 0px 0px rgba(30, 41, 59, 1)',
+                    },
+                    animation: {
+                        'pop': 'pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                        'shake': 'shake 0.4s cubic-bezier(.36,.07,.19,.97) both',
+                    },
+                    keyframes: {
+                        pop: {
+                            '0%': { transform: 'scale(0.8)', opacity: '0' },
+                            '100%': { transform: 'scale(1)', opacity: '1' },
+                        },
+                        shake: {
+                            '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
+                            '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
+                            '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
+                            '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        body { 
+            font-family: 'Nunito', sans-serif;
+            background-color: #f8fafc; 
+            color: #1e293b; 
+            background-image: 
+                linear-gradient(rgba(30, 41, 59, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(30, 41, 59, 0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+            min-height: 100vh;
+        }
+
+        .neo-card {
+            background: white;
+            border: 4px solid #1e293b;
+            box-shadow: 4px 4px 0px 0px rgba(30, 41, 59, 1);
+            border-radius: 1rem;
+        }
+
+        .btn-neo {
+            border: 3px solid #1e293b;
+            box-shadow: 4px 4px 0px 0px rgba(30, 41, 59, 1);
+            transition: all 0.1s;
+            transform: translate(0, 0);
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+        .btn-neo:hover:not(:disabled) {
+            transform: translate(-1px, -1px);
+            box-shadow: 5px 5px 0px 0px rgba(30, 41, 59, 1);
+        }
+        .btn-neo:active:not(:disabled) {
+            transform: translate(4px, 4px);
+            box-shadow: 0px 0px 0px 0px rgba(30, 41, 59, 1);
+        }
+        .btn-neo.active {
+            background-color: #2979FF; 
+            color: white;
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0px 0px rgba(30, 41, 59, 1);
+        }
+
+        textarea {
+            resize: none;
+            outline: none;
+            border: 3px solid #1e293b;
+            transition: all 0.2s;
+            font-family: 'Nunito', sans-serif;
+            font-weight: 700;
+        }
+        textarea:focus {
+            box-shadow: 4px 4px 0px 0px rgba(41, 121, 255, 0.3);
+            border-color: #2979FF;
+        }
+
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; border-left: 2px solid #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border: 2px solid #1e293b; border-radius: 6px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .ticket-hole-top {
+             position: absolute; top: -22px; right: -11px; width: 22px; height: 22px; 
+             background: #f8fafc; border-radius: 50%; border: 4px solid #1e293b; z-index: 10;
+        }
+        .ticket-hole-bottom {
+             position: absolute; bottom: -22px; right: -11px; width: 22px; height: 22px; 
+             background: #f8fafc; border-radius: 50%; border: 4px solid #1e293b; z-index: 10;
+        }
+    </style>
+    <link rel="stylesheet" href="../../css/base.css" />
+    <link rel="stylesheet" href="../../css/components.css" />
+</head>
+
+<body class="flex flex-col h-screen overflow-hidden">
+
+    <header class="w-full bg-white border-b-4 border-dark flex-none z-40">
+        <div class="max-w-8xl mx-auto px-6 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-blue w-12 h-12 rounded-xl border-3 border-dark flex items-center justify-center text-white shadow-neo-sm">
+                    <i data-lucide="zap" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-3xl font-heading text-dark leading-none mt-1">TASK ASSIGNER</h1>
+                    <div class="text-xs font-bold text-slate-500 uppercase tracking-widest">English 1 Batam</div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <button id="sound-toggle" class="p-2 rounded-xl border-3 border-transparent hover:border-dark hover:bg-chalk transition-all text-dark" title="Toggle Sound">
+                    <i data-lucide="volume-2" class="w-6 h-6"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow flex flex-col md:flex-row p-6 gap-6 overflow-hidden max-w-8xl mx-auto w-full">
+        
+        <div class="w-full md:w-96 flex-none flex flex-col gap-4 z-20">
+            <div class="neo-card p-6 flex flex-col h-full overflow-hidden bg-white">
+                
+                <div class="flex items-center justify-between mb-4 border-b-3 border-slate-100 pb-2">
+                    <h2 class="text-xl font-heading text-dark flex items-center gap-2">
+                        <i data-lucide="sliders-horizontal" class="w-5 h-5 text-blue"></i> SETUP
+                    </h2>
+                    <span class="bg-green text-dark text-xs font-bold px-2 py-1 rounded-lg border-2 border-dark uppercase shadow-neo-sm">Auto-Save</span>
+                </div>
+
+                <div class="flex-grow overflow-y-auto pr-2 space-y-4">
+                    
+                    <div>
+                        <div class="flex justify-between items-end mb-1">
+                            <label class="text-sm font-bold text-dark uppercase tracking-widest">Students</label>
+                            <span id="peopleCount" class="text-pink font-black text-sm">0</span>
+                        </div>
+                        <textarea id="peopleInput" rows="5" 
+                            class="w-full rounded-xl p-3 text-dark bg-slate-50 placeholder-slate-400 shadow-sm"
+                            placeholder="Enter names here..."></textarea>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-end mb-1">
+                            <label class="text-sm font-bold text-dark uppercase tracking-widest">Missions</label>
+                            <span id="taskCount" class="text-orange font-black text-sm">0</span>
+                        </div>
+                        <textarea id="taskInput" rows="5" 
+                            class="w-full rounded-xl p-3 text-dark bg-slate-50 placeholder-slate-400 shadow-sm"
+                            placeholder="Enter tasks here..."></textarea>
+                    </div>
+
+                    <div class="bg-slate-100 p-4 rounded-xl border-3 border-dashed border-slate-300">
+                        <label class="block text-sm font-bold text-dark mb-2 uppercase tracking-widest text-center">Group Size</label>
+                        <div class="grid grid-cols-4 gap-2">
+                            <button onclick="setGroupSize(1)" id="btnSize1" class="btn-neo bg-white text-dark py-2 rounded-xl font-bold hover:bg-blue hover:text-white transition-colors">1</button>
+                            <button onclick="setGroupSize(2)" id="btnSize2" class="btn-neo bg-white text-dark py-2 rounded-xl font-bold hover:bg-blue hover:text-white transition-colors">2</button>
+                            <button onclick="setGroupSize(3)" id="btnSize3" class="btn-neo bg-white text-dark py-2 rounded-xl font-bold hover:bg-blue hover:text-white transition-colors">3</button>
+                            <button onclick="setGroupSize(4)" id="btnSize4" class="btn-neo bg-white text-dark py-2 rounded-xl font-bold hover:bg-blue hover:text-white transition-colors">4</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-4 border-t-4 border-dark flex gap-3">
+                    <button onclick="clearAll()" class="btn-neo bg-chalk text-slate-500 w-14 h-14 rounded-xl flex items-center justify-center hover:bg-pink hover:text-dark hover:border-dark" title="Clear All">
+                        <i data-lucide="trash-2" class="w-6 h-6"></i>
+                    </button>
+                    <button onclick="assignTasks()" class="flex-grow btn-neo bg-green text-dark h-14 rounded-xl font-heading text-xl flex items-center justify-center gap-2">
+                        <i data-lucide="wand-2" class="w-6 h-6"></i> ASSIGN
+                    </button>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="flex-grow flex flex-col relative overflow-hidden">
+            
+            <div id="emptyState" class="absolute inset-0 flex flex-col items-center justify-center z-10 text-center p-8 animate-pop">
+                <div class="w-32 h-32 bg-white border-4 border-dark rounded-full flex items-center justify-center mb-6 shadow-neo rotate-3">
+                    <i data-lucide="rocket" class="w-16 h-16 text-dark"></i>
+                </div>
+                <h3 class="text-4xl font-heading text-dark mb-2">Ready?</h3>
+                <p class="text-xl text-slate-600 font-bold max-w-md">Enter your class list and missions, then hit Assign.</p>
+            </div>
+
+            <div id="resultsArea" class="flex-grow overflow-y-auto pr-2 pb-20 hidden">
+                <div id="cardsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6 pt-2">
+                </div>
+            </div>
+
+        </div>
+    </main>
+    
+    <div id="errorModal" class="fixed inset-0 bg-dark/40 hidden z-50 flex items-center justify-center backdrop-blur-sm transition-opacity">
+        <div class="bg-pink text-dark border-4 border-dark p-6 rounded-2xl shadow-neo max-w-sm w-full animate-pop flex flex-col items-center text-center gap-3 m-4">
+            <div class="bg-white p-3 rounded-full border-3 border-dark shadow-neo-sm mb-2">
+                <i data-lucide="alert-triangle" class="w-10 h-10 text-dark"></i>
+            </div>
+            <div>
+                <div class="font-heading text-3xl mb-1">Hold up!</div>
+                <div class="text-lg font-bold text-dark">Please enter both students and missions before assigning.</div>
+            </div>
+            <button onclick="hideModal()" class="btn-neo bg-white px-6 py-3 rounded-xl w-full mt-4 text-xl">GOT IT</button>
+        </div>
+    </div>
+
+    <script>
+        // --- CONSTANTS ---
+        const LS_KEY_PEOPLE = 'taskAssignerPeople_v2';
+        const LS_KEY_TASKS = 'taskAssignerTasks_v2';
+
+        // --- DOM ---
+        const peopleInput = document.getElementById('peopleInput');
+        const taskInput = document.getElementById('taskInput');
+        const peopleCount = document.getElementById('peopleCount');
+        const taskCount = document.getElementById('taskCount');
+        const emptyState = document.getElementById('emptyState');
+        const resultsArea = document.getElementById('resultsArea');
+        const cardsGrid = document.getElementById('cardsGrid');
+        const errorModal = document.getElementById('errorModal');
+        
+        let currentGroupSize = 1;
+        let audioEnabled = true;
+
+        // --- COLOR PALETTE ---
+        const cardColors = [
+            { bg: 'bg-white', border: 'border-pink', accent: 'bg-pink', text: 'text-dark' },
+            { bg: 'bg-white', border: 'border-orange', accent: 'bg-orange', text: 'text-dark' },
+            { bg: 'bg-white', border: 'border-green', accent: 'bg-green', text: 'text-dark' },
+            { bg: 'bg-white', border: 'border-blue', accent: 'bg-blue', text: 'text-dark' },
+        ];
+
+        // --- AUDIO ---
+        const AudioEngine = {
+            init: async () => { try{ await Tone.start(); }catch(e){} },
+            playClick: () => {
+                if(!audioEnabled) return;
+                const synth = new Tone.MembraneSynth().toDestination();
+                synth.triggerAttackRelease("C2", "32n");
+            },
+            playSuccess: () => {
+                if(!audioEnabled) return;
+                const synth = new Tone.PolySynth().toDestination();
+                synth.triggerAttackRelease(["C4", "E4", "A4"], "16n");
+            },
+            playError: () => {
+                if(!audioEnabled) return;
+                const synth = new Tone.PluckSynth().toDestination();
+                synth.triggerAttackRelease("E2", "16n");
+            }
+        };
+
+        // --- FUNCTIONS ---
+        function initIcons() { lucide.createIcons(); }
+
+        function saveInputs() {
+             try {
+                localStorage.setItem(LS_KEY_PEOPLE, peopleInput.value);
+                localStorage.setItem(LS_KEY_TASKS, taskInput.value);
+            } catch (e) {}
+        }
+
+        function loadInputs() {
+            try {
+                const savedPeople = localStorage.getItem(LS_KEY_PEOPLE);
+                const savedTasks = localStorage.getItem(LS_KEY_TASKS);
+                if (savedPeople) peopleInput.value = savedPeople;
+                if (savedTasks) taskInput.value = savedTasks;
+                setGroupSize(currentGroupSize); 
+                updateCounts();
+            } catch (e) {}
+        }
+
+        function updateCounts() {
+            const p = peopleInput.value.split(/[\n,;]/).map(s => s.trim()).filter(s => s.length > 0).length;
+            const t = taskInput.value.split(/[\n,;]/).map(s => s.trim()).filter(s => s.length > 0).length;
+            peopleCount.textContent = p;
+            taskCount.textContent = t;
+            saveInputs();
+        }
+
+        function setGroupSize(size) {
+            currentGroupSize = size;
+            [1, 2, 3, 4].forEach(id => {
+                const btn = document.getElementById(`btnSize${id}`);
+                if (btn) {
+                    if (id === size) {
+                        btn.classList.add('active');
+                    } else {
+                        btn.classList.remove('active');
+                    }
+                }
+            });
+            AudioEngine.playClick();
+        }
+
+        function clearAll() {
+            peopleInput.value = '';
+            taskInput.value = '';
+            updateCounts();
+            cardsGrid.innerHTML = '';
+            resultsArea.classList.add('hidden');
+            emptyState.classList.remove('hidden');
+            AudioEngine.playClick();
+        }
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function showModal() {
+            errorModal.classList.remove('hidden');
+            AudioEngine.playError();
+        }
+
+        function hideModal() {
+            errorModal.classList.add('hidden');
+            AudioEngine.playClick();
+        }
+
+        function assignTasks() {
+            AudioEngine.init();
+            
+            let people = peopleInput.value.split(/[\n,;]/).map(s => s.trim()).filter(s => s.length > 0);
+            let tasks = taskInput.value.split(/[\n,;]/).map(s => s.trim()).filter(s => s.length > 0);
+
+            if (people.length === 0 || tasks.length === 0) {
+                showModal();
+                return;
+            }
+
+            // Logic
+            people = shuffle(people);
+            tasks = shuffle(tasks);
+
+            let groups = [];
+            if (currentGroupSize === 1) {
+                groups = people.map(p => [p]);
+            } else {
+                for (let i = 0; i < people.length; i += currentGroupSize) {
+                    groups.push(people.slice(i, i + currentGroupSize));
+                }
+            }
+
+            // Render
+            renderGrid(groups, tasks);
+            AudioEngine.playSuccess();
+            
+            // Confetti
+            confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ['#FF6B95', '#FF8C42', '#00E676', '#2979FF']
+            });
+        }
+
+        function renderGrid(groups, tasks) {
+            cardsGrid.innerHTML = '';
+            emptyState.classList.add('hidden');
+            resultsArea.classList.remove('hidden');
+
+            groups.forEach((groupArray, index) => {
+                const task = tasks[index % tasks.length];
+                const colorTheme = cardColors[index % cardColors.length];
+                
+                // Content generation
+                let namesHtml = '';
+                const isGroup = groupArray.length > 1;
+                const label = isGroup ? 'TEAM' : 'STUDENT';
+                
+                // HIGHLIGHT: Improved text visibility for names
+                if (isGroup) {
+                    namesHtml = `<div class="flex flex-wrap gap-2 mt-2">
+                        ${groupArray.map(n => `<span class="bg-white border-3 border-dark px-3 py-1 rounded-xl text-lg font-black text-dark shadow-neo-sm">${n}</span>`).join('')}
+                    </div>`;
+                } else {
+                    namesHtml = `<div class="text-3xl md:text-4xl font-black text-dark mt-2 leading-none break-words">${groupArray[0]}</div>`;
+                }
+
+                // HIGHLIGHT: Min-height increased, border thickened
+                const card = document.createElement('div');
+                card.className = `w-full min-h-[12rem] bg-white border-4 border-dark rounded-2xl flex shadow-neo animate-pop overflow-hidden`;
+                card.style.animationDelay = `${index * 0.1}s`;
+
+                card.innerHTML = `
+                    <div class="w-1/2 p-5 flex flex-col justify-center border-r-4 border-dark border-dashed relative z-10 bg-white">
+                        <div class="ticket-hole-top"></div>
+                        <div class="ticket-hole-bottom"></div>
+                        
+                        <div class="flex items-center gap-2 mb-2">
+                            <div class="w-10 h-10 ${colorTheme.accent} rounded-xl border-3 border-dark flex items-center justify-center text-dark shadow-neo-sm">
+                                <i data-lucide="${isGroup ? 'users' : 'user'}" class="w-5 h-5"></i>
+                            </div>
+                            <span class="text-sm font-bold text-slate-500 tracking-widest uppercase">${label}</span>
+                        </div>
+                        ${namesHtml}
+                    </div>
+
+                    <div class="w-1/2 p-5 ${colorTheme.accent} flex flex-col justify-center items-center text-center relative overflow-hidden">
+                        <div class="bg-white/90 border-2 border-dark px-3 py-1 rounded-lg text-xs font-bold text-dark mb-3 tracking-widest uppercase shadow-neo-sm">MISSION</div>
+                        <div class="font-heading text-2xl md:text-3xl font-bold leading-tight text-dark z-10 break-words w-full">
+                            ${task}
+                        </div>
+                        <i data-lucide="target" class="absolute -bottom-6 -right-6 w-32 h-32 text-dark/15 z-0"></i>
+                    </div>
+                `;
+
+                cardsGrid.appendChild(card);
+            });
+            initIcons();
+        }
+
+        // --- LISTENERS ---
+        document.getElementById('peopleInput').addEventListener('input', updateCounts);
+        document.getElementById('taskInput').addEventListener('input', updateCounts);
+        
+        document.getElementById('sound-toggle').addEventListener('click', (e) => {
+            audioEnabled = !audioEnabled;
+            const icon = audioEnabled ? 'volume-2' : 'volume-x';
+            e.currentTarget.innerHTML = `<i data-lucide="${icon}" class="w-6 h-6"></i>`;
+            initIcons();
+        });
+
+        // --- INIT ---
+        window.onload = () => {
+            loadInputs();
+            initIcons();
+        };
+
+    </script>
+</body>
+</html>
