@@ -18,13 +18,39 @@ let gameMode = 'classic';
 let isIntermission = false;
 let pendingDefaultLoadType = null;
 let activeListName = 'Default (Easy)';
+let currentTheme = 'light';
+
+// Theme Management
+function initTheme() {
+    const savedTheme = localStorage.getItem('english1_theme');
+    if (savedTheme) {
+        currentTheme = savedTheme;
+    } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        currentTheme = 'dark';
+    }
+    applyTheme();
+}
+
+function toggleTheme() {
+    currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+    localStorage.setItem('english1_theme', currentTheme);
+    applyTheme();
+}
+
+function applyTheme() {
+    if (currentTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+    } else {
+        document.documentElement.classList.remove('dark');
+    }
+}
 
 // --- AUDIO ENGINE ---
 const Audio = {
     ctx: null,
     init: () => {
         if (!Audio.ctx) {
-            Audio.ctx = new(window.AudioContext || window.webkitAudioContext)();
+            Audio.ctx = new (window.AudioContext || window.webkitAudioContext)();
             Tone.start();
         }
     },
@@ -91,21 +117,21 @@ function renderCustomListButtons() {
             button.onclick = () => selectList(list.name, true);
 
             const isActive = list.name === activeListName;
-            const activeClass = isActive ? 'text-blue' : 'text-dark';
+            const activeClass = isActive ? 'text-brand-blue' : 'text-brand-dark dark:text-white';
 
             if (isActive) {
-                button.classList.remove('border-slate-200', 'bg-white');
-                button.classList.add('border-blue', 'bg-blue/5');
+                button.classList.remove('border-slate-200', 'bg-white', 'dark:border-slate-700', 'dark:bg-slate-800');
+                button.classList.add('border-brand-blue', 'bg-brand-blue/5', 'dark:bg-brand-blue/10');
             }
 
             button.innerHTML = `
                 <div class="flex items-center gap-3 overflow-hidden">
-                    <div class="p-2 rounded-lg ${isActive ? 'bg-blue text-white' : 'bg-slate-100 text-slate-400 group-hover:text-blue group-hover:bg-blue/10'}">
+                    <div class="p-2 rounded-lg ${isActive ? 'bg-brand-blue text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-400 group-hover:text-brand-blue group-hover:bg-brand-blue/10'}">
                         <i data-lucide="list" class="w-4 h-4"></i>
                     </div>
                     <span class="font-bold text-sm truncate ${activeClass}">${list.name}</span>
                 </div>
-                <button onclick="event.stopPropagation(); deleteCustomList('${list.name}')" class="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                <button onclick="event.stopPropagation(); deleteCustomList('${list.name}')" class="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors">
                     <i data-lucide="trash-2" class="w-4 h-4"></i>
                 </button>
             `;
@@ -135,6 +161,7 @@ function selectList(name, isCustom = false) {
         if (isCustom) document.getElementById('save-list-name').value = name;
         else document.getElementById('save-list-name').value = '';
         renderCustomListButtons();
+        localStorage.setItem('hotseat_draft', content);
     }
 }
 
@@ -165,8 +192,8 @@ function saveCurrentList() {
     const originalContent = warningEl.innerHTML;
     const originalClass = warningEl.className;
 
-    warningEl.className = "bg-green/10 border-2 border-green p-3 rounded-xl flex items-start gap-3 transition-all";
-    warningEl.innerHTML = `<i data-lucide="check-circle" class="w-5 h-5 text-green-600 shrink-0 mt-0.5"></i><p class="text-xs md:text-sm text-green-800 font-bold leading-tight">List "${name}" saved successfully!</p>`;
+    warningEl.className = "bg-brand-green/10 border-2 border-brand-green p-3 rounded-xl flex items-start gap-3 transition-all";
+    warningEl.innerHTML = `<i data-lucide="check-circle" class="w-5 h-5 text-brand-green shrink-0 mt-0.5"></i><p class="text-xs md:text-sm text-brand-dark dark:text-white font-bold leading-tight">List "${name}" saved successfully!</p>`;
     lucide.createIcons();
 
     setTimeout(() => {
@@ -186,6 +213,9 @@ function deleteCustomList(name) {
 function init() {
     loadUserLists();
     const savedActiveName = localStorage.getItem(ACTIVE_LIST_KEY);
+    const savedMode = localStorage.getItem('hotseat_mode');
+    const savedTimer = localStorage.getItem('hotseat_timer');
+    const savedDraft = localStorage.getItem('hotseat_draft');
     let initialContent = '';
 
     if (savedActiveName && customLists.some(l => l.name === savedActiveName)) {
@@ -199,29 +229,42 @@ function init() {
         initialContent = DEFAULT_WORDS_EASY;
     }
 
-    document.getElementById('word-input').value = initialContent;
+    document.getElementById('word-input').value = savedDraft !== null ? savedDraft : initialContent;
     document.getElementById('active-list-name').innerText = activeListName;
-    parseWords(initialContent);
+    parseWords(savedDraft !== null ? savedDraft : initialContent);
 
-    setMode('classic');
+    if (savedTimer) {
+        document.getElementById('time-input').value = savedTimer;
+    }
+
+    setMode(savedMode || 'classic');
     showWordTab('presets');
+    initTheme();
     lucide.createIcons();
+
+    document.getElementById('time-input').addEventListener('input', (e) => localStorage.setItem('hotseat_timer', e.target.value));
+    document.getElementById('word-input').addEventListener('input', (e) => localStorage.setItem('hotseat_draft', e.target.value));
 }
 
 function showWordTab(tab) {
     const tabs = ['presets', 'custom'];
     tabs.forEach(t => {
-        document.getElementById(`tab-${t}`).classList.remove('tab-button-active', 'bg-white', 'border-dark', 'shadow-sm', 'text-dark');
-        document.getElementById(`tab-${t}`).classList.add('text-slate-500', 'hover:bg-slate-100');
+        document.getElementById(`tab-${t}`).classList.remove('tab-button-active', 'bg-white', 'dark:bg-slate-700', 'shadow-sm', 'text-brand-dark', 'dark:text-white', 'border-2');
+        document.getElementById(`tab-${t}`).classList.add('text-slate-500', 'hover:bg-slate-100', 'dark:hover:bg-slate-800');
+        document.getElementById(`tab-${t}`).style.borderColor = 'transparent';
         document.getElementById(`content-${t}`).classList.add('hidden');
     });
-    document.getElementById(`tab-${tab}`).classList.add('tab-button-active', 'bg-white', 'border-2', 'border-dark', 'shadow-sm', 'text-dark');
-    document.getElementById(`tab-${tab}`).classList.remove('text-slate-500', 'hover:bg-slate-100', 'border-transparent');
+    document.getElementById(`tab-${tab}`).classList.add('tab-button-active', 'bg-white', 'dark:bg-slate-700', 'border-2', 'shadow-sm', 'text-brand-dark', 'dark:text-white');
+    // Ensure the border color matches the primary border variable
+    document.getElementById(`tab-${tab}`).style.borderColor = 'var(--border-primary)';
+
+    document.getElementById(`tab-${tab}`).classList.remove('text-slate-500', 'hover:bg-slate-100', 'dark:hover:bg-slate-800', 'border-transparent');
     document.getElementById(`content-${tab}`).classList.remove('hidden');
 }
 
 function setMode(mode) {
     gameMode = mode;
+    localStorage.setItem('hotseat_mode', mode);
     const btnClassic = document.getElementById('btn-mode-classic');
     const btnSingle = document.getElementById('btn-mode-single');
     const timeInput = document.getElementById('time-input');
@@ -310,8 +353,8 @@ function startGame() {
 
     document.getElementById('controls-standard').classList.remove('hidden');
     document.getElementById('controls-intermission').classList.add('hidden');
-    document.getElementById('word-card').style.backgroundColor = 'white';
-    document.getElementById('current-word').style.color = '#1e293b';
+    document.getElementById('word-card').style.backgroundColor = 'var(--surface-card)';
+    document.getElementById('current-word').style.color = 'var(--text-primary)';
     document.getElementById('feedback-icon').classList.add('hidden');
 
     showNextWord();
@@ -333,7 +376,7 @@ function startTimer() {
     const text = document.getElementById('timer-text');
     bar.style.transition = 'none';
     bar.style.width = '100%';
-    bar.style.backgroundColor = '#00E676';
+    bar.style.backgroundColor = 'var(--color-green)';
     void bar.offsetWidth;
     bar.style.transition = `width 1s linear, background-color 0.5s ease`;
 
@@ -345,12 +388,12 @@ function startTimer() {
         bar.style.width = `${pct}%`;
 
         if (timeLeft <= 5) {
-            bar.style.backgroundColor = '#FF6B95';
+            bar.style.backgroundColor = 'var(--color-pink)';
             Audio.playTick("C5");
             const bg = document.getElementById('bg-pulse');
-            bg.className = "absolute inset-0 z-0 bg-pink/10 pointer-events-none transition-colors duration-100";
+            bg.className = "absolute inset-0 z-0 bg-brand-pink/10 pointer-events-none transition-colors duration-100";
             setTimeout(() => bg.className = "absolute inset-0 z-0 bg-transparent pointer-events-none transition-colors duration-100", 250);
-        } else if (pct < 50) bar.style.backgroundColor = '#FF8C42';
+        } else if (pct < 50) bar.style.backgroundColor = 'var(--color-orange)';
 
         if (timeLeft <= 0) {
             if (gameMode === 'classic') endGame();
@@ -368,8 +411,8 @@ function showNextWord() {
     const cardEl = document.getElementById('word-card');
     const iconEl = document.getElementById('feedback-icon');
 
-    cardEl.style.backgroundColor = 'white';
-    wordEl.style.color = '#1e293b';
+    cardEl.style.backgroundColor = 'var(--surface-card)';
+    wordEl.style.color = 'var(--text-primary)';
     iconEl.classList.add('hidden');
     iconEl.innerHTML = '';
 
@@ -400,18 +443,18 @@ function startIntermission(result) {
     iconEl.classList.remove('hidden');
 
     if (result === 'correct') {
-        cardEl.style.backgroundColor = '#dcfce7';
+        cardEl.style.backgroundColor = currentTheme === 'dark' ? '#064e3b' : '#dcfce7';
         wordEl.innerText = "CORRECT!";
-        wordEl.style.color = '#16a34a';
+        wordEl.style.color = '#10b981';
         wordEl.style.fontSize = "4rem";
-        iconEl.innerHTML = '<i data-lucide="check-circle" class="w-16 h-16 text-green"></i>';
+        iconEl.innerHTML = '<i data-lucide="check-circle" class="w-16 h-16 text-brand-green"></i>';
         Audio.playCorrect();
     } else {
-        cardEl.style.backgroundColor = '#fee2e2';
+        cardEl.style.backgroundColor = currentTheme === 'dark' ? '#7f1d1d' : '#fee2e2';
         wordEl.innerText = "TIME'S UP!";
-        wordEl.style.color = '#dc2626';
+        wordEl.style.color = '#ef4444';
         wordEl.style.fontSize = "4rem";
-        iconEl.innerHTML = '<i data-lucide="clock" class="w-16 h-16 text-pink"></i>';
+        iconEl.innerHTML = '<i data-lucide="clock" class="w-16 h-16 text-brand-pink"></i>';
         Audio.playPass();
         passed++;
         currentWordIndex++;
@@ -438,7 +481,7 @@ function handleCorrect() {
     else {
         Audio.playCorrect();
         const bg = document.getElementById('bg-pulse');
-        bg.className = "absolute inset-0 z-0 bg-green/20 pointer-events-none transition-colors duration-200";
+        bg.className = "absolute inset-0 z-0 bg-brand-green/20 pointer-events-none transition-colors duration-200";
         setTimeout(() => bg.className = "absolute inset-0 z-0 bg-transparent pointer-events-none transition-colors duration-200", 200);
         showNextWord();
     }
@@ -449,7 +492,7 @@ function handlePass() {
     currentWordIndex++;
     Audio.playPass();
     const bg = document.getElementById('bg-pulse');
-    bg.className = "absolute inset-0 z-0 bg-orange/20 pointer-events-none transition-colors duration-200";
+    bg.className = "absolute inset-0 z-0 bg-brand-orange/20 pointer-events-none transition-colors duration-200";
     setTimeout(() => bg.className = "absolute inset-0 z-0 bg-transparent pointer-events-none transition-colors duration-200", 200);
     showNextWord();
 }
@@ -465,8 +508,8 @@ function endGame() {
         const duration = 3000;
         const end = Date.now() + duration;
         (function frame() {
-            confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#00E676', '#2979FF'] });
-            confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#FF6B95', '#FF8C42'] });
+            confetti({ particleCount: 5, angle: 60, spread: 55, origin: { x: 0 }, colors: ['#00d063', '#1ea7fd'] });
+            confetti({ particleCount: 5, angle: 120, spread: 55, origin: { x: 1 }, colors: ['#ff4785', '#ff7e33'] });
             if (Date.now() < end) requestAnimationFrame(frame);
         }());
     }
@@ -479,7 +522,7 @@ function animateValue(id, start, end, duration) {
     const increment = end > start ? 1 : -1;
     const stepTime = Math.abs(Math.floor(duration / range));
     const obj = document.getElementById(id);
-    const timer = setInterval(function() {
+    const timer = setInterval(function () {
         current += increment;
         obj.innerHTML = current;
         if (current == end) clearInterval(timer);
