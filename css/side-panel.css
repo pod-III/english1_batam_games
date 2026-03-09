@@ -16,8 +16,9 @@
   box-shadow: 4px 0 0 rgba(0, 0, 0, 0.5);
 }
 
-/* Hide side panel when modal is hidden */
-#game-modal.hidden #side-panel {
+/* Hide side panel when modal is hidden or in focus mode */
+#game-modal.hidden #side-panel,
+body.focus-mode #side-panel {
   transform: translateX(-100%);
 }
 
@@ -147,6 +148,30 @@
   box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.8);
 }
 
+/* Pinned tab */
+.side-panel-tab.pinned {
+  border-color: var(--color-orange);
+  border-width: 3px;
+  border-style: dashed;
+}
+
+.side-panel-tab.pinned.active {
+  border-style: solid;
+}
+
+.side-panel-tab.pinned::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  width: 12px;
+  height: 12px;
+  background-color: var(--color-orange);
+  border: 2px solid var(--border-primary);
+  border-radius: 50%;
+  z-index: 10;
+}
+
 /* Tab icon */
 .side-panel-tab-icon {
   width: 1.75rem;
@@ -209,7 +234,7 @@
   transition: all 0.15s;
 }
 
-.side-panel-tab:hover .side-panel-tab-close {
+.side-panel-tab:not(.pinned):hover .side-panel-tab-close {
   display: flex;
   pointer-events: auto;
 }
@@ -294,6 +319,18 @@
   width: calc(100% - 5rem);
   height: 100vh;
   overflow: hidden;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body.focus-mode #tab-content-area {
+  width: 100%;
+  margin-left: 0;
+}
+
+/* Split-Screen Mode Layout */
+#tab-content-area.split-mode {
+  display: flex;
+  flex-direction: row;
 }
 
 /* ============================================
@@ -310,13 +347,38 @@
   opacity: 0;
   pointer-events: none;
 
-  transition: opacity 0.3s ease;
+  transition: opacity 0.3s ease, width 0.3s ease, transform 0.3s ease;
 }
 
 .tab-panel.active {
   opacity: 1;
   pointer-events: auto;
   z-index: 1;
+}
+
+/* Split-Screen Active Panes */
+#tab-content-area.split-mode .tab-panel.split-left {
+  position: relative;
+  width: 50%;
+  opacity: 1;
+  pointer-events: auto;
+  z-index: 1;
+  border-right: 4px solid var(--border-primary);
+}
+
+#tab-content-area.split-mode .tab-panel.split-right {
+  position: relative;
+  width: 50%;
+  opacity: 1;
+  pointer-events: auto;
+  z-index: 1;
+}
+
+/* Focus indicator for split panes (which one receives the next navigation) */
+#tab-content-area.split-mode .tab-panel.split-left.split-focused,
+#tab-content-area.split-mode .tab-panel.split-right.split-focused {
+  border: 4px solid var(--color-blue);
+  box-sizing: border-box;
 }
 
 .tab-panel iframe {
@@ -427,7 +489,63 @@
 }
 
 /* ============================================
-   13. TOOLTIP FOR TABS & BUTTONS
+   13. FOCUS MODE BUTTONS
+   ============================================ */
+
+.exit-focus-btn {
+  position: absolute;
+  top: 1.5rem;
+  left: 1.5rem;
+  z-index: 100;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 3.5rem;
+
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--radius-xl);
+  color: var(--text-primary);
+
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-10px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dark .exit-focus-btn {
+  background: rgba(15, 23, 42, 0.4);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+body.focus-mode .exit-focus-btn {
+  opacity: 0.5;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+body.focus-mode .exit-focus-btn:hover {
+  opacity: 1;
+  background: white;
+  color: var(--color-blue);
+  border-color: var(--color-blue);
+  box-shadow: 4px 4px 0 var(--color-blue);
+  transform: translateY(-2px);
+}
+
+.dark body.focus-mode .exit-focus-btn:hover {
+  background: var(--bg-secondary);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.8);
+}
+
+/* ============================================
+   14. TOOLTIP FOR TABS & BUTTONS
    ============================================ */
 
 .side-panel-tab[data-title]:hover::before,
@@ -484,7 +602,7 @@
 }
 
 /* ============================================
-   15. PRINT STYLES
+   16. PRINT STYLES
    ============================================ */
 
 @media print {
@@ -503,7 +621,7 @@
 }
 
 /* ============================================
-   16. ACCESSIBILITY
+   17. ACCESSIBILITY
    ============================================ */
 
 @media (prefers-reduced-motion: reduce) {
@@ -517,7 +635,7 @@
 }
 
 /* ============================================
-   17. DRAG AND DROP
+   18. DRAG AND DROP
    ============================================ */
 
 .side-panel-tab.dragging {

@@ -243,6 +243,16 @@ const UI = {
     modal.style.display = show ? 'block' : 'none';
     modal.setAttribute('aria-hidden', String(!show));
     if (modalId === 'game-modal') document.body.style.overflow = show ? 'hidden' : '';
+  },
+
+  toggleFocus() {
+    AudioEngine.click();
+    document.body.classList.toggle('focus-mode');
+
+    // Attempt to resize or trigger a window resize event so games adapt
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 300);
   }
 };
 
@@ -511,7 +521,9 @@ const Filters = {
 // --- TAB MANAGER ---
 const TabManager = {
   tabs: [],
-  activeTabId: null,
+  activeTabId: null, // This is the "primary" or "left" tab when split
+  splitScreenActive: false,
+  rightTabId: null,
 
   init() {
     this.setupKeyboardShortcuts();
@@ -519,7 +531,7 @@ const TabManager = {
   },
 
   saveTabsToStorage() {
-    const tabsData = this.tabs.map(({ id, gameId, title, icon, color }) => ({ id, gameId, title, icon, color }));
+    const tabsData = this.tabs.map(({ id, gameId, title, icon, color, pinned }) => ({ id, gameId, title, icon, color, pinned }));
     Storage.set(CONFIG.storageKeys.tabs, { tabs: tabsData, activeTabId: this.activeTabId });
   },
 
@@ -530,7 +542,10 @@ const TabManager = {
     UI.toggleModal('game-modal', true);
     savedData.tabs.forEach(tabData => {
       const game = State.getGameById(tabData.gameId);
-      if (game) this.createTabSilent(game, tabData.id);
+      if (game) {
+        const tab = this.createTabSilent(game, tabData.id);
+        if (tabData.pinned) this.togglePinTab(tab.id, true);
+      }
     });
 
     const targetTab = (savedData.activeTabId && this.tabs.find(t => t.id === savedData.activeTabId))
@@ -553,7 +568,7 @@ const TabManager = {
   },
 
   createTabSilent(game, tabId, switchTo = false) {
-    const tab = { id: tabId, gameId: game.id, title: game.title, icon: game.icon, color: game.color, loading: true };
+    const tab = { id: tabId, gameId: game.id, title: game.title, icon: game.icon, color: game.color, loading: true, pinned: false };
     this.createTabIcon(tab);
     this.createTabPanel(tab);
     this.tabs.push(tab);
@@ -589,6 +604,11 @@ const TabManager = {
         this.switchToTab(tab.id);
         AudioEngine.click();
       }
+    });
+
+    tabIcon.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      this.togglePinTab(tab.id);
     });
 
     // Drag and Drop implementation
@@ -637,6 +657,38 @@ const TabManager = {
     tab.iconElement = tabIcon;
   },
 
+  togglePinTab(tabId, forceState = null) {
+    const tabIndex = this.tabs.findIndex(t => t.id === tabId);
+    if (tabIndex === -1) return;
+
+    const tab = this.tabs[tabIndex];
+    tab.pinned = forceState !== null ? forceState : !tab.pinned;
+
+    if (tab.iconElement) {
+      tab.iconElement.classList.toggle('pinned', tab.pinned);
+    }
+
+    // Move pinned tabs to the front natively (but keep active state etc)
+    this.reorderAllTabsByPinStatus();
+    this.saveTabsToStorage();
+    if (forceState === null) AudioEngine.click();
+  },
+
+  reorderAllTabsByPinStatus() {
+    this.tabs.sort((a, b) => {
+      if (a.pinned === b.pinned) return 0;
+      return a.pinned ? -1 : 1;
+    });
+
+    const sidePanelTabs = document.getElementById('side-panel-tabs');
+    if (!sidePanelTabs) return;
+
+    // Re-append to DOM to match array order
+    this.tabs.forEach(t => {
+      if (t.iconElement) sidePanelTabs.appendChild(t.iconElement);
+    });
+  },
+
   reorderTabs(draggedId, targetId) {
     const draggedIndex = this.tabs.findIndex(t => t.id === draggedId);
     const targetIndex = this.tabs.findIndex(t => t.id === targetId);
@@ -646,11 +698,8 @@ const TabManager = {
     const [draggedTab] = this.tabs.splice(draggedIndex, 1);
     this.tabs.splice(targetIndex, 0, draggedTab);
 
-    // Rearrange in DOM
-    const sidePanelTabs = document.getElementById('side-panel-tabs');
-    this.tabs.forEach(t => {
-      if (t.iconElement) sidePanelTabs.appendChild(t.iconElement);
-    });
+    // Maintain pin rule: pinned above unpinned
+    this.reorderAllTabsByPinStatus();
 
     this.saveTabsToStorage();
   },
@@ -767,7 +816,78 @@ const TabManager = {
     }
 
     tab.iconElement?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    this.updateSplitScreenClasses();
     this.saveTabsToStorage();
+  },
+
+  toggleSplitScreen() {
+    if (this.tabs.length < 2) {
+      // Need at least 2 tabs to split screen
+      const section = document.getElementById('featured-section') || document.body;
+      const warning = document.createElement('div');
+      warning.className = 'fixed bottom-4 left-1/2 -translate-x-1/2 bg-dark text-white px-6 py-3 rounded-xl shadow-hard z-[100] animate-pop-in font-bold text-sm flex items-center gap-3';
+      warning.innerHTML = `<i data-lucide="info" class="w-5 h-5 text-blue"></i> Open at least 2 activities to use Split Screen`;
+      document.body.appendChild(warning);
+      Utils.refreshIcons();
+      setTimeout(() => warning.remove(), 3000);
+      return;
+    }
+
+    this.splitScreenActive = !this.splitScreenActive;
+    AudioEngine.click();
+
+    if (this.splitScreenActive) {
+      // Find the most recently used other tab, or just the first other tab
+      const otherTabs = this.tabs.filter(t => t.id !== this.activeTabId);
+      this.rightTabId = otherTabs[0].id; // Simple for now: just grab the first other tab
+    } else {
+      this.rightTabId = null;
+    }
+
+    this.updateSplitScreenClasses();
+  },
+
+  updateSplitScreenClasses() {
+    const area = document.getElementById('tab-content-area');
+    if (!area) return;
+
+    if (this.splitScreenActive && this.tabs.length >= 2) {
+      area.classList.add('split-mode');
+
+      this.tabs.forEach(tab => {
+        if (!tab.panel) return;
+
+        const isLeft = tab.id === this.activeTabId;
+        const isRight = tab.id === this.rightTabId;
+
+        tab.panel.classList.toggle('split-left', isLeft);
+        tab.panel.classList.toggle('split-right', isRight);
+
+        if (isLeft || isRight) {
+          tab.panel.classList.add('active');
+          if (tab.iframe) tab.iframe.style.display = 'block';
+        } else {
+          tab.panel.classList.remove('active', 'split-left', 'split-right');
+          if (tab.iframe) tab.iframe.style.display = 'none';
+        }
+      });
+    } else {
+      this.splitScreenActive = false; // Reset if tabs fell below 2
+      area.classList.remove('split-mode');
+
+      this.tabs.forEach(tab => {
+        if (!tab.panel) return;
+        const isActive = tab.id === this.activeTabId;
+        tab.panel.classList.remove('split-left', 'split-right');
+        tab.panel.classList.toggle('active', isActive);
+        if (tab.iframe) tab.iframe.style.display = isActive ? 'block' : 'none';
+      });
+    }
+
+    // Attempt to resize or trigger a window resize event so games adapt
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 50);
   },
 
   closeTab(tabId) {
@@ -782,14 +902,22 @@ const TabManager = {
     this.tabs.splice(tabIndex, 1);
 
     if (this.tabs.length === 0) {
+      this.splitScreenActive = false;
       this.closeModal();
       return;
+    }
+
+    if (tabId === this.rightTabId) {
+      this.rightTabId = null;
+      this.splitScreenActive = false;
     }
 
     this.saveTabsToStorage();
     if (wasActive) {
       const newIndex = Math.min(tabIndex, this.tabs.length - 1);
       this.switchToTab(this.tabs[newIndex].id);
+    } else {
+      this.updateSplitScreenClasses();
     }
     AudioEngine.click();
   },
@@ -838,15 +966,34 @@ const TabManager = {
   closeAllTabsConfirmed() {
     this.cancelConfirmation();
     if (this.tabs.length === 0) return;
+
+    const tabsToKeep = [];
+
     this.tabs.forEach(tab => {
-      tab.iconElement?.remove();
-      tab.panel?.remove();
+      if (tab.pinned) {
+        tabsToKeep.push(tab);
+      } else {
+        tab.iconElement?.remove();
+        tab.panel?.remove();
+      }
     });
-    this.tabs = [];
-    this.activeTabId = null;
-    State.activeGame = null;
-    Storage.remove(CONFIG.storageKeys.tabs);
-    this.closeModal();
+
+    this.tabs = tabsToKeep;
+
+    // If active tab was closed, switch to the last pinned one or null
+    if (!this.tabs.find(t => t.id === this.activeTabId)) {
+      this.activeTabId = this.tabs.length > 0 ? this.tabs[this.tabs.length - 1].id : null;
+    }
+
+    if (this.tabs.length === 0) {
+      State.activeGame = null;
+      Storage.remove(CONFIG.storageKeys.tabs);
+      this.closeModal();
+    } else {
+      if (this.activeTabId) this.switchToTab(this.activeTabId);
+      this.saveTabsToStorage();
+    }
+
     AudioEngine.click();
   },
 
@@ -1142,6 +1289,8 @@ const App = {
       confirmCancel: () => TabManager.cancelConfirmation(),
       closeCurrentTab: () => TabManager.closeCurrentTab(),
       reloadGame: () => TabManager.reloadCurrentTab(),
+      toggleSplitScreen: () => TabManager.toggleSplitScreen(),
+      toggleFocus: () => UI.toggleFocus(),
       toggleInfo: () => GameModal.toggleInfo(),
       filterGames: (param) => Filters.setCategory(param),
       clearRecent: () => RecentGames.clear(),
