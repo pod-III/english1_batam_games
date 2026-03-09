@@ -39,11 +39,125 @@ const state = {
     clock: { is24Hour: false, isAnalog: false, isZenMode: false, animFrame: null, lastSecond: -1 },
     stopwatch: { startTime: 0, elapsed: 0, running: false, animFrame: null, laps: [] },
     timer: { timeLeft: 300, initial: 300, lastDuration: 300, running: false, interval: null, mode: 'calm' },
-    calendar: { date: new Date(), marked: {}, selected: null },
+    calendar: { date: new Date(), marked: {}, selected: null, viewMode: 'month' },
     alarm: { alarms: [], isAmPm: true, ampm: 'AM', soundInterval: null, currentlyRinging: null, lastTriggerMinute: -1 },
     audio: { ctx: null, oscillatorPool: [] },
     darkMode: false,
     sidebarCollapsed: false,
+    weather: { loaded: false, temp: null, icon: null, city: null }
+};
+
+// --- LOCATION & WEATHER MODULE ---
+const locationWeather = {
+    elements: null,
+    cacheElements() {
+        if (!this.elements) {
+            this.elements = {
+                locMarker: DOM.get('clock-location-marker')
+            };
+        }
+        return this.elements;
+    },
+    init() {
+        this.renderLoading();
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => this.fetchData(pos.coords.latitude, pos.coords.longitude),
+                (err) => this.handleError(err)
+            );
+        } else {
+            this.handleError(new Error("Geolocation not supported"));
+        }
+    },
+    async fetchData(lat, lon) {
+        try {
+            // Fetch Weather
+            const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`);
+            const weatherData = await weatherRes.json();
+            const temp = Math.round(weatherData.current_weather.temperature);
+            const wCode = weatherData.current_weather.weathercode;
+            const icon = this.mapWeatherCode(wCode, weatherData.current_weather.is_day);
+
+            // Fetch City
+            const geoRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`);
+            const geoData = await geoRes.json();
+            const city = geoData.city || geoData.locality || "Unknown Location";
+
+            this.updateDOM(city, temp, icon);
+        } catch (error) {
+            console.error("Error fetching location/weather data:", error);
+            this.fallbackToTimezone();
+        }
+    },
+    handleError(err) {
+        console.warn("Geolocation warning:", err.message);
+        this.fallbackToTimezone();
+    },
+    fallbackToTimezone() {
+        try {
+            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            const city = tz.split('/').pop().replace(/_/g, ' ');
+            this.updateDOM(city, null, 'map-pin');
+        } catch (e) {
+            this.updateDOM("Local Time", null, 'map-pin');
+        }
+    },
+    updateDOM(city, temp, iconName) {
+        const els = this.cacheElements();
+        if (!els.locMarker) return;
+
+        state.weather.city = city;
+        state.weather.temp = temp;
+        state.weather.icon = iconName;
+        state.weather.loaded = true;
+
+        let content = '';
+        if (temp !== null) {
+            content = `
+                <i data-lucide="${iconName}" class="w-4 h-4 text-orange"></i>
+                <span class="text-sm font-bold">${city} • ${temp}°C</span>
+            `;
+        } else {
+            content = `
+                <i data-lucide="${iconName}" class="w-4 h-4 text-orange"></i>
+                <span class="text-sm font-bold">${city}</span>
+            `;
+        }
+
+        els.locMarker.innerHTML = `
+            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border-[1px] glass-panel transition-all hover:-translate-y-1 hover:shadow-neo"
+                style="background: var(--slate-50); border-color: var(--border-light); color: var(--text-secondary);">
+                ${content}
+            </div>
+        `;
+        utils.safeIconUpdate();
+    },
+    renderLoading() {
+        const els = this.cacheElements();
+        if (!els.locMarker) return;
+        els.locMarker.innerHTML = `
+            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border-[1px] glass-panel"
+                style="background: var(--slate-50); border-color: var(--border-light); color: var(--text-secondary);">
+                <i data-lucide="loader" class="w-4 h-4 text-slate-400 animate-spin"></i>
+                <span class="text-sm font-bold text-slate-400">Locating...</span>
+            </div>
+        `;
+        utils.safeIconUpdate();
+    },
+    mapWeatherCode(code, isDay) {
+        // WMO Weather interpretation codes (WW)
+        // https://open-meteo.com/en/docs
+        if (code === 0) return isDay ? 'sun' : 'moon';
+        if (code === 1 || code === 2) return isDay ? 'cloud-sun' : 'cloud-moon';
+        if (code === 3) return 'cloud';
+        if (code >= 45 && code <= 48) return 'cloud-fog';
+        if (code >= 51 && code <= 67) return 'cloud-rain';
+        if (code >= 71 && code <= 77) return 'cloud-snow';
+        if (code >= 80 && code <= 82) return 'cloud-rain';
+        if (code >= 85 && code <= 86) return 'cloud-snow';
+        if (code >= 95) return 'cloud-lightning';
+        return isDay ? 'sun' : 'moon'; // fallback
+    }
 };
 
 // --- UTILITY FUNCTIONS ---
@@ -854,7 +968,9 @@ const calendar = {
             this.elements = {
                 grid: DOM.get('cal-grid'),
                 monthYear: DOM.get('cal-month-year'),
-                counter: DOM.get('cal-counter-display')
+                counter: DOM.get('cal-counter-display'),
+                monthView: DOM.get('cal-month-view'),
+                yearView: DOM.get('cal-year-view')
             };
         }
         return this.elements;
@@ -867,8 +983,25 @@ const calendar = {
         clearTimeout(this.saveTimeout);
         this.saveTimeout = setTimeout(() => localStorage.setItem('hub_calendar', JSON.stringify(state.calendar.marked)), 500);
     },
+    toggleViewMode() {
+        state.calendar.viewMode = state.calendar.viewMode === 'month' ? 'year' : 'month';
+        const els = this.cacheElements();
+
+        if (state.calendar.viewMode === 'year') {
+            els.monthView.classList.add('hidden');
+            els.yearView.classList.remove('hidden');
+        } else {
+            els.yearView.classList.add('hidden');
+            els.monthView.classList.remove('hidden');
+        }
+        this.render();
+    },
     navigate(delta) {
-        state.calendar.date.setMonth(state.calendar.date.getMonth() + delta);
+        if (state.calendar.viewMode === 'year') {
+            state.calendar.date.setFullYear(state.calendar.date.getFullYear() + delta);
+        } else {
+            state.calendar.date.setMonth(state.calendar.date.getMonth() + delta);
+        }
         calendar.render();
     },
     render() {
@@ -876,18 +1009,71 @@ const calendar = {
         const els = this.cacheElements();
         if (!els.grid || !els.monthYear) return;
 
-        els.monthYear.innerText = `${CONSTANTS.MONTH_NAMES[cal.date.getMonth()]} ${cal.date.getFullYear()}`;
-
         const year = cal.date.getFullYear();
         const month = cal.date.getMonth();
-        const startOffset = (new Date(year, month, 1).getDay() + 6) % 7;
-        const todayStr = utils.getTodayString();
 
-        const cellsHTML = Array.from({ length: CONSTANTS.CALENDAR_GRID_SIZE }, (_, i) => {
-            return calendar.createCellHTML(new Date(year, month, 1 - startOffset + i), month, todayStr);
-        });
+        if (cal.viewMode === 'month') {
+            els.monthYear.innerText = `${CONSTANTS.MONTH_NAMES[month]} ${year}`;
 
-        els.grid.innerHTML = cellsHTML.join('');
+            const startOffset = (new Date(year, month, 1).getDay() + 6) % 7;
+            const todayStr = utils.getTodayString();
+
+            const cellsHTML = Array.from({ length: CONSTANTS.CALENDAR_GRID_SIZE }, (_, i) => {
+                return calendar.createCellHTML(new Date(year, month, 1 - startOffset + i), month, todayStr);
+            });
+
+            els.grid.innerHTML = cellsHTML.join('');
+        } else {
+            els.monthYear.innerText = `${year}`;
+            this.renderYearView(year);
+        }
+    },
+    renderYearView(year) {
+        const els = this.cacheElements();
+        if (!els.yearView) return;
+
+        const today = new Date();
+        const currentYear = today.getFullYear();
+        const currentMonth = today.getMonth();
+
+        let html = '';
+        for (let m = 0; m < 12; m++) {
+            const isCurrentMonth = (year === currentYear && m === currentMonth);
+            const monthName = CONSTANTS.MONTH_NAMES[m];
+
+            // Build mini grid
+            let miniGrid = '<div class="grid grid-cols-7 gap-1 mt-1">';
+            const startOffset = (new Date(year, m, 1).getDay() + 6) % 7;
+            const daysInMonth = new Date(year, m + 1, 0).getDate();
+
+            // Empty slots before 1st
+            for (let i = 0; i < startOffset; i++) {
+                miniGrid += '<div class="aspect-square"></div>';
+            }
+            // Days
+            for (let d = 1; d <= daysInMonth; d++) {
+                const isTodayStr = utils.getDateString(new Date(year, m, d)) === utils.getTodayString();
+                const textCol = isTodayStr ? 'text-white' : 'text-slate-400 dark:text-slate-300';
+                const dayClass = isTodayStr ? 'bg-[#2979FF] rounded-sm shadow-[1px_1px_0px_0px_rgba(30,41,59,1)]' : 'hover:bg-slate-100 dark:hover:bg-slate-700 rounded-sm';
+                miniGrid += `<div class="aspect-square flex items-center justify-center font-bold text-[0.6rem] md:text-[0.65rem] ${textCol} ${dayClass} transition-colors">${d}</div>`;
+            }
+            miniGrid += '</div>';
+
+            const activeClass = isCurrentMonth ? 'border-[#2979FF] shadow-[4px_4px_0px_0px_rgba(30,41,59,1)] bg-blue/5' : 'border-[#1e293b] dark:border-slate-500 hover:border-[#FF8C42] shadow-[2px_2px_0px_0px_rgba(30,41,59,1)] hover:shadow-[4px_4px_0px_0px_rgba(30,41,59,1)]';
+
+            html += `
+                <div class="cal-mini-month p-2 md:p-3 rounded-xl md:rounded-2xl border-2 md:border-3 cursor-pointer transition-all hover:-translate-y-1 bg-white dark:bg-slate-800 ${activeClass}" 
+                     data-month="${m}" onclick="calendar.selectMonthFromYear(${m})">
+                    <div class="text-xs md:text-sm font-black text-center mb-1 text-[#1e293b] dark:text-white tracking-widest uppercase">${monthName}</div>
+                    ${miniGrid}
+                </div>
+            `;
+        }
+        els.yearView.innerHTML = html;
+    },
+    selectMonthFromYear(monthIndex) {
+        state.calendar.date.setMonth(monthIndex);
+        this.toggleViewMode(); // switch back to month view
     },
     createCellHTML(cellDate, currentMonth, todayStr) {
         const dateStr = utils.getDateString(cellDate);
@@ -896,7 +1082,7 @@ const calendar = {
         const isSelected = state.calendar.selected === dateStr;
         const isMarked = state.calendar.marked[dateStr];
 
-        let classes = 'cal-day rounded-xl flex flex-col items-center justify-center font-bold text-lg relative cursor-pointer border-3 transition-transform hover:-translate-y-1 ';
+        let classes = 'cal-day rounded-2xl flex flex-col items-center justify-center font-bold text-2xl relative cursor-pointer border-3 transition-transform hover:-translate-y-1 ';
 
         if (isToday) classes += 'bg-[#2979FF] text-white border-[#1e293b] shadow-[4px_4px_0px_0px_rgba(30,41,59,1)] z-10 ';
         else if (isCurrMonth) classes += 'bg-white text-[#1e293b] border-[#1e293b] shadow-[4px_4px_0px_0px_rgba(30,41,59,1)] ';
@@ -988,6 +1174,8 @@ window.onload = function () {
     clock.initFace();
     clock.startLoop();
 
+    locationWeather.init();
+
     calendar.load();
     calendar.setupEventDelegation();
     calendar.render();
@@ -1015,6 +1203,7 @@ window.timerStop = () => timer.stop();
 window.timerReset = () => timer.reset();
 window.resetTimerOverlay = () => timer.resetOverlay();
 window.calNav = (delta) => calendar.navigate(delta);
+window.calToggleViewMode = () => calendar.toggleViewMode();
 window.toggleDarkMode = () => darkMode.toggle();
 window.toggleSidebar = () => sidebar.toggle();
 window.alarmToggleAmPm = () => alarm.toggleAmPm();
