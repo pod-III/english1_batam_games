@@ -253,6 +253,23 @@ const UI = {
     setTimeout(() => {
       window.dispatchEvent(new Event('resize'));
     }, 300);
+  },
+
+  toggleSettings() {
+    AudioEngine.click();
+    const menu = document.getElementById('settings-menu');
+    const container = document.getElementById('settings-container');
+    if (!menu || !container) return;
+
+    const isClosed = menu.classList.contains('opacity-0');
+
+    menu.classList.toggle('opacity-0', !isClosed);
+    menu.classList.toggle('pointer-events-none', !isClosed);
+    menu.classList.toggle('translate-y-4', !isClosed);
+    menu.classList.toggle('translate-y-0', isClosed);
+
+    const icon = container.querySelector('[data-action="toggleSettings"] i');
+    if (icon) icon.classList.toggle('rotate-90', isClosed);
   }
 };
 
@@ -1291,6 +1308,7 @@ const App = {
       reloadGame: () => TabManager.reloadCurrentTab(),
       toggleSplitScreen: () => TabManager.toggleSplitScreen(),
       toggleFocus: () => UI.toggleFocus(),
+      toggleSettings: () => UI.toggleSettings(),
       toggleInfo: () => GameModal.toggleInfo(),
       filterGames: (param) => Filters.setCategory(param),
       clearRecent: () => RecentGames.clear(),
@@ -1300,6 +1318,19 @@ const App = {
 
     document.addEventListener('click', (e) => {
       const target = e.target.closest('[data-action]');
+
+      const settingsContainer = document.getElementById('settings-container');
+      const settingsMenu = document.getElementById('settings-menu');
+      if (settingsContainer && settingsMenu && !settingsMenu.classList.contains('opacity-0')) {
+        const isToggleButton = target && target.dataset.action === 'toggleSettings';
+        if (!isToggleButton && (!settingsContainer.contains(e.target) || target)) {
+          settingsMenu.classList.add('opacity-0', 'pointer-events-none', 'translate-y-4');
+          settingsMenu.classList.remove('translate-y-0');
+          const icon = settingsContainer.querySelector('[data-action="toggleSettings"] i');
+          if (icon) icon.classList.remove('rotate-90');
+        }
+      }
+
       if (!target) return;
       const action = actions[target.dataset.action];
       if (action) action(target.dataset.param);
