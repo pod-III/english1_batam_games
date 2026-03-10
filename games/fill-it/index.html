@@ -6,104 +6,113 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fill in the Blanks Game - Teacher Edition</title>
 
+    <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+
     <script>
         tailwind.config = {
-            darkMode: 'class',
+            darkMode: "class",
             theme: {
                 extend: {
                     colors: {
-                        pink: 'var(--color-pink)',
-                        orange: 'var(--color-orange)',
-                        green: 'var(--color-green)',
-                        blue: 'var(--color-blue)',
-                        dark: 'var(--color-dark)',
-                        chalk: 'var(--color-chalk)',
+                        pink: "#ff4785",
+                        orange: "#ff7e33",
+                        green: "#00d063",
+                        blue: "#1ea7fd",
+                        dark: "#111827",
+                        chalk: "#f8fafc",
                     },
                     fontFamily: {
-                        fredoka: ['Fredoka', 'sans-serif'],
-                        nunito: ['Nunito', 'sans-serif'],
-                    }
-                }
-            }
-        }
+                        heading: ["Fredoka", "sans-serif"],
+                        body: ["Nunito", "sans-serif"],
+                    },
+                    animation: {
+                        pop: "pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+                        shake: "shake 0.4s cubic-bezier(.36,.07,.19,.97) both",
+                    },
+                    keyframes: {
+                        pop: {
+                            "0%": { transform: "scale(0.8)", opacity: "0" },
+                            "100%": { transform: "scale(1)", opacity: "1" },
+                        },
+                        shake: {
+                            "10%, 90%": {
+                                transform: "translate3d(-1px, 0, 0)",
+                            },
+                            "20%, 80%": {
+                                transform: "translate3d(2px, 0, 0)",
+                            },
+                            "30%, 50%, 70%": {
+                                transform: "translate3d(-4px, 0, 0)",
+                            },
+                            "40%, 60%": {
+                                transform: "translate3d(4px, 0, 0)",
+                            },
+                        },
+                    },
+                },
+            },
+        };
     </script>
 
     <link
-        href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&family=Nunito:wght@400;600;700&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;700;800&display=swap"
         rel="stylesheet">
-
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="../../css/base.css" />
+    <link rel="stylesheet" href="../../css/components.css" />
 
     <style>
         /* Input styling for the game board */
         .blank-input {
-            width: 140px;
+            width: 200px;
             text-align: center;
-            border-bottom-width: var(--border-width-thick);
-            border-color: var(--border-primary);
+            border: none;
+            border-bottom: 4px solid var(--border-primary);
             background: transparent;
             outline: none;
+            font-family: var(--font-body);
             font-weight: 800;
             color: var(--color-blue);
             margin: 0 10px;
+            padding-bottom: 2px;
             transition: border-color var(--transition-fast), color var(--transition-fast);
         }
 
+        .blank-input::placeholder {
+            color: var(--text-tertiary);
+            font-weight: 600;
+            font-size: 0.8em;
+            opacity: 0.7;
+            text-transform: none;
+        }
+
         .blank-input:focus {
-            border-color: var(--color-pink);
+            border-bottom-color: var(--color-pink);
             color: var(--color-pink);
         }
 
         .dark .blank-input {
-            border-color: var(--text-primary);
+            border-bottom-color: var(--border-secondary);
             color: var(--color-pink);
         }
 
         .dark .blank-input:focus {
-            border-color: var(--color-green);
+            border-bottom-color: var(--color-green);
             color: var(--color-green);
         }
 
-        @keyframes shake {
-
-            0%,
-            100% {
-                transform: translateX(0);
-            }
-
-            10%,
-            30%,
-            50%,
-            70%,
-            90% {
-                transform: translateX(-5px);
-            }
-
-            20%,
-            40%,
-            60%,
-            80% {
-                transform: translateX(5px);
-            }
-        }
-
-        .animate-shake {
-            animation: shake 0.5s ease-in-out;
-        }
-
         .correct-feedback {
-            border-color: var(--color-green) !important;
+            border-bottom-color: var(--color-green) !important;
             color: var(--color-green) !important;
-            box-shadow: 0 0 15px var(--color-green) !important;
+            text-shadow: 0 0 10px rgba(0, 208, 99, 0.5);
             transform: scale(1.05);
             transition: all 0.3s ease;
         }
 
         .wrong-feedback {
-            border-color: var(--color-pink) !important;
+            border-bottom-color: var(--color-pink) !important;
             color: var(--color-pink) !important;
-            box-shadow: 0 0 15px var(--color-pink) !important;
+            text-shadow: 0 0 10px rgba(255, 71, 133, 0.5);
             transition: all 0.3s ease;
         }
 
@@ -123,118 +132,149 @@
             border-radius: 10px;
         }
     </style>
-    <link rel="stylesheet" href="../../css/base.css" />
-    <link rel="stylesheet" href="../../css/components.css" />
 </head>
 
-<body class="min-h-screen flex flex-col items-center py-10 px-4">
+<body class="flex flex-col min-h-screen">
 
     <input type="file" id="import-file" accept=".json" class="hidden" onchange="importJSON(event)">
 
-    <div class="w-full max-w-5xl flex justify-between items-center mb-10">
-        <button id="theme-btn" onclick="toggleDarkMode()"
-            class="btn-chunky bg-blue text-white rounded-[var(--radius-xl)] px-5 py-3 gap-2">
-            <i data-lucide="moon" class="w-5 h-5"></i> <span id="theme-text">Blackboard Role</span>
-        </button>
-        <div
-            class="glass-panel flex-1 max-w-[200px] justify-center text-center rounded-[var(--radius-xl)] px-6 py-3 font-fredoka text-2xl flex items-center gap-3">
-            <i data-lucide="star" class="text-orange w-6 h-6 fill-current animate-[pulse_2s_infinite]"></i>
-            Score: <span id="score-display">0</span>
+    <!-- HEADER -->
+    <header
+        class="w-full bg-white dark:bg-slate-900 border-b-4 border-dark dark:border-slate-400 sticky top-0 z-50 transition-colors duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div
+                    class="bg-pink w-12 h-12 rounded-xl border-4 border-dark dark:border-slate-400 flex items-center justify-center text-dark text-2xl shadow-[2px_2px_0px_0px_rgba(17,24,39,1)] dark:shadow-[2px_2px_0px_0px_rgba(148,163,184,1)]">
+                    <i data-lucide="pen-tool" class="w-7 h-7"></i>
+                </div>
+                <div>
+                    <h1
+                        class="text-2xl sm:text-3xl font-heading text-dark dark:text-chalk leading-none mt-1 uppercase tracking-tight">
+                        FILL IN THE BLANKS</h1>
+                    <div
+                        class="text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                        English 1 Batam</div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 sm:gap-4">
+                <button onclick="toggleDarkMode()"
+                    class="p-2 rounded-xl border-2 border-transparent hover:border-dark dark:hover:border-slate-400 hover:bg-chalk dark:hover:bg-slate-800 transition-all text-dark dark:text-chalk"
+                    title="Toggle Theme">
+                    <i data-lucide="moon" id="theme-icon" class="w-6 h-6"></i>
+                </button>
+                <div
+                    class="bg-white dark:bg-slate-800 border-4 border-dark dark:border-slate-500 shadow-[0_4px_0_var(--color-dark)] dark:shadow-[0_4px_0_#64748b] rounded-2xl flex justify-center text-center px-4 py-2 font-heading text-xl flex items-center gap-2">
+                    <i data-lucide="star" class="text-orange w-5 h-5 fill-current animate-[pulse_2s_infinite]"></i>
+                    <span id="score-display" class="text-dark dark:text-chalk">0</span>
+                </div>
+                <button onclick="openManageModal()"
+                    class="btn-chunky bg-orange text-dark px-4 sm:px-6 py-2 rounded-xl text-base sm:text-lg tracking-wide flex items-center gap-2">
+                    <i data-lucide="settings" class="w-5 h-5"></i> <span class="hidden sm:inline">MANAGE</span>
+                </button>
+            </div>
         </div>
-        <button onclick="openManageModal()"
-            class="btn-chunky bg-orange text-dark rounded-[var(--radius-xl)] px-5 py-3 gap-2">
-            <i data-lucide="settings" class="w-5 h-5"></i> Manage Questions
-        </button>
-    </div>
+    </header>
 
-    <main class="w-full max-w-3xl hub-card p-10 text-center relative mt-8">
-        <h1 class="font-fredoka text-5xl mb-4 text-pink drop-shadow-sm uppercase tracking-tight">Fill in the Blanks!
-        </h1>
-        <p class="text-xl mb-10 font-nunito text-[var(--text-secondary)] font-bold">Read carefully and type the missing
-            word.</p>
+    <main class="flex-grow flex flex-col items-center justify-center p-4 w-full max-w-5xl mx-auto my-8">
 
-        <div
-            class="bg-[var(--bg-tertiary)] border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-[var(--radius-2xl)] p-8 mb-10 shadow-[var(--shadow-md)] min-h-[160px] flex items-center justify-center">
-            <p id="sentence-container" class="text-3xl font-nunito leading-loose font-bold"></p>
-        </div>
+        <div class="w-full max-w-4xl hub-card p-8 md:p-12 mb-8 text-center relative animate-pop">
+            <div
+                class="absolute -top-5 left-4 sm:left-8 bg-blue text-white border-4 border-dark dark:border-slate-400 px-4 py-1 rounded-lg text-xs sm:text-sm font-bold uppercase tracking-wider shadow-[4px_4px_0_px_rgba(30,41,59,1)] rotate-[-2deg] z-10">
+                Type the missing word
+            </div>
 
-        <div class="flex gap-6">
-            <button onclick="skipQuestion()"
-                class="btn-chunky bg-chalk text-dark text-xl px-6 py-4 rounded-[var(--radius-xl)] gap-2">
-                <i data-lucide="skip-forward"></i> Skip
-            </button>
-            <button onclick="checkAnswer()"
-                class="btn-chunky flex-1 bg-green text-dark text-3xl px-8 py-4 rounded-[var(--radius-xl)] w-full">
-                Submit Answer
-            </button>
+            <p class="text-xl mb-10 font-body text-slate-600 dark:text-slate-400 font-bold mt-4">Read carefully and type
+                the missing word to complete the sentence.</p>
+
+            <div
+                class="bg-chalk dark:bg-slate-900 border-4 border-dark dark:border-slate-500 rounded-xl p-8 mb-10 min-h-[160px] flex items-center justify-center shadow-inner">
+                <p id="sentence-container" class="text-3xl font-body leading-loose font-bold text-dark dark:text-chalk">
+                </p>
+            </div>
+
+            <div class="flex gap-4 sm:gap-6 justify-center">
+                <button onclick="skipQuestion()"
+                    class="btn-chunky bg-chalk text-dark px-6 py-4 rounded-xl text-xl flex items-center gap-2">
+                    <i data-lucide="skip-forward"></i> SKIP
+                </button>
+                <button onclick="checkAnswer()"
+                    class="btn-chunky flex-1 bg-green text-dark px-8 py-4 rounded-xl text-2xl flex items-center justify-center gap-3 w-full sm:w-auto">
+                    <i data-lucide="check-circle" class="w-7 h-7"></i> SUBMIT ANSWER
+                </button>
+            </div>
         </div>
     </main>
 
+    <!-- MANAGE QUESTIONS MODAL -->
     <div id="manage-modal"
-        class="fixed inset-0 bg-[var(--bg-secondary)] backdrop-blur-[16px] hidden flex items-center justify-center z-[var(--z-modal)] p-4">
-        <div
-            class="bg-[var(--surface-card)] border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-[var(--radius-2xl)] w-full max-w-6xl h-[85vh] flex flex-col shadow-[var(--shadow-xl)] animate-[pop-in_0.3s_ease-out]">
-
+        class="fixed inset-0 bg-slate-900/40 backdrop-blur-[16px] hidden flex items-center justify-center z-[var(--z-modal)] p-4 animate-pop">
+        <div class="hub-card w-full max-w-6xl h-[85vh] flex flex-col">
             <div
-                class="border-b-[var(--border-width-thick)] border-[var(--border-primary)] p-6 flex justify-between items-center bg-[var(--bg-tertiary)] rounded-t-[calc(var(--radius-2xl)-var(--border-width-thick))]">
+                class="border-b-4 border-dark dark:border-slate-400 p-4 sm:p-6 flex justify-between items-center bg-chalk dark:bg-slate-900">
                 <div>
-                    <h2 class="font-fredoka text-3xl text-blue flex items-center gap-3">
-                        <i data-lucide="edit-3" class="w-8 h-8"></i> Question Editor
+                    <h2
+                        class="font-heading text-2xl sm:text-3xl text-blue flex items-center gap-3 uppercase tracking-tight">
+                        <i data-lucide="edit-3" class="w-8 h-8"></i> QUESTION EDITOR
                     </h2>
-                    <p class="font-nunito text-sm mt-1">Use an underscore (_) in the sentence to create a blank. Edit
-                        directly below.</p>
+                    <p class="font-body text-sm mt-1 text-slate-600 dark:text-slate-400 font-bold">Use an underscore (_)
+                        in the sentence to create a blank. Edit directly below.</p>
                 </div>
-                <div class="flex gap-4">
+                <div class="flex gap-2 sm:gap-4 flex-wrap justify-end items-center">
                     <button onclick="exportJSON()"
-                        class="btn-chunky bg-blue text-white px-4 py-2 rounded-[var(--radius-lg)] gap-2">
-                        <i data-lucide="download" class="w-5 h-5"></i> Export JSON
+                        class="btn-chunky bg-blue text-white px-3 sm:px-4 py-2 flex items-center gap-2 rounded-lg text-sm sm:text-base">
+                        <i data-lucide="download" class="w-4 h-4 sm:w-5 sm:h-5"></i> <span
+                            class="hidden sm:inline">EXPORT JSON</span>
                     </button>
                     <button onclick="document.getElementById('import-file').click()"
-                        class="btn-chunky bg-pink text-dark px-4 py-2 rounded-[var(--radius-lg)] gap-2">
-                        <i data-lucide="upload" class="w-5 h-5"></i> Import JSON
+                        class="btn-chunky bg-pink text-dark px-3 sm:px-4 py-2 flex items-center gap-2 rounded-lg text-sm sm:text-base">
+                        <i data-lucide="upload" class="w-4 h-4 sm:w-5 sm:h-5"></i> <span class="hidden sm:inline">IMPORT
+                            JSON</span>
                     </button>
-                    <button onclick="closeManageModal()" class="stick-btn ml-4">
-                        <i data-lucide="x"></i>
+                    <button onclick="closeManageModal()" class="btn-chunky p-2 ml-2">
+                        <i data-lucide="x" class="w-6 h-6"></i>
                     </button>
                 </div>
             </div>
 
-            <div id="editor-list" class="flex-1 overflow-y-auto editor-scroll p-6 space-y-4 bg-[var(--bg-primary)]">
+            <div id="editor-list"
+                class="flex-1 overflow-y-auto editor-scroll p-4 sm:p-6 space-y-4 bg-white dark:bg-slate-800">
             </div>
 
             <div
-                class="border-t-[var(--border-width-thick)] border-[var(--border-primary)] p-6 flex gap-4 bg-[var(--bg-tertiary)] rounded-b-[calc(var(--radius-2xl)-var(--border-width-thick))]">
+                class="border-t-4 border-dark dark:border-slate-400 p-4 sm:p-6 flex gap-4 bg-chalk dark:bg-slate-900 flex-wrap sm:flex-nowrap">
                 <button onclick="addNewRow()"
-                    class="btn-chunky bg-orange text-dark text-lg px-6 py-3 rounded-[var(--radius-xl)] gap-2">
-                    <i data-lucide="plus"></i> Add New Row
+                    class="btn-chunky bg-orange text-dark px-4 sm:px-6 py-3 flex items-center gap-2 rounded-xl text-sm sm:text-lg w-full sm:w-auto justify-center">
+                    <i data-lucide="plus"></i> ADD NEW ROW
                 </button>
-                <div class="flex-1"></div>
+                <div class="hidden sm:block flex-1"></div>
                 <button onclick="resetData()"
-                    class="btn-chunky bg-pink text-dark text-lg px-6 py-3 rounded-[var(--radius-xl)] gap-2">
-                    <i data-lucide="trash-2"></i> Reset Data
+                    class="btn-chunky bg-pink text-dark px-4 sm:px-6 py-3 flex items-center gap-2 rounded-xl text-sm sm:text-lg w-full sm:w-auto justify-center">
+                    <i data-lucide="trash-2"></i> RESET DATA
                 </button>
                 <button onclick="closeManageModal()"
-                    class="btn-chunky bg-[var(--bg-primary)] text-[var(--text-primary)] text-lg px-6 py-3 rounded-[var(--radius-xl)]">
-                    Cancel
+                    class="btn-chunky bg-white dark:bg-slate-800 text-dark dark:text-chalk px-4 sm:px-6 py-3 rounded-xl text-sm sm:text-lg w-full sm:w-auto justify-center">
+                    CANCEL
                 </button>
                 <button onclick="saveAllQuestions()"
-                    class="btn-chunky bg-green text-dark text-lg px-8 py-3 rounded-[var(--radius-xl)] gap-2">
-                    <i data-lucide="save"></i> Save Changes
+                    class="btn-chunky bg-green text-dark px-6 sm:px-8 py-3 flex items-center gap-2 rounded-xl text-sm sm:text-lg w-full sm:w-auto justify-center">
+                    <i data-lucide="save"></i> SAVE CHANGES
                 </button>
             </div>
         </div>
     </div>
 
+    <!-- ALERT MODAL -->
     <div id="alert-modal"
-        class="fixed inset-0 bg-[var(--bg-secondary)] backdrop-blur-[16px] hidden flex items-center justify-center z-[var(--z-modal)] p-4">
-        <div
-            class="glass-panel p-8 w-full max-w-md text-center transform transition-all rounded-[var(--radius-2xl)] animate-[pop-in_0.3s_ease-out]">
+        class="fixed inset-0 bg-slate-900/40 backdrop-blur-[16px] hidden flex items-center justify-center z-[var(--z-modal)] p-4">
+        <div class="hub-card p-8 w-full max-w-md text-center transform transition-all animate-[pop-in_0.3s_ease-out]">
             <div id="alert-icon" class="flex justify-center mb-6"></div>
-            <h2 id="alert-title" class="font-fredoka text-4xl mb-3"></h2>
-            <p id="alert-message" class="font-nunito text-xl mb-8 leading-relaxed"></p>
+            <h2 id="alert-title" class="font-heading text-4xl mb-3 tracking-tight"></h2>
+            <p id="alert-message"
+                class="font-body text-xl mb-8 leading-relaxed font-bold text-slate-700 dark:text-slate-300"></p>
             <button onclick="closeAlertAndNext()"
-                class="btn-chunky bg-pink text-dark text-2xl w-full px-4 py-4 rounded-[var(--radius-xl)]">
-                Got it!
+                class="btn-chunky bg-pink text-dark text-2xl w-full px-4 py-4 rounded-xl">
+                GOT IT!
             </button>
         </div>
     </div>
@@ -245,9 +285,9 @@
 
         // Default Curriculum
         const defaultQuestions = [
-            { sentence: "The cat sat on the _.", answer: "mat" },
-            { sentence: "She likes to _ a book every night.", answer: "read" },
-            { sentence: "An apple a day keeps the _ away.", answer: "doctor" }
+            { sentence: "The cat sat on the _.", answer: "mat", clue: "a small rug" },
+            { sentence: "She likes to _ a book every night.", answer: "read", clue: "look at words" },
+            { sentence: "An apple a day keeps the _ away.", answer: "doctor", clue: "medical person" }
         ];
 
         let questions = [];
@@ -266,13 +306,19 @@
             } else {
                 document.documentElement.classList.remove('dark');
             }
-            updateThemeButtonText(document.documentElement.classList.contains('dark'));
+            updateThemeIcon(document.documentElement.classList.contains('dark'));
 
             const savedQuestions = localStorage.getItem('englishGameQuestions');
             const savedScore = localStorage.getItem('englishGameScore');
 
             if (savedQuestions) {
                 questions = JSON.parse(savedQuestions);
+                // Auto-upgrade old default questions to include clues
+                const isOldDefault = questions.length === 3 && questions.every(q => !q.clue) && questions[0].answer === "mat" && questions[1].answer === "read" && questions[2].answer === "doctor";
+                if (isOldDefault) {
+                    questions = [...defaultQuestions];
+                    localStorage.setItem('englishGameQuestions', JSON.stringify(questions));
+                }
             } else {
                 questions = [...defaultQuestions];
                 localStorage.setItem('englishGameQuestions', JSON.stringify(questions));
@@ -298,7 +344,8 @@
             const parts = currentQ.sentence.split('_');
             if (parts.length === 1) parts.push('');
 
-            const formattedHTML = parts[0] + '<input type="text" id="answer-input" class="blank-input" autocomplete="off">' + (parts[1] || '');
+            const clueAttr = currentQ.clue ? `placeholder="${currentQ.clue.replace(/"/g, '&quot;')}" title="Clue: ${currentQ.clue.replace(/"/g, '&quot;')}"` : '';
+            const formattedHTML = parts[0] + `<input type="text" id="answer-input" class="blank-input" ${clueAttr} autocomplete="off">` + (parts[1] || '');
 
             document.getElementById('sentence-container').innerHTML = formattedHTML;
 
@@ -372,26 +419,30 @@
             listContainer.innerHTML = '';
 
             if (questions.length === 0) {
-                listContainer.innerHTML = `<div class="text-center font-nunito text-lg p-6">No questions found. Add a new row below!</div>`;
+                listContainer.innerHTML = `<div class="text-center font-body font-bold text-slate-500 text-lg p-6">No questions found. Add a new row below!</div>`;
                 return;
             }
 
             questions.forEach((q, index) => {
                 const row = document.createElement('div');
-                row.className = "flex gap-4 items-center bg-chalk dark:bg-slate-800 p-4 border-3 border-dark dark:border-slate-400 rounded-xl brutal-shadow editor-row";
+                row.className = "flex flex-col sm:flex-row gap-4 items-start sm:items-center bg-chalk dark:bg-slate-800 p-4 border-4 border-dark dark:border-slate-400 rounded-xl shadow-[4px_4px_0_var(--color-dark)] dark:shadow-[4px_4px_0_#64748b] editor-row";
 
                 row.innerHTML = `
-                    <div class="flex-1 flex gap-4">
-                        <div class="flex-1">
-                            <label class="block text-xs font-bold mb-1 opacity-70">Sentence (use _ for blank)</label>
-                            <input type="text" value="${q.sentence.replace(/"/g, '&quot;')}" class="input-chunky w-full p-3 font-nunito outline-none row-sentence">
+                    <div class="flex-1 flex flex-col sm:flex-row gap-4 w-full">
+                        <div class="flex-[2] w-full">
+                            <label class="block text-xs font-bold mb-1 opacity-70 uppercase tracking-wider">Sentence (use _)</label>
+                            <input type="text" value="${q.sentence.replace(/"/g, '&quot;')}" class="input-chunky w-full p-3 font-body font-bold outline-none row-sentence">
                         </div>
-                        <div class="w-1/3">
-                            <label class="block text-xs font-bold mb-1 opacity-70">Answer</label>
-                            <input type="text" value="${q.answer.replace(/"/g, '&quot;')}" class="input-chunky w-full p-3 font-nunito outline-none row-answer">
+                        <div class="flex-1 w-full">
+                            <label class="block text-xs font-bold mb-1 opacity-70 uppercase tracking-wider">Clue (Optional)</label>
+                            <input type="text" value="${(q.clue || '').replace(/"/g, '&quot;')}" class="input-chunky w-full p-3 font-body font-bold outline-none row-clue">
+                        </div>
+                        <div class="flex-1 w-full">
+                            <label class="block text-xs font-bold mb-1 opacity-70 uppercase tracking-wider">Answer</label>
+                            <input type="text" value="${q.answer.replace(/"/g, '&quot;')}" class="input-chunky w-full p-3 font-body font-bold outline-none row-answer">
                         </div>
                     </div>
-                    <button onclick="deleteRow(this)" class="stick-btn bg-pink text-dark self-end mb-[2px]">
+                    <button onclick="deleteRow(this)" class="btn-chunky p-2 sm:p-3 bg-pink text-dark self-end sm:self-center">
                         <i data-lucide="trash-2" class="w-5 h-5"></i>
                     </button>
                 `;
@@ -408,19 +459,23 @@
             }
 
             const row = document.createElement('div');
-            row.className = "flex gap-4 items-center bg-chalk dark:bg-slate-800 p-4 border-3 border-dark dark:border-slate-400 rounded-xl brutal-shadow editor-row";
+            row.className = "flex flex-col sm:flex-row gap-4 items-start sm:items-center bg-chalk dark:bg-slate-800 p-4 border-4 border-dark dark:border-slate-400 rounded-xl shadow-[4px_4px_0_var(--color-dark)] dark:shadow-[4px_4px_0_#64748b] editor-row animate-pop";
             row.innerHTML = `
-                <div class="flex-1 flex gap-4">
-                    <div class="flex-1">
-                        <label class="block text-xs font-bold mb-1 opacity-70">Sentence (use _ for blank)</label>
-                        <input type="text" placeholder="The sky is _ today." class="input-chunky w-full p-3 font-nunito outline-none row-sentence">
+                <div class="flex-1 flex flex-col sm:flex-row gap-4 w-full">
+                    <div class="flex-[2] w-full">
+                        <label class="block text-xs font-bold mb-1 opacity-70 uppercase tracking-wider">Sentence (use _)</label>
+                        <input type="text" placeholder="The sky is _ today." class="input-chunky w-full p-3 font-body font-bold outline-none row-sentence">
                     </div>
-                    <div class="w-1/3">
-                        <label class="block text-xs font-bold mb-1 opacity-70">Answer</label>
-                        <input type="text" placeholder="blue" class="input-chunky w-full p-3 font-nunito outline-none row-answer">
+                    <div class="flex-1 w-full">
+                        <label class="block text-xs font-bold mb-1 opacity-70 uppercase tracking-wider">Clue (Optional)</label>
+                        <input type="text" placeholder="color" class="input-chunky w-full p-3 font-body font-bold outline-none row-clue">
+                   </div>
+                    <div class="flex-1 w-full">
+                        <label class="block text-xs font-bold mb-1 opacity-70 uppercase tracking-wider">Answer</label>
+                        <input type="text" placeholder="blue" class="input-chunky w-full p-3 font-body font-bold outline-none row-answer">
                     </div>
                 </div>
-                <button onclick="deleteRow(this)" class="stick-btn bg-pink text-dark self-end mb-[2px]">
+                <button onclick="deleteRow(this)" class="btn-chunky p-2 sm:p-3 bg-pink text-dark self-end sm:self-center">
                     <i data-lucide="trash-2" class="w-5 h-5"></i>
                 </button>
             `;
@@ -441,6 +496,7 @@
 
             rows.forEach((row, index) => {
                 const sentence = row.querySelector('.row-sentence').value.trim();
+                const clue = row.querySelector('.row-clue').value.trim();
                 const answer = row.querySelector('.row-answer').value.trim();
 
                 if (sentence === '' && answer === '') return;
@@ -455,7 +511,10 @@
                     return;
                 }
 
-                newQuestions.push({ sentence, answer });
+                const questionObj = { sentence, answer };
+                if (clue) questionObj.clue = clue;
+
+                newQuestions.push(questionObj);
             });
 
             if (hasError) {
@@ -531,7 +590,7 @@
             alertCallback = callback;
 
             document.getElementById('alert-title').innerText = title;
-            document.getElementById('alert-title').className = `font-fredoka text-4xl mb-3 ${colorClass}`;
+            document.getElementById('alert-title').className = `font-heading text-4xl mb-3 ${colorClass}`;
             document.getElementById('alert-message').innerText = message;
 
             const iconHtml = `<i data-lucide="${iconName}" class="w-16 h-16 ${colorClass}"></i>`;
@@ -556,13 +615,11 @@
             html.classList.toggle('dark');
             const isDark = html.classList.contains('dark');
             localStorage.setItem('theme', isDark ? 'dark' : 'light');
-            updateThemeButtonText(isDark);
+            updateThemeIcon(isDark);
         }
 
-        function updateThemeButtonText(isDark) {
-            const btnText = document.getElementById('theme-text');
-            const btnIcon = document.querySelector('button[onclick="toggleDarkMode()"] i');
-            if (btnText) btnText.innerText = isDark ? 'Light Mode' : 'Blackboard Role';
+        function updateThemeIcon(isDark) {
+            const btnIcon = document.getElementById('theme-icon');
             if (btnIcon) btnIcon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
             lucide.createIcons();
         }
