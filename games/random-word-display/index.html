@@ -360,6 +360,8 @@
 <body
     class="h-screen w-screen flex flex-col items-center justify-center p-2 md:p-6 overflow-hidden transition-colors duration-300">
 
+    <div id="toast-container" class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 pointer-events-none"></div>
+
     <!-- FLOATING BACKGROUND ICONS -->
     <i data-lucide="message-circle" class="bg-float-icon w-32 h-32 top-10 left-10"></i>
     <i data-lucide="alphabet" class="bg-float-icon w-40 h-40 bottom-20 right-20"></i>
@@ -432,6 +434,36 @@
                         class="w-full btn-chunky bg-white dark:bg-slate-700 !text-orange dark:!text-orange py-3 rounded-xl text-sm font-bold tracking-wider flex items-center justify-center gap-2 hover:bg-orange/5 hover:border-orange transition-colors">
                         <i data-lucide="rotate-ccw" class="w-4 h-4"></i> FORMAT TO ANIMATOR INPUT
                     </button>
+                </div>
+
+                <!-- PRESET MANAGEMENT -->
+                <div class="space-y-3 pb-6 border-b-[1px] border-slate-200 dark:border-white/10 border-dashed">
+                    <div class="flex justify-between items-end">
+                        <label
+                            class="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                            <i data-lucide="folder-open" class="w-4 h-4 text-blue"></i> Presets
+                        </label>
+                    </div>
+                    <select id="preset-select" onchange="onPresetSelect()"
+                        class="w-full p-3 bg-white/50 dark:bg-slate-900/50 text-dark dark:text-slate-200 text-sm border-[1px] border-slate-300 dark:border-white/10 rounded-xl focus:border-blue focus:ring-1 focus:ring-blue outline-none shadow-inner transition-colors cursor-pointer">
+                        <option value="">-- Select a Preset --</option>
+                    </select>
+                    <input type="text" id="preset-name" placeholder="Preset name..."
+                        class="w-full p-3 bg-white/50 dark:bg-slate-900/50 text-dark dark:text-slate-200 font-mono text-sm border-[1px] border-slate-300 dark:border-white/10 rounded-xl focus:border-blue focus:ring-1 focus:ring-blue outline-none shadow-inner transition-colors">
+                    <div class="flex gap-2">
+                        <button onclick="saveCurrentPreset()"
+                            class="flex-1 btn-chunky bg-green text-dark dark:text-dark py-2 rounded-xl text-xs font-bold tracking-wider flex items-center justify-center gap-1 hover:scale-[1.02] transition-all">
+                            <i data-lucide="save" class="w-3 h-3"></i> SAVE
+                        </button>
+                        <button onclick="createNewPreset()"
+                            class="flex-1 btn-chunky bg-white dark:bg-slate-700 !text-blue dark:!text-blue py-2 rounded-xl text-xs font-bold tracking-wider flex items-center justify-center gap-1 hover:scale-[1.02] transition-all">
+                            <i data-lucide="plus" class="w-3 h-3"></i> NEW
+                        </button>
+                        <button onclick="deleteCurrentPreset()"
+                            class="flex-1 btn-chunky bg-white dark:bg-slate-700 !text-pink dark:!text-pink py-2 rounded-xl text-xs font-bold tracking-wider flex items-center justify-center gap-1 hover:scale-[1.02] transition-all">
+                            <i data-lucide="trash-2" class="w-3 h-3"></i> DEL
+                        </button>
+                    </div>
                 </div>
 
                 <!-- WORD LIST -->
@@ -518,6 +550,13 @@ C,A,T</textarea>
         const LS_KEY_WORDS = 'wordAnimatorData_v3';
         const LS_KEY_PHYSICS = 'wordAnimatorPhysics_v3';
         const LS_KEY_THEME = 'wordAnimatorTheme';
+        const DB_NAME = 'WordAnimatorDB';
+        const DB_VERSION = 1;
+        const STORE_PRESETS = 'presets';
+        const STORE_SETTINGS = 'settings';
+
+        let db = null;
+        let currentPresetId = null;
 
         let roundsData = [];
         let currentRoundIndex = -1;
@@ -549,21 +588,260 @@ C,A,T</textarea>
             if (savedTheme === 'dark') document.documentElement.classList.add('dark');
         }
 
-        function saveWords(wordsString) {
-            try { localStorage.setItem(LS_KEY_WORDS, wordsString); } catch (e) { }
+        // ========== INDEXEDDB ==========
+        function openDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => resolve(request.result);
+                request.onupgradeneeded = (event) => {
+                    const database = event.target.result;
+                    if (!database.objectStoreNames.contains(STORE_PRESETS)) {
+                        const presetsStore = database.createObjectStore(STORE_PRESETS, { keyPath: 'id', autoIncrement: true });
+                        presetsStore.createIndex('name', 'name', { unique: false });
+                        presetsStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+                    }
+                    if (!database.objectStoreNames.contains(STORE_SETTINGS)) {
+                        database.createObjectStore(STORE_SETTINGS, { keyPath: 'key' });
+                    }
+                };
+            });
         }
 
-        function loadWords() {
+        async function initDB() {
             try {
-                const savedWords = localStorage.getItem(LS_KEY_WORDS);
-                if (savedWords) wordInput.value = savedWords;
+                db = await openDB();
+                await migrateFromLocalStorage();
+            } catch (e) {
+                console.error('Failed to initialize IndexedDB:', e);
+            }
+        }
 
-                const savedPhysics = localStorage.getItem(LS_KEY_PHYSICS);
-                if (savedPhysics !== null) {
-                    collisionsEnabled = savedPhysics === 'true';
-                    document.getElementById('collision-toggle').checked = collisionsEnabled;
+        async function migrateFromLocalStorage() {
+            const savedWords = localStorage.getItem(LS_KEY_WORDS);
+            if (savedWords) {
+                await savePreset('Default', savedWords);
+                localStorage.removeItem(LS_KEY_WORDS);
+            }
+        }
+
+        async function savePreset(name, content, id = null) {
+            if (!db) return;
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_PRESETS, 'readwrite');
+                const store = tx.objectStore(STORE_PRESETS);
+                const data = { name, content, updatedAt: Date.now() };
+                if (id) data.id = id;
+                const request = id ? store.put(data) : store.add(data);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function getAllPresets() {
+            if (!db) return [];
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_PRESETS, 'readonly');
+                const store = tx.objectStore(STORE_PRESETS);
+                const index = store.index('updatedAt');
+                const request = index.getAll();
+                request.onsuccess = () => resolve(request.result.reverse());
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function getPreset(id) {
+            if (!db) return null;
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_PRESETS, 'readonly');
+                const store = tx.objectStore(STORE_PRESETS);
+                const request = store.get(id);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function deletePreset(id) {
+            if (!db) return;
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_PRESETS, 'readwrite');
+                const store = tx.objectStore(STORE_PRESETS);
+                const request = store.delete(id);
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function saveCurrentPresetId(id) {
+            if (!db) return;
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_SETTINGS, 'readwrite');
+                const store = tx.objectStore(STORE_SETTINGS);
+                const request = store.put({ key: 'currentPresetId', value: id });
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function getCurrentPresetId() {
+            if (!db) return null;
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_SETTINGS, 'readonly');
+                const store = tx.objectStore(STORE_SETTINGS);
+                const request = store.get('currentPresetId');
+                request.onsuccess = () => resolve(request.result?.value || null);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function renderPresetSelector() {
+            const presets = await getAllPresets();
+            const select = document.getElementById('preset-select');
+            select.innerHTML = '<option value="">-- Select a Preset --</option>';
+            presets.forEach(p => {
+                const option = document.createElement('option');
+                option.value = p.id;
+                option.textContent = p.name;
+                if (p.id === currentPresetId) option.selected = true;
+                select.appendChild(option);
+            });
+        }
+
+        async function onPresetSelect() {
+            const select = document.getElementById('preset-select');
+            const id = parseInt(select.value);
+            if (!id) return;
+            const preset = await getPreset(id);
+            if (preset) {
+                currentPresetId = id;
+                wordInput.value = preset.content;
+                document.getElementById('preset-name').value = preset.name;
+                await saveCurrentPresetId(id);
+                await renderPresetSelector();
+            }
+        }
+
+        async function saveCurrentPreset() {
+            const name = document.getElementById('preset-name').value.trim() || 'Untitled';
+            const content = wordInput.value;
+            const id = await savePreset(name, content, currentPresetId);
+            currentPresetId = id;
+            await saveCurrentPresetId(id);
+            await renderPresetSelector();
+        }
+
+        async function createNewPreset() {
+            document.getElementById('preset-name').value = 'New Preset';
+            wordInput.value = '';
+            currentPresetId = null;
+            await saveCurrentPresetId(null);
+            await renderPresetSelector();
+            document.getElementById('preset-select').value = '';
+        }
+
+        async function deleteCurrentPreset() {
+            if (!currentPresetId) {
+                showToast('No preset selected', 'error');
+                return;
+            }
+            showConfirmToast('Delete this preset?', async () => {
+                await deletePreset(currentPresetId);
+                currentPresetId = null;
+                document.getElementById('preset-name').value = '';
+                wordInput.value = '';
+                await saveCurrentPresetId(null);
+                await renderPresetSelector();
+                showToast('Preset deleted', 'success');
+            });
+        }
+
+        // ========== TOAST NOTIFICATIONS ==========
+        function showToast(message, type = 'info', duration = 3000) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            const colors = {
+                success: 'bg-green text-dark border-green',
+                error: 'bg-pink text-white border-pink',
+                info: 'bg-blue text-white border-blue',
+                warning: 'bg-orange text-dark border-orange'
+            };
+            
+            const icons = {
+                success: 'check-circle',
+                error: 'x-circle',
+                info: 'info',
+                warning: 'alert-triangle'
+            };
+            
+            toast.className = `${colors[type]} px-4 py-3 rounded-xl shadow-neo border-[1px] font-bold text-sm flex items-center gap-2 pointer-events-auto transform transition-all duration-300 translate-y-[-20px] opacity-0`;
+            toast.innerHTML = `<i data-lucide="${icons[type]}" class="w-4 h-4"></i> ${message}`;
+            
+            container.appendChild(toast);
+            lucide.createIcons();
+            
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-[-20px]', 'opacity-0');
+            });
+            
+            setTimeout(() => {
+                toast.classList.add('translate-y-[-20px]', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        function showConfirmToast(message, onConfirm) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            toast.className = 'bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-800 px-4 py-3 rounded-xl shadow-neo-lg border-[1px] border-slate-600 dark:border-slate-300 font-bold text-sm flex items-center gap-3 pointer-events-auto';
+            toast.innerHTML = `
+                <span>${message}</span>
+                <div class="flex gap-2 ml-2">
+                    <button class="confirm-yes px-3 py-1 bg-pink text-white rounded-lg text-xs hover:scale-105 transition-transform">Yes</button>
+                    <button class="confirm-no px-3 py-1 bg-slate-600 text-white rounded-lg text-xs hover:scale-105 transition-transform">No</button>
+                </div>
+            `;
+            
+            container.appendChild(toast);
+            
+            toast.querySelector('.confirm-yes').onclick = () => {
+                toast.remove();
+                onConfirm();
+            };
+            
+            toast.querySelector('.confirm-no').onclick = () => {
+                toast.remove();
+            };
+        }
+
+        function saveWords(wordsString) {
+            saveCurrentPreset();
+        }
+
+        async function loadWords() {
+            await initDB();
+            const savedId = await getCurrentPresetId();
+            const presets = await getAllPresets();
+            if (savedId && presets.find(p => p.id === savedId)) {
+                currentPresetId = savedId;
+                const preset = await getPreset(savedId);
+                if (preset) {
+                    wordInput.value = preset.content;
+                    document.getElementById('preset-name').value = preset.name;
                 }
-            } catch (e) { console.warn('Could not load words from LS'); }
+            } else if (presets.length > 0) {
+                currentPresetId = presets[0].id;
+                wordInput.value = presets[0].content;
+                document.getElementById('preset-name').value = presets[0].name;
+                await saveCurrentPresetId(currentPresetId);
+            }
+            await renderPresetSelector();
+            const savedPhysics = localStorage.getItem(LS_KEY_PHYSICS);
+            if (savedPhysics !== null) {
+                collisionsEnabled = savedPhysics === 'true';
+                document.getElementById('collision-toggle').checked = collisionsEnabled;
+            }
         }
 
         function updatePhysicsSetting() {
