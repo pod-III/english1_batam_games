@@ -382,6 +382,30 @@
                         </button>
                     </div>
 
+                    <h3 class="font-black text-gray-400 text-xs uppercase tracking-widest mt-6 mb-4">My Presets</h3>
+                    <div class="flex flex-col gap-2 bg-white p-3 rounded-xl border-4 border-e1dark shadow-[2px_2px_0_#1e293b]">
+                        <select id="userPresetSelect" onchange="onUserPresetSelect()"
+                            class="w-full p-2 bg-gray-50 border-2 border-e1dark rounded-lg text-sm font-bold text-gray-700 focus:outline-none focus:border-e1blue cursor-pointer">
+                            <option value="">-- Select a Custom Preset --</option>
+                        </select>
+                        <input type="text" id="userPresetNameInput" placeholder="Preset name..."
+                            class="w-full p-2 bg-gray-50 border-2 border-e1dark rounded-lg text-sm font-bold text-gray-700 focus:outline-none focus:border-e1blue">
+                        <div class="flex gap-2 mt-1">
+                            <button onclick="saveCurrentUserPreset()"
+                                class="btn-push flex-1 bg-e1green text-e1dark py-2 rounded-lg border-2 border-e1dark font-bold text-xs flex items-center justify-center gap-1">
+                                <i data-lucide="save" class="w-3 h-3"></i> SAVE
+                            </button>
+                            <button onclick="createNewUserPreset()"
+                                class="btn-push flex-1 bg-e1blue text-white py-2 rounded-lg border-2 border-e1dark font-bold text-xs flex items-center justify-center gap-1">
+                                <i data-lucide="plus" class="w-3 h-3"></i> NEW
+                            </button>
+                            <button onclick="deleteCurrentUserPreset()"
+                                class="btn-push flex-1 bg-e1pink text-white py-2 rounded-lg border-2 border-e1dark font-bold text-xs flex items-center justify-center gap-1">
+                                <i data-lucide="trash-2" class="w-3 h-3"></i> DEL
+                            </button>
+                        </div>
+                    </div>
+
                     <h3 class="font-black text-gray-400 text-xs uppercase tracking-widest mt-6 mb-4">Share / Load</h3>
                     <div class="flex flex-col gap-3">
                         <button onclick="exportGameData()"
@@ -422,8 +446,12 @@
     <script>
         // --- IndexedDB Wrapper ---
         const DB_NAME = "E1ThisOrThatDB";
-        const DB_VERSION = 1;
+        const DB_VERSION = 2; // Bumped for presets store
         const STORE_NAME = "gameData";
+        const STORE_PRESETS = "userPresets";
+        const STORE_IMAGES = "imageHashes"; // For deduplication
+
+        let currentPresetId = null;
 
         function openDB() {
             return new Promise((resolve, reject) => {
@@ -433,11 +461,193 @@
                     if (!db.objectStoreNames.contains(STORE_NAME)) {
                         db.createObjectStore(STORE_NAME, { keyPath: "id" });
                     }
+                    if (!db.objectStoreNames.contains(STORE_PRESETS)) {
+                        const presetStore = db.createObjectStore(STORE_PRESETS, { keyPath: "id", autoIncrement: true });
+                        presetStore.createIndex("name", "name", { unique: false });
+                        presetStore.createIndex("updatedAt", "updatedAt", { unique: false });
+                    }
+                    if (!db.objectStoreNames.contains(STORE_IMAGES)) {
+                        db.createObjectStore(STORE_IMAGES, { keyPath: "hash" });
+                    }
                 };
                 request.onsuccess = (e) => resolve(e.target.result);
                 request.onerror = (e) => reject(e.target.error);
             });
         }
+
+        // --- PRESET MANAGEMENT ---
+        async function getAllPresets() {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_PRESETS, "readonly");
+                const store = tx.objectStore(STORE_PRESETS);
+                const index = store.index("updatedAt");
+                const request = index.getAll();
+                request.onsuccess = () => resolve(request.result.reverse());
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function saveUserPreset(name, data, id = null) {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_PRESETS, "readwrite");
+                const store = tx.objectStore(STORE_PRESETS);
+                const preset = { name, data, updatedAt: Date.now() };
+                if (id) preset.id = id;
+                const request = id ? store.put(preset) : store.add(preset);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function deleteUserPreset(id) {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_PRESETS, "readwrite");
+                const store = tx.objectStore(STORE_PRESETS);
+                const request = store.delete(id);
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function saveCurrentPresetId(id) {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, "readwrite");
+                const store = tx.objectStore(STORE_NAME);
+                const request = store.put({ id: "currentPresetId", value: id });
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function getCurrentPresetId() {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, "readonly");
+                const store = tx.objectStore(STORE_NAME);
+                const request = store.get("currentPresetId");
+                request.onsuccess = () => resolve(request.result?.value || null);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function renderPresetSelector() {
+            const presets = await getAllPresets();
+            const select = document.getElementById("userPresetSelect");
+            if (!select) return;
+            select.innerHTML = '<option value="">-- Select a Custom Preset --</option>';
+            presets.forEach(p => {
+                const option = document.createElement("option");
+                option.value = p.id;
+                option.textContent = p.name;
+                if (p.id === currentPresetId) option.selected = true;
+                select.appendChild(option);
+            });
+        }
+
+        async function onUserPresetSelect() {
+            const select = document.getElementById("userPresetSelect");
+            const id = parseInt(select.value);
+            if (!id) return;
+            const presets = await getAllPresets();
+            const preset = presets.find(p => p.id === id);
+            if (preset) {
+                currentPresetId = id;
+                editorData = JSON.parse(JSON.stringify(preset.data));
+                document.getElementById("userPresetNameInput").value = preset.name;
+                await saveCurrentPresetId(id);
+                renderBuilder();
+                renderPresetSelector();
+            }
+        }
+
+        async function saveCurrentUserPreset() {
+            const name = document.getElementById("userPresetNameInput").value.trim() || "Untitled";
+            const id = await saveUserPreset(name, editorData, currentPresetId);
+            currentPresetId = id;
+            await saveCurrentPresetId(id);
+            await renderPresetSelector();
+            customAlert("Preset saved successfully!");
+        }
+
+        async function createNewUserPreset() {
+            document.getElementById("userPresetNameInput").value = "New Preset";
+            editorData = [{ question: "", options: ["", ""], images: [] }];
+            currentPresetId = null;
+            await saveCurrentPresetId(null);
+            await renderPresetSelector();
+            document.getElementById("userPresetSelect").value = "";
+            renderBuilder();
+        }
+
+        async function deleteCurrentUserPreset() {
+            if (!currentPresetId) {
+                customAlert("No preset selected to delete.");
+                return;
+            }
+            customConfirm("Delete this preset?", async () => {
+                await deleteUserPreset(currentPresetId);
+                currentPresetId = null;
+                document.getElementById("userPresetNameInput").value = "";
+                await saveCurrentPresetId(null);
+                await renderPresetSelector();
+                document.getElementById("userPresetSelect").value = "";
+            });
+        }
+        // --- END PRESET MANAGEMENT ---
+
+        // --- IMAGE DEDUPLICATION ---
+        async function hashImage(dataUrl) {
+            // Simple hash based on first 100 chars + length
+            return dataUrl.slice(0, 100) + "_" + dataUrl.length;
+        }
+
+        async function storeImageHash(hash, dataUrl) {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_IMAGES, "readwrite");
+                const store = tx.objectStore(STORE_IMAGES);
+                const request = store.put({ hash, dataUrl });
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function getImageByHash(hash) {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_IMAGES, "readonly");
+                const store = tx.objectStore(STORE_IMAGES);
+                const request = store.get(hash);
+                request.onsuccess = () => resolve(request.result?.dataUrl || null);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function deduplicateImagesInEditorData() {
+            for (const slide of editorData) {
+                if (slide.images) {
+                    for (let i = 0; i < slide.images.length; i++) {
+                        const img = slide.images[i];
+                        if (img) {
+                            const hash = await hashImage(img);
+                            const existing = await getImageByHash(hash);
+                            if (existing) {
+                                // Use existing image
+                                slide.images[i] = existing;
+                            } else {
+                                // Store new image
+                                await storeImageHash(hash, img);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // --- END IMAGE DEDUPLICATION ---
 
         async function saveGameData(data) {
             const db = await openDB();
@@ -589,6 +799,10 @@
 
             try {
                 const savedData = await loadGameData();
+                const savedPresetId = await getCurrentPresetId();
+                if (savedPresetId) {
+                    currentPresetId = savedPresetId;
+                }
                 if (savedData) {
                     questions = savedData;
                 } else {
@@ -619,6 +833,7 @@
                 });
             }
             renderBuilder();
+            renderPresetSelector();
             document.getElementById("setupModal").classList.remove("hidden");
         }
 
@@ -691,14 +906,14 @@
         }
         // --- END EXPORT / IMPORT ---
 
-        function handleImageUpload(event, sIdx, oIdx) {
+        async function handleImageUpload(event, sIdx, oIdx) {
             const file = event.target.files[0];
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = function (e) {
+            reader.onload = async function (e) {
                 const img = new Image();
-                img.onload = function () {
+                img.onload = async function () {
                     const canvas = document.createElement('canvas');
                     const MAX_SIZE = 600;
                     let width = img.width;
@@ -722,8 +937,20 @@
 
                     const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
 
+                    // Check for existing image hash
+                    const hash = await hashImage(dataUrl);
+                    const existing = await getImageByHash(hash);
+
                     if (!editorData[sIdx].images) editorData[sIdx].images = [];
-                    editorData[sIdx].images[oIdx] = dataUrl;
+
+                    if (existing) {
+                        // Use existing image to prevent duplication
+                        editorData[sIdx].images[oIdx] = existing;
+                    } else {
+                        // Store new image
+                        await storeImageHash(hash, dataUrl);
+                        editorData[sIdx].images[oIdx] = dataUrl;
+                    }
                     renderBuilder();
                 }
                 img.src = e.target.result;
@@ -747,6 +974,9 @@
                             <input type="text" value="${slide.question}" onchange="updateQuestion(${sIdx}, this.value)" placeholder="Enter Question or Category..." class="font-display text-lg w-full bg-transparent border-b-2 border-dashed border-gray-300 focus:border-e1blue outline-none px-2 py-1 text-e1dark">
                         </div>
                         <div class="flex gap-2 shrink-0 ml-4">
+                            <button onclick="duplicateSlide(${sIdx})" title="Duplicate" class="btn-push w-8 h-8 rounded-lg bg-blue-50 text-blue-500 border-2 border-blue-200 hover:border-blue-500 hover:bg-blue-500 hover:text-white flex items-center justify-center transition-colors">
+                                <i data-lucide="copy" class="w-4 h-4"></i>
+                            </button>
                             <button onclick="deleteSlide(${sIdx})" title="Delete" class="btn-push w-8 h-8 rounded-lg bg-red-50 text-red-500 border-2 border-red-200 hover:border-red-500 hover:bg-red-500 hover:text-white flex items-center justify-center transition-colors">
                                 <i data-lucide="trash-2" class="w-4 h-4"></i>
                             </button>
@@ -805,6 +1035,13 @@
             }
         }
 
+        function addNewSlide() {
+            editorData.push({ question: "", options: ["", ""], images: [] });
+            renderBuilder();
+            const scrollContainer = document.getElementById("builderScrollArea");
+            setTimeout(() => { scrollContainer.scrollTo({ top: scrollContainer.scrollHeight, behavior: "smooth" }); }, 50);
+        }
+
         function deleteOption(sIdx, oIdx) {
             if (editorData[sIdx].options.length > 2) {
                 editorData[sIdx].options.splice(oIdx, 1);
@@ -813,11 +1050,11 @@
             }
         }
 
-        function addNewSlide() {
-            editorData.push({ question: "", options: ["", ""], images: [] });
+        function duplicateSlide(sIdx) {
+            playSound("click");
+            const slideToDuplicate = JSON.parse(JSON.stringify(editorData[sIdx]));
+            editorData.splice(sIdx + 1, 0, slideToDuplicate);
             renderBuilder();
-            const scrollContainer = document.getElementById("builderScrollArea");
-            setTimeout(() => { scrollContainer.scrollTo({ top: scrollContainer.scrollHeight, behavior: "smooth" }); }, 50);
         }
 
         function deleteSlide(sIdx) {
