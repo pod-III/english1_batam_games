@@ -1,25 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Word Search Creator | English 1 Batam</title>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Word Search | English 1 Batam</title>
+    
+    <!-- Icons & Libraries -->
     <script src="https://unpkg.com/lucide@latest"></script>
-
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-
+    
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;700;800&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;800&family=JetBrains+Mono:wght@500;800&display=swap" rel="stylesheet">
 
     <script>
         tailwind.config = {
-            darkMode: 'class',
             theme: {
                 extend: {
                     colors: {
@@ -27,34 +24,35 @@
                         orange: '#FF8C42',
                         green: '#00E676',
                         blue: '#2979FF',
-                        dark: '#1e293b',
-                        chalk: '#f8fafc',
+                        dark: '#1e293b', 
+                        surface: '#FFFFFF',
+                        border: '#cbd5e1',
                     },
                     fontFamily: {
-                        heading: ['Fredoka', 'sans-serif'],
+                        heading: ['Fredoka', 'sans-serif'], 
                         body: ['Nunito', 'sans-serif'],
-                    },
-                    borderWidth: {
-                        '3': '3px',
+                        mono: ['JetBrains Mono', 'monospace'],
                     },
                     boxShadow: {
                         'hard': '4px 4px 0px 0px rgba(30, 41, 59, 1)',
+                        'hard-md': '6px 6px 0px 0px rgba(30, 41, 59, 1)',
                         'hard-sm': '2px 2px 0px 0px rgba(30, 41, 59, 1)',
+                        'inner-hard': 'inset 2px 2px 0px 0px rgba(30, 41, 59, 0.1)',
                     },
                     animation: {
-                        'pop': 'pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
                         'shake': 'shake 0.4s cubic-bezier(.36,.07,.19,.97) both',
+                        'pop-in': 'pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) both',
                     },
                     keyframes: {
-                        pop: {
-                            '0%': { transform: 'scale(0.8)', opacity: '0.8' },
-                            '100%': { transform: 'scale(1)', opacity: '1' },
-                        },
                         shake: {
                             '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
                             '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
                             '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
                             '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
+                        },
+                        'pop-in': {
+                            '0%': { transform: 'scale(0.9)', opacity: '0' },
+                            '100%': { transform: 'scale(1)', opacity: '1' }
                         }
                     }
                 }
@@ -62,313 +60,221 @@
         }
     </script>
 
-    
+    <link rel="stylesheet" href="./style.css">
     <link rel="stylesheet" href="../../css/base.css" />
     <link rel="stylesheet" href="../../css/components.css" />
-    <link rel="stylesheet" href="style.css" />
 </head>
+<body class="h-screen w-screen flex flex-col items-center justify-center p-2 md:p-6 overflow-hidden">
 
-<body class="flex flex-col min-h-screen">
     <!-- Toast Container -->
     <div id="toast-container" class="fixed top-4 right-4 z-[200] flex flex-col gap-2"></div>
 
-    <header class="w-full bg-white border-b-3 border-dark sticky top-0 z-50 no-print">
-        <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div
-                    class="bg-blue w-12 h-12 rounded-xl border-3 border-dark flex items-center justify-center shadow-hard-sm">
-                    <i data-lucide="grid" class="text-white w-7 h-7"></i>
-                </div>
+    <!-- MAIN CONSOLE -->
+    <div class="game-console w-full h-full relative flex flex-col md:flex-row shadow-2xl overflow-hidden border-4 border-dark rounded-[2rem] bg-white">
+        
+        <!-- SIDEBAR: SETUP (Left) -->
+        <aside id="controls" class="w-full md:w-80 lg:w-96 bg-white border-b-4 md:border-b-0 md:border-r-4 border-dark flex flex-col z-50 transition-all duration-300 h-[50%] md:h-full relative shrink-0">
+            
+            <!-- Header -->
+            <div class="p-5 border-b-4 border-dark bg-blue/10 flex justify-between items-center">
                 <div>
-                    <h1 class="text-2xl font-heading text-dark leading-none mt-1">WORD SEARCH</h1>
-                    <div class="text-xs font-bold text-gray-500 tracking-widest">ENGLISH 1 BATAM</div>
+                    <h1 class="text-2xl font-heading text-dark tracking-wide leading-none">
+                        WORD<span class="text-pink">SEARCH</span>
+                    </h1>
+                    <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">English 1 Batam</p>
                 </div>
-            </div>
-
-            <div class="flex items-center gap-3">
-                <button id="give-up-btn"
-                    class="p-2 rounded-xl hover:bg-orange/10 border-2 border-transparent hover:border-orange transition-colors text-orange relative group"
-                    title="Give Up & Reveal">
-                    <i data-lucide="flag" class="w-6 h-6"></i>
-                </button>
-                <button onclick="window.print()"
-                    class="p-2 rounded-xl hover:bg-blue/10 border-2 border-transparent hover:border-blue transition-colors text-blue"
-                    title="Print Worksheet">
-                    <i data-lucide="printer" class="w-6 h-6"></i>
-                </button>
-                <button id="setup-btn"
-                    class="neo-btn bg-pink text-white px-6 py-2 rounded-xl text-lg flex items-center gap-2">
-                    <i data-lucide="settings-2" class="w-5 h-5"></i> SETUP
-                </button>
-            </div>
-        </div>
-    </header>
-
-    <div class="print-only hidden w-full max-w-4xl mx-auto print-header">
-        <div class="flex justify-between items-end">
-            <div>
-                <h1 class="text-4xl font-black font-heading uppercase">Word Search</h1>
-                <p class="text-sm text-gray-600">Find the hidden words in the grid below.</p>
-            </div>
-            <div class="text-right">
-                <div class="mb-2">Name: __________________________</div>
-                <div>Date: __________________________</div>
-            </div>
-        </div>
-    </div>
-
-    <main class="flex-grow flex justify-center w-full p-4 lg:p-8">
-
-        <div id="game-container" class="w-full max-w-7xl flex flex-col lg:flex-row items-start gap-8">
-
-            <div class="w-full lg:w-1/3 flex-none flex flex-col order-2 lg:order-1 gap-6">
-
-                <div class="neo-card p-6 relative overflow-hidden">
-                    <div class="absolute top-0 left-0 w-full h-2 bg-pink border-b-3 border-dark"></div>
-
-                    <h3 class="text-xl font-heading text-dark mb-4 flex items-center gap-2 mt-2">
-                        <i data-lucide="list" class="w-5 h-5"></i>
-                        VOCABULARY
-                    </h3>
-
-                    <div id="word-bank" class="flex flex-wrap gap-2 max-h-[40vh] overflow-y-auto pr-2">
-                    </div>
-
-                    <div id="empty-bank-msg" class="text-center py-8 text-gray-400 hidden">
-                        <p>No words loaded.</p>
-                    </div>
-                </div>
-
-                <div id="play-controls" class="neo-card p-6 hidden relative no-print">
-                    <div class="absolute top-0 left-0 w-full h-2 bg-green border-b-3 border-dark"></div>
-
-                    <div class="flex justify-between items-center mb-4 mt-2">
-                        <div class="flex flex-col">
-                            <span class="text-xs font-bold text-gray-400 uppercase">Progress</span>
-                            <div class="flex items-baseline gap-1">
-                                <span id="found-count" class="text-green font-heading text-4xl">0</span>
-                                <span class="text-gray-400 font-bold text-xl">/</span>
-                                <span id="total-count" class="text-dark font-bold text-xl">0</span>
-                            </div>
-                        </div>
-                        <button id="play-again-btn"
-                            class="hidden neo-btn bg-green text-white px-4 py-2 rounded-xl text-sm">
-                            PLAY AGAIN
-                        </button>
-                    </div>
-
-                    <div id="status-bar"
-                        class="text-center text-sm font-bold text-blue bg-blue/10 border-2 border-blue px-3 py-2 rounded-lg">
-                        Tap First Letter ➔ Tap Last Letter
-                    </div>
-
-                    <!-- Saved Puzzles Controls -->
-                    <div class="mt-4 pt-4 border-t-2 border-gray-200">
-                        <button onclick="toggleSavedPuzzleControls()" 
-                            class="w-full flex items-center justify-between text-xs font-bold text-gray-400 uppercase mb-2 hover:text-dark transition">
-                            <span>Saved Puzzles</span>
-                            <i data-lucide="chevron-down" id="saved-puzzle-toggle-icon" class="w-4 h-4 transition-transform rotated"></i>
-                        </button>
-                        <div id="saved-puzzle-controls" class="overflow-hidden transition-all duration-300 collapsed">
-                            <label class="text-xs font-bold text-gray-400 uppercase mb-2 block">Save This Puzzle</label>
-                            <div class="flex gap-2 mb-3">
-                                <input type="text" id="savedPuzzleNameInput" placeholder="Puzzle name..."
-                                    class="flex-1 p-2 bg-gray-50 border-2 border-dark rounded-lg text-dark font-bold text-xs focus:outline-none focus:border-blue">
-                                <button onclick="saveCurrentPuzzle()"
-                                    class="bg-blue text-white px-3 py-2 rounded-lg border-2 border-dark font-bold text-xs flex items-center gap-1 hover:brightness-110 transition">
-                                    <i data-lucide="save" class="w-3 h-3"></i>
-                                </button>
-                            </div>
-
-                            <label class="text-xs font-bold text-gray-400 uppercase mb-2 block">Load Saved Puzzle</label>
-                            <div class="flex flex-col gap-2">
-                                <select id="savedPuzzleSelect" onchange="onSavedPuzzleSelect()"
-                                    class="w-full p-2 bg-white border-2 border-dark rounded-lg text-dark font-bold text-xs focus:outline-none focus:border-blue cursor-pointer">
-                                    <option value="">-- Select a Saved Puzzle --</option>
-                                </select>
-                                <div class="flex gap-2">
-                                    <button onclick="createNewSavedPuzzle()"
-                                        class="flex-1 bg-blue text-white py-2 rounded-lg border-2 border-dark font-bold text-xs flex items-center justify-center gap-1 hover:brightness-110 transition">
-                                        <i data-lucide="plus" class="w-3 h-3"></i> NEW
-                                    </button>
-                                    <button onclick="deleteCurrentSavedPuzzle()"
-                                        class="flex-1 bg-pink text-white py-2 rounded-lg border-2 border-dark font-bold text-xs flex items-center justify-center gap-1 hover:brightness-110 transition">
-                                        <i data-lucide="trash-2" class="w-3 h-3"></i> DEL
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="empty-state-cta" class="text-center py-8 no-print">
-                    <div class="bg-white inline-flex p-4 rounded-full border-3 border-dark shadow-hard mb-4">
-                        <i data-lucide="search" class="w-10 h-10 text-blue"></i>
-                    </div>
-                    <h2 class="text-2xl font-heading text-dark mb-2">Ready to Teach?</h2>
-                    <p class="text-gray-600 mb-6 max-w-xs mx-auto">Create a custom word search puzzle for your students
-                        in seconds.</p>
-                    <button onclick="document.getElementById('setup-btn').click()"
-                        class="neo-btn bg-orange text-white px-8 py-3 rounded-xl text-lg w-full max-w-xs mx-auto">
-                        Create Puzzle
-                    </button>
-
-                    
-                </div>
-            </div>
-
-
-            <div class="w-full lg:w-2/3 flex-none flex flex-col items-center order-1 lg:order-2">
-
-                <div class="neo-card p-4 bg-white w-full max-w-[700px]">
-                    <div id="word-grid"
-                        class="grid gap-1 bg-slate-100 p-2 border-3 border-dark rounded-lg w-full aspect-square">
-                    </div>
-                </div>
-
-            </div>
-        </div>
-    </main>
-
-    <div id="confirm-modal"
-        class="fixed inset-0 z-[110] hidden flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-pop no-print">
-        <div class="neo-card max-w-sm w-full p-8 text-center border-orange">
-            <div class="flex justify-center mb-4">
-                <div class="bg-orange/20 p-4 rounded-full border-3 border-orange text-orange">
-                    <i data-lucide="flag" class="w-10 h-10"></i>
-                </div>
-            </div>
-            <h3 class="text-2xl font-heading text-dark mb-2">Give Up?</h3>
-            <p class="text-gray-500 mb-8">This will end the current game and reveal all the hidden answers.</p>
-            <div class="flex flex-col gap-3">
-                <button id="cancel-reveal" class="neo-btn bg-white text-dark border-dark px-6 py-3 rounded-xl">Keep
-                    Playing</button>
-                <button id="confirm-reveal" class="neo-btn bg-orange text-white px-6 py-3 rounded-xl">Reveal
-                    Answers</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="setup-modal"
-        class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-pop no-print">
-        <div class="neo-card w-full max-w-xl shadow-2xl flex flex-col max-h-[90vh]">
-
-            <div class="p-6 border-b-3 border-dark flex justify-between items-center bg-gray-50 rounded-t-xl">
-                <div class="flex items-center gap-3">
-                    <div class="bg-pink text-white p-2 rounded-lg border-2 border-dark">
-                        <i data-lucide="settings-2" class="w-6 h-6"></i>
-                    </div>
-                    <h2 class="text-2xl font-heading text-dark mt-1">PUZZLE SETUP</h2>
-                </div>
-                <button id="close-setup" class="text-gray-400 hover:text-dark transition">
-                    <i data-lucide="x" class="w-8 h-8"></i>
+                <button onclick="toggleControlPanel(true)" class="md:hidden p-2 bg-pink/20 text-pink border-2 border-dark rounded-lg shadow-hard-sm active:translate-y-1 active:shadow-none transition-all">
+                    <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
 
-            <div class="p-6 space-y-8 overflow-y-auto">
-
-                <div>
-                    <div class="flex justify-between items-end mb-3">
-                        <label class="text-sm font-bold text-dark uppercase tracking-wider">Grid Size</label>
-                        <span id="size-display" class="font-heading text-xl text-blue">10x10</span>
+            <!-- Scrollable Content -->
+            <div class="flex-1 p-5 overflow-y-auto custom-scrollbar space-y-6 bg-white">
+                
+                <!-- Density Controls -->
+                <div class="space-y-3">
+                    <div class="flex justify-between items-end">
+                        <label class="text-xs font-bold text-slate-400 uppercase tracking-widest">Grid Density</label>
+                        <span id="size-display" class="font-heading text-lg text-blue">10x10</span>
                     </div>
                     <input type="range" id="size-slider" min="6" max="14" value="10"
-                        class="w-full h-3 bg-gray-200 rounded-full appearance-none cursor-pointer accent-blue border-2 border-dark">
-                    <div class="flex justify-between text-xs font-bold text-gray-400 mt-2">
+                        class="w-full h-3 bg-slate-100 rounded-full appearance-none cursor-pointer accent-blue border-2 border-dark shadow-inner-hard">
+                    <div class="flex justify-between text-[10px] font-bold text-slate-400">
                         <span>EASY (6)</span>
                         <span>HARD (14)</span>
                     </div>
                 </div>
 
-                <div class="space-y-2">
-                    <label class="text-sm font-bold text-dark uppercase tracking-wider">Vocabulary List</label>
-                    <textarea id="word-input" class="neo-input w-full h-32 p-4 text-dark font-mono text-sm resize-none"
-                        placeholder="Enter words separated by commas...&#10;Example: APPLE, BANANA, ORANGE, GRAPE"></textarea>
-                    <p class="text-xs text-gray-500 text-right">Duplicates and words longer than grid size will be
-                        removed.</p>
+                <!-- Word Input -->
+                <div class="space-y-2 flex-1 flex flex-col">
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-widest">Vocabulary (Comma Separated)</label>
+                    <textarea id="word-input" spellcheck="false"
+                        class="w-full h-32 p-4 bg-slate-50 text-dark font-mono text-sm border-2 border-dark rounded-xl focus:border-blue focus:ring-0 outline-none resize-none shadow-inner-hard"
+                        placeholder="APPLE, BANANA, CHERRY, DRAGONFRUIT"
+                    ></textarea>
                 </div>
 
-                <div>
-                    <label class="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 block">Quick
-                        Presets</label>
-                    <div class="flex flex-wrap gap-2">
-                        <button
-                            class="preset-btn px-4 py-2 bg-white hover:bg-pink/10 border-2 border-dark rounded-lg text-sm font-bold transition transform active:scale-95"
+                <!-- Generate Button -->
+                <button id="generate-btn" 
+                    class="w-full btn-chunky bg-green text-dark py-3 rounded-xl text-xl tracking-wide flex items-center justify-center gap-2 hover:brightness-105">
+                    <i data-lucide="layout-grid" class="w-5 h-5"></i> BUILD PUZZLE
+                </button>
+                
+                <!-- Presets -->
+                <div class="pt-4 border-t-2 border-dashed border-slate-300">
+                     <label class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 block">Quick Presets</label>
+                     <div class="flex gap-2 flex-wrap">
+                        <button class="preset-btn px-3 py-1.5 bg-white border-2 border-dark rounded-full text-xs font-bold shadow-hard-sm hover:translate-y-[-1px] active:translate-y-[4px] active:shadow-none transition-all" 
                             data-words="RED, BLUE, GREEN, PINK, ORANGE, BLACK, WHITE">🎨 Colors</button>
-                        <button
-                            class="preset-btn px-4 py-2 bg-white hover:bg-pink/10 border-2 border-dark rounded-lg text-sm font-bold transition transform active:scale-95"
+                        <button class="preset-btn px-3 py-1.5 bg-white border-2 border-dark rounded-full text-xs font-bold shadow-hard-sm hover:translate-y-[-1px] active:translate-y-[4px] active:shadow-none transition-all" 
                             data-words="LION, TIGER, BEAR, WOLF, ZEBRA, MONKEY">🦁 Animals</button>
-                        <button
-                            class="preset-btn px-4 py-2 bg-white hover:bg-pink/10 border-2 border-dark rounded-lg text-sm font-bold transition transform active:scale-95"
+                        <button class="preset-btn px-3 py-1.5 bg-white border-2 border-dark rounded-full text-xs font-bold shadow-hard-sm hover:translate-y-[-1px] active:translate-y-[4px] active:shadow-none transition-all" 
                             data-words="RUN, JUMP, SWIM, READ, WRITE, SPEAK">🏃 Verbs</button>
-                        <button
-                            class="preset-btn px-4 py-2 bg-white hover:bg-pink/10 border-2 border-dark rounded-lg text-sm font-bold transition transform active:scale-95"
-                            data-words="ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN">🔢 Numbers</button>
                     </div>
                 </div>
 
-                <div class="space-y-2">
-                    <label class="text-sm font-bold text-dark uppercase tracking-wider">My Presets</label>
-                    <div class="bg-white p-4 rounded-xl border-3 border-dark shadow-hard">
+                <!-- PERSISTENCE (Merged from old UI) -->
+                <div class="pt-4 border-t-2 border-dashed border-slate-300 space-y-4">
+                     <div class="space-y-2">
+                        <label class="text-xs font-bold text-slate-400 uppercase tracking-widest">My Presets</label>
                         <select id="userPresetSelect" onchange="onUserPresetSelect()"
-                            class="w-full p-3 bg-gray-50 border-2 border-dark rounded-lg text-dark font-bold text-sm focus:outline-none focus:border-blue cursor-pointer mb-2">
+                            class="w-full p-2 bg-slate-50 border-2 border-dark rounded-lg text-dark font-bold text-xs focus:outline-none focus:border-blue cursor-pointer">
                             <option value="">-- Select a Preset --</option>
                         </select>
-                        <input type="text" id="userPresetNameInput" placeholder="Preset name..."
-                            class="w-full p-3 bg-gray-50 border-2 border-dark rounded-lg text-dark font-bold text-sm focus:outline-none focus:border-blue mb-3">
                         <div class="flex gap-2">
-                            <button onclick="saveCurrentUserPreset()"
-                                class="flex-1 bg-green text-dark py-2 rounded-lg border-2 border-dark font-bold text-xs flex items-center justify-center gap-1 hover:brightness-110 transition">
-                                <i data-lucide="save" class="w-3 h-3"></i> SAVE
-                            </button>
-                            <button onclick="createNewUserPreset()"
-                                class="flex-1 bg-blue text-white py-2 rounded-lg border-2 border-dark font-bold text-xs flex items-center justify-center gap-1 hover:brightness-110 transition">
-                                <i data-lucide="plus" class="w-3 h-3"></i> NEW
-                            </button>
-                            <button onclick="deleteCurrentUserPreset()"
-                                class="flex-1 bg-pink text-white py-2 rounded-lg border-2 border-dark font-bold text-xs flex items-center justify-center gap-1 hover:brightness-110 transition">
-                                <i data-lucide="trash-2" class="w-3 h-3"></i> DEL
-                            </button>
+                            <input type="text" id="userPresetNameInput" placeholder="Preset name..."
+                                class="flex-1 p-2 bg-slate-50 border-2 border-dark rounded-lg text-dark font-bold text-xs focus:outline-none focus:border-blue">
+                            <button onclick="saveCurrentUserPreset()" class="p-2 bg-green text-dark border-2 border-dark rounded-lg shadow-hard-sm active:translate-y-1 active:shadow-none transition-all"><i data-lucide="save" class="w-4 h-4"></i></button>
                         </div>
-                    </div>
-                </div>
-
-                <div class="space-y-2">
-                    <label class="text-sm font-bold text-dark uppercase tracking-wider">Saved Puzzles</label>
-                    <div class="bg-white p-4 rounded-xl border-3 border-dark shadow-hard">
-                        <select id="savedPuzzleSelectModal"
-                            class="w-full p-3 bg-gray-50 border-2 border-dark rounded-lg text-dark font-bold text-sm focus:outline-none focus:border-blue cursor-pointer mb-2">
-                            <option value="">-- Select a Saved Puzzle --</option>
-                        </select>
-                        <button onclick="loadSelectedPuzzle('savedPuzzleSelectModal'); document.getElementById('setup-modal').classList.add('hidden');"
-                            class="w-full bg-blue text-white py-2 rounded-lg border-2 border-dark font-bold text-xs flex items-center justify-center gap-1 hover:brightness-110 transition mb-3">
-                            <i data-lucide="download" class="w-3 h-3"></i> LOAD PUZZLE
-                        </button>
                         <div class="flex gap-2">
-                            <button onclick="createNewSavedPuzzle()"
-                                class="flex-1 bg-green text-dark py-2 rounded-lg border-2 border-dark font-bold text-xs flex items-center justify-center gap-1 hover:brightness-110 transition">
-                                <i data-lucide="plus" class="w-3 h-3"></i> NEW
-                            </button>
-                            <button onclick="deleteCurrentSavedPuzzle()"
-                                class="flex-1 bg-pink text-white py-2 rounded-lg border-2 border-dark font-bold text-xs flex items-center justify-center gap-1 hover:brightness-110 transition">
-                                <i data-lucide="trash-2" class="w-3 h-3"></i> DEL
-                            </button>
+                            <button onclick="createNewUserPreset()" class="flex-1 py-1.5 bg-blue text-white border-2 border-dark rounded-lg font-bold text-[10px] flex items-center justify-center gap-1 hover:brightness-110"><i data-lucide="plus" class="w-3 h-3"></i> NEW</button>
+                            <button onclick="deleteCurrentUserPreset()" class="flex-1 py-1.5 bg-pink text-white border-2 border-dark rounded-lg font-bold text-[10px] flex items-center justify-center gap-1 hover:brightness-110"><i data-lucide="trash-2" class="w-3 h-3"></i> DEL</button>
                         </div>
-                    </div>
+                     </div>
                 </div>
+            </div>
+            
+            <!-- Footer Actions -->
+            <div class="p-3 border-t-4 border-dark bg-slate-100 flex gap-2">
+                 <button onclick="window.print()" class="w-full btn-chunky bg-white text-dark py-2 rounded-lg text-sm border-2 border-dark flex items-center justify-center gap-2 hover:brightness-95">
+                    <i data-lucide="printer" class="w-4 h-4"></i> PRINT
+                 </button>
+            </div>
+        </aside>
 
+        <!-- MAIN DISPLAY AREA -->
+        <main class="flex-1 relative h-[50%] md:h-full bg-slate-50 flex flex-col lg:flex-row overflow-hidden group">
+            
+            <!-- Subtle Grid Background -->
+            <div class="absolute inset-0 opacity-10 pointer-events-none" 
+                 style="background-image: radial-gradient(#1e293b 2px, transparent 2px); background-size: 24px 24px;">
             </div>
 
-            <div class="p-6 border-t-3 border-dark bg-gray-50 rounded-b-xl">
-                <button id="generate-btn"
-                    class="neo-btn bg-blue text-white w-full py-4 rounded-xl font-heading text-xl hover:brightness-110">
-                    GENERATE PUZZLE
+            <!-- Floating Controls -->
+            <div class="absolute top-4 left-4 z-20 no-print flex gap-2">
+                <button onclick="toggleControlPanel(false)" class="p-2 bg-white/80 backdrop-blur-md border-2 border-dark rounded-lg shadow-hard-sm hover:translate-y-[-2px] transition-transform text-slate-700 hover:text-dark" title="Open Setup Panel">
+                    <i data-lucide="settings" class="w-5 h-5"></i>
                 </button>
+                <button id="give-up-btn" class="p-2 bg-white/80 backdrop-blur-md border-2 border-dark rounded-lg shadow-hard-sm hover:translate-y-[-2px] transition-transform text-orange hover:text-dark" title="Reveal Solution">
+                    <i data-lucide="eye" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <!-- Puzzle Grid Area -->
+            <div class="flex-1 h-full relative flex items-center justify-center p-4 overflow-hidden">
+                <div id="word-search-container" class="relative z-10 max-w-full max-h-full">
+                    <div id="word-grid" class="grid gap-1 transform transition-transform duration-200">
+                        <!-- Initial Empty State -->
+                        <div id="empty-state-cta" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 opacity-50 pointer-events-none text-center p-6">
+                            <i data-lucide="layout-grid" class="w-16 h-16 mb-4"></i>
+                            <h2 class="font-heading text-2xl text-dark">Ready to Start?</h2>
+                            <p class="font-body text-sm mt-2">Adjust settings on the left and press <br><b class="text-green-600">BUILD PUZZLE</b></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Zoom Controls -->
+                <div class="absolute bottom-4 right-4 z-20 flex gap-2 no-print">
+                    <button id="zoom-out" class="p-2 bg-white border-2 border-dark rounded-lg shadow-hard-sm hover:bg-slate-50 active:translate-y-1 active:shadow-none"><i data-lucide="minus" class="w-4 h-4"></i></button>
+                    <button id="zoom-in" class="p-2 bg-white border-2 border-dark rounded-lg shadow-hard-sm hover:bg-slate-50 active:translate-y-1 active:shadow-none"><i data-lucide="plus" class="w-4 h-4"></i></button>
+                </div>
+            </div>
+
+            <!-- VOCABULARY PANEL (Right Side) -->
+            <div class="w-full lg:w-80 h-1/3 lg:h-full bg-white border-t-4 lg:border-t-0 lg:border-l-4 border-dark flex flex-col z-10 shadow-xl lg:shadow-none shrink-0" id="play-controls">
+                <div class="p-3 bg-pink border-b-4 border-dark text-white font-heading text-lg tracking-wide flex items-center justify-between gap-2 overflow-hidden">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="list" class="w-5 h-5"></i> VOCABULARY
+                    </div>
+                    <div class="flex items-center gap-1 bg-white/20 px-2 py-0.5 rounded-full text-xs font-bold">
+                        <span id="found-count">0</span>/<span id="total-count">0</span>
+                    </div>
+                </div>
+
+                <!-- Status Feedback -->
+                <div id="status-bar" class="p-2 bg-slate-50 border-b-2 border-slate-200 text-[10px] font-bold text-center text-slate-400 uppercase tracking-widest">
+                    Tap First Letter ➔ Tap Last Letter
+                </div>
+
+                <!-- Word Bank -->
+                <ul id="word-bank" class="flex-1 overflow-y-auto p-4 custom-scrollbar flex flex-wrap gap-2 content-start list-none">
+                    <p id="empty-bank-msg" class="text-slate-400 text-sm text-center w-full mt-4">No words loaded yet.</p>
+                </ul>
+
+                <!-- Saved Puzzles (Mini) -->
+                <div class="p-3 border-t-2 border-slate-100 bg-slate-50/50">
+                    <button onclick="toggleSavedPuzzleControls()" class="w-full flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 hover:text-dark">
+                        <span>Saved Puzzles</span>
+                        <i data-lucide="chevron-up" id="saved-puzzle-toggle-icon" class="w-3 h-3 transition-transform"></i>
+                    </button>
+                    <div id="saved-puzzle-controls" class="space-y-2 mt-2">
+                        <select id="savedPuzzleSelect" onchange="onSavedPuzzleSelect()" class="w-full p-1.5 bg-white border-2 border-dark rounded-lg text-dark font-bold text-[10px] focus:outline-none">
+                            <option value="">-- Load Saved --</option>
+                        </select>
+                        <div class="flex gap-1">
+                             <input type="text" id="savedPuzzleNameInput" placeholder="Save as..." class="flex-1 p-1.5 bg-white border-2 border-dark rounded-lg text-dark font-bold text-[10px] focus:outline-none">
+                             <button onclick="saveCurrentPuzzle()" class="p-1.5 bg-blue text-white border-2 border-dark rounded-lg"><i data-lucide="save" class="w-3 h-3"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- REVEAL CONFIRM MODAL -->
+    <div id="confirm-modal" class="fixed inset-0 z-[110] hidden flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm no-print">
+        <div class="bg-white border-4 border-dark shadow-hard p-8 rounded-[2rem] max-w-sm w-full text-center animate-pop-in">
+            <div class="flex justify-center mb-4">
+                <div class="bg-orange/20 p-4 rounded-full border-4 border-dark text-orange">
+                    <i data-lucide="flag" class="w-10 h-10"></i>
+                </div>
+            </div>
+            <h3 class="text-2xl font-heading text-dark mb-2">Give Up?</h3>
+            <p class="font-body text-slate-500 mb-8">This will end the current game and reveal all the hidden answers.</p>
+            <div class="flex flex-col gap-3">
+                <button id="cancel-reveal" class="btn-chunky bg-white text-dark py-3 rounded-xl border-2 border-dark">Keep Playing</button>
+                <button id="confirm-reveal" class="btn-chunky bg-orange text-white py-3 rounded-xl border-2 border-dark">Reveal Answers</button>
             </div>
         </div>
     </div>
 
-    <script src="script.js"></script>
-</body>
+    <!-- PRINT LAYOUT (Hidden) -->
+    <div id="print-area" class="hidden">
+        <div class="flex justify-between items-end border-b-4 border-black pb-4 mb-8">
+            <div>
+                <h1 class="text-4xl font-heading uppercase">Word Search</h1>
+                <p class="text-gray-600">English 1 Batam</p>
+            </div>
+            <div class="text-right text-sm">
+                <div class="mb-2">Name: __________________________</div>
+                <div>Date: __________________________</div>
+            </div>
+        </div>
+        <div id="print-grid-container" class="flex justify-center my-10"></div>
+        <div id="print-word-bank" class="flex flex-wrap gap-x-8 gap-y-4 justify-center text-lg font-bold uppercase"></div>
+    </div>
 
+    <script src="./script.js"></script>
+</body>
 </html>

@@ -43,7 +43,6 @@ function showToast(message, type = 'info', duration = 3000) {
 
     container.appendChild(toast);
     
-    // Refresh icons for dynamically added content
     if (window.lucide) {
         lucide.createIcons();
     }
@@ -84,7 +83,6 @@ function showConfirmToast(message, onConfirm, onCancel) {
     };
 }
 
-// Escape HTML to prevent XSS
 function escapeHtml(text) {
     if (typeof text !== 'string') return '';
     const div = document.createElement('div');
@@ -92,23 +90,20 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Init Icons after DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
 });
 
-// --- LOCAL STORAGE KEYS ---
-const LS_KEY_WORDS = 'wordSearchWords_E1';
-const LS_KEY_SIZE = 'wordSearchSize_E1';
-
 // --- INDEXEDDB ---
 const DB_NAME = 'WordSearchDB';
-const DB_VERSION = 2; // Bumped for saved puzzles
+const DB_VERSION = 2;
 const STORE_PRESETS = 'presets';
 const STORE_SETTINGS = 'settings';
-const STORE_PUZZLES = 'savedPuzzles'; // New: store generated puzzles
+const STORE_PUZZLES = 'savedPuzzles';
 
 let db = null;
+let GRID_SIZE = 10;
+let CELL_SIZE = 45;
 let currentPresetId = null;
 let currentSavedPuzzleId = null;
 
@@ -139,21 +134,9 @@ function openDB() {
 async function initDB() {
     try {
         db = await openDB();
-        await migrateFromLocalStorage();
     } catch (e) {
         console.error('Failed to initialize IndexedDB:', e);
-        showToast('Storage unavailable. Some features may not work.', 'warning');
-    }
-}
-
-async function migrateFromLocalStorage() {
-    const savedWords = localStorage.getItem(LS_KEY_WORDS);
-    const savedSize = localStorage.getItem(LS_KEY_SIZE);
-    if (savedWords || savedSize) {
-        const data = { words: savedWords || '', size: savedSize || '10' };
-        await savePreset('Default', data);
-        localStorage.removeItem(LS_KEY_WORDS);
-        localStorage.removeItem(LS_KEY_SIZE);
+        showToast('Storage unavailable.', 'warning');
     }
 }
 
@@ -161,7 +144,6 @@ async function savePreset(name, data, id = null) {
     if (!db) throw new Error('Database not initialized');
     return new Promise((resolve, reject) => {
         const tx = db.transaction(STORE_PRESETS, 'readwrite');
-        tx.onerror = () => reject(tx.error);
         const store = tx.objectStore(STORE_PRESETS);
         const preset = { name, data: JSON.parse(JSON.stringify(data)), updatedAt: Date.now() };
         if (id) preset.id = id;
@@ -179,7 +161,6 @@ async function getAllPresets() {
         const index = store.index('updatedAt');
         const request = index.getAll();
         request.onsuccess = () => resolve(request.result.reverse());
-        request.onerror = () => reject(request.error);
     });
 }
 
@@ -190,7 +171,6 @@ async function getPreset(id) {
         const store = tx.objectStore(STORE_PRESETS);
         const request = store.get(id);
         request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
     });
 }
 
@@ -198,71 +178,94 @@ async function deletePreset(id) {
     if (!db) throw new Error('Database not initialized');
     return new Promise((resolve, reject) => {
         const tx = db.transaction(STORE_PRESETS, 'readwrite');
-        tx.onerror = () => reject(tx.error);
         const store = tx.objectStore(STORE_PRESETS);
         const request = store.delete(id);
         request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
     });
 }
 
 async function saveCurrentPresetId(id) {
-    if (!db) throw new Error('Database not initialized');
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_SETTINGS, 'readwrite');
-        tx.onerror = () => reject(tx.error);
-        const store = tx.objectStore(STORE_SETTINGS);
-        const request = store.put({ key: 'currentPresetId', value: id });
-        request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
-    });
+    if (!db) return;
+    const tx = db.transaction(STORE_SETTINGS, 'readwrite');
+    tx.objectStore(STORE_SETTINGS).put({ key: 'currentPresetId', value: id });
 }
 
 async function getCurrentPresetId() {
     if (!db) return null;
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
         const tx = db.transaction(STORE_SETTINGS, 'readonly');
-        const store = tx.objectStore(STORE_SETTINGS);
-        const request = store.get('currentPresetId');
+        const request = tx.objectStore(STORE_SETTINGS).get('currentPresetId');
         request.onsuccess = () => resolve(request.result?.value || null);
-        request.onerror = () => reject(request.error);
     });
 }
 
+// --- STATE ---
+const State = {
+    grid: [],
+    solutions: new Set(),
+    validWords: new Set(),
+    foundWords: new Set(),
+    selectionStart: null,
+    isActive: false,
+    totalWords: 0
+};
+
+// --- DOM ELEMENTS ---
+const els = {
+    grid: document.getElementById('word-grid'),
+    bank: document.getElementById('word-bank'),
+    input: document.getElementById('word-input'),
+    controls: document.getElementById('controls'),
+    sizeSlider: document.getElementById('size-slider'),
+    sizeDisplay: document.getElementById('size-display'),
+    foundCount: document.getElementById('found-count'),
+    totalCount: document.getElementById('total-count'),
+    statusBar: document.getElementById('status-bar'),
+    zoomIn: document.getElementById('zoom-in'),
+    zoomOut: document.getElementById('zoom-out'),
+    generateBtn: document.getElementById('generate-btn'),
+    giveUpBtn: document.getElementById('give-up-btn'),
+    userPresetSelect: document.getElementById('userPresetSelect'),
+    userPresetNameInput: document.getElementById('userPresetNameInput'),
+    savedPuzzleSelect: document.getElementById('savedPuzzleSelect'),
+    savedPuzzleNameInput: document.getElementById('savedPuzzleNameInput'),
+    emptyStateCta: document.getElementById('empty-state-cta'),
+    emptyBankMsg: document.getElementById('empty-bank-msg')
+};
+
+// --- PERSISTENCE LOGIC ---
+
 async function renderPresetSelector() {
     const presets = await getAllPresets();
-    const select = document.getElementById('userPresetSelect');
-    if (!select) return;
-    select.innerHTML = '<option value="">-- Select a Preset --</option>';
+    if (!els.userPresetSelect) return;
+    els.userPresetSelect.innerHTML = '<option value="">-- Select a Preset --</option>';
     presets.forEach(p => {
         const option = document.createElement('option');
         option.value = p.id;
         option.textContent = p.name;
         if (p.id === currentPresetId) option.selected = true;
-        select.appendChild(option);
+        els.userPresetSelect.appendChild(option);
     });
 }
 
 async function onUserPresetSelect() {
-    const select = document.getElementById('userPresetSelect');
-    const id = parseInt(select.value);
+    const id = parseInt(els.userPresetSelect.value);
     if (!id && id !== 0) return;
     const preset = await getPreset(id);
     if (preset) {
         currentPresetId = id;
-        DOM.input.value = preset.data.words || '';
-        DOM.slider.value = preset.data.size || '10';
-        DOM.sizeDisp.innerText = `${DOM.slider.value}x${DOM.slider.value}`;
-        document.getElementById('userPresetNameInput').value = preset.name;
+        els.input.value = preset.data.words || '';
+        els.sizeSlider.value = preset.data.size || '10';
+        els.sizeDisplay.innerText = `${els.sizeSlider.value}x${els.sizeSlider.value}`;
+        els.userPresetNameInput.value = preset.name;
         await saveCurrentPresetId(id);
-        await renderPresetSelector();
     }
 }
 
 async function saveCurrentUserPreset() {
     try {
-        const name = document.getElementById('userPresetNameInput').value.trim() || 'Untitled';
-        const data = { words: DOM.input.value, size: DOM.slider.value };
+        const name = els.userPresetNameInput.value.trim() || 'Untitled';
+        const data = { words: els.input.value, size: els.sizeSlider.value };
         const id = await savePreset(name, data, currentPresetId);
         currentPresetId = id;
         await saveCurrentPresetId(id);
@@ -274,134 +277,85 @@ async function saveCurrentUserPreset() {
 }
 
 async function createNewUserPreset() {
-    document.getElementById('userPresetNameInput').value = 'New Preset';
-    DOM.input.value = '';
-    DOM.slider.value = '10';
-    DOM.sizeDisp.innerText = '10x10';
+    els.userPresetNameInput.value = 'New Preset';
+    els.input.value = '';
+    els.sizeSlider.value = '10';
+    els.sizeDisplay.innerText = '10x10';
     currentPresetId = null;
     await saveCurrentPresetId(null);
     await renderPresetSelector();
-    document.getElementById('userPresetSelect').value = '';
 }
 
 async function deleteCurrentUserPreset() {
     if (!currentPresetId) {
-        showToast('No preset selected to delete.', 'error');
+        showToast('No preset selected.', 'error');
         return;
     }
     showConfirmToast('Delete this preset?', async () => {
         await deletePreset(currentPresetId);
         currentPresetId = null;
-        document.getElementById('userPresetNameInput').value = '';
+        els.userPresetNameInput.value = '';
         await saveCurrentPresetId(null);
         await renderPresetSelector();
-        document.getElementById('userPresetSelect').value = '';
         showToast('Preset deleted!', 'success');
     });
 }
 
-// --- SAVED PUZZLES (Generated Grids) ---
+// --- SAVED PUZZLES ---
+
 async function getAllSavedPuzzles() {
     if (!db) return [];
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
         const tx = db.transaction(STORE_PUZZLES, 'readonly');
-        const store = tx.objectStore(STORE_PUZZLES);
-        const index = store.index('updatedAt');
+        const index = tx.objectStore(STORE_PUZZLES).index('updatedAt');
         const request = index.getAll();
         request.onsuccess = () => resolve(request.result.reverse());
-        request.onerror = () => reject(request.error);
-    });
-}
-
-async function saveGeneratedPuzzle(name, puzzleData, id = null) {
-    if (!db) throw new Error('Database not initialized');
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_PUZZLES, 'readwrite');
-        tx.onerror = () => reject(tx.error);
-        const store = tx.objectStore(STORE_PUZZLES);
-        const puzzle = { name, data: JSON.parse(JSON.stringify(puzzleData)), updatedAt: Date.now() };
-        if (id) puzzle.id = id;
-        const request = id ? store.put(puzzle) : store.add(puzzle);
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-    });
-}
-
-async function getSavedPuzzle(id) {
-    if (!db) return null;
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_PUZZLES, 'readonly');
-        const store = tx.objectStore(STORE_PUZZLES);
-        const request = store.get(id);
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-    });
-}
-
-async function deleteSavedPuzzle(id) {
-    if (!db) throw new Error('Database not initialized');
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_PUZZLES, 'readwrite');
-        tx.onerror = () => reject(tx.error);
-        const store = tx.objectStore(STORE_PUZZLES);
-        const request = store.delete(id);
-        request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
     });
 }
 
 async function renderSavedPuzzleSelector() {
     const puzzles = await getAllSavedPuzzles();
-    const selects = document.querySelectorAll('#savedPuzzleSelect, #savedPuzzleSelectEmpty, #savedPuzzleSelectModal');
-    selects.forEach(select => {
-        if (!select) return;
-        select.innerHTML = '<option value="">-- Select a Saved Puzzle --</option>';
-        puzzles.forEach(p => {
-            const option = document.createElement('option');
-            option.value = p.id;
-            option.textContent = p.name;
-            if (p.id === currentSavedPuzzleId) option.selected = true;
-            select.appendChild(option);
-        });
+    if (!els.savedPuzzleSelect) return;
+    els.savedPuzzleSelect.innerHTML = '<option value="">-- Load Saved --</option>';
+    puzzles.forEach(p => {
+        const option = document.createElement('option');
+        option.value = p.id;
+        option.textContent = p.name;
+        if (p.id === currentSavedPuzzleId) option.selected = true;
+        els.savedPuzzleSelect.appendChild(option);
     });
 }
 
-async function loadSelectedPuzzle(selectId) {
-    const select = document.getElementById(selectId);
-    const id = parseInt(select.value);
-    if (!id && id !== 0) {
-        showToast('Please select a puzzle first!', 'warning');
-        return;
-    }
+async function onSavedPuzzleSelect() {
+    const id = parseInt(els.savedPuzzleSelect.value);
+    if (!id && id !== 0) return;
     const puzzle = await getSavedPuzzle(id);
     if (puzzle) {
         currentSavedPuzzleId = id;
-        loadSavedPuzzle(puzzle.data);
-        const nameInput = document.getElementById('savedPuzzleNameInput');
-        if (nameInput) nameInput.value = puzzle.name;
-        await renderSavedPuzzleSelector();
+        loadSavedPuzzleData(puzzle.data);
+        els.savedPuzzleNameInput.value = puzzle.name;
         showToast('Puzzle loaded!', 'success');
     }
 }
 
-function toggleSavedPuzzleControls() {
-    const controls = document.getElementById('saved-puzzle-controls');
-    const icon = document.getElementById('saved-puzzle-toggle-icon');
-    if (controls && icon) {
-        controls.classList.toggle('collapsed');
-        icon.classList.toggle('rotated');
-    }
+async function getSavedPuzzle(id) {
+    if (!db) return null;
+    return new Promise((resolve) => {
+        const tx = db.transaction(STORE_PUZZLES, 'readonly');
+        const request = tx.objectStore(STORE_PUZZLES).get(id);
+        request.onsuccess = () => resolve(request.result);
+    });
 }
 
 async function saveCurrentPuzzle() {
     if (!State.grid.length) {
-        showToast('No puzzle to save. Generate a puzzle first!', 'error');
+        showToast('No puzzle to save.', 'error');
         return;
     }
     try {
-        const name = document.getElementById('savedPuzzleNameInput').value.trim() || `Puzzle ${new Date().toLocaleDateString()}`;
+        const name = els.savedPuzzleNameInput.value.trim() || `Puzzle ${new Date().toLocaleDateString()}`;
         const puzzleData = {
-            grid: State.grid.map(row => [...row]), // Deep copy grid
+            grid: State.grid,
             solutions: Array.from(State.solutions),
             validWords: Array.from(State.validWords),
             totalWords: State.totalWords,
@@ -412,47 +366,22 @@ async function saveCurrentPuzzle() {
         await renderSavedPuzzleSelector();
         showToast('Puzzle saved!', 'success');
     } catch (e) {
-        showToast('Failed to save puzzle', 'error');
+        showToast('Failed to save', 'error');
     }
 }
 
-async function createNewSavedPuzzle() {
-    const nameInput = document.getElementById('savedPuzzleNameInput');
-    if (nameInput) {
-        nameInput.value = `Puzzle ${new Date().toLocaleDateString()}`;
-    }
-    currentSavedPuzzleId = null;
-    const selects = document.querySelectorAll('#savedPuzzleSelect, #savedPuzzleSelectEmpty');
-    selects.forEach(s => { if (s) s.value = ''; });
-    // Clear current game
-    State.grid = [];
-    State.solutions.clear();
-    State.validWords.clear();
-    State.foundWords.clear();
-    DOM.grid.innerHTML = '';
-    DOM.bank.innerHTML = '';
-    DOM.emptyStateCta.classList.remove('hidden');
-    DOM.controls.classList.add('hidden');
-}
-
-async function deleteCurrentSavedPuzzle() {
-    if (!currentSavedPuzzleId) {
-        showToast('No saved puzzle selected to delete.', 'error');
-        return;
-    }
-    showConfirmToast('Delete this saved puzzle?', async () => {
-        await deleteSavedPuzzle(currentSavedPuzzleId);
-        currentSavedPuzzleId = null;
-        const nameInput = document.getElementById('savedPuzzleNameInput');
-        if (nameInput) nameInput.value = '';
-        await renderSavedPuzzleSelector();
-        const selects = document.querySelectorAll('#savedPuzzleSelect, #savedPuzzleSelectEmpty');
-        selects.forEach(s => { if (s) s.value = ''; });
-        showToast('Saved puzzle deleted!', 'success');
+async function saveGeneratedPuzzle(name, data, id = null) {
+    const tx = db.transaction(STORE_PUZZLES, 'readwrite');
+    const store = tx.objectStore(STORE_PUZZLES);
+    const puzzle = { name, data, updatedAt: Date.now() };
+    if (id) puzzle.id = id;
+    return new Promise((resolve) => {
+        const request = id ? store.put(puzzle) : store.add(puzzle);
+        request.onsuccess = () => resolve(request.result);
     });
 }
 
-function loadSavedPuzzle(data) {
+function loadSavedPuzzleData(data) {
     State.grid = data.grid;
     State.solutions = new Set(data.solutions);
     State.validWords = new Set(data.validWords);
@@ -461,190 +390,126 @@ function loadSavedPuzzle(data) {
     State.selectionStart = null;
     State.totalWords = data.totalWords;
 
-    DOM.emptyStateCta.classList.add('hidden');
-    DOM.controls.classList.remove('hidden');
-
+    els.emptyStateCta?.classList.add('hidden');
     renderGrid(data.size);
     renderWordBank(Array.from(State.validWords));
     updateHUD();
-    DOM.statusBar.innerText = "Tap First Letter ➔ Tap Last Letter";
-    DOM.statusBar.className = "text-center text-sm font-bold text-blue bg-blue/10 border-2 border-blue px-3 py-2 rounded-lg";
-    DOM.playAgain.classList.add('hidden');
-}
-// --- END SAVED PUZZLES ---
-
-// State Management
-const State = {
-    grid: [],
-    solutions: new Set(),
-    validWords: new Set(),
-    foundWords: new Set(),
-    selectionStart: null,
-    isActive: false,
-    totalWords: 0
-};
-
-// DOM Elements
-const DOM = {
-    grid: document.getElementById('word-grid'),
-    bank: document.getElementById('word-bank'),
-    input: document.getElementById('word-input'),
-    slider: document.getElementById('size-slider'),
-    sizeDisp: document.getElementById('size-display'),
-    foundCount: document.getElementById('found-count'),
-    totalCount: document.getElementById('total-count'),
-    statusBar: document.getElementById('status-bar'),
-    playAgain: document.getElementById('play-again-btn'),
-    modals: {
-        setup: document.getElementById('setup-modal'),
-        confirm: document.getElementById('confirm-modal')
-    },
-    controls: document.getElementById('play-controls'),
-    emptyStateCta: document.getElementById('empty-state-cta'),
-    emptyBankMsg: document.getElementById('empty-bank-msg')
-};
-
-// --- PERSISTENCE ---
-async function saveInputs() {
-    if (!currentPresetId) return;
-    const data = { words: DOM.input.value, size: DOM.slider.value };
-    await savePreset(document.getElementById('userPresetNameInput').value.trim() || 'Untitled', data, currentPresetId);
 }
 
-async function loadInputs() {
-    await initDB();
-    const savedId = await getCurrentPresetId();
-    const presets = await getAllPresets();
-    if (savedId && presets.find(p => p.id === savedId)) {
-        currentPresetId = savedId;
-        const preset = await getPreset(savedId);
-        if (preset) {
-            DOM.input.value = preset.data.words || '';
-            DOM.slider.value = preset.data.size || '10';
-            DOM.sizeDisp.innerText = `${DOM.slider.value}x${DOM.slider.value}`;
-            document.getElementById('userPresetNameInput').value = preset.name;
-        }
-    } else if (presets.length > 0) {
-        currentPresetId = presets[0].id;
-        DOM.input.value = presets[0].data.words || '';
-        DOM.slider.value = presets[0].data.size || '10';
-        DOM.sizeDisp.innerText = `${DOM.slider.value}x${DOM.slider.value}`;
-        document.getElementById('userPresetNameInput').value = presets[0].name;
-        await saveCurrentPresetId(currentPresetId);
+// --- UI HELPERS ---
+
+function toggleControlPanel(forceHide = false) {
+    const isHidden = window.innerWidth >= 768
+        ? els.controls.classList.contains('hidden-panel-desktop')
+        : els.controls.classList.contains('hidden-panel-mobile');
+
+    if (forceHide || !isHidden) {
+        els.controls.classList.add('hidden-panel-mobile', 'hidden-panel-desktop');
+    } else {
+        els.controls.classList.remove('hidden-panel-mobile', 'hidden-panel-desktop');
     }
 }
 
-// --- SETUP HANDLERS ---
-document.getElementById('setup-btn').onclick = () => DOM.modals.setup.classList.remove('hidden');
-document.getElementById('close-setup').onclick = () => DOM.modals.setup.classList.add('hidden');
-
-DOM.slider.oninput = (e) => {
-    const val = e.target.value;
-    DOM.sizeDisp.innerText = `${val}x${val}`;
-    saveInputs();
-};
-
-DOM.input.oninput = () => saveInputs();
-
-document.querySelectorAll('.preset-btn').forEach(btn => {
-    btn.onclick = (e) => {
-        DOM.input.value = e.target.dataset.words;
-        saveInputs();
-    };
-});
-
-document.getElementById('generate-btn').onclick = () => {
-    const raw = DOM.input.value;
-    const size = parseInt(DOM.slider.value);
-    saveCurrentUserPreset();
-
-    const words = raw.split(',')
-        .map(w => w.trim().toUpperCase())
-        .filter(w => w.length > 0 && w.length <= size);
-
-    const uniqueWords = [...new Set(words)];
-
-    if (uniqueWords.length < 1) {
-        showToast('Please enter valid words that fit in the grid.', 'error');
-        return;
+function toggleSavedPuzzleControls() {
+    const controls = document.getElementById('saved-puzzle-controls');
+    const icon = document.getElementById('saved-puzzle-toggle-icon');
+    if (controls && icon) {
+        controls.classList.toggle('active');
+        icon.classList.toggle('active');
     }
+}
 
-    initGame(size, uniqueWords);
-    DOM.modals.setup.classList.add('hidden');
-};
+function updateGridSize() {
+    document.querySelectorAll('.grid-cell').forEach(el => {
+        el.style.width = `${CELL_SIZE}px`;
+        el.style.height = `${CELL_SIZE}px`;
+        const fontSize = Math.max(0.7, CELL_SIZE / 45); // Scale font slightly smaller
+        el.style.fontSize = `${fontSize}rem`;
+    });
+}
 
-// --- GAME CORE ---
+function fitGridToDisplay() {
+    const container = els.grid.parentElement.parentElement; // Grid Area container
+    const size = State.grid.length;
+    if (!size || !container) return;
+
+    // Use a larger offset for the safe area (80px instead of 40px)
+    // to account for container padding and the floating glass header
+    const targetWidth = container.clientWidth - 80;
+    const targetHeight = container.clientHeight - 80;
+    
+    // Grid gap is 4px (gap-1) and padding is 4px (p-1)
+    const gapTotal = (size - 1) * 4;
+    const paddingTotal = 8; // 4px padding on both sides
+    
+    const minDim = Math.min(targetWidth, targetHeight);
+    
+    // Accurate cell size calculation: (TotalDim - Gaps - InternalPadding) / NumberOfCells
+    CELL_SIZE = Math.floor((minDim - gapTotal - paddingTotal) / size);
+    
+    // Safety boundaries
+    CELL_SIZE = Math.max(20, Math.min(CELL_SIZE, 80));
+    
+    updateGridSize();
+}
+
+// --- GAME LOGIC ---
+
 function initGame(size, words) {
     State.grid = Array(size).fill(null).map(() => Array(size).fill(''));
     State.solutions.clear();
     State.validWords = new Set();
     State.foundWords.clear();
     State.isActive = true;
-    State.selectionStart = null;
-    State.totalWords = 0;
 
     words.sort((a, b) => b.length - a.length);
-
-    const placedWords = [];
+    const placed = [];
     words.forEach(word => {
-        if (placeWordInGrid(word, size)) {
-            placedWords.push(word);
+        if (placeWord(word, size)) {
+            placed.push(word);
             State.validWords.add(word);
         }
     });
-    State.totalWords = placedWords.length;
 
-    DOM.emptyStateCta.classList.add('hidden');
-    DOM.controls.classList.remove('hidden');
-
-    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     for (let r = 0; r < size; r++) {
         for (let c = 0; c < size; c++) {
-            if (State.grid[r][c] === '') {
-                State.grid[r][c] = alphabet[Math.floor(Math.random() * alphabet.length)];
-            }
+            if (!State.grid[r][c]) State.grid[r][c] = alpha[Math.floor(Math.random() * 26)];
         }
     }
 
+    State.totalWords = placed.length;
+    els.emptyStateCta?.classList.add('hidden');
     renderGrid(size);
-    renderWordBank(placedWords);
+    renderWordBank(placed);
     updateHUD();
-
-    Sound.success(); // Using success sound as start sound
-    confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 }, colors: ['#2979FF', '#FF6B95', '#FF8C42'] });
+    fitGridToDisplay(); // Auto-fit on generation
+    Sound.success();
+    confetti({ particleCount: 50, spread: 60, origin: { y: 0.6 } });
 }
 
-function placeWordInGrid(word, size) {
-    const directions = [
+function placeWord(word, size) {
+    const dirs = [
         { r: 0, c: 1 }, { r: 1, c: 0 }, { r: 1, c: 1 }, { r: -1, c: 1 },
         { r: 0, c: -1 }, { r: -1, c: 0 }, { r: -1, c: -1 }, { r: 1, c: -1 }
     ];
+    for (let i = 0; i < 100; i++) {
+        const d = dirs[Math.floor(Math.random() * 8)];
+        const r = Math.floor(Math.random() * size);
+        const c = Math.floor(Math.random() * size);
+        const er = r + d.r * (word.length - 1);
+        const ec = c + d.c * (word.length - 1);
+        if (er < 0 || er >= size || ec < 0 || ec >= size) continue;
 
-    for (let attempt = 0; attempt < 100; attempt++) {
-        const dir = directions[Math.floor(Math.random() * directions.length)];
-        const startR = Math.floor(Math.random() * size);
-        const startC = Math.floor(Math.random() * size);
-
-        const endR = startR + (dir.r * (word.length - 1));
-        const endC = startC + (dir.c * (word.length - 1));
-        if (endR < 0 || endR >= size || endC < 0 || endC >= size) continue;
-
-        let collision = false;
-        for (let i = 0; i < word.length; i++) {
-            const r = startR + (dir.r * i);
-            const c = startC + (dir.c * i);
-            const cell = State.grid[r][c];
-            if (cell !== '' && cell !== word[i]) {
-                collision = true; break;
-            }
+        let ok = true;
+        for (let j = 0; j < word.length; j++) {
+            const char = State.grid[r + d.r * j][c + d.c * j];
+            if (char && char !== word[j]) { ok = false; break; }
         }
-
-        if (!collision) {
-            for (let i = 0; i < word.length; i++) {
-                const r = startR + (dir.r * i);
-                const c = startC + (dir.c * i);
-                State.grid[r][c] = word[i];
-                State.solutions.add(`${r},${c}`);
+        if (ok) {
+            for (let j = 0; j < word.length; j++) {
+                State.grid[r + d.r * j][c + d.c * j] = word[j];
+                State.solutions.add(`${r + d.r * j},${c + d.c * j}`);
             }
             return true;
         }
@@ -653,100 +518,74 @@ function placeWordInGrid(word, size) {
 }
 
 function renderGrid(size) {
-    DOM.grid.style.gridTemplateColumns = `repeat(${size}, minmax(0, 1fr))`;
-    DOM.grid.innerHTML = '';
-
-    // Font scaling based on grid density
-    const baseSize = size > 12 ? 'text-sm' : (size > 8 ? 'text-lg' : 'text-xl');
-
+    els.grid.innerHTML = '';
+    els.grid.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
     for (let r = 0; r < size; r++) {
         for (let c = 0; c < size; c++) {
             const cell = document.createElement('div');
-            cell.className = `grid-cell aspect-square ${baseSize}`;
+            cell.className = 'grid-cell';
             cell.innerText = State.grid[r][c];
-            cell.dataset.r = r;
-            cell.dataset.c = c;
-
+            cell.dataset.r = r; cell.dataset.c = c;
             cell.onmousedown = () => handleInput(r, c, cell);
             cell.ontouchstart = (e) => { e.preventDefault(); handleInput(r, c, cell); };
-            cell.ontouchmove = (e) => {
-                e.preventDefault();
-                const touch = e.touches[0];
-                const target = document.elementFromPoint(touch.clientX, touch.clientY);
-                if (target && target.classList.contains('grid-cell')) {
-                    const r = parseInt(target.dataset.r);
-                    const c = parseInt(target.dataset.c);
-                    handleHover(r, c);
-                }
-            };
             cell.onmouseenter = () => handleHover(r, c);
-
-            DOM.grid.appendChild(cell);
+            els.grid.appendChild(cell);
         }
     }
+    updateGridSize();
 }
 
 function renderWordBank(words) {
-    DOM.bank.innerHTML = '';
-    if (words.length === 0) {
-        DOM.emptyBankMsg.classList.remove('hidden');
+    els.bank.innerHTML = '';
+    if (!words.length) {
+        els.emptyBankMsg?.classList.remove('hidden');
         return;
     }
-    DOM.emptyBankMsg.classList.add('hidden');
-
+    els.emptyBankMsg?.classList.add('hidden');
     words.sort().forEach(w => {
-        const tag = document.createElement('div');
-        tag.className = 'word-tag px-3 py-1 bg-gray-100 border-2 border-dark rounded text-sm font-bold text-gray-500';
-        tag.innerText = w;
-        tag.id = `tag-${w}`;
-        DOM.bank.appendChild(tag);
+        const li = document.createElement('li');
+        li.className = 'word-tag';
+        li.innerText = w;
+        li.id = `tag-${w}`;
+        els.bank.appendChild(li);
     });
 }
 
 function updateHUD() {
-    DOM.foundCount.innerText = State.foundWords.size;
-    DOM.totalCount.innerText = State.totalWords;
-
-    if (State.foundWords.size === State.totalWords) {
-        endGame(true);
-    }
+    els.foundCount.innerText = State.foundWords.size;
+    els.totalCount.innerText = State.totalWords;
+    if (State.foundWords.size === State.totalWords && State.totalWords > 0) endGame(true);
 }
 
-// --- INTERACTION LOGIC ---
 function handleInput(r, c, el) {
-    if (!State.isActive || el.classList.contains('locked')) return;
-
+    if (!State.isActive) return;
     if (!State.selectionStart) {
         State.selectionStart = { r, c, el };
         el.classList.add('active-start');
         Sound.tap();
-        return;
+    } else {
+        if (State.selectionStart.r === r && State.selectionStart.c === c) {
+            clearSelection();
+        } else {
+            checkMatch(State.selectionStart, { r, c, el });
+        }
     }
-
-    if (State.selectionStart.r === r && State.selectionStart.c === c) {
-        clearSelection();
-        return;
-    }
-    checkMatch(State.selectionStart, { r, c, el });
 }
 
 function handleHover(r, c) {
     if (!State.selectionStart || !State.isActive) return;
     document.querySelectorAll('.preview-line').forEach(el => el.classList.remove('preview-line'));
-    const path = getLineCells(State.selectionStart, { r, c });
+    const path = getLine(State.selectionStart, { r, c });
     if (path) {
-        path.forEach(pos => {
-            const cell = getCell(pos.r, pos.c);
-            if (cell && !cell.classList.contains('found')) {
-                cell.classList.add('preview-line');
-            }
+        path.forEach(p => {
+            const cell = getCell(p.r, p.c);
+            if (cell && !cell.classList.contains('found')) cell.classList.add('preview-line');
         });
     }
 }
 
 function checkMatch(start, end) {
-    const path = getLineCells(start, end);
-
+    const path = getLine(start, end);
     if (!path) {
         Sound.error();
         end.el.classList.add('error');
@@ -756,109 +595,134 @@ function checkMatch(start, end) {
     }
 
     const word = path.map(p => State.grid[p.r][p.c]).join('');
-    const reversed = word.split('').reverse().join('');
-
+    const rev = word.split('').reverse().join('');
     let match = null;
     if (State.validWords.has(word) && !State.foundWords.has(word)) match = word;
-    else if (State.validWords.has(reversed) && !State.foundWords.has(reversed)) match = reversed;
+    else if (State.validWords.has(rev) && !State.foundWords.has(rev)) match = rev;
 
     if (match) {
         Sound.success();
-        path.forEach((p, i) => {
-            const cell = getCell(p.r, p.c);
-            setTimeout(() => cell.classList.add('found'), i * 30);
-        });
-
-        document.getElementById(`tag-${match}`).classList.add('found');
+        path.forEach(p => getCell(p.r, p.c).classList.add('found'));
+        const tag = document.getElementById(`tag-${match}`);
+        if (tag) tag.classList.add('found');
         State.foundWords.add(match);
         updateHUD();
-        clearSelection();
     } else {
         Sound.error();
         path.forEach(p => {
-            const cell = getCell(p.r, p.c);
-            cell.classList.add('error');
-            setTimeout(() => cell.classList.remove('error'), 400);
-        });
-        clearSelection();
-    }
-}
-
-function getLineCells(start, end) {
-    const dr = end.r - start.r;
-    const dc = end.c - start.c;
-    if (dr !== 0 && dc !== 0 && Math.abs(dr) !== Math.abs(dc)) return null;
-
-    const steps = Math.max(Math.abs(dr), Math.abs(dc));
-    const rStep = dr === 0 ? 0 : dr / steps;
-    const cStep = dc === 0 ? 0 : dc / steps;
-
-    const path = [];
-    for (let i = 0; i <= steps; i++) {
-        path.push({ r: start.r + (rStep * i), c: start.c + (cStep * i) });
-    }
-    return path;
-}
-
-function getCell(r, c) {
-    return document.querySelector(`.grid-cell[data-r="${r}"][data-c="${c}"]`);
-}
-
-function clearSelection() {
-    if (State.selectionStart) {
-        State.selectionStart.el.classList.remove('active-start');
-        State.selectionStart = null;
-    }
-    document.querySelectorAll('.preview-line').forEach(el => el.classList.remove('preview-line'));
-}
-
-// --- GAME OVER ---
-document.getElementById('give-up-btn').onclick = () => {
-    if (!State.isActive) return;
-    DOM.modals.confirm.classList.remove('hidden');
-};
-
-document.getElementById('cancel-reveal').onclick = () => DOM.modals.confirm.classList.add('hidden');
-
-document.getElementById('confirm-reveal').onclick = () => {
-    DOM.modals.confirm.classList.add('hidden');
-    endGame(false);
-};
-
-document.getElementById('play-again-btn').onclick = () => document.getElementById('setup-btn').click();
-
-function endGame(won) {
-    State.isActive = false;
-
-    if (won) {
-        Sound.win();
-        confetti({ particleCount: 200, spread: 100, origin: { y: 0.6 }, colors: ['#00E676', '#2979FF', '#FF6B95'] });
-        DOM.statusBar.innerText = "YOU WON! AMAZING WORK!";
-        DOM.statusBar.className = "text-center text-sm font-bold text-green bg-green/10 border-2 border-green px-3 py-2 rounded-lg";
-    } else {
-        Sound.error();
-        DOM.statusBar.innerText = "GAME OVER - ANSWERS REVEALED";
-        DOM.statusBar.className = "text-center text-sm font-bold text-orange bg-orange/10 border-2 border-orange px-3 py-2 rounded-lg";
-
-        document.querySelectorAll('.grid-cell').forEach(cell => {
-            const key = `${cell.dataset.r},${cell.dataset.c}`;
-            if (State.solutions.has(key) && !cell.classList.contains('found')) {
-                cell.classList.add('revealed');
-            }
-            cell.classList.add('locked');
+            const c = getCell(p.r, p.c);
+            c.classList.add('error');
+            setTimeout(() => c.classList.remove('error'), 400);
         });
     }
-
-    DOM.playAgain.classList.remove('hidden');
     clearSelection();
 }
 
+function getLine(s, e) {
+    const dr = e.r - s.r, dc = e.c - s.c;
+    if (dr !== 0 && dc !== 0 && Math.abs(dr) !== Math.abs(dc)) return null;
+    const steps = Math.max(Math.abs(dr), Math.abs(dc));
+    const rs = dr === 0 ? 0 : dr / steps, cs = dc === 0 ? 0 : dc / steps;
+    const path = [];
+    for (let i = 0; i <= steps; i++) path.push({ r: s.r + rs * i, c: s.c + cs * i });
+    return path;
+}
+
+function getCell(r, c) { return document.querySelector(`.grid-cell[data-r="${r}"][data-c="${c}"]`); }
+
+function clearSelection() {
+    if (State.selectionStart) State.selectionStart.el.classList.remove('active-start');
+    State.selectionStart = null;
+    document.querySelectorAll('.preview-line').forEach(el => el.classList.remove('preview-line'));
+}
+
+function revealSolutions() {
+    document.querySelectorAll('.grid-cell').forEach(cell => {
+        if (State.solutions.has(`${cell.dataset.r},${cell.dataset.c}`)) cell.classList.add('revealed');
+    });
+    State.isActive = false;
+    Sound.success();
+}
+
+function endGame(success) {
+    State.isActive = false;
+    if (success) {
+        Sound.win();
+        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+        showToast('You found everything!', 'success');
+    }
+}
+
 // --- INIT ---
+
 window.onload = async () => {
-    await loadInputs();
+    await initDB();
+    const sid = await getCurrentPresetId();
+    if (sid) {
+        currentPresetId = sid;
+        const p = await getPreset(sid);
+        if (p) {
+            els.input.value = p.data.words || '';
+            els.sizeSlider.value = p.data.size || '10';
+            els.sizeDisplay.innerText = `${els.sizeSlider.value}x${els.sizeSlider.value}`;
+            els.userPresetNameInput.value = p.name;
+        }
+    }
     await renderPresetSelector();
     await renderSavedPuzzleSelector();
-    DOM.controls.classList.add('hidden');
-    DOM.emptyStateCta.classList.remove('hidden');
-    DOM.modals.setup.classList.remove('hidden');
+
+    els.sizeSlider.oninput = (e) => {
+        els.sizeDisplay.innerText = `${e.target.value}x${e.target.value}`;
+    };
+
+    els.zoomIn.onclick = () => { CELL_SIZE = Math.min(CELL_SIZE + 5, 80); updateGridSize(); };
+    els.zoomOut.onclick = () => { CELL_SIZE = Math.max(CELL_SIZE - 5, 25); updateGridSize(); };
+
+    els.generateBtn.onclick = () => {
+        const words = els.input.value.split(',').map(w => w.trim().toUpperCase()).filter(w => w.length > 0);
+        if (words.length < 1) return showToast('Enter some words!', 'error');
+        saveCurrentUserPreset();
+        initGame(parseInt(els.sizeSlider.value), words);
+        if (window.innerWidth < 768) toggleControlPanel(true);
+    };
+
+    els.giveUpBtn.onclick = () => document.getElementById('confirm-modal').classList.remove('hidden');
+    document.getElementById('cancel-reveal').onclick = () => document.getElementById('confirm-modal').classList.add('hidden');
+    document.getElementById('confirm-reveal').onclick = () => { revealSolutions(); document.getElementById('confirm-modal').classList.add('hidden'); };
+
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.onclick = () => { els.input.value = btn.dataset.words; };
+    });
+
+    window.onresize = () => { if (State.grid.length) fitGridToDisplay(); };
+
+    if (window.innerWidth < 768) toggleControlPanel(true);
 };
+
+// Global Print Hook
+const originalPrint = window.print;
+window.print = function() {
+    if (State.grid.length) preparePrintVersion();
+    originalPrint();
+};
+
+function preparePrintVersion() {
+    const printGrid = els.grid.cloneNode(true);
+    printGrid.className = 'print-grid';
+    printGrid.style.width = '';
+    printGrid.style.height = '';
+    printGrid.style.gridTemplateColumns = `repeat(${State.grid.length}, 1fr)`;
+    printGrid.style.setProperty('--grid-size', State.grid.length);
+
+    document.getElementById('print-grid-container').innerHTML = '';
+    document.getElementById('print-grid-container').appendChild(printGrid);
+
+    const printBank = document.getElementById('print-word-bank');
+    printBank.innerHTML = '';
+    Array.from(State.validWords).sort().forEach(w => {
+        const li = document.createElement('li');
+        li.className = 'print-word';
+        li.innerText = w;
+        printBank.appendChild(li);
+    });
+}
