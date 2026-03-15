@@ -371,13 +371,41 @@ async function saveCurrentPuzzle() {
 }
 
 async function saveGeneratedPuzzle(name, data, id = null) {
+    if (!db) throw new Error('Database not initialized');
     const tx = db.transaction(STORE_PUZZLES, 'readwrite');
     const store = tx.objectStore(STORE_PUZZLES);
     const puzzle = { name, data, updatedAt: Date.now() };
     if (id) puzzle.id = id;
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         const request = id ? store.put(puzzle) : store.add(puzzle);
         request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+async function deleteCurrentSavedPuzzle() {
+    if (!currentSavedPuzzleId) {
+        showToast('No saved puzzle selected.', 'error');
+        return;
+    }
+    showConfirmToast('Delete this saved puzzle?', async () => {
+        await deleteGeneratedPuzzle(currentSavedPuzzleId);
+        currentSavedPuzzleId = null;
+        els.savedPuzzleNameInput.value = '';
+        els.savedPuzzleSelect.value = '';
+        await renderSavedPuzzleSelector();
+        showToast('Puzzle deleted!', 'success');
+    });
+}
+
+async function deleteGeneratedPuzzle(id) {
+    if (!db) throw new Error('Database not initialized');
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_PUZZLES, 'readwrite');
+        const store = tx.objectStore(STORE_PUZZLES);
+        const request = store.delete(id);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
     });
 }
 
@@ -394,6 +422,9 @@ function loadSavedPuzzleData(data) {
     renderGrid(data.size);
     renderWordBank(Array.from(State.validWords));
     updateHUD();
+    
+    // Use a small delay to ensure grid is rendered before fitting
+    setTimeout(fitGridToDisplay, 50);
 }
 
 // --- UI HELPERS ---
@@ -695,6 +726,12 @@ window.onload = async () => {
         const words = els.input.value.split(',').map(w => w.trim().toUpperCase()).filter(w => w.length > 0);
         if (words.length < 1) return showToast('Enter some words!', 'error');
         saveCurrentUserPreset();
+        
+        // Reset saved puzzle ID when starting a fresh one
+        currentSavedPuzzleId = null;
+        els.savedPuzzleNameInput.value = '';
+        els.savedPuzzleSelect.value = '';
+        
         initGame(parseInt(els.sizeSlider.value), words);
         if (window.innerWidth < 768) toggleControlPanel(true);
     };
