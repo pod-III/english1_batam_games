@@ -337,6 +337,22 @@
                             <button onclick="setGroupSize(4)" id="btnSize4" class="btn-chunky bg-white dark:bg-slate-700 py-2 rounded-xl text-sm font-bold">4</button>
                         </div>
                     </div>
+
+                    <!-- Sorting Mode -->
+                    <div class="p-4 bg-slate-50/50 dark:bg-slate-800/50 border-[1px] border-slate-300 dark:border-white/10 rounded-xl flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="shuffle" id="sort-icon-ui" class="w-4 h-4 text-blue"></i>
+                            <label class="text-xs font-black text-slate-400 uppercase tracking-widest">Sorting</label>
+                        </div>
+                        <div class="flex items-center gap-2 text-right">
+                            <span class="text-[10px] font-bold text-slate-400">A-Z</span>
+                            <label class="switch">
+                                <input type="checkbox" id="sort-mode-toggle" checked onchange="updateSortIcon()">
+                                <span class="slider"></span>
+                            </label>
+                            <span class="text-[10px] font-bold text-slate-400">RANDOM</span>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="pt-4 flex gap-3">
@@ -643,6 +659,10 @@
                 document.getElementById('peopleInput').value = data.people || '';
                 document.getElementById('taskInput').value = data.tasks || '';
                 document.getElementById('preset-name').value = preset.name;
+                if (data.isRandom !== undefined) {
+                    document.getElementById('sort-mode-toggle').checked = data.isRandom;
+                    updateSortIcon();
+                }
                 await saveCurrentPresetId(id);
                 await renderPresetSelector();
                 updateCounts();
@@ -653,7 +673,8 @@
             const name = document.getElementById('preset-name').value.trim() || 'Untitled';
             const content = JSON.stringify({
                 people: document.getElementById('peopleInput').value,
-                tasks: document.getElementById('taskInput').value
+                tasks: document.getElementById('taskInput').value,
+                isRandom: document.getElementById('sort-mode-toggle').checked
             });
             const id = await savePreset(name, content, currentPresetId);
             currentPresetId = id;
@@ -747,7 +768,14 @@
                 return;
             }
 
-            people = shuffle(people);
+            // Handle Sorting Mode
+            const isRandom = document.getElementById('sort-mode-toggle').checked;
+            if (isRandom) {
+                people = shuffle(people);
+            } else {
+                people.sort((a, b) => a.localeCompare(b, undefined, {numeric: true, sensitivity: 'base'}));
+            }
+
             tasks = shuffle(tasks);
 
             let groups = [];
@@ -792,29 +820,43 @@
                 const isGroup = groupArray.length > 1;
                 const label = isGroup ? 'TEAM' : 'STUDENT';
                 
-                let namesHtml = isGroup 
-                    ? `<div class="flex flex-wrap gap-2 mt-2">${groupArray.map(n => `<span class="bg-white/50 dark:bg-slate-800/50 border-[1px] border-dark/20 dark:border-white/20 px-3 py-1 rounded-xl text-lg font-black text-dark dark:text-white shadow-neo-sm">${n}</span>`).join('')}</div>`
-                    : `<div class="text-3xl md:text-4xl font-black text-dark dark:text-white mt-2 leading-none break-words">${groupArray[0]}</div>`;
+                // --- Text Fitting Logic ---
+                const taskWords = task.split(/\s+/).filter(w => w.length > 0);
+                const isMultiWordTask = taskWords.length >= 2;
+                
+                let namesHtml = '';
+                if (isGroup) {
+                    namesHtml = `<div class="flex flex-wrap gap-2 mt-2">${groupArray.map(n => `<span class="bg-white/50 dark:bg-slate-800/50 border-[1px] border-dark/20 dark:border-white/20 px-3 py-1 rounded-xl text-lg font-black text-dark dark:text-white shadow-neo-sm">${n}</span>`).join('')}</div>`;
+                } else {
+                    const studentName = groupArray[0];
+                    const nameWords = studentName.split(/\s+/).filter(w => w.length > 0);
+                    const isMultiWordName = nameWords.length >= 2;
+                    namesHtml = `<div class="fit-text text-3xl md:text-5xl font-black text-dark dark:text-white mt-2 leading-none ${isMultiWordName ? 'break-words' : 'whitespace-nowrap'}" style="max-height: 100px; display: flex; align-items: center; justify-content: center;">${studentName}</div>`;
+                }
 
                 const card = document.createElement('div');
-                card.className = `w-full min-h-[12rem] glass-panel border-[1px] border-slate-300 dark:border-white/10 rounded-2xl flex shadow-neo animate-pop overflow-hidden`;
+                card.className = `w-full min-h-[14rem] glass-panel border-[1px] border-slate-300 dark:border-white/10 rounded-2xl flex shadow-neo animate-pop overflow-hidden`;
                 card.style.animationDelay = `${index * 0.1}s`;
 
                 card.innerHTML = `
-                    <div class="w-1/2 p-5 flex flex-col justify-center border-r-[1px] border-slate-300 dark:border-white/10 border-dashed relative z-10">
-                        <div class="flex items-center gap-2 mb-2">
+                    <div class="w-1/2 p-4 flex flex-col justify-center border-r-[1px] border-slate-300 dark:border-white/10 border-dashed relative z-10 overflow-hidden">
+                        <div class="flex items-center gap-2 mb-2 shrink-0">
                             <div class="w-10 h-10 ${colorTheme.accent} rounded-xl border-[1px] border-dark/20 flex items-center justify-center text-dark shadow-neo-sm">
                                 <i data-lucide="${isGroup ? 'users' : 'user'}" class="w-5 h-5"></i>
                             </div>
                             <span class="text-xs font-bold text-slate-400 tracking-widest uppercase">${label}</span>
                         </div>
-                        ${namesHtml}
+                        <div class="flex-grow flex items-center justify-center overflow-hidden">
+                            ${namesHtml}
+                        </div>
                     </div>
 
-                    <div class="w-1/2 p-5 ${colorTheme.accent} flex flex-col justify-center items-center text-center relative overflow-hidden">
-                        <div class="bg-white/50 dark:bg-slate-900/40 border-[1px] border-dark/20 px-3 py-1 rounded-lg text-[10px] font-black text-dark dark:text-white mb-3 tracking-widest uppercase shadow-neo-sm">MISSION</div>
-                        <div class="font-heading text-2xl md:text-3xl font-black leading-tight text-dark dark:text-white z-10 break-words w-full">
-                            ${task}
+                    <div class="w-1/2 p-4 ${colorTheme.accent} flex flex-col justify-center items-center text-center relative overflow-hidden">
+                        <div class="bg-white/50 dark:bg-slate-900/40 border-[1px] border-dark/20 px-3 py-1 rounded-lg text-[10px] font-black text-dark dark:text-white mb-3 tracking-widest uppercase shadow-neo-sm shrink-0">MISSION</div>
+                        <div class="flex-grow flex items-center justify-center w-full overflow-hidden">
+                            <div class="fit-text font-heading text-2xl md:text-4xl font-black leading-tight text-dark dark:text-white z-10 w-full ${isMultiWordTask ? 'break-words' : 'whitespace-nowrap'}">
+                                ${task}
+                            </div>
                         </div>
                         <i data-lucide="target" class="absolute -bottom-6 -right-6 w-32 h-32 text-dark/10 z-0"></i>
                     </div>
@@ -822,7 +864,26 @@
 
                 cardsGrid.appendChild(card);
             });
+            
+            // Apply text fitting after cards are in the DOM
+            document.querySelectorAll('.fit-text').forEach(el => fitText(el));
             lucide.createIcons();
+        }
+
+        function fitText(el) {
+            const container = el.parentElement;
+            let fontSize = parseInt(window.getComputedStyle(el).fontSize);
+            const maxFontSize = fontSize;
+            const minFontSize = 12;
+
+            function isOverflowing() {
+                return el.scrollWidth > container.clientWidth || el.scrollHeight > container.clientHeight;
+            }
+
+            while (isOverflowing() && fontSize > minFontSize) {
+                fontSize--;
+                el.style.fontSize = fontSize + 'px';
+            }
         }
 
         function clearAll() {
@@ -838,6 +899,17 @@
             });
         }
 
+        function updateSortIcon() {
+            const isRandom = document.getElementById('sort-mode-toggle').checked;
+            const iconEl = document.getElementById('sort-icon-ui');
+            if (isRandom) {
+                iconEl.setAttribute('data-lucide', 'shuffle');
+            } else {
+                iconEl.setAttribute('data-lucide', 'arrow-down-az');
+            }
+            lucide.createIcons();
+        }
+
         // --- INIT ---
         async function initializeApp() {
             loadTheme();
@@ -849,9 +921,11 @@
                     const data = JSON.parse(preset.content);
                     document.getElementById('peopleInput').value = data.people || '';
                     document.getElementById('taskInput').value = data.tasks || '';
+                    if (data.isRandom !== undefined) document.getElementById('sort-mode-toggle').checked = data.isRandom;
                     document.getElementById('preset-name').value = preset.name;
                 }
             }
+            updateSortIcon();
             await renderPresetSelector();
             updateCounts();
             lucide.createIcons();
