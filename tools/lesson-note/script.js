@@ -1,24 +1,36 @@
 // ===== GLOBAL STATE =====
-let notes = JSON.parse(localStorage.getItem('e1_lesson_notes')) || [];
-notes = notes.map(n => ({ ...n, deleted: n.deleted || false }));
-
+let notes = [];
 let currentNoteId = null;
 let quill;
 let isZenMode = false;
 let isOutlineOpen = false;
 let isTrashMode = false;
 let isDarkMode = false;
-let imageDB = null;
+let db = null;
 let blobUrlMap = {}; // blobUrl -> idbKey
 
-// ===== INDEXEDDB FOR IMAGES =====
-function openImageDB() {
+// ===== INDEXEDDB SETUP =====
+const DB_NAME = 'LessonNotesDB';
+const DB_VERSION = 2;
+const STORES = {
+    IMAGES: 'images',
+    NOTES: 'notes',
+    SETTINGS: 'settings'
+};
+
+function openDB() {
     return new Promise((resolve, reject) => {
-        const req = indexedDB.open('LessonNotesImageDB', 1);
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
         req.onupgradeneeded = (e) => {
             const db = e.target.result;
-            if (!db.objectStoreNames.contains('images')) {
-                db.createObjectStore('images', { keyPath: 'id' });
+            if (!db.objectStoreNames.contains(STORES.IMAGES)) {
+                db.createObjectStore(STORES.IMAGES, { keyPath: 'id' });
+            }
+            if (!db.objectStoreNames.contains(STORES.NOTES)) {
+                db.createObjectStore(STORES.NOTES, { keyPath: 'id' });
+            }
+            if (!db.objectStoreNames.contains(STORES.SETTINGS)) {
+                db.createObjectStore(STORES.SETTINGS);
             }
         };
         req.onsuccess = (e) => resolve(e.target.result);
@@ -26,10 +38,11 @@ function openImageDB() {
     });
 }
 
+// --- Image Store Helpers ---
 function storeImage(id, arrayBuffer, mimeType) {
     return new Promise((resolve, reject) => {
-        const tx = imageDB.transaction('images', 'readwrite');
-        tx.objectStore('images').put({ id, data: arrayBuffer, type: mimeType });
+        const tx = db.transaction(STORES.IMAGES, 'readwrite');
+        tx.objectStore(STORES.IMAGES).put({ id, data: arrayBuffer, type: mimeType });
         tx.oncomplete = () => resolve();
         tx.onerror = (e) => reject(e.target.error);
     });
@@ -37,8 +50,8 @@ function storeImage(id, arrayBuffer, mimeType) {
 
 function getImage(id) {
     return new Promise((resolve, reject) => {
-        const tx = imageDB.transaction('images', 'readonly');
-        const req = tx.objectStore('images').get(id);
+        const tx = db.transaction(STORES.IMAGES, 'readonly');
+        const req = tx.objectStore(STORES.IMAGES).get(id);
         req.onsuccess = () => resolve(req.result);
         req.onerror = (e) => reject(e.target.error);
     });
@@ -46,18 +59,95 @@ function getImage(id) {
 
 function deleteImage(id) {
     return new Promise((resolve, reject) => {
-        const tx = imageDB.transaction('images', 'readwrite');
-        tx.objectStore('images').delete(id);
+        const tx = db.transaction(STORES.IMAGES, 'readwrite');
+        tx.objectStore(STORES.IMAGES).delete(id);
         tx.oncomplete = () => resolve();
         tx.onerror = (e) => reject(e.target.error);
     });
 }
 
-async function deleteImagesInContent(html) {
-    const regex = /idb:\/\/([\w_-]+)/g;
-    let m;
-    while ((m = regex.exec(html)) !== null) {
-        try { await deleteImage(m[1]); } catch (e) { console.warn('Failed to delete image', m[1]); }
+// --- Notes Store Helpers ---
+function getAllNotes() {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORES.NOTES, 'readonly');
+        const req = tx.objectStore(STORES.NOTES).getAll();
+        req.onsuccess = () => {
+            const result = req.result || [];
+            // Sort by updatedAt descending
+            resolve(result.sort((a, b) => b.updatedAt - a.updatedAt));
+        };
+        req.onerror = (e) => reject(e.target.error);
+    });
+}
+
+function saveNoteToDB(note) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORES.NOTES, 'readwrite');
+        tx.objectStore(STORES.NOTES).put(note);
+        tx.oncomplete = () => resolve();
+        tx.onerror = (e) => reject(e.target.error);
+    });
+}
+
+function deleteNoteFromDB(id) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORES.NOTES, 'readwrite');
+        tx.objectStore(STORES.NOTES).delete(id);
+        tx.oncomplete = () => resolve();
+        tx.onerror = (e) => reject(e.target.error);
+    });
+}
+
+// --- Settings Store Helpers ---
+function getSetting(key) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORES.SETTINGS, 'readonly');
+        const req = tx.objectStore(STORES.SETTINGS).get(key);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = (e) => reject(e.target.error);
+    });
+}
+
+function saveSetting(key, value) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORES.SETTINGS, 'readwrite');
+        tx.objectStore(STORES.SETTINGS).put(value, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = (e) => reject(e.target.error);
+    });
+}
+
+// --- Migration ---
+async function migrateFromLocalStorage() {
+    const oldNotes = localStorage.getItem('e1_lesson_notes');
+    if (oldNotes) {
+        try {
+            const parsedNotes = JSON.parse(oldNotes);
+            if (Array.isArray(parsedNotes)) {
+                for (const note of parsedNotes) {
+                    await saveNoteToDB({
+                        ...note,
+                        deleted: note.deleted || false,
+                        updatedAt: note.updatedAt || Date.now()
+                    });
+                }
+            }
+            localStorage.removeItem('e1_lesson_notes');
+        } catch (e) {
+            console.error('Migration failed:', e);
+        }
+    }
+
+    const oldTheme = localStorage.getItem('e1_theme');
+    if (oldTheme) {
+        await saveSetting('theme', oldTheme);
+        localStorage.removeItem('e1_theme');
+    }
+
+    const oldLastActive = localStorage.getItem('e1_last_active_note');
+    if (oldLastActive) {
+        await saveSetting('lastActiveNoteId', oldLastActive);
+        localStorage.removeItem('e1_last_active_note');
     }
 }
 
@@ -76,8 +166,8 @@ function base64ToArrayBuffer(b64) {
 }
 
 // ===== DARK MODE =====
-function initDarkMode() {
-    const saved = localStorage.getItem('e1_theme');
+async function initDarkMode() {
+    const saved = await getSetting('theme');
     if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
         isDarkMode = true;
         document.documentElement.classList.add('dark');
@@ -85,10 +175,10 @@ function initDarkMode() {
     updateDarkModeUI();
 }
 
-function toggleDarkMode() {
+async function toggleDarkMode() {
     isDarkMode = !isDarkMode;
     document.documentElement.classList.toggle('dark', isDarkMode);
-    localStorage.setItem('e1_theme', isDarkMode ? 'dark' : 'light');
+    await saveSetting('theme', isDarkMode ? 'dark' : 'light');
     updateDarkModeUI();
 }
 
@@ -102,17 +192,20 @@ function updateDarkModeUI() {
 
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', async () => {
-    initDarkMode();
-    imageDB = await openImageDB();
+    db = await openDB();
+    await migrateFromLocalStorage();
+    await initDarkMode();
     initQuill();
 
-    if (notes.filter(n => !n.deleted).length === 0) {
-        createNewNote();
+    notes = await getAllNotes();
+
+    const lastActiveId = await getSetting('lastActiveNoteId');
+    const noteToLoad = notes.find(n => n.id === lastActiveId && !n.deleted) || notes.find(n => !n.deleted);
+
+    if (noteToLoad) {
+        await loadNote(noteToLoad.id);
     } else {
-        const lastActiveId = localStorage.getItem('e1_last_active_note');
-        const noteToLoad = notes.find(n => n.id === lastActiveId && !n.deleted) || notes.find(n => !n.deleted);
-        if (noteToLoad) await loadNote(noteToLoad.id);
-        else createNewNote();
+        await createNewNote();
     }
 
     renderNotesList();
@@ -382,6 +475,11 @@ async function processImport(inputElement) {
             const imported = JSON.parse(e.target.result);
             if (!Array.isArray(imported)) { alert('Invalid backup file format.'); return; }
 
+            // Clear current notes from DB first
+            for (const n of notes) {
+                await deleteNoteFromDB(n.id);
+            }
+
             // Convert base64 data URIs in imported notes to IndexedDB
             for (const note of imported) {
                 const regex = /data:([^;]+);base64,([A-Za-z0-9+\/=]+)/g;
@@ -395,14 +493,15 @@ async function processImport(inputElement) {
                     } catch (err) { console.warn('Import image failed', err); }
                 }
                 for (const { from, to } of reps) note.content = note.content.split(from).join(to);
+                
+                await saveNoteToDB(note);
             }
 
-            notes = imported;
-            saveToStorage();
+            notes = await getAllNotes();
             if (isTrashMode) toggleTrashMode();
             const first = notes.find(n => !n.deleted);
             if (first) await loadNote(first.id);
-            else createNewNote();
+            else await createNewNote();
             renderNotesList();
             alert('Backup restored successfully!');
         } catch (err) {
@@ -472,18 +571,18 @@ function updateUIState() {
 }
 
 // ===== NOTE CRUD =====
-function createNewNote() {
+async function createNewNote() {
     if (isTrashMode) return;
     const newNote = { id: Date.now().toString(), title: '', content: '', updatedAt: Date.now(), deleted: false };
     notes.unshift(newNote);
-    saveToStorage();
-    loadNote(newNote.id);
+    await saveNoteToDB(newNote);
+    await loadNote(newNote.id);
     if (window.innerWidth < 768) toggleSidebar();
 }
 
 async function loadNote(id) {
     currentNoteId = id;
-    if (!isTrashMode) localStorage.setItem('e1_last_active_note', id);
+    if (!isTrashMode) await saveSetting('lastActiveNoteId', id);
     const note = notes.find(n => n.id === id);
     if (!note) return;
 
@@ -498,7 +597,7 @@ async function loadNote(id) {
     updateUIState();
 }
 
-function saveCurrentNote() {
+async function saveCurrentNote() {
     if (!currentNoteId || isTrashMode) return;
     const noteIndex = notes.findIndex(n => n.id === currentNoteId);
     if (noteIndex !== -1) {
@@ -508,7 +607,7 @@ function saveCurrentNote() {
         note.updatedAt = Date.now();
         notes.splice(noteIndex, 1);
         notes.unshift(note);
-        saveToStorage();
+        await saveNoteToDB(note);
         renderNotesList();
     }
 }
@@ -521,10 +620,10 @@ async function softDeleteCurrentNote() {
         if (noteIndex !== -1) {
             notes[noteIndex].deleted = true;
             notes[noteIndex].updatedAt = Date.now();
-            saveToStorage();
+            await saveNoteToDB(notes[noteIndex]);
             const nextNote = notes.find(n => !n.deleted);
             if (nextNote) await loadNote(nextNote.id);
-            else createNewNote();
+            else await createNewNote();
         }
     }
 }
@@ -534,12 +633,15 @@ async function permanentDeleteCurrentNote() {
     const confirmed = await showModal('Delete Forever?', 'This action cannot be undone. The note will be gone.', 'Delete Forever');
     if (confirmed) {
         const note = notes.find(n => n.id === currentNoteId);
-        if (note) await deleteImagesInContent(note.content);
+        if (note) {
+            await deleteImagesInContent(note.content);
+            await deleteNoteFromDB(note.id);
+        }
         notes = notes.filter(n => n.id !== currentNoteId);
-        saveToStorage();
         const nextTrash = notes.find(n => n.deleted);
-        if (nextTrash) { await loadNote(nextTrash.id); }
-        else {
+        if (nextTrash) { 
+            await loadNote(nextTrash.id); 
+        } else {
             currentNoteId = null;
             document.getElementById('noteTitle').value = "";
             quill.root.innerHTML = "<p>Trash is empty.</p>";
@@ -548,18 +650,19 @@ async function permanentDeleteCurrentNote() {
     }
 }
 
-function restoreCurrentNote() {
+async function restoreCurrentNote() {
     if (!currentNoteId) return;
     const noteIndex = notes.findIndex(n => n.id === currentNoteId);
     if (noteIndex !== -1) {
         notes[noteIndex].deleted = false;
         notes[noteIndex].updatedAt = Date.now();
-        saveToStorage();
+        await saveNoteToDB(notes[noteIndex]);
         const nextTrash = notes.find(n => n.deleted);
-        if (nextTrash) loadNote(nextTrash.id);
-        else {
+        if (nextTrash) {
+            await loadNote(nextTrash.id);
+        } else {
             toggleTrashMode();
-            loadNote(notes[noteIndex].id);
+            await loadNote(notes[noteIndex].id);
             return;
         }
         renderNotesList();
@@ -603,7 +706,6 @@ function renderNotesList() {
 }
 
 // ===== UTILITY =====
-function saveToStorage() { localStorage.setItem('e1_lesson_notes', JSON.stringify(notes)); }
 function stripHtml(html) { const t = document.createElement("DIV"); t.innerHTML = html; return t.textContent || t.innerText || ""; }
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('-translate-x-full'); }
 
