@@ -572,14 +572,27 @@ function handleInput(r, c, el) {
     }
 }
 
+let lastHovered = { r: -1, c: -1 };
+
 function handleHover(r, c) {
     if (!State.selectionStart || !State.isActive) return;
-    document.querySelectorAll('.preview-line').forEach(el => el.classList.remove('preview-line'));
+    if (r === lastHovered.r && c === lastHovered.c) return;
+    lastHovered = { r, c };
+
+    // Batch DOM updates: remove old previews only if needed
+    document.querySelectorAll('.preview-line').forEach(el => {
+        if (el.dataset.r != r || el.dataset.c != c) {
+             el.classList.remove('preview-line');
+        }
+    });
+
     const path = getLine(State.selectionStart, { r, c });
     if (path) {
         path.forEach(p => {
             const cell = getCell(p.r, p.c);
-            if (cell && !cell.classList.contains('found')) cell.classList.add('preview-line');
+            if (cell && !cell.classList.contains('found')) {
+                cell.classList.add('preview-line');
+            }
         });
     }
 }
