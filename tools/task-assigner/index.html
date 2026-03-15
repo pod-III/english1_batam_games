@@ -20,21 +20,27 @@
                         orange: '#FF8C42',
                         green: '#00E676',
                         blue: '#2979FF',
-                        dark: '#1e293b',
+                        dark: '#0f172a',
                         chalk: '#f8fafc',
+                        surface: 'rgba(255, 255, 255, 0.85)',
+                        border: 'rgba(203, 213, 225, 0.6)',
                     },
                     fontFamily: {
                         heading: ['Fredoka', 'sans-serif'],
                         body: ['Nunito', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
                     },
                     boxShadow: {
-                        'neo': '4px 4px 0px 0px rgba(30, 41, 59, 1)',
-                        'neo-sm': '2px 2px 0px 0px rgba(30, 41, 59, 1)',
-                        'neo-lg': '8px 8px 0px 0px rgba(30, 41, 59, 1)',
+                        'neo': '4px 4px 0px 0px rgba(51, 65, 85, 0.15)',
+                        'neo-sm': '2px 2px 0px 0px rgba(51, 65, 85, 0.15)',
+                        'neo-lg': '8px 8px 0px 0px rgba(51, 65, 85, 0.15)',
                     },
                     animation: {
                         'pop': 'pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
                         'shake': 'shake 0.4s cubic-bezier(.36,.07,.19,.97) both',
+                        'float-1': 'float-icon-1 20s infinite linear',
+                        'float-2': 'float-icon-2 25s infinite linear reverse',
+                        'float-3': 'float-icon-3 15s infinite linear',
                     },
                     keyframes: {
                         pop: {
@@ -46,6 +52,22 @@
                             '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
                             '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
                             '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
+                        },
+                        'float-icon-1': {
+                            '0%': { transform: 'translate(0, 0) rotate(0deg)' },
+                            '33%': { transform: 'translate(30px, -50px) rotate(120deg)' },
+                            '66%': { transform: 'translate(-20px, 20px) rotate(240deg)' },
+                            '100%': { transform: 'translate(0, 0) rotate(360deg)' },
+                        },
+                        'float-icon-2': {
+                            '0%': { transform: 'translate(0, 0) rotate(0deg)' },
+                            '50%': { transform: 'translate(-40px, -30px) rotate(-180deg)' },
+                            '100%': { transform: 'translate(0, 0) rotate(-360deg)' },
+                        },
+                        'float-icon-3': {
+                            '0%': { transform: 'translate(0, 0) scale(1)' },
+                            '50%': { transform: 'translate(20px, 40px) scale(1.2)' },
+                            '100%': { transform: 'translate(0, 0) scale(1)' },
                         }
                     }
                 }
@@ -55,217 +77,415 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 
     <style>
-        body { 
+        .bg-float-icon {
+            color: rgba(203, 213, 225, 0.4);
+            opacity: 0.3;
+            position: fixed;
+            z-index: 0;
+            pointer-events: none;
+        }
+        html.dark .bg-float-icon {
+            opacity: 0.15;
+            color: white;
+        }
+
+        body {
             font-family: 'Nunito', sans-serif;
-            background-color: #f8fafc; 
-            color: #1e293b; 
-            background-image: 
-                linear-gradient(rgba(30, 41, 59, 0.1) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(30, 41, 59, 0.1) 1px, transparent 1px);
-            background-size: 20px 20px;
-            min-height: 100vh;
+            overflow: hidden;
+            background-color: #f8fafc;
+            background-image:
+                linear-gradient(#e2e8f0 1.5px, transparent 1.5px),
+                linear-gradient(90deg, #e2e8f0 1.5px, transparent 1.5px);
+            background-size: 30px 30px;
+            color: #1e293b;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            transition: background-color 0.3s, color 0.3s;
         }
 
-        .neo-card {
-            background: white;
-            border: 4px solid #1e293b;
-            box-shadow: 4px 4px 0px 0px rgba(30, 41, 59, 1);
-            border-radius: 1rem;
+        html.dark body {
+            background-color: #020617;
+            background-image:
+                linear-gradient(#0f172a 1.5px, transparent 1.5px),
+                linear-gradient(90deg, #0f172a 1.5px, transparent 1.5px);
+            color: #e2e8f0;
         }
 
-        .btn-neo {
-            border: 3px solid #1e293b;
-            box-shadow: 4px 4px 0px 0px rgba(30, 41, 59, 1);
-            transition: all 0.1s;
-            transform: translate(0, 0);
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+        }
+
+        html.dark .glass-panel {
+            background: rgba(15, 23, 42, 0.8);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .console-frame {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(203, 213, 225, 0.6);
+            border-radius: 1.5rem;
+            box-shadow: 8px 8px 0px rgba(51, 65, 85, 0.15);
+            display: flex;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        html.dark .console-frame {
+            background: rgba(15, 23, 42, 0.8);
+            border-color: rgba(255, 255, 255, 0.1);
+            box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.4);
+        }
+
+        .btn-chunky {
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform: translateY(0);
+            position: relative;
+            border: 1px solid rgba(203, 213, 225, 0.6);
+            box-shadow: 4px 4px 0 rgba(51, 65, 85, 0.15);
             font-family: 'Fredoka', sans-serif;
-            font-weight: 600;
+            font-weight: 700;
+            text-transform: uppercase;
             letter-spacing: 0.05em;
         }
-        .btn-neo:hover:not(:disabled) {
-            transform: translate(-1px, -1px);
-            box-shadow: 5px 5px 0px 0px rgba(30, 41, 59, 1);
+
+        html.dark .btn-chunky {
+            border-color: rgba(255, 255, 255, 0.1);
+            box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.4);
+            background-color: rgba(30, 41, 59, 0.8);
+            color: #e2e8f0;
         }
-        .btn-neo:active:not(:disabled) {
-            transform: translate(4px, 4px);
-            box-shadow: 0px 0px 0px 0px rgba(30, 41, 59, 1);
+
+        .btn-chunky:hover:not(:disabled) {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 rgba(51, 65, 85, 0.15);
+            filter: brightness(105%);
         }
-        .btn-neo.active {
-            background-color: #2979FF; 
-            color: white;
+
+        html.dark .btn-chunky:hover:not(:disabled) {
+            box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.4);
+        }
+
+        .btn-chunky:active:not(:disabled) {
             transform: translate(2px, 2px);
-            box-shadow: 2px 2px 0px 0px rgba(30, 41, 59, 1);
+            box-shadow: 2px 2px 0 rgba(51, 65, 85, 0.15) !important;
         }
 
-        textarea {
-            resize: none;
-            outline: none;
-            border: 3px solid #1e293b;
-            transition: all 0.2s;
-            font-family: 'Nunito', sans-serif;
-            font-weight: 700;
-        }
-        textarea:focus {
-            box-shadow: 4px 4px 0px 0px rgba(41, 121, 255, 0.3);
-            border-color: #2979FF;
+        html.dark .btn-chunky:active:not(:disabled) {
+            box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.4) !important;
         }
 
-        ::-webkit-scrollbar { width: 12px; }
-        ::-webkit-scrollbar-track { background: #f1f5f9; border-left: 2px solid #1e293b; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border: 2px solid #1e293b; border-radius: 6px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        
-        .ticket-hole-top {
-             position: absolute; top: -22px; right: -11px; width: 22px; height: 22px; 
-             background: #f8fafc; border-radius: 50%; border: 4px solid #1e293b; z-index: 10;
+        .custom-scrollbar::-webkit-scrollbar {
+            height: 8px;
+            width: 8px;
         }
-        .ticket-hole-bottom {
-             position: absolute; bottom: -22px; right: -11px; width: 22px; height: 22px; 
-             background: #f8fafc; border-radius: 50%; border: 4px solid #1e293b; z-index: 10;
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(203, 213, 225, 0.6);
+            border-radius: 10px;
+            border: 2px solid transparent;
+            background-clip: content-box;
         }
+        html.dark .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); }
+
+        textarea.input-styled {
+            background-image: radial-gradient(rgba(203, 213, 225, 0.6) 1px, transparent 1px);
+            background-size: 10px 10px;
+            border: 1px solid rgba(203, 213, 225, 0.6);
+            transition: all 0.3s;
+        }
+        html.dark textarea.input-styled {
+            background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 48px;
+            height: 24px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(203, 213, 225, 0.6);
+            border: 1px solid rgba(203, 213, 225, 0.8);
+            transition: .3s;
+            border-radius: 34px;
+        }
+        html.dark .slider {
+            background-color: rgba(30, 41, 59, 0.8);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            box-shadow: 2px 2px 0px rgba(51, 65, 85, 0.15);
+            transition: .3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: rgba(0, 230, 118, 0.3); border-color: #00E676; }
+        input:checked + .slider:before { transform: translateX(24px); background-color: #00E676; }
+
+        .hidden-panel-desktop { margin-left: -24rem; }
     </style>
     <link rel="stylesheet" href="../../css/base.css" />
     <link rel="stylesheet" href="../../css/components.css" />
 </head>
 
-<body class="flex flex-col h-screen overflow-hidden">
+<body class="h-screen w-screen flex flex-col items-center justify-center p-2 md:p-6 overflow-hidden transition-colors duration-300">
 
-    <header class="w-full bg-white border-b-4 border-dark flex-none z-40">
-        <div class="max-w-8xl mx-auto px-6 h-20 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="bg-blue w-12 h-12 rounded-xl border-3 border-dark flex items-center justify-center text-white shadow-neo-sm">
-                    <i data-lucide="zap" class="w-6 h-6"></i>
-                </div>
+    <div id="toast-container" class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- FLOATING BACKGROUND ICONS -->
+    <i data-lucide="message-circle" class="bg-float-icon w-32 h-32 top-10 left-10"></i>
+    <i data-lucide="users" class="bg-float-icon w-40 h-40 bottom-20 right-20"></i>
+    <i data-lucide="rocket" class="bg-float-icon w-24 h-24 top-1/2 left-1/2 -ml-12 -mt-12"></i>
+
+    <div class="console-frame w-full h-full relative flex-col md:flex-row z-10">
+        
+        <!-- SIDEBAR -->
+        <aside id="controls" class="w-full md:w-96 glass-panel border-b-[1px] md:border-b-0 md:border-r-[1px] border-slate-300 dark:border-white/10 flex flex-col z-50 transition-all duration-300 shadow-xl md:shadow-none h-[45%] md:h-full relative shrink-0">
+            
+            <div class="p-6 border-b-[1px] border-slate-300 dark:border-white/10 bg-slate-50/50 dark:bg-slate-800/50 flex justify-between items-center shrink-0">
                 <div>
-                    <h1 class="text-3xl font-heading text-dark leading-none mt-1">TASK ASSIGNER</h1>
-                    <div class="text-xs font-bold text-slate-500 uppercase tracking-widest">English 1 Batam</div>
+                    <h1 class="text-3xl font-heading text-dark dark:text-slate-100 tracking-wide leading-none drop-shadow-sm">
+                        TASK<span class="text-blue">ASSIGNER</span>
+                    </h1>
+                    <div class="flex items-center gap-2 mt-2">
+                        <button onclick="toggleTheme()" class="px-2 py-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-[10px] font-bold rounded flex items-center gap-1 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">
+                            <i data-lucide="moon" class="w-3 h-3 hidden dark:block"></i>
+                            <i data-lucide="sun" class="w-3 h-3 block dark:hidden"></i>
+                            <span class="hidden dark:inline">DARK</span>
+                            <span class="inline dark:hidden">LIGHT</span>
+                        </button>
+                        <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Auto-Save</span>
+                    </div>
                 </div>
-            </div>
-
-            <div class="flex items-center gap-3">
-                <button id="sound-toggle" class="p-2 rounded-xl border-3 border-transparent hover:border-dark hover:bg-chalk transition-all text-dark" title="Toggle Sound">
-                    <i data-lucide="volume-2" class="w-6 h-6"></i>
+                <!-- Mobile toggle (if needed) or simple header for mobile -->
+                <button onclick="toggleControlPanel()" class="p-2 bg-pink/10 text-pink border-[1px] border-slate-300 dark:border-white/20 rounded-lg shadow-neo-sm">
+                    <i data-lucide="x" class="w-6 h-6"></i>
                 </button>
             </div>
-        </div>
-    </header>
 
-    <main class="flex-grow flex flex-col md:flex-row p-6 gap-6 overflow-hidden max-w-8xl mx-auto w-full">
-        
-        <div class="w-full md:w-96 flex-none flex flex-col gap-4 z-20">
-            <div class="neo-card p-6 flex flex-col h-full overflow-hidden bg-white">
+            <div class="flex-1 p-6 overflow-y-auto custom-scrollbar space-y-6 bg-transparent relative">
                 
-                <div class="flex items-center justify-between mb-4 border-b-3 border-slate-100 pb-2">
-                    <h2 class="text-xl font-heading text-dark flex items-center gap-2">
-                        <i data-lucide="sliders-horizontal" class="w-5 h-5 text-blue"></i> SETUP
-                    </h2>
-                    <span class="bg-green text-dark text-xs font-bold px-2 py-1 rounded-lg border-2 border-dark uppercase shadow-neo-sm">Auto-Save</span>
+                <!-- PRESET MANAGEMENT (Integrated like Word Animator) -->
+                <div class="space-y-3 pb-6 border-b-[1px] border-slate-200 dark:border-white/10 border-dashed">
+                    <label class="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                        <i data-lucide="folder-open" class="w-4 h-4 text-blue"></i> Presets
+                    </label>
+                    <select id="preset-select" onchange="onPresetSelect()" class="w-full p-3 bg-white/50 dark:bg-slate-900/50 text-dark dark:text-slate-200 text-sm border-[1px] border-slate-300 dark:border-white/10 rounded-xl outline-none shadow-inner transition-colors">
+                        <option value="">-- Select a Preset --</option>
+                    </select>
+                    <input type="text" id="preset-name" placeholder="Preset name..." class="w-full p-3 bg-white/50 dark:bg-slate-900/50 text-dark dark:text-slate-200 font-mono text-sm border-[1px] border-slate-300 dark:border-white/10 rounded-xl outline-none shadow-inner transition-colors">
+                    <div class="flex gap-2">
+                        <button onclick="saveCurrentPreset()" class="flex-1 btn-chunky bg-green text-dark py-2 rounded-xl text-xs font-bold tracking-wider flex items-center justify-center gap-1">
+                            <i data-lucide="save" class="w-3 h-3"></i> SAVE
+                        </button>
+                        <button onclick="createNewPreset()" class="flex-1 btn-chunky bg-white dark:bg-slate-700 !text-blue py-2 rounded-xl text-xs font-bold tracking-wider flex items-center justify-center gap-1">
+                            <i data-lucide="plus" class="w-3 h-3"></i> NEW
+                        </button>
+                        <button onclick="deleteCurrentPreset()" class="flex-1 btn-chunky bg-white dark:bg-slate-700 !text-pink py-2 rounded-xl text-xs font-bold tracking-wider flex items-center justify-center gap-1">
+                            <i data-lucide="trash-2" class="w-3 h-3"></i> DEL
+                        </button>
+                    </div>
                 </div>
 
-                <div class="flex-grow overflow-y-auto pr-2 space-y-4">
-                    
+                <!-- SETUP INPUTS -->
+                <div class="space-y-4">
                     <div>
                         <div class="flex justify-between items-end mb-1">
-                            <label class="text-sm font-bold text-dark uppercase tracking-widest">Students</label>
-                            <span id="peopleCount" class="text-pink font-black text-sm">0</span>
+                            <label class="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                <i data-lucide="users" class="w-4 h-4 text-pink"></i> Students
+                            </label>
+                            <span id="peopleCount" class="text-pink font-black text-xs">0</span>
                         </div>
-                        <textarea id="peopleInput" rows="5" 
-                            class="w-full rounded-xl p-3 text-dark bg-slate-50 placeholder-slate-400 shadow-sm"
-                            placeholder="Enter names here..."></textarea>
+                        <textarea id="peopleInput" rows="4" spellcheck="false" class="input-styled w-full p-3 bg-white/50 dark:bg-slate-900/50 text-dark dark:text-slate-200 font-mono text-sm rounded-xl outline-none resize-none shadow-inner transition-colors" placeholder="Enter names..."></textarea>
                     </div>
 
                     <div>
                         <div class="flex justify-between items-end mb-1">
-                            <label class="text-sm font-bold text-dark uppercase tracking-widest">Missions</label>
-                            <span id="taskCount" class="text-orange font-black text-sm">0</span>
+                            <label class="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                <i data-lucide="target" class="w-4 h-4 text-orange"></i> Missions
+                            </label>
+                            <span id="taskCount" class="text-orange font-black text-xs">0</span>
                         </div>
-                        <textarea id="taskInput" rows="5" 
-                            class="w-full rounded-xl p-3 text-dark bg-slate-50 placeholder-slate-400 shadow-sm"
-                            placeholder="Enter tasks here..."></textarea>
+                        <textarea id="taskInput" rows="4" spellcheck="false" class="input-styled w-full p-3 bg-white/50 dark:bg-slate-900/50 text-dark dark:text-slate-200 font-mono text-sm rounded-xl outline-none resize-none shadow-inner transition-colors" placeholder="Enter tasks..."></textarea>
                     </div>
 
-                    <div class="bg-slate-100 p-4 rounded-xl border-3 border-dashed border-slate-300">
-                        <label class="block text-sm font-bold text-dark mb-2 uppercase tracking-widest text-center">Group Size</label>
+                    <!-- Group Size -->
+                    <div class="p-4 bg-slate-50/50 dark:bg-slate-800/50 border-[1px] border-slate-300 dark:border-white/10 rounded-xl space-y-3">
+                        <label class="text-xs font-black text-slate-400 uppercase tracking-widest block text-center">Group Size</label>
                         <div class="grid grid-cols-4 gap-2">
-                            <button onclick="setGroupSize(1)" id="btnSize1" class="btn-neo bg-white text-dark py-2 rounded-xl font-bold hover:bg-blue hover:text-white transition-colors">1</button>
-                            <button onclick="setGroupSize(2)" id="btnSize2" class="btn-neo bg-white text-dark py-2 rounded-xl font-bold hover:bg-blue hover:text-white transition-colors">2</button>
-                            <button onclick="setGroupSize(3)" id="btnSize3" class="btn-neo bg-white text-dark py-2 rounded-xl font-bold hover:bg-blue hover:text-white transition-colors">3</button>
-                            <button onclick="setGroupSize(4)" id="btnSize4" class="btn-neo bg-white text-dark py-2 rounded-xl font-bold hover:bg-blue hover:text-white transition-colors">4</button>
+                            <button onclick="setGroupSize(1)" id="btnSize1" class="btn-chunky bg-white dark:bg-slate-700 py-2 rounded-xl text-sm font-bold">1</button>
+                            <button onclick="setGroupSize(2)" id="btnSize2" class="btn-chunky bg-white dark:bg-slate-700 py-2 rounded-xl text-sm font-bold">2</button>
+                            <button onclick="setGroupSize(3)" id="btnSize3" class="btn-chunky bg-white dark:bg-slate-700 py-2 rounded-xl text-sm font-bold">3</button>
+                            <button onclick="setGroupSize(4)" id="btnSize4" class="btn-chunky bg-white dark:bg-slate-700 py-2 rounded-xl text-sm font-bold">4</button>
                         </div>
                     </div>
                 </div>
 
-                <div class="mt-4 pt-4 border-t-4 border-dark flex gap-3">
-                    <button onclick="clearAll()" class="btn-neo bg-chalk text-slate-500 w-14 h-14 rounded-xl flex items-center justify-center hover:bg-pink hover:text-dark hover:border-dark" title="Clear All">
+                <div class="pt-4 flex gap-3">
+                     <button onclick="clearAll()" class="btn-chunky bg-white dark:bg-slate-700 !text-slate-400 w-14 h-14 rounded-xl flex items-center justify-center" title="Clear All">
                         <i data-lucide="trash-2" class="w-6 h-6"></i>
                     </button>
-                    <button onclick="assignTasks()" class="flex-grow btn-neo bg-green text-dark h-14 rounded-xl font-heading text-xl flex items-center justify-center gap-2">
+                    <button onclick="assignTasks()" class="flex-grow btn-chunky bg-green text-dark py-4 rounded-xl text-lg font-bold tracking-wide flex items-center justify-center gap-2">
                         <i data-lucide="wand-2" class="w-6 h-6"></i> ASSIGN
                     </button>
                 </div>
-
             </div>
-        </div>
 
-        <div class="flex-grow flex flex-col relative overflow-hidden">
+            <div class="p-4 border-t-[1px] border-slate-300 dark:border-white/10 bg-slate-50/50 dark:bg-slate-800/50 flex justify-between items-center shrink-0">
+                <button id="sound-toggle" class="p-2 glass-panel border-[1px] border-slate-300 dark:border-white/10 rounded-xl text-slate-400 hover:text-dark dark:hover:text-slate-200 transition-colors">
+                    <i data-lucide="volume-2" class="w-5 h-5"></i>
+                </button>
+                <div class="font-heading font-black text-slate-400 text-xs uppercase tracking-wider">READY</div>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT AREA -->
+        <main class="flex-1 relative h-[55%] md:h-full bg-slate-50/50 dark:bg-slate-900/50 flex flex-col overflow-hidden transition-colors duration-300">
+            <div class="absolute inset-0 opacity-10 pointer-events-none" style="background-image: radial-gradient(currentColor 2px, transparent 2px); background-size: 24px 24px;"></div>
             
+            <!-- Main display header with Sidebar toggle and Assign button -->
+            <div class="absolute top-4 left-4 z-20 flex gap-2">
+                <button onclick="toggleControlPanel()" class="p-2 glass-panel border-[1px] border-slate-300 dark:border-white/10 rounded-xl shadow-neo-sm hover:translate-y-[-2px] transition-transform text-slate-400 hover:text-dark dark:hover:text-slate-200" title="Toggle Sidebar">
+                    <i data-lucide="settings" class="w-5 h-5"></i>
+                </button>
+                <button onclick="assignTasks()" class="btn-chunky bg-green text-dark px-4 py-1.5 rounded-xl text-xs font-bold shadow-neo-sm flex items-center gap-2">
+                    <i data-lucide="wand-2" class="w-4 h-4"></i> ASSIGN
+                </button>
+            </div>
+
+            <div id="resultsArea" class="flex-grow w-full h-full relative p-6 overflow-y-auto custom-scrollbar hidden">
+                <div id="cardsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6 pt-12">
+                    <!-- Cards will be injected here -->
+                </div>
+            </div>
+
             <div id="emptyState" class="absolute inset-0 flex flex-col items-center justify-center z-10 text-center p-8 animate-pop">
-                <div class="w-32 h-32 bg-white border-4 border-dark rounded-full flex items-center justify-center mb-6 shadow-neo rotate-3">
-                    <i data-lucide="rocket" class="w-16 h-16 text-dark"></i>
+                <div class="w-32 h-32 glass-panel border-[1px] border-slate-300 dark:border-white/10 rounded-full flex items-center justify-center mb-6 shadow-neo-lg rotate-3">
+                    <i data-lucide="rocket" class="w-16 h-16 text-blue"></i>
                 </div>
-                <h3 class="text-4xl font-heading text-dark mb-2">Ready?</h3>
-                <p class="text-xl text-slate-600 font-bold max-w-md">Enter your class list and missions, then hit Assign.</p>
+                <h3 class="text-4xl font-heading text-dark dark:text-slate-100 mb-2">Ready?</h3>
+                <p class="text-xl text-slate-400 font-bold max-w-md">Enter your class list and missions, then hit Assign.</p>
             </div>
+        </main>
+    </div>
 
-            <div id="resultsArea" class="flex-grow overflow-y-auto pr-2 pb-20 hidden">
-                <div id="cardsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6 pt-2">
-                </div>
-            </div>
-
-        </div>
-    </main>
-    
-    <div id="errorModal" class="fixed inset-0 bg-dark/40 hidden z-50 flex items-center justify-center backdrop-blur-sm transition-opacity">
-        <div class="bg-pink text-dark border-4 border-dark p-6 rounded-2xl shadow-neo max-w-sm w-full animate-pop flex flex-col items-center text-center gap-3 m-4">
-            <div class="bg-white p-3 rounded-full border-3 border-dark shadow-neo-sm mb-2">
-                <i data-lucide="alert-triangle" class="w-10 h-10 text-dark"></i>
+    <!-- Modals (Reused for Error, with new styling) -->
+    <div id="errorModal" class="fixed inset-0 bg-dark/40 hidden z-[100] items-center justify-center backdrop-blur-sm">
+        <div class="glass-panel border-[1px] border-white/20 p-8 rounded-3xl shadow-neo-lg max-w-sm w-full animate-pop flex flex-col items-center text-center gap-6 m-4 bg-white/95 dark:bg-slate-800/95">
+            <div class="bg-pink/10 p-4 rounded-2xl border-2 border-pink/30 shadow-neo-sm">
+                <i data-lucide="alert-triangle" class="w-12 h-12 text-pink"></i>
             </div>
             <div>
-                <div class="font-heading text-3xl mb-1">Hold up!</div>
-                <div class="text-lg font-bold text-dark">Please enter both students and missions before assigning.</div>
+                <h2 class="font-heading text-3xl mb-2 text-dark dark:text-white">Hold up!</h2>
+                <p class="text-lg font-bold text-slate-500 dark:text-slate-400">Please enter both students and missions before assigning.</p>
             </div>
-            <button onclick="hideModal()" class="btn-neo bg-white px-6 py-3 rounded-xl w-full mt-4 text-xl">GOT IT</button>
+            <button onclick="hideModal()" class="btn-chunky bg-dark text-white dark:bg-white dark:text-dark px-8 py-3 rounded-2xl w-full text-xl shadow-neo">GOT IT</button>
         </div>
     </div>
 
     <script>
-        // --- CONSTANTS ---
-        const LS_KEY_PEOPLE = 'taskAssignerPeople_v2';
-        const LS_KEY_TASKS = 'taskAssignerTasks_v2';
+        // --- CONSTANTS & CONFIG ---
+        const LS_KEY_THEME = 'taskAssignerTheme';
+        const DB_NAME = 'TaskAssignerDB';
+        const DB_VERSION = 1;
+        const STORE_PRESETS = 'presets';
+        const STORE_SETTINGS = 'settings';
 
-        // --- DOM ---
-        const peopleInput = document.getElementById('peopleInput');
-        const taskInput = document.getElementById('taskInput');
-        const peopleCount = document.getElementById('peopleCount');
-        const taskCount = document.getElementById('taskCount');
-        const emptyState = document.getElementById('emptyState');
-        const resultsArea = document.getElementById('resultsArea');
-        const cardsGrid = document.getElementById('cardsGrid');
-        const errorModal = document.getElementById('errorModal');
-        
+        let db = null;
+        let currentPresetId = null;
         let currentGroupSize = 1;
         let audioEnabled = true;
 
-        // --- COLOR PALETTE ---
-        const cardColors = [
-            { bg: 'bg-white', border: 'border-pink', accent: 'bg-pink', text: 'text-dark' },
-            { bg: 'bg-white', border: 'border-orange', accent: 'bg-orange', text: 'text-dark' },
-            { bg: 'bg-white', border: 'border-green', accent: 'bg-green', text: 'text-dark' },
-            { bg: 'bg-white', border: 'border-blue', accent: 'bg-blue', text: 'text-dark' },
-        ];
+        // --- THEME & UI ---
+        function toggleTheme() {
+            const html = document.documentElement;
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                localStorage.setItem(LS_KEY_THEME, 'light');
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem(LS_KEY_THEME, 'dark');
+            }
+        }
+
+        function loadTheme() {
+            const savedTheme = localStorage.getItem(LS_KEY_THEME) || 'light';
+            if (savedTheme === 'dark') document.documentElement.classList.add('dark');
+        }
+
+        function toggleControlPanel() {
+            const controls = document.getElementById('controls');
+            const isHidden = controls.classList.contains('hidden-panel-desktop') || controls.classList.contains('hidden-panel-mobile');
+            
+            if (isHidden) {
+                controls.classList.remove('hidden-panel-desktop', 'hidden-panel-mobile');
+            } else {
+                controls.classList.add('hidden-panel-mobile', 'hidden-panel-desktop');
+            }
+            // Trigger a resize event to refresh layout if needed
+            setTimeout(() => window.dispatchEvent(new Event('resize')), 350);
+        }
+
+        // --- TOAST NOTIFICATIONS ---
+        function showToast(message, type = 'info', duration = 3000) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const colors = {
+                success: 'bg-green text-dark border-green',
+                error: 'bg-pink text-white border-pink',
+                info: 'bg-blue text-white border-blue',
+                warning: 'bg-orange text-dark border-orange'
+            };
+            const icons = {
+                success: 'check-circle',
+                error: 'x-circle',
+                info: 'info',
+                warning: 'alert-triangle'
+            };
+            toast.className = `${colors[type]} px-4 py-3 rounded-xl shadow-neo border-[1px] font-bold text-sm flex items-center gap-2 pointer-events-auto transform transition-all duration-300 translate-y-[-20px] opacity-0`;
+            toast.innerHTML = `<i data-lucide="${icons[type]}" class="w-4 h-4"></i> ${message}`;
+            container.appendChild(toast);
+            lucide.createIcons();
+            requestAnimationFrame(() => toast.classList.remove('translate-y-[-20px]', 'opacity-0'));
+            setTimeout(() => {
+                toast.classList.add('translate-y-[-20px]', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        function showConfirmToast(message, onConfirm) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-800 px-4 py-3 rounded-xl shadow-neo-lg border-[1px] border-slate-600 dark:border-slate-300 font-bold text-sm flex items-center gap-3 pointer-events-auto';
+            toast.innerHTML = `
+                <span>${message}</span>
+                <div class="flex gap-2">
+                    <button id="toast-confirm" class="text-green hover:underline">YES</button>
+                    <button id="toast-cancel" class="text-pink hover:underline">NO</button>
+                </div>
+            `;
+            container.appendChild(toast);
+            toast.querySelector('#toast-confirm').onclick = () => { onConfirm(); toast.remove(); };
+            toast.querySelector('#toast-cancel').onclick = () => { toast.remove(); };
+        }
 
         // --- AUDIO ---
         const AudioEngine = {
@@ -290,30 +510,193 @@
         // --- FUNCTIONS ---
         function initIcons() { lucide.createIcons(); }
 
-        function saveInputs() {
-             try {
-                localStorage.setItem(LS_KEY_PEOPLE, peopleInput.value);
-                localStorage.setItem(LS_KEY_TASKS, taskInput.value);
-            } catch (e) {}
+        // ========== INDEXEDDB ==========
+        function openDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => resolve(request.result);
+                request.onupgradeneeded = (event) => {
+                    const database = event.target.result;
+                    if (!database.objectStoreNames.contains(STORE_PRESETS)) {
+                        const presetsStore = database.createObjectStore(STORE_PRESETS, { keyPath: 'id', autoIncrement: true });
+                        presetsStore.createIndex('name', 'name', { unique: false });
+                        presetsStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+                    }
+                    if (!database.objectStoreNames.contains(STORE_SETTINGS)) {
+                        database.createObjectStore(STORE_SETTINGS, { keyPath: 'key' });
+                    }
+                };
+            });
         }
 
-        function loadInputs() {
+        async function initDB() {
             try {
-                const savedPeople = localStorage.getItem(LS_KEY_PEOPLE);
-                const savedTasks = localStorage.getItem(LS_KEY_TASKS);
-                if (savedPeople) peopleInput.value = savedPeople;
-                if (savedTasks) taskInput.value = savedTasks;
-                setGroupSize(currentGroupSize); 
-                updateCounts();
-            } catch (e) {}
+                db = await openDB();
+                await migrateFromLocalStorage();
+            } catch (e) {
+                console.error('Failed to initialize IndexedDB:', e);
+            }
         }
 
+        async function migrateFromLocalStorage() {
+            const savedPeople = localStorage.getItem('taskAssignerPeople_v2');
+            const savedTasks = localStorage.getItem('taskAssignerTasks_v2');
+            if (savedPeople || savedTasks) {
+                const content = JSON.stringify({ people: savedPeople || '', tasks: savedTasks || '' });
+                await savePreset('My Class Setup', content);
+                localStorage.removeItem('taskAssignerPeople_v2');
+                localStorage.removeItem('taskAssignerTasks_v2');
+            }
+        }
+
+        async function savePreset(name, content, id = null) {
+            if (!db) return;
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_PRESETS, 'readwrite');
+                const store = tx.objectStore(STORE_PRESETS);
+                const data = { name, content, updatedAt: Date.now() };
+                if (id) data.id = id;
+                const request = id ? store.put(data) : store.add(data);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function getAllPresets() {
+            if (!db) return [];
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_PRESETS, 'readonly');
+                const store = tx.objectStore(STORE_PRESETS);
+                const index = store.index('updatedAt');
+                const request = index.getAll();
+                request.onsuccess = () => resolve(request.result.reverse());
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function getPreset(id) {
+            if (!db) return null;
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_PRESETS, 'readonly');
+                const store = tx.objectStore(STORE_PRESETS);
+                const request = store.get(id);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function deletePreset(id) {
+            if (!db) return;
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_PRESETS, 'readwrite');
+                const store = tx.objectStore(STORE_PRESETS);
+                const request = store.delete(id);
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function saveCurrentPresetId(id) {
+            if (!db) return;
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_SETTINGS, 'readwrite');
+                const store = tx.objectStore(STORE_SETTINGS);
+                const request = store.put({ key: 'currentPresetId', value: id });
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function getCurrentPresetId() {
+            if (!db) return null;
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_SETTINGS, 'readonly');
+                const store = tx.objectStore(STORE_SETTINGS);
+                const request = store.get('currentPresetId');
+                request.onsuccess = () => resolve(request.result?.value || null);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function renderPresetSelector() {
+            const presets = await getAllPresets();
+            const select = document.getElementById('preset-select');
+            select.innerHTML = '<option value="">-- Select a Preset --</option>';
+            presets.forEach(p => {
+                const option = document.createElement('option');
+                option.value = p.id;
+                option.textContent = p.name;
+                if (p.id === currentPresetId) option.selected = true;
+                select.appendChild(option);
+            });
+        }
+
+        async function onPresetSelect() {
+            const select = document.getElementById('preset-select');
+            const id = parseInt(select.value);
+            if (!id) return;
+            const preset = await getPreset(id);
+            if (preset) {
+                currentPresetId = id;
+                const data = JSON.parse(preset.content);
+                document.getElementById('peopleInput').value = data.people || '';
+                document.getElementById('taskInput').value = data.tasks || '';
+                document.getElementById('preset-name').value = preset.name;
+                await saveCurrentPresetId(id);
+                await renderPresetSelector();
+                updateCounts();
+            }
+        }
+
+        async function saveCurrentPreset() {
+            const name = document.getElementById('preset-name').value.trim() || 'Untitled';
+            const content = JSON.stringify({
+                people: document.getElementById('peopleInput').value,
+                tasks: document.getElementById('taskInput').value
+            });
+            const id = await savePreset(name, content, currentPresetId);
+            currentPresetId = id;
+            await saveCurrentPresetId(id);
+            await renderPresetSelector();
+            showToast('Preset saved!', 'success');
+        }
+
+        async function createNewPreset() {
+            document.getElementById('preset-name').value = 'New Preset';
+            document.getElementById('peopleInput').value = '';
+            document.getElementById('taskInput').value = '';
+            currentPresetId = null;
+            await saveCurrentPresetId(null);
+            await renderPresetSelector();
+            document.getElementById('preset-select').value = '';
+            updateCounts();
+        }
+
+        async function deleteCurrentPreset() {
+            if (!currentPresetId) {
+                showToast('No preset selected', 'error');
+                return;
+            }
+            showConfirmToast('Delete this preset?', async () => {
+                await deletePreset(currentPresetId);
+                currentPresetId = null;
+                document.getElementById('preset-name').value = '';
+                document.getElementById('peopleInput').value = '';
+                document.getElementById('taskInput').value = '';
+                await saveCurrentPresetId(null);
+                await renderPresetSelector();
+                updateCounts();
+                showToast('Preset deleted', 'success');
+            });
+        }
+
+        // --- DATA LOGIC ---
         function updateCounts() {
-            const p = peopleInput.value.split(/[\n,;]/).map(s => s.trim()).filter(s => s.length > 0).length;
-            const t = taskInput.value.split(/[\n,;]/).map(s => s.trim()).filter(s => s.length > 0).length;
-            peopleCount.textContent = p;
-            taskCount.textContent = t;
-            saveInputs();
+            const p = document.getElementById('peopleInput').value.split(/[\n,;]/).map(s => s.trim()).filter(s => s.length > 0).length;
+            const t = document.getElementById('taskInput').value.split(/[\n,;]/).map(s => s.trim()).filter(s => s.length > 0).length;
+            document.getElementById('peopleCount').textContent = p;
+            document.getElementById('taskCount').textContent = t;
         }
 
         function setGroupSize(size) {
@@ -331,16 +714,6 @@
             AudioEngine.playClick();
         }
 
-        function clearAll() {
-            peopleInput.value = '';
-            taskInput.value = '';
-            updateCounts();
-            cardsGrid.innerHTML = '';
-            resultsArea.classList.add('hidden');
-            emptyState.classList.remove('hidden');
-            AudioEngine.playClick();
-        }
-
         function shuffle(array) {
             for (let i = array.length - 1; i > 0; i--) {
                 const j = Math.floor(Math.random() * (i + 1));
@@ -350,18 +723,22 @@
         }
 
         function showModal() {
-            errorModal.classList.remove('hidden');
+            document.getElementById('errorModal').classList.remove('hidden');
+            document.getElementById('errorModal').style.display = 'flex';
             AudioEngine.playError();
         }
 
         function hideModal() {
-            errorModal.classList.add('hidden');
+            document.getElementById('errorModal').classList.add('hidden');
+            document.getElementById('errorModal').style.display = 'none';
             AudioEngine.playClick();
         }
 
         function assignTasks() {
             AudioEngine.init();
             
+            let peopleInput = document.getElementById('peopleInput');
+            let taskInput = document.getElementById('taskInput');
             let people = peopleInput.value.split(/[\n,;]/).map(s => s.trim()).filter(s => s.length > 0);
             let tasks = taskInput.value.split(/[\n,;]/).map(s => s.trim()).filter(s => s.length > 0);
 
@@ -370,7 +747,6 @@
                 return;
             }
 
-            // Logic
             people = shuffle(people);
             tasks = shuffle(tasks);
 
@@ -383,11 +759,9 @@
                 }
             }
 
-            // Render
             renderGrid(groups, tasks);
             AudioEngine.playSuccess();
             
-            // Confetti
             confetti({
                 particleCount: 100,
                 spread: 70,
@@ -397,78 +771,105 @@
         }
 
         function renderGrid(groups, tasks) {
+            const cardsGrid = document.getElementById('cardsGrid');
+            const resultsArea = document.getElementById('resultsArea');
+            const emptyState = document.getElementById('emptyState');
+            
             cardsGrid.innerHTML = '';
             emptyState.classList.add('hidden');
             resultsArea.classList.remove('hidden');
 
+            const cardColors = [
+                { accent: 'bg-pink', text: 'text-dark' },
+                { accent: 'bg-orange', text: 'text-dark' },
+                { accent: 'bg-green', text: 'text-dark' },
+                { accent: 'bg-blue', text: 'text-dark' },
+            ];
+
             groups.forEach((groupArray, index) => {
                 const task = tasks[index % tasks.length];
                 const colorTheme = cardColors[index % cardColors.length];
-                
-                // Content generation
-                let namesHtml = '';
                 const isGroup = groupArray.length > 1;
                 const label = isGroup ? 'TEAM' : 'STUDENT';
                 
-                // HIGHLIGHT: Improved text visibility for names
-                if (isGroup) {
-                    namesHtml = `<div class="flex flex-wrap gap-2 mt-2">
-                        ${groupArray.map(n => `<span class="bg-white border-3 border-dark px-3 py-1 rounded-xl text-lg font-black text-dark shadow-neo-sm">${n}</span>`).join('')}
-                    </div>`;
-                } else {
-                    namesHtml = `<div class="text-3xl md:text-4xl font-black text-dark mt-2 leading-none break-words">${groupArray[0]}</div>`;
-                }
+                let namesHtml = isGroup 
+                    ? `<div class="flex flex-wrap gap-2 mt-2">${groupArray.map(n => `<span class="bg-white/50 dark:bg-slate-800/50 border-[1px] border-dark/20 dark:border-white/20 px-3 py-1 rounded-xl text-lg font-black text-dark dark:text-white shadow-neo-sm">${n}</span>`).join('')}</div>`
+                    : `<div class="text-3xl md:text-4xl font-black text-dark dark:text-white mt-2 leading-none break-words">${groupArray[0]}</div>`;
 
-                // HIGHLIGHT: Min-height increased, border thickened
                 const card = document.createElement('div');
-                card.className = `w-full min-h-[12rem] bg-white border-4 border-dark rounded-2xl flex shadow-neo animate-pop overflow-hidden`;
+                card.className = `w-full min-h-[12rem] glass-panel border-[1px] border-slate-300 dark:border-white/10 rounded-2xl flex shadow-neo animate-pop overflow-hidden`;
                 card.style.animationDelay = `${index * 0.1}s`;
 
                 card.innerHTML = `
-                    <div class="w-1/2 p-5 flex flex-col justify-center border-r-4 border-dark border-dashed relative z-10 bg-white">
-                        <div class="ticket-hole-top"></div>
-                        <div class="ticket-hole-bottom"></div>
-                        
+                    <div class="w-1/2 p-5 flex flex-col justify-center border-r-[1px] border-slate-300 dark:border-white/10 border-dashed relative z-10">
                         <div class="flex items-center gap-2 mb-2">
-                            <div class="w-10 h-10 ${colorTheme.accent} rounded-xl border-3 border-dark flex items-center justify-center text-dark shadow-neo-sm">
+                            <div class="w-10 h-10 ${colorTheme.accent} rounded-xl border-[1px] border-dark/20 flex items-center justify-center text-dark shadow-neo-sm">
                                 <i data-lucide="${isGroup ? 'users' : 'user'}" class="w-5 h-5"></i>
                             </div>
-                            <span class="text-sm font-bold text-slate-500 tracking-widest uppercase">${label}</span>
+                            <span class="text-xs font-bold text-slate-400 tracking-widest uppercase">${label}</span>
                         </div>
                         ${namesHtml}
                     </div>
 
                     <div class="w-1/2 p-5 ${colorTheme.accent} flex flex-col justify-center items-center text-center relative overflow-hidden">
-                        <div class="bg-white/90 border-2 border-dark px-3 py-1 rounded-lg text-xs font-bold text-dark mb-3 tracking-widest uppercase shadow-neo-sm">MISSION</div>
-                        <div class="font-heading text-2xl md:text-3xl font-bold leading-tight text-dark z-10 break-words w-full">
+                        <div class="bg-white/50 dark:bg-slate-900/40 border-[1px] border-dark/20 px-3 py-1 rounded-lg text-[10px] font-black text-dark dark:text-white mb-3 tracking-widest uppercase shadow-neo-sm">MISSION</div>
+                        <div class="font-heading text-2xl md:text-3xl font-black leading-tight text-dark dark:text-white z-10 break-words w-full">
                             ${task}
                         </div>
-                        <i data-lucide="target" class="absolute -bottom-6 -right-6 w-32 h-32 text-dark/15 z-0"></i>
+                        <i data-lucide="target" class="absolute -bottom-6 -right-6 w-32 h-32 text-dark/10 z-0"></i>
                     </div>
                 `;
 
                 cardsGrid.appendChild(card);
             });
-            initIcons();
+            lucide.createIcons();
         }
 
-        // --- LISTENERS ---
-        document.getElementById('peopleInput').addEventListener('input', updateCounts);
-        document.getElementById('taskInput').addEventListener('input', updateCounts);
-        
-        document.getElementById('sound-toggle').addEventListener('click', (e) => {
-            audioEnabled = !audioEnabled;
-            const icon = audioEnabled ? 'volume-2' : 'volume-x';
-            e.currentTarget.innerHTML = `<i data-lucide="${icon}" class="w-6 h-6"></i>`;
-            initIcons();
-        });
+        function clearAll() {
+            showConfirmToast('Clear everything?', () => {
+                document.getElementById('peopleInput').value = '';
+                document.getElementById('taskInput').value = '';
+                updateCounts();
+                document.getElementById('cardsGrid').innerHTML = '';
+                document.getElementById('resultsArea').classList.add('hidden');
+                document.getElementById('emptyState').classList.remove('hidden');
+                AudioEngine.playClick();
+                showToast('Cleared!', 'info');
+            });
+        }
 
         // --- INIT ---
-        window.onload = () => {
-            loadInputs();
-            initIcons();
-        };
+        async function initializeApp() {
+            loadTheme();
+            await initDB();
+            currentPresetId = await getCurrentPresetId();
+            if (currentPresetId) {
+                const preset = await getPreset(currentPresetId);
+                if (preset) {
+                    const data = JSON.parse(preset.content);
+                    document.getElementById('peopleInput').value = data.people || '';
+                    document.getElementById('taskInput').value = data.tasks || '';
+                    document.getElementById('preset-name').value = preset.name;
+                }
+            }
+            await renderPresetSelector();
+            updateCounts();
+            lucide.createIcons();
 
+            // Listeners
+            document.getElementById('peopleInput').addEventListener('input', updateCounts);
+            document.getElementById('taskInput').addEventListener('input', updateCounts);
+            
+            document.getElementById('sound-toggle').addEventListener('click', (e) => {
+                audioEnabled = !audioEnabled;
+                const icon = audioEnabled ? 'volume-2' : 'volume-x';
+                const button = e.currentTarget;
+                button.innerHTML = `<i data-lucide="${icon}" class="w-5 h-5"></i>`;
+                lucide.createIcons();
+            });
+        }
+
+        window.onload = initializeApp;
     </script>
 </body>
 </html>
