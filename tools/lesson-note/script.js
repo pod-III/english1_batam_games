@@ -267,11 +267,18 @@ function initQuill() {
                 ['bold', 'italic', 'underline', 'strike'],
                 [{ 'list': 'ordered' }, { 'list': 'bullet' }, { 'list': 'check' }],
                 [{ 'color': [] }, { 'background': [] }],
-                ['link', 'image', 'table'],
+                ['link', 'image', 'table', 'video'],
                 ['clean']
             ]
         }
     });
+
+    // Move the toolbar to our custom container for the "seamless" look
+    const toolbarContainer = quill.getModule('toolbar').container;
+    const customToolbarTarget = document.getElementById('note-toolbar');
+    if (customToolbarTarget && toolbarContainer) {
+        customToolbarTarget.appendChild(toolbarContainer);
+    }
 
     // Handle the native table button click
     const toolbar = quill.getModule('toolbar');
