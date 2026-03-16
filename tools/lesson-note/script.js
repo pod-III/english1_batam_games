@@ -8,6 +8,26 @@ let isTrashMode = false;
 let isDarkMode = false;
 let db = null;
 let blobUrlMap = {}; // blobUrl -> idbKey
+let searchCache = null;
+let strippedContentCache = new Map();
+
+// ===== UTILITIES =====
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+function fastStripHtml(html) {
+    if (!html) return "";
+    return html.replace(/<[^>]*>?/gm, ' ');
+}
 
 // ===== INDEXEDDB SETUP =====
 const DB_NAME = 'LessonNotesDB';
@@ -210,15 +230,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     renderNotesList();
 
-    document.getElementById('noteTitle').addEventListener('input', saveCurrentNote);
+    document.getElementById('noteTitle').addEventListener('input', () => {
+        saveCurrentNote();
+        renderNotesList();
+    });
+    
     quill.on('text-change', (delta, oldDelta, source) => {
         if (source === 'user') {
             const hasImage = delta.ops.some(op => op.insert && op.insert.image);
             if (hasImage) convertBase64ImagesToIDB();
+            
+            debouncedSave();
+            debouncedOutline();
+            debouncedRenderList();
         }
-        saveCurrentNote();
-        updateOutline();
     });
+
+    const debouncedSave = debounce(saveCurrentNote, 1000);
+    const debouncedOutline = debounce(updateOutline, 1500);
+    const debouncedRenderList = debounce(renderNotesList, 500);
+
     document.getElementById('searchInput').addEventListener('input', renderNotesList);
 
     lucide.createIcons();
@@ -311,21 +342,25 @@ async function resolveImagesInHtml(html) {
     blobUrlMap = {};
 
     const regex = /idb:\/\/([\w_-]+)/g;
-    let m;
-    const replacements = [];
-    while ((m = regex.exec(html)) !== null) {
+    const ids = Array.from(new Set([...html.matchAll(regex)].map(m => m[1])));
+    
+    if (ids.length === 0) return html;
+
+    const results = await Promise.all(ids.map(async id => {
         try {
-            const data = await getImage(m[1]);
+            const data = await getImage(id);
             if (data) {
                 const blob = new Blob([data.data], { type: data.type });
                 const blobUrl = URL.createObjectURL(blob);
-                blobUrlMap[blobUrl] = m[1];
-                replacements.push({ from: `idb://${m[1]}`, to: blobUrl });
+                blobUrlMap[blobUrl] = id;
+                return { from: `idb://${id}`, to: blobUrl };
             }
-        } catch (e) { console.warn('Failed to load image', m[1]); }
-    }
-    for (const { from, to } of replacements) {
-        html = html.split(from).join(to);
+        } catch (e) { console.warn('Failed to load image', id); }
+        return null;
+    }));
+
+    for (const res of results) {
+        if (res) html = html.split(res.from).join(res.to);
     }
     return html;
 }
@@ -385,6 +420,11 @@ function updateOutline() {
     const outlineList = document.getElementById('outlineList');
     const editor = quill.root;
     const headings = editor.querySelectorAll('h1, h2');
+
+    // Check if anything actually changed to avoid expensive DOM re-renders
+    const currentStructure = Array.from(headings).map(h => h.tagName + h.innerText).join('|');
+    if (editor._lastOutlineStructure === currentStructure) return;
+    editor._lastOutlineStructure = currentStructure;
 
     if (headings.length === 0) {
         outlineList.innerHTML = `
@@ -605,10 +645,13 @@ async function saveCurrentNote() {
         note.title = document.getElementById('noteTitle').value;
         note.content = getContentForSave();
         note.updatedAt = Date.now();
+        
+        // Update cache
+        strippedContentCache.set(note.id, fastStripHtml(note.content).toLowerCase());
+        
         notes.splice(noteIndex, 1);
         notes.unshift(note);
         await saveNoteToDB(note);
-        renderNotesList();
     }
 }
 
@@ -675,14 +718,25 @@ function renderNotesList() {
     const search = document.getElementById('searchInput').value.toLowerCase();
     list.innerHTML = '';
     const filtered = notes.filter(n => {
-        const matchesSearch = (n.title || 'Untitled').toLowerCase().includes(search) || stripHtml(n.content).toLowerCase().includes(search);
         const matchesMode = isTrashMode ? n.deleted === true : n.deleted !== true;
-        return matchesSearch && matchesMode;
+        if (!matchesMode) return false;
+        
+        if (!search) return true;
+
+        if (!strippedContentCache.has(n.id)) {
+            strippedContentCache.set(n.id, fastStripHtml(n.content).toLowerCase());
+        }
+        
+        const contentMatch = strippedContentCache.get(n.id).includes(search);
+        const titleMatch = (n.title || 'Untitled').toLowerCase().includes(search);
+        
+        return titleMatch || contentMatch;
     });
     if (filtered.length === 0) {
         list.innerHTML = `<div class="text-center py-8 text-gray-400 font-bold text-sm">${isTrashMode ? 'Trash is empty.' : 'No notes found.'}</div>`;
         return;
     }
+    const fragment = document.createDocumentFragment();
     filtered.forEach(note => {
         const el = document.createElement('div');
         const title = note.title || 'Untitled Lesson';
@@ -692,7 +746,7 @@ function renderNotesList() {
         if (isActive) baseClasses += isTrashMode ? " active-trash" : " active";
         el.className = baseClasses;
         el.onclick = () => { loadNote(note.id); if (window.innerWidth < 768) toggleSidebar(); };
-        const rawText = stripHtml(note.content).substring(0, 60);
+        const rawText = strippedContentCache.get(note.id) || "";
         const titleColor = isActive ? (isTrashMode ? 'text-pink text-lg' : 'text-blue text-lg') : 'text-dark text-base';
         const badgeColor = isActive ? (isTrashMode ? 'bg-pink text-white border-[1px] border-white/20' : 'bg-blue text-white border-[1px] border-white/20') : 'bg-gray-200 text-gray-500';
         el.innerHTML = `
@@ -700,9 +754,11 @@ function renderNotesList() {
                 <h4 class="font-heading font-bold truncate pr-2 ${titleColor}">${title}</h4>
                 <span class="text-[10px] font-bold ${badgeColor} px-2 py-1 rounded-md">${date}</span>
             </div>
-            <p class="text-xs ${isActive ? 'text-dark' : 'text-gray-400'} truncate font-bold relative z-10">${rawText || 'Empty note...'}</p>`;
-        list.appendChild(el);
+            <p class="text-xs ${isActive ? 'text-dark' : 'text-gray-400'} truncate font-bold relative z-10">${rawText.substring(0, 60) || 'Empty note...'}</p>`;
+        fragment.appendChild(el);
     });
+    list.appendChild(fragment);
+    lucide.createIcons({ props: {}, nameAttr: "data-lucide", attrs: {}, scope: list });
 }
 
 // ===== UTILITY =====
