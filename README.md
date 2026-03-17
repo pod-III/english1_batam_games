@@ -1,9 +1,23 @@
 # English 1 Batam - Teacher Activity Hub 🍎
 
-Welcome to the **English 1 Batam Activity Hub**, a specialized suite of interactive web-based tools designed by **Fahrul** for ELT (English Language Teaching) in Batam, Indonesia. This platform is tailored for students aged 3–18, providing a seamless bridge between classroom management and gamified learning.
+A curated collection of **50 interactive classroom tools and games** for English Language Teaching. Built for teachers, by teachers — designed to run in any modern browser with zero installation.
 
-## 🌟 Overview
-This hub is a desktop-optimized, high-performance web application designed for projector-based teaching. It consolidates **50 interactive activities and tools** into a single interface. Built with a modern aesthetic utilizing **Soft Brutalism** and **Glassmorphism** principles, this hub is visually engaging for young learners and highly legible even from the back of the classroom.
+![Version](https://img.shields.io/badge/version-1.1.13-blue)
+![Games](https://img.shields.io/badge/games-50-green)
+![License](https://img.shields.io/badge/license-MIT-orange)
+
+> **Live Demo:** [Open Activity Hub](https://e1batam.vercel.app)
+
+---
+
+## What This Is
+
+This hub is a **desktop-first, projector-optimized** teaching companion. It turns any browser into an interactive classroom command center — no downloads, no accounts, no friction. Students aged 3-18 stay engaged with tactile, colorful activities that feel like games but teach like tools.
+
+**Built for the real classroom:**
+- Large buttons for easy clicking from across the room
+- High-contrast OLED dark mode for dim classrooms
+- Persistent state survives browser refreshes
 
 ## 🎨 Design Philosophy & Theme
 Built using the **English 1 Signature Palette**, the UI ensures brand consistency and a friendly, energetic atmosphere:
@@ -22,57 +36,120 @@ Built using the **English 1 Signature Palette**, the UI ensures brand consistenc
 
 ---
 
-## 🎮 Activity & Tool Highlights
+## � Activity Highlights
 
-With 50 built-in modules, the hub covers a wide range of classroom needs. Here are some of the key categories:
+### Classroom Tools
+| Tool | What It Does |
+|------|--------------|
+| **Scoreboard** | Track team points with satisfying clicks |
+| **Class Tally** | Behavior tracking with stars & warnings |
+| **Clock** | Multi-mode: clock, timer, stopwatch, calendar |
+| **Team Picker** | Fair random team generation |
+| **Spin Wheel** | Customizable randomizer for any decision |
+| **Flashcard Maker** | Design & print A4 flashcards with cut guides |
+| **Bingo Maker** | Generate cards + digital caller mode |
+| **Lesson Notes** | Auto-saving notepad for quick plans |
 
-### 1. Classroom Management & Tools
-* **Class Tally:** A persistent behavior tracker for monitoring student participation and discipline.
-* **Scoreboard:** Visual team-based scoring with large, tactile buttons.
-* **Timekeeper:** Multi-mode clock, timer, stopwatch, and calendar.
-* **Downtime Screen:** Engaging screens to keep students focused during transitions.
-* **Lesson Notes & To-Do App:** Persistent notepad and priority-based task manager for quick lesson planning.
-* **Tools & Randomizers:** Team picker, spinner wheel, and dice rollers to ensure fairness during group work.
+### Learning Games
+| Game | Skill Focus |
+|------|-------------|
+| **Hot Seat** | Speaking — guess vocab from clues |
+| **Hangman** | Spelling — classic word guessing |
+| **Card Match** | Memory — picture/word pairs |
+| **Secret Code** | Spelling — encode/decode messages |
+| **Connect Four** | Strategy — vertical team battle |
+| **Guess Who** | Logic — character deduction |
+| **Freeze Dance** | Movement — music energy break |
+| **Story Dice** | Creative — random story prompts |
 
-### 2. Vocabulary & Spelling
-* **Word Flashcards & Makers:** Digital drill cards and tools to design and print custom A4 flashcards with cutting guides.
-* **Spelling Games:** Hangman, Word Scrambler, and Secret Code for classic spelling challenges.
-* **Word Search & Crossword:** Auto-generating puzzles based on your lesson's vocabulary.
-* **Reveal Pic:** Image guessing game where tiles are removed one by one.
-
-### 3. Speaking, Interaction & Movement
-* **Hot Seat:** The ultimate speaking game for guessing vocabulary through classmate descriptions.
-* **Role & Speak:** Dice-rolling game combining chance with sentence building.
-* **Freeze Dance:** Music-based movement activity for energy breaks.
-* **Undercover & Guess Who:** Character deduction and social deduction games.
-* **Emoji Game:** Modern visual-to-word association challenges.
-
-### 4. Logic, Strategy & Focus
-* **Find the Ball (Magic Cups):** A high-stakes concentration game.
-* **Card Match & Memory Block:** Memory-matching and pattern games for vocabulary retention.
-* **Connect Four & Connects (Tic-Tac-Toe):** Classic strategy games for turning downtime into playtime.
+*Plus 32 more — [see full list](#activities)*
 
 ---
 
-## 🛠 Technical Specifications
-* **Architecture:** Vanilla JavaScript (ES6+) and HTML5 for maximum compatibility and zero-dependency speed.
-* **Styling Framework:** Tailwind CSS extended with custom CSS variables for standardized theming.
-* **Typography:** Modern Google Fonts (`Fredoka` for headings, `Nunito` for body).
-* **Icons:** Lucide React / SVG icons for crisp scaling on 4K projectors.
-* **Data Persistence:** 100% client-side storage utilizing `localStorage` and `IndexedDB` (for images/large data, no backend required).
+## � Quick Start
 
-## ⌨️ Developer Commands & Teacher Console
-Many games include a console-style input system. When an activity is open:
-1. Access the input field (usually at the bottom or via a specific settings hotkey).
-2. Type your vocabulary list (comma-separated), paste image URLs, or input specific logic.
-3. Save or press **Enter** to instantly update the game state without a page reload.
+```bash
+# Clone the repo
+git clone https://github.com/pod-III/english1_batam_games.git
 
-## 🙏 Acknowledgments
-This project was developed with passion and dedication to the students of Batam.
+# Open in browser (no build step!)
+cd english1_batam_games
+open index.html
+```
 
-* **Lead Developer & Educator:** Fahrul
-* **Inspiration:** Designed for the unique needs of the English 1 curriculum.
-* **Tools:** Special thanks to the open-source communities behind Tailwind CSS and Lucide for providing the building blocks of this hub.
-* **Support:** Acknowledging the fellow educators whose feedback helped refine the systems for real-world classroom efficiency.
+That's it. No `npm install`. No webpack. Just host the index.html file on any web server.
 
-*Created with ❤️ in Batam, Indonesia*
+---
+
+## 🛠 How It Works
+
+| Feature | Implementation |
+|---------|----------------|
+| **State** | Vanilla JS modules with in-memory store |
+| **Storage** | localStorage for persistence |
+| **Audio** | Web Audio API (no external files) |
+| **Tabs** | iframe-based multi-activity system |
+| **Styling** | Tailwind CDN + custom CSS variables |
+| **Icons** | Lucide SVG, auto-rendered |
+
+**Tab System:** Open multiple activities side-by-side. Drag to reorder. Double-click to pin. Close all with one button.
+
+**Keyboard Shortcuts:**
+- `/` — Focus search
+- `Alt+H` — Return to home
+- `Ctrl+R` — Reload current game
+
+---
+
+## 🧩 Adding Your Own Activities
+
+Each activity is a self-contained HTML file in `games/` or `tools/`. To add a new one:
+
+1. Create your activity folder and `index.html`
+2. Add an entry to `games.json`:
+```json
+{
+  "id": "my-game",
+  "title": "My Game",
+  "category": "game",
+  "path": "./games/my-game/index.html",
+  "icon": "star",
+  "color": "text-pink",
+  "description": "What it does",
+  "tags": ["vocabulary", "interactive"],
+  "difficulty": "easy",
+  "active": true
+}
+```
+3. Refresh the hub — your game appears instantly
+
+---
+
+## 📂 Project Structure
+
+```
+english1_batam_games/
+├── index.html          # Hub interface
+├── script.js           # Core app logic (~1300 lines)
+├── games.json          # Activity registry (50 items)
+├── css/
+│   ├── base.css        # Design tokens & dark mode
+│   ├── components.css  # Buttons, cards, inputs
+│   ├── home.css        # Hero, grid, footer
+│   └── side-panel.css  # Tab system & split-screen
+├── games/              # Game activities (32)
+├── tools/              # Utility tools (18)
+└── media/              # Icons & assets
+```
+
+---
+
+## 🙏 Credits
+
+Built by **Fahrul** for the students and teachers of Batam, Indonesia.
+
+**Design:** Soft Brutalism meets classroom utility  
+**Fonts:** [Fredoka](https://fonts.google.com/specimen/Fredoka) & [Nunito](https://fonts.google.com/specimen/Nunito)  
+**Icons:** [Lucide](https://lucide.dev)  
+
+*Created with ❤️ in Batam* — PRs welcome!
