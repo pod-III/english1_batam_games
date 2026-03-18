@@ -333,6 +333,25 @@
                             Clear All Data
                         </button>
                     </div>
+
+                    <!-- Word Sets -->
+                    <div class="pt-4 border-t-2 border-dashed border-slate-300 dark:border-slate-600">
+                        <label class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-1 mb-2">
+                            <i data-lucide="folder" class="w-4 h-4 text-brand-orange"></i>
+                            Saved Message Sets
+                        </label>
+                        <div class="flex gap-2 mb-3">
+                            <input id="set-name-input" type="text" placeholder="Set name..."
+                                class="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-900 text-brand-dark dark:text-white font-heading font-bold text-sm border-2 border-brand-dark dark:border-slate-400 rounded-lg focus:border-brand-blue outline-none transition-colors" />
+                            <button onclick="saveCurrentSet()"
+                                class="btn-chunky bg-brand-blue text-white px-3 py-2 rounded-lg text-xs flex items-center gap-1">
+                                <i data-lucide="save" class="w-3.5 h-3.5"></i> SAVE
+                            </button>
+                        </div>
+                        <div id="sets-list" class="space-y-1.5 max-h-32 overflow-y-auto custom-scrollbar">
+                            <p class="text-slate-400 dark:text-slate-500 text-xs italic">No saved sets yet.</p>
+                        </div>
+                    </div>
                 </div>
 
                 <div
@@ -592,31 +611,127 @@
             // Initialization
             lucide.createIcons();
 
-            function saveState() {
+            // --- THEME PERSISTENCE ---
+            function initTheme() {
+                const saved = localStorage.getItem('secretcode_theme') || 'light';
+                if (saved === 'dark') {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+                updateDarkModeIcon();
+            }
+            function updateDarkModeIcon() {
+                const btn = document.getElementById('darkModeBtn');
+                if (!btn) return;
+                const isDark = document.documentElement.classList.contains('dark');
+                btn.innerHTML = isDark
+                    ? `<i data-lucide="sun" class="w-6 h-6 stroke-[3]"></i>`
+                    : `<i data-lucide="moon" class="w-6 h-6 stroke-[3]"></i>`;
+                lucide.createIcons();
+            }
+
+            // --- IndexedDB PERSISTENCE ---
+            const DB_NAME = 'SecretCodeDB';
+            const DB_VER = 1;
+            const STATE_STORE = 'game_state';
+            const SETS_STORE = 'word_sets';
+
+            async function initDB() {
+                return new Promise((resolve, reject) => {
+                    const req = indexedDB.open(DB_NAME, DB_VER);
+                    req.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains(STATE_STORE)) db.createObjectStore(STATE_STORE);
+                        if (!db.objectStoreNames.contains(SETS_STORE)) db.createObjectStore(SETS_STORE, { keyPath: 'id', autoIncrement: true });
+                    };
+                    req.onsuccess = (e) => resolve(e.target.result);
+                    req.onerror = (e) => reject(e.target.error);
+                });
+            }
+            async function dbPut(key, data) {
+                try { const db = await initDB(); db.transaction(STATE_STORE, 'readwrite').objectStore(STATE_STORE).put(data, key); } catch(e) { console.error(e); }
+            }
+            async function dbGet(key) {
+                try {
+                    const db = await initDB();
+                    return new Promise((res) => { const r = db.transaction(STATE_STORE, 'readonly').objectStore(STATE_STORE).get(key); r.onsuccess = () => res(r.result); r.onerror = () => res(null); });
+                } catch(e) { return null; }
+            }
+
+            // Word Sets CRUD
+            async function saveWordSetToDB(name, content) {
+                const db = await initDB();
+                const tx = db.transaction(SETS_STORE, 'readwrite');
+                tx.objectStore(SETS_STORE).put({ name, content, createdAt: Date.now() });
+                return new Promise(r => { tx.oncomplete = r; });
+            }
+            async function getAllWordSets() {
+                try {
+                    const db = await initDB();
+                    return new Promise((res) => { const r = db.transaction(SETS_STORE, 'readonly').objectStore(SETS_STORE).getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => res([]); });
+                } catch(e) { return []; }
+            }
+            async function deleteWordSet(id) {
+                const db = await initDB();
+                const tx = db.transaction(SETS_STORE, 'readwrite');
+                tx.objectStore(SETS_STORE).delete(id);
+                return new Promise(r => { tx.oncomplete = r; });
+            }
+
+            async function renderWordSets() {
+                const list = document.getElementById('sets-list');
+                if (!list) return;
+                const sets = await getAllWordSets();
+                if (sets.length === 0) { list.innerHTML = '<p class="text-slate-400 dark:text-slate-500 text-xs italic">No saved sets yet.</p>'; return; }
+                list.innerHTML = '';
+                sets.forEach(set => {
+                    const item = document.createElement('div');
+                    item.className = 'flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-900 border-2 border-brand-dark/10 dark:border-slate-600 rounded-lg hover:border-brand-blue/40 transition-all';
+                    item.innerHTML = `
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-bold text-brand-dark dark:text-white truncate">${set.name}</p>
+                            <p class="text-[10px] text-slate-400 dark:text-slate-500 truncate">${set.content.split('\n').filter(l => l.trim()).length} messages</p>
+                        </div>
+                        <button class="set-load p-1.5 bg-brand-blue/10 text-brand-blue rounded-md border border-brand-blue/20 hover:bg-brand-blue hover:text-white transition-all" title="Load">
+                            <i data-lucide="upload" class="w-3.5 h-3.5 pointer-events-none"></i>
+                        </button>
+                        <button class="set-del p-1.5 bg-brand-pink/10 text-brand-pink rounded-md border border-brand-pink/20 hover:bg-brand-pink hover:text-white transition-all" title="Delete">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5 pointer-events-none"></i>
+                        </button>`;
+                    item.querySelector('.set-load').onclick = () => { secretInput.value = set.content; saveState(); };
+                    item.querySelector('.set-del').onclick = async () => { await deleteWordSet(set.id); renderWordSets(); };
+                    list.appendChild(item);
+                });
+                lucide.createIcons();
+            }
+
+            async function saveCurrentSet() {
+                const nameInput = document.getElementById('set-name-input');
+                const name = nameInput.value.trim();
+                const content = secretInput.value.trim();
+                if (!name || !content) return;
+                await saveWordSetToDB(name, content);
+                nameInput.value = '';
+                renderWordSets();
+            }
+
+            // --- State Persistence (IndexedDB) ---
+            async function saveState() {
                 const state = {
                     shift: currentShift,
                     secrets: secretList,
                     roundIndex: currentRoundIndex,
                 };
-                localStorage.setItem(
-                    "caesarWordAnimatorData",
-                    JSON.stringify(state),
-                );
+                await dbPut('caesarState', state);
             }
 
-            function loadState() {
-                const savedData = localStorage.getItem(
-                    "caesarWordAnimatorData",
-                );
-                if (savedData) {
-                    try {
-                        const state = JSON.parse(savedData);
-                        currentShift = state.shift ?? 3;
-                        secretList = state.secrets ?? [];
-                        currentRoundIndex = state.roundIndex ?? 0;
-                    } catch (e) {
-                        console.error("Could not parse saved game data.");
-                    }
+            async function loadState() {
+                const state = await dbGet('caesarState');
+                if (state) {
+                    currentShift = state.shift ?? 3;
+                    secretList = state.secrets ?? [];
+                    currentRoundIndex = state.roundIndex ?? 0;
                 }
 
                 if (secretList.length > 0) {
@@ -631,14 +746,15 @@
                 }
 
                 if (window.innerWidth < 768 && secretList.length === 0) {
-                    toggleControlPanel(false); // open on mobile if empty
+                    toggleControlPanel(false);
                 } else if (window.innerWidth < 768 && secretList.length > 0) {
-                    toggleControlPanel(true); // hide on mobile if game active
+                    toggleControlPanel(true);
                 }
             }
 
             function clearGame() {
-                localStorage.removeItem("caesarWordAnimatorData");
+                // Clear IndexedDB state
+                dbPut('caesarState', null);
                 secretList = [];
                 currentRoundIndex = -1;
                 secretInput.value = "";
@@ -648,15 +764,9 @@
             }
 
             function toggleDarkMode() {
-                document.documentElement.classList.toggle("dark");
-                const btn = document.getElementById("darkModeBtn");
-
-                if (document.documentElement.classList.contains("dark")) {
-                    btn.innerHTML = `<i data-lucide="sun" class="w-6 h-6 stroke-[3]"></i>`;
-                } else {
-                    btn.innerHTML = `<i data-lucide="moon" class="w-6 h-6 stroke-[3]"></i>`;
-                }
-                lucide.createIcons();
+                const isDark = document.documentElement.classList.toggle("dark");
+                localStorage.setItem('secretcode_theme', isDark ? 'dark' : 'light');
+                updateDarkModeIcon();
             }
 
             function toggleDecoder() {
@@ -1009,7 +1119,12 @@
 
             // Init
             decoderContent.style.maxHeight = "500px"; // initial open state
+            initTheme();
             loadState();
+            renderWordSets();
+
+            // Auto-save textarea on input
+            secretInput.addEventListener('input', () => saveState());
         </script>
     </body>
 </html>
