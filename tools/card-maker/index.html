@@ -709,6 +709,22 @@
                 </div>
                 <input type="file" id="importFile" accept=".json" class="hidden" onchange="importData(this)" />
             </section>
+
+            <!-- Saved Card Sets -->
+            <section class="border-t-2 border-slate-100 dark:border-slate-700 pt-4">
+                <label class="section-label">Saved Card Sets</label>
+                <div class="flex gap-2 mb-3">
+                    <input id="set-name-input" type="text" placeholder="Set name..."
+                        class="input-chunky flex-1 py-2 px-3 text-sm" />
+                    <button onclick="saveCurrentSet()"
+                        class="btn-chunky bg-brand-blue text-white py-2 px-3 rounded-xl text-xs flex items-center gap-1">
+                        <i data-lucide="save" class="w-3 h-3"></i> SAVE
+                    </button>
+                </div>
+                <div id="sets-list" class="space-y-1.5 max-h-32 overflow-y-auto custom-scrollbar">
+                    <p class="text-slate-400 text-[10px] italic">No saved sets yet.</p>
+                </div>
+            </section>
         </div>
 
         <!-- Footer Actions -->
@@ -768,7 +784,115 @@
         // --- Core Functions ---
 
         function toggleTheme() {
-            document.documentElement.classList.toggle("dark");
+            const isDark = document.documentElement.classList.toggle("dark");
+            localStorage.setItem('cardmaker_theme', isDark ? 'dark' : 'light');
+        }
+
+        function initTheme() {
+            const saved = localStorage.getItem('cardmaker_theme') || 'light';
+            if (saved === 'dark') document.documentElement.classList.add('dark');
+            else document.documentElement.classList.remove('dark');
+        }
+
+        // --- IndexedDB ---
+        const DB_NAME = 'CardMakerDB';
+        const DB_VER = 1;
+        const STATE_STORE = 'game_state';
+        const SETS_STORE = 'card_sets';
+
+        async function initDB() {
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open(DB_NAME, DB_VER);
+                req.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(STATE_STORE)) db.createObjectStore(STATE_STORE);
+                    if (!db.objectStoreNames.contains(SETS_STORE)) db.createObjectStore(SETS_STORE, { keyPath: 'id', autoIncrement: true });
+                };
+                req.onsuccess = (e) => resolve(e.target.result);
+                req.onerror = (e) => reject(e.target.error);
+            });
+        }
+        async function dbPut(key, data) {
+            try { const db = await initDB(); db.transaction(STATE_STORE, 'readwrite').objectStore(STATE_STORE).put(data, key); } catch(e) { console.error(e); }
+        }
+        async function dbGet(key) {
+            try {
+                const db = await initDB();
+                return new Promise((res) => { const r = db.transaction(STATE_STORE, 'readonly').objectStore(STATE_STORE).get(key); r.onsuccess = () => res(r.result); r.onerror = () => res(null); });
+            } catch(e) { return null; }
+        }
+
+        // Card Sets CRUD
+        async function saveCardSetToDB(name, stateData) {
+            const db = await initDB();
+            const tx = db.transaction(SETS_STORE, 'readwrite');
+            tx.objectStore(SETS_STORE).put({ name, stateData, createdAt: Date.now() });
+            return new Promise(r => { tx.oncomplete = r; });
+        }
+        async function getAllCardSets() {
+            try {
+                const db = await initDB();
+                return new Promise((res) => { const r = db.transaction(SETS_STORE, 'readonly').objectStore(SETS_STORE).getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => res([]); });
+            } catch(e) { return []; }
+        }
+        async function deleteCardSet(id) {
+            const db = await initDB();
+            const tx = db.transaction(SETS_STORE, 'readwrite');
+            tx.objectStore(SETS_STORE).delete(id);
+            return new Promise(r => { tx.oncomplete = r; });
+        }
+
+        async function renderCardSets() {
+            const list = document.getElementById('sets-list');
+            if (!list) return;
+            const sets = await getAllCardSets();
+            if (sets.length === 0) { list.innerHTML = '<p class="text-slate-400 text-[10px] italic">No saved sets yet.</p>'; return; }
+            list.innerHTML = '';
+            sets.forEach(set => {
+                const item = document.createElement('div');
+                item.className = 'flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800 border-2 border-brand-dark/10 dark:border-slate-600 rounded-lg hover:border-brand-blue/40 transition-all';
+                const pageCount = set.stateData?.pages?.length || 0;
+                const cardCount = set.stateData?.pages?.reduce((a, p) => a + p.length, 0) || 0;
+                item.innerHTML = `
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold text-brand-dark dark:text-white truncate">${set.name}</p>
+                        <p class="text-[9px] text-slate-400 truncate">${pageCount} page(s), ${cardCount} card(s)</p>
+                    </div>
+                    <button class="set-load p-1.5 bg-brand-blue/10 text-brand-blue rounded-md border border-brand-blue/20 hover:bg-brand-blue hover:text-white transition-all" title="Load">
+                        <i data-lucide="upload" class="w-3 h-3 pointer-events-none"></i>
+                    </button>
+                    <button class="set-del p-1.5 bg-brand-pink/10 text-brand-pink rounded-md border border-brand-pink/20 hover:bg-brand-pink hover:text-white transition-all" title="Delete">
+                        <i data-lucide="trash-2" class="w-3 h-3 pointer-events-none"></i>
+                    </button>`;
+                item.querySelector('.set-load').onclick = () => loadCardSet(set.stateData);
+                item.querySelector('.set-del').onclick = async () => { await deleteCardSet(set.id); renderCardSets(); };
+                list.appendChild(item);
+            });
+            lucide.createIcons();
+        }
+
+        function loadCardSet(stateData) {
+            state = { ...state, ...stateData };
+            inputCols.value = state.gridCols || 3;
+            inputRows.value = state.gridRows || 3;
+            renderAllPages();
+            setOrientation(state.orientation);
+            setGlobalColor(state.color);
+            setImageSize(state.imgHeight);
+            setFontSize(state.fontSize);
+            updateToggleUI();
+        }
+
+        async function saveCurrentSet() {
+            const nameInput = document.getElementById('set-name-input');
+            const name = nameInput.value.trim();
+            if (!name) return;
+            saveState(); // Harvest DOM into state
+            // Clone state without saving the full state reference
+            const clone = JSON.parse(JSON.stringify(state));
+            await saveCardSetToDB(name, clone);
+            nameInput.value = '';
+            renderCardSets();
         }
 
         function loadState() {
@@ -843,6 +967,8 @@
                 "flashcard_batam_state_v5",
                 JSON.stringify(state),
             );
+            // Also persist to IndexedDB
+            dbPut('cardMakerState', state);
         }
 
         function exportData() {
@@ -1385,6 +1511,7 @@
                 )
             ) {
                 localStorage.removeItem("flashcard_batam_state_v5");
+                dbPut('cardMakerState', null);
                 location.reload();
             }
         }
@@ -1441,7 +1568,11 @@
         }
 
         // --- Init ---
-        window.onload = loadState;
+        window.onload = () => {
+            initTheme();
+            loadState();
+            renderCardSets();
+        };
         window.onresize = () => {
             if (state.autoFit)
                 document
