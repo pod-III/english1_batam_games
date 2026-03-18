@@ -1,5 +1,22 @@
 lucide.createIcons();
 const LS_KEY = 'crosswordNeoWords_v3';
+const THEME_KEY = 'crossword_theme';
+
+// --- THEME ---
+function initTheme() {
+    const savedTheme = localStorage.getItem(THEME_KEY) || 'light';
+    if (savedTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+    } else {
+        document.documentElement.classList.remove('dark');
+    }
+}
+
+function toggleTheme() {
+    const isDark = document.documentElement.classList.toggle('dark');
+    localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light');
+    Sound.click();
+}
 
 // --- STATE ---
 let GRID_SIZE = 15;
@@ -585,8 +602,13 @@ document.getElementById('zoom-out').onclick = () => { CELL_SIZE = Math.max(CELL_
 
 // Initial setup
 window.onload = () => {
+    initTheme();
     loadWords();
     els.input.addEventListener('input', (e) => saveWords(e.target.value));
+
+    // Theme toggle event
+    const themeBtn = document.getElementById('theme-toggle');
+    if (themeBtn) themeBtn.onclick = toggleTheme;
 
     // Set default grid size button style
     document.querySelector('.grid-btn[data-size="15"]').click();
