@@ -281,8 +281,8 @@ function render() {
     // Render Clues
     els.across.innerHTML = ''; els.down.innerHTML = '';
     if (words.length === 0) {
-        els.across.innerHTML = '<p class="text-slate-400 text-sm">No words placed yet.</p>';
-        els.down.innerHTML = '<p class="text-slate-400 text-sm">No words placed yet.</p>';
+        els.across.innerHTML = '<p class="text-slate-400 dark:text-slate-500 text-sm">No words placed yet.</p>';
+        els.down.innerHTML = '<p class="text-slate-400 dark:text-slate-500 text-sm">No words placed yet.</p>';
     } else {
         words.filter(w => w.dir === 'across').forEach(w => {
             const li = document.createElement('div');
@@ -588,11 +588,11 @@ document.querySelectorAll('.preset-btn').forEach(b => {
 document.querySelectorAll('.grid-btn').forEach(b => {
     b.onclick = (e) => {
         document.querySelectorAll('.grid-btn').forEach(btn => {
-            btn.classList.remove('bg-blue', 'text-white', 'shadow-hard-sm');
-            btn.classList.add('bg-slate-100', 'text-slate-400');
+            btn.classList.remove('bg-blue', 'text-white', 'shadow-neo-sm');
+            btn.classList.add('bg-slate-100', 'dark:bg-slate-800', 'text-slate-400', 'dark:text-slate-500');
         });
-        e.target.classList.remove('bg-slate-100', 'text-slate-400');
-        e.target.classList.add('bg-blue', 'text-white', 'shadow-hard-sm');
+        e.target.classList.remove('bg-slate-100', 'dark:bg-slate-800', 'text-slate-400', 'dark:text-slate-500');
+        e.target.classList.add('bg-blue', 'text-white', 'shadow-neo-sm');
         GRID_SIZE = parseInt(e.target.dataset.size);
     }
 });
