@@ -2,6 +2,52 @@ const ClassTallyApp = (function () {
     let modalCallback = null;
     let timerInterval = null;
 
+    // --- IndexedDB ---
+    const DB_NAME = 'ClassTallyDB';
+    const DB_VER = 1;
+    const STATE_STORE = 'game_state';
+    const SETS_STORE = 'class_sets';
+
+    async function initDB() {
+        return new Promise((resolve, reject) => {
+            const req = indexedDB.open(DB_NAME, DB_VER);
+            req.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains(STATE_STORE)) db.createObjectStore(STATE_STORE);
+                if (!db.objectStoreNames.contains(SETS_STORE)) db.createObjectStore(SETS_STORE, { keyPath: 'id', autoIncrement: true });
+            };
+            req.onsuccess = (e) => resolve(e.target.result);
+            req.onerror = (e) => reject(e.target.error);
+        });
+    }
+    async function dbPut(key, data) {
+        try { const db = await initDB(); db.transaction(STATE_STORE, 'readwrite').objectStore(STATE_STORE).put(data, key); } catch(e) { console.error(e); }
+    }
+    async function dbGet(key) {
+        try {
+            const db = await initDB();
+            return new Promise((res) => { const r = db.transaction(STATE_STORE, 'readonly').objectStore(STATE_STORE).get(key); r.onsuccess = () => res(r.result); r.onerror = () => res(null); });
+        } catch(e) { return null; }
+    }
+    async function saveClassSetToDB(name, data) {
+        const db = await initDB();
+        const tx = db.transaction(SETS_STORE, 'readwrite');
+        tx.objectStore(SETS_STORE).put({ name, data, createdAt: Date.now() });
+        return new Promise(r => { tx.oncomplete = r; });
+    }
+    async function getAllClassSets() {
+        try {
+            const db = await initDB();
+            return new Promise((res) => { const r = db.transaction(SETS_STORE, 'readonly').objectStore(SETS_STORE).getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => res([]); });
+        } catch(e) { return []; }
+    }
+    async function deleteClassSet(id) {
+        const db = await initDB();
+        const tx = db.transaction(SETS_STORE, 'readwrite');
+        tx.objectStore(SETS_STORE).delete(id);
+        return new Promise(r => { tx.oncomplete = r; });
+    }
+
     const State = {
         students: [],
         rules: [],
@@ -296,12 +342,12 @@ const ClassTallyApp = (function () {
                 sound: State.soundEnabled,
                 good: State.currentGood,
                 bad: State.currentBad,
-                // Save the pickedQueue to maintain state across sessions
                 pickedQueue: State.pickedQueue,
                 cardSize: State.cardSize,
                 isAutoFit: State.isAutoFit
             };
             localStorage.setItem('class_tally_v1', JSON.stringify(dataToSave));
+            dbPut('classTallyState', dataToSave);
         },
         load: () => {
             const d = localStorage.getItem('class_tally_v1') || localStorage.getItem('english1_tally_v5') || localStorage.getItem('english1_tally_v4_state');
@@ -589,6 +635,7 @@ const ClassTallyApp = (function () {
         closeAllDropdowns: () => {
             document.getElementById('dropdown-good').classList.add('hidden');
             document.getElementById('dropdown-bad').classList.add('hidden');
+            document.getElementById('dropdown-classes').classList.add('hidden');
         },
 
         initEmojiPickers: () => {
@@ -615,6 +662,76 @@ const ClassTallyApp = (function () {
             State.soundEnabled = !State.soundEnabled;
             document.getElementById('btn-sound').innerHTML = State.soundEnabled ? '<i data-lucide="volume-2" class="w-5 h-5"></i>' : '<i data-lucide="volume-x" class="w-5 h-5 text-red-400"></i>';
             lucide.createIcons(); Persistence.save();
+        },
+        toggleTheme: () => {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('classtally_theme', isDark ? 'dark' : 'light');
+            lucide.createIcons();
+        },
+        initTheme: () => {
+            const saved = localStorage.getItem('classtally_theme') || 'light';
+            if (saved === 'dark') document.documentElement.classList.add('dark');
+            else document.documentElement.classList.remove('dark');
+        },
+        toggleClassesDropdown: (e) => {
+            e.stopPropagation();
+            const dropdown = document.getElementById('dropdown-classes');
+            dropdown.classList.toggle('hidden');
+            document.getElementById('dropdown-good').classList.add('hidden');
+            document.getElementById('dropdown-bad').classList.add('hidden');
+        },
+        closeClassesDropdown: () => {
+            document.getElementById('dropdown-classes').classList.add('hidden');
+        },
+        saveCurrentClass: async () => {
+            const nameInput = document.getElementById('class-set-name');
+            const name = nameInput.value.trim();
+            if (!name || State.students.length === 0) return;
+            const clone = JSON.parse(JSON.stringify({
+                students: State.students,
+                good: State.currentGood,
+                bad: State.currentBad
+            }));
+            await saveClassSetToDB(name, clone);
+            nameInput.value = '';
+            UI.renderClassSets();
+        },
+        loadClassSet: (data) => {
+            State.students = data.students || [];
+            State.currentGood = data.good || '⭐️';
+            State.currentBad = data.bad || '⚠️';
+            State.pickedQueue = [];
+            Persistence.save();
+            UI.initEmojiPickers();
+            UI.render();
+            UI.closeClassesDropdown();
+        },
+        renderClassSets: async () => {
+            const list = document.getElementById('classes-list');
+            if (!list) return;
+            const sets = await getAllClassSets();
+            if (sets.length === 0) { list.innerHTML = '<p class="text-slate-400 text-xs italic">No saved classes yet.</p>'; return; }
+            list.innerHTML = '';
+            sets.forEach(set => {
+                const item = document.createElement('div');
+                item.className = 'flex items-center gap-2 p-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-xl hover:border-brand-blue/40 transition-all';
+                const count = set.data?.students?.length || 0;
+                item.innerHTML = `
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-bold text-slate-700 dark:text-white truncate">${set.name}</p>
+                        <p class="text-[10px] text-slate-400 truncate">${count} student(s)</p>
+                    </div>
+                    <button class="set-load p-1.5 bg-brand-blue/10 text-brand-blue rounded-lg border border-brand-blue/20 hover:bg-brand-blue hover:text-white transition-all" title="Load">
+                        <i data-lucide="upload" class="w-3.5 h-3.5 pointer-events-none"></i>
+                    </button>
+                    <button class="set-del p-1.5 bg-brand-pink/10 text-brand-pink rounded-lg border border-brand-pink/20 hover:bg-brand-pink hover:text-white transition-all" title="Delete">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5 pointer-events-none"></i>
+                    </button>`;
+                item.querySelector('.set-load').onclick = () => UI.loadClassSet(set.data);
+                item.querySelector('.set-del').onclick = async () => { await deleteClassSet(set.id); UI.renderClassSets(); };
+                list.appendChild(item);
+            });
+            lucide.createIcons();
         },
         toggleSettings: () => { document.getElementById('toolbar').classList.toggle('hidden'); document.getElementById('toolbar').classList.toggle('flex'); },
         celebrate: (id) => {
@@ -807,11 +924,13 @@ const ClassTallyApp = (function () {
 
     return {
         init: () => {
+            UI.initTheme();
             Persistence.load();
             CanvasDraw.init('signature-canvas');
             UI.initEmojiPickers();
             UI.render();
             UI.updateAutoFitUI();
+            UI.renderClassSets();
 
             if (State.isAutoFit) {
                 UI.calculateAutoFitScale();
