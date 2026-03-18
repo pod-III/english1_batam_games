@@ -568,6 +568,7 @@ const TabManager = {
     const targetTab = (savedData.activeTabId && this.tabs.find(t => t.id === savedData.activeTabId))
       ? savedData.activeTabId : this.tabs[0]?.id;
     if (targetTab) this.switchToTab(targetTab);
+    this.updateEmptyState();
   },
 
   createTab(game) {
@@ -592,6 +593,7 @@ const TabManager = {
     if (switchTo) this.switchToTab(tabId);
     this.loadGame(tab, game.path);
     this.saveTabsToStorage();
+    this.updateEmptyState();
     return tab;
   },
 
@@ -864,6 +866,16 @@ const TabManager = {
     this.updateSplitScreenClasses();
   },
 
+  updateEmptyState() {
+    const emptyState = document.getElementById('workspace-empty-state');
+    if (!emptyState) return;
+    if (this.tabs.length === 0) {
+      emptyState.classList.remove('hidden');
+    } else {
+      emptyState.classList.add('hidden');
+    }
+  },
+
   updateSplitScreenClasses() {
     const area = document.getElementById('tab-content-area');
     if (!area) return;
@@ -920,7 +932,8 @@ const TabManager = {
 
     if (this.tabs.length === 0) {
       this.splitScreenActive = false;
-      this.closeModal();
+      this.activeTabId = null;
+      this.updateEmptyState();
       return;
     }
 
@@ -1005,7 +1018,8 @@ const TabManager = {
     if (this.tabs.length === 0) {
       State.activeGame = null;
       Storage.remove(CONFIG.storageKeys.tabs);
-      this.closeModal();
+      this.activeTabId = null;
+      this.updateEmptyState();
     } else {
       if (this.activeTabId) this.switchToTab(this.activeTabId);
       this.saveTabsToStorage();
@@ -1310,6 +1324,11 @@ const App = {
       toggleFocus: () => UI.toggleFocus(),
       toggleSettings: () => UI.toggleSettings(),
       toggleInfo: () => GameModal.toggleInfo(),
+      openWorkspace: () => {
+        AudioEngine.click();
+        UI.toggleModal('game-modal', true);
+        TabManager.updateEmptyState();
+      },
       filterGames: (param) => Filters.setCategory(param),
       clearRecent: () => RecentGames.clear(),
       clearSearch: () => Search.clear(),
