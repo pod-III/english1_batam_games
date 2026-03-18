@@ -68,6 +68,14 @@
                 linear-gradient(90deg, #E2E8F0 1px, transparent 1px);
             background-size: 24px 24px;
             color: #1e293b;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .dark body, html.dark body {
+            background-color: #0f172a;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px);
+            color: #f1f5f9;
         }
 
         /* Chunky UI Elements */
@@ -76,6 +84,12 @@
             border: 4px solid #1e293b;
             border-radius: 1.5rem;
             box-shadow: 6px 6px 0px #1e293b;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+        .dark .panel-chunky {
+            background: #1e293b;
+            border-color: #475569;
+            box-shadow: 6px 6px 0px #000;
         }
 
         .btn-chunky {
@@ -83,9 +97,16 @@
             box-shadow: 0 4px 0 #1e293b;
             transition: all 0.1s;
         }
+        .dark .btn-chunky {
+            border-color: #475569;
+            box-shadow: 0 4px 0 #000;
+        }
         .btn-chunky:active {
             transform: translateY(4px);
             box-shadow: 0 0 0 #1e293b;
+        }
+        .dark .btn-chunky:active {
+            box-shadow: 0 0 0 #000;
         }
         .btn-chunky:disabled {
             opacity: 0.5;
@@ -100,9 +121,31 @@
             background-size: 100% 2rem;
             line-height: 2rem;
             background-attachment: local;
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+        }
+        .dark .lined-paper {
+            background-image: linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px);
+            background-color: #0f172a;
+            color: #f1f5f9;
+            border-color: #475569;
         }
 
-        /* Removed all 3D flip CSS */
+        /* Dark mode overrides for game elements */
+        .dark .bg-white { background-color: #1e293b; }
+        .dark .bg-slate-100 { background-color: #0f172a; }
+        .dark .bg-slate-200 { background-color: #334155; }
+        .dark .text-dark { color: #f1f5f9; }
+        .dark .text-slate-400 { color: #94a3b8; }
+        .dark .text-slate-500 { color: #64748b; }
+        .dark .border-dark { border-color: #475569; }
+        .dark .border-slate-200 { border-color: #334155; }
+        .dark .border-slate-300 { border-color: #475569; }
+        .dark .shadow-hard { box-shadow: 4px 4px 0px 0px #000; }
+        .dark .shadow-hard-sm { box-shadow: 2px 2px 0px 0px #000; }
+
+        /* Word set items */
+        .set-item { transition: all 0.2s; }
+        .set-item:hover { border-color: #2979FF !important; }
     </style>
     <link rel="stylesheet" href="../../css/base.css" />
     <link rel="stylesheet" href="../../css/components.css" />
@@ -128,8 +171,12 @@
             </div>
 
             <div class="flex items-center gap-3">
+                <button onclick="toggleTheme()" id="themeBtn" class="btn-chunky bg-white w-10 h-10 flex items-center justify-center rounded-xl text-dark hover:bg-slate-100" title="Toggle Dark Mode">
+                    <i data-lucide="moon" class="w-5 h-5"></i>
+                </button>
                 <button onclick="toggleSound()" id="soundBtn" class="btn-chunky bg-white w-10 h-10 flex items-center justify-center rounded-xl text-dark hover:bg-slate-100">
                     <i data-lucide="volume-2" class="w-5 h-5"></i>
+                </button>
             </div>
         </div>
     </header>
@@ -156,6 +203,24 @@
                         ></textarea>
                         <div class="absolute bottom-4 right-4 text-xs font-bold text-slate-400 bg-white px-2 py-1 rounded border border-slate-200 shadow-sm">
                             Comma Separated
+                        </div>
+                    </div>
+
+                    <!-- Word Sets -->
+                    <div class="mt-4 pt-4 border-t-2 border-dashed border-slate-300">
+                        <label class="block font-heading font-bold text-dark text-lg flex items-center gap-2 mb-2">
+                            <i data-lucide="folder" class="w-5 h-5 text-blue"></i>
+                            Saved Word Sets
+                        </label>
+                        <div class="flex gap-2 mb-3">
+                            <input id="set-name-input" type="text" placeholder="Set name..."
+                                class="flex-1 px-3 py-2 text-sm font-bold border-2 border-slate-300 rounded-lg focus:border-blue focus:outline-none transition-colors lined-paper" />
+                            <button onclick="saveCurrentSet()" class="btn-chunky bg-blue text-white px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-1 hover:brightness-105">
+                                <i data-lucide="save" class="w-3.5 h-3.5"></i> SAVE
+                            </button>
+                        </div>
+                        <div id="sets-list" class="space-y-1.5 max-h-32 overflow-y-auto">
+                            <p class="text-slate-400 text-xs italic">No saved sets yet.</p>
                         </div>
                     </div>
                 </div>
@@ -238,8 +303,114 @@
     </main>
 
     <script>
-        // --- CONFIG ---
-        const LS_KEY_WORDS = 'english1_hangman_words'; 
+        // --- THEME ---
+        function initTheme() {
+            const saved = localStorage.getItem('hangman_theme') || 'light';
+            if (saved === 'dark') document.documentElement.classList.add('dark');
+            else document.documentElement.classList.remove('dark');
+            updateThemeIcon();
+        }
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('hangman_theme', isDark ? 'dark' : 'light');
+            updateThemeIcon();
+            AudioEngine.click();
+        }
+        function updateThemeIcon() {
+            const btn = document.getElementById('themeBtn');
+            if (!btn) return;
+            const isDark = document.documentElement.classList.contains('dark');
+            btn.innerHTML = isDark
+                ? '<i data-lucide="sun" class="w-5 h-5"></i>'
+                : '<i data-lucide="moon" class="w-5 h-5"></i>';
+            lucide.createIcons();
+        }
+
+        // --- IndexedDB PERSISTENCE ---
+        const DB_NAME = 'HangmanDB';
+        const DB_VERSION = 1;
+        const STATE_STORE = 'game_state';
+        const SETS_STORE = 'word_sets';
+
+        async function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(STATE_STORE)) db.createObjectStore(STATE_STORE);
+                    if (!db.objectStoreNames.contains(SETS_STORE)) db.createObjectStore(SETS_STORE, { keyPath: 'id', autoIncrement: true });
+                };
+                request.onsuccess = (e) => resolve(e.target.result);
+                request.onerror = (e) => reject(e.target.error);
+            });
+        }
+        async function dbPut(key, data) {
+            try { const db = await initDB(); const tx = db.transaction(STATE_STORE, 'readwrite'); tx.objectStore(STATE_STORE).put(data, key); } catch(e) { console.error(e); }
+        }
+        async function dbGet(key) {
+            try {
+                const db = await initDB();
+                return new Promise((res, rej) => { const r = db.transaction(STATE_STORE, 'readonly').objectStore(STATE_STORE).get(key); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+            } catch(e) { return null; }
+        }
+
+        // Word Sets CRUD
+        async function saveWordSet(name, content) {
+            const db = await initDB();
+            const tx = db.transaction(SETS_STORE, 'readwrite');
+            tx.objectStore(SETS_STORE).put({ name, content, createdAt: Date.now() });
+            return new Promise(r => { tx.oncomplete = r; });
+        }
+        async function getAllWordSets() {
+            try {
+                const db = await initDB();
+                return new Promise((res) => { const r = db.transaction(SETS_STORE, 'readonly').objectStore(SETS_STORE).getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => res([]); });
+            } catch(e) { return []; }
+        }
+        async function deleteWordSet(id) {
+            const db = await initDB();
+            const tx = db.transaction(SETS_STORE, 'readwrite');
+            tx.objectStore(SETS_STORE).delete(id);
+            return new Promise(r => { tx.oncomplete = r; });
+        }
+
+        async function renderWordSets() {
+            const list = document.getElementById('sets-list');
+            if (!list) return;
+            const sets = await getAllWordSets();
+            if (sets.length === 0) { list.innerHTML = '<p class="text-slate-400 text-xs italic">No saved sets yet.</p>'; return; }
+            list.innerHTML = '';
+            sets.forEach(set => {
+                const item = document.createElement('div');
+                item.className = 'set-item flex items-center gap-2 p-2 bg-white border-2 border-slate-200 rounded-lg';
+                item.innerHTML = `
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-bold text-dark truncate">${set.name}</p>
+                        <p class="text-[10px] text-slate-400 truncate">${set.content.split(',').filter(w => w.trim()).length} words</p>
+                    </div>
+                    <button class="set-load p-1.5 bg-blue/10 text-blue rounded-md border border-blue/20 hover:bg-blue hover:text-white transition-all" title="Load">
+                        <i data-lucide="upload" class="w-3.5 h-3.5 pointer-events-none"></i>
+                    </button>
+                    <button class="set-del p-1.5 bg-pink/10 text-pink rounded-md border border-pink/20 hover:bg-pink hover:text-white transition-all" title="Delete">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5 pointer-events-none"></i>
+                    </button>`;
+                item.querySelector('.set-load').onclick = () => { wordListInput.value = set.content; dbPut('words', set.content); AudioEngine.click(); };
+                item.querySelector('.set-del').onclick = async () => { await deleteWordSet(set.id); AudioEngine.click(); renderWordSets(); };
+                list.appendChild(item);
+            });
+            lucide.createIcons();
+        }
+
+        async function saveCurrentSet() {
+            const nameInput = document.getElementById('set-name-input');
+            const name = nameInput.value.trim();
+            const content = wordListInput.value.trim();
+            if (!name || !content) { AudioEngine.wrong(); return; }
+            await saveWordSet(name, content);
+            nameInput.value = '';
+            AudioEngine.correct();
+            renderWordSets();
+        }
 
         // --- AUDIO ENGINE ---
         const AudioEngine = {
@@ -303,15 +474,13 @@
 
         // --- FUNCTIONS ---
         
-        function saveWords(wordsString) {
-             try { localStorage.setItem(LS_KEY_WORDS, wordsString); } catch (e) {}
+        async function saveWords(wordsString) {
+            await dbPut('words', wordsString);
         }
         
-        function loadWords() {
-            try {
-                const savedWords = localStorage.getItem(LS_KEY_WORDS);
-                if (savedWords) wordListInput.value = savedWords;
-            } catch (e) {}
+        async function loadWords() {
+            const saved = await dbGet('words');
+            if (saved) wordListInput.value = saved;
         }
 
         function selectPlayers(count) {
@@ -328,9 +497,9 @@
             AudioEngine.click();
         }
 
-        function startGame() {
+        async function startGame() {
             const rawInput = wordListInput.value;
-            saveWords(rawInput); 
+            await saveWords(rawInput); 
 
             words = rawInput.split(',').map(w => w.trim().toUpperCase()).filter(w => w.length > 0);
             
@@ -583,8 +752,10 @@
         }
 
         // Init
-        window.onload = () => {
-            loadWords();
+        window.onload = async () => {
+            initTheme();
+            await loadWords();
+            await renderWordSets();
             selectPlayers(2);
             lucide.createIcons();
             teacherConsole.classList.remove('hidden');
