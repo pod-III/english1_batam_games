@@ -2,8 +2,9 @@ lucide.createIcons();
 
 // --- PERSISTENCE (IndexedDB) ---
 const DB_NAME = 'CrosswordDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_NAME = 'game_state';
+const SETS_STORE = 'word_sets';
 
 async function initDB() {
     return new Promise((resolve, reject) => {
@@ -12,6 +13,9 @@ async function initDB() {
             const db = e.target.result;
             if (!db.objectStoreNames.contains(STORE_NAME)) {
                 db.createObjectStore(STORE_NAME);
+            }
+            if (!db.objectStoreNames.contains(SETS_STORE)) {
+                db.createObjectStore(SETS_STORE, { keyPath: 'id', autoIncrement: true });
             }
         };
         request.onsuccess = (e) => resolve(e.target.result);
@@ -77,6 +81,99 @@ async function loadGameState() {
         words = puzzle.words;
         render();
     }
+}
+
+// --- WORD SETS (IndexedDB) ---
+async function saveWordSet(name, content) {
+    try {
+        const db = await initDB();
+        const tx = db.transaction(SETS_STORE, 'readwrite');
+        const store = tx.objectStore(SETS_STORE);
+        store.put({ name, content, createdAt: Date.now() });
+        return new Promise((resolve, reject) => {
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error);
+        });
+    } catch (err) {
+        console.error('Save word set error:', err);
+    }
+}
+
+async function getAllWordSets() {
+    try {
+        const db = await initDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(SETS_STORE, 'readonly');
+            const store = tx.objectStore(SETS_STORE);
+            const request = store.getAll();
+            request.onsuccess = () => resolve(request.result || []);
+            request.onerror = () => reject(request.error);
+        });
+    } catch (err) {
+        console.error('Get word sets error:', err);
+        return [];
+    }
+}
+
+async function deleteWordSet(id) {
+    try {
+        const db = await initDB();
+        const tx = db.transaction(SETS_STORE, 'readwrite');
+        const store = tx.objectStore(SETS_STORE);
+        store.delete(id);
+        return new Promise((resolve, reject) => {
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error);
+        });
+    } catch (err) {
+        console.error('Delete word set error:', err);
+    }
+}
+
+async function renderWordSets() {
+    const list = document.getElementById('sets-list');
+    if (!list) return;
+    const sets = await getAllWordSets();
+    
+    if (sets.length === 0) {
+        list.innerHTML = '<p class="text-slate-400 dark:text-slate-500 text-xs italic">No saved sets yet.</p>';
+        return;
+    }
+    
+    list.innerHTML = '';
+    sets.forEach(set => {
+        const item = document.createElement('div');
+        item.className = 'flex items-center gap-2 p-2 bg-white/60 dark:bg-slate-800/60 border border-slate-200 dark:border-white/10 rounded-lg group hover:border-blue/40 transition-all';
+        item.innerHTML = `
+            <div class="flex-1 min-w-0">
+                <p class="text-sm font-bold text-dark dark:text-slate-100 truncate">${set.name}</p>
+                <p class="text-[10px] text-slate-400 dark:text-slate-500 truncate">${set.content.split('\n').filter(l => l.trim()).length} words</p>
+            </div>
+            <button class="set-load-btn p-1.5 bg-blue/10 dark:bg-blue/20 text-blue rounded-md border border-blue/20 hover:bg-blue hover:text-white hover:translate-y-[-1px] active:translate-y-[2px] transition-all" title="Load Set" data-id="${set.id}">
+                <i data-lucide="upload" class="w-3.5 h-3.5 pointer-events-none"></i>
+            </button>
+            <button class="set-delete-btn p-1.5 bg-pink/10 dark:bg-pink/20 text-pink rounded-md border border-pink/20 hover:bg-pink hover:text-white hover:translate-y-[-1px] active:translate-y-[2px] transition-all" title="Delete Set" data-id="${set.id}">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5 pointer-events-none"></i>
+            </button>
+        `;
+
+        // Load button
+        item.querySelector('.set-load-btn').addEventListener('click', async () => {
+            els.input.value = set.content;
+            saveGameState();
+            Sound.click();
+        });
+
+        // Delete button
+        item.querySelector('.set-delete-btn').addEventListener('click', async () => {
+            await deleteWordSet(set.id);
+            Sound.back();
+            renderWordSets();
+        });
+
+        list.appendChild(item);
+    });
+    lucide.createIcons();
 }
 
 // --- THEME ---
@@ -567,10 +664,23 @@ window.addEventListener('resize', autoFitGrid);
 
 els.input.addEventListener('input', () => saveGameState());
 
+document.getElementById('save-set-btn').onclick = async () => {
+    const nameInput = document.getElementById('set-name-input');
+    const name = nameInput.value.trim();
+    const content = els.input.value.trim();
+    if (!name) { nameInput.focus(); Sound.error(); return; }
+    if (!content) { els.input.focus(); Sound.error(); return; }
+    await saveWordSet(name, content);
+    nameInput.value = '';
+    Sound.success();
+    renderWordSets();
+};
+
 window.onload = async () => {
     initTheme();
     const themeBtn = document.getElementById('theme-toggle');
     if (themeBtn) themeBtn.onclick = toggleTheme;
     await loadGameState();
+    await renderWordSets();
     if (window.innerWidth < 768) toggleControlPanel(true);
 };
