@@ -270,6 +270,36 @@ const UI = {
 
     const icon = container.querySelector('[data-action="toggleSettings"] i');
     if (icon) icon.classList.toggle('rotate-90', isClosed);
+  },
+
+  showToast(message, type = 'warning', duration = 3000) {
+    const existingToast = document.querySelector('.toast');
+    if (existingToast) existingToast.remove();
+
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    
+    const iconMap = {
+      warning: 'alert-triangle',
+      info: 'info',
+      success: 'check-circle',
+      error: 'x-circle'
+    };
+    
+    toast.innerHTML = `
+      <i data-lucide="${iconMap[type] || 'info'}" class="w-5 h-5"></i>
+      <span>${message}</span>
+    `;
+
+    document.body.appendChild(toast);
+    Utils.refreshIcons();
+
+    setTimeout(() => toast.classList.add('show'), 10);
+
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => toast.remove(), 300);
+    }, duration);
   }
 };
 
@@ -934,6 +964,8 @@ const TabManager = {
       this.splitScreenActive = false;
       this.activeTabId = null;
       this.updateEmptyState();
+      // Auto-close workspace when no tabs remain
+      this.closeModal();
       return;
     }
 
@@ -1326,6 +1358,13 @@ const App = {
       toggleInfo: () => GameModal.toggleInfo(),
       openWorkspace: () => {
         AudioEngine.click();
+        
+        // Check if there are any active tabs
+        if (TabManager.tabs.length === 0) {
+          UI.showToast('No active tabs. Open an activity first!', 'warning', 3000);
+          return;
+        }
+        
         UI.toggleModal('game-modal', true);
         TabManager.updateEmptyState();
       },
