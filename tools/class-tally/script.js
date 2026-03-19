@@ -350,7 +350,7 @@ const ClassTallyApp = (function () {
             dbPut('classTallyState', dataToSave);
         },
         load: () => {
-            const d = localStorage.getItem('class_tally_v1') || localStorage.getItem('english1_tally_v5') || localStorage.getItem('english1_tally_v4_state');
+            const d = localStorage.getItem('class_tally_v1') || localStorage.getItem('klasskit_tally_v5') || localStorage.getItem('klasskit_tally_v4_state');
             if (d) {
                 try {
                     const o = JSON.parse(d);

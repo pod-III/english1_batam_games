@@ -1,10 +1,10 @@
 /**
  * INDEXED DB MANAGER
  * Handles persistence of Presets (contains images, state, etc.)
- * Migrates from V1 MysteryBoxDB to V2 English1RevealDB
+ * Migrates from V1 MysteryBoxDB to V2 KlassKitRevealDB
  */
 const DB = {
-    dbName: 'English1RevealDB',
+    dbName: 'KlassKitRevealDB',
     dbVersion: 1,
     db: null,
 

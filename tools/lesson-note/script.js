@@ -503,7 +503,7 @@ async function exportJSON() {
     const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
     const link = document.createElement('a');
     link.setAttribute('href', dataUri);
-    link.setAttribute('download', `english1_backup_${new Date().toISOString().split('T')[0]}.json`);
+    link.setAttribute('download', `klasskit_backup_${new Date().toISOString().split('T')[0]}.json`);
     link.click();
 }
 

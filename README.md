@@ -1,4 +1,4 @@
-# English 1 Batam - Teacher Activity Hub 🍎
+# KlassKit - Teacher Activity Hub 🍎
 
 A curated collection of **50 interactive classroom tools and games** for English Language Teaching. Built for teachers, by teachers — designed to run in any modern browser with zero installation.
 
@@ -6,7 +6,7 @@ A curated collection of **50 interactive classroom tools and games** for English
 ![Games](https://img.shields.io/badge/games-50-green)
 ![License](https://img.shields.io/badge/license-MIT-orange)
 
-> **Live Demo:** [Open Activity Hub](https://e1batam.vercel.app)
+> **Live Demo:** [Open Activity Hub](https://klasskit.vercel.app)
 
 ---
 
@@ -20,7 +20,7 @@ This hub is a **desktop-first, projector-optimized** teaching companion. It turn
 - Persistent state survives browser refreshes
 
 ## 🎨 Design Philosophy & Theme
-Built using the **English 1 Signature Palette**, the UI ensures brand consistency and a friendly, energetic atmosphere:
+Built using the **KlassKit Signature Palette**, the UI ensures brand consistency and a friendly, energetic atmosphere:
 
 * **Pink (`#ff4785`):** Playful & Creative
 * **Orange (`#ff7e33`):** High Energy & Interaction
@@ -70,10 +70,10 @@ Built using the **English 1 Signature Palette**, the UI ensures brand consistenc
 
 ```bash
 # Clone the repo
-git clone https://github.com/pod-III/english1_batam_games.git
+git clone https://github.com/pod-III/klasskit.git
 
 # Open in browser (no build step!)
-cd english1_batam_games
+cd klasskit
 open index.html
 ```
 
@@ -128,7 +128,7 @@ Each activity is a self-contained HTML file in `games/` or `tools/`. To add a ne
 ## 📂 Project Structure
 
 ```
-english1_batam_games/
+klasskit/
 ├── index.html          # Hub interface
 ├── script.js           # Core app logic (~1300 lines)
 ├── games.json          # Activity registry (50 items)
@@ -146,10 +146,10 @@ english1_batam_games/
 
 ## 🙏 Credits
 
-Built by **Fahrul** for the students and teachers of Batam, Indonesia.
+Built by **Fahrul** for the students and teachers of Indonesia.
 
 **Design:** Soft Brutalism meets classroom utility  
 **Fonts:** [Fredoka](https://fonts.google.com/specimen/Fredoka) & [Nunito](https://fonts.google.com/specimen/Nunito)  
 **Icons:** [Lucide](https://lucide.dev)  
 
-*Created with ❤️ in Batam* — PRs welcome!
+*Created with ❤️ * — PRs welcome!

@@ -22,7 +22,7 @@ let currentTheme = 'light';
 
 // Theme Management
 function initTheme() {
-    const savedTheme = localStorage.getItem('english1_theme');
+    const savedTheme = localStorage.getItem('klasskit_theme');
     if (savedTheme) {
         currentTheme = savedTheme;
     } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
@@ -33,7 +33,7 @@ function initTheme() {
 
 function toggleTheme() {
     currentTheme = currentTheme === 'light' ? 'dark' : 'light';
-    localStorage.setItem('english1_theme', currentTheme);
+    localStorage.setItem('klasskit_theme', currentTheme);
     applyTheme();
 }
 

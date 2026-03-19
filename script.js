@@ -1,5 +1,5 @@
 // ============================================
-// REFACTORED script.js - English 1 Batam Hub
+// REFACTORED script.js - KlassKit Hub
 // Optimized for performance, reduced redundancy
 // ============================================
 

@@ -30,7 +30,7 @@ const state = {
 };
 
 // --- INDEXED DB SETUP ---
-const DB_NAME = "English1PuzzleDB";
+const DB_NAME = "KlassKitPuzzleDB";
 const STORE_NAME = "gameState";
 const DB_VERSION = 1;
 
