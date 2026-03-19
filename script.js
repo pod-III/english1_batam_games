@@ -30,6 +30,20 @@ const Utils = {
     };
   },
 
+  escapeHtml(value) {
+    if (value === null || value === undefined) return '';
+    return String(value).replace(/[&<>"']/g, (ch) => {
+      switch (ch) {
+        case '&': return '&amp;';
+        case '<': return '&lt;';
+        case '>': return '&gt;';
+        case '"': return '&quot;';
+        case "'": return '&#39;';
+        default: return ch;
+      }
+    });
+  },
+
   getColorClass(colorName, prefix = 'bg') {
     const baseColor = colorName.replace('text-', '').split('-')[0];
     const colorMap = {
@@ -218,7 +232,7 @@ const UI = {
       <div class="col-span-full text-center p-10">
         <div class="inline-block bg-red-100 dark:bg-red-900 border-4 border-red-500 rounded-2xl p-8">
           <i data-lucide="alert-circle" class="w-16 h-16 text-red-500 mx-auto mb-4"></i>
-          <p class="text-xl font-bold text-red-700 dark:text-red-300">${message}</p>
+          <p class="text-xl font-bold text-red-700 dark:text-red-300">${Utils.escapeHtml(message)}</p>
         </div>
       </div>
     `;
@@ -302,15 +316,17 @@ const RecentGames = {
     container.innerHTML = recentIds.map(id => {
       const game = State.getGameById(id);
       if (!game) return '';
+      const safeTitle = Utils.escapeHtml(game.title);
+      const safeIcon = Utils.escapeHtml(game.icon);
       return `
         <button data-action="openGame" data-param="${game.id}"
           class="recent-pill bg-white dark:bg-slate-800 flex items-center gap-3 px-3 py-2 rounded-xl shrink-0 min-w-[150px] group hover:bg-slate-50 dark:hover:bg-slate-700 border-2 border-dark dark:border-slate-500 shadow-hard-sm"
-          aria-label="Resume ${game.title}">
+          aria-label="Resume ${safeTitle}">
           <div class="w-10 h-10 rounded-lg ${Utils.getColorClass(game.color)} flex items-center justify-center text-white border-2 border-dark dark:border-slate-300 shadow-sm">
-            <i data-lucide="${game.icon}" class="w-5 h-5"></i>
+            <i data-lucide="${safeIcon}" class="w-5 h-5"></i>
           </div>
           <div class="text-left">
-            <div class="text-xs font-bold text-dark dark:text-white truncate w-24">${game.title}</div>
+            <div class="text-xs font-bold text-dark dark:text-white truncate w-24">${safeTitle}</div>
             <div class="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase">RESUME</div>
           </div>
         </button>
@@ -343,17 +359,20 @@ const FeaturedSection = {
       const baseColor = game.color.replace('text-', '').split('-')[0];
       const bgClass = `bg-${baseColor}`;
       const bgLightClass = `bg-${baseColor}/15`;
+      const safeTitle = Utils.escapeHtml(game.title);
+      const safeDesc = Utils.escapeHtml(game.description);
+      const safeIcon = Utils.escapeHtml(game.icon);
       return `
         <div class="featured-card" data-action="openGame" data-param="${game.id}" role="button" tabindex="0"
-          aria-label="Launch ${game.title}">
+          aria-label="Launch ${safeTitle}">
           <div class="featured-card-visual ${bgLightClass}">
             <div class="bg-white dark:bg-slate-700 p-4 rounded-2xl border-2 border-dark dark:border-slate-400 shadow-hard dark:shadow-neon-sm relative z-10">
-              <i data-lucide="${game.icon}" class="w-10 h-10 ${game.color} dark:text-white"></i>
+              <i data-lucide="${safeIcon}" class="w-10 h-10 ${game.color} dark:text-white"></i>
             </div>
           </div>
           <div class="featured-card-body">
-            <div class="featured-card-title">${game.title}</div>
-            <div class="featured-card-desc">${game.description}</div>
+            <div class="featured-card-title">${safeTitle}</div>
+            <div class="featured-card-desc">${safeDesc}</div>
             <div class="featured-card-action ${bgClass}">
               <i data-lucide="play" class="w-4 h-4 fill-current"></i> LAUNCH
             </div>
@@ -429,30 +448,34 @@ const GameGrid = {
     const baseColor = game.color.replace('text-', '').split('-')[0];
     const bgClass = `bg-${baseColor}/10`;
     const btnClass = game.color.replace('text-', 'bg-');
+    const safeTitle = Utils.escapeHtml(game.title);
+    const safeDesc = Utils.escapeHtml(game.description);
+    const safeCategory = Utils.escapeHtml(game.category);
+    const safeIcon = Utils.escapeHtml(game.icon);
     const difficultyBadge = game.difficulty
-      ? `<span class="text-[8px] font-bold px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400 uppercase">${game.difficulty}</span>`
+      ? `<span class="text-[8px] font-bold px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400 uppercase">${Utils.escapeHtml(game.difficulty)}</span>`
       : '';
 
     return `
       <article class="hub-card group cursor-pointer dark:bg-slate-800 dark:border-slate-500" 
         data-action="openGame" data-param="${game.id}" role="button" tabindex="0"
-        aria-label="Launch ${game.title}: ${game.description}">
+        aria-label="Launch ${safeTitle}: ${safeDesc}">
         <div class="${bgClass} p-6 border-b-4 border-dark dark:border-slate-500 h-40 flex items-center justify-center relative overflow-hidden group-hover:${bgClass.replace('/10', '/20')} transition-colors">
           <div class="absolute inset-0 opacity-10" style="background-image:radial-gradient(#000 2px,transparent 2px);background-size:12px 12px"></div>
-          <i data-lucide="${game.icon}" class="absolute -right-6 -bottom-6 w-36 h-36 ${game.color} opacity-20 rotate-12 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300"></i>
+          <i data-lucide="${safeIcon}" class="absolute -right-6 -bottom-6 w-36 h-36 ${game.color} opacity-20 rotate-12 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300"></i>
           <div class="bg-white dark:bg-slate-700 p-4 rounded-2xl border-2 border-dark dark:border-slate-400 shadow-hard dark:shadow-neon-sm relative z-10 group-hover:scale-110 transition-transform duration-300">
-            <i data-lucide="${game.icon}" class="w-10 h-10 ${game.color} dark:text-white"></i>
+            <i data-lucide="${safeIcon}" class="w-10 h-10 ${game.color} dark:text-white"></i>
           </div>
         </div>
         <div class="p-6 flex-1 flex flex-col bg-white dark:bg-slate-800">
           <div class="flex justify-between items-start mb-3">
-            <h2 class="text-2xl font-heading text-dark dark:text-white leading-none tracking-tight">${game.title}</h2>
+            <h2 class="text-2xl font-heading text-dark dark:text-white leading-none tracking-tight">${safeTitle}</h2>
             <div class="flex flex-col gap-1 items-end">
-              <span class="sticker ${btnClass} text-white text-[10px] font-bold px-2 py-1 rounded-md transform ${Math.random() > 0.5 ? 'rotate-2' : '-rotate-2'}">${game.category.toUpperCase()}</span>
+              <span class="sticker ${btnClass} text-white text-[10px] font-bold px-2 py-1 rounded-md transform ${Math.random() > 0.5 ? 'rotate-2' : '-rotate-2'}">${safeCategory.toUpperCase()}</span>
               ${difficultyBadge}
             </div>
           </div>
-          <p class="text-slate-500 dark:text-slate-400 font-bold text-sm mb-6 flex-1 leading-relaxed">${game.description}</p>
+          <p class="text-slate-500 dark:text-slate-400 font-bold text-sm mb-6 flex-1 leading-relaxed">${safeDesc}</p>
           <button class="btn-chunky ${btnClass} text-white w-full py-3 rounded-xl flex items-center justify-center gap-2 text-lg group-hover:brightness-105" tabindex="-1">
             <i data-lucide="play" class="w-5 h-5 fill-current"></i> LAUNCH
           </button>
@@ -468,9 +491,9 @@ const GameGrid = {
         : "<ul class='list-disc pl-5 space-y-2'><li>Follow the on-screen prompts to start.</li><li>Customize words in setup if available.</li></ul>";
     }
     if (typeof game.guide === 'object' && game.guide.steps) {
-      return `<ul class='list-disc pl-5 space-y-2'>${game.guide.steps.map(s => `<li>${s}</li>`).join('')}</ul>`;
+      return `<ul class='list-disc pl-5 space-y-2'>${game.guide.steps.map(s => `<li>${Utils.escapeHtml(s)}</li>`).join('')}</ul>`;
     }
-    return game.guide;
+    return Utils.escapeHtml(game.guide);
   },
 
   initCardEffects() {
@@ -743,6 +766,10 @@ const TabManager = {
     iframe.id = `iframe-${tab.id}`;
     iframe.title = tab.title;
     iframe.setAttribute('aria-label', `${tab.title} game content`);
+    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-modals');
+    iframe.setAttribute('referrerpolicy', 'no-referrer');
+    iframe.setAttribute('loading', 'lazy');
+    iframe.setAttribute('allow', 'fullscreen');
 
     panel.appendChild(iframe);
     tabContentArea.appendChild(panel);
@@ -804,6 +831,10 @@ const TabManager = {
     const iframe = document.createElement('iframe');
     iframe.id = `iframe-${tab.id}`;
     iframe.title = tab.title;
+    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups allow-modals');
+    iframe.setAttribute('referrerpolicy', 'no-referrer');
+    iframe.setAttribute('loading', 'lazy');
+    iframe.setAttribute('allow', 'fullscreen');
     tab.panel.appendChild(iframe);
     tab.iframe = iframe;
     this.loadGame(tab, game.path);
@@ -1332,7 +1363,7 @@ const App = {
       filterGames: (param) => Filters.setCategory(param),
       clearRecent: () => RecentGames.clear(),
       clearSearch: () => Search.clear(),
-      openFeedback: () => window.open(CONFIG.helpUrl, '_blank')
+      openFeedback: () => window.open(CONFIG.helpUrl, '_blank', 'noopener,noreferrer')
     };
 
     document.addEventListener('click', (e) => {
