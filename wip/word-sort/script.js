@@ -284,6 +284,12 @@ function shuffleArray(array) {
     return array;
 }
 
+function cleanupOrphanedChips() {
+    // Remove any word-chip elements that are direct children of body (stuck proxies)
+    const orphaned = document.querySelectorAll("body > .word-chip");
+    orphaned.forEach((chip) => chip.remove());
+}
+
 function updateStartButtonVisibility() {
     const btn = document.getElementById("startGameBtn");
     if (!btn) return;
@@ -305,6 +311,7 @@ function startGame() {
     if (categories.length === 0) return showToast("Add categories first", "error");
     if (words.length === 0) return showToast("No words to sort", "error");
 
+    cleanupOrphanedChips();
     gameActive = true;
     
     // Randomize the word bank
@@ -338,14 +345,14 @@ function renderGameBoard() {
         zone.dataset.index = index;
 
         zone.innerHTML = `
-            <div class="flex items-center justify-between border-b-3 ${cat.color.border} pb-2 mb-3">
-                <div class="flex items-center gap-2">
-                    <i data-lucide="${cat.color.icon}" class="w-5 h-5 ${cat.color.text}"></i>
-                    <span class="font-heading font-bold text-xl uppercase tracking-wider ${cat.color.text}">${cat.name}</span>
+            <div class="flex items-center justify-between border-b-4 ${cat.color.border} pb-3 mb-4">
+                <div class="flex items-center gap-3">
+                    <i data-lucide="${cat.color.icon}" class="w-6 h-6 ${cat.color.text}"></i>
+                    <span class="font-heading font-black text-2xl uppercase tracking-widest ${cat.color.text}">${cat.name}</span>
                 </div>
-                <span class="text-xs font-black text-slate-400 uppercase word-counter bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">0</span>
+                <span class="text-xs font-black text-slate-400 uppercase word-counter bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg shadow-sm">0</span>
             </div>
-            <div class="zone-words flex flex-wrap gap-2 min-h-[80px] content-start flex-1"></div>
+            <div class="zone-words flex flex-wrap gap-3 min-h-[100px] content-start flex-1 p-2"></div>
         `;
         container.appendChild(zone);
     });
@@ -369,10 +376,16 @@ function renderWordPool() {
 function createWordChip(word, colorIndex) {
     const chip = document.createElement("div");
     const colorClass = wordColors[colorIndex % wordColors.length];
-    chip.className = `word-chip sticker ${colorClass} text-white px-4 py-2 rounded-2xl text-base font-bold shadow-hard border-3 border-dark dark:border-slate-500`;
+    
+    // Random rotation for "sticker" look
+    const randomRotation = (Math.random() * 4 - 2).toFixed(1); // -2deg to 2deg
+    
+    chip.className = `word-chip sticker ${colorClass} text-white px-6 py-3 rounded-2xl text-xl font-black shadow-hard border-4 border-dark dark:border-slate-500`;
+    chip.style.transform = `rotate(${randomRotation}deg)`;
     chip.textContent = word.text;
     chip.dataset.wordId = word.id;
     chip.dataset.category = word.category;
+    chip.dataset.originalRotation = randomRotation;
 
     chip.addEventListener("mousedown", handleDragStart);
     chip.addEventListener("touchstart", handleDragStart, { passive: false });
@@ -472,6 +485,10 @@ function dropWord(chip, zone) {
     const counter = zone.querySelector(".word-counter");
     counter.textContent = zoneWords.children.length;
 
+    // Pulse animation on drop
+    chip.classList.add("animate-pulse-once");
+    setTimeout(() => chip.classList.remove("animate-pulse-once"), 500);
+
     if (instantCheck) {
         const isCorrect = word.category === zoneCategory;
         if (isCorrect) {
@@ -503,7 +520,10 @@ function returnToPool(chip) {
     }
 
     setTimeout(() => {
-        chip.classList.remove("returning");
+        chip.remove(); // Remove the proxy from body
+        if (word && !word.placed) {
+            // New chip will be created by renderWordPool
+        }
         renderWordPool();
     }, 300);
 }
@@ -584,6 +604,7 @@ function resetGame() {
 }
 
 function newGame() {
+    cleanupOrphanedChips();
     gameActive = false;
     words = [];
     categories = [];
