@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en" class="light">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Word Sort: KlassKit</title>
+
+        <!-- Tailwind CSS & Google Fonts -->
+        <script src="https://cdn.tailwindcss.com"></script>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400..700&family=Nunito:ital,wght@0,200..1000;1,200..1000&family=JetBrains+Mono:wght@400;700&display=swap"
+            rel="stylesheet"
+        />
+
+        <!-- Tailwind Configuration -->
+        <script>
+            tailwind.config = {
+                darkMode: "class",
+                theme: {
+                    extend: {
+                        colors: {
+                            pink: "#ff4785",
+                            blue: "#1ea7fd",
+                            green: "#00d063",
+                            orange: "#ff7e33",
+                            dark: "#0f172a",
+                        },
+                        fontFamily: {
+                            heading: ["Fredoka", "sans-serif"],
+                            body: ["Nunito", "sans-serif"],
+                            mono: ["JetBrains Mono", "monospace"],
+                        },
+                    },
+                },
+            };
+        </script>
+
+        <!-- External Styles & Scripts -->
+        <link rel="stylesheet" href="style.css" />
+        <script src="https://unpkg.com/lucide@latest"></script>
+        <script src="script.js" defer></script>
+    </head>
+    <body class="h-screen w-screen overflow-hidden flex flex-col md:flex-row transition-colors duration-500">
+
+        <!-- Sidebar (Controls) -->
+        <aside
+            id="controls"
+            class="w-full md:w-96 glass-panel border-b-2 md:border-b-0 md:border-r-2 border-slate-300 dark:border-slate-700 flex flex-col z-50 transition-all duration-300 shadow-xl md:shadow-none h-[40%] md:h-full relative shrink-0"
+        >
+            <!-- Sidebar Header -->
+            <div class="p-6 border-b-[1px] border-slate-300 dark:border-white/10 bg-slate-50/50 dark:bg-slate-800/50 flex justify-between items-center shrink-0">
+                <div>
+                    <h1 class="text-3xl font-heading text-dark dark:text-slate-100 tracking-wider uppercase leading-none drop-shadow-sm transition-colors duration-300">
+                        WORD<span class="text-blue">SORT</span>
+                    </h1>
+                    <p class="text-[10px] font-black text-slate-400 tracking-[0.2em] mt-1 uppercase" id="status-display">
+                        STATUS: <span class="text-slate-500 dark:text-slate-300">SETUP</span>
+                    </p>
+                </div>
+                <button
+                    onclick="toggleTheme()"
+                    class="p-2.5 rounded-xl border-[1px] border-slate-200 dark:border-white/10 bg-white dark:bg-slate-700 hover:scale-110 active:scale-95 transition-all shadow-sm"
+                    title="Toggle Theme"
+                >
+                    <i data-lucide="sun" class="w-5 h-5 text-orange block dark:hidden"></i>
+                    <i data-lucide="moon" class="w-5 h-5 text-blue hidden dark:block"></i>
+                    <span class="sr-only">Toggle Theme</span>
+                    <span class="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-slate-400 uppercase tracking-widest hidden md:block">
+                        <span class="dark:hidden">LIGHT</span>
+                        <span class="hidden dark:block">DARK</span>
+                    </span>
+                </button>
+                <button
+                    onclick="toggleControlPanel(true)"
+                    class="md:hidden p-2 bg-pink/10 text-pink border-2 border-slate-300 dark:border-slate-700 rounded-lg shadow-hard active:translate-y-1 active:shadow-none transition-all"
+                >
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <!-- Scrollable Settings -->
+            <div class="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-8 pb-32">
+                <!-- Game Settings -->
+                <section class="space-y-4">
+                    <div class="flex items-center gap-2 text-dark dark:text-slate-200 opacity-60">
+                        <i data-lucide="settings-2" class="w-4 h-4"></i>
+                        <h2 class="text-xs font-black tracking-widest uppercase">General Settings</h2>
+                    </div>
+                    <div class="p-4 bg-slate-50/50 dark:bg-slate-800/50 border-2 border-slate-300 dark:border-slate-700 rounded-xl shadow-sm transition-colors duration-300 space-y-3">
+                        <div class="flex justify-between items-center border-b-[1px] border-slate-200 dark:border-white/10 pb-2">
+                            <span class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase">Check answers instantly</span>
+                            <label class="switch">
+                                <input type="checkbox" id="instant-check" checked onchange="updateGameMode()" />
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Batch Input -->
+                <section class="space-y-4">
+                    <div class="flex items-center justify-between text-dark dark:text-slate-200 opacity-60">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="file-text" class="w-4 h-4"></i>
+                            <h2 class="text-xs font-black tracking-widest uppercase">Batch Input</h2>
+                        </div>
+                        <span class="text-[10px] bg-blue/10 text-blue px-2 py-0.5 rounded-full font-bold">Auto-creates categories</span>
+                    </div>
+                    <div class="space-y-3">
+                        <p class="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Format: category: word1, word2, word3</p>
+                        <textarea
+                            id="batch-input"
+                            spellcheck="false"
+                            rows="6"
+                            class="input-styled w-full p-3 bg-white dark:bg-slate-900 text-dark dark:text-slate-200 font-mono text-sm border-2 border-slate-300 dark:border-slate-700 rounded-xl focus:border-green focus:ring-2 focus:ring-green outline-none resize-none shadow-inner transition-colors duration-300"
+                            placeholder="fruit: apple, banana, kiwi&#10;animal: dog, tiger, cat&#10;city: Batam, Tokyo, Los Angeles"
+                        ></textarea>
+                        <button
+                            onclick="parseBatchInput()"
+                            class="w-full btn-chunky bg-green text-white py-3 rounded-xl flex items-center justify-center gap-2 shadow-hard"
+                        >
+                            <i data-lucide="zap" class="w-4 h-4"></i> PARSE & LOAD
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Categories -->
+                <section class="space-y-4">
+                    <div class="flex items-center justify-between text-dark dark:text-slate-200 opacity-60">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="folder-tree" class="w-4 h-4"></i>
+                            <h2 class="text-xs font-black tracking-widest uppercase">Categories</h2>
+                        </div>
+                        <span id="category-count" class="text-[10px] font-black text-slate-400">0/6</span>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="flex gap-2">
+                            <input
+                                type="text"
+                                id="new-category"
+                                placeholder="Add manual category..."
+                                class="flex-1 p-3 bg-white/50 dark:bg-slate-900/50 text-dark dark:text-slate-200 text-sm border-2 border-slate-300 dark:border-slate-700 rounded-xl focus:border-blue focus:ring-2 focus:ring-blue outline-none shadow-inner transition-colors"
+                                onkeypress="if (event.key === 'Enter') addCategory();"
+                            />
+                            <button
+                                id="add-cat-btn"
+                                onclick="addCategory()"
+                                class="p-3 bg-blue text-white rounded-xl shadow-hard border-2 border-slate-300 dark:border-slate-700 active:translate-y-1 active:shadow-none transition-all"
+                            >
+                                <i data-lucide="plus" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                        <div id="category-list" class="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                            <!-- Categories will be listed here -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Presets -->
+                <section class="space-y-4">
+                    <div class="flex items-center gap-2 text-dark dark:text-slate-200 opacity-60">
+                        <i data-lucide="bookmark" class="w-4 h-4"></i>
+                        <h2 class="text-xs font-black tracking-widest uppercase">Presets</h2>
+                    </div>
+                    <div class="space-y-3">
+                        <select
+                            id="preset-select"
+                            onchange="loadPreset()"
+                            class="w-full p-3 bg-white/50 dark:bg-slate-900/50 text-dark dark:text-slate-200 text-sm border-2 border-slate-300 dark:border-slate-700 rounded-xl focus:border-pink focus:ring-2 focus:ring-pink outline-none shadow-inner transition-colors cursor-pointer"
+                        >
+                            <option value="">-- Select Preset --</option>
+                        </select>
+                        <div class="flex gap-2">
+                            <input
+                                type="text"
+                                id="preset-name"
+                                placeholder="Save current as..."
+                                class="flex-1 p-3 bg-white/50 dark:bg-slate-900/50 text-dark dark:text-slate-200 text-sm border-2 border-slate-300 dark:border-slate-700 rounded-xl focus:border-pink focus:ring-2 focus:ring-pink outline-none shadow-inner transition-colors"
+                            />
+                            <button
+                                onclick="savePreset()"
+                                class="p-3 bg-pink text-white rounded-xl shadow-hard border-2 border-slate-300 dark:border-slate-700 active:translate-y-1 active:shadow-none transition-all"
+                                title="Save Preset"
+                            >
+                                <i data-lucide="save" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Bottom Sticky Info -->
+            <div class="p-6 bg-slate-50/80 dark:bg-slate-800/80 backdrop-blur-md border-t-[1px] border-slate-300 dark:border-white/10 shrink-0 absolute bottom-0 w-full flex items-center justify-between">
+                <div id="save-indicator" class="flex items-center gap-2 opacity-0 transition-opacity text-green">
+                    <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+                    <span class="text-[10px] font-black uppercase tracking-widest">SAVED</span>
+                </div>
+                <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                    <i data-lucide="info" class="w-4 h-4"></i> Drag to Sort
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="flex-1 h-full relative overflow-hidden flex flex-col p-4 md:p-8">
+            <!-- Game Top Bar -->
+            <header class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 shrink-0 relative z-20">
+                <div class="flex items-center gap-4">
+                    <button
+                        onclick="toggleControlPanel(false)"
+                        class="p-2 glass-panel border-2 border-slate-300 dark:border-slate-700 rounded-xl shadow-hard hover:translate-y-[-2px] transition-transform text-slate-400 hover:text-dark dark:hover:text-slate-200"
+                    >
+                        <i data-lucide="settings" class="w-5 h-5"></i>
+                    </button>
+                    <div
+                        id="game-stats"
+                        class="glass-panel px-4 py-2 rounded-xl border-2 border-slate-300 dark:border-slate-700 shadow-hard flex items-center gap-4 opacity-0 transition-opacity"
+                    >
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="check-circle-2" class="w-4 h-4 text-green"></i>
+                            <span class="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">CORRECT</span>
+                            <span id="correct-count" class="font-heading font-bold text-lg text-green">0</span>
+                        </div>
+                        <div class="w-px h-4 bg-slate-300 dark:bg-slate-700"></div>
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="alert-circle" class="w-4 h-4 text-pink"></i>
+                            <span class="text-xs font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">WRONG</span>
+                            <span id="wrong-count" class="font-heading font-bold text-lg text-pink">0</span>
+                        </div>
+                        <div class="w-px h-4 bg-slate-300 dark:bg-slate-700"></div>
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="target" class="w-4 h-4 text-blue"></i>
+                            <span id="accuracy" class="font-heading font-bold text-lg text-blue">0%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex gap-4">
+                    <button id="startGameBtn" onclick="startGame()" class="hidden md:flex btn-chunky bg-blue text-white px-6 py-2.5 rounded-xl shadow-hard items-center gap-2">
+                        <i data-lucide="play" class="w-4 h-4"></i> START GAME
+                    </button>
+                </div>
+            </header>
+
+            <!-- Game Categories Container -->
+            <div id="categories-container" class="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto custom-scrollbar p-1 pb-48 relative z-10">
+                <!-- Empty State -->
+                <div id="empty-state" class="col-span-full flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-500 space-y-4">
+                    <div class="w-24 h-24 rounded-full border-4 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center">
+                        <i data-lucide="folder-plus" class="w-12 h-12"></i>
+                    </div>
+                    <p class="font-heading font-black text-2xl tracking-widest opacity-80 uppercase">ADD CATEGORIES TO START</p>
+                </div>
+            </div>
+
+            <!-- Floating Word Bank (Docked at Bottom) -->
+            <div id="word-bank-container" class="absolute bottom-4 left-4 right-4 h-[140px] md:h-[160px] z-10">
+                <div class="w-full h-full p-4 glass-panel rounded-2xl border-3 border-slate-300 dark:border-slate-700 flex flex-col shadow-hard">
+                    <div class="flex items-center justify-between mb-2 shrink-0">
+                        <div class="flex items-center gap-2 text-slate-400">
+                            <i data-lucide="grid-3x3" class="w-4 h-4"></i>
+                            <h3 class="text-[10px] font-black uppercase tracking-[0.2em]">WORD BANK</h3>
+                        </div>
+                        <span id="pool-count" class="text-[10px] font-black text-blue bg-blue/10 px-2 py-0.5 rounded-full">0 words</span>
+                    </div>
+
+                    <div id="word-pool" class="flex-1 flex flex-wrap gap-2 overflow-y-auto custom-scrollbar p-2 rounded-xl bg-white/50 dark:bg-slate-900/50 border-[1px] border-dashed border-slate-300 dark:border-white/10 transition-all duration-300">
+                        <!-- Words will appear here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Absolute Feedback Layers -->
+            <div id="toast-container" class="fixed top-4 right-4 flex flex-col gap-2 z-[9999] pointer-events-none"></div>
+
+            <!-- Action Floating Buttons -->
+            <div class="fixed bottom-8 right-8 flex gap-4 z-50">
+                <button
+                    id="check-btn"
+                    onclick="checkAnswers()"
+                    class="hidden btn-chunky bg-blue text-white px-6 py-3 rounded-2xl text-lg font-black tracking-wide flex items-center gap-3 shadow-hard"
+                >
+                    <i data-lucide="check" class="w-5 h-5"></i> CHECK
+                </button>
+                <button
+                    id="reset-btn"
+                    onclick="resetGame()"
+                    class="hidden btn-chunky bg-white dark:bg-slate-700 !text-slate-600 dark:!text-slate-300 px-6 py-3 rounded-2xl text-lg font-black tracking-wide flex items-center gap-3 shadow-hard"
+                >
+                    <i data-lucide="rotate-ccw" class="w-5 h-5"></i> RESET
+                </button>
+                <button
+                    id="new-game-btn"
+                    onclick="newGame()"
+                    class="hidden btn-chunky bg-pink text-white px-6 py-3 rounded-2xl text-lg font-black tracking-wide flex items-center gap-3 shadow-hard"
+                >
+                    <i data-lucide="sparkles" class="w-5 h-5"></i> NEW
+                </button>
+            </div>
+        </main>
+    </body>
+</html>
