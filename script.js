@@ -300,6 +300,40 @@ const UI = {
       toast.classList.remove('show');
       setTimeout(() => toast.remove(), 300);
     }, duration);
+  },
+
+  /**
+   * Spatial Expansion Animation: Opens modal from the clicked element's position
+   */
+  animateModalOpen(element, modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal || !element) {
+      this.toggleModal(modalId, true);
+      return;
+    }
+
+    const rect = element.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    modal.style.display = 'block';
+    modal.classList.remove('hidden');
+    modal.style.clipPath = `circle(0% at ${centerX}px ${centerY}px)`;
+    modal.style.opacity = '0';
+    modal.style.transition = 'clip-path 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease-out';
+
+    // Force reflow
+    modal.offsetHeight;
+
+    modal.style.clipPath = `circle(150% at ${centerX}px ${centerY}px)`;
+    modal.style.opacity = '1';
+
+    document.body.style.overflow = 'hidden';
+
+    setTimeout(() => {
+      modal.style.clipPath = '';
+      modal.style.transition = '';
+    }, 600);
   }
 };
 
@@ -522,6 +556,13 @@ const GameGrid = {
     const rect = card.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+    
+    // Glare coordinates (percentage)
+    const glareX = (x / rect.width) * 100;
+    const glareY = (y / rect.height) * 100;
+    card.style.setProperty('--glare-x', `${glareX}%`);
+    card.style.setProperty('--glare-y', `${glareY}%`);
+
     const rotateX = ((y - rect.height / 2) / (rect.height / 2)) * -5;
     const rotateY = ((x - rect.width / 2) / (rect.width / 2)) * 5;
     card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
@@ -1140,12 +1181,18 @@ const TabManager = {
 
 // --- GAME MODAL ---
 const GameModal = {
-  open(gameId) {
+  open(gameId, element = null) {
     AudioEngine.click();
     const game = State.getGameById(gameId);
     if (!game) return console.error(`Game not found: ${gameId}`);
     RecentGames.add(gameId);
-    UI.toggleModal('game-modal', true);
+    
+    if (element) {
+      UI.animateModalOpen(element, 'game-modal');
+    } else {
+      UI.toggleModal('game-modal', true);
+    }
+    
     TabManager.createTab(game);
   },
 
@@ -1391,7 +1438,13 @@ const App = {
 
       if (!target) return;
       const action = actions[target.dataset.action];
-      if (action) action(target.dataset.param);
+      if (action) {
+        if (target.dataset.action === 'openGame') {
+          action(target.dataset.param, target);
+        } else {
+          action(target.dataset.param);
+        }
+      }
     });
   }
 };
