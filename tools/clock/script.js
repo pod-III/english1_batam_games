@@ -39,6 +39,7 @@ const state = {
     clock: { is24Hour: false, isAnalog: false, isZenMode: false, animFrame: null, lastSecond: -1 },
     stopwatch: { startTime: 0, elapsed: 0, running: false, animFrame: null, laps: [] },
     timer: { timeLeft: 300, initial: 300, lastDuration: 300, running: false, interval: null, mode: 'calm' },
+    countdown: { active: false, target: null, interval: null, label: '', ampm: 'PM' },
     calendar: { date: new Date(), marked: {}, selected: null, viewMode: 'month' },
     alarm: { alarms: [], isAmPm: true, ampm: 'AM', soundInterval: null, currentlyRinging: null, lastTriggerMinute: -1 },
     audio: { ctx: null, oscillatorPool: [] },
@@ -383,7 +384,6 @@ const clock = {
             const minRatio = (m + secRatio) / 60;
             const hourRatio = ((h % 12) + minRatio) / 12;
 
-            els.handSec.setAttribute('transform', `rotate(${secRatio * 360} 50 50)`);
             els.handMin.setAttribute('transform', `rotate(${minRatio * 360} 50 50)`);
             els.handHour.setAttribute('transform', `rotate(${hourRatio * 360} 50 50)`);
         }
@@ -445,6 +445,11 @@ const clock = {
         utils.safeIconUpdate();
     }
 };
+
+// GLOBAL WRAPPERS (for HTML onclicks)
+function clockToggleFormat() { clock.toggleFormat(); }
+function clockToggleView() { clock.toggleView(); }
+function clockToggleZen() { clock.toggleZenMode(); }
 
 // Listen for ESC key exiting fullscreen natively
 document.addEventListener('fullscreenchange', () => {
@@ -935,6 +940,19 @@ const alarm = {
         }, 2000);
         utils.safeIconUpdate();
     },
+    triggerManual(label, title = 'GOAL REACHED!') {
+        const els = this.cacheElements();
+        if (els.overlayLabel) els.overlayLabel.textContent = title;
+        if (els.overlayTime) els.overlayTime.textContent = label;
+        if (els.overlay) {
+            els.overlay.classList.remove('hidden');
+            els.overlay.classList.add('flex');
+            setTimeout(() => els.overlay.style.opacity = '1', 10);
+        }
+        audio.init();
+        audio.playAlarmSound();
+        state.alarm.currentlyRinging = { label, title, id: 'manual' };
+    },
     stopSound() {
         if (state.alarm.soundInterval) {
             clearInterval(state.alarm.soundInterval);
@@ -956,6 +974,164 @@ const alarm = {
             this.saveState();
             this.renderList();
         }
+    }
+};
+
+// --- COUNTDOWN MODULE ---
+const countdown = {
+    elements: null,
+    cacheElements() {
+        if (!this.elements) {
+            this.elements = {
+                setupView: DOM.get('countdown-setup'),
+                runningView: DOM.get('countdown-running'),
+                hourInput: DOM.get('countdown-hour'),
+                minInput: DOM.get('countdown-min'),
+                ampmBtn: DOM.get('countdown-ampm-btn'),
+                labelInput: DOM.get('countdown-label'),
+                timeDisplay: DOM.get('countdown-time-display'),
+                targetDisplay: DOM.get('countdown-target-display'),
+                activeLabel: DOM.get('countdown-active-label'),
+                overlay: DOM.get('countdown-overlay'),
+                overlayLabel: DOM.get('countdown-overlay-label')
+            };
+        }
+        return this.elements;
+    },
+    toggleAmPm() {
+        state.countdown.ampm = state.countdown.ampm === 'AM' ? 'PM' : 'AM';
+        const els = this.cacheElements();
+        if (els.ampmBtn) {
+            els.ampmBtn.innerText = state.countdown.ampm;
+            els.ampmBtn.classList.toggle('bg-blue', state.countdown.ampm === 'PM');
+            els.ampmBtn.classList.toggle('bg-pink', state.countdown.ampm === 'AM');
+        }
+    },
+    start() {
+        const els = this.cacheElements();
+        const h = parseInt(els.hourInput.value) || 0;
+        const m = parseInt(els.minInput.value) || 0;
+        const label = (els.labelInput && els.labelInput.value.trim()) ? els.labelInput.value.trim() : 'COUNTDOWN';
+        
+        state.countdown.target = { h, m, ampm: state.countdown.ampm };
+        state.countdown.label = label;
+        state.countdown.active = true;
+        
+        if (els.setupView) els.setupView.classList.replace('flex', 'hidden');
+        if (els.runningView) els.runningView.classList.replace('hidden', 'flex');
+        
+        if (els.activeLabel) els.activeLabel.innerText = label;
+        
+        let displayH = h;
+        if (h === 0) displayH = 12;
+        if (els.targetDisplay) els.targetDisplay.innerText = `${displayH}:${utils.padZero(m)} ${state.countdown.ampm}`;
+        
+        audio.init();
+        
+        this.update();
+        if (state.countdown.interval) clearInterval(state.countdown.interval);
+        state.countdown.interval = setInterval(() => this.update(), 1000);
+        this.saveState();
+    },
+    update() {
+        if (!state.countdown.active || !state.countdown.target) return;
+        
+        const els = this.cacheElements();
+        const now = new Date();
+        const targetDate = new Date();
+        
+        let targetH = state.countdown.target.h;
+        const targetM = state.countdown.target.m;
+        
+        if (state.countdown.target.ampm === 'PM' && targetH < 12) targetH += 12;
+        if (state.countdown.target.ampm === 'AM' && targetH === 12) targetH = 0;
+        
+        targetDate.setHours(targetH, targetM, 0, 0);
+        
+        // If target is in the past today, assume it's for tomorrow
+        if (targetDate < now) {
+            targetDate.setDate(targetDate.getDate() + 1);
+        }
+        
+        const diff = targetDate - now;
+        
+        if (diff <= 0) {
+            this.finish();
+            return;
+        }
+        
+        const h = Math.floor(diff / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+        
+        if (els.timeDisplay) {
+            els.timeDisplay.innerText = `${utils.padZero(h)}:${utils.padZero(m)}:${utils.padZero(s)}`;
+        }
+    },
+    finish() {
+        this.reset();
+        const els = this.cacheElements();
+        
+        if (els.overlayLabel) els.overlayLabel.innerText = state.countdown.label || "TIME IS UP";
+        if (els.overlay) {
+            els.overlay.classList.remove('hidden');
+            els.overlay.classList.add('flex');
+            setTimeout(() => els.overlay.style.opacity = '1', 10);
+        }
+
+        audio.init();
+        audio.playChime();
+        // Start a repeating chime or alert sound if needed, but chime is usually enough for a completion popup
+    },
+    dismissOverlay() {
+        const els = this.cacheElements();
+        if (els.overlay) {
+            els.overlay.style.opacity = '0';
+            setTimeout(() => {
+                els.overlay.classList.add('hidden');
+                els.overlay.classList.remove('flex');
+            }, 300);
+        }
+        audio.stopAllTones();
+    },
+    reset() {
+        if (state.countdown.interval) {
+            clearInterval(state.countdown.interval);
+            state.countdown.interval = null;
+        }
+        state.countdown.active = false;
+        state.countdown.target = null;
+        
+        const els = this.cacheElements();
+        if (els.runningView) els.runningView.classList.replace('flex', 'hidden');
+        if (els.setupView) els.setupView.classList.replace('hidden', 'flex');
+        this.saveState();
+    },
+    saveState() {
+        localStorage.setItem('hub_countdown', JSON.stringify({
+           target: state.countdown.target, label: state.countdown.label, active: state.countdown.active
+        }));
+    },
+    restoreState() {
+        try {
+            const raw = localStorage.getItem('hub_countdown');
+            if (raw) {
+                const data = JSON.parse(raw);
+                if (data.active && data.target) {
+                    const els = this.cacheElements();
+                    if (els.hourInput) els.hourInput.value = data.target.h;
+                    if (els.minInput) els.minInput.value = data.target.m;
+                    state.countdown.ampm = data.target.ampm;
+                    if (els.labelInput) els.labelInput.value = data.label;
+                    if (els.ampmBtn) {
+                        els.ampmBtn.innerText = state.countdown.ampm;
+                        els.ampmBtn.classList.toggle('bg-blue', state.countdown.ampm === 'PM');
+                        els.ampmBtn.classList.toggle('bg-pink', state.countdown.ampm === 'AM');
+                    }
+                    this.start();
+                }
+            }
+        } catch(e) { console.warn('Failed to restore countdown state:', e); }
     }
 };
 
@@ -1184,6 +1360,7 @@ window.onload = function () {
     stopwatch.restoreState();
     timer.restoreState();
     alarm.restoreState();
+    countdown.restoreState();
 
     switchTool('clock');
     timer.setMode('calm');
@@ -1213,3 +1390,4 @@ window.alarmSaveNew = () => alarm.saveNew();
 window.alarmDismiss = () => alarm.dismiss();
 window.switchTool = switchTool;
 window.alarm = alarm;
+window.countdown = countdown;
