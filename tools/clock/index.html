@@ -125,6 +125,11 @@
                 style="color: var(--text-secondary);">
                 <i data-lucide="bell" class="w-5 h-5 flex-shrink-0"></i> <span class="sidebar-text">Alarm</span>
             </button>
+            <button onclick="switchTool('countdown')" id="nav-countdown"
+                class="nav-item w-full p-3 rounded-xl border-3 border-transparent hover:border-slate-200 dark:hover:border-slate-600 flex items-center gap-3 font-bold"
+                style="color: var(--text-secondary);">
+                <i data-lucide="timer-reset" class="w-5 h-5 flex-shrink-0"></i> <span class="sidebar-text">Countdown</span>
+            </button>
             <button onclick="switchTool('calendar')" id="nav-calendar"
                 class="nav-item w-full p-3 rounded-xl border-3 border-transparent hover:border-slate-200 dark:hover:border-slate-600 flex items-center gap-3 font-bold"
                 style="color: var(--text-secondary);">
@@ -244,7 +249,7 @@
                         <div class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border-[1px]"
                             style="background: var(--slate-50); border-color: var(--border-light); color: var(--text-secondary);">
                             <i data-lucide="map-pin" class="w-4 h-4 text-orange"></i>
-                            <span class="text-sm font-bold">Jakarta, Indonesia (GMT+7)</span>
+                            <span class="text-sm font-bold">Local Time</span>
                         </div>
                     </div>
                 </div>
@@ -550,6 +555,67 @@
                     </div>
                 </div>
             </section>
+
+            <!-- COUNTDOWN SECTION -->
+            <section id="tool-countdown" class="hidden w-full max-w-2xl flex-col items-center">
+                <div class="hub-card w-full p-8 text-center flex flex-col items-center gap-6 relative overflow-hidden glass-panel">
+                    <!-- Title Row -->
+                    <div class="w-full flex justify-between items-center border-b-[1px] pb-3 z-10" style="border-color: var(--border-light);">
+                        <h2 class="text-xl font-heading font-bold flex items-center gap-2" style="color: var(--text-primary);">
+                            <i data-lucide="timer-reset" class="text-blue w-5 h-5"></i> COUNTDOWN
+                        </h2>
+                        <button onclick="countdown.reset()" class="text-xs font-bold px-3 py-1.5 rounded-lg border-[1px] shadow-neo-sm hover:shadow-neo bg-slate-50 transition-all text-slate-600">RESET</button>
+                    </div>
+
+                    <!-- Setup Phase -->
+                    <div id="countdown-setup" class="flex flex-col items-center gap-8 w-full py-8">
+                        <div class="flex flex-col gap-2">
+                            <h3 class="text-2xl font-heading font-bold" style="color: var(--text-primary);">SET TARGET TIME</h3>
+                            <p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Count down until a specific time</p>
+                        </div>
+                        
+                        <!-- Time Picker -->
+                        <div class="flex items-center justify-center gap-2">
+                            <input type="number" id="countdown-hour" value="12" min="1" max="12"
+                                class="w-24 text-center text-6xl font-mono font-bold bg-transparent focus:outline-none focus:text-blue placeholder-slate-300 p-0 selection:bg-blue selection:text-white"
+                                style="color: var(--text-primary); border-bottom: 3px solid var(--border-main); border-radius: 0;" placeholder="12">
+                            <span class="text-5xl font-black -mt-2" style="color: var(--text-muted);">:</span>
+                            <input type="number" id="countdown-min" value="00" min="0" max="59"
+                                class="w-24 text-center text-6xl font-mono font-bold bg-transparent focus:outline-none focus:text-blue placeholder-slate-300 p-0 selection:bg-blue selection:text-white"
+                                style="color: var(--text-primary); border-bottom: 3px solid var(--border-main); border-radius: 0;" placeholder="00">
+                            <button onclick="countdown.toggleAmPm()" id="countdown-ampm-btn"
+                                class="btn-chunky ml-4 px-4 py-3 rounded-xl border-3 font-heading font-bold text-2xl shadow-neo hover:shadow-neo bg-blue text-white"
+                                style="border-color: rgba(255,255,255,0.4);">
+                                PM
+                            </button>
+                        </div>
+
+                        <!-- Label Input -->
+                        <input type="text" id="countdown-label" placeholder="What are we counting down to? (Optional)" maxlength="30"
+                            class="w-full max-w-sm px-4 py-3 rounded-xl border-[1px] bg-transparent focus:outline-none focus:border-blue text-center font-bold text-lg"
+                            style="border-color: var(--border-main); color: var(--text-primary);">
+                        
+                        <button onclick="countdown.start()" class="btn-chunky w-full max-w-sm py-4 bg-blue text-white rounded-2xl font-bold text-xl uppercase shadow-[6px_6px_0px_0px_rgba(30,41,59,1)] border-4 border-[#1e293b] hover:-translate-y-1 hover:shadow-[8px_8px_0px_0px_rgba(30,41,59,1)] active:translate-y-1 active:shadow-none transition-all">
+                            START COUNTDOWN
+                        </button>
+                    </div>
+
+                    <!-- Running Phase -->
+                    <div id="countdown-running" class="hidden flex-col items-center gap-6 w-full py-12">
+                        <div class="bg-blue/10 px-6 py-2 rounded-full border-2 border-blue/20 mb-2">
+                            <span id="countdown-active-label" class="text-blue font-bold tracking-widest uppercase">END OF CLASS</span>
+                        </div>
+                        
+                        <div id="countdown-time-display" class="font-mono text-[5rem] md:text-[6rem] leading-none font-bold tracking-tighter drop-shadow-sm text-blue">
+                            00:00:00
+                        </div>
+
+                        <div class="text-sm font-bold text-slate-500 uppercase tracking-widest mt-2">
+                            Target: <span id="countdown-target-display" class="text-slate-700 dark:text-slate-300 font-black">12:00 PM</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </div>
 
     </main>
@@ -606,7 +672,22 @@
             </button>
         </div>
     </div>
-
+    <!-- COUNTDOWN OVERLAY -->
+    <div id="countdown-overlay"
+        class="fixed inset-0 z-50 hidden items-center justify-center flex-col cursor-pointer transition-opacity opacity-0 backdrop-blur-xl"
+        style="background: var(--overlay-bg);" onclick="countdown.dismissOverlay()">
+        <div class="text-center">
+            <div class="inline-block mb-4">
+                <i data-lucide="timer-reset" class="w-28 h-28 text-blue mx-auto animate-pulse"></i>
+            </div>
+            <h1 class="text-6xl font-heading font-black text-blue mb-2 leading-none uppercase">DONE!</h1>
+            <p id="countdown-overlay-label" class="text-3xl font-bold mb-8 uppercase tracking-widest" style="color: var(--text-primary);">TIME IS UP</p>
+            <button
+                class="btn-chunky px-8 py-4 bg-blue text-white rounded-2xl text-xl hover:scale-105 transition-transform shadow-[6px_6px_0px_0px_rgba(30,41,59,1)] border-4 border-[#1e293b] hover:-translate-y-1 active:translate-y-1 active:shadow-none transition-all mt-4">
+                CLOSE
+            </button>
+        </div>
+    </div>
 
     <script src="./script.js"> </script>
 </body>

@@ -16,7 +16,8 @@ const CONFIG = {
     recent: "recentGameIds",
     sound: "soundMuted",
     favorites: "favoriteGames",
-    tabs: "openTabs"
+    tabs: "openTabs",
+    pinned: "pinnedGameIds"
   }
 };
 
@@ -62,24 +63,58 @@ const State = {
   },
 
   getFilteredGames() {
-    return this.games.filter(game => {
-      if (game.active === false) return false;
+    const { category, searchTerm, difficulty, tags } = this.filters;
+    const searchLower = searchTerm.toLowerCase().trim();
 
-      const { category, searchTerm, difficulty, tags } = this.filters;
-      const matchesCategory = category === 'all' ||
-        (category === 'featured' ? game.featured === true : game.category === category);
-      const matchesDifficulty = difficulty === 'all' || !game.difficulty || game.difficulty === difficulty;
+    return this.games
+      .filter(game => {
+        if (game.active === false) return false;
 
-      const searchLower = searchTerm.toLowerCase();
-      const matchesSearch = !searchTerm ||
-        [game.title, game.description, game.category].some(field =>
-          field.toLowerCase().includes(searchLower)
-        ) || game.tags?.some(tag => tag.toLowerCase().includes(searchLower));
+        const matchesCategory = category === 'all' ||
+          (category === 'featured' ? game.featured === true : game.category === category);
+        const matchesDifficulty = difficulty === 'all' || !game.difficulty || game.difficulty === difficulty;
+        const matchesTags = tags.length === 0 || game.tags?.some(tag => tags.includes(tag));
 
-      const matchesTags = tags.length === 0 || game.tags?.some(tag => tags.includes(tag));
+        // Basic Filter
+        if (!matchesCategory || !matchesDifficulty || !matchesTags) return false;
 
-      return matchesCategory && matchesSearch && matchesDifficulty && matchesTags;
-    });
+        // Search Filter
+        if (!searchLower) return true;
+
+        const title = game.title.toLowerCase();
+        const description = (game.description || "").toLowerCase();
+        const cat = game.category.toLowerCase();
+
+        return title.includes(searchLower) ||
+          description.includes(searchLower) ||
+          cat.includes(searchLower) ||
+          game.tags?.some(tag => tag.toLowerCase().includes(searchLower));
+      })
+      .map(game => {
+        if (!searchLower) return { ...game, _score: 0 };
+
+        const title = game.title.toLowerCase();
+        const description = (game.description || "").toLowerCase();
+        let score = 0;
+
+        if (title === searchLower) score += 100;
+        else if (title.startsWith(searchLower)) score += 80;
+        else if (title.includes(searchLower)) score += 60;
+
+        if (description.includes(searchLower)) score += 40;
+        if (game.category.toLowerCase().includes(searchLower)) score += 30;
+        if (game.tags?.some(tag => tag.toLowerCase().includes(searchLower))) score += 20;
+
+        return { ...game, _score: score };
+      })
+      .sort((a, b) => {
+        if (searchLower) {
+          // Sort by search relevance first
+          if (b._score !== a._score) return b._score - a._score;
+        }
+        // Then by title
+        return a.title.localeCompare(b.title);
+      });
   },
 
   getGameById(id) {
@@ -194,9 +229,15 @@ const Theme = {
 const UI = {
   updateGreeting() {
     const hour = new Date().getHours();
-    const greeting = hour < 12 ? "Good Morning" : hour < 18 ? "Good Afternoon" : "Good Evening";
+    let greeting = "";
+    
+    if (hour < 12) greeting = "Good Morning, Teacher! ☕";
+    else if (hour < 15) greeting = "Good Afternoon! ☀️";
+    else if (hour < 18) greeting = "Almost the weekend? 🍎";
+    else greeting = "Good Evening! 🌙";
+
     const greetingEl = document.getElementById("greeting-display");
-    if (greetingEl) greetingEl.textContent = `${greeting}!`;
+    if (greetingEl) greetingEl.textContent = greeting;
 
     const dateEl = document.getElementById("date-display");
     if (dateEl) {
@@ -228,12 +269,14 @@ const UI = {
   showLoading() {
     const grid = document.getElementById('games-grid');
     if (!grid) return;
-    grid.innerHTML = `
-      <div class="col-span-full text-center p-10">
-        <div class="w-16 h-16 border-4 border-slate-300 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
-        <p class="text-lg font-bold text-slate-400">Loading activities...</p>
-      </div>
-    `;
+    
+    let skeletons = '';
+    for (let i = 0; i < 8; i++) {
+      skeletons += `
+        <div class="skeleton-card skeleton animate-pop-in" style="animation-delay: ${i * 0.05}s"></div>
+      `;
+    }
+    grid.innerHTML = skeletons;
   },
 
   toggleModal(modalId, show) {
@@ -300,6 +343,40 @@ const UI = {
       toast.classList.remove('show');
       setTimeout(() => toast.remove(), 300);
     }, duration);
+  },
+
+  /**
+   * Spatial Expansion Animation: Opens modal from the clicked element's position
+   */
+  animateModalOpen(element, modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal || !element) {
+      this.toggleModal(modalId, true);
+      return;
+    }
+
+    const rect = element.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    modal.style.display = 'block';
+    modal.classList.remove('hidden');
+    modal.style.clipPath = `circle(0% at ${centerX}px ${centerY}px)`;
+    modal.style.opacity = '0';
+    modal.style.transition = 'clip-path 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease-out';
+
+    // Force reflow
+    modal.offsetHeight;
+
+    modal.style.clipPath = `circle(150% at ${centerX}px ${centerY}px)`;
+    modal.style.opacity = '1';
+
+    document.body.style.overflow = 'hidden';
+
+    setTimeout(() => {
+      modal.style.clipPath = '';
+      modal.style.transition = '';
+    }, 600);
   }
 };
 
@@ -344,6 +421,68 @@ const RecentGames = {
             <div class="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase">RESUME</div>
           </div>
         </button>
+      `;
+    }).join('');
+    Utils.refreshIcons();
+  }
+};
+
+// --- PINNED GAMES ---
+const PinnedGames = {
+  get() { return Storage.get(CONFIG.storageKeys.pinned, []); },
+
+  isPinned(gameId) {
+    return this.get().includes(gameId);
+  },
+
+  toggle(gameId) {
+    let pinned = this.get();
+    const isPinned = pinned.includes(gameId);
+    
+    if (isPinned) {
+      pinned = pinned.filter(id => id !== gameId);
+    } else {
+      pinned.unshift(gameId);
+    }
+    
+    Storage.set(CONFIG.storageKeys.pinned, pinned);
+    this.render();
+    GameGrid.render(); // Refresh main grid to update pin icons
+    AudioEngine.click();
+    return !isPinned;
+  },
+
+  render() {
+    const pinnedIds = this.get();
+    const container = document.getElementById("pinned-list");
+    const section = document.getElementById("pinned-section");
+    const badge = document.getElementById("pinned-count-badge");
+    
+    if (!container || !section) return;
+
+    section.classList.toggle('hidden', pinnedIds.length === 0);
+    if (badge) badge.textContent = pinnedIds.length;
+    
+    if (pinnedIds.length === 0) return;
+
+    container.innerHTML = pinnedIds.map(id => {
+      const game = State.getGameById(id);
+      if (!game) return '';
+      // reuse createCard or a smaller version? plan said "similar to Quick Launch"
+      return `
+        <article class="recent-pill bg-white dark:bg-slate-800 flex items-center gap-3 px-3 py-2 rounded-xl shrink-0 min-w-[180px] group hover:bg-slate-50 dark:hover:bg-slate-700 border-2 border-dark dark:border-slate-500 shadow-hard-sm cursor-pointer"
+          data-action="openGame" data-param="${game.id}">
+          <div class="w-10 h-10 rounded-lg ${Utils.getColorClass(game.color)} flex items-center justify-center text-white border-2 border-dark dark:border-slate-300 shadow-sm relative">
+             <i data-lucide="${game.icon}" class="w-5 h-5"></i>
+          </div>
+          <div class="text-left flex-1">
+            <div class="text-sm font-bold text-dark dark:text-white truncate w-32">${game.title}</div>
+            <div class="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase">${game.category}</div>
+          </div>
+          <button data-action="togglePin" data-param="${game.id}" class="p-1 hover:text-red-500 text-slate-400 transition-colors" title="Unpin">
+            <i data-lucide="pin-off" class="w-4 h-4"></i>
+          </button>
+        </article>
       `;
     }).join('');
     Utils.refreshIcons();
@@ -463,11 +602,20 @@ const GameGrid = {
       ? `<span class="text-[8px] font-bold px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-400 uppercase">${game.difficulty}</span>`
       : '';
 
+    const isPinned = PinnedGames.isPinned(game.id);
+    const pinIcon = isPinned ? 'pin-off' : 'pin';
+    const pinTitle = isPinned ? 'Unpin from top' : 'Pin to top';
+
     return `
       <article class="hub-card group cursor-pointer dark:bg-slate-800 dark:border-slate-500" 
         data-action="openGame" data-param="${game.id}" role="button" tabindex="0"
         aria-label="Launch ${game.title}: ${game.description}">
         <div class="${bgClass} p-6 border-b-4 border-dark dark:border-slate-500 h-40 flex items-center justify-center relative overflow-hidden group-hover:${bgClass.replace('/10', '/20')} transition-colors">
+          <button data-action="togglePin" data-param="${game.id}" 
+            class="pin-btn absolute top-3 right-3 z-30 w-8 h-8 rounded-lg bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-dark opacity-0 group-hover:opacity-100 transition-all hover:bg-white/40 hover:scale-110"
+            title="${pinTitle}">
+            <i data-lucide="${pinIcon}" class="w-4 h-4 ${isPinned ? 'text-red-500' : ''}"></i>
+          </button>
           <div class="absolute inset-0 opacity-10" style="background-image:radial-gradient(#000 2px,transparent 2px);background-size:12px 12px"></div>
           <i data-lucide="${game.icon}" class="absolute -right-6 -bottom-6 w-36 h-36 ${game.color} opacity-20 rotate-12 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300"></i>
           <div class="bg-white dark:bg-slate-700 p-4 rounded-2xl border-2 border-dark dark:border-slate-400 shadow-hard dark:shadow-neon-sm relative z-10 group-hover:scale-110 transition-transform duration-300">
@@ -522,6 +670,13 @@ const GameGrid = {
     const rect = card.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+    
+    // Glare coordinates (percentage)
+    const glareX = (x / rect.width) * 100;
+    const glareY = (y / rect.height) * 100;
+    card.style.setProperty('--glare-x', `${glareX}%`);
+    card.style.setProperty('--glare-y', `${glareY}%`);
+
     const rotateX = ((y - rect.height / 2) / (rect.height / 2)) * -5;
     const rotateY = ((x - rect.width / 2) / (rect.width / 2)) * 5;
     card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
@@ -1140,12 +1295,18 @@ const TabManager = {
 
 // --- GAME MODAL ---
 const GameModal = {
-  open(gameId) {
+  open(gameId, element = null) {
     AudioEngine.click();
     const game = State.getGameById(gameId);
     if (!game) return console.error(`Game not found: ${gameId}`);
     RecentGames.add(gameId);
-    UI.toggleModal('game-modal', true);
+    
+    if (element) {
+      UI.animateModalOpen(element, 'game-modal');
+    } else {
+      UI.toggleModal('game-modal', true);
+    }
+    
     TabManager.createTab(game);
   },
 
@@ -1279,6 +1440,7 @@ const App = {
       if (data.version) State.metadata = { ...(State.metadata || {}), version: data.version, lastUpdated: data.lastUpdated };
 
       GameGrid.render();
+      PinnedGames.render();
       RecentGames.render();
       FeaturedSection.render();
       Footer.render();
@@ -1371,10 +1533,17 @@ const App = {
       filterGames: (param) => Filters.setCategory(param),
       clearRecent: () => RecentGames.clear(),
       clearSearch: () => Search.clear(),
+      togglePin: (param) => PinnedGames.toggle(param),
       openFeedback: () => window.open(CONFIG.helpUrl, '_blank')
     };
 
     document.addEventListener('click', (e) => {
+      const pinBtn = e.target.closest('[data-action="togglePin"]');
+      if (pinBtn) {
+        e.stopPropagation();
+        e.preventDefault();
+      }
+
       const target = e.target.closest('[data-action]');
 
       const settingsContainer = document.getElementById('settings-container');
@@ -1391,7 +1560,13 @@ const App = {
 
       if (!target) return;
       const action = actions[target.dataset.action];
-      if (action) action(target.dataset.param);
+      if (action) {
+        if (target.dataset.action === 'openGame') {
+          action(target.dataset.param, target);
+        } else {
+          action(target.dataset.param);
+        }
+      }
     });
   }
 };
