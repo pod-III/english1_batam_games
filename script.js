@@ -12,7 +12,7 @@ const CONFIG = {
   debounceDelay: 300,
   loadTimeout: 5000,
   storageKeys: {
-    theme: "theme",
+    theme: "klasskit_theme",
     recent: "recentGameIds",
     sound: "soundMuted",
     favorites: "favoriteGames",
@@ -44,8 +44,14 @@ const Utils = {
     return colorMap[baseColor] || `${prefix}-dark dark:${prefix}-slate-700`;
   },
 
+  _iconRefreshPending: false,
   refreshIcons() {
-    window.lucide?.createIcons?.();
+    if (this._iconRefreshPending) return;
+    this._iconRefreshPending = true;
+    requestAnimationFrame(() => {
+      this._iconRefreshPending = false;
+      window.lucide?.createIcons?.();
+    });
   }
 };
 
@@ -230,7 +236,7 @@ const UI = {
   updateGreeting() {
     const hour = new Date().getHours();
     let greeting = "";
-    
+
     if (hour < 12) greeting = "Good Morning, Teacher! ☕";
     else if (hour < 15) greeting = "Good Afternoon! ☀️";
     else if (hour < 18) greeting = "Almost the weekend? 🍎";
@@ -241,10 +247,29 @@ const UI = {
 
     const dateEl = document.getElementById("date-display");
     if (dateEl) {
-      dateEl.textContent = new Date().toLocaleDateString("en-US", {
+      const dateStr = new Date().toLocaleDateString("en-US", {
         weekday: "long", month: "short", day: "numeric"
       });
+      dateEl.innerHTML = `<i data-lucide="calendar" class="w-3.5 h-3.5"></i> ${dateStr}`;
     }
+
+    this.updateDailyTip();
+  },
+
+  updateDailyTip() {
+    const tips = [
+      'Use shortcut "/" to quickly search the library!',
+      'Press Alt+H to quickly return Home while in a tool.',
+      'Pin your Most Used items to keep them at the top.',
+      'Tap the Moon icon to switch to Dark Mode for projectors.',
+      'Need focus? Hit the maximize button in the side panel for full-screen!',
+      'Keep everything tidy: use the trash icon to close all running tabs.'
+    ];
+    // Seed random tip based on current day to act as a "Daily" tip
+    const today = new Date().getDate();
+    const tipIndex = today % tips.length;
+    const tipEl = document.getElementById('daily-tip');
+    if (tipEl) tipEl.innerHTML = `<i data-lucide="sparkles" class="w-4 h-4 text-yellow-300"></i> Tip: ${tips[tipIndex]}`;
   },
 
   updateCount(count) {
@@ -269,7 +294,7 @@ const UI = {
   showLoading() {
     const grid = document.getElementById('games-grid');
     if (!grid) return;
-    
+
     let skeletons = '';
     for (let i = 0; i < 8; i++) {
       skeletons += `
@@ -321,14 +346,14 @@ const UI = {
 
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    
+
     const iconMap = {
       warning: 'alert-triangle',
       info: 'info',
       success: 'check-circle',
       error: 'x-circle'
     };
-    
+
     toast.innerHTML = `
       <i data-lucide="${iconMap[type] || 'info'}" class="w-5 h-5"></i>
       <span>${message}</span>
@@ -380,6 +405,76 @@ const UI = {
   }
 };
 
+// --- HERO BANNER ---
+const Hero = {
+  headings: [
+    "Let's start teaching",
+    "Ready to inspire?",
+    "Make learning fun",
+    "Time to teach!",
+    "Spark curiosity today",
+    "Learning starts here",
+    "Build great lessons"
+  ],
+
+  updateHeading() {
+    const el = document.getElementById('hero-heading');
+    if (!el) return;
+    const today = new Date().getDate();
+    el.textContent = this.headings[today % this.headings.length];
+  },
+
+  updateStats() {
+    const active = State.games.filter(g => g.active !== false);
+    const tools = active.filter(g => g.category === 'tool').length;
+    const games = active.filter(g => g.category === 'game').length;
+    const pinned = PinnedGames.get().length;
+
+    const toolsEl = document.getElementById('stat-tools');
+    const gamesEl = document.getElementById('stat-games');
+    const pinnedEl = document.getElementById('stat-pinned');
+    if (toolsEl) toolsEl.textContent = tools;
+    if (gamesEl) gamesEl.textContent = games;
+    if (pinnedEl) pinnedEl.textContent = pinned;
+  },
+
+  updateContinueBtn() {
+    const btn = document.getElementById('continue-btn');
+    const label = document.getElementById('continue-btn-label');
+    if (!btn || !label) return;
+
+    const recentIds = RecentGames.get();
+    if (recentIds.length === 0) {
+      btn.classList.add('hidden');
+      return;
+    }
+
+    const lastGame = State.getGameById(recentIds[0]);
+    if (!lastGame) {
+      btn.classList.add('hidden');
+      return;
+    }
+
+    label.textContent = `Continue: ${lastGame.title}`;
+    btn.dataset.param = lastGame.id;
+    btn.classList.remove('hidden');
+  },
+
+  surpriseMe() {
+    AudioEngine.click();
+    const active = State.games.filter(g => g.active !== false);
+    if (active.length === 0) return;
+    const random = active[Math.floor(Math.random() * active.length)];
+    GameModal.open(random.id);
+  },
+
+  init() {
+    this.updateHeading();
+    this.updateStats();
+    this.updateContinueBtn();
+  }
+};
+
 // --- RECENT GAMES ---
 const RecentGames = {
   get() { return Storage.get(CONFIG.storageKeys.recent, []); },
@@ -389,6 +484,7 @@ const RecentGames = {
     recent.unshift(gameId);
     Storage.set(CONFIG.storageKeys.recent, recent.slice(0, CONFIG.maxRecentGames));
     this.render();
+    Hero.updateContinueBtn();
   },
 
   clear() {
@@ -438,13 +534,13 @@ const PinnedGames = {
   toggle(gameId) {
     let pinned = this.get();
     const isPinned = pinned.includes(gameId);
-    
+
     if (isPinned) {
       pinned = pinned.filter(id => id !== gameId);
     } else {
       pinned.unshift(gameId);
     }
-    
+
     Storage.set(CONFIG.storageKeys.pinned, pinned);
     this.render();
     GameGrid.render(); // Refresh main grid to update pin icons
@@ -457,12 +553,12 @@ const PinnedGames = {
     const container = document.getElementById("pinned-list");
     const section = document.getElementById("pinned-section");
     const badge = document.getElementById("pinned-count-badge");
-    
+
     if (!container || !section) return;
 
     section.classList.toggle('hidden', pinnedIds.length === 0);
     if (badge) badge.textContent = pinnedIds.length;
-    
+
     if (pinnedIds.length === 0) return;
 
     container.innerHTML = pinnedIds.map(id => {
@@ -606,6 +702,15 @@ const GameGrid = {
     const pinIcon = isPinned ? 'pin-off' : 'pin';
     const pinTitle = isPinned ? 'Unpin from top' : 'Pin to top';
 
+    let displayTitle = game.title;
+    let displayDesc = game.description;
+
+    if (State.filters.searchTerm) {
+      const regex = new RegExp(`(${State.filters.searchTerm})`, 'gi');
+      displayTitle = displayTitle.replace(regex, '<mark class="bg-yellow-200 text-slate-800 rounded px-1">$1</mark>');
+      displayDesc = displayDesc.replace(regex, '<mark class="bg-yellow-200 text-slate-800 rounded px-1">$1</mark>');
+    }
+
     return `
       <article class="hub-card group cursor-pointer dark:bg-slate-800 dark:border-slate-500" 
         data-action="openGame" data-param="${game.id}" role="button" tabindex="0"
@@ -624,13 +729,13 @@ const GameGrid = {
         </div>
         <div class="p-6 flex-1 flex flex-col bg-white dark:bg-slate-800">
           <div class="flex justify-between items-start mb-3">
-            <h2 class="text-2xl font-heading text-dark dark:text-white leading-none tracking-tight">${game.title}</h2>
+            <h2 class="text-2xl font-heading text-dark dark:text-white leading-none tracking-tight">${displayTitle}</h2>
             <div class="flex flex-col gap-1 items-end">
               <span class="sticker ${btnClass} text-white text-[10px] font-bold px-2 py-1 rounded-md transform ${Math.random() > 0.5 ? 'rotate-2' : '-rotate-2'}">${game.category.toUpperCase()}</span>
               ${difficultyBadge}
             </div>
           </div>
-          <p class="text-slate-500 dark:text-slate-400 font-bold text-sm mb-6 flex-1 leading-relaxed">${game.description}</p>
+          <p class="text-slate-500 dark:text-slate-400 font-bold text-sm mb-6 flex-1 leading-relaxed">${displayDesc}</p>
           <button class="btn-chunky ${btnClass} text-white w-full py-3 rounded-xl flex items-center justify-center gap-2 text-lg group-hover:brightness-105" tabindex="-1">
             <i data-lucide="play" class="w-5 h-5 fill-current"></i> LAUNCH
           </button>
@@ -670,7 +775,7 @@ const GameGrid = {
     const rect = card.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    
+
     // Glare coordinates (percentage)
     const glareX = (x / rect.width) * 100;
     const glareY = (y / rect.height) * 100;
@@ -711,10 +816,6 @@ const Filters = {
     document.querySelectorAll('.filter-btn').forEach(btn => {
       const isActive = btn.dataset.category === State.filters.category;
       btn.classList.toggle('active', isActive);
-      btn.classList.toggle('bg-dark', isActive);
-      btn.classList.toggle('text-white', isActive);
-      btn.classList.toggle('bg-white', !isActive);
-      btn.classList.toggle('text-dark', !isActive);
       btn.setAttribute('aria-pressed', String(isActive));
     });
   }
@@ -1300,13 +1401,13 @@ const GameModal = {
     const game = State.getGameById(gameId);
     if (!game) return console.error(`Game not found: ${gameId}`);
     RecentGames.add(gameId);
-    
+
     if (element) {
       UI.animateModalOpen(element, 'game-modal');
     } else {
       UI.toggleModal('game-modal', true);
     }
-    
+
     TabManager.createTab(game);
   },
 
@@ -1368,18 +1469,30 @@ const GameModal = {
 // --- SEARCH ---
 const Search = {
   setup() {
-    const input = document.getElementById('search-input');
-    if (!input) return;
-    input.addEventListener('input', (e) => Filters.setSearch(e.target.value));
+    const inputDesktop = document.getElementById('search-input');
+    const inputMobile = document.getElementById('search-input-mobile');
+
+    // Sync both inputs and update filters
+    const handleInput = (e) => {
+      const val = e.target.value;
+      if (inputDesktop && e.target !== inputDesktop) inputDesktop.value = val;
+      if (inputMobile && e.target !== inputMobile) inputMobile.value = val;
+      Filters.setSearch(val);
+    };
+
+    if (inputDesktop) inputDesktop.addEventListener('input', handleInput);
+    if (inputMobile) inputMobile.addEventListener('input', handleInput);
   },
 
   clear() {
-    const input = document.getElementById('search-input');
-    if (input) {
-      input.value = '';
-      Filters.setSearch('');
-      input.focus();
-    }
+    const inputDesktop = document.getElementById('search-input');
+    const inputMobile = document.getElementById('search-input-mobile');
+
+    if (inputDesktop) inputDesktop.value = '';
+    if (inputMobile) inputMobile.value = '';
+
+    Filters.setSearch('');
+    if (inputDesktop) inputDesktop.focus();
   }
 };
 
@@ -1443,6 +1556,7 @@ const App = {
       PinnedGames.render();
       RecentGames.render();
       FeaturedSection.render();
+      Hero.init();
       Footer.render();
       Search.setup();
 
@@ -1520,20 +1634,22 @@ const App = {
       toggleInfo: () => GameModal.toggleInfo(),
       openWorkspace: () => {
         AudioEngine.click();
-        
+
         // Check if there are any active tabs
         if (TabManager.tabs.length === 0) {
           UI.showToast('No active tabs. Open an activity first!', 'warning', 3000);
           return;
         }
-        
+
         UI.toggleModal('game-modal', true);
         TabManager.updateEmptyState();
       },
       filterGames: (param) => Filters.setCategory(param),
       clearRecent: () => RecentGames.clear(),
       clearSearch: () => Search.clear(),
-      togglePin: (param) => PinnedGames.toggle(param),
+      togglePin: (param) => { PinnedGames.toggle(param); Hero.updateStats(); },
+      surpriseMe: () => Hero.surpriseMe(),
+      continueGame: (param) => GameModal.open(param),
       openFeedback: () => window.open(CONFIG.helpUrl, '_blank')
     };
 
