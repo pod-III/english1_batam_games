@@ -17,7 +17,8 @@ const CONFIG = {
     sound: "soundMuted",
     favorites: "favoriteGames",
     tabs: "openTabs",
-    pinned: "pinnedGameIds"
+    pinned: "pinnedGameIds",
+    homeView: "klasskit_homeView"
   }
 };
 
@@ -788,6 +789,70 @@ const GameGrid = {
   }
 };
 
+// --- LANDING PAGE ---
+const LandingPage = {
+  currentView: 'landing', // 'landing' or 'library'
+
+  init() {
+    const saved = Storage.get(CONFIG.storageKeys.homeView);
+    if (saved === 'library') {
+      this.showLibrary(true);
+    } else {
+      this.showLanding(true);
+    }
+  },
+
+  showLanding(silent = false) {
+    const landingView = document.getElementById('landing-view');
+    const libraryView = document.getElementById('library-view');
+    const homeBtn = document.getElementById('nav-home-btn');
+    if (!landingView || !libraryView) return;
+
+    this.currentView = 'landing';
+    landingView.style.display = '';
+    libraryView.style.display = 'none';
+
+    // Re-trigger entrance animation
+    landingView.style.animation = 'none';
+    landingView.offsetHeight; // force reflow
+    landingView.style.animation = '';
+
+    // Update sidebar active states
+    if (homeBtn) homeBtn.classList.add('active');
+    document.querySelectorAll('.filter-btn[data-category]').forEach(btn => {
+      btn.classList.remove('active');
+    });
+
+    Storage.set(CONFIG.storageKeys.homeView, 'landing');
+    if (!silent) AudioEngine.click();
+    Utils.refreshIcons();
+  },
+
+  showLibrary(silent = false) {
+    const landingView = document.getElementById('landing-view');
+    const libraryView = document.getElementById('library-view');
+    const homeBtn = document.getElementById('nav-home-btn');
+    if (!landingView || !libraryView) return;
+
+    this.currentView = 'library';
+    landingView.style.display = 'none';
+    libraryView.style.display = '';
+
+    // Re-trigger entrance animation
+    libraryView.style.animation = 'none';
+    libraryView.offsetHeight; // force reflow
+    libraryView.style.animation = '';
+
+    // Update sidebar active states
+    if (homeBtn) homeBtn.classList.remove('active');
+    Filters.updateUI();
+
+    Storage.set(CONFIG.storageKeys.homeView, 'library');
+    if (!silent) AudioEngine.click();
+    Utils.refreshIcons();
+  }
+};
+
 // --- FILTERS ---
 const Filters = {
   setCategory(category) {
@@ -795,11 +860,21 @@ const Filters = {
     State.filters.category = category;
     this.updateUI();
     GameGrid.render();
+
+    // Auto-switch to library view when a filter is selected
+    if (LandingPage.currentView !== 'library') {
+      LandingPage.showLibrary(true);
+    }
   },
 
   setSearch: Utils.debounce(function (term) {
     State.filters.searchTerm = term.toLowerCase();
     GameGrid.render();
+
+    // Auto-switch to library view when searching
+    if (term.trim() !== '' && LandingPage.currentView !== 'library') {
+      LandingPage.showLibrary(true);
+    }
 
     // Toggle clear search button visibility
     const clearBtn = document.getElementById('clear-search-btn');
@@ -813,8 +888,12 @@ const Filters = {
   }, CONFIG.debounceDelay),
 
   updateUI() {
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-      const isActive = btn.dataset.category === State.filters.category;
+    const homeBtn = document.getElementById('nav-home-btn');
+    if (homeBtn) {
+      homeBtn.classList.toggle('active', LandingPage.currentView === 'landing');
+    }
+    document.querySelectorAll('.filter-btn[data-category]').forEach(btn => {
+      const isActive = btn.dataset.category === State.filters.category && LandingPage.currentView === 'library';
       btn.classList.toggle('active', isActive);
       btn.setAttribute('aria-pressed', String(isActive));
     });
@@ -1559,6 +1638,7 @@ const App = {
       Hero.init();
       Footer.render();
       Search.setup();
+      LandingPage.init();
 
       document.body.addEventListener('click', () => AudioEngine.init(), { once: true });
 
@@ -1650,7 +1730,9 @@ const App = {
       togglePin: (param) => { PinnedGames.toggle(param); Hero.updateStats(); },
       surpriseMe: () => Hero.surpriseMe(),
       continueGame: (param) => GameModal.open(param),
-      openFeedback: () => window.open(CONFIG.helpUrl, '_blank')
+      openFeedback: () => window.open(CONFIG.helpUrl, '_blank'),
+      showLanding: () => LandingPage.showLanding(),
+      showLibrary: () => LandingPage.showLibrary()
     };
 
     document.addEventListener('click', (e) => {
