@@ -17,7 +17,8 @@ const CONFIG = {
     sound: "soundMuted",
     favorites: "favoriteGames",
     tabs: "openTabs",
-    pinned: "pinnedGameIds"
+    pinned: "pinnedGameIds",
+    homeView: "klasskit_homeView"
   }
 };
 
@@ -45,12 +46,17 @@ const Utils = {
   },
 
   _iconRefreshPending: false,
-  refreshIcons() {
+  refreshIcons(container) {
     if (this._iconRefreshPending) return;
     this._iconRefreshPending = true;
     requestAnimationFrame(() => {
       this._iconRefreshPending = false;
-      window.lucide?.createIcons?.();
+      if (container && window.lucide?.createIcons) {
+        // Scoped refresh — only process icons within the given container
+        window.lucide.createIcons({ nodes: container.querySelectorAll('[data-lucide]') });
+      } else {
+        window.lucide?.createIcons?.();
+      }
     });
   }
 };
@@ -58,6 +64,7 @@ const Utils = {
 // --- STATE MANAGEMENT ---
 const State = {
   games: [],
+  gameMap: new Map(), // O(1) lookup by ID
   activeGame: null,
   metadata: null,
   filters: { category: 'all', searchTerm: '', difficulty: 'all', tags: [] },
@@ -65,6 +72,11 @@ const State = {
   setGames(data) {
     const gamesList = data.games || data;
     this.games = gamesList.sort((a, b) => a.title.localeCompare(b.title));
+    // Build lookup map
+    this.gameMap.clear();
+    for (const game of this.games) {
+      this.gameMap.set(game.id, game);
+    }
     if (data.metadata) this.metadata = data.metadata;
   },
 
@@ -96,35 +108,31 @@ const State = {
           cat.includes(searchLower) ||
           game.tags?.some(tag => tag.toLowerCase().includes(searchLower));
       })
-      .map(game => {
-        if (!searchLower) return { ...game, _score: 0 };
-
-        const title = game.title.toLowerCase();
-        const description = (game.description || "").toLowerCase();
-        let score = 0;
-
-        if (title === searchLower) score += 100;
-        else if (title.startsWith(searchLower)) score += 80;
-        else if (title.includes(searchLower)) score += 60;
-
-        if (description.includes(searchLower)) score += 40;
-        if (game.category.toLowerCase().includes(searchLower)) score += 30;
-        if (game.tags?.some(tag => tag.toLowerCase().includes(searchLower))) score += 20;
-
-        return { ...game, _score: score };
-      })
       .sort((a, b) => {
         if (searchLower) {
-          // Sort by search relevance first
-          if (b._score !== a._score) return b._score - a._score;
+          // Compute scores inline to avoid creating new objects
+          const scoreA = this._searchScore(a, searchLower);
+          const scoreB = this._searchScore(b, searchLower);
+          if (scoreB !== scoreA) return scoreB - scoreA;
         }
-        // Then by title
         return a.title.localeCompare(b.title);
       });
   },
 
+  _searchScore(game, term) {
+    const title = game.title.toLowerCase();
+    let score = 0;
+    if (title === term) score += 100;
+    else if (title.startsWith(term)) score += 80;
+    else if (title.includes(term)) score += 60;
+    if ((game.description || '').toLowerCase().includes(term)) score += 40;
+    if (game.category.toLowerCase().includes(term)) score += 30;
+    if (game.tags?.some(tag => tag.toLowerCase().includes(term))) score += 20;
+    return score;
+  },
+
   getGameById(id) {
-    return this.games.find(g => g.id === id);
+    return this.gameMap.get(id) || null;
   }
 };
 
@@ -519,7 +527,7 @@ const RecentGames = {
         </button>
       `;
     }).join('');
-    Utils.refreshIcons();
+    Utils.refreshIcons(container);
   }
 };
 
@@ -581,7 +589,7 @@ const PinnedGames = {
         </article>
       `;
     }).join('');
-    Utils.refreshIcons();
+    Utils.refreshIcons(container);
   }
 };
 
@@ -626,7 +634,7 @@ const FeaturedSection = {
         </div>
       `;
     }).join('');
-    Utils.refreshIcons();
+    Utils.refreshIcons(list);
   }
 };
 
@@ -669,8 +677,8 @@ const GameGrid = {
     }
 
     grid.innerHTML = html;
-    Utils.refreshIcons();
-    this.initCardEffects();
+    Utils.refreshIcons(grid);
+    this.initCardEffects(grid);
   },
 
   renderCategorySection(id, icon, color, title, games) {
@@ -756,19 +764,17 @@ const GameGrid = {
     return game.guide;
   },
 
-  initCardEffects() {
-    document.querySelectorAll('.hub-card').forEach(card => {
-      card.addEventListener('mousemove', (e) => this.tiltCard(e, card));
-      card.addEventListener('mouseleave', () => {
-        card.style.transform = 'perspective(1000px) rotateX(0) rotateY(0)';
-      });
-      card.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          card.click();
-        }
-      });
+  initCardEffects(container) {
+    if (!container) return;
+    // Delegated event handling on the grid container
+    container.addEventListener('mousemove', (e) => {
+      const card = e.target.closest('.hub-card');
+      if (card) this.tiltCard(e, card);
     });
+    container.addEventListener('mouseleave', (e) => {
+      const card = e.target.closest('.hub-card');
+      if (card) card.style.transform = '';
+    }, true); // use capture to catch leave from children
   },
 
   tiltCard(e, card) {
@@ -788,6 +794,70 @@ const GameGrid = {
   }
 };
 
+// --- LANDING PAGE ---
+const LandingPage = {
+  currentView: 'landing', // 'landing' or 'library'
+
+  init() {
+    const saved = Storage.get(CONFIG.storageKeys.homeView);
+    if (saved === 'library') {
+      this.showLibrary(true);
+    } else {
+      this.showLanding(true);
+    }
+  },
+
+  showLanding(silent = false) {
+    const landingView = document.getElementById('landing-view');
+    const libraryView = document.getElementById('library-view');
+    const homeBtn = document.getElementById('nav-home-btn');
+    if (!landingView || !libraryView) return;
+
+    this.currentView = 'landing';
+    landingView.style.display = '';
+    libraryView.style.display = 'none';
+
+    // Re-trigger entrance animation
+    landingView.style.animation = 'none';
+    landingView.offsetHeight; // force reflow
+    landingView.style.animation = '';
+
+    // Update sidebar active states
+    if (homeBtn) homeBtn.classList.add('active');
+    document.querySelectorAll('.filter-btn[data-category]').forEach(btn => {
+      btn.classList.remove('active');
+    });
+
+    Storage.set(CONFIG.storageKeys.homeView, 'landing');
+    if (!silent) AudioEngine.click();
+    Utils.refreshIcons();
+  },
+
+  showLibrary(silent = false) {
+    const landingView = document.getElementById('landing-view');
+    const libraryView = document.getElementById('library-view');
+    const homeBtn = document.getElementById('nav-home-btn');
+    if (!landingView || !libraryView) return;
+
+    this.currentView = 'library';
+    landingView.style.display = 'none';
+    libraryView.style.display = '';
+
+    // Re-trigger entrance animation
+    libraryView.style.animation = 'none';
+    libraryView.offsetHeight; // force reflow
+    libraryView.style.animation = '';
+
+    // Update sidebar active states
+    if (homeBtn) homeBtn.classList.remove('active');
+    Filters.updateUI();
+
+    Storage.set(CONFIG.storageKeys.homeView, 'library');
+    if (!silent) AudioEngine.click();
+    Utils.refreshIcons();
+  }
+};
+
 // --- FILTERS ---
 const Filters = {
   setCategory(category) {
@@ -795,11 +865,21 @@ const Filters = {
     State.filters.category = category;
     this.updateUI();
     GameGrid.render();
+
+    // Auto-switch to library view when a filter is selected
+    if (LandingPage.currentView !== 'library') {
+      LandingPage.showLibrary(true);
+    }
   },
 
   setSearch: Utils.debounce(function (term) {
     State.filters.searchTerm = term.toLowerCase();
     GameGrid.render();
+
+    // Auto-switch to library view when searching
+    if (term.trim() !== '' && LandingPage.currentView !== 'library') {
+      LandingPage.showLibrary(true);
+    }
 
     // Toggle clear search button visibility
     const clearBtn = document.getElementById('clear-search-btn');
@@ -813,8 +893,12 @@ const Filters = {
   }, CONFIG.debounceDelay),
 
   updateUI() {
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-      const isActive = btn.dataset.category === State.filters.category;
+    const homeBtn = document.getElementById('nav-home-btn');
+    if (homeBtn) {
+      homeBtn.classList.toggle('active', LandingPage.currentView === 'landing');
+    }
+    document.querySelectorAll('.filter-btn[data-category]').forEach(btn => {
+      const isActive = btn.dataset.category === State.filters.category && LandingPage.currentView === 'library';
       btn.classList.toggle('active', isActive);
       btn.setAttribute('aria-pressed', String(isActive));
     });
@@ -1559,6 +1643,7 @@ const App = {
       Hero.init();
       Footer.render();
       Search.setup();
+      LandingPage.init();
 
       document.body.addEventListener('click', () => AudioEngine.init(), { once: true });
 
@@ -1650,7 +1735,9 @@ const App = {
       togglePin: (param) => { PinnedGames.toggle(param); Hero.updateStats(); },
       surpriseMe: () => Hero.surpriseMe(),
       continueGame: (param) => GameModal.open(param),
-      openFeedback: () => window.open(CONFIG.helpUrl, '_blank')
+      openFeedback: () => window.open(CONFIG.helpUrl, '_blank'),
+      showLanding: () => LandingPage.showLanding(),
+      showLibrary: () => LandingPage.showLibrary()
     };
 
     document.addEventListener('click', (e) => {

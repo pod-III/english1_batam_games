@@ -177,7 +177,7 @@ async function renderWordSets() {
 }
 
 // --- THEME ---
-const THEME_KEY = 'crossword_theme';
+const THEME_KEY = 'klasskit_theme';
 function initTheme() {
     const savedTheme = localStorage.getItem(THEME_KEY) || 'light';
     if (savedTheme === 'dark') {

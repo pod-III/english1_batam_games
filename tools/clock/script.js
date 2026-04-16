@@ -245,29 +245,18 @@ const audio = {
 // --- DARK MODE ---
 const darkMode = {
     init() {
-        const saved = localStorage.getItem(CONSTANTS.LS_DARK_MODE);
-        if (saved === 'true') {
+        const saved = localStorage.getItem('klasskit_theme');
+        if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             state.darkMode = true;
             document.documentElement.classList.add('dark');
+        } else {
+            state.darkMode = false;
         }
-        darkMode.updateIcon();
     },
     toggle() {
         state.darkMode = !state.darkMode;
         document.documentElement.classList.toggle('dark', state.darkMode);
-        localStorage.setItem(CONSTANTS.LS_DARK_MODE, state.darkMode);
-        darkMode.updateIcon();
-        utils.safeIconUpdate();
-    },
-    updateIcon() {
-        const icon = DOM.get('dark-mode-icon');
-        if (icon && icon.parentElement) {
-            icon.parentElement.innerHTML = state.darkMode
-                ? '<i data-lucide="moon" id="dark-mode-icon" class="w-5 h-5"></i>'
-                : '<i data-lucide="sun" id="dark-mode-icon" class="w-5 h-5"></i>';
-            DOM.cache.delete('dark-mode-icon');
-            utils.safeIconUpdate();
-        }
+        localStorage.setItem('klasskit_theme', state.darkMode ? 'dark' : 'light');
     }
 };
 

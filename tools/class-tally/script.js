@@ -665,11 +665,11 @@ const ClassTallyApp = (function () {
         },
         toggleTheme: () => {
             const isDark = document.documentElement.classList.toggle('dark');
-            localStorage.setItem('classtally_theme', isDark ? 'dark' : 'light');
+            localStorage.setItem('klasskit_theme', isDark ? 'dark' : 'light');
             lucide.createIcons();
         },
         initTheme: () => {
-            const saved = localStorage.getItem('classtally_theme') || 'light';
+            const saved = localStorage.getItem('klasskit_theme') || 'light';
             if (saved === 'dark') document.documentElement.classList.add('dark');
             else document.documentElement.classList.remove('dark');
         },
