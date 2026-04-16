@@ -190,16 +190,16 @@ function toggleTheme() {
     const html = document.documentElement;
     if (html.classList.contains("dark")) {
         html.classList.remove("dark");
-        localStorage.setItem("wordSortTheme", "light");
+        localStorage.setItem("klasskit_theme", "light");
     } else {
         html.classList.add("dark");
-        localStorage.setItem("wordSortTheme", "dark");
+        localStorage.setItem("klasskit_theme", "dark");
     }
     lucide.createIcons();
 }
 
 function loadTheme() {
-    const saved = localStorage.getItem("wordSortTheme") || "light";
+    const saved = localStorage.getItem("klasskit_theme") || "light";
     if (saved === "dark") document.documentElement.classList.add("dark");
 }
 

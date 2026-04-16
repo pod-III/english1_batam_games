@@ -516,7 +516,7 @@ const Game = {
 
     async init() {
         // Restore Theme
-        const savedTheme = localStorage.getItem('mb_theme');
+        const savedTheme = localStorage.getItem('klasskit_theme');
         if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
         } else {
@@ -656,7 +656,7 @@ const Game = {
 const UI = {
     toggleTheme() {
         const isDark = document.documentElement.classList.toggle('dark');
-        localStorage.setItem('mb_theme', isDark ? 'dark' : 'light');
+        localStorage.setItem('klasskit_theme', isDark ? 'dark' : 'light');
     },
 
     togglePanel(forceHide) {

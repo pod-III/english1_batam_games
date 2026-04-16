@@ -57,8 +57,8 @@ function toggleDarkMode() {
   const icon = document.getElementById("darkModeIcon");
   icon.innerHTML = lucide.icons[isDark ? "sun" : "moon"].toSvg();
 
-  if (isDark) localStorage.setItem("theme", "dark");
-  else localStorage.setItem("theme", "light");
+  if (isDark) localStorage.setItem('klasskit_theme', "dark");
+  else localStorage.setItem('klasskit_theme', "light");
 
   const r = getCurrentRound();
   preRenderTiles(r);
@@ -67,8 +67,8 @@ function toggleDarkMode() {
 
 // Load theme on startup
 if (
-  localStorage.getItem("theme") === "dark" ||
-  (!("theme" in localStorage) &&
+  localStorage.getItem('klasskit_theme') === "dark" ||
+  (!("klasskit_theme" in localStorage) &&
     window.matchMedia("(prefers-color-scheme: dark)").matches)
 ) {
   document.documentElement.classList.add("dark");
