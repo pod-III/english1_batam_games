@@ -21,13 +21,13 @@ const ClassTallyApp = (function () {
         });
     }
     async function dbPut(key, data) {
-        try { const db = await initDB(); db.transaction(STATE_STORE, 'readwrite').objectStore(STATE_STORE).put(data, key); } catch(e) { console.error(e); }
+        try { const db = await initDB(); db.transaction(STATE_STORE, 'readwrite').objectStore(STATE_STORE).put(data, key); } catch (e) { console.error(e); }
     }
     async function dbGet(key) {
         try {
             const db = await initDB();
             return new Promise((res) => { const r = db.transaction(STATE_STORE, 'readonly').objectStore(STATE_STORE).get(key); r.onsuccess = () => res(r.result); r.onerror = () => res(null); });
-        } catch(e) { return null; }
+        } catch (e) { return null; }
     }
     async function saveClassSetToDB(name, data) {
         const db = await initDB();
@@ -39,7 +39,7 @@ const ClassTallyApp = (function () {
         try {
             const db = await initDB();
             return new Promise((res) => { const r = db.transaction(SETS_STORE, 'readonly').objectStore(SETS_STORE).getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => res([]); });
-        } catch(e) { return []; }
+        } catch (e) { return []; }
     }
     async function deleteClassSet(id) {
         const db = await initDB();
@@ -80,9 +80,12 @@ const ClassTallyApp = (function () {
             { name: 'Orange', hex: '#F97316', bg: 'bg-orange-500' },
             { name: 'Red', hex: '#EF4444', bg: 'bg-red-500' },
             { name: 'Pink', hex: '#EC4899', bg: 'bg-pink-500' },
+            { name: 'Rose', hex: '#FDA4AF', bg: 'bg-rose-300' },
             { name: 'Purple', hex: '#A855F7', bg: 'bg-purple-500' },
             { name: 'Indigo', hex: '#6366F1', bg: 'bg-indigo-500' },
             { name: 'Slate', hex: '#64748B', bg: 'bg-slate-500' },
+            { name: 'Black', hex: '#0F172A', bg: 'bg-slate-900' },
+            { name: 'White', hex: '#FFFFFF', bg: 'bg-white' },
         ],
 
         AVATARS: [
@@ -90,7 +93,8 @@ const ClassTallyApp = (function () {
             '🐶', '🐱', '🦊', '🦁', '🐸', '🐼', '🐨', '🐯', '🦄', '🦖', '🐢', '🐙', '🦉', '🦋', '🐝', '🦈',
             '🤖', '👾', '👽', '👻', '💀', '🤡', '👹', '🧞',
             '🌈', '🔥', '⚡️', '🌟', '💎', '🚀', '🛸', '🏎️', '⚽️', '🏀', '🎮', '🎨', '🎸',
-            '🍕', '🍔', '🍟', '🍦', '🍩', '🍪', '🍎', '🍓'
+            '🍕', '🍔', '🍟', '🍦', '🍩', '🍪', '🍎', '🍓',
+            '🐒', '🦥', '🦩', '🦕', '🦔'
         ],
 
         GOOD_EMOJIS: [
@@ -585,6 +589,25 @@ const ClassTallyApp = (function () {
             document.getElementById('add-student-modal').classList.remove('hidden');
             setTimeout(() => document.getElementById('add-student-modal').classList.remove('opacity-0'), 10);
         },
+        toggleModalPosition: () => {
+            const modal = document.getElementById('add-student-modal');
+            const inner = modal.querySelector('.max-w-4xl');
+            const icon = document.querySelector('#modal-position-toggle i');
+            if (modal.classList.contains('items-center')) {
+                modal.classList.remove('items-center', 'p-4');
+                modal.classList.add('items-end', 'px-2', 'pt-4', 'pb-0', 'sm:px-4');
+                inner.classList.remove('rounded-[2.5rem]');
+                inner.classList.add('rounded-t-[2.5rem]', 'rounded-b-none');
+                icon.setAttribute('data-lucide', 'arrow-up-to-line');
+            } else {
+                modal.classList.remove('items-end', 'px-2', 'pt-4', 'pb-0', 'sm:px-4');
+                modal.classList.add('items-center', 'p-4');
+                inner.classList.remove('rounded-t-[2.5rem]', 'rounded-b-none');
+                inner.classList.add('rounded-[2.5rem]');
+                icon.setAttribute('data-lucide', 'arrow-down-to-line');
+            }
+            lucide.createIcons();
+        },
         hideStudentModal: () => {
             const canvas = document.getElementById('signature-canvas');
             if (canvas) CanvasDraw.resizeObserver.unobserve(canvas);
@@ -768,6 +791,7 @@ const ClassTallyApp = (function () {
         calculateAutoFitScale: () => {
             if (!State.isAutoFit) {
                 document.documentElement.style.removeProperty('--grid-cols');
+                UI.setCardSize(1);
                 return;
             }
             if (State.students.length === 0) {
@@ -776,25 +800,24 @@ const ClassTallyApp = (function () {
                 return;
             }
 
-            const container = document.getElementById('grid-container');
             const appBody = document.getElementById('app-body');
-            if (!container || !appBody) return;
+            if (!appBody) return;
 
             // Base dimensions
-            const cardBaseWidth = 400;
+            const cardBaseWidth = 360;
             const cardBaseHeight = 256;
-            const gapBase = 40; // matches 2.5rem in CSS
-            const padding = 80; // generous padding for safe containment
+            const gapBase = 24;
+            const padding = 48; // generous padding for safe containment
 
             const availableWidth = appBody.clientWidth - padding;
             const availableHeight = appBody.clientHeight - padding;
             const count = State.students.length;
 
-            let bestScale = 0.4;
+            let bestScale = 0.3;
             let bestCols = 1;
 
             // Try different column counts (from 1 to count) to find the best fit
-            for (let cols = 1; cols <= Math.min(count, 10); cols++) {
+            for (let cols = 1; cols <= count; cols++) {
                 const rows = Math.ceil(count / cols);
                 const totalWidthNeeded = (cols * cardBaseWidth) + ((cols - 1) * gapBase);
                 const totalHeightNeeded = (rows * cardBaseHeight) + ((rows - 1) * gapBase);
@@ -812,7 +835,7 @@ const ClassTallyApp = (function () {
             }
 
             // Constrain scale to reasonable limits
-            bestScale = Math.min(Math.max(bestScale, 0.4), 1.1);
+            bestScale = Math.min(Math.max(bestScale, 0.3), 1.2);
 
             // Explicitly set the number of columns to prevent auto-fill overflow
             document.documentElement.style.setProperty('--grid-cols', bestCols);
@@ -859,7 +882,7 @@ const ClassTallyApp = (function () {
                 const pickedClass = State.pickedQueue.includes(s.id) ? 'opacity-70 border-b-4 border-slate-300' : '';
 
                 return `
-                <div id="card-${s.id}" class="app-panel rounded-[2rem] flex flex-row relative overflow-hidden bg-white hover:border-slate-200 h-64 group transition-all duration-300 ${pickedClass}">
+                <div id="card-${s.id}" class="app-panel rounded-[2rem] flex flex-row relative overflow-hidden bg-white hover:border-slate-200 group transition-all duration-300 ${pickedClass}">
                     
                     <div class="w-32 sm:w-40 flex-none relative flex flex-col items-center justify-center p-2 transition-colors duration-300 border-r border-black/5" style="background-color: ${s.cardColor}; background-image: radial-gradient(circle, rgba(255,255,255,0.15) 2px, transparent 2.5px); background-size: 14px 14px;">
                         <div class="absolute inset-0 bg-gradient-to-b from-black/0 to-black/10"></div>
