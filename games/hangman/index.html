@@ -230,18 +230,43 @@
                         <div>
                             <label class="block font-heading font-bold text-dark text-xl mb-3 flex items-center gap-2">
                                 <span class="bg-orange text-white w-8 h-8 rounded-full flex items-center justify-center text-sm border-2 border-dark shadow-sm">2</span>
-                                Teams
+                                Options
                             </label>
                             
-                            <div class="bg-slate-100 p-1.5 rounded-xl border-2 border-slate-200 flex">
-                                <button onclick="selectPlayers(2)" class="player-select-btn flex-1 py-3 rounded-lg font-heading text-lg font-bold transition-all border-2 border-transparent" data-count="2">2</button>
-                                <button onclick="selectPlayers(3)" class="player-select-btn flex-1 py-3 rounded-lg font-heading text-lg font-bold transition-all border-2 border-transparent" data-count="3">3</button>
-                                <button onclick="selectPlayers(4)" class="player-select-btn flex-1 py-3 rounded-lg font-heading text-lg font-bold transition-all border-2 border-transparent" data-count="4">4</button>
+                            <div class="space-y-4">
+                                <div>
+                                    <span class="text-sm font-bold text-slate-500 mb-1 block">Number of Teams:</span>
+                                    <div class="bg-slate-100 p-1.5 rounded-xl border-2 border-slate-200 flex">
+                                        <button onclick="selectPlayers(2)" class="player-select-btn flex-1 py-2 rounded-lg font-heading text-lg font-bold transition-all border-2 border-transparent bg-white text-dark border-dark shadow-hard-sm" data-count="2">2</button>
+                                        <button onclick="selectPlayers(3)" class="player-select-btn flex-1 py-2 rounded-lg font-heading text-lg font-bold transition-all border-2 border-transparent text-slate-400 hover:bg-white" data-count="3">3</button>
+                                        <button onclick="selectPlayers(4)" class="player-select-btn flex-1 py-2 rounded-lg font-heading text-lg font-bold transition-all border-2 border-transparent text-slate-400 hover:bg-white" data-count="4">4</button>
+                                    </div>
+                                    <input type="hidden" id="player-count" value="2">
+                                </div>
+                                
+                                <div>
+                                    <span class="text-sm font-bold text-slate-500 mb-1 block">Lives per Team:</span>
+                                    <div class="bg-slate-100 p-1.5 rounded-xl border-2 border-slate-200 flex">
+                                        <button onclick="selectLives(3)" class="life-select-btn flex-1 py-2 rounded-lg font-heading text-lg font-bold transition-all border-2 border-transparent text-slate-400 hover:bg-white" data-count="3">3</button>
+                                        <button onclick="selectLives(5)" class="life-select-btn flex-1 py-2 rounded-lg font-heading text-lg font-bold transition-all border-2 border-transparent bg-white text-dark border-dark shadow-hard-sm" data-count="5">5</button>
+                                        <button onclick="selectLives(7)" class="life-select-btn flex-1 py-2 rounded-lg font-heading text-lg font-bold transition-all border-2 border-transparent text-slate-400 hover:bg-white" data-count="7">7</button>
+                                        <button onclick="selectLives(10)" class="life-select-btn flex-1 py-2 rounded-lg font-heading text-lg font-bold transition-all border-2 border-transparent text-slate-400 hover:bg-white" data-count="10">10</button>
+                                    </div>
+                                    <input type="hidden" id="max-lives" value="5">
+                                </div>
+
+                                <div>
+                                    <span class="text-sm font-bold text-slate-500 mb-1 block">Turn Progression:</span>
+                                    <div class="bg-slate-100 p-1.5 rounded-xl border-2 border-slate-200 flex">
+                                        <button onclick="setTurnMode('auto')" id="mode-auto" class="flex-1 py-2 rounded-lg font-heading text-lg font-bold transition-all border-2 border-transparent bg-white text-dark border-dark shadow-hard-sm">Auto</button>
+                                        <button onclick="setTurnMode('manual')" id="mode-manual" class="flex-1 py-2 rounded-lg font-heading text-lg font-bold transition-all border-2 border-transparent text-slate-400 hover:bg-white">Manual</button>
+                                    </div>
+                                    <input type="hidden" id="turn-mode" value="auto">
+                                </div>
                             </div>
-                            <input type="hidden" id="player-count" value="2">
                         </div>
 
-                        <div class="bg-blue/5 p-5 rounded-xl border-2 border-blue/20">
+                        <div class="bg-blue/5 p-4 rounded-xl border-2 border-blue/20">
                             <h3 class="font-heading font-bold text-blue mb-2 flex items-center gap-2">
                                 <i data-lucide="info" class="w-4 h-4"></i> HOW TO PLAY
                             </h3>
@@ -252,7 +277,7 @@
                                 </li>
                                 <li class="flex items-center gap-3">
                                     <span class="w-6 h-6 rounded bg-pink text-white flex items-center justify-center text-xs border border-dark"><i data-lucide="x" class="w-3 h-3"></i></span>
-                                    <span>Wrong guess = -20 HP</span>
+                                    <span>Wrong guess = -1 Life</span>
                                 </li>
                             </ul>
                         </div>
@@ -271,8 +296,13 @@
 
     <main id="game-section" class="hidden flex-grow flex flex-col items-center justify-start p-4 w-full max-w-6xl mx-auto">
         
-        <div id="health-container" class="w-full grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div id="health-container" class="w-full grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
             </div>
+
+        <div id="manual-turn-controls" class="w-full hidden flex-wrap gap-2 justify-center items-center mb-6">
+            <span class="font-heading font-bold text-dark text-lg mr-2">SET TURN:</span>
+            <div id="manual-turn-btns" class="flex flex-wrap gap-2"></div>
+        </div>
 
         <div class="panel-chunky w-full p-8 md:p-12 mb-6 text-center relative overflow-hidden flex flex-col items-center justify-center min-h-[240px]">
             <div class="absolute top-4 left-4 flex gap-2">
@@ -466,6 +496,7 @@
         let players = [];
         let currentPlayerIndex = 0;
         let gameActive = false;
+        let turnMode = 'auto';
         
         // --- DOM Elements ---
         const teacherConsole = document.getElementById('teacher-console');
@@ -497,6 +528,32 @@
             AudioEngine.click();
         }
 
+        function selectLives(count) {
+            document.getElementById('max-lives').value = count;
+            document.querySelectorAll('.life-select-btn').forEach(btn => {
+                if(parseInt(btn.dataset.count) === count) {
+                    btn.classList.add('bg-white', 'text-dark', 'border-dark', 'shadow-hard-sm');
+                    btn.classList.remove('border-transparent', 'text-slate-400', 'hover:bg-white');
+                } else {
+                    btn.classList.remove('bg-white', 'text-dark', 'border-dark', 'shadow-hard-sm');
+                    btn.classList.add('border-transparent', 'text-slate-400', 'hover:bg-white');
+                }
+            });
+            AudioEngine.click();
+        }
+
+        function setTurnMode(mode) {
+            document.getElementById('turn-mode').value = mode;
+            if(mode === 'auto') {
+                document.getElementById('mode-auto').className = "flex-1 py-2 rounded-lg font-heading text-lg font-bold transition-all border-2 border-transparent bg-white text-dark border-dark shadow-hard-sm";
+                document.getElementById('mode-manual').className = "flex-1 py-2 rounded-lg font-heading text-lg font-bold transition-all border-2 border-transparent text-slate-400 hover:bg-white";
+            } else {
+                document.getElementById('mode-manual').className = "flex-1 py-2 rounded-lg font-heading text-lg font-bold transition-all border-2 border-transparent bg-white text-dark border-dark shadow-hard-sm";
+                document.getElementById('mode-auto').className = "flex-1 py-2 rounded-lg font-heading text-lg font-bold transition-all border-2 border-transparent text-slate-400 hover:bg-white";
+            }
+            AudioEngine.click();
+        }
+
         async function startGame() {
             const rawInput = wordListInput.value;
             await saveWords(rawInput); 
@@ -511,10 +568,13 @@
             }
 
             const playerCount = parseInt(document.getElementById('player-count').value);
+            const livesCount = parseInt(document.getElementById('max-lives').value);
+            turnMode = document.getElementById('turn-mode').value;
             players = Array.from({ length: playerCount }, (_, i) => ({
                 id: i,
                 name: `Team ${i + 1}`,
-                health: 100,
+                health: livesCount,
+                maxHealth: livesCount,
                 score: 0,
                 eliminated: false
             }));
@@ -542,7 +602,7 @@
             
             // Revive everyone for the new round
             players.forEach(p => {
-                p.health = 100;
+                p.health = p.maxHealth;
                 p.eliminated = false;
             });
             currentPlayerIndex = 0;
@@ -564,36 +624,92 @@
                 
                 const card = document.createElement('div');
                 card.id = `team-card-${idx}`;
-                card.className = `bg-white p-4 rounded-2xl border-4 transition-all duration-300 relative overflow-hidden flex flex-col justify-between h-32 ${isCurrent ? 'border-orange shadow-hard scale-105 z-10' : 'border-dark shadow-sm opacity-90'}`;
+                card.className = `bg-white p-3 md:p-4 rounded-2xl border-4 transition-all duration-300 relative overflow-hidden flex flex-col justify-between cursor-pointer group ${isCurrent ? 'border-orange shadow-hard scale-105 z-10 ring-4 ring-orange/20' : 'border-dark shadow-sm opacity-90 hover:scale-[1.02]'}`;
                 if(p.eliminated) card.classList.add('opacity-50', 'grayscale');
+                card.onclick = () => setCurrentTeam(idx);
 
+                let healthRatio = p.health / p.maxHealth;
                 let barColor = 'bg-green';
                 let icon = 'heart';
-                if(p.health <= 50) barColor = 'bg-orange';
-                if(p.health <= 20) { barColor = 'bg-pink'; icon = 'alert-triangle'; }
+                if(healthRatio <= 0.5) barColor = 'bg-orange';
+                if(healthRatio <= 0.2) { barColor = 'bg-pink'; icon = 'alert-triangle'; }
 
                 card.innerHTML = `
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <div class="font-heading font-bold text-lg leading-none ${isCurrent ? 'text-orange' : 'text-dark'}">${p.name}</div>
-                            <div class="text-xs font-bold text-slate-400 mt-1">${p.health}/100 HP</div>
+                    <div class="flex justify-between items-start mb-4 relative z-10">
+                        <div class="flex flex-col w-[calc(100%-40px)]">
+                            <input type="text" class="font-heading font-bold text-xl md:text-2xl leading-none bg-transparent border-b-2 border-transparent hover:border-slate-200 focus:border-dark outline-none w-full transition-colors ${isCurrent ? 'text-orange' : 'text-dark'} truncate pb-1" value="${p.name}" onchange="updateTeamName(${idx}, this.value)" title="Rename Team" onclick="event.stopPropagation()">
                         </div>
-                        <button onclick="claimWin(${idx})" title="Award Win" 
-                                class="btn-chunky bg-white hover:bg-green hover:text-white text-dark text-xs font-bold py-1 px-2 rounded-lg border-2 border-slate-200 transition-colors z-20 flex items-center gap-1">
-                            <i data-lucide="trophy" class="w-3 h-3"></i> ${p.score}
+                        
+                        <button onclick="claimWin(${idx}); event.stopPropagation();" class="w-8 h-8 rounded-lg bg-green/10 hover:bg-green text-green hover:text-white border-2 border-green/20 hover:border-green flex items-center justify-center transition-all shrink-0 mt-0.5 shadow-sm hover:shadow-hard-sm group/btn" title="Reveal & Win">
+                            <i data-lucide="award" class="w-4 h-4 group-hover/btn:scale-110 transition-transform"></i>
                         </button>
                     </div>
-                    
-                    <div>
-                        <div class="w-full h-4 bg-slate-100 rounded-full overflow-hidden border-2 border-slate-200">
-                            <div class="h-full ${barColor} transition-all duration-500" style="width: ${p.health}%">
+
+                    <div class="grid grid-cols-2 gap-2 mb-4 relative z-10">
+                        <!-- Score Block -->
+                        <div class="bg-slate-50 border-2 border-slate-200 rounded-xl py-1 px-1 md:px-2 flex items-center justify-between shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)]" onclick="event.stopPropagation()">
+                            <button onclick="adjScore(${idx}, -1)" class="w-6 h-6 rounded flex items-center justify-center hover:bg-white border-2 border-transparent hover:border-slate-300 text-slate-400 hover:text-pink hover:shadow-sm transition-all font-bold text-lg leading-none">-</button>
+                            
+                            <div class="flex flex-col items-center">
+                                <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5 -mt-0.5" style="font-family: 'Fredoka'">Score</span>
+                                <div class="font-heading font-bold text-lg md:text-xl text-dark flex items-center gap-1 leading-none">
+                                    <i data-lucide="trophy" class="w-3.5 h-3.5 text-orange"></i> ${p.score}
+                                </div>
                             </div>
+
+                            <button onclick="adjScore(${idx}, 1)" class="w-6 h-6 rounded flex items-center justify-center hover:bg-white border-2 border-transparent hover:border-slate-300 text-slate-400 hover:text-green hover:shadow-sm transition-all font-bold text-lg leading-none">+</button>
+                        </div>
+
+                        <!-- Lives Block -->
+                        <div class="bg-slate-50 border-2 border-slate-200 rounded-xl py-1 px-1 md:px-2 flex items-center justify-between shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)]" onclick="event.stopPropagation()">
+                            <button onclick="adjLives(${idx}, -1)" class="w-6 h-6 rounded flex items-center justify-center hover:bg-white border-2 border-transparent hover:border-slate-300 text-slate-400 hover:text-pink hover:shadow-sm transition-all font-bold text-lg leading-none">-</button>
+                            
+                            <div class="flex flex-col items-center">
+                                <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5 -mt-0.5" style="font-family: 'Fredoka'">Lives</span>
+                                <div class="font-heading font-bold text-lg md:text-xl text-dark flex items-center gap-1 leading-none">
+                                    <i data-lucide="heart" class="w-3.5 h-3.5 ${p.health > 0 ? 'fill-pink text-pink' : 'text-slate-300'}"></i> ${p.health}
+                                </div>
+                            </div>
+
+                            <button onclick="adjLives(${idx}, 1)" class="w-6 h-6 rounded flex items-center justify-center hover:bg-white border-2 border-transparent hover:border-slate-300 text-slate-400 hover:text-green hover:shadow-sm transition-all font-bold text-lg leading-none">+</button>
                         </div>
                     </div>
-                    ${isCurrent ? '<div class="absolute top-0 right-0 w-3 h-3 bg-orange rounded-bl-lg"></div>' : ''}
+                    
+                    <div class="mt-auto relative z-10 w-full" onclick="event.stopPropagation()">
+                        <div class="w-full h-3 bg-slate-100 rounded-full overflow-hidden border-2 border-slate-200 shadow-[inset_0_1px_3px_rgba(0,0,0,0.1)]">
+                            <div class="h-full ${barColor} transition-all duration-500 rounded-full" style="width: ${Math.max(0, Math.min(100, healthRatio * 100))}%"></div>
+                        </div>
+                    </div>
+                    
+                    ${!isCurrent && turnMode === 'manual' && !p.eliminated ? `<div class="absolute top-0 left-1/2 -translate-x-1/2 bg-dark text-white text-[9px] tracking-widest font-bold px-3 py-1 rounded-b-md opacity-0 group-hover:opacity-100 transition-opacity z-0 pointer-events-none uppercase shadow-sm">Set Active</div>` : ''}
+                    <div class="absolute inset-0 bg-transparent hover:bg-slate-900/5 transition-colors z-0 pointer-events-none rounded-2xl"></div>
                 `;
                 container.appendChild(card);
             });
+
+            // Adjust manual turn controls
+            const manualControls = document.getElementById('manual-turn-controls');
+            const manualBtns = document.getElementById('manual-turn-btns');
+            
+            if (turnMode === 'manual') {
+                manualControls.classList.remove('hidden');
+                manualControls.classList.add('flex');
+                manualBtns.innerHTML = '';
+                players.forEach((p, idx) => {
+                    if(!p.eliminated) {
+                        const isCurrent = idx === currentPlayerIndex;
+                        const btn = document.createElement('button');
+                        btn.className = `btn-chunky px-4 py-2 rounded-xl font-heading font-bold text-sm transition-all ${isCurrent ? 'bg-orange text-white' : 'bg-white text-dark hover:bg-slate-100'}`;
+                        btn.innerText = p.name;
+                        btn.onclick = () => setCurrentTeam(idx);
+                        manualBtns.appendChild(btn);
+                    }
+                });
+            } else {
+                manualControls.classList.add('hidden');
+                manualControls.classList.remove('flex');
+            }
+
             lucide.createIcons();
 
             // Render Word (Non-Flip Logic)
@@ -663,22 +779,22 @@
             
             if (isCorrect) {
                 AudioEngine.correct();
-                updateMessage("Correct! Next team's turn.", "text-green");
+                updateMessage("Correct! " + (turnMode === 'auto' ? "Next team's turn." : ""), "text-green");
                 checkWin();
             } else {
                 AudioEngine.wrong();
-                updateMessage("Oops! -20 HP.", "text-pink");
+                updateMessage("Oops! Lost a life. " + (turnMode === 'auto' ? "Next team's turn." : ""), "text-pink");
                 damageCurrentPlayer();
             }
 
-            if (gameActive) advanceTurn();
+            if (gameActive && turnMode === 'auto') advanceTurn();
             renderUI();
             renderKeyboard();
         }
 
         function damageCurrentPlayer() {
             const p = players[currentPlayerIndex];
-            p.health -= 20;
+            p.health -= 1;
             
             // Shake Effect on Card
             const card = document.getElementById(`team-card-${currentPlayerIndex}`);
@@ -693,6 +809,42 @@
                 p.eliminated = true;
                 updateMessage(`${p.name} is eliminated!`, "text-pink");
             }
+        }
+
+        function setCurrentTeam(idx) {
+            if (!gameActive) return;
+            if (players[idx].eliminated) return;
+            currentPlayerIndex = idx;
+            AudioEngine.click();
+            updateMessage(`${players[idx].name}'s Turn`, "text-dark");
+            renderUI();
+        }
+
+        function updateTeamName(idx, name) {
+            players[idx].name = name;
+            renderUI();
+        }
+
+        function adjScore(idx, delta) {
+            players[idx].score += delta;
+            if (players[idx].score < 0) players[idx].score = 0;
+            AudioEngine.click();
+            renderUI();
+        }
+
+        function adjLives(idx, delta) {
+            players[idx].health += delta;
+            if (players[idx].health > players[idx].maxHealth) {
+                players[idx].maxHealth = players[idx].health;
+            }
+            if (players[idx].health <= 0) {
+                players[idx].health = 0;
+                players[idx].eliminated = true;
+            } else {
+                players[idx].eliminated = false;
+            }
+            AudioEngine.click();
+            renderUI();
         }
 
         function claimWin(playerIndex) {
