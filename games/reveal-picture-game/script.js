@@ -205,6 +205,8 @@ const app = {
             document.getElementById('tile-grid').innerHTML = '';
             document.getElementById('round-display').textContent = "0 / 0";
             document.getElementById('next-round-btn').disabled = true;
+            const prevBtn = document.getElementById('prev-round-btn');
+            if (prevBtn) prevBtn.disabled = true;
             UI.updateCount(0);
         }
     },
@@ -555,6 +557,7 @@ const Game = {
     loadLevel() {
         // Bounds check
         if (this.currentIndex >= this.images.length) this.currentIndex = 0;
+        if (this.currentIndex < 0) this.currentIndex = this.images.length - 1;
 
         // Update Image
         document.getElementById('target-image').src = this.images[this.currentIndex];
@@ -565,6 +568,8 @@ const Game = {
 
         // Reset State
         document.getElementById('next-round-btn').disabled = true;
+        const prevBtn = document.getElementById('prev-round-btn');
+        if (prevBtn) prevBtn.disabled = true;
         AutoReveal.stop();
         this.buildGrid();
     },
@@ -629,6 +634,13 @@ const Game = {
         btn.disabled = false;
         btn.classList.add('animate-bounce');
         setTimeout(() => btn.classList.remove('animate-bounce'), 1000);
+
+        const prevBtn = document.getElementById('prev-round-btn');
+        if (prevBtn) {
+            prevBtn.disabled = false;
+            prevBtn.classList.add('animate-bounce');
+            setTimeout(() => prevBtn.classList.remove('animate-bounce'), 1000);
+        }
     },
 
     resetLevel() {
@@ -639,6 +651,12 @@ const Game = {
     nextLevel() {
         this.currentIndex++;
         if (this.currentIndex >= this.images.length) this.currentIndex = 0;
+        this.loadLevel();
+    },
+
+    prevLevel() {
+        this.currentIndex--;
+        if (this.currentIndex < 0) this.currentIndex = this.images.length - 1;
         this.loadLevel();
     },
 
@@ -776,6 +794,7 @@ document.addEventListener('keydown', (e) => {
             break;
         case 'KeyR': Game.resetLevel(); break;
         case 'KeyN': if (Game.tilesRemaining <= 0) Game.nextLevel(); break;
+        case 'KeyP': if (Game.tilesRemaining <= 0) Game.prevLevel(); break;
     }
 });
 
