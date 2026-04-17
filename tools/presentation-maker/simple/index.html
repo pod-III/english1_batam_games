@@ -162,15 +162,33 @@
 
         <div class="p-8">
             <label class="block font-title font-bold mb-2 text-xl">
-                Enter your content
+                Enter your content or add images
             </label>
             <p class="text-dark/70 dark:text-chalk/70 text-base mb-4">
-                Separate items with a <strong>newline</strong> (Enter) or a <strong>semicolon</strong> (;).
+                Separate text items with a <strong>newline</strong> (Enter) or a <strong>semicolon</strong> (;).
             </p>
 
             <textarea id="word-input"
                 class="w-full h-56 p-4 bg-white dark:bg-slate-900 border-4 border-dark dark:border-slate-600 rounded-xl focus:outline-none focus:ring-4 focus:ring-blue/50 text-xl font-medium resize-none text-dark dark:text-chalk placeholder-dark/30 dark:placeholder-chalk/30 shadow-[inset_0px_4px_0px_0px_rgba(0,0,0,0.05)]"
                 placeholder="Paste your list here..."></textarea>
+
+            <div id="image-upload-area" class="mt-4 p-4 border-4 border-dashed border-dark/20 dark:border-slate-600 rounded-xl flex items-center justify-between bg-white dark:bg-slate-900 transition-colors">
+                 <div class="flex items-center gap-3">
+                     <div class="bg-blue/10 p-2 rounded-lg">
+                         <i data-lucide="image" class="w-6 h-6 text-blue"></i>
+                     </div>
+                     <span id="image-count-text" class="font-bold text-dark/70 dark:text-chalk/70 font-title dropdown-text transition-colors">0 images attached</span>
+                 </div>
+                 <div class="flex gap-2">
+                     <input type="file" id="image-input" class="hidden" multiple accept="image/*" onchange="app.handleImages(event)">
+                     <button onclick="app.openImageManager()" class="btn-chunky bg-blue/10 text-blue font-title font-bold py-2 px-4 border-2 border-blue/50 rounded-lg shadow-hard dark:shadow-hard-white text-sm hidden" id="manage-images-btn">
+                         Manage
+                     </button>
+                     <button onclick="document.getElementById('image-input').click()" class="btn-chunky bg-chalk dark:bg-slate-800 text-dark dark:text-chalk font-title font-bold py-2 px-4 border-2 border-dark dark:border-slate-600 rounded-lg shadow-hard dark:shadow-hard-white text-sm">
+                         Add Images
+                     </button>
+                 </div>
+            </div>
 
             <!-- Saved Slide Sets -->
             <div class="mt-4 bg-white dark:bg-slate-900 border-4 border-dark dark:border-slate-600 rounded-xl p-4">
@@ -208,11 +226,12 @@
     </div>
 
     <div id="presentation-mode" tabindex="0">
-        <div id="slide-content" class="text-center p-10 max-w-[90vw]">
+        <div id="slide-content" class="text-center p-10 max-w-[90vw] flex flex-col items-center justify-center">
             <h1 id="display-word" class="text-chalk font-title slide-text break-words"
                 style="font-size: 10vw; line-height: 1.1;">
                 Word
             </h1>
+            <img id="display-image" class="max-w-full max-h-[80vh] object-contain hidden slide-text rounded-2xl shadow-hard-white border-4 border-chalk" />
         </div>
 
         <div class="absolute bottom-8 left-0 w-full text-center pointer-events-none">
@@ -254,6 +273,34 @@
         </div>
     </div>
 
+    <!-- Image Manager Modal -->
+    <div id="image-manager-modal" class="fixed inset-0 bg-dark/80 backdrop-blur-md z-[60] hidden items-center justify-center p-4">
+        <div class="bg-chalk dark:bg-slate-800 border-4 border-dark dark:border-slate-600 rounded-2xl shadow-hard dark:shadow-hard-white max-w-4xl w-full p-6 flex flex-col max-h-[85vh] transform scale-100 transition-all">
+            <div class="flex justify-between items-center mb-6 shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="bg-blue/10 p-3 rounded-xl border-2 border-blue">
+                        <i data-lucide="images" class="w-6 h-6 text-blue"></i>
+                    </div>
+                    <h2 class="text-2xl font-title font-bold text-dark dark:text-chalk">Manage Images</h2>
+                </div>
+                <button onclick="app.closeImageManager()" class="p-2 bg-chalk dark:bg-slate-700 text-dark dark:text-chalk rounded-lg hover:bg-dark/10 dark:hover:bg-chalk/10 transition-colors border-2 border-transparent hover:border-dark/20 dark:hover:border-chalk/20">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+            
+            <div id="image-manager-list" class="flex-1 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 p-2 mb-4 bg-white dark:bg-slate-900 rounded-xl border-2 border-dark/10 dark:border-slate-700">
+                <!-- Images injected here -->
+            </div>
+            
+            <div class="pt-4 border-t-2 border-dark/10 dark:border-slate-700 shrink-0 flex justify-between items-center">
+                <span class="text-sm font-bold font-title text-dark/50 dark:text-chalk/50" id="image-manager-count">0 Images</span>
+                <button onclick="app.clearImages()" class="btn-chunky bg-pink/20 text-pink font-title font-bold py-2 px-6 border-2 border-pink rounded-xl shadow-hard dark:shadow-hard-white flex items-center gap-2">
+                    <i data-lucide="trash-2" class="w-5 h-5"></i> CLEAR ALL
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Initialize Lucide Icons
         lucide.createIcons();
@@ -285,10 +332,10 @@
                 return new Promise((res) => { const r = db.transaction(STATE_STORE, 'readonly').objectStore(STATE_STORE).get(key); r.onsuccess = () => res(r.result); r.onerror = () => res(null); });
             } catch(e) { return null; }
         }
-        async function saveSetToDB(name, text) {
+        async function saveSetToDB(name, text, images = []) {
             const db = await initDB();
             const tx = db.transaction(SETS_STORE, 'readwrite');
-            tx.objectStore(SETS_STORE).put({ name, text, createdAt: Date.now() });
+            tx.objectStore(SETS_STORE).put({ name, text, images, createdAt: Date.now() });
             return new Promise(r => { tx.oncomplete = r; });
         }
         async function getAllSets() {
@@ -306,6 +353,7 @@
 
         const app = {
             words: [],
+            images: [],
             currentIndex: 0,
             colors: ['#FF6B95', '#FF8C42', '#00E676', '#2979FF'], // KK Palette: Pink, Orange, Green, Blue
 
@@ -324,6 +372,13 @@
                     const saved = localStorage.getItem('e1_rapid_text');
                     if (saved) textarea.value = saved;
                 }
+                
+                const dbImages = await dbGet('presentationImages');
+                if (dbImages) {
+                    this.images = dbImages;
+                    this.updateImageUI();
+                }
+
                 this.updateCount();
 
                 // Keyboard listeners for presentation
@@ -376,7 +431,108 @@
 
             updateCount() {
                 const words = this.parseInput();
-                document.getElementById('item-count').innerText = `${words.length} item${words.length !== 1 ? 's' : ''}`;
+                const total = words.length + this.images.length;
+                document.getElementById('item-count').innerText = `${total} item${total !== 1 ? 's' : ''}`;
+            },
+
+            handleImages(event) {
+                const files = event.target.files;
+                if (!files || files.length === 0) return;
+                
+                let loaded = 0;
+                Array.from(files).forEach(f => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        this.images.push(e.target.result);
+                        loaded++;
+                        if (loaded === files.length) {
+                            this.updateImageUI();
+                            this.updateCount();
+                            dbPut('presentationImages', this.images);
+                        }
+                    };
+                    reader.readAsDataURL(f);
+                });
+            },
+
+            clearImages() {
+                this.images = [];
+                const input = document.getElementById('image-input');
+                if (input) input.value = '';
+                this.updateImageUI();
+                this.updateCount();
+                dbPut('presentationImages', this.images);
+                this.closeImageManager();
+            },
+
+            updateImageUI() {
+                const text = document.getElementById('image-count-text');
+                const manageBtn = document.getElementById('manage-images-btn');
+                const area = document.getElementById('image-upload-area');
+                text.innerText = `${this.images.length} image${this.images.length !== 1 ? 's' : ''} attached`;
+                
+                if (this.images.length > 0) {
+                    text.classList.remove('text-dark/70', 'dark:text-chalk/70');
+                    text.classList.add('text-blue', 'dark:text-blue');
+                    if(manageBtn) manageBtn.classList.remove('hidden');
+                    area.classList.add('border-blue/50');
+                } else {
+                    text.classList.add('text-dark/70', 'dark:text-chalk/70');
+                    text.classList.remove('text-blue', 'dark:text-blue');
+                    if(manageBtn) manageBtn.classList.add('hidden');
+                    area.classList.remove('border-blue/50');
+                }
+            },
+
+            openImageManager() {
+                const modal = document.getElementById('image-manager-modal');
+                this.renderImageManagerList();
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            },
+
+            closeImageManager() {
+                const modal = document.getElementById('image-manager-modal');
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            },
+
+            renderImageManagerList() {
+                const list = document.getElementById('image-manager-list');
+                document.getElementById('image-manager-count').textContent = `${this.images.length} Image${this.images.length !== 1 ? 's' : ''}`;
+                
+                if (this.images.length === 0) {
+                    list.innerHTML = `<div class="col-span-full h-32 flex flex-col items-center justify-center text-dark/40 dark:text-chalk/40 font-bold font-title"><i data-lucide="image-minus" class="w-8 h-8 mb-3 opacity-50"></i>No images attached.</div>`;
+                    lucide.createIcons();
+                    return;
+                }
+
+                list.innerHTML = this.images.map((imgSrc, index) => `
+                    <div class="relative group aspect-square rounded-xl overflow-hidden border-2 border-dark/20 dark:border-slate-600 bg-chalk dark:bg-slate-800 shadow-sm">
+                        <img src="${imgSrc}" class="w-full h-full object-cover">
+                        <div class="absolute inset-0 bg-dark/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
+                            <button onclick="app.deleteImage(${index})" class="p-3 bg-pink text-dark border-2 border-dark rounded-xl hover:scale-110 hover:bg-pink transition-all shadow-hard-white" title="Delete Image">
+                                <i data-lucide="trash-2" class="w-6 h-6"></i>
+                            </button>
+                        </div>
+                        <div class="absolute top-2 left-2 bg-dark/80 text-chalk text-xs font-bold px-2 py-1 rounded border border-chalk/20 font-title shadow-sm">
+                            #${index + 1}
+                        </div>
+                    </div>
+                `).join('');
+                lucide.createIcons();
+            },
+
+            deleteImage(index) {
+                if (index < 0 || index >= this.images.length) return;
+                this.images.splice(index, 1);
+                this.updateImageUI();
+                this.updateCount();
+                dbPut('presentationImages', this.images);
+                this.renderImageManagerList();
+                if (this.images.length === 0) {
+                    this.closeImageManager();
+                }
             },
 
             shuffleArray(array) {
@@ -388,10 +544,10 @@
             },
 
             startPresentation(shuffle = false) {
-                this.words = this.parseInput();
+                this.words = [...this.parseInput(), ...this.images];
 
                 if (this.words.length === 0) {
-                    this.words = ["Enter words first!"];
+                    this.words = ["Enter words or images first!"];
                 } else if (shuffle) {
                     this.words = this.shuffleArray([...this.words]);
                 }
@@ -442,14 +598,28 @@
 
             renderSlide() {
                 const display = document.getElementById('display-word');
+                const displayImg = document.getElementById('display-image');
                 const overlay = document.getElementById('presentation-mode');
 
-                display.innerText = this.words[this.currentIndex];
+                const currentContent = this.words[this.currentIndex];
 
-                // Re-trigger animation
-                display.classList.remove('slide-text');
-                void display.offsetWidth; // trigger reflow
-                display.classList.add('slide-text');
+                if (currentContent.startsWith('data:image/')) {
+                    display.style.display = 'none';
+                    displayImg.style.display = 'block';
+                    displayImg.src = currentContent;
+                    
+                    displayImg.classList.remove('slide-text');
+                    void displayImg.offsetWidth;
+                    displayImg.classList.add('slide-text');
+                } else {
+                    displayImg.style.display = 'none';
+                    display.style.display = 'block';
+                    display.innerText = currentContent;
+
+                    display.classList.remove('slide-text');
+                    void display.offsetWidth;
+                    display.classList.add('slide-text');
+                }
 
                 // Cycle through E1 palette colors based on index
                 const colorIndex = this.currentIndex % this.colors.length;
@@ -477,6 +647,7 @@
                 document.getElementById('word-input').value = "";
                 localStorage.removeItem('e1_rapid_text');
                 dbPut('presentationText', '');
+                this.clearImages();
                 this.updateCount();
                 this.closeClearModal();
             },
@@ -486,17 +657,22 @@
                 const nameInput = document.getElementById('set-name-input');
                 const name = nameInput.value.trim();
                 const text = document.getElementById('word-input').value.trim();
-                if (!name || !text) return;
-                await saveSetToDB(name, text);
+                if (!name || (!text && this.images.length === 0)) return;
+                await saveSetToDB(name, text, this.images);
                 nameInput.value = '';
                 this.renderSets();
             },
 
-            loadSet(text) {
+            loadSet(text, images) {
                 const textarea = document.getElementById('word-input');
-                textarea.value = text;
-                localStorage.setItem('e1_rapid_text', text);
-                dbPut('presentationText', text);
+                textarea.value = text || '';
+                localStorage.setItem('e1_rapid_text', textarea.value);
+                dbPut('presentationText', textarea.value);
+                
+                this.images = images || [];
+                dbPut('presentationImages', this.images);
+                
+                this.updateImageUI();
                 this.updateCount();
             },
 
@@ -507,7 +683,10 @@
                 if (sets.length === 0) { list.innerHTML = '<p class="text-dark/30 dark:text-chalk/30 text-xs italic">No saved sets yet.</p>'; return; }
                 list.innerHTML = '';
                 sets.forEach(set => {
-                    const items = set.text.split(/[;\n]+/).filter(w => w.trim()).length;
+                    const textItems = set.text ? set.text.split(/[;\n]+/).filter(w => w.trim()).length : 0;
+                    const imgItems = set.images ? set.images.length : 0;
+                    const items = textItems + imgItems;
+                    
                     const item = document.createElement('div');
                     item.className = 'flex items-center gap-2 p-2.5 bg-chalk dark:bg-slate-800 border-2 border-dark/10 dark:border-slate-600 rounded-lg hover:border-blue/40 transition-all';
                     item.innerHTML = `
@@ -521,7 +700,7 @@
                         <button class="set-del p-1.5 bg-pink/10 text-pink rounded-md border border-pink/20 hover:bg-pink hover:text-dark transition-all" title="Delete">
                             <i data-lucide="trash-2" class="w-3 h-3 pointer-events-none"></i>
                         </button>`;
-                    item.querySelector('.set-load').onclick = () => app.loadSet(set.text);
+                    item.querySelector('.set-load').onclick = () => app.loadSet(set.text, set.images);
                     item.querySelector('.set-del').onclick = async () => { await deleteSet(set.id); app.renderSets(); };
                     list.appendChild(item);
                 });
