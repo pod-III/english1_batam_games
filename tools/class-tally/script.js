@@ -73,16 +73,18 @@ const ClassTallyApp = (function () {
         CARD_COLORS: [
             { name: 'Blue', hex: '#3B82F6', bg: 'bg-blue-500' },
             { name: 'Sky', hex: '#0EA5E9', bg: 'bg-sky-500' },
+            { name: 'Cyan', hex: '#06B6D4', bg: 'bg-cyan-500' },
             { name: 'Teal', hex: '#14B8A6', bg: 'bg-teal-500' },
             { name: 'Green', hex: '#22C55E', bg: 'bg-green-500' },
             { name: 'Lime', hex: '#84CC16', bg: 'bg-lime-500' },
             { name: 'Yellow', hex: '#EAB308', bg: 'bg-yellow-500' },
             { name: 'Orange', hex: '#F97316', bg: 'bg-orange-500' },
             { name: 'Red', hex: '#EF4444', bg: 'bg-red-500' },
-            { name: 'Pink', hex: '#EC4899', bg: 'bg-pink-500' },
             { name: 'Rose', hex: '#FDA4AF', bg: 'bg-rose-300' },
+            { name: 'Pink', hex: '#EC4899', bg: 'bg-pink-500' },
+            { name: 'Fuchsia', hex: '#D946EF', bg: 'bg-fuchsia-500' },
             { name: 'Purple', hex: '#A855F7', bg: 'bg-purple-500' },
-            { name: 'Indigo', hex: '#6366F1', bg: 'bg-indigo-500' },
+            { name: 'Violet', hex: '#8B5CF6', bg: 'bg-violet-500' },
             { name: 'Slate', hex: '#64748B', bg: 'bg-slate-500' },
             { name: 'Black', hex: '#0F172A', bg: 'bg-slate-900' },
             { name: 'White', hex: '#FFFFFF', bg: 'bg-white' },
@@ -591,7 +593,7 @@ const ClassTallyApp = (function () {
         },
         toggleModalPosition: () => {
             const modal = document.getElementById('add-student-modal');
-            const inner = modal.querySelector('.max-w-4xl');
+            const inner = modal.querySelector('.max-w-5xl');
             const icon = document.querySelector('#modal-position-toggle i');
             if (modal.classList.contains('items-center')) {
                 modal.classList.remove('items-center', 'p-4');
@@ -945,12 +947,80 @@ const ClassTallyApp = (function () {
         }
     };
 
+    // --- KEYBOARD ---
+    const Keyboard = {
+        keys: [
+            ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+            ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
+            ['Z', 'X', 'C', 'V', 'B', 'N', 'M', '⌫'] // Backspace
+        ],
+        init: () => {
+            const kb = document.getElementById('virtual-keyboard');
+            if (!kb) return;
+            kb.innerHTML = Keyboard.keys.map((row, i) => `
+                <div class="flex justify-center gap-1.5 sm:gap-2 w-full ${i === 1 ? 'px-2 sm:px-4' : i === 2 ? 'px-4 sm:px-8' : ''}">
+                    ${row.map(k => `
+                        <button onclick="ClassTallyApp.Keyboard.press('${k}')" style="flex: ${k === '⌫' ? '1.5' : '1'};" 
+                            class="h-[3.25rem] sm:h-14 bg-white dark:bg-slate-800 border-2 border-b-[4px] sm:border-b-[5px] border-slate-200 dark:border-slate-900 rounded-xl font-bold text-lg text-slate-700 dark:text-slate-200 shadow-sm active:translate-y-1 active:border-b-2 active:mt-1 transition-all flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-700">
+                            ${k === '⌫' ? '<i data-lucide="delete" class="w-5 h-5 pointer-events-none"></i>' : k}
+                        </button>
+                    `).join('')}
+                </div>
+            `).join('');
+
+            // Add a space bar row
+            kb.innerHTML += `
+                <div class="flex justify-center w-full mt-1">
+                    <button onclick="ClassTallyApp.Keyboard.press(' ')" style="flex: 1;" 
+                        class="h-[3.25rem] sm:h-14 bg-white dark:bg-slate-800 border-2 border-b-[4px] sm:border-b-[5px] border-slate-200 dark:border-slate-900 rounded-xl font-bold text-sm text-slate-500 shadow-sm active:translate-y-1 active:border-b-2 active:mt-1 transition-all flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-700 uppercase tracking-widest">
+                        SPACE
+                    </button>
+                </div>
+            `;
+        },
+        press: (key) => {
+            const input = document.getElementById('student-name-input');
+            if (key === '⌫') {
+                input.value = input.value.slice(0, -1);
+            } else {
+                // If it is capital letters for names, we might want to auto correct case later or just let them type caps.
+                // For a class tally, uppercase names are fine.
+                // Let's implement auto-capitalization: 
+                // Only capitalize if it's the first letter or after a space
+                if (key !== ' ' && key !== '⌫') {
+                    if (input.value.length === 0 || input.value.slice(-1) === ' ') {
+                        input.value += key.toUpperCase();
+                    } else {
+                        input.value += key.toLowerCase();
+                    }
+                } else {
+                    input.value += key;
+                }
+            }
+            if (Audio && Audio.playTick && State.soundEnabled) {
+                // Play a very subtle sound
+                let origVolume = State.soundEnabled;
+                // We don't want a loud tick for every keyboard press, so maybe we use a standard browser click or a very quiet sound.
+                // Since our audio is basic tone, let's just make it shorter
+                // Actually Audio module only checks for State.soundEnabled
+            }
+
+            // Re-trigger input event just in case
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            // Keep focus (mobile keyboards might pop up if we call input.focus(), so we might NOT to call input.focus() 
+            // to prevent the native keyboard from showing up when they use the virtual one.
+            // But if we don't, caret might be lost. 
+            // A good compromise is just setting the value without focus since the input is visible.
+        }
+    };
+
     return {
         init: () => {
             UI.initTheme();
             Persistence.load();
             CanvasDraw.init('signature-canvas');
             UI.initEmojiPickers();
+            Keyboard.init();
             UI.render();
             UI.updateAutoFitUI();
             UI.renderClassSets();
@@ -971,7 +1041,7 @@ const ClassTallyApp = (function () {
             document.getElementById('btn-sound').innerHTML = State.soundEnabled ? '<i data-lucide="volume-2" class="w-5 h-5"></i>' : '<i data-lucide="volume-x" class="w-5 h-5 text-red-400"></i>';
             lucide.createIcons();
         },
-        Student, Teams, UI, Timer, CanvasDraw
+        Student, Teams, UI, Timer, CanvasDraw, Keyboard
     };
 })();
 
