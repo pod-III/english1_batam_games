@@ -158,11 +158,7 @@ async function migrateFromLocalStorage() {
         }
     }
 
-    const oldTheme = localStorage.getItem('klasskit_theme');
-    if (oldTheme) {
-        await saveSetting('theme', oldTheme);
-        localStorage.removeItem('klasskit_theme');
-    }
+
 
     const oldLastActive = localStorage.getItem('e1_last_active_note');
     if (oldLastActive) {
@@ -187,10 +183,13 @@ function base64ToArrayBuffer(b64) {
 
 // ===== DARK MODE =====
 async function initDarkMode() {
-    const saved = await getSetting('theme');
+    const saved = localStorage.getItem('theme_lesson-note');
     if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
         isDarkMode = true;
         document.documentElement.classList.add('dark');
+    } else {
+        isDarkMode = false;
+        document.documentElement.classList.remove('dark');
     }
     updateDarkModeUI();
 }
@@ -198,7 +197,7 @@ async function initDarkMode() {
 async function toggleDarkMode() {
     isDarkMode = !isDarkMode;
     document.documentElement.classList.toggle('dark', isDarkMode);
-    await saveSetting('theme', isDarkMode ? 'dark' : 'light');
+    localStorage.setItem('theme_lesson-note', isDarkMode ? 'dark' : 'light');
     updateDarkModeUI();
 }
 
