@@ -18,7 +18,8 @@ const CONFIG = {
     favorites: "favoriteGames",
     tabs: "openTabs",
     pinned: "pinnedGameIds",
-    homeView: "klasskit_homeView"
+    homeView: "klasskit_homeView",
+    viewMode: "klasskit_viewMode"
   }
 };
 
@@ -677,6 +678,7 @@ const GameGrid = {
     }
 
     grid.innerHTML = html;
+    ViewMode.apply();
     Utils.refreshIcons(grid);
     this.initCardEffects(grid);
   },
@@ -791,6 +793,42 @@ const GameGrid = {
     const rotateX = ((y - rect.height / 2) / (rect.height / 2)) * -5;
     const rotateY = ((x - rect.width / 2) / (rect.width / 2)) * 5;
     card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
+  }
+};
+
+// --- VIEW MODE ---
+const ViewMode = {
+  current: 'cards', // 'cards' | 'list' | 'icons'
+
+  init() {
+    this.current = Storage.get(CONFIG.storageKeys.viewMode, 'cards') || 'cards';
+    this.updateToggleUI();
+  },
+
+  set(mode) {
+    if (!['cards', 'list', 'icons'].includes(mode)) return;
+    this.current = mode;
+    Storage.set(CONFIG.storageKeys.viewMode, mode);
+    this.apply();
+    this.updateToggleUI();
+    AudioEngine.click();
+  },
+
+  apply() {
+    const grids = document.querySelectorAll('.category-grid');
+    grids.forEach(grid => {
+      grid.classList.remove('view-list', 'view-icons');
+      if (this.current === 'list') grid.classList.add('view-list');
+      if (this.current === 'icons') grid.classList.add('view-icons');
+    });
+  },
+
+  updateToggleUI() {
+    const container = document.getElementById('view-toggle');
+    if (!container) return;
+    container.querySelectorAll('.view-toggle-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.param === this.current);
+    });
   }
 };
 
@@ -1644,6 +1682,7 @@ const App = {
       Footer.render();
       Search.setup();
       LandingPage.init();
+      ViewMode.init();
 
       document.body.addEventListener('click', () => AudioEngine.init(), { once: true });
 
@@ -1737,7 +1776,8 @@ const App = {
       continueGame: (param) => GameModal.open(param),
       openFeedback: () => window.open(CONFIG.helpUrl, '_blank'),
       showLanding: () => LandingPage.showLanding(),
-      showLibrary: () => LandingPage.showLibrary()
+      showLibrary: () => LandingPage.showLibrary(),
+      setViewMode: (param) => ViewMode.set(param)
     };
 
     document.addEventListener('click', (e) => {

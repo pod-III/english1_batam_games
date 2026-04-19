@@ -55,14 +55,18 @@ function toggleDarkMode() {
   const isDark = html.classList.contains("dark");
 
   const icon = document.getElementById("darkModeIcon");
-  icon.innerHTML = lucide.icons[isDark ? "sun" : "moon"].toSvg();
+  if (icon) {
+      icon.innerHTML = lucide.icons[isDark ? "sun" : "moon"].toSvg();
+  }
 
   if (isDark) localStorage.setItem('theme_puzzle-maker', "dark");
   else localStorage.setItem('theme_puzzle-maker', "light");
 
   const r = getCurrentRound();
-  preRenderTiles(r);
-  draw();
+  if (r) {
+      preRenderTiles(r);
+      draw();
+  }
 }
 
 // Load theme on startup
@@ -73,8 +77,10 @@ if (
 ) {
   document.documentElement.classList.add("dark");
   document.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("darkModeIcon").innerHTML =
-      lucide.icons["sun"].toSvg();
+    const icon = document.getElementById("darkModeIcon");
+    if (icon) {
+        icon.innerHTML = lucide.icons["sun"].toSvg();
+    }
   });
 }
 
