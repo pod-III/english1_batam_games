@@ -690,11 +690,11 @@ const ClassTallyApp = (function () {
         },
         toggleTheme: () => {
             const isDark = document.documentElement.classList.toggle('dark');
-            localStorage.setItem('klasskit_theme', isDark ? 'dark' : 'light');
+            localStorage.setItem('theme_class-tally', isDark ? 'dark' : 'light');
             lucide.createIcons();
         },
         initTheme: () => {
-            const saved = localStorage.getItem('klasskit_theme') || 'light';
+            const saved = localStorage.getItem('theme_class-tally') || 'light';
             if (saved === 'dark') document.documentElement.classList.add('dark');
             else document.documentElement.classList.remove('dark');
         },

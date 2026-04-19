@@ -245,7 +245,7 @@ const audio = {
 // --- DARK MODE ---
 const darkMode = {
     init() {
-        const saved = localStorage.getItem('klasskit_theme');
+        const saved = localStorage.getItem('theme_clock');
         if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             state.darkMode = true;
             document.documentElement.classList.add('dark');
@@ -256,7 +256,7 @@ const darkMode = {
     toggle() {
         state.darkMode = !state.darkMode;
         document.documentElement.classList.toggle('dark', state.darkMode);
-        localStorage.setItem('klasskit_theme', state.darkMode ? 'dark' : 'light');
+        localStorage.setItem('theme_clock', state.darkMode ? 'dark' : 'light');
     }
 };
 

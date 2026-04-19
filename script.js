@@ -12,7 +12,7 @@ const CONFIG = {
   debounceDelay: 300,
   loadTimeout: 5000,
   storageKeys: {
-    theme: "klasskit_theme",
+    theme: "theme_hub",
     recent: "recentGameIds",
     sound: "soundMuted",
     favorites: "favoriteGames",

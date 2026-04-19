@@ -158,10 +158,10 @@ async function migrateFromLocalStorage() {
         }
     }
 
-    const oldTheme = localStorage.getItem('klasskit_theme');
+    const oldTheme = localStorage.getItem('theme_lesson-note');
     if (oldTheme) {
         await saveSetting('theme', oldTheme);
-        localStorage.removeItem('klasskit_theme');
+        localStorage.removeItem('theme_lesson-note');
     }
 
     const oldLastActive = localStorage.getItem('e1_last_active_note');
