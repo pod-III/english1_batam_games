@@ -27,6 +27,9 @@ const state = {
   timer: null,
   start: 0,
   selectedIdx: -1,
+  appMode: 'play', // 'play' or 'print'
+  worksheetTitle: '',
+  worksheetDesc: ''
 };
 
 // --- INDEXED DB SETUP ---
@@ -798,124 +801,276 @@ function openPrintModal() {
   printModal.classList.add("active");
 }
 
-function togglePrintOpt(opt) {
-  if (opt === "reference") {
-    state.printReference = !state.printReference;
-    const box = document.getElementById("opt-reference");
-    const check = document.getElementById("check-reference");
-    if (state.printReference) {
-      box.classList.add("border-orange");
-      check.classList.add("bg-orange");
-      check.innerHTML = lucide.icons["check"].toSvg({
-        color: "white",
-        width: 16,
-      });
-    } else {
-      box.classList.remove("border-orange");
-      check.classList.remove("bg-orange");
-      check.innerHTML = "";
-    }
-  }
-}
-
-function executePrint() {
-  const printArea = document.getElementById("print-area");
-  printArea.innerHTML = "";
-
-  state.rounds.forEach((r, idx) => {
-    const puzzlePage = document.createElement("div");
-    puzzlePage.className = "print-page";
-    puzzlePage.setAttribute("data-page-num", `${r.name} - Puzzle`);
-
-    const pCanvas = document.createElement("canvas");
-    pCanvas.width = r.imgObj.width;
-    pCanvas.height = r.imgObj.height;
-    const pCtx = pCanvas.getContext("2d");
-
-    const tw = pCanvas.width / r.cols,
-      th = pCanvas.height / r.rows;
-    const iw = r.imgObj.width / r.cols,
-      ih = r.imgObj.height / r.rows;
-    const bleed = Math.min(tw, th) * state.tabSize;
-
-    r.tiles.forEach((t) => {
-      const dx = t.c * tw;
-      const dy = t.r * th;
-      const sx = t.c * iw,
-        sy = t.r * ih;
-
-      pCtx.save();
-      drawTileShape(pCtx, t.c, t.r, tw, th, dx, dy, r);
-      pCtx.clip();
-      pCtx.drawImage(
-        r.imgObj,
-        sx - iw * state.tabSize,
-        sy - ih * state.tabSize,
-        iw + iw * state.tabSize * 2,
-        ih + ih * state.tabSize * 2,
-        dx - bleed,
-        dy - bleed,
-        tw + bleed * 2,
-        th + bleed * 2,
-      );
-      pCtx.restore();
-
-      pCtx.save();
-      drawTileShape(pCtx, t.c, t.r, tw, th, dx, dy, r);
-      pCtx.lineWidth = 2;
-      pCtx.strokeStyle = "rgba(0,0,0,0.4)";
-      pCtx.stroke();
-      pCtx.restore();
-    });
-
-    const imgContainer = document.createElement("div");
-    imgContainer.className = "print-full-img";
-    const pImg = document.createElement("img");
-    pImg.src = pCanvas.toDataURL();
-    imgContainer.appendChild(pImg);
-    puzzlePage.appendChild(imgContainer);
-    printArea.appendChild(puzzlePage);
-  });
-
-  if (state.printReference) {
-    state.rounds.forEach((r, idx) => {
-      const refPage = document.createElement("div");
-      refPage.className = "print-page print-page-ref";
-      refPage.setAttribute("data-page-num", `${r.name} - Answer`);
-      refPage.innerHTML = `
-                <div class="print-header">
-                    <div>
-                        <h1 class="text-3xl font-heading font-bold text-dark">Answer Key</h1>
-                        <p class="text-xs font-bold uppercase tracking-widest text-slate-400 mt-1">${r.name}</p>
-                    </div>
-                </div>
-            `;
-      const refContainer = document.createElement("div");
-      refContainer.style.width = "100%";
-      refContainer.style.flex = "1";
-      refContainer.style.display = "flex";
-      refContainer.style.justifyContent = "center";
-      refContainer.style.alignItems = "flex-start";
-      const rImg = document.createElement("img");
-      rImg.src = r.imgData;
-      rImg.style.maxWidth = "100%";
-      rImg.style.maxHeight = "220mm";
-      rImg.style.objectFit = "contain";
-      rImg.style.border = "2px solid #000";
-      refContainer.appendChild(rImg);
-      refPage.appendChild(refContainer);
-      printArea.appendChild(refPage);
-    });
-  }
-
-  lucide.createIcons();
-  setTimeout(() => {
-    window.print();
-    printModal.classList.remove("active");
-  }, 800);
-}
-
 window.onload = () => {
+  setAppMode('play');
   loadState();
   lucide.createIcons();
 };
+
+
+function setAppMode(mode) {
+  state.appMode = mode;
+  
+  const playBtn = document.getElementById('modePlayBtn');
+  const printBtn = document.getElementById('modePrintBtn');
+  
+  const gameContainer = document.getElementById('game-container');
+  const printPreview = document.getElementById('printPreviewContainer');
+  
+  const playActions = document.getElementById('playActions');
+  const printActions = document.getElementById('printActions');
+  const printSetup = document.getElementById('printSetupSection');
+  const printModalBtn = document.getElementById('btnPrint'); // Old modal btn
+  const styleToggleBtn = document.getElementById('styleToggleBtn');
+  const hintToggleBtn = document.getElementById('hintToggleBtn');
+
+  if (mode === 'play') {
+    // Style buttons
+    playBtn.className = "px-6 py-3 rounded-xl font-heading font-bold text-sm tracking-wider uppercase transition-colors bg-blue text-white";
+    printBtn.className = "px-6 py-3 rounded-xl font-heading font-bold text-sm tracking-wider uppercase transition-colors text-slate-500 hover:bg-slate-100";
+    
+    // Containers
+    printPreview.classList.add('hidden');
+    gameContainer.classList.remove('hidden');
+    document.getElementById('liveStats').classList.remove('no-print'); // Re-enable stats visually if active
+    if (!getCurrentRound() || !getCurrentRound().isActive) {
+      document.getElementById('liveStats').classList.add('hidden');
+    } else {
+      document.getElementById('liveStats').classList.remove('hidden');
+    }
+    
+    // Sidebar
+    playActions.classList.remove('hidden');
+    printActions.classList.add('hidden');
+    printSetup.style.display = 'none';
+    if(printModalBtn) printModalBtn.parentElement.classList.remove('hidden');
+    
+    // Puzzle styling buttons available in both, but let's make sure they are enabled
+    styleToggleBtn.style.opacity = '1';
+    hintToggleBtn.style.opacity = '1';
+    styleToggleBtn.style.pointerEvents = 'auto';
+    hintToggleBtn.style.pointerEvents = 'auto';
+
+    resize();
+  } else {
+    // Style buttons
+    printBtn.className = "px-6 py-3 rounded-xl font-heading font-bold text-sm tracking-wider uppercase transition-colors bg-blue text-white";
+    playBtn.className = "px-6 py-3 rounded-xl font-heading font-bold text-sm tracking-wider uppercase transition-colors text-slate-500 hover:bg-slate-100";
+    
+    // Containers
+    gameContainer.classList.add('hidden');
+    printPreview.classList.remove('hidden');
+    printPreview.classList.add('flex');
+    document.getElementById('liveStats').classList.add('hidden');
+    
+    // Sidebar
+    playActions.classList.add('hidden');
+    printActions.classList.remove('hidden');
+    printSetup.style.display = 'block';
+    if(printModalBtn) printModalBtn.parentElement.classList.add('hidden');
+    
+    // Update preview
+    updateWorksheetPreview();
+  }
+}
+
+function extractTileAsImage(r, t, tw, th, iw, ih, bleed) {
+  const pCanvas = document.createElement("canvas");
+  pCanvas.width = tw + bleed * 2;
+  pCanvas.height = th + bleed * 2;
+  const pCtx = pCanvas.getContext("2d");
+
+  const sx = t.c * iw;
+  const sy = t.r * ih;
+  const dx = bleed; // inside the isolated canvas
+  const dy = bleed;
+
+  pCtx.save();
+  // Draw puzzle shape Path starting from (dx, dy)
+  drawTileShape(pCtx, t.c, t.r, tw, th, dx, dy, r);
+  pCtx.clip();
+  pCtx.drawImage(
+    r.imgObj,
+    sx - iw * state.tabSize,
+    sy - ih * state.tabSize,
+    iw + iw * state.tabSize * 2,
+    ih + ih * state.tabSize * 2,
+    0,
+    0,
+    tw + bleed * 2,
+    th + bleed * 2
+  );
+  pCtx.restore();
+
+  // Draw outline
+  pCtx.save();
+  drawTileShape(pCtx, t.c, t.r, tw, th, dx, dy, r);
+  pCtx.lineWidth = Math.max(2, (Math.min(tw,th)*0.015));
+  pCtx.strokeStyle = "rgba(0,0,0,0.8)";
+  pCtx.stroke();
+  pCtx.restore();
+
+  return pCanvas.toDataURL("image/png"); // Important: PNG for transparency
+}
+
+function extractEmptyShape(r, t, tw, th, bleed) {
+  const pCanvas = document.createElement("canvas");
+  pCanvas.width = tw + bleed * 2;
+  pCanvas.height = th + bleed * 2;
+  const pCtx = pCanvas.getContext("2d");
+
+  const dx = bleed;
+  const dy = bleed;
+
+  pCtx.save();
+  drawTileShape(pCtx, t.c, t.r, tw, th, dx, dy, r);
+  pCtx.lineWidth = Math.max(1, (Math.min(tw,th)*0.01));
+  pCtx.strokeStyle = "rgba(100,116,139,0.3)"; // Faint slate outline
+  
+  if (r.puzzleStyle === "jigsaw") {
+    pCtx.setLineDash([5, 5]); // Dashed line for pasteboard
+  }
+  pCtx.stroke();
+  pCtx.restore();
+
+  if (r.showHints) {
+    pCtx.fillStyle = "rgba(148, 163, 184, 0.4)"; // muted hint
+    pCtx.font = `bold ${Math.min(tw, th) * 0.3}px Fredoka`;
+    pCtx.textAlign = "center";
+    pCtx.textBaseline = "middle";
+    pCtx.fillText(t.id, dx + tw/2, dy + th/2);
+  }
+
+  return pCanvas.toDataURL("image/png");
+}
+
+function generatePrintPages(r, isPreview = false) {
+    const title = document.getElementById('wsTitleInput').value.trim() || r.name;
+    const desc = document.getElementById('wsDescInput').value.trim() || "Cut out the pieces and glue them onto the empty grid to complete the puzzle.";
+    
+    // Header standard html
+    const headerHtml = `
+        <div class="w-full flex justify-between items-end border-b-[3px] border-dark pb-4 mb-8 shrink-0">
+            <div>
+                <h1 class="text-3xl font-heading font-black text-dark tracking-tight">${title}</h1>
+                <p class="text-xs font-bold uppercase tracking-widest text-slate-500 mt-2">${desc}</p>
+            </div>
+            <div class="flex flex-col gap-3 text-right shrink-0 ml-8">
+                <div class="flex items-end gap-2 text-sm font-bold text-dark whitespace-nowrap">
+                    <span>Name:</span><div class="border-b-2 border-dark w-48 shrink-0 inline-block"></div>
+                </div>
+                <div class="flex items-end gap-2 text-sm font-bold text-dark whitespace-nowrap">
+                    <span>Date:</span><div class="border-b-2 border-dark w-48 shrink-0 inline-block"></div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // 1. Generate pieces
+    const tw = r.imgObj.width / r.cols;
+    const th = r.imgObj.height / r.rows;
+    const iw = r.imgObj.width / r.cols;
+    const ih = r.imgObj.height / r.rows;
+    // For print, we want to scale to a standard resolution to fit the page and not be huge
+    const printScale = Math.min(800 / r.imgObj.width, 800 / r.imgObj.height); 
+    const pTw = tw * printScale;
+    const pTh = th * printScale;
+    const pIw = iw * printScale;
+    const pIh = ih * printScale;
+    const pBleed = Math.min(pTw, pTh) * state.tabSize;
+
+    // Scramble tiles for page 1
+    const scrambledTiles = [...r.tiles].sort(() => Math.random() - 0.5);
+    
+    const piecesPageHtml = `
+        <div class="a4-preview ${!isPreview ? 'print-page' : ''} flex flex-col">
+            ${headerHtml}
+            <div class="flex-1 w-full flex flex-wrap justify-center items-center gap-6 p-4">
+                ${scrambledTiles.map(t => {
+                    const src = extractTileAsImage(r, t, pTw, pTh, pIw, pIh, pBleed);
+                    return `<img src="${src}" class="max-w-[150px] max-h-[150px] object-contain drop-shadow-sm filter contrast-105" />`;
+                }).join('')}
+            </div>
+        </div>
+    `;
+
+    // 2. Pasteboard
+    const pastePageHtml = `
+        <div class="a4-preview ${!isPreview ? 'print-page' : ''} flex flex-col">
+            ${headerHtml}
+            <div class="flex-1 w-full flex justify-center items-center p-4">
+                <div class="relative" style="width: ${r.imgObj.width * printScale}px; height: ${r.imgObj.height * printScale}px; border: 4px solid #1e293b;">
+                    ${r.tiles.map(t => {
+                        const src = extractEmptyShape(r, t, pTw, pTh, pBleed);
+                        // The shape includes bleed, meaning its total size is larger.
+                        // We must offset it by -bleed to place the core tile matching the logical grid coordinates.
+                        const left = (t.c * pTw) - pBleed;
+                        const top = (t.r * pTh) - pBleed;
+                        return `<img src="${src}" class="absolute pointer-events-none" style="left: ${left}px; top: ${top}px; width: ${pTw + 2*pBleed}px; height: ${pTh + 2*pBleed}px;" />`;
+                    }).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+
+    // 3. Answer Key
+    const answerPageHtml = `
+        <div class="a4-preview ${!isPreview ? 'print-page' : ''} flex flex-col">
+            ${headerHtml}
+            <div class="flex-1 w-full flex flex-col justify-center items-center">
+                 <h2 class="text-2xl font-bold font-heading text-slate-300 mb-8 uppercase tracking-widest">Answer Key</h2>
+                 <img src="${r.imgData}" class="max-w-[70%] max-h-[60%] border-4 border-dark object-contain shadow-neo" />
+            </div>
+        </div>
+    `;
+
+    return piecesPageHtml + pastePageHtml + answerPageHtml;
+}
+
+function updateWorksheetPreview() {
+  const r = getCurrentRound();
+  const previewContainer = document.getElementById('worksheetPreviewPages');
+  if (!r || !r.imgObj) {
+      previewContainer.innerHTML = '<div class="p-8 text-center text-slate-400 font-bold">Please select or upload a page first.</div>';
+      return;
+  }
+  
+  if (state.appMode !== 'print') return;
+  
+  // Save input values to state
+  state.worksheetTitle = document.getElementById('wsTitleInput').value;
+  state.worksheetDesc = document.getElementById('wsDescInput').value;
+
+  previewContainer.innerHTML = generatePrintPages(r, true);
+  lucide.createIcons();
+}
+
+function executeWorksheetPrint() {
+  const r = getCurrentRound();
+  if(!r) return;
+
+  const printArea = document.getElementById("print-area");
+  printArea.innerHTML = generatePrintPages(r, false);
+  
+  setTimeout(() => {
+    window.print();
+  }, 500);
+}
+
+// Hook it into switch to round
+const originalSwitchToRound = switchToRound;
+switchToRound = function(idx) {
+    originalSwitchToRound(idx);
+    
+    // restore title/desc inputs if they were cleared
+    document.getElementById('wsTitleInput').value = state.worksheetTitle || '';
+    document.getElementById('wsDescInput').value = state.worksheetDesc || '';
+    
+    // Enable print setup section button
+    document.getElementById('btnPrintWorksheet').disabled = (idx === -1);
+    
+    if (state.appMode === 'print') {
+        updateWorksheetPreview();
+    }
+}
+
