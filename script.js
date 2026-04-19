@@ -803,6 +803,7 @@ const ViewMode = {
   init() {
     this.current = Storage.get(CONFIG.storageKeys.viewMode, 'cards') || 'cards';
     this.updateToggleUI();
+    this.apply(); // Actually apply the CSS classes on load
   },
 
   set(mode) {
@@ -815,12 +816,11 @@ const ViewMode = {
   },
 
   apply() {
-    const grids = document.querySelectorAll('.category-grid');
-    grids.forEach(grid => {
-      grid.classList.remove('view-list', 'view-icons');
-      if (this.current === 'list') grid.classList.add('view-list');
-      if (this.current === 'icons') grid.classList.add('view-icons');
-    });
+    const gridContainer = document.getElementById('games-grid');
+    if (!gridContainer) return;
+    gridContainer.classList.remove('view-list', 'view-icons');
+    if (this.current === 'list') gridContainer.classList.add('view-list');
+    if (this.current === 'icons') gridContainer.classList.add('view-icons');
   },
 
   updateToggleUI() {
