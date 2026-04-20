@@ -314,44 +314,110 @@
         const STATE_STORE = 'game_state';
         const SETS_STORE = 'slide_sets';
 
+        let idb = null;
+
         async function initDB() {
+            if (idb) return idb;
             return new Promise((resolve, reject) => {
                 const req = indexedDB.open(DB_NAME, DB_VER);
                 req.onupgradeneeded = (e) => {
-                    const db = e.target.result;
-                    if (!db.objectStoreNames.contains(STATE_STORE)) db.createObjectStore(STATE_STORE);
-                    if (!db.objectStoreNames.contains(SETS_STORE)) db.createObjectStore(SETS_STORE, { keyPath: 'id', autoIncrement: true });
+                    const database = e.target.result;
+                    if (!database.objectStoreNames.contains(STATE_STORE)) database.createObjectStore(STATE_STORE);
+                    if (!database.objectStoreNames.contains(SETS_STORE)) database.createObjectStore(SETS_STORE, { keyPath: 'id', autoIncrement: true });
                 };
-                req.onsuccess = (e) => resolve(e.target.result);
+                req.onsuccess = (e) => {
+                    idb = e.target.result;
+                    resolve(idb);
+                };
                 req.onerror = (e) => reject(e.target.error);
             });
         }
         async function dbPut(key, data) {
-            try { const db = await initDB(); db.transaction(STATE_STORE, 'readwrite').objectStore(STATE_STORE).put(data, key); } catch(e) { console.error(e); }
+            try { 
+                const database = await initDB(); 
+                database.transaction(STATE_STORE, 'readwrite').objectStore(STATE_STORE).put(data, key); 
+                // Always sync state items to cloud
+                if (key === 'presentationText' || key === 'presentationImages') {
+                    saveToCloud();
+                }
+            } catch(e) { console.error(e); }
         }
         async function dbGet(key) {
             try {
-                const db = await initDB();
-                return new Promise((res) => { const r = db.transaction(STATE_STORE, 'readonly').objectStore(STATE_STORE).get(key); r.onsuccess = () => res(r.result); r.onerror = () => res(null); });
+                const database = await initDB();
+                return new Promise((res) => { const r = database.transaction(STATE_STORE, 'readonly').objectStore(STATE_STORE).get(key); r.onsuccess = () => res(r.result); r.onerror = () => res(null); });
             } catch(e) { return null; }
         }
         async function saveSetToDB(name, text, images = []) {
-            const db = await initDB();
-            const tx = db.transaction(SETS_STORE, 'readwrite');
+            const database = await initDB();
+            const tx = database.transaction(SETS_STORE, 'readwrite');
             tx.objectStore(SETS_STORE).put({ name, text, images, createdAt: Date.now() });
+            tx.oncomplete = () => {
+                saveToCloud(); // Sync sets as well
+            };
             return new Promise(r => { tx.oncomplete = r; });
         }
         async function getAllSets() {
             try {
-                const db = await initDB();
-                return new Promise((res) => { const r = db.transaction(SETS_STORE, 'readonly').objectStore(SETS_STORE).getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => res([]); });
+                const database = await initDB();
+                return new Promise((res) => { const r = database.transaction(SETS_STORE, 'readonly').objectStore(SETS_STORE).getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => res([]); });
             } catch(e) { return []; }
         }
         async function deleteSet(id) {
-            const db = await initDB();
-            const tx = db.transaction(SETS_STORE, 'readwrite');
+            const database = await initDB();
+            const tx = database.transaction(SETS_STORE, 'readwrite');
             tx.objectStore(SETS_STORE).delete(id);
+            tx.oncomplete = () => {
+                saveToCloud();
+            };
             return new Promise(r => { tx.oncomplete = r; });
+        }
+
+        // --- CLOUD SYNC ---
+        async function saveToCloud() {
+            try {
+                const text = await dbGet('presentationText');
+                const images = await dbGet('presentationImages');
+                const sets = await getAllSets();
+                await saveProgress('speedy_slides_data', { text, images, sets });
+            } catch (e) {
+                console.error("Cloud save failed", e);
+            }
+        }
+
+        async function loadFromCloud() {
+            try {
+                const data = await loadProgress('speedy_slides_data');
+                if (data) {
+                    if (data.text !== undefined) {
+                        const localText = await dbGet('presentationText');
+                        // Simple policy: Cloud takes precedence if different
+                        if (data.text !== localText) {
+                            await dbPut('presentationText', data.text);
+                            const textarea = document.getElementById('word-input');
+                            if (textarea) textarea.value = data.text;
+                        }
+                    }
+                    if (data.images !== undefined) {
+                        await dbPut('presentationImages', data.images);
+                        app.images = data.images;
+                    }
+                    if (data.sets) {
+                        for (const s of data.sets) {
+                            // Simple merge: if name not in current sets, add it
+                            const existing = await getAllSets();
+                            if (!existing.find(es => es.name === s.name)) {
+                                await saveSetToDB(s.name, s.text, s.images);
+                            }
+                        }
+                    }
+                    app.updateImageUI();
+                    app.updateCount();
+                    app.renderSets();
+                }
+            } catch (e) {
+                console.error("Cloud load failed", e);
+            }
         }
 
         const app = {
@@ -412,6 +478,9 @@
 
                 // Load saved sets
                 this.renderSets();
+
+                // Initial Cloud Sync
+                await loadFromCloud();
             },
 
             toggleDarkMode() {
@@ -710,7 +779,10 @@
             }
         };
 
-        window.onload = () => app.init();
+        window.onload = async () => {
+            await requireAuth();
+            app.init();
+        };
     </script>
 </body>
 

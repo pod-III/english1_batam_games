@@ -288,7 +288,7 @@
             hexColors: ['#FF6B95', '#FF8C42', '#00E676', '#2979FF'],
             isGenerating: false,
 
-            init() {
+            async init() {
                 this.synth = new Tone.MembraneSynth().toDestination();
                 this.polySynth = new Tone.PolySynth(Tone.Synth).toDestination();
                 this.polySynth.volume.value = -10;
@@ -305,6 +305,29 @@
                 });
 
                 this.updateDisplay();
+                await this.loadFromCloud();
+            },
+
+            async saveToCloud() {
+                const names = document.getElementById('name-input').value;
+                try {
+                    await saveProgress('team_picker_data', { names, updatedAt: Date.now() });
+                } catch (e) {
+                    console.error("Cloud save failed", e);
+                }
+            },
+
+            async loadFromCloud() {
+                try {
+                    const data = await loadProgress('team_picker_data');
+                    if (data && data.names) {
+                        document.getElementById('name-input').value = data.names;
+                        localStorage.setItem('e1_teampicker_names', data.names);
+                        this.updateNameCount();
+                    }
+                } catch (e) {
+                    console.error("Cloud load failed", e);
+                }
             },
 
             setMode(newMode) {
@@ -356,6 +379,7 @@
 
             saveNames() {
                 localStorage.setItem('e1_teampicker_names', document.getElementById('name-input').value);
+                this.saveToCloud();
             },
 
             updateNameCount() {
@@ -615,7 +639,10 @@
             }
         };
 
-        window.onload = () => app.init();
+        window.onload = async () => {
+            await requireAuth();
+            app.init();
+        };
     </script>
 </body>
 </html>

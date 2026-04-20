@@ -297,7 +297,30 @@
         }
 
         function saveWords(text) {
-             try { localStorage.setItem(LS_KEY_WORDS, text); } catch (e) {}
+             try { 
+                 localStorage.setItem(LS_KEY_WORDS, text); 
+                 saveToCloud(text);
+             } catch (e) {}
+        }
+
+        async function saveToCloud(text) {
+            try {
+                await saveProgress('randomizer_words_data', { words: text, updatedAt: Date.now() });
+            } catch (e) {
+                console.error("Cloud save failed", e);
+            }
+        }
+
+        async function loadFromCloud() {
+            try {
+                const data = await loadProgress('randomizer_words_data');
+                if (data && data.words) {
+                    wordInput.value = data.words;
+                    localStorage.setItem(LS_KEY_WORDS, data.words);
+                }
+            } catch (e) {
+                console.error("Cloud load failed", e);
+            }
         }
 
         function loadWords() {
@@ -432,8 +455,10 @@
         }
 
         // --- INIT ---
-        window.onload = () => {
+        window.onload = async () => {
+            await requireAuth();
             loadWords();
+            await loadFromCloud();
             lucide.createIcons();
         };
 

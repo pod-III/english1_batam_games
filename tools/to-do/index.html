@@ -385,6 +385,28 @@
         function save() {
             localStorage.setItem('klasskit_todos', JSON.stringify(todos));
             render();
+            saveToCloud();
+        }
+
+        async function saveToCloud() {
+            try {
+                await saveProgress('todo_list_data', { todos, updatedAt: Date.now() });
+            } catch (e) {
+                console.error("Cloud save failed", e);
+            }
+        }
+
+        async function loadFromCloud() {
+            try {
+                const data = await loadProgress('todo_list_data');
+                if (data && data.todos) {
+                    // Merge local and cloud: cloud takes precedence for simplicity
+                    todos = data.todos;
+                    save();
+                }
+            } catch (e) {
+                console.error("Cloud load failed", e);
+            }
         }
 
         function setPriority(val) {
@@ -718,13 +740,19 @@
             if (e.key === 'Enter') addTodo();
         });
 
-        setPriority('medium');
-        setCategory('other');
+        async function init() {
+            await requireAuth();
+            setPriority('medium');
+            setCategory('other');
 
-        // Sync select with currentSort variable initial state
-        document.getElementById('sortSelector').value = currentSort;
+            // Sync select with currentSort variable initial state
+            document.getElementById('sortSelector').value = currentSort;
 
-        render();
+            render();
+            await loadFromCloud();
+        }
+
+        window.onload = init;
     </script>
 </body>
 
