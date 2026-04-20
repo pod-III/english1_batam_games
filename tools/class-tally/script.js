@@ -1045,4 +1045,7 @@ const ClassTallyApp = (function () {
     };
 })();
 
-window.onload = ClassTallyApp.init;
+window.onload = async function() {
+  await requireAuth()
+  ClassTallyApp.init()
+}
