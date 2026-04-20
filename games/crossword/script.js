@@ -693,6 +693,7 @@ document.getElementById('save-set-btn').onclick = async () => {
 };
 
 window.onload = async () => {
+    await requireAuth();
     initTheme();
     const themeBtn = document.getElementById('theme-toggle');
     if (themeBtn) themeBtn.onclick = toggleTheme;

@@ -42,7 +42,7 @@ function showToast(message, type = 'info', duration = 3000) {
     toast.innerHTML = `<span>${escapeHtml(message)}</span>`;
 
     container.appendChild(toast);
-    
+
     if (window.lucide) {
         lucide.createIcons();
     }
@@ -101,7 +101,7 @@ const STORE_PRESETS = 'presets';
 const STORE_SETTINGS = 'settings';
 const STORE_PUZZLES = 'savedPuzzles';
 
-let db = null;
+let dataBase = null;
 let GRID_SIZE = 10;
 let CELL_SIZE = 45;
 let currentPresetId = null;
@@ -133,7 +133,7 @@ function openDB() {
 
 async function initDB() {
     try {
-        db = await openDB();
+        dataBase = await openDB();
     } catch (e) {
         console.error('Failed to initialize IndexedDB:', e);
         showToast('Storage unavailable.', 'warning');
@@ -141,9 +141,9 @@ async function initDB() {
 }
 
 async function savePreset(name, data, id = null) {
-    if (!db) throw new Error('Database not initialized');
+    if (!dataBase) throw new Error('Database not initialized');
     return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_PRESETS, 'readwrite');
+        const tx = dataBase.transaction(STORE_PRESETS, 'readwrite');
         const store = tx.objectStore(STORE_PRESETS);
         const preset = { name, data: JSON.parse(JSON.stringify(data)), updatedAt: Date.now() };
         if (id) preset.id = id;
@@ -154,9 +154,9 @@ async function savePreset(name, data, id = null) {
 }
 
 async function getAllPresets() {
-    if (!db) return [];
+    if (!dataBase) return [];
     return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_PRESETS, 'readonly');
+        const tx = dataBase.transaction(STORE_PRESETS, 'readonly');
         const store = tx.objectStore(STORE_PRESETS);
         const index = store.index('updatedAt');
         const request = index.getAll();
@@ -165,9 +165,9 @@ async function getAllPresets() {
 }
 
 async function getPreset(id) {
-    if (!db) return null;
+    if (!dataBase) return null;
     return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_PRESETS, 'readonly');
+        const tx = dataBase.transaction(STORE_PRESETS, 'readonly');
         const store = tx.objectStore(STORE_PRESETS);
         const request = store.get(id);
         request.onsuccess = () => resolve(request.result);
@@ -175,9 +175,9 @@ async function getPreset(id) {
 }
 
 async function deletePreset(id) {
-    if (!db) throw new Error('Database not initialized');
+    if (!dataBase) throw new Error('Database not initialized');
     return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_PRESETS, 'readwrite');
+        const tx = dataBase.transaction(STORE_PRESETS, 'readwrite');
         const store = tx.objectStore(STORE_PRESETS);
         const request = store.delete(id);
         request.onsuccess = () => resolve();
@@ -185,15 +185,15 @@ async function deletePreset(id) {
 }
 
 async function saveCurrentPresetId(id) {
-    if (!db) return;
-    const tx = db.transaction(STORE_SETTINGS, 'readwrite');
+    if (!dataBase) return;
+    const tx = dataBase.transaction(STORE_SETTINGS, 'readwrite');
     tx.objectStore(STORE_SETTINGS).put({ key: 'currentPresetId', value: id });
 }
 
 async function getCurrentPresetId() {
-    if (!db) return null;
+    if (!dataBase) return null;
     return new Promise((resolve) => {
-        const tx = db.transaction(STORE_SETTINGS, 'readonly');
+        const tx = dataBase.transaction(STORE_SETTINGS, 'readonly');
         const request = tx.objectStore(STORE_SETTINGS).get('currentPresetId');
         request.onsuccess = () => resolve(request.result?.value || null);
     });
@@ -233,6 +233,63 @@ const els = {
     emptyBankMsg: document.getElementById('empty-bank-msg')
 };
 
+// --- CLOUD PERSISTENCE ---
+let syncTimeout = null;
+async function syncToCloud() {
+    if (syncTimeout) clearTimeout(syncTimeout);
+    syncTimeout = setTimeout(async () => {
+        const presets = await getAllPresets();
+        const puzzles = await getAllSavedPuzzles();
+        await saveProgress('word_search', {
+            presets,
+            puzzles,
+            currentPresetId
+        });
+    }, 2000);
+}
+
+async function loadFromCloud() {
+    const cloudData = await loadProgress('word_search');
+    if (cloudData) {
+        if (cloudData.presets) {
+            for (const p of cloudData.presets) {
+                const tx = dataBase.transaction(STORE_PRESETS, 'readwrite');
+                const store = tx.objectStore(STORE_PRESETS);
+                const existing = await new Promise(r => {
+                    const req = store.index('name').get(p.name);
+                    req.onsuccess = () => r(req.result);
+                });
+                if (!existing) {
+                    delete p.id;
+                    await new Promise(r => {
+                        const req = store.add(p);
+                        req.onsuccess = () => r();
+                    });
+                }
+            }
+        }
+        if (cloudData.puzzles) {
+            for (const p of cloudData.puzzles) {
+                const tx = dataBase.transaction(STORE_PUZZLES, 'readwrite');
+                const store = tx.objectStore(STORE_PUZZLES);
+                const existing = await new Promise(r => {
+                    const req = store.index('name').get(p.name);
+                    req.onsuccess = () => r(req.result);
+                });
+                if (!existing) {
+                    delete p.id;
+                    await new Promise(r => {
+                        const req = store.add(p);
+                        req.onsuccess = () => r();
+                    });
+                }
+            }
+        }
+        await renderPresetSelector();
+        await renderSavedPuzzleSelector();
+    }
+}
+
 // --- PERSISTENCE LOGIC ---
 
 async function renderPresetSelector() {
@@ -246,6 +303,7 @@ async function renderPresetSelector() {
         if (p.id === currentPresetId) option.selected = true;
         els.userPresetSelect.appendChild(option);
     });
+    syncToCloud();
 }
 
 async function onUserPresetSelect() {
@@ -304,9 +362,9 @@ async function deleteCurrentUserPreset() {
 // --- SAVED PUZZLES ---
 
 async function getAllSavedPuzzles() {
-    if (!db) return [];
+    if (!dataBase) return [];
     return new Promise((resolve) => {
-        const tx = db.transaction(STORE_PUZZLES, 'readonly');
+        const tx = dataBase.transaction(STORE_PUZZLES, 'readonly');
         const index = tx.objectStore(STORE_PUZZLES).index('updatedAt');
         const request = index.getAll();
         request.onsuccess = () => resolve(request.result.reverse());
@@ -324,6 +382,7 @@ async function renderSavedPuzzleSelector() {
         if (p.id === currentSavedPuzzleId) option.selected = true;
         els.savedPuzzleSelect.appendChild(option);
     });
+    syncToCloud();
 }
 
 async function onSavedPuzzleSelect() {
@@ -339,9 +398,9 @@ async function onSavedPuzzleSelect() {
 }
 
 async function getSavedPuzzle(id) {
-    if (!db) return null;
+    if (!dataBase) return null;
     return new Promise((resolve) => {
-        const tx = db.transaction(STORE_PUZZLES, 'readonly');
+        const tx = dataBase.transaction(STORE_PUZZLES, 'readonly');
         const request = tx.objectStore(STORE_PUZZLES).get(id);
         request.onsuccess = () => resolve(request.result);
     });
@@ -371,8 +430,8 @@ async function saveCurrentPuzzle() {
 }
 
 async function saveGeneratedPuzzle(name, data, id = null) {
-    if (!db) throw new Error('Database not initialized');
-    const tx = db.transaction(STORE_PUZZLES, 'readwrite');
+    if (!dataBase) throw new Error('Database not initialized');
+    const tx = dataBase.transaction(STORE_PUZZLES, 'readwrite');
     const store = tx.objectStore(STORE_PUZZLES);
     const puzzle = { name, data, updatedAt: Date.now() };
     if (id) puzzle.id = id;
@@ -399,9 +458,9 @@ async function deleteCurrentSavedPuzzle() {
 }
 
 async function deleteGeneratedPuzzle(id) {
-    if (!db) throw new Error('Database not initialized');
+    if (!dataBase) throw new Error('Database not initialized');
     return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_PUZZLES, 'readwrite');
+        const tx = dataBase.transaction(STORE_PUZZLES, 'readwrite');
         const store = tx.objectStore(STORE_PUZZLES);
         const request = store.delete(id);
         request.onsuccess = () => resolve();
@@ -422,7 +481,7 @@ function loadSavedPuzzleData(data) {
     renderGrid(data.size);
     renderWordBank(Array.from(State.validWords));
     updateHUD();
-    
+
     // Use a small delay to ensure grid is rendered before fitting
     setTimeout(fitGridToDisplay, 50);
 }
@@ -468,19 +527,19 @@ function fitGridToDisplay() {
     // to account for container padding and the floating glass header
     const targetWidth = container.clientWidth - 80;
     const targetHeight = container.clientHeight - 80;
-    
+
     // Grid gap is 4px (gap-1) and padding is 4px (p-1)
     const gapTotal = (size - 1) * 4;
     const paddingTotal = 8; // 4px padding on both sides
-    
+
     const minDim = Math.min(targetWidth, targetHeight);
-    
+
     // Accurate cell size calculation: (TotalDim - Gaps - InternalPadding) / NumberOfCells
     CELL_SIZE = Math.floor((minDim - gapTotal - paddingTotal) / size);
-    
+
     // Safety boundaries
     CELL_SIZE = Math.max(20, Math.min(CELL_SIZE, 80));
-    
+
     updateGridSize();
 }
 
@@ -613,7 +672,7 @@ function handleHover(r, c) {
     // Batch DOM updates: remove old previews only if needed
     document.querySelectorAll('.preview-line').forEach(el => {
         if (el.dataset.r != r || el.dataset.c != c) {
-             el.classList.remove('preview-line');
+            el.classList.remove('preview-line');
         }
     });
 
@@ -700,6 +759,7 @@ function endGame(success) {
 // --- INIT ---
 
 window.onload = async () => {
+    await requireAuth();
     await initDB();
     const sid = await getCurrentPresetId();
     if (sid) {
@@ -712,6 +772,7 @@ window.onload = async () => {
             els.userPresetNameInput.value = p.name;
         }
     }
+    await loadFromCloud();
     await renderPresetSelector();
     await renderSavedPuzzleSelector();
 
@@ -726,12 +787,12 @@ window.onload = async () => {
         const words = els.input.value.split(',').map(w => w.trim().toUpperCase()).filter(w => w.length > 0);
         if (words.length < 1) return showToast('Enter some words!', 'error');
         saveCurrentUserPreset();
-        
+
         // Reset saved puzzle ID when starting a fresh one
         currentSavedPuzzleId = null;
         els.savedPuzzleNameInput.value = '';
         els.savedPuzzleSelect.value = '';
-        
+
         initGame(parseInt(els.sizeSlider.value), words);
         if (window.innerWidth < 768) toggleControlPanel(true);
     };
@@ -751,7 +812,7 @@ window.onload = async () => {
 
 // Global Print Hook
 const originalPrint = window.print;
-window.print = function() {
+window.print = function () {
     if (State.grid.length) preparePrintVersion();
     originalPrint();
 };

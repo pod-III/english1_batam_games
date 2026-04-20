@@ -9,7 +9,7 @@
 
 const DB_NAME = "WordSortDB";
 const DB_VERSION = 1;
-let db = null;
+let dataBase = null;
 
 let categories = [];
 let words = []; // { text, category, id, placed, currentZone }
@@ -47,7 +47,7 @@ function initDB() {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
         request.onerror = () => reject(request.error);
         request.onsuccess = () => {
-            db = request.result;
+            dataBase = request.result;
             resolve();
         };
         request.onupgradeneeded = (event) => {
@@ -74,7 +74,7 @@ async function savePreset() {
     };
 
     try {
-        const tx = db.transaction("presets", "readwrite");
+        const tx = dataBase.transaction("presets", "readwrite");
         const store = tx.objectStore("presets");
         await new Promise((resolve, reject) => {
             const request = store.add(data);
@@ -85,6 +85,7 @@ async function savePreset() {
         showToast("Preset saved!", "success");
         document.getElementById("preset-name").value = "";
         await loadPresets();
+        syncToCloud();
     } catch (e) {
         showToast("Failed to save", "error");
     }
@@ -92,7 +93,7 @@ async function savePreset() {
 
 async function loadPresets() {
     try {
-        const tx = db.transaction("presets", "readonly");
+        const tx = dataBase.transaction("presets", "readonly");
         const store = tx.objectStore("presets");
         const presets = await new Promise((resolve, reject) => {
             const request = store.getAll();
@@ -118,7 +119,7 @@ async function loadPreset() {
     if (!id) return;
 
     try {
-        const tx = db.transaction("presets", "readonly");
+        const tx = dataBase.transaction("presets", "readonly");
         const store = tx.objectStore("presets");
         const preset = await new Promise((resolve, reject) => {
             const request = store.get(id);
@@ -156,7 +157,7 @@ async function loadPreset() {
             updateCategoryCount();
             document.getElementById("pool-count").textContent = `${words.length} words`;
             showToast(`Loaded "${preset.name}"`, "success");
-            
+
             // Set status to READY but don't start yet
             document.getElementById("status-display").innerHTML = 'STATUS: <span class="text-blue">READY</span>';
             updateStartButtonVisibility();
@@ -166,13 +167,50 @@ async function loadPreset() {
     }
 }
 
+// --- CLOUD PERSISTENCE ---
+let syncTimeout = null;
+async function syncToCloud() {
+    if (syncTimeout) clearTimeout(syncTimeout);
+    syncTimeout = setTimeout(async () => {
+        if (!dataBase) return;
+        const tx = dataBase.transaction("presets", "readonly");
+        const store = tx.objectStore("presets");
+        const presets = await new Promise((resolve) => {
+            const req = store.getAll();
+            req.onsuccess = () => resolve(req.result);
+        });
+        await saveProgress('word_sort', { presets });
+    }, 2000);
+}
+
+async function loadFromCloud() {
+    const cloudData = await loadProgress('word_sort');
+    if (cloudData && cloudData.presets) {
+        for (const p of cloudData.presets) {
+            const tx = dataBase.transaction("presets", "readwrite");
+            const store = tx.objectStore("presets");
+            const existing = await new Promise(r => {
+                const req = store.index("name").get(p.name);
+                req.onsuccess = () => r(req.result);
+            });
+            if (!existing) {
+                delete p.id;
+                store.add(p);
+            }
+        }
+        await loadPresets();
+    }
+}
+
 // ==========================================
 // 3. CORE INITIALIZATION
 // ==========================================
 
 async function init() {
+    await requireAuth();
     await initDB();
     loadTheme();
+    await loadFromCloud();
     await loadPresets();
     lucide.createIcons();
 
@@ -293,7 +331,7 @@ function cleanupOrphanedChips() {
 function updateStartButtonVisibility() {
     const btn = document.getElementById("startGameBtn");
     if (!btn) return;
-    
+
     if (!gameActive && categories.length > 0 && words.length > 0) {
         btn.classList.remove("hidden");
         btn.classList.add("flex");
@@ -313,10 +351,10 @@ function startGame() {
 
     cleanupOrphanedChips();
     gameActive = true;
-    
+
     // Randomize the word bank
     shuffleArray(words);
-    
+
     document.getElementById("empty-state").style.display = "none";
     document.getElementById("game-stats").classList.remove("opacity-0");
     document.getElementById("check-btn").classList.remove("hidden");
@@ -376,10 +414,10 @@ function renderWordPool() {
 function createWordChip(word, colorIndex) {
     const chip = document.createElement("div");
     const colorClass = wordColors[colorIndex % wordColors.length];
-    
+
     // Random rotation for "sticker" look
     const randomRotation = (Math.random() * 4 - 2).toFixed(1); // -2deg to 2deg
-    
+
     chip.className = `word-chip sticker ${colorClass} text-white px-6 py-3 rounded-2xl text-xl font-black shadow-hard border-4 border-dark dark:border-slate-500`;
     chip.style.transform = `rotate(${randomRotation}deg)`;
     chip.textContent = word.text;
@@ -683,7 +721,7 @@ function parseBatchInput() {
     document.getElementById("pool-count").textContent = `${words.length} words`;
     showToast(`Created ${newCategoriesMap.size} categories with ${words.length} words`, "success");
     autoSave();
-    
+
     // Set status to READY but don't start yet
     document.getElementById("status-display").innerHTML = 'STATUS: <span class="text-blue">READY</span>';
     updateStartButtonVisibility();

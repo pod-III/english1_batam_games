@@ -249,6 +249,25 @@
         // --- LOCAL STORAGE KEY ---
         const LS_KEY_STORY = 'storyOrderSentences_v2';
         
+        // --- CLOUD PERSISTENCE ---
+        let syncTimeout = null;
+        async function syncToCloud() {
+            if (syncTimeout) clearTimeout(syncTimeout);
+            syncTimeout = setTimeout(async () => {
+                await saveProgress('story_ordering', {
+                    storyText: storyInput.value
+                });
+            }, 1500);
+        }
+
+        async function loadFromCloud() {
+            const cloudData = await loadProgress('story_ordering');
+            if (cloudData && cloudData.storyText) {
+                storyInput.value = cloudData.storyText;
+                saveStory(cloudData.storyText);
+            }
+        }
+        
         // DOM Elements
         const setupModal = document.getElementById('setup-modal');
         const gameSectionEl = document.getElementById('game-section-el');
@@ -271,6 +290,7 @@
 
         function saveStory(text) {
              try { localStorage.setItem(LS_KEY_STORY, text); } catch (e) {}
+             syncToCloud();
         }
 
         function loadStory() {
@@ -501,8 +521,10 @@
 
         // --- INITIALIZATION ---
         
-        function initializeApplication() {
+        async function initializeApplication() {
+            await requireAuth();
             loadStory();
+            await loadFromCloud();
             storyInput.addEventListener('input', (e) => saveStory(e.target.value));
             openSetupModal(); 
             lucide.createIcons();

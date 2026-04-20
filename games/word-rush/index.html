@@ -305,6 +305,30 @@
             lettersLeft: 26
         };
 
+        // --- CLOUD PERSISTENCE ---
+        let syncTimeout = null;
+        async function syncToCloud() {
+            if (syncTimeout) clearTimeout(syncTimeout);
+            syncTimeout = setTimeout(async () => {
+                await saveProgress('word_rush', settings);
+            }, 1500);
+        }
+
+        async function loadFromCloud() {
+            const cloudData = await loadProgress('word_rush');
+            if (cloudData) {
+                settings = { ...settings, ...cloudData };
+                // Update UI
+                if (document.getElementById('timeSlider')) {
+                    document.getElementById('timeSlider').value = settings.time;
+                    updateTimerLabel(settings.time);
+                }
+                if (document.getElementById('kidsModeToggle')) document.getElementById('kidsModeToggle').checked = settings.kidsMode;
+                if (document.getElementById('suddenDeathToggle')) document.getElementById('suddenDeathToggle').checked = settings.suddenDeath;
+                if (document.getElementById('soundToggle')) document.getElementById('soundToggle').checked = settings.sound;
+            }
+        }
+
         const categories = [
             "Animals", "Countries", "Fruits", "Jobs", "Colors", 
             "Action Verbs", "Adjectives", "In the Classroom", "Sports", 
@@ -379,6 +403,7 @@
             settings.kidsMode = document.getElementById('kidsModeToggle').checked;
             settings.suddenDeath = document.getElementById('suddenDeathToggle').checked;
             settings.sound = document.getElementById('soundToggle').checked;
+            syncToCloud();
             
             let cat = document.getElementById('categoryInput').value;
             if(!cat) cat = "Any Word!";
@@ -539,7 +564,13 @@
         }
 
         // Initialize Defaults
-        randomizeCategory();
+        async function initialize() {
+            await requireAuth();
+            randomizeCategory();
+            await loadFromCloud();
+        }
+
+        initialize();
 
     </script>
 </body>

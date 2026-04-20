@@ -306,9 +306,11 @@
 
             // --- Core Functions ---
 
-            function init() {
+            async function init() {
+                await requireAuth();
                 if(!state.teams) state.teams = ["Team 1", "Team 2", "Team 3", "Team 4"];
                 lucide.createIcons();
+                await loadFromCloud();
                 renderBoard();
                 renderScoreboard();
                 updateEditUI();
@@ -595,9 +597,25 @@
             }
 
             // --- Persistence ---
+            let syncTimeout = null;
+            async function syncToCloud() {
+                if (syncTimeout) clearTimeout(syncTimeout);
+                syncTimeout = setTimeout(async () => {
+                    await saveProgress('quiz_block', state);
+                }, 1500);
+            }
+
+            async function loadFromCloud() {
+                const cloudData = await loadProgress('quiz_block');
+                if (cloudData) {
+                    state = cloudData;
+                    save(); // Sync back to local
+                }
+            }
 
             function save() {
                 localStorage.setItem('eng1_jeopardy_v3', JSON.stringify(state));
+                syncToCloud();
             }
 
             function exportData() {
