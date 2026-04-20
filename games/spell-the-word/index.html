@@ -232,65 +232,75 @@
             }
         }
 
-        // TV Reach Mode
-        function toggleReachMode() {
-            isReachMode = !isReachMode;
-            localStorage.setItem('spellingReachMode', isReachMode);
-            applyReachMode();
-        }
+        async function loadPreferences() {
+            await requireAuth();
 
-        function applyReachMode() {
-            if (isReachMode) {
-                mainWrapper.classList.remove('justify-center');
-                mainWrapper.classList.add('justify-end', 'pb-0', 'md:pb-2');
-                reachIcon.setAttribute('data-lucide', 'arrow-up');
+            const savedState = await loadProgress('spell_word');
+            if (savedState) {
+                // Theme
+                if (savedState.theme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                    document.getElementById('theme-icon').setAttribute('data-lucide', 'sun');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    document.getElementById('theme-icon').setAttribute('data-lucide', 'moon');
+                }
+
+                // Reach Mode
+                isReachMode = !!savedState.reachMode;
+                applyReachMode();
+
+                // Word List
+                if (savedState.wordList && savedState.wordList.length > 0) {
+                    wordList = savedState.wordList;
+                } else {
+                    wordList = ["ENGLISH", "KLASSKIT", "CODING"];
+                }
             } else {
-                mainWrapper.classList.remove('justify-end', 'pb-0', 'md:pb-2');
-                mainWrapper.classList.add('justify-center');
-                reachIcon.setAttribute('data-lucide', 'arrow-down');
-            }
-            lucide.createIcons();
-        }
-
-        // Dark Mode
-        function toggleDarkMode() {
-            const html = document.documentElement;
-            const icon = document.getElementById('theme-icon');
-            if (html.classList.contains('dark')) {
-                html.classList.remove('dark');
-                icon.setAttribute('data-lucide', 'moon');
-                localStorage.setItem('theme_spell-the-word', 'light');
-            } else {
-                html.classList.add('dark');
-                icon.setAttribute('data-lucide', 'sun');
-                localStorage.setItem('theme_spell-the-word', 'dark');
-            }
-            lucide.createIcons();
-        }
-
-        function loadPreferences() {
-            if (localStorage.getItem('theme_spell-the-word') === 'dark') {
-                document.documentElement.classList.add('dark');
-                document.getElementById('theme-icon').setAttribute('data-lucide', 'sun');
+                // Fallback to legacy localStorage for migration
+                if (localStorage.getItem('theme_spell-the-word') === 'dark') {
+                    document.documentElement.classList.add('dark');
+                    document.getElementById('theme-icon').setAttribute('data-lucide', 'sun');
+                }
+                
+                const savedReach = localStorage.getItem('spellingReachMode');
+                if (savedReach !== null) {
+                    isReachMode = savedReach === 'true';
+                }
+                
+                const savedWords = localStorage.getItem('spellingWordList');
+                if (savedWords) {
+                    wordList = JSON.parse(savedWords);
+                } else {
+                    wordList = ["ENGLISH", "KLASSKIT", "CODING"];
+                }
+                
+                applyReachMode();
+                // Trigger initial save to cloud
+                saveToCloud();
             }
             
-            const savedReach = localStorage.getItem('spellingReachMode');
-            if (savedReach !== null) {
-                isReachMode = savedReach === 'true';
-            }
-            applyReachMode();
             lucide.createIcons();
+        }
+
+        // --- CLOUD PERSISTENCE ---
+        let saveTimeout;
+        function saveToCloud() {
+            if (saveTimeout) clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                saveProgress('spell_word', {
+                    theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
+                    reachMode: isReachMode,
+                    wordList: wordList
+                });
+            }, 1000);
         }
 
         // Initialize Game
-        function initGame() {
-            const savedWords = localStorage.getItem('spellingWordList');
-            if (savedWords) {
-                wordList = JSON.parse(savedWords);
-            } else {
-                wordList = ["ENGLISH", "KLASSKIT", "CODING"];
-            }
-            if (wordList.length === 0) wordList = ["HELLO"];
+        async function initGame() {
+            await loadPreferences();
+            
+            if (wordList.length === 0) wordList = ["ENGLISH", "KLASSKIT", "CODING"];
             
             currentWordIndex = 0;
             loadCurrentWord();
@@ -477,7 +487,8 @@
                 .filter(w => w.length > 0);
 
             if (newList.length > 0) {
-                localStorage.setItem('spellingWordList', JSON.stringify(newList));
+                wordList = newList;
+                saveToCloud();
                 closeSettings();
                 initGame();
                 showAlert("Success!", "New word list saved.", true, "close");

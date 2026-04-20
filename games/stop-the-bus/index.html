@@ -373,22 +373,36 @@
             };
 
             // --- INIT ---
-            function init() {
-                load();
+            async function init() {
+                await requireAuth();
+                await load();
                 renderAll();
                 lucide.createIcons();
             }
 
-            function load() {
-                const data = localStorage.getItem('eng1_stopbus_v3');
+            async function load() {
+                // 1. Try Cloud
+                const cloudData = await loadProgress('stop_the_bus');
+                
+                // 2. Try Legacy Local if cloud is empty
+                const localData = localStorage.getItem('eng1_stopbus_v3');
+                const parsedLocal = localData ? JSON.parse(localData) : null;
+                
+                const data = cloudData || parsedLocal;
+
                 if (data) {
-                    const parsed = JSON.parse(data);
                     // Merge strategies to keep defaults if data is corrupt
-                    state = { ...state, ...parsed };
+                    state = { ...state, ...data };
+                    if (cloudData === null && parsedLocal) {
+                        // First time migration
+                        save();
+                    }
                 }
             }
 
             function save() {
+                saveProgress('stop_the_bus', state);
+                // Also keep local for "seamless" offline start
                 localStorage.setItem('eng1_stopbus_v3', JSON.stringify(state));
             }
 
@@ -628,7 +642,9 @@
             }
 
             function toggleTheme() {
-                document.documentElement.classList.toggle('dark');
+                const isDark = document.documentElement.classList.toggle('dark');
+                // Save theme to common state for sync
+                save();
             }
 
             return {

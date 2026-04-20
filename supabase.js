@@ -10,7 +10,7 @@
  */
 
 // ── Config ────────────────────────────────────────────────────────────────
-const SUPABASE_URL  = 'https://mkarfktuvtllaxpunwtb.supabase.co';
+const SUPABASE_URL = 'https://mkarfktuvtllaxpunwtb.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_5Fd483qrg6bEFa_T1oNyLg_gymEgi4P';
 
 const { createClient } = supabase
@@ -28,7 +28,7 @@ async function requireAuth() {
     const target = (window !== window.top) ? window.top : window
     target.localStorage.setItem('after_login', target.location.href)
     target.location.href = '/login.html'
-    return new Promise(() => {})
+    return new Promise(() => { })
   }
 
   // Safety Check: If the user ID has changed, clear the local cache immediately
@@ -38,7 +38,8 @@ async function requireAuth() {
     clearLocalCache()
   }
   localStorage.setItem('kk_current_user_id', user.id)
-  
+
+  console.log("auth success");
   return user
 }
 
@@ -65,20 +66,20 @@ function clearLocalCache() {
   // Clear all tool progress
   const keys = Object.keys(localStorage)
   keys.forEach(key => {
-    if (key.startsWith('prog_') || 
-        key.startsWith('theme_') || 
-        key.startsWith('klasskit_') ||
-        key === 'recentGameIds' ||
-        key === 'favoriteGames' ||
-        key === 'openTabs' ||
-        key === 'pinnedGameIds' ||
-        key === 'soundMuted' ||
-        key === 'migrated_to_cloud' ||
-        key === 'kk_current_user_id') {
+    if (key.startsWith('prog_') ||
+      key.startsWith('theme_') ||
+      key.startsWith('klasskit_') ||
+      key === 'recentGameIds' ||
+      key === 'favoriteGames' ||
+      key === 'openTabs' ||
+      key === 'pinnedGameIds' ||
+      key === 'soundMuted' ||
+      key === 'migrated_to_cloud' ||
+      key === 'kk_current_user_id') {
       localStorage.removeItem(key)
     }
   })
-  
+
   // Trigger hub state refresh if Storage exists
   if (window.Storage && typeof window.Storage.syncWithCloud === 'function') {
     window.Storage.syncWithCloud()
@@ -91,8 +92,10 @@ async function saveProgress(toolKey, data) {
   const user = await getUser()
   if (!user) return
   await db.from('user_progress').upsert(
-    { user_id: user.id, tool_key: toolKey, data,
-      updated_at: new Date().toISOString() },
+    {
+      user_id: user.id, tool_key: toolKey, data,
+      updated_at: new Date().toISOString()
+    },
     { onConflict: 'user_id,tool_key' }
   )
 }

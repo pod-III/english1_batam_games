@@ -298,7 +298,18 @@
             pendingSize: 3,
             pendingPlayer: 'X',
 
-            init: () => {
+            init: async () => {
+                await requireAuth();
+                
+                // Load progress
+                const saved = await loadProgress('connect_n');
+                if (saved) {
+                    Game.scores = saved.scores || { X: 0, O: 0, Tie: 0 };
+                    Game.gridSize = saved.gridSize || 3;
+                    Game.pendingSize = Game.gridSize;
+                    Game.winLength = sizeToWin(Game.gridSize);
+                }
+
                 lucide.createIcons();
                 Game.startNewGame();
                 UI.refreshSidebar();
@@ -307,6 +318,13 @@
                 if(window.innerWidth < 768) {
                     toggleControlPanel(true);
                 }
+            },
+
+            saveState: () => {
+                saveProgress('connect_n', {
+                    scores: Game.scores,
+                    gridSize: Game.gridSize
+                });
             },
 
             startNewGame: () => {
@@ -331,11 +349,13 @@
                     Game.scores[Game.currentPlayer]++;
                     UI.updateScores();
                     UI.showWin(Game.currentPlayer);
+                    Game.saveState();
                 } else if (!Game.board.includes(null)) {
                     Game.isActive = false;
                     Game.scores.Tie++;
                     UI.updateScores();
                     UI.showDraw();
+                    Game.saveState();
                 } else {
                     Game.currentPlayer = Game.currentPlayer === 'X' ? 'O' : 'X';
                     UI.updateStatus();
@@ -402,6 +422,7 @@
                 }
 
                 Game.startNewGame();
+                Game.saveState();
             }
         };
 
