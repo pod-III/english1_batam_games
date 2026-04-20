@@ -279,18 +279,47 @@
             return `./char/${char.name}.webp`;
         }
 
-        function initGame() {
-            eliminatedIds.clear();
-            myCharacter = null;
-            updateStats();
-            renderGrid();     // Only runs ONCE now
-            renderPickGrid(); // Only runs ONCE now
-            document.getElementById('pick-modal').classList.remove('hidden');
+        async function initGame() {
+            await requireAuth();
+            
+            const cloudData = await loadProgress('guess_who');
+            if (cloudData) {
+                myCharacter = characters.find(c => c.id === cloudData.myCharacterId) || null;
+                eliminatedIds = new Set(cloudData.eliminatedIds || []);
+                
+                renderGrid();
+                renderPickGrid();
+                updateStats();
+
+                if (myCharacter) {
+                    restoreGameState(myCharacter.id);
+                } else {
+                    document.getElementById('pick-modal').classList.remove('hidden');
+                }
+            } else {
+                eliminatedIds.clear();
+                myCharacter = null;
+                updateStats();
+                renderGrid();     
+                renderPickGrid(); 
+                document.getElementById('pick-modal').classList.remove('hidden');
+            }
+            
             document.getElementById('my-character-display').innerHTML = `<i data-lucide="user-search" class="w-8 h-8 text-gray-300"></i>`;
             lucide.createIcons();
         }
 
-        function startGame(characterId) {
+        function syncToCloud() {
+            if (window.syncTimeout) clearTimeout(window.syncTimeout);
+            window.syncTimeout = setTimeout(() => {
+                saveProgress('guess_who', {
+                    myCharacterId: myCharacter ? myCharacter.id : null,
+                    eliminatedIds: Array.from(eliminatedIds)
+                });
+            }, 1000);
+        }
+
+        function restoreGameState(characterId) {
             myCharacter = characters.find(c => c.id === characterId);
             document.getElementById('pick-modal').classList.add('hidden');
             const display = document.getElementById('my-character-display');
@@ -307,7 +336,19 @@
                     </div>
                 </div>
             `;
+
+            // Restore flipped states
+            eliminatedIds.forEach(id => {
+                const flipper = document.getElementById(`flipper-${id}`);
+                if (flipper) flipper.classList.add('rotate-y-180');
+            });
+
             lucide.createIcons();
+        }
+
+        function startGame(characterId) {
+            restoreGameState(characterId);
+            syncToCloud();
         }
 
         function renderGrid() {
@@ -389,13 +430,19 @@
                 eliminatedIds.add(id);
                 document.getElementById(`flipper-${id}`).classList.add('rotate-y-180');
             }
+            syncToCloud();
             // Removed expensive renderGrid() call
             updateStats();
         }
 
         function toggleInstructions() { document.getElementById('instructions-modal').classList.remove('hidden'); }
         function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
-        function resetGame() { initGame(); }
+        function resetGame() { 
+            if (confirm("Reset current game?")) {
+                saveProgress('guess_who', null);
+                initGame(); 
+            }
+        }
 
         window.onload = function () {
             lucide.createIcons();
