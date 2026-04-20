@@ -1401,37 +1401,24 @@
                         const img = new Image();
                         img.src = URL.createObjectURL(blob);
 
-                        img.onload = () => {
-                            ctxMain.drawImage(img, 0, 0);
-                            URL.revokeObjectURL(img.src);
-                            // Initial stack
-                            undoStack = [canvasMain.toDataURL()];
-                            undoIndex = 0;
-                            console.log("✅ Canvas loaded from IndexedDB");
-                        };
+                        await new Promise((resolve) => {
+                            img.onload = () => {
+                                ctxMain.drawImage(img, 0, 0);
+                                URL.revokeObjectURL(img.src);
+                                // Initial stack
+                                undoStack = [canvasMain.toDataURL()];
+                                undoIndex = 0;
+                                console.log("✅ Canvas loaded from IndexedDB");
+                                resolve();
+                            };
+                            img.onerror = resolve;
+                        });
                     }
 
                     // Sync from cloud
                     await loadFromCloud();
-                        };
-                    } else {
-                        const oldData = localStorage.getItem(STORAGE_KEY);
-                        if (oldData) {
-                            console.log("📦 Migrating from localStorage...");
-                            const img = new Image();
-                            img.src = oldData;
-                            img.onload = () => {
-                                ctxMain.drawImage(img, 0, 0);
-                                saveState();
-                                localStorage.removeItem(STORAGE_KEY);
-                            };
-                        } else {
-                            saveState();
-                        }
-                    }
                 } catch (e) {
                     console.error("❌ Load failed:", e);
-                    saveState();
                 }
             }
 

@@ -899,9 +899,31 @@
             await saveCardSetToDB(name, clone);
             nameInput.value = '';
             renderCardSets();
+
+            // Sync Sets to Cloud
+            await syncSetsToCloud();
         }
 
-        function loadState() {
+        async function syncSetsToCloud() {
+            try {
+                const sets = await getAllCardSets();
+                await saveProgress('card_maker_sets', sets);
+                console.log("✅ Card Sets synced to cloud");
+            } catch (e) {
+                console.error("Cloud sync failed", e);
+            }
+        }
+
+        async function syncStateToCloud() {
+            try {
+                await saveProgress('card_maker_state', state);
+                console.log("✅ Card State synced to cloud");
+            } catch (e) {
+                console.error("Cloud sync failed", e);
+            }
+        }
+
+        async function loadState() {
             const saved = localStorage.getItem("flashcard_klasskit_state_v5");
             if (saved) {
                 try {
@@ -923,6 +945,37 @@
                     console.error("Load Error:", e);
                 }
             }
+
+            // Sync from Cloud
+            try {
+                const cloudState = await loadProgress('card_maker_state');
+                if (cloudState) {
+                    state = { ...state, ...cloudState };
+                    // Reset UI with cloud data
+                    inputCols.value = state.gridCols || 3;
+                    inputRows.value = state.gridRows || 3;
+                    setOrientation(state.orientation, false);
+                    setGlobalColor(state.color, false);
+                    setImageSize(state.imgHeight ?? 50, false);
+                    setFontSize(state.fontSize || 2, false);
+                    updateToggleUI();
+                }
+
+                const cloudSets = await loadProgress('card_maker_sets');
+                if (cloudSets && cloudSets.length > 0) {
+                    // Merge cloud sets into local DB
+                    const db = await initDB();
+                    for (const set of cloudSets) {
+                        const tx = db.transaction(SETS_STORE, 'readwrite');
+                        // Use put to overwrite/add
+                        tx.objectStore(SETS_STORE).put(set);
+                    }
+                    renderCardSets();
+                }
+            } catch (e) {
+                console.error("Cloud load failed", e);
+            }
+
             // Ensure at least one page exists
             if (!state.pages || state.pages.length === 0) {
                 state.pages = [[]];
@@ -975,6 +1028,10 @@
             );
             // Also persist to IndexedDB
             dbPut('cardMakerState', state);
+
+            // Sync to Cloud (Debounced)
+            if (window.cloudSaveTimeout) clearTimeout(window.cloudSaveTimeout);
+            window.cloudSaveTimeout = setTimeout(() => syncStateToCloud(), 2000);
         }
 
         function exportData() {
@@ -1573,9 +1630,10 @@
         }
 
         // --- Init ---
-        window.onload = () => {
+        window.onload = async () => {
+            await requireAuth();
             initTheme();
-            loadState();
+            await loadState();
             renderCardSets();
         };
         window.onresize = () => {
