@@ -6,7 +6,7 @@ let isZenMode = false;
 let isOutlineOpen = false;
 let isTrashMode = false;
 let isDarkMode = false;
-let db = null;
+let idb = null;
 let blobUrlMap = {}; // blobUrl -> idbKey
 let searchCache = null;
 let strippedContentCache = new Map();
@@ -42,15 +42,15 @@ function openDB() {
     return new Promise((resolve, reject) => {
         const req = indexedDB.open(DB_NAME, DB_VERSION);
         req.onupgradeneeded = (e) => {
-            const db = e.target.result;
-            if (!db.objectStoreNames.contains(STORES.IMAGES)) {
-                db.createObjectStore(STORES.IMAGES, { keyPath: 'id' });
+            const upgradeDB = e.target.result;
+            if (!upgradeDB.objectStoreNames.contains(STORES.IMAGES)) {
+                upgradeDB.createObjectStore(STORES.IMAGES, { keyPath: 'id' });
             }
-            if (!db.objectStoreNames.contains(STORES.NOTES)) {
-                db.createObjectStore(STORES.NOTES, { keyPath: 'id' });
+            if (!upgradeDB.objectStoreNames.contains(STORES.NOTES)) {
+                upgradeDB.createObjectStore(STORES.NOTES, { keyPath: 'id' });
             }
-            if (!db.objectStoreNames.contains(STORES.SETTINGS)) {
-                db.createObjectStore(STORES.SETTINGS);
+            if (!upgradeDB.objectStoreNames.contains(STORES.SETTINGS)) {
+                upgradeDB.createObjectStore(STORES.SETTINGS);
             }
         };
         req.onsuccess = (e) => resolve(e.target.result);
@@ -61,7 +61,7 @@ function openDB() {
 // --- Image Store Helpers ---
 function storeImage(id, arrayBuffer, mimeType) {
     return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORES.IMAGES, 'readwrite');
+        const tx = idb.transaction(STORES.IMAGES, 'readwrite');
         tx.objectStore(STORES.IMAGES).put({ id, data: arrayBuffer, type: mimeType });
         tx.oncomplete = () => resolve();
         tx.onerror = (e) => reject(e.target.error);
@@ -70,7 +70,7 @@ function storeImage(id, arrayBuffer, mimeType) {
 
 function getImage(id) {
     return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORES.IMAGES, 'readonly');
+        const tx = idb.transaction(STORES.IMAGES, 'readonly');
         const req = tx.objectStore(STORES.IMAGES).get(id);
         req.onsuccess = () => resolve(req.result);
         req.onerror = (e) => reject(e.target.error);
@@ -79,7 +79,7 @@ function getImage(id) {
 
 function deleteImage(id) {
     return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORES.IMAGES, 'readwrite');
+        const tx = idb.transaction(STORES.IMAGES, 'readwrite');
         tx.objectStore(STORES.IMAGES).delete(id);
         tx.oncomplete = () => resolve();
         tx.onerror = (e) => reject(e.target.error);
@@ -89,7 +89,7 @@ function deleteImage(id) {
 // --- Notes Store Helpers ---
 function getAllNotes() {
     return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORES.NOTES, 'readonly');
+        const tx = idb.transaction(STORES.NOTES, 'readonly');
         const req = tx.objectStore(STORES.NOTES).getAll();
         req.onsuccess = () => {
             const result = req.result || [];
@@ -102,7 +102,7 @@ function getAllNotes() {
 
 function saveNoteToDB(note) {
     return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORES.NOTES, 'readwrite');
+        const tx = idb.transaction(STORES.NOTES, 'readwrite');
         tx.objectStore(STORES.NOTES).put(note);
         tx.oncomplete = () => resolve();
         tx.onerror = (e) => reject(e.target.error);
@@ -111,7 +111,7 @@ function saveNoteToDB(note) {
 
 function deleteNoteFromDB(id) {
     return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORES.NOTES, 'readwrite');
+        const tx = idb.transaction(STORES.NOTES, 'readwrite');
         tx.objectStore(STORES.NOTES).delete(id);
         tx.oncomplete = () => resolve();
         tx.onerror = (e) => reject(e.target.error);
@@ -121,7 +121,7 @@ function deleteNoteFromDB(id) {
 // --- Settings Store Helpers ---
 function getSetting(key) {
     return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORES.SETTINGS, 'readonly');
+        const tx = idb.transaction(STORES.SETTINGS, 'readonly');
         const req = tx.objectStore(STORES.SETTINGS).get(key);
         req.onsuccess = () => resolve(req.result);
         req.onerror = (e) => reject(e.target.error);
@@ -130,7 +130,7 @@ function getSetting(key) {
 
 function saveSetting(key, value) {
     return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORES.SETTINGS, 'readwrite');
+        const tx = idb.transaction(STORES.SETTINGS, 'readwrite');
         tx.objectStore(STORES.SETTINGS).put(value, key);
         tx.oncomplete = () => resolve();
         tx.onerror = (e) => reject(e.target.error);
@@ -211,12 +211,14 @@ function updateDarkModeUI() {
 
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', async () => {
-    db = await openDB();
+    await requireAuth();
+    idb = await openDB();
     await migrateFromLocalStorage();
     await initDarkMode();
     initQuill();
 
     notes = await getAllNotes();
+    await loadFromCloud(); // Sync with cloud on startup
 
     const lastActiveId = await getSetting('lastActiveNoteId');
     const noteToLoad = notes.find(n => n.id === lastActiveId && !n.deleted) || notes.find(n => !n.deleted);
@@ -622,6 +624,7 @@ async function createNewNote() {
     const newNote = { id: Date.now().toString(), title: '', content: '', updatedAt: Date.now(), deleted: false };
     notes.unshift(newNote);
     await saveNoteToDB(newNote);
+    saveToCloud();
     await loadNote(newNote.id);
     if (window.innerWidth < 768) toggleSidebar();
 }
@@ -658,6 +661,7 @@ async function saveCurrentNote() {
         notes.splice(noteIndex, 1);
         notes.unshift(note);
         await saveNoteToDB(note);
+        saveToCloud(); // Fire and forget cloud sync
     }
 }
 
@@ -687,6 +691,7 @@ async function permanentDeleteCurrentNote() {
             await deleteNoteFromDB(note.id);
         }
         notes = notes.filter(n => n.id !== currentNoteId);
+        saveToCloud();
         const nextTrash = notes.find(n => n.deleted);
         if (nextTrash) { 
             await loadNote(nextTrash.id); 
@@ -706,6 +711,7 @@ async function restoreCurrentNote() {
         notes[noteIndex].deleted = false;
         notes[noteIndex].updatedAt = Date.now();
         await saveNoteToDB(notes[noteIndex]);
+        saveToCloud();
         const nextTrash = notes.find(n => n.deleted);
         if (nextTrash) {
             await loadNote(nextTrash.id);
@@ -715,6 +721,51 @@ async function restoreCurrentNote() {
             return;
         }
         renderNotesList();
+    }
+}
+
+// ===== CLOUD SYNC =====
+async function saveToCloud() {
+    const statusText = document.getElementById('statusText');
+    const originalText = statusText ? statusText.innerText : 'Auto-saved';
+    
+    if (statusText) statusText.innerText = 'Syncing...';
+    
+    try {
+        await saveProgress('lesson_notes', { notes });
+        if (statusText) statusText.innerText = 'Cloud Synced';
+        setTimeout(() => {
+            if (statusText && statusText.innerText === 'Cloud Synced') statusText.innerText = originalText;
+        }, 3000);
+    } catch (e) {
+        console.warn('Cloud save failed', e);
+        if (statusText) statusText.innerText = 'Sync Error';
+    }
+}
+
+async function loadFromCloud() {
+    try {
+        const cloudData = await loadProgress('lesson_notes');
+        if (cloudData && cloudData.notes) {
+            const cloudNotes = cloudData.notes;
+            let hasChanges = false;
+
+            for (const cn of cloudNotes) {
+                const localNote = notes.find(n => n.id === cn.id);
+                // If cloud note is newer or doesn't exist locally, update local
+                if (!localNote || cn.updatedAt > localNote.updatedAt) {
+                    await saveNoteToDB(cn);
+                    hasChanges = true;
+                }
+            }
+
+            if (hasChanges) {
+                notes = await getAllNotes();
+                renderNotesList();
+            }
+        }
+    } catch (e) {
+        console.warn('Cloud load failed', e);
     }
 }
 
