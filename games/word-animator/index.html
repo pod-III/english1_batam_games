@@ -358,11 +358,11 @@
     </style>
     <link rel="stylesheet" href="../../css/base.css" />
     <link rel="stylesheet" href="../../css/components.css" />
-  <!-- Vercel Web Analytics -->
-  <script>
-    window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
-  </script>
-  <script defer src="/_vercel/insights/script.js"></script>
+    <!-- Vercel Web Analytics -->
+    <script>
+        window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
 </head>
 
 <body
@@ -564,7 +564,7 @@ C,A,T</textarea>
         const STORE_PRESETS = 'presets';
         const STORE_SETTINGS = 'settings';
 
-        let db = null;
+        let dataBase = null;
         let currentPresetId = null;
 
         let roundsData = [];
@@ -619,7 +619,7 @@ C,A,T</textarea>
 
         async function initDB() {
             try {
-                db = await openDB();
+                dataBase = await openDB();
                 await migrateFromLocalStorage();
             } catch (e) {
                 console.error('Failed to initialize IndexedDB:', e);
@@ -635,9 +635,9 @@ C,A,T</textarea>
         }
 
         async function savePreset(name, content, id = null) {
-            if (!db) return;
-            return new Promise((resolve, reject) => {
-                const tx = db.transaction(STORE_PRESETS, 'readwrite');
+            if (!dataBase) return;
+            const result = await new Promise((resolve, reject) => {
+                const tx = dataBase.transaction(STORE_PRESETS, 'readwrite');
                 const store = tx.objectStore(STORE_PRESETS);
                 const data = { name, content, updatedAt: Date.now() };
                 if (id) data.id = id;
@@ -645,12 +645,14 @@ C,A,T</textarea>
                 request.onsuccess = () => resolve(request.result);
                 request.onerror = () => reject(request.error);
             });
+            await syncToCloud();
+            return result;
         }
 
         async function getAllPresets() {
-            if (!db) return [];
+            if (!dataBase) return [];
             return new Promise((resolve, reject) => {
-                const tx = db.transaction(STORE_PRESETS, 'readonly');
+                const tx = dataBase.transaction(STORE_PRESETS, 'readonly');
                 const store = tx.objectStore(STORE_PRESETS);
                 const index = store.index('updatedAt');
                 const request = index.getAll();
@@ -660,9 +662,9 @@ C,A,T</textarea>
         }
 
         async function getPreset(id) {
-            if (!db) return null;
+            if (!dataBase) return null;
             return new Promise((resolve, reject) => {
-                const tx = db.transaction(STORE_PRESETS, 'readonly');
+                const tx = dataBase.transaction(STORE_PRESETS, 'readonly');
                 const store = tx.objectStore(STORE_PRESETS);
                 const request = store.get(id);
                 request.onsuccess = () => resolve(request.result);
@@ -671,31 +673,44 @@ C,A,T</textarea>
         }
 
         async function deletePreset(id) {
-            if (!db) return;
-            return new Promise((resolve, reject) => {
-                const tx = db.transaction(STORE_PRESETS, 'readwrite');
+            if (!dataBase) return;
+            await new Promise((resolve, reject) => {
+                const tx = dataBase.transaction(STORE_PRESETS, 'readwrite');
                 const store = tx.objectStore(STORE_PRESETS);
                 const request = store.delete(id);
                 request.onsuccess = () => resolve();
                 request.onerror = () => reject(request.error);
             });
+            await syncToCloud();
         }
 
         async function saveCurrentPresetId(id) {
-            if (!db) return;
-            return new Promise((resolve, reject) => {
-                const tx = db.transaction(STORE_SETTINGS, 'readwrite');
+            if (!dataBase) return;
+            await new Promise((resolve, reject) => {
+                const tx = dataBase.transaction(STORE_SETTINGS, 'readwrite');
                 const store = tx.objectStore(STORE_SETTINGS);
                 const request = store.put({ key: 'currentPresetId', value: id });
                 request.onsuccess = () => resolve();
                 request.onerror = () => reject(request.error);
             });
+            await syncToCloud();
+        }
+
+        // --- CLOUD SYNC HELPERS ---
+        let cloudSyncTimeout = null;
+        async function syncToCloud() {
+            if (cloudSyncTimeout) clearTimeout(cloudSyncTimeout);
+            cloudSyncTimeout = setTimeout(async () => {
+                const presets = await getAllPresets();
+                const currentPresetId = await getCurrentPresetId();
+                await saveProgress('word-animator', { presets, currentPresetId });
+            }, 1000);
         }
 
         async function getCurrentPresetId() {
-            if (!db) return null;
+            if (!dataBase) return null;
             return new Promise((resolve, reject) => {
-                const tx = db.transaction(STORE_SETTINGS, 'readonly');
+                const tx = dataBase.transaction(STORE_SETTINGS, 'readonly');
                 const store = tx.objectStore(STORE_SETTINGS);
                 const request = store.get('currentPresetId');
                 request.onsuccess = () => resolve(request.result?.value || null);
@@ -1174,9 +1189,34 @@ C,A,T</textarea>
             if (isRevealed) calculateRevealPositions();
         });
 
-        function init() {
+        async function init() {
+            await requireAuth();
+
             loadTheme();
-            loadWords();
+
+            // Load Cloud Progress
+            try {
+                const cloudData = await loadProgress('word-animator');
+                if (cloudData) {
+                    await initDB();
+                    if (cloudData.presets) {
+                        const tx = dataBase.transaction(STORE_PRESETS, 'readwrite');
+                        const store = tx.objectStore(STORE_PRESETS);
+                        store.clear();
+                        for (const p of cloudData.presets) {
+                            store.put(p);
+                        }
+                    }
+                    if (cloudData.currentPresetId !== undefined) {
+                        const tx = dataBase.transaction(STORE_SETTINGS, 'readwrite');
+                        tx.objectStore(STORE_SETTINGS).put({ key: 'currentPresetId', value: cloudData.currentPresetId });
+                    }
+                }
+            } catch (e) {
+                console.error("Cloud load failed", e);
+            }
+
+            await loadWords();
             wordInput.addEventListener('input', (e) => saveWords(e.target.value));
             updateSpeed(document.getElementById('speed-slider').value);
             lucide.createIcons();

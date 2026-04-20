@@ -595,6 +595,16 @@
             tx.objectStore(STORE_NAME).delete(id);
         }
 
+        // --- CLOUD SYNC HELPERS ---
+        let cloudSyncTimeout = null;
+        async function syncToCloud() {
+            if (cloudSyncTimeout) clearTimeout(cloudSyncTimeout);
+            cloudSyncTimeout = setTimeout(async () => {
+                const presets = await getAllPresets();
+                await saveProgress('card-match', { presets });
+            }, 1000);
+        }
+
         // Migration from V2 (if any)
         async function migrateLegacyV2() {
             try {
@@ -641,12 +651,24 @@
             },
 
             init: async function () {
+                // 0. Auth Guard
+                await requireAuth();
+                
                 lucide.createIcons();
                 
                 // 1. Try migration
                 await migrateLegacyV2();
 
-                // 2. Load presets
+                // 2. Cloud Sync Load
+                const cloudData = await loadProgress('card-match');
+                if (cloudData && cloudData.presets) {
+                    // Merge/Overwrite local with cloud
+                    for (const p of cloudData.presets) {
+                        await savePresetToDB(p);
+                    }
+                }
+
+                // 3. Load presets from DB
                 this.presetsList = await getAllPresets();
                 
                 if (this.presetsList.length === 0) {
@@ -659,6 +681,7 @@
                     };
                     await savePresetToDB(defaultPreset);
                     this.presetsList.push(defaultPreset);
+                    await syncToCloud();
                 }
 
                 // Sort by last accessed descending
@@ -855,6 +878,7 @@
 
                 preset.lastAccessed = Date.now();
                 await savePresetToDB(preset);
+                await syncToCloud();
 
                 this.renderPresetDropdown();
                 this.renderPairList();
@@ -869,6 +893,7 @@
                 if (preset && preset.title !== newTitle) {
                     preset.title = newTitle;
                     await savePresetToDB(preset);
+                    await syncToCloud();
                     this.renderPresetDropdown();
                     this.toast("Title saved", "success");
                 }
@@ -883,6 +908,7 @@
                     lastAccessed: Date.now()
                 };
                 await savePresetToDB(newPreset);
+                await syncToCloud();
                 this.presetsList.push(newPreset);
                 await this.loadPresetData(id);
                 this.toast("New preset created!", "success");
@@ -919,6 +945,7 @@
 
             executeDeletePreset: async function() {
                 await deletePresetFromDB(this.activePresetId);
+                await syncToCloud();
                 this.presetsList = this.presetsList.filter(p => p.id !== this.activePresetId);
                 await this.loadPresetData(this.presetsList[0].id);
                 this.toast("Preset deleted", "success");
@@ -938,6 +965,7 @@
                     preset.pairs = this.pairs;
                     preset.lastAccessed = Date.now();
                     await savePresetToDB(preset);
+                    await syncToCloud();
                 }
                 
                 this.renderPairList();
@@ -1175,8 +1203,14 @@
             toast: function (msg, type='info') {
                 const el = document.getElementById('toast');
                 const txt = document.getElementById('toast-msg');
-                const icon = el.querySelector('i');
+                const container = el.querySelector('.flex.items-center.gap-3');
                 
+                // Remove existing icon (i or svg replaced by Lucide)
+                const oldIcon = container.querySelector('i, svg');
+                if (oldIcon && oldIcon !== txt) oldIcon.remove();
+                
+                // Create new i tag for Lucide
+                const icon = document.createElement('i');
                 txt.innerText = msg;
 
                 if(type === 'success') {
@@ -1189,6 +1223,8 @@
                     icon.setAttribute('data-lucide', 'info');
                     icon.className = 'w-5 h-5 text-blue';
                 }
+                
+                container.prepend(icon);
                 lucide.createIcons();
 
                 el.classList.remove('opacity-0', 'translate-y-24');
