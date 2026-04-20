@@ -25,9 +25,9 @@ async function getUser() {
 async function requireAuth() {
   const user = await getUser()
   if (!user) {
-    localStorage.setItem('after_login', location.href)
-    location.href = '/login.html'
-    // Return a never-resolving promise so downstream code doesn't run
+    const target = (window !== window.top) ? window.top : window
+    target.localStorage.setItem('after_login', target.location.href)
+    target.location.href = '/login.html'
     return new Promise(() => {})
   }
   return user
