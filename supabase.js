@@ -30,6 +30,15 @@ async function requireAuth() {
     target.location.href = '/login.html'
     return new Promise(() => {})
   }
+
+  // Safety Check: If the user ID has changed, clear the local cache immediately
+  const lastUserId = localStorage.getItem('kk_current_user_id')
+  if (lastUserId && lastUserId !== user.id) {
+    console.warn('[Auth] User ID mismatch. Clearing local cache for safety.')
+    clearLocalCache()
+  }
+  localStorage.setItem('kk_current_user_id', user.id)
+  
   return user
 }
 
@@ -47,7 +56,33 @@ async function signIn(email, pass) {
 }
 async function signOut() {
   await db.auth.signOut()
+  clearLocalCache()
   location.href = '/login.html'
+}
+
+function clearLocalCache() {
+  console.log('[Auth] Clearing local cache...');
+  // Clear all tool progress
+  const keys = Object.keys(localStorage)
+  keys.forEach(key => {
+    if (key.startsWith('prog_') || 
+        key.startsWith('theme_') || 
+        key.startsWith('klasskit_') ||
+        key === 'recentGameIds' ||
+        key === 'favoriteGames' ||
+        key === 'openTabs' ||
+        key === 'pinnedGameIds' ||
+        key === 'soundMuted' ||
+        key === 'migrated_to_cloud' ||
+        key === 'kk_current_user_id') {
+      localStorage.removeItem(key)
+    }
+  })
+  
+  // Trigger hub state refresh if Storage exists
+  if (window.Storage && typeof window.Storage.syncWithCloud === 'function') {
+    window.Storage.syncWithCloud()
+  }
 }
 
 /* ── DATA HELPERS (replaces localStorage) ── */
@@ -67,7 +102,11 @@ async function loadProgress(toolKey) {
   if (user) {
     const { data } = await db.from('user_progress')
       .select('data').eq('tool_key', toolKey).single()
-    if (data) return data.data
+    if (data) {
+      // Prioritize cloud and sync to local for seamless usage
+      localStorage.setItem(`prog_${toolKey}`, JSON.stringify(data.data))
+      return data.data
+    }
   }
   const local = localStorage.getItem(`prog_${toolKey}`)
   return local ? JSON.parse(local) : null
@@ -105,5 +144,11 @@ async function migrateLocalToCloud() {
     const data = JSON.parse(localStorage.getItem(key))
     await saveProgress(toolKey, data)
   }
+
+  // Also migrate hub state if it exists
+  if (window.Storage && typeof window.Storage.triggerCloudSave === 'function') {
+    await window.Storage.triggerCloudSave()
+  }
+
   localStorage.setItem('migrated_to_cloud', 'true')
 }
