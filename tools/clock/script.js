@@ -31,6 +31,7 @@ const CONSTANTS = {
     LS_STOPWATCH: 'timetools_stopwatch',
     LS_TIMER: 'timetools_timer',
     LS_ALARM: 'timetools_alarm',
+    CLOUD_KEY: 'clock_data'
 };
 
 // --- GLOBAL STATE ---
@@ -257,6 +258,7 @@ const darkMode = {
         state.darkMode = !state.darkMode;
         document.documentElement.classList.toggle('dark', state.darkMode);
         localStorage.setItem('theme_clock', state.darkMode ? 'dark' : 'light');
+        saveAllToCloud();
     }
 };
 
@@ -275,6 +277,7 @@ const sidebar = {
         const el = DOM.get('app-sidebar');
         if (el) el.classList.toggle('collapsed', state.sidebarCollapsed);
         localStorage.setItem(CONSTANTS.LS_SIDEBAR, state.sidebarCollapsed);
+        saveAllToCloud();
     }
 };
 
@@ -382,6 +385,7 @@ const clock = {
         const els = this.cacheElements();
         if (els.btnFormat) els.btnFormat.innerText = state.clock.is24Hour ? '24H' : '12H';
         clock.update();
+        saveAllToCloud();
     },
     toggleView() {
         state.clock.isAnalog = !state.clock.isAnalog;
@@ -403,6 +407,7 @@ const clock = {
         // Force an immediate text update since we might have skipped it while hidden
         state.clock.lastSecond = -1;
         clock.update();
+        saveAllToCloud();
     },
     toggleZenMode() {
         state.clock.isZenMode = !state.clock.isZenMode;
@@ -559,6 +564,7 @@ const stopwatch = {
     },
     saveState() {
         localStorage.setItem(CONSTANTS.LS_STOPWATCH, JSON.stringify({ elapsed: state.stopwatch.elapsed, laps: state.stopwatch.laps }));
+        saveAllToCloud();
     },
     restoreState() {
         try {
@@ -741,6 +747,7 @@ const timer = {
         localStorage.setItem(CONSTANTS.LS_TIMER, JSON.stringify({
             endTimestamp, initial: state.timer.initial, lastDuration: state.timer.lastDuration, mode: state.timer.mode, running: state.timer.running
         }));
+        saveAllToCloud();
     },
     restoreState() {
         try {
@@ -825,6 +832,7 @@ const alarm = {
 
         state.alarm.alarms.push({ id: Date.now(), h, m, ampm, adjustedH, label, enabled: true });
         this.saveState();
+        saveAllToCloud();
         this.renderList();
         this.closeAddForm();
     },
@@ -871,12 +879,14 @@ const alarm = {
         if (al) {
             al.enabled = !al.enabled;
             this.saveState();
+            saveAllToCloud();
             this.renderList();
         }
     },
     delete(id) {
         state.alarm.alarms = state.alarm.alarms.filter(a => a.id !== id);
         this.saveState();
+        saveAllToCloud();
         this.renderList();
     },
     saveState() {
@@ -960,8 +970,8 @@ const alarm = {
             const al = state.alarm.alarms.find(a => a.id === state.alarm.currentlyRinging.id);
             if (al) al.enabled = false;
             state.alarm.currentlyRinging = null;
-            this.saveState();
             this.renderList();
+            saveAllToCloud();
         }
     }
 };
@@ -1146,7 +1156,10 @@ const calendar = {
     },
     save() {
         clearTimeout(this.saveTimeout);
-        this.saveTimeout = setTimeout(() => localStorage.setItem('hub_calendar', JSON.stringify(state.calendar.marked)), 500);
+        this.saveTimeout = setTimeout(() => {
+            localStorage.setItem('hub_calendar', JSON.stringify(state.calendar.marked));
+            saveAllToCloud();
+        }, 500);
     },
     toggleViewMode() {
         state.calendar.viewMode = state.calendar.viewMode === 'month' ? 'year' : 'month';
@@ -1331,10 +1344,37 @@ function setupInputValidation() {
 }
 
 // --- INITIALIZATION ---
-window.onload = function () {
+window.onload = async function () {
+    const user = await requireAuth();
+    if (!user) return;
+
     darkMode.init();
     sidebar.init();
     utils.safeIconUpdate();
+
+    // Load cloud data and merge
+    try {
+        const cloudData = await loadProgress(CONSTANTS.CLOUD_KEY);
+        if (cloudData) {
+            if (cloudData.darkMode !== undefined) {
+                state.darkMode = cloudData.darkMode;
+                document.documentElement.classList.toggle('dark', state.darkMode);
+            }
+            if (cloudData.sidebarCollapsed !== undefined) {
+                state.sidebarCollapsed = cloudData.sidebarCollapsed;
+                const el = DOM.get('app-sidebar');
+                if (el) el.classList.toggle('collapsed', state.sidebarCollapsed);
+            }
+            if (cloudData.alarms) state.alarm.alarms = cloudData.alarms;
+            if (cloudData.calendarMarked) state.calendar.marked = cloudData.calendarMarked;
+            if (cloudData.clockSettings) {
+                state.clock.is24Hour = !!cloudData.clockSettings.is24Hour;
+                state.clock.isAnalog = !!cloudData.clockSettings.isAnalog;
+            }
+        }
+    } catch (e) {
+        console.warn('Cloud load failed, using local fallback', e);
+    }
 
     clock.initFace();
     clock.startLoop();
@@ -1352,8 +1392,38 @@ window.onload = function () {
     countdown.restoreState();
 
     switchTool('clock');
+
+    // Update UI elements based on loaded state
+    const els = clock.cacheElements();
+    if (els.btnFormat) els.btnFormat.innerText = state.clock.is24Hour ? '24H' : '12H';
+    if (els.btnView) els.btnView.innerText = state.clock.isAnalog ? "DIGITAL" : "ANALOG";
+    if (state.clock.isAnalog) {
+        els.digital?.classList.add('hidden');
+        els.analog?.classList.remove('hidden');
+        els.analog?.classList.add('flex');
+    }
+
     timer.setMode('calm');
 };
+
+// Global debounced save
+let cloudSaveTimeout = null;
+async function saveAllToCloud() {
+    clearTimeout(cloudSaveTimeout);
+    cloudSaveTimeout = setTimeout(async () => {
+        const data = {
+            darkMode: state.darkMode,
+            sidebarCollapsed: state.sidebarCollapsed,
+            alarms: state.alarm.alarms.map(a => ({ ...a, enabled: a.enabled })), // simple clone
+            calendarMarked: state.calendar.marked,
+            clockSettings: {
+                is24Hour: state.clock.is24Hour,
+                isAnalog: state.clock.isAnalog
+            }
+        };
+        await saveProgress(CONSTANTS.CLOUD_KEY, data);
+    }, 1000);
+}
 
 // --- GLOBAL BINDINGS ---
 window.clockToggleFormat = () => clock.toggleFormat();

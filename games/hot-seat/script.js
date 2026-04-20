@@ -185,6 +185,7 @@ function saveCurrentList() {
     activeListName = name;
     document.getElementById('active-list-name').innerText = name;
 
+    syncToCloud();
     renderCustomListButtons();
     parseWords(content);
 
@@ -203,15 +204,40 @@ function saveCurrentList() {
     }, 3000);
 }
 
-function deleteCustomList(name) {
-    customLists = customLists.filter(l => l.name !== name);
-    localStorage.setItem(CUSTOM_LISTS_KEY, JSON.stringify(customLists));
-    renderCustomListButtons();
-    if (activeListName === name) selectList('Default (Easy)');
+if (activeListName === name) selectList('Default (Easy)');
+syncToCloud();
+
+
+function syncToCloud() {
+    if (window.syncTimeout) clearTimeout(window.syncTimeout);
+    window.syncTimeout = setTimeout(() => {
+        saveProgress('hot_seat', {
+            customLists,
+            activeListName,
+            gameMode,
+            timer: document.getElementById('time-input').value
+        });
+    }, 1500);
 }
 
-function init() {
-    loadUserLists();
+async function init() {
+    await requireAuth();
+
+    const cloudData = await loadProgress('hot_seat');
+    if (cloudData) {
+        customLists = cloudData.customLists || [];
+        activeListName = cloudData.activeListName || 'Default (Easy)';
+        gameMode = cloudData.gameMode || 'classic';
+        if (cloudData.timer) document.getElementById('time-input').value = cloudData.timer;
+
+        // Sync local storage
+        localStorage.setItem(CUSTOM_LISTS_KEY, JSON.stringify(customLists));
+        localStorage.setItem(ACTIVE_LIST_KEY, activeListName);
+        localStorage.setItem('hotseat_mode', gameMode);
+        localStorage.setItem('hotseat_timer', document.getElementById('time-input').value);
+    } else {
+        loadUserLists();
+    }
     const savedActiveName = localStorage.getItem(ACTIVE_LIST_KEY);
     const savedMode = localStorage.getItem('hotseat_mode');
     const savedTimer = localStorage.getItem('hotseat_timer');
@@ -237,12 +263,15 @@ function init() {
         document.getElementById('time-input').value = savedTimer;
     }
 
-    setMode(savedMode || 'classic');
+    setMode(gameMode || 'classic');
     showWordTab('presets');
     initTheme();
     lucide.createIcons();
 
-    document.getElementById('time-input').addEventListener('input', (e) => localStorage.setItem('hotseat_timer', e.target.value));
+    document.getElementById('time-input').addEventListener('input', (e) => {
+        localStorage.setItem('hotseat_timer', e.target.value);
+        syncToCloud();
+    });
     document.getElementById('word-input').addEventListener('input', (e) => localStorage.setItem('hotseat_draft', e.target.value));
 }
 
@@ -265,6 +294,7 @@ function showWordTab(tab) {
 function setMode(mode) {
     gameMode = mode;
     localStorage.setItem('hotseat_mode', mode);
+    syncToCloud();
     const btnClassic = document.getElementById('btn-mode-classic');
     const btnSingle = document.getElementById('btn-mode-single');
     const timeInput = document.getElementById('time-input');

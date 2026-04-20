@@ -6,23 +6,23 @@
 const DB = {
     dbName: 'KlassKitRevealDB',
     dbVersion: 1,
-    db: null,
+    dataBase: null,
 
     init() {
         return new Promise((resolve, reject) => {
             const request = indexedDB.open(this.dbName, this.dbVersion);
 
             request.onupgradeneeded = (event) => {
-                const db = event.target.result;
-                if (!db.objectStoreNames.contains('Presets')) {
-                    const store = db.createObjectStore('Presets', { keyPath: 'id' });
+                const dataBase = event.target.result;
+                if (!dataBase.objectStoreNames.contains('Presets')) {
+                    const store = dataBase.createObjectStore('Presets', { keyPath: 'id' });
                     store.createIndex('lastAccessed', 'lastAccessed', { unique: false });
                 }
             };
 
             request.onsuccess = (event) => {
-                this.db = event.target.result;
-                resolve(this.db);
+                this.dataBase = event.target.result;
+                resolve(this.dataBase);
             };
 
             request.onerror = (event) => {
@@ -33,9 +33,9 @@ const DB = {
     },
 
     async getAllPresets() {
-        if (!this.db) await this.init();
+        if (!this.dataBase) await this.init();
         return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction(['Presets'], 'readonly');
+            const transaction = this.dataBase.transaction(['Presets'], 'readonly');
             const store = transaction.objectStore('Presets');
             const request = store.getAll();
 
@@ -45,9 +45,9 @@ const DB = {
     },
 
     async savePreset(preset) {
-        if (!this.db) await this.init();
+        if (!this.dataBase) await this.init();
         return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction(['Presets'], 'readwrite');
+            const transaction = this.dataBase.transaction(['Presets'], 'readwrite');
             const store = transaction.objectStore('Presets');
             const request = store.put(preset);
 
@@ -57,9 +57,9 @@ const DB = {
     },
 
     async deletePreset(id) {
-        if (!this.db) await this.init();
+        if (!this.dataBase) await this.init();
         return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction(['Presets'], 'readwrite');
+            const transaction = this.dataBase.transaction(['Presets'], 'readwrite');
             const store = transaction.objectStore('Presets');
             const request = store.delete(id);
 
@@ -163,9 +163,65 @@ const app = {
             this.renderPresetDropdown();
             this.loadPresetData(targetPreset);
 
+            // Cloud Sync
+            this.syncToCloud();
+
         } catch (e) {
             console.error("App Init Error:", e);
             UI.showToast("Failed to initialize database", "error");
+        }
+    },
+
+    async syncToCloud() {
+        if (window.syncTimeout) clearTimeout(window.syncTimeout);
+        window.syncTimeout = setTimeout(() => {
+            // Sync metadata only (ids, titles, settings) to avoid large blobs
+            const metadata = this.presets.map(p => ({
+                id: p.id,
+                title: p.title,
+                currentIndex: p.currentIndex,
+                gridSize: p.gridSize,
+                lastAccessed: p.lastAccessed
+            }));
+            saveProgress('reveal_picture', {
+                presets: metadata,
+                activePresetId: this.activePresetId
+            });
+        }, 2000);
+    },
+
+    async loadFromCloud() {
+        const cloudData = await loadProgress('reveal_picture');
+        if (cloudData && cloudData.presets) {
+            // Update local presets with cloud metadata if they match by ID
+            let changed = false;
+            for (const cp of cloudData.presets) {
+                const local = this.presets.find(p => p.id === cp.id);
+                if (local) {
+                    local.title = cp.title;
+                    local.currentIndex = cp.currentIndex;
+                    local.gridSize = cp.gridSize;
+                    local.lastAccessed = cp.lastAccessed;
+                    await DB.savePreset(local);
+                    changed = true;
+                } else {
+                    // New preset from another device (will have no images locally)
+                    const newPreset = { ...cp, images: [] };
+                    this.presets.push(newPreset);
+                    await DB.savePreset(newPreset);
+                    changed = true;
+                }
+            }
+            if (cloudData.activePresetId) {
+                this.activePresetId = cloudData.activePresetId;
+                localStorage.setItem('mb_active_preset_id', this.activePresetId);
+            }
+            if (changed) {
+                this.presets.sort((a, b) => b.lastAccessed - a.lastAccessed);
+                this.renderPresetDropdown();
+                const target = this.presets.find(p => p.id === this.activePresetId) || this.presets[0];
+                this.loadPresetData(target);
+            }
         }
     },
 
@@ -223,6 +279,7 @@ const app = {
         preset.lastAccessed = Date.now();
 
         await DB.savePreset(preset);
+        this.syncToCloud();
     },
 
     async switchPreset(id) {
@@ -233,129 +290,131 @@ const app = {
     },
 
     async createNewPreset() {
-        const newPreset = {
-            id: 'preset_' + Date.now(),
-            title: `New Session ${this.presets.length + 1}`,
-            images: [],
-            currentIndex: 0,
-            gridSize: 4,
-            lastAccessed: Date.now()
-        };
+    const newPreset = {
+        id: 'preset_' + Date.now(),
+        title: `New Session ${this.presets.length + 1}`,
+        images: [],
+        currentIndex: 0,
+        gridSize: 4,
+        lastAccessed: Date.now()
+    };
 
-        this.presets.unshift(newPreset); // Add to top
-        await DB.savePreset(newPreset);
+    this.presets.unshift(newPreset); // Add to top
+    await DB.savePreset(newPreset);
 
-        this.renderPresetDropdown();
-        document.getElementById('preset-selector').value = newPreset.id;
-        this.loadPresetData(newPreset);
-        UI.showToast("New preset created!", "success");
-    },
+    this.renderPresetDropdown();
+    document.getElementById('preset-selector').value = newPreset.id;
+    this.loadPresetData(newPreset);
+    this.syncToCloud();
+    UI.showToast("New preset created!", "success");
+},
 
     async updatePresetTitle(newTitle) {
-        if (!newTitle.trim() || !this.activePresetId) return;
+    if (!newTitle.trim() || !this.activePresetId) return;
 
-        const presetIndex = this.presets.findIndex(p => p.id === this.activePresetId);
-        if (presetIndex !== -1 && this.presets[presetIndex].title !== newTitle) {
-            this.presets[presetIndex].title = newTitle;
-            await this.saveCurrentState();
-            this.renderPresetDropdown();
-            UI.showToast("Title saved", "success");
-        }
-    },
+    const presetIndex = this.presets.findIndex(p => p.id === this.activePresetId);
+    if (presetIndex !== -1 && this.presets[presetIndex].title !== newTitle) {
+        this.presets[presetIndex].title = newTitle;
+        await this.saveCurrentState();
+        this.renderPresetDropdown();
+        UI.showToast("Title saved", "success");
+    }
+},
 
-    // --- DELETION LOGIC ---
-    presetToDelete: null,
+// --- DELETION LOGIC ---
+presetToDelete: null,
     deleteCurrentPreset() {
-        if (this.presets.length <= 1) {
-            UI.showToast("Cannot delete the last remaining preset.", "error");
-            return;
-        }
-        const preset = this.presets.find(p => p.id === this.activePresetId);
-        if (!preset) return;
+    if (this.presets.length <= 1) {
+        UI.showToast("Cannot delete the last remaining preset.", "error");
+        return;
+    }
+    const preset = this.presets.find(p => p.id === this.activePresetId);
+    if (!preset) return;
 
-        this.presetToDelete = preset;
-        document.getElementById('delete-preset-name').textContent = preset.title;
-        const modal = document.getElementById('delete-modal');
-        const content = document.getElementById('delete-modal-content');
+    this.presetToDelete = preset;
+    document.getElementById('delete-preset-name').textContent = preset.title;
+    const modal = document.getElementById('delete-modal');
+    const content = document.getElementById('delete-modal-content');
 
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
 
-        requestAnimationFrame(() => {
-            content.classList.remove('scale-95', 'opacity-0');
-            content.classList.add('scale-100', 'opacity-100');
-        });
-    },
+    requestAnimationFrame(() => {
+        content.classList.remove('scale-95', 'opacity-0');
+        content.classList.add('scale-100', 'opacity-100');
+    });
+},
 
-    closeDeleteModal() {
-        this.presetToDelete = null;
-        const modal = document.getElementById('delete-modal');
-        const content = document.getElementById('delete-modal-content');
+closeDeleteModal() {
+    this.presetToDelete = null;
+    const modal = document.getElementById('delete-modal');
+    const content = document.getElementById('delete-modal-content');
 
-        content.classList.remove('scale-100', 'opacity-100');
-        content.classList.add('scale-95', 'opacity-0');
+    content.classList.remove('scale-100', 'opacity-100');
+    content.classList.add('scale-95', 'opacity-0');
 
-        setTimeout(() => {
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-        }, 200);
-    },
+    setTimeout(() => {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }, 200);
+},
 
     async confirmDeletePreset() {
-        if (!this.presetToDelete) return;
+    if (!this.presetToDelete) return;
 
-        const idToDelete = this.presetToDelete.id;
-        await DB.deletePreset(idToDelete);
+    const idToDelete = this.presetToDelete.id;
+    await DB.deletePreset(idToDelete);
 
-        this.presets = this.presets.filter(p => p.id !== idToDelete);
+    this.presets = this.presets.filter(p => p.id !== idToDelete);
 
-        this.closeDeleteModal();
-        UI.showToast("Preset deleted", "success");
+    this.closeDeleteModal();
+    UI.showToast("Preset deleted", "success");
 
-        // Load the first available
-        this.loadPresetData(this.presets[0]);
-        this.renderPresetDropdown();
-    },
+    // Load the first available
+    this.loadPresetData(this.presets[0]);
+    this.renderPresetDropdown();
+    this.syncToCloud();
+},
 
-    openImageManager() {
-        const modal = document.getElementById('image-manager-modal');
-        const content = document.getElementById('image-manager-content');
+openImageManager() {
+    const modal = document.getElementById('image-manager-modal');
+    const content = document.getElementById('image-manager-content');
 
-        this.renderImageManagerList();
+    this.renderImageManagerList();
 
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
 
-        requestAnimationFrame(() => {
-            content.classList.remove('scale-95', 'opacity-0');
-            content.classList.add('scale-100', 'opacity-100');
-        });
-    },
+    requestAnimationFrame(() => {
+        content.classList.remove('scale-95', 'opacity-0');
+        content.classList.add('scale-100', 'opacity-100');
+    });
+},
 
-    closeImageManager() {
-        const modal = document.getElementById('image-manager-modal');
-        const content = document.getElementById('image-manager-content');
+closeImageManager() {
+    const modal = document.getElementById('image-manager-modal');
+    const content = document.getElementById('image-manager-content');
 
-        content.classList.remove('scale-100', 'opacity-100');
-        content.classList.add('scale-95', 'opacity-0');
+    content.classList.remove('scale-100', 'opacity-100');
+    content.classList.add('scale-95', 'opacity-0');
 
-        setTimeout(() => {
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-        }, 200);
-    },
+    setTimeout(() => {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }, 200);
+},
 
-    renderImageManagerList() {
-        const list = document.getElementById('image-manager-list');
-        document.getElementById('image-manager-count').textContent = `${Game.images.length} Image${Game.images.length === 1 ? '' : 's'}`;
+renderImageManagerList() {
+    const list = document.getElementById('image-manager-list');
+    document.getElementById('image-manager-count').textContent = `${Game.images.length} Image${Game.images.length === 1 ? '' : 's'}`;
 
-        if (Game.images.length === 0) {
-            list.innerHTML = `<div class="col-span-full h-32 flex flex-col items-center justify-center text-slate-400 font-bold font-body"><i data-lucide="image-minus" class="w-8 h-8 mb-3 opacity-50"></i>No images in this preset.</div>`;
-            lucide.createIcons();
-            return;
-        }
+    if (Game.images.length === 0) {
+        list.innerHTML = `<div class="col-span-full h-32 flex flex-col items-center justify-center text-slate-400 font-bold font-body"><i data-lucide="image-minus" class="w-8 h-8 mb-3 opacity-50"></i>No images in this preset.</div>`;
+        lucide.createIcons();
+        return;
+    }
 
-        list.innerHTML = Game.images.map((imgSrc, index) => `
+    list.innerHTML = Game.images.map((imgSrc, index) => `
             <div class="relative group aspect-square rounded-xl overflow-hidden border-2 border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 shadow-sm">
                 <img src="${imgSrc}" class="w-full h-full object-cover">
                 <div class="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
@@ -368,37 +427,37 @@ const app = {
                 </div>
             </div>
         `).join('');
-        lucide.createIcons();
-    },
+    lucide.createIcons();
+},
 
     async deleteImage(index) {
-        if (index < 0 || index >= Game.images.length) return;
+    if (index < 0 || index >= Game.images.length) return;
 
-        Game.images.splice(index, 1);
+    Game.images.splice(index, 1);
 
-        // Keep current index bounded
-        if (Game.currentIndex >= Game.images.length) {
-            Game.currentIndex = Math.max(0, Game.images.length - 1);
-        }
+    // Keep current index bounded
+    if (Game.currentIndex >= Game.images.length) {
+        Game.currentIndex = Math.max(0, Game.images.length - 1);
+    }
 
-        await this.saveCurrentState();
-        this.renderImageManagerList();
+    await this.saveCurrentState();
+    this.renderImageManagerList();
 
-        // Update game view
-        this.loadPresetData(this.presets.find(p => p.id === this.activePresetId));
-        UI.showToast("Image removed", "success");
-    },
+    // Update game view
+    this.loadPresetData(this.presets.find(p => p.id === this.activePresetId));
+    UI.showToast("Image removed", "success");
+},
 
     async clearActiveImages() {
-        if (!confirm("Are you sure you want to remove ALL images from this preset?")) return;
-        Game.images = [];
-        Game.currentIndex = 0;
-        await this.saveCurrentState();
-        this.renderImageManagerList();
-        this.loadPresetData(this.presets.find(p => p.id === this.activePresetId));
-        this.closeImageManager();
-        UI.showToast("All images cleared", "success");
-    }
+    if (!confirm("Are you sure you want to remove ALL images from this preset?")) return;
+    Game.images = [];
+    Game.currentIndex = 0;
+    await this.saveCurrentState();
+    this.renderImageManagerList();
+    this.loadPresetData(this.presets.find(p => p.id === this.activePresetId));
+    this.closeImageManager();
+    UI.showToast("All images cleared", "success");
+}
 };
 
 /**
@@ -530,6 +589,9 @@ const Game = {
 
         // Init modules
         AutoReveal.init();
+
+        await requireAuth();
+        await app.loadFromCloud();
     },
 
     start(fileList, restoring = false) {

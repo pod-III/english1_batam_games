@@ -47,8 +47,7 @@
     </script>
     <script>
         if (
-                window.matchMedia("(prefers-color-scheme: dark)").matches)
-        ) {
+            window.matchMedia("(prefers-color-scheme: dark)").matches) {
             document.documentElement.classList.add("dark");
         } else {
             document.documentElement.classList.remove("dark");
@@ -250,11 +249,11 @@
     </style>
     <link rel="stylesheet" href="../../css/base.css" />
     <link rel="stylesheet" href="../../css/components.css" />
-  <!-- Vercel Web Analytics -->
-  <script>
-    window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
-  </script>
-  <script defer src="/_vercel/insights/script.js"></script>
+    <!-- Vercel Web Analytics -->
+    <script>
+        window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
 </head>
 
 <body
@@ -579,9 +578,32 @@
         };
 
         window.onload = async () => {
+            await requireAuth();
             setViewMode(AppState.currentView, true);
+            await loadFromCloud();
             await fetchActivities();
         };
+
+        async function saveToCloud() {
+            try {
+                await saveProgress('act_lesson_plan', { lessonPlan: AppState.lessonPlan, updatedAt: Date.now() });
+            } catch (e) {
+                console.error("Cloud save failed", e);
+            }
+        }
+
+        async function loadFromCloud() {
+            try {
+                const data = await loadProgress('act_lesson_plan');
+                if (data && data.lessonPlan) {
+                    AppState.lessonPlan = data.lessonPlan;
+                    localStorage.setItem("lessonPlan", JSON.stringify(AppState.lessonPlan));
+                    updateLessonPlanUI();
+                }
+            } catch (e) {
+                console.error("Cloud load failed", e);
+            }
+        }
 
         async function fetchActivities() {
             try {
@@ -720,6 +742,7 @@
                 showToast("Added to plan", "check-circle");
             }
             localStorage.setItem("lessonPlan", JSON.stringify(AppState.lessonPlan));
+            saveToCloud();
             applyFilters();
             updateLessonPlanUI();
         }
@@ -833,11 +856,13 @@
         function confirmClearLessonPlan() {
             AppState.lessonPlan = [];
             localStorage.setItem("lessonPlan", JSON.stringify(AppState.lessonPlan));
+            saveToCloud();
             updateLessonPlanUI();
             applyFilters();
             closeConfirmModal();
-            showToast("Plan cleared", "trash-2");
+            showToast("Lesson plan cleared", "info");
         }
+
 
         document.querySelectorAll("dialog").forEach((dialog) => {
             dialog.addEventListener("click", (e) => {

@@ -378,7 +378,13 @@
             });
         }
         async function dbPut(key, data) {
-            try { const db = await initDB(); const tx = db.transaction(STATE_STORE, 'readwrite'); tx.objectStore(STATE_STORE).put(data, key); } catch(e) { console.error(e); }
+            try { 
+                const db = await initDB(); 
+                const tx = db.transaction(STATE_STORE, 'readwrite'); 
+                tx.objectStore(STATE_STORE).put(data, key);
+                await new Promise(r => { tx.oncomplete = r; });
+                await syncToCloud();
+            } catch(e) { console.error(e); }
         }
         async function dbGet(key) {
             try {
@@ -392,7 +398,8 @@
             const db = await initDB();
             const tx = db.transaction(SETS_STORE, 'readwrite');
             tx.objectStore(SETS_STORE).put({ name, content, createdAt: Date.now() });
-            return new Promise(r => { tx.oncomplete = r; });
+            await new Promise(r => { tx.oncomplete = r; });
+            await syncToCloud();
         }
         async function getAllWordSets() {
             try {
@@ -404,7 +411,19 @@
             const db = await initDB();
             const tx = db.transaction(SETS_STORE, 'readwrite');
             tx.objectStore(SETS_STORE).delete(id);
-            return new Promise(r => { tx.oncomplete = r; });
+            await new Promise(r => { tx.oncomplete = r; });
+            await syncToCloud();
+        }
+
+        // --- CLOUD SYNC HELPERS ---
+        let cloudSyncTimeout = null;
+        async function syncToCloud() {
+            if (cloudSyncTimeout) clearTimeout(cloudSyncTimeout);
+            cloudSyncTimeout = setTimeout(async () => {
+                const words = await dbGet('words');
+                const word_sets = await getAllWordSets();
+                await saveProgress('hangman', { words, word_sets });
+            }, 1000);
         }
 
         async function renderWordSets() {
@@ -908,7 +927,29 @@
 
         // Init
         window.onload = async () => {
+            await requireAuth();
+            
             initTheme();
+
+            // Load Cloud Progress
+            const cloudData = await loadProgress('hangman');
+            if (cloudData) {
+                if (cloudData.words) {
+                    const db = await initDB();
+                    const tx = db.transaction(STATE_STORE, 'readwrite');
+                    tx.objectStore(STATE_STORE).put(cloudData.words, 'words');
+                }
+                if (cloudData.word_sets) {
+                    const db = await initDB();
+                    const tx = db.transaction(SETS_STORE, 'readwrite');
+                    const store = tx.objectStore(SETS_STORE);
+                    store.clear(); // Re-sync from cloud
+                    for (const set of cloudData.word_sets) {
+                        store.put(set);
+                    }
+                }
+            }
+
             await loadWords();
             await renderWordSets();
             selectPlayers(2);

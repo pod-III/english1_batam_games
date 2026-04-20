@@ -292,13 +292,13 @@
                 this.next();
                 this.startTimer();
             },
-
             toggleSound() {
                 AudioEngine.enabled = !AudioEngine.enabled;
                 const icon = AudioEngine.enabled ? 'volume-2' : 'volume-x';
                 this.dom.btnSound.innerHTML = `<i data-lucide="${icon}"></i>`;
                 lucide.createIcons();
                 if (AudioEngine.enabled) AudioEngine.playSwitch();
+                saveToCloud();
             },
 
             toggleCat(cat) {
@@ -311,6 +311,7 @@
                     this.activeCats.add(cat);
                 }
                 this.updateButtons();
+                saveToCloud();
             },
 
             updateButtons() {
@@ -386,8 +387,46 @@
             if (e.code === 'Enter') App.triggerReady();
         });
 
+        // --- CLOUD PERSISTENCE ---
+        let cloudSaveTimeout = null;
+        async function saveToCloud() {
+            clearTimeout(cloudSaveTimeout);
+            cloudSaveTimeout = setTimeout(async () => {
+                try {
+                    const data = {
+                        activeCats: Array.from(App.activeCats),
+                        soundEnabled: AudioEngine.enabled,
+                        updatedAt: Date.now()
+                    };
+                    await saveProgress('down_time_screen_data', data);
+                } catch (e) {
+                    console.error("Cloud save failed", e);
+                }
+            }, 1000);
+        }
+
+        async function loadFromCloud() {
+            try {
+                const data = await loadProgress('down_time_screen_data');
+                if (data) {
+                    if (data.activeCats) App.activeCats = new Set(data.activeCats);
+                    if (data.soundEnabled !== undefined) AudioEngine.enabled = data.soundEnabled;
+                    App.updateButtons();
+                    const icon = AudioEngine.enabled ? 'volume-2' : 'volume-x';
+                    App.dom.btnSound.innerHTML = `<i data-lucide="${icon}"></i>`;
+                    lucide.createIcons();
+                }
+            } catch (e) {
+                console.error("Cloud load failed", e);
+            }
+        }
+
         // Initialize Icons on Load
-        lucide.createIcons();
+        window.onload = async () => {
+            await requireAuth();
+            await loadFromCloud();
+            lucide.createIcons();
+        };
     </script>
 </body>
 

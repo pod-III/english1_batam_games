@@ -408,6 +408,28 @@
         updateSoundIcon();
 
         // --- GAME STATE & PERSISTENCE ---
+        let syncTimeout = null;
+        async function syncToCloud() {
+            if (syncTimeout) clearTimeout(syncTimeout);
+            syncTimeout = setTimeout(async () => {
+                await saveProgress('role_speak', {
+                    rounds: rounds,
+                    currentRoundIdx: currentRoundIdx,
+                    scores: scores
+                });
+            }, 1500);
+        }
+
+        async function loadFromCloud() {
+            const cloudData = await loadProgress('role_speak');
+            if (cloudData) {
+                rounds = cloudData.rounds || JSON.parse(JSON.stringify(DEFAULT_ROUNDS));
+                currentRoundIdx = cloudData.currentRoundIdx || 0;
+                scores = cloudData.scores || { 1: 0, 2: 0 };
+                saveGameState(); // Sync to local
+            }
+        }
+
         const DEFAULT_ROUNDS = [
             {
                 yellow: ["No Point", "Absolutely", "Completely", "Extremely", "Quite", "Free Point"],
@@ -432,6 +454,7 @@
                 scores: scores
             };
             localStorage.setItem('e1_role_speak_state', JSON.stringify(gameState));
+            syncToCloud();
         }
 
         // Load from localStorage or use defaults
@@ -452,8 +475,10 @@
         }
 
         // --- INIT ---
-        function init() {
+        async function init() {
+            await requireAuth();
             loadGameState();
+            await loadFromCloud();
             renderModalInputs();
         }
 

@@ -305,38 +305,55 @@
 
         // --- Game Logic ---
 
-        function initGame() {
-            // Apply saved theme
-            const savedTheme = localStorage.getItem('theme_fill-it');
+        async function initGame() {
+            await requireAuth();
+            
+            const cloudData = await loadProgress('fill_it');
+            
+            // Apply theme
+            let theme = localStorage.getItem('theme_fill-it');
+            if (cloudData && cloudData.theme) theme = cloudData.theme;
+            
             const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-            if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+            if (theme === 'dark' || (!theme && prefersDark)) {
                 document.documentElement.classList.add('dark');
             } else {
                 document.documentElement.classList.remove('dark');
             }
             updateThemeIcon(document.documentElement.classList.contains('dark'));
 
-            const savedQuestions = localStorage.getItem('englishGameQuestions');
-            const savedScore = localStorage.getItem('englishGameScore');
+            // Apply Questions & Score
+            if (cloudData) {
+                if (cloudData.questions) questions = cloudData.questions;
+                if (cloudData.score !== undefined) score = cloudData.score;
+                
+                // Sync back to local storage
+                localStorage.setItem('englishGameQuestions', JSON.stringify(questions));
+                localStorage.setItem('englishGameScore', score);
+                localStorage.setItem('theme_fill-it', theme);
+            } else {
+                const savedQuestions = localStorage.getItem('englishGameQuestions');
+                const savedScore = localStorage.getItem('englishGameScore');
 
-            if (savedQuestions) {
-                questions = JSON.parse(savedQuestions);
-                // Auto-upgrade old default questions to include clues
-                const isOldDefault = questions.length === 3 && questions.every(q => !q.clue) && questions[0].answer === "mat" && questions[1].answer === "read" && questions[2].answer === "doctor";
-                if (isOldDefault) {
+                if (savedQuestions) {
+                    questions = JSON.parse(savedQuestions);
+                    // Auto-upgrade old default questions to include clues
+                    const isOldDefault = questions.length === 3 && questions.every(q => !q.clue) && questions[0].answer === "mat" && questions[1].answer === "read" && questions[2].answer === "doctor";
+                    if (isOldDefault) {
+                        questions = [...defaultQuestions];
+                        localStorage.setItem('englishGameQuestions', JSON.stringify(questions));
+                    }
+                } else {
                     questions = [...defaultQuestions];
                     localStorage.setItem('englishGameQuestions', JSON.stringify(questions));
                 }
-            } else {
-                questions = [...defaultQuestions];
-                localStorage.setItem('englishGameQuestions', JSON.stringify(questions));
+
+                if (savedScore) {
+                    score = parseInt(savedScore);
+                }
             }
 
-            if (savedScore) {
-                score = parseInt(savedScore);
-                document.getElementById('score-display').innerText = score;
-            }
-
+            document.getElementById('score-display').innerText = score;
             loadQuestion();
         }
 
@@ -398,6 +415,7 @@
                 document.getElementById('score-display').innerText = score;
                 renderEditorList();
                 loadQuestion();
+                syncToCloud();
                 closeManageModal();
             }
         }
@@ -409,6 +427,7 @@
         function updateScore() {
             localStorage.setItem('englishGameScore', score);
             document.getElementById('score-display').innerText = score;
+            syncToCloud();
         }
 
         // --- Question Manager Logic ---
@@ -532,6 +551,7 @@
 
             questions = newQuestions;
             localStorage.setItem('englishGameQuestions', JSON.stringify(questions));
+            syncToCloud();
             closeManageModal();
             showAlert("Saved!", "Your questions have been successfully updated.", "text-blue", "save", loadQuestion);
         }
@@ -574,6 +594,7 @@
                         if (isValid) {
                             questions = importedData;
                             localStorage.setItem('englishGameQuestions', JSON.stringify(questions));
+                            syncToCloud();
                             renderEditorList();
                             showAlert("Imported!", "Questions successfully loaded from the JSON file.", "text-green", "check-circle", loadQuestion);
                         } else {
@@ -624,12 +645,25 @@
             const isDark = html.classList.contains('dark');
             localStorage.setItem('theme_fill-it', isDark ? 'dark' : 'light');
             updateThemeIcon(isDark);
+            syncToCloud();
         }
 
         function updateThemeIcon(isDark) {
             const btnIcon = document.getElementById('theme-icon');
             if (btnIcon) btnIcon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
             lucide.createIcons();
+        }
+
+        let syncTimeout = null;
+        function syncToCloud() {
+            if (syncTimeout) clearTimeout(syncTimeout);
+            syncTimeout = setTimeout(() => {
+                saveProgress('fill_it', {
+                    questions: questions,
+                    score: score,
+                    theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+                });
+            }, 1500);
         }
 
         // Initialize on load

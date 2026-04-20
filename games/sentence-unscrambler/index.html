@@ -657,16 +657,34 @@
                 }
             }
 
-            function loadSentences() {
+            async function loadSentences() {
+                await requireAuth();
                 try {
-                    const savedSentences =
-                        localStorage.getItem(LS_KEY_SENTENCES);
-                    if (savedSentences) {
-                        sentenceInput.value = savedSentences;
+                    const cloudData = await loadProgress('sentence_unscrambler');
+                    if (cloudData && cloudData.rawText) {
+                        sentenceInput.value = cloudData.rawText;
+                        currentIndex = cloudData.currentIndex || 0;
+                        // Trigger game start if there was progress? 
+                        // Maybe better to just load the text so they can click start.
+                    } else {
+                        const savedSentences = localStorage.getItem(LS_KEY_SENTENCES);
+                        if (savedSentences) {
+                            sentenceInput.value = savedSentences;
+                        }
                     }
                 } catch (e) {
-                    console.error("Could not load from local storage", e);
+                    console.error("Could not load progress", e);
                 }
+            }
+
+            function syncToCloud() {
+                if (window.syncTimeout) clearTimeout(window.syncTimeout);
+                window.syncTimeout = setTimeout(() => {
+                    saveProgress('sentence_unscrambler', {
+                        rawText: sentenceInput.value,
+                        currentIndex: currentIndex
+                    });
+                }, 1500);
             }
 
             // --- THEME MANAGEMENT ---
@@ -738,6 +756,7 @@
                 if (sentences.length === 0) return;
 
                 saveSentences(raw);
+                syncToCloud();
 
                 setupModal.classList.add("hidden");
                 document.getElementById("empty-state").classList.add("hidden");
@@ -749,6 +768,7 @@
 
                 currentIndex = 0;
                 loadSentence();
+                syncToCloud();
             }
 
             function loadSentence() {
@@ -795,6 +815,8 @@
                     currentIndex + 1;
                 const pct = (currentIndex / totalRounds) * 100;
                 progressBar.style.width = `${pct}%`;
+                
+                syncToCloud();
 
                 if (sortable) sortable.destroy();
                 sortable = new Sortable(wordContainer, {
@@ -1020,9 +1042,10 @@
             function initializeApplication() {
                 initTheme();
                 loadSentences();
-                sentenceInput.addEventListener("input", (e) =>
-                    saveSentences(e.target.value),
-                );
+                sentenceInput.addEventListener("input", (e) => {
+                    saveSentences(e.target.value);
+                    syncToCloud();
+                });
                 document.getElementById("setup-btn").click();
                 initIcons();
                 sentenceInput.focus();

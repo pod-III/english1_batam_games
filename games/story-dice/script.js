@@ -5,6 +5,42 @@ let diceCount = 3;
 let isRolling = false;
 let rollHistory = [];
 
+// --- CLOUD PERSISTENCE ---
+let syncTimeout = null;
+async function syncToCloud() {
+    if (syncTimeout) clearTimeout(syncTimeout);
+    syncTimeout = setTimeout(async () => {
+        await saveProgress('story_dice', {
+            soundEnabled,
+            showLabels,
+            diceCount,
+            rollHistory
+        });
+    }, 1500);
+}
+
+async function loadFromCloud() {
+    const cloudData = await loadProgress('story_dice');
+    if (cloudData) {
+        soundEnabled = cloudData.soundEnabled ?? true;
+        showLabels = cloudData.showLabels ?? true;
+        diceCount = cloudData.diceCount ?? 3;
+        rollHistory = cloudData.rollHistory ?? [];
+        
+        // Update UI to match loaded state
+        setDiceCount(diceCount);
+        if (!showLabels) {
+            showLabels = true; // Temporary toggle fix
+            toggleLabels();
+        }
+        if (!soundEnabled) {
+            soundEnabled = true;
+            toggleSound();
+        }
+        updateHistoryUI();
+    }
+}
+
 // --- DATA ---
 const DATA = {
     character: [
@@ -256,6 +292,7 @@ function saveToHistory(rollArray) {
     rollHistory.unshift(rollArray);
     if(rollHistory.length > 10) rollHistory.pop();
     updateHistoryUI();
+    syncToCloud();
 }
 
 function updateHistoryUI() {
@@ -305,6 +342,7 @@ function setDiceCount(n) {
     diceCount = n;
     [1,3,5].forEach(num => {
         const btn = document.getElementById(`mode-${num}`);
+        if(!btn) return;
         if (num === n) {
             btn.classList.add('bg-dark', 'text-white', 'active');
             btn.classList.remove('bg-white', 'text-dark');
@@ -314,12 +352,14 @@ function setDiceCount(n) {
         }
     });
     initBoard();
+    syncToCloud();
 }
 
 function toggleLabels() {
     showLabels = !showLabels;
     document.querySelectorAll('.label-text').forEach(el => showLabels ? el.classList.remove('hidden') : el.classList.add('hidden'));
     const btn = document.getElementById('btn-labels');
+    if(!btn) return;
     if(showLabels) {
         btn.classList.add('bg-green', 'text-white');
         btn.classList.remove('bg-white', 'text-dark');
@@ -327,17 +367,22 @@ function toggleLabels() {
         btn.classList.add('bg-white', 'text-dark');
         btn.classList.remove('bg-green', 'text-white');
     }
+    syncToCloud();
 }
 
 function toggleSound() {
     soundEnabled = !soundEnabled;
     const btn = document.getElementById('btn-sound');
+    if(!btn) return;
     btn.innerHTML = soundEnabled ? '<i data-lucide="volume-2" class="w-5 h-5"></i>' : '<i data-lucide="volume-x" class="w-5 h-5"></i>';
     if(soundEnabled) btn.classList.remove('text-red-500'); else btn.classList.add('text-red-500');
     lucide.createIcons();
+    syncToCloud();
 }
 
-window.onload = () => {
+window.onload = async () => {
+    await requireAuth();
     initBoard();
+    await loadFromCloud();
     lucide.createIcons();
 };

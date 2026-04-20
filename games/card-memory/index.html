@@ -363,9 +363,41 @@
             };
 
             // --- Init ---
-            function init() {
+            async function init() {
+                await requireAuth();
                 lucide.createIcons();
                 setupDragDrop();
+
+                // Load Cloud Progress
+                try {
+                    const data = await loadProgress('card-memory');
+                    if (data) {
+                        state.items = data.items || [];
+                        state.duration = data.duration || 30;
+                        state.theme = data.theme || 'random';
+                        
+                        // Hydrate UI if we have data
+                        if (state.items.length > 0) {
+                            els.inputs.words.value = state.items
+                                .filter(i => i.type === 'text')
+                                .map(i => i.value).join(', ');
+                            els.inputs.time.value = state.duration;
+                            els.inputs.theme.value = state.theme;
+                            
+                            // Load images to pending
+                            state.pendingImages = state.items
+                                .filter(i => i.type === 'image')
+                                .map(i => i.value);
+                            updatePreview();
+                            
+                            renderGrid();
+                            resetUI();
+                            els.status.textContent = `${state.items.length} items restored. Press Start!`;
+                        }
+                    }
+                } catch (e) {
+                    console.error("Cloud load failed", e);
+                }
             }
 
             function setupDragDrop() {
@@ -485,6 +517,13 @@
                 resetUI();
                 closeSetup();
                 els.status.textContent = `${state.items.length} items loaded. Press Start!`;
+
+                // Save to Cloud
+                saveProgress('card-memory', {
+                    items: state.items,
+                    duration: state.duration,
+                    theme: state.theme
+                });
             }
 
             function shuffleItems() {

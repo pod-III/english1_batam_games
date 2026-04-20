@@ -821,6 +821,10 @@
                 // LocalStorage
                 const local = localStorage.getItem('poster-studio-v2');
                 if (local) Store.state = JSON.parse(local);
+
+                // Sync from Cloud
+                await Store.loadFromCloud();
+
                 if (!Store.state.posters.length) App.createNewPoster();
 
                 Store.loadCurrent();
@@ -835,6 +839,10 @@
                 const idx = Store.state.posters.findIndex(p => p.id === Store.current.id);
                 Store.state.posters[idx] = Store.current;
                 localStorage.setItem('poster-studio-v2', JSON.stringify(Store.state));
+                
+                // Sync to Cloud
+                Store.syncToCloud();
+
                 if (visual) {
                     const btn = document.getElementById('save-btn');
                     btn.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i> Saved!`;
@@ -844,6 +852,28 @@
                         btn.classList.remove('bg-brand-green', 'text-brand-dark'); btn.classList.add('bg-brand-blue', 'text-white');
                         lucide.createIcons();
                     }, 1000);
+                }
+            },
+
+            async syncToCloud() {
+                try {
+                    await saveProgress('poster_studio_data', Store.state);
+                    console.log("✅ Poster data synced to cloud");
+                } catch (e) {
+                    console.error("Cloud sync failed", e);
+                }
+            },
+
+            async loadFromCloud() {
+                try {
+                    const data = await loadProgress('poster_studio_data');
+                    if (data) {
+                        // Simple merge: keep cloud data as source of truth for projects
+                        Store.state = data;
+                        console.log("✅ Poster data loaded from cloud");
+                    }
+                } catch (e) {
+                    console.error("Cloud load failed", e);
                 }
             },
 
@@ -948,7 +978,8 @@
             editingId: null,
             isDragging: false, // Flag to prevent click event
 
-            init() {
+            async init() {
+                await requireAuth();
                 Store.init().then(() => {
                     App.updateUI();
                     Renderer.renderPoster();

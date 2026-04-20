@@ -792,6 +792,7 @@
                 localStorage.setItem(this.KEY_DATA, JSON.stringify(questions));
                 localStorage.setItem(this.KEY_TIMER, timer);
                 localStorage.setItem(this.KEY_PRESET, presetId);
+                if (typeof syncToCloud === 'function') syncToCloud();
             },
 
             load() {
@@ -823,8 +824,19 @@
             currentPresetId: 'world',
             confirmCallback: null,
 
-            init() {
-                const data = Storage.load();
+            async init() {
+                await requireAuth();
+                
+                const cloudData = await loadProgress('emoji_game');
+                let data;
+
+                if (cloudData) {
+                    data = cloudData;
+                    // Sync back to local storage
+                    Storage.save(data.questions, data.timer, data.presetId);
+                } else {
+                    data = Storage.load();
+                }
 
                 this.currentPresetId = data.presetId;
                 this.timerDuration = data.timer;
@@ -1089,6 +1101,18 @@
                 }
             }
         };
+
+        let syncTimeout = null;
+        function syncToCloud() {
+            if (syncTimeout) clearTimeout(syncTimeout);
+            syncTimeout = setTimeout(() => {
+                saveProgress('emoji_game', {
+                    questions: GameLogic.questions,
+                    timer: GameLogic.timerDuration,
+                    presetId: GameLogic.currentPresetId
+                });
+            }, 1500);
+        }
 
         // Boot
         window.onload = () => GameLogic.init();

@@ -600,7 +600,64 @@
                 if (p.id === currentPresetId) option.selected = true;
                 select.appendChild(option);
             });
+            syncToCloud();
         }
+
+        async function syncToCloud() {
+            if (syncTimeout) clearTimeout(syncTimeout);
+            syncTimeout = setTimeout(async () => {
+                const presets = await getAllPresets();
+                // Strip images from cloud sync to save space
+                const cleanPresets = presets.map(p => ({
+                    ...p,
+                    data: p.data.map(slide => ({
+                        ...slide,
+                        images: [] // Don't sync images to cloud yet
+                    }))
+                }));
+                const cleanQuestions = questions.map(s => ({
+                    ...s,
+                    images: []
+                }));
+
+                await saveProgress('this_or_that', {
+                    questions: cleanQuestions,
+                    presets: cleanPresets,
+                    currentPresetId
+                });
+            }, 2000);
+        }
+
+        async function loadFromCloud() {
+            const cloudData = await loadProgress('this_or_that');
+            if (cloudData) {
+                // Merge presets (cloud prioritized)
+                const db = await openDB();
+                if (cloudData.presets) {
+                    for (const p of cloudData.presets) {
+                        const tx = db.transaction(STORE_PRESETS, "readwrite");
+                        const store = tx.objectStore(STORE_PRESETS);
+                        // We use name as a weak unique identifier for cloud merge
+                        const existing = await new Promise(r => {
+                            const req = store.index("name").get(p.name);
+                            req.onsuccess = () => r(req.result);
+                        });
+                        if (!existing) {
+                            delete p.id; // Let local DB assign new ID
+                            store.add(p);
+                        }
+                    }
+                }
+                if (cloudData.questions && questions.length === 0) {
+                    questions = cloudData.questions;
+                    await saveGameData(questions);
+                }
+                currentPresetId = cloudData.currentPresetId ?? currentPresetId;
+                await renderPresetSelector();
+            }
+        }
+
+        let syncTimeout = null;
 
         async function onUserPresetSelect() {
             const select = document.getElementById("userPresetSelect");
@@ -848,6 +905,7 @@
         }
 
         async function init() {
+            await requireAuth();
             updateSoundIcon();
             lucide.createIcons();
 
@@ -862,6 +920,7 @@
                 } else {
                     questions = [];
                 }
+                await loadFromCloud();
             } catch (error) {
                 console.error("Failed to load from IndexedDB:", error);
                 questions = [];
@@ -1175,6 +1234,7 @@
 
             try {
                 await saveGameData(questions);
+                syncToCloud();
                 closeSetupModal();
                 startGame();
             } catch (error) {

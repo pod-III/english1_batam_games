@@ -365,6 +365,11 @@
         const DEFAULT_WORDS = "elephant, giraffe, computer, backpack, school, teacher, student, pencil, window, garden";
         const DEFAULT_SENTENCES = "The car was slightly dented\nI like to play football\nThe cat is sleeping\nWhere is the library\nI am happy today\nCan I help you";
 
+        let gameData = {
+            words: DEFAULT_WORDS,
+            sentences: DEFAULT_SENTENCES
+        };
+
         // DOM Elements
         const elSetup = document.getElementById('setup-panel');
         const elGame = document.getElementById('game-panel');
@@ -387,10 +392,37 @@
         const btnModeSentence = document.getElementById('btn-mode-sentence');
         const mainCard = document.getElementById('main-card');
 
+        // --- CLOUD SYNC ---
+        async function loadFromCloud() {
+            // 1. Try Cloud
+            const cloud = await loadProgress('unscramble');
+            
+            // 2. Try Legacy Local
+            const localWords = localStorage.getItem('klasskit_scramble_words');
+            const localSentences = localStorage.getItem('klasskit_scramble_sentences');
+
+            if (cloud) {
+                gameData = { ...gameData, ...cloud };
+            } else if (localWords || localSentences) {
+                // Migrate
+                if (localWords) gameData.words = localWords;
+                if (localSentences) gameData.sentences = localSentences;
+                syncToCloud();
+            }
+            
+            // Initial render
+            setMode(currentMode);
+        }
+
+        function syncToCloud() {
+            saveProgress('unscramble', gameData);
+        }
+
         // Init
-        window.onload = () => {
+        window.onload = async () => {
+            await requireAuth();
             lucide.createIcons();
-            setMode('word');
+            await loadFromCloud();
 
             // Keyboard shortcuts
             document.addEventListener('keydown', (e) => {
@@ -425,17 +457,13 @@
                 btnModeWord.classList.add('active');
                 btnModeSentence.classList.remove('active');
                 elInputLabel.innerText = "Enter words separated by commas:";
-
-                const saved = localStorage.getItem('klasskit_scramble_words');
-                elInput.value = saved || DEFAULT_WORDS;
+                elInput.value = gameData.words;
                 elInput.placeholder = "apple, banana, orange";
             } else {
                 btnModeSentence.classList.add('active');
                 btnModeWord.classList.remove('active');
                 elInputLabel.innerText = "Enter sentences (one per line):";
-
-                const saved = localStorage.getItem('klasskit_scramble_sentences');
-                elInput.value = saved || DEFAULT_SENTENCES;
+                elInput.value = gameData.sentences;
                 elInput.placeholder = "The car was slightly dented\nI love ice cream";
             }
         }
@@ -445,12 +473,16 @@
             const raw = elInput.value;
 
             if (currentMode === 'word') {
+                gameData.words = raw;
                 localStorage.setItem('klasskit_scramble_words', raw);
                 items = raw.split(',').map(w => w.trim()).filter(w => w.length >= 2);
             } else {
+                gameData.sentences = raw;
                 localStorage.setItem('klasskit_scramble_sentences', raw);
                 items = raw.split('\n').map(s => s.trim()).filter(s => s.length >= 3);
             }
+
+            syncToCloud();
 
             if (items.length === 0) {
                 alert(currentMode === 'word' ? "Please enter words!" : "Please enter sentences!");

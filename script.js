@@ -152,6 +152,12 @@ const Storage = {
   set(key, value) {
     try {
       localStorage.setItem(key, JSON.stringify(value));
+      
+      // If this is a hub key, trigger a cloud save in background
+      const hubKeys = Object.values(CONFIG.storageKeys);
+      if (hubKeys.includes(key)) {
+        this.triggerCloudSave();
+      }
       return true;
     } catch (error) {
       console.error(`Storage write error for "${key}":`, error);
@@ -162,9 +168,55 @@ const Storage = {
   remove(key) {
     try {
       localStorage.removeItem(key);
+      const hubKeys = Object.values(CONFIG.storageKeys);
+      if (hubKeys.includes(key)) {
+        this.triggerCloudSave();
+      }
     } catch (error) {
       console.error(`Storage remove error for "${key}":`, error);
     }
+  },
+
+  _saveTimeout: null,
+  triggerCloudSave() {
+    if (this._saveTimeout) clearTimeout(this._saveTimeout);
+    this._saveTimeout = setTimeout(async () => {
+      const user = await getUser();
+      if (!user) return;
+
+      const hubState = {};
+      Object.keys(CONFIG.storageKeys).forEach(keyName => {
+        const key = CONFIG.storageKeys[keyName];
+        const val = this.get(key);
+        if (val !== null) hubState[key] = val;
+      });
+
+      console.log('[CloudPersistence] Saving hub state...', hubState);
+      await saveProgress('klasskit_hub', hubState);
+    }, 2000); // Debounce to avoid excessive writes
+  },
+
+  async syncWithCloud() {
+    const user = await getUser();
+    if (!user) return;
+
+    console.log('[CloudPersistence] Syncing with cloud...');
+    const cloudHubState = await loadProgress('klasskit_hub');
+    
+    if (cloudHubState) {
+      console.log('[CloudPersistence] Found cloud state:', cloudHubState);
+      let changed = false;
+      Object.keys(cloudHubState).forEach(key => {
+        const localVal = localStorage.getItem(key);
+        const cloudVal = JSON.stringify(cloudHubState[key]);
+        if (localVal !== cloudVal) {
+          localStorage.setItem(key, cloudVal);
+          changed = true;
+        }
+      });
+      return changed;
+    }
+    return false;
   }
 };
 
@@ -1664,10 +1716,24 @@ const Footer = {
 // --- APP CONTROLLER ---
 const App = {
   async init() {
+    await requireAuth();
     try {
       Theme.load();
       UI.updateGreeting();
       UI.showLoading();
+
+      // Cloud Persistence: Sync with cloud BEFORE loading games or initialization
+      // This ensures pinned/recent items are up to date
+      const dataChanged = await Storage.syncWithCloud();
+      if (dataChanged) {
+        console.log('[CloudPersistence] Local state updated from cloud. Refreshing theme...');
+        Theme.load();
+      }
+
+      // Handle migration if needed
+      if (typeof migrateLocalToCloud === 'function') {
+        migrateLocalToCloud();
+      }
 
       const data = await DataLoader.loadGames();
       State.setGames(data);

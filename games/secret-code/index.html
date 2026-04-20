@@ -719,22 +719,37 @@
                 renderWordSets();
             }
 
-            // --- State Persistence (IndexedDB) ---
+            // --- State Persistence (Cloud-First with IndexedDB Cache) ---
             async function saveState() {
                 const state = {
                     shift: currentShift,
                     secrets: secretList,
                     roundIndex: currentRoundIndex,
                 };
+                // Update Local Cache
                 await dbPut('caesarState', state);
+                // Update Cloud
+                saveProgress('secret_code', state);
             }
 
             async function loadState() {
-                const state = await dbGet('caesarState');
+                await requireAuth();
+                
+                // 1. Try Cloud
+                const cloudState = await loadProgress('secret_code');
+                
+                // 2. Try Local if cloud fails or for speed (loadProgress already does this for localStorage, but we use IndexedDB here)
+                const localState = await dbGet('caesarState');
+                
+                const state = cloudState || localState;
+
                 if (state) {
                     currentShift = state.shift ?? 3;
                     secretList = state.secrets ?? [];
                     currentRoundIndex = state.roundIndex ?? 0;
+                    
+                    // Update local if cloud was different
+                    if (cloudState) await dbPut('caesarState', cloudState);
                 }
 
                 if (secretList.length > 0) {
@@ -753,6 +768,8 @@
                 } else if (window.innerWidth < 768 && secretList.length > 0) {
                     toggleControlPanel(true);
                 }
+                
+                renderWordSets(); // Refresh word sets list
             }
 
             function clearGame() {
@@ -1120,14 +1137,19 @@
                 animate();
             }
 
-            // Init
+            // --- INITIALIZATION ---
             decoderContent.style.maxHeight = "500px"; // initial open state
             initTheme();
-            loadState();
-            renderWordSets();
+            loadState(); // calls the new async loadState at line 733
 
-            // Auto-save textarea on input
-            secretInput.addEventListener('input', () => saveState());
+            // Auto-save textarea on input (debounced)
+            let inputTimeout;
+            secretInput.addEventListener('input', () => {
+                if (inputTimeout) clearTimeout(inputTimeout);
+                inputTimeout = setTimeout(() => {
+                    saveState();
+                }, 1000);
+            });
         </script>
     </body>
 </html>

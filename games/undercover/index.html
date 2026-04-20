@@ -204,7 +204,18 @@
             }
         };
 
-        function initGame() {
+        async function initGame() {
+            await requireAuth();
+            
+            // Load Cloud Config
+            const cloudConfig = await loadProgress('undercover');
+            if (cloudConfig) {
+                state.config = { ...state.config, ...cloudConfig };
+                
+                // Keep localStorage in sync for fast loading/fallback
+                localStorage.setItem('undercoverConfig', JSON.stringify(state.config));
+            }
+            
             setScreen('instructions');
         }
 
@@ -777,8 +788,14 @@
             `;
         }
 
+        let saveConfigTimeout = null;
         function saveConfig() {
             localStorage.setItem('undercoverConfig', JSON.stringify(state.config));
+            
+            if (saveConfigTimeout) clearTimeout(saveConfigTimeout);
+            saveConfigTimeout = setTimeout(() => {
+                saveProgress('undercover', state.config);
+            }, 1000);
         }
 
         function addName() {

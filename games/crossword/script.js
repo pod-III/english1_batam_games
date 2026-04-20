@@ -1,4 +1,17 @@
 lucide.createIcons();
+let syncTimeout = null;
+async function syncToCloud() {
+    if (syncTimeout) clearTimeout(syncTimeout);
+    syncTimeout = setTimeout(async () => {
+        const game_state = {
+            word_input: await getFromDB('word_input'),
+            grid_size: await getFromDB('grid_size'),
+            puzzle_data: await getFromDB('puzzle_data')
+        };
+        const word_sets = await getAllWordSets();
+        saveProgress('crossword', { game_state, word_sets });
+    }, 1500);
+}
 
 // --- PERSISTENCE (IndexedDB) ---
 const DB_NAME = 'CrosswordDB';
@@ -54,6 +67,7 @@ async function saveGameState() {
     await saveToDB('word_input', els.input.value);
     await saveToDB('grid_size', GRID_SIZE);
     if (puzzle) await saveToDB('puzzle_data', puzzle);
+    syncToCloud();
 }
 
 async function loadGameState() {
@@ -90,6 +104,7 @@ async function saveWordSet(name, content) {
         const tx = db.transaction(SETS_STORE, 'readwrite');
         const store = tx.objectStore(SETS_STORE);
         store.put({ name, content, createdAt: Date.now() });
+        syncToCloud();
         return new Promise((resolve, reject) => {
             tx.oncomplete = resolve;
             tx.onerror = () => reject(tx.error);
@@ -121,6 +136,7 @@ async function deleteWordSet(id) {
         const tx = db.transaction(SETS_STORE, 'readwrite');
         const store = tx.objectStore(SETS_STORE);
         store.delete(id);
+        syncToCloud();
         return new Promise((resolve, reject) => {
             tx.oncomplete = resolve;
             tx.onerror = () => reject(tx.error);
@@ -677,6 +693,7 @@ document.getElementById('save-set-btn').onclick = async () => {
 };
 
 window.onload = async () => {
+    await requireAuth();
     initTheme();
     const themeBtn = document.getElementById('theme-toggle');
     if (themeBtn) themeBtn.onclick = toggleTheme;

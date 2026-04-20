@@ -15,10 +15,21 @@
         const stage = document.getElementById('game-stage');
         
         // --- INITIALIZATION ---
-        function init() {
+        async function init() {
+            await requireAuth();
+            
+            // Load progress from cloud
+            const savedState = await loadProgress('magic_cups');
+            if (savedState) {
+                gameState.cupCount = savedState.cupCount ?? 3;
+                gameState.ballCount = savedState.ballCount ?? 1;
+                gameState.shuffleSpeed = savedState.shuffleSpeed ?? 1.0;
+                gameState.selectedCupIndex = savedState.selectedCupIndex ?? 1;
+            }
+
             lucide.createIcons();
             updateStepperUI();
-            updateSpeedSetting();
+            updateSpeedSetting(true); // pass true to avoid re-saving immediately
             renderDesignSelector(); 
             renderCups();
             updateStatus('ready');
@@ -26,6 +37,20 @@
             if(window.innerWidth < 768) {
                 toggleControlPanel(true);
             }
+        }
+
+        // --- CLOUD PERSISTENCE ---
+        let saveTimeout;
+        function triggerCloudSave() {
+            if (saveTimeout) clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                saveProgress('magic_cups', {
+                    cupCount: gameState.cupCount,
+                    ballCount: gameState.ballCount,
+                    shuffleSpeed: gameState.shuffleSpeed,
+                    selectedCupIndex: gameState.selectedCupIndex
+                });
+            }, 1000);
         }
 
         // --- LOGIC: SETTINGS ---
@@ -37,6 +62,7 @@
                 if(gameState.ballCount >= gameState.cupCount) gameState.ballCount = gameState.cupCount - 1;
                 updateStepperUI();
                 renderCups();
+                triggerCloudSave();
             }
         }
 
@@ -46,6 +72,7 @@
             if (newVal >= 1 && newVal < gameState.cupCount) {
                 gameState.ballCount = newVal;
                 updateStepperUI();
+                triggerCloudSave();
             }
         }
 
@@ -58,11 +85,12 @@
             document.getElementById('btn-ball-plus').disabled = (gameState.ballCount >= gameState.cupCount - 1);
         }
 
-        function updateSpeedSetting() {
+        function updateSpeedSetting(skipSave = false) {
             const sliderVal = parseInt(document.getElementById('speed-slider').value);
             const speedFactor = sliderVal / 10;
             gameState.shuffleSpeed = speedFactor;
             document.getElementById('speed-display').innerText = `${speedFactor.toFixed(1)}X`;
+            if (!skipSave) triggerCloudSave();
         }
 
         // --- LOGIC: RENDER ---
@@ -103,6 +131,7 @@
             gameState.selectedCupIndex = index;
             highlightSelectedDesign(index);
             renderCups(); 
+            triggerCloudSave();
         }
 
         function renderCups() {
