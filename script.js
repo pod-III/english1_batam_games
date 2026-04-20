@@ -1814,6 +1814,26 @@ const App = {
   }
 };
 
+// --- AUTH INDICATOR ---
+async function initAuthIndicator() {
+  const signInLink = document.getElementById('auth-signin-link');
+  const loggedInDiv = document.getElementById('auth-logged-in');
+  const usernameEl = document.getElementById('auth-username');
+
+  if (!signInLink || !loggedInDiv) return;
+
+  const user = await getUser();
+  if (user) {
+    signInLink.classList.add('hidden');
+    loggedInDiv.classList.remove('hidden');
+    const displayName = user.user_metadata?.display_name || user.email?.split('@')[0] || 'User';
+    if (usernameEl) usernameEl.textContent = displayName;
+  } else {
+    signInLink.classList.remove('hidden');
+    loggedInDiv.classList.add('hidden');
+  }
+}
+
 // --- EXPORTS & INITIALIZATION ---
 window.App = App;
 window.AudioEngine = AudioEngine;
@@ -1821,7 +1841,11 @@ window.TabManager = TabManager;
 window.filterGames = (category) => Filters.setCategory(category);
 
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => App.init());
+  document.addEventListener('DOMContentLoaded', () => {
+    App.init();
+    initAuthIndicator();
+  });
 } else {
   App.init();
+  initAuthIndicator();
 }

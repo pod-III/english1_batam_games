@@ -13,65 +13,56 @@
 const SUPABASE_URL  = 'https://mkarfktuvtllaxpunwtb.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_5Fd483qrg6bEFa_T1oNyLg_gymEgi4P';
 
-// ── Client ────────────────────────────────────────────────────────────────
-const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const { createClient } = supabase
+const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
-// ── Helpers ───────────────────────────────────────────────────────────────
-
-/**
- * Return the currently logged-in user object, or null.
- * @returns {Promise<import('@supabase/supabase-js').User | null>}
- */
+/* ── AUTH HELPERS ── */
 async function getUser() {
-  const { data: { user } } = await db.auth.getUser();
-  return user;
+  const { data: { session } } = await db.auth.getSession()
+  return session?.user ?? null
 }
 
-/**
- * Redirect to `/login.html` if nobody is signed in.
- * Stores the current page path in localStorage so the login page
- * can send the user back after a successful sign-in.
- * Call at the top of any page that needs authentication.
- * @returns {Promise<import('@supabase/supabase-js').User>}
- */
 async function requireAuth() {
-  const user = await getUser();
+  const user = await getUser()
   if (!user) {
-    localStorage.setItem('after_login', window.location.pathname + window.location.search);
-    window.location.href = '/login.html';
+    localStorage.setItem('after_login', location.href)
+    location.href = '/login.html'
     // Return a never-resolving promise so downstream code doesn't run
-    return new Promise(() => {});
+    return new Promise(() => {})
   }
-  return user;
+  return user
 }
 
-/**
- * Create a new account with email + password.
- * @param {string} email
- * @param {string} password
- * @returns {Promise<{ user: object | null, error: object | null }>}
- */
-async function signUp(email, password) {
-  const { data, error } = await db.auth.signUp({ email, password });
-  return { user: data?.user ?? null, error };
+async function signUp(email, pass) {
+  return db.auth.signUp({ email, password: pass })
 }
-
-/**
- * Sign in with email + password.
- * @param {string} email
- * @param {string} password
- * @returns {Promise<{ user: object | null, error: object | null }>}
- */
-async function signIn(email, password) {
-  const { data, error } = await db.auth.signInWithPassword({ email, password });
-  return { user: data?.user ?? null, error };
+async function signIn(email, pass) {
+  return db.auth.signInWithPassword({ email, password: pass })
 }
-
-/**
- * Sign the current user out and reload the page.
- * @returns {Promise<void>}
- */
 async function signOut() {
-  await db.auth.signOut();
-  window.location.reload();
+  await db.auth.signOut()
+  location.href = '/login.html'
+}
+
+/* ── DATA HELPERS (replaces localStorage) ── */
+async function saveProgress(toolKey, data) {
+  localStorage.setItem(`prog_${toolKey}`, JSON.stringify(data))
+  const user = await getUser()
+  if (!user) return
+  await db.from('user_progress').upsert(
+    { user_id: user.id, tool_key: toolKey, data,
+      updated_at: new Date().toISOString() },
+    { onConflict: 'user_id,tool_key' }
+  )
+}
+
+async function loadProgress(toolKey) {
+  const user = await getUser()
+  if (user) {
+    const { data } = await db.from('user_progress')
+      .select('data').eq('tool_key', toolKey).single()
+    if (data) return data.data
+  }
+  const local = localStorage.getItem(`prog_${toolKey}`)
+  return local ? JSON.parse(local) : null
 }
