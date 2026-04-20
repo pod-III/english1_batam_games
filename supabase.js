@@ -33,8 +33,14 @@ async function requireAuth() {
   return user
 }
 
-async function signUp(email, pass) {
-  return db.auth.signUp({ email, password: pass })
+async function signUp(email, pass, displayName) {
+  return db.auth.signUp({
+    email,
+    password: pass,
+    options: {
+      data: { display_name: displayName }
+    }
+  })
 }
 async function signIn(email, pass) {
   return db.auth.signInWithPassword({ email, password: pass })
@@ -65,4 +71,39 @@ async function loadProgress(toolKey) {
   }
   const local = localStorage.getItem(`prog_${toolKey}`)
   return local ? JSON.parse(local) : null
+}
+
+async function updateDisplayName(displayName) {
+  const user = await getUser()
+  if (!user) return { error: 'Not logged in' }
+
+  // Update in auth metadata (so getUser() reflects it immediately)
+  const { error: authError } = await db.auth.updateUser({
+    data: { display_name: displayName }
+  })
+  if (authError) return { error: authError.message }
+
+  // Update in profiles table (for admin queries and leaderboards later)
+  const { error: dbError } = await db
+    .from('profiles')
+    .update({ display_name: displayName })
+    .eq('id', user.id)
+
+  if (dbError) return { error: dbError.message }
+
+  return { success: true }
+}
+
+async function migrateLocalToCloud() {
+  if (localStorage.getItem('migrated_to_cloud')) return
+  const user = await getUser()
+  if (!user) return
+
+  const keys = Object.keys(localStorage).filter(k => k.startsWith('prog_'))
+  for (const key of keys) {
+    const toolKey = key.replace('prog_', '')
+    const data = JSON.parse(localStorage.getItem(key))
+    await saveProgress(toolKey, data)
+  }
+  localStorage.setItem('migrated_to_cloud', 'true')
 }

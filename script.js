@@ -1814,6 +1814,74 @@ const App = {
   }
 };
 
+// --- DISPLAY NAME EDITING ---
+function initDisplayNameEditor() {
+  const editBtn = document.getElementById('auth-edit-name-btn');
+  const modal = document.getElementById('display-name-modal');
+  const input = document.getElementById('display-name-input');
+  const cancelBtn = document.getElementById('display-name-cancel');
+  const saveBtn = document.getElementById('display-name-save');
+  const errorEl = document.getElementById('display-name-error');
+  const usernameEl = document.getElementById('auth-username');
+
+  if (!editBtn || !modal || !input) return;
+
+  function openModal() {
+    const currentName = usernameEl?.textContent || '';
+    input.value = currentName;
+    errorEl.classList.add('hidden');
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+    input.focus();
+    input.select();
+  }
+
+  function closeModal() {
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  }
+
+  async function saveDisplayName() {
+    const newName = input.value.trim();
+    if (!newName) {
+      errorEl.textContent = 'Please enter a display name';
+      errorEl.classList.remove('hidden');
+      return;
+    }
+
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Saving...';
+    lucide?.createIcons?.();
+
+    const result = await updateDisplayName(newName);
+
+    saveBtn.disabled = false;
+    saveBtn.innerHTML = '<i data-lucide="check" class="w-5 h-5"></i> Save';
+    lucide?.createIcons?.();
+
+    if (result.error) {
+      errorEl.textContent = result.error;
+      errorEl.classList.remove('hidden');
+    } else {
+      if (usernameEl) usernameEl.textContent = newName;
+      closeModal();
+    }
+  }
+
+  editBtn.addEventListener('click', openModal);
+  cancelBtn?.addEventListener('click', closeModal);
+  saveBtn?.addEventListener('click', saveDisplayName);
+
+  input?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') saveDisplayName();
+    if (e.key === 'Escape') closeModal();
+  });
+
+  modal?.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
+}
+
 // --- AUTH INDICATOR ---
 async function initAuthIndicator() {
   const signInLink = document.getElementById('auth-signin-link');
@@ -1844,8 +1912,10 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
     App.init();
     initAuthIndicator();
+    initDisplayNameEditor();
   });
 } else {
   App.init();
   initAuthIndicator();
+  initDisplayNameEditor();
 }
