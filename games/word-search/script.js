@@ -101,7 +101,7 @@ const STORE_PRESETS = 'presets';
 const STORE_SETTINGS = 'settings';
 const STORE_PUZZLES = 'savedPuzzles';
 
-let db = null;
+let dataBase = null;
 let GRID_SIZE = 10;
 let CELL_SIZE = 45;
 let currentPresetId = null;
@@ -133,7 +133,7 @@ function openDB() {
 
 async function initDB() {
     try {
-        db = await openDB();
+        dataBase = await openDB();
     } catch (e) {
         console.error('Failed to initialize IndexedDB:', e);
         showToast('Storage unavailable.', 'warning');
@@ -141,9 +141,9 @@ async function initDB() {
 }
 
 async function savePreset(name, data, id = null) {
-    if (!db) throw new Error('Database not initialized');
+    if (!dataBase) throw new Error('Database not initialized');
     return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_PRESETS, 'readwrite');
+        const tx = dataBase.transaction(STORE_PRESETS, 'readwrite');
         const store = tx.objectStore(STORE_PRESETS);
         const preset = { name, data: JSON.parse(JSON.stringify(data)), updatedAt: Date.now() };
         if (id) preset.id = id;
@@ -154,9 +154,9 @@ async function savePreset(name, data, id = null) {
 }
 
 async function getAllPresets() {
-    if (!db) return [];
+    if (!dataBase) return [];
     return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_PRESETS, 'readonly');
+        const tx = dataBase.transaction(STORE_PRESETS, 'readonly');
         const store = tx.objectStore(STORE_PRESETS);
         const index = store.index('updatedAt');
         const request = index.getAll();
@@ -165,9 +165,9 @@ async function getAllPresets() {
 }
 
 async function getPreset(id) {
-    if (!db) return null;
+    if (!dataBase) return null;
     return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_PRESETS, 'readonly');
+        const tx = dataBase.transaction(STORE_PRESETS, 'readonly');
         const store = tx.objectStore(STORE_PRESETS);
         const request = store.get(id);
         request.onsuccess = () => resolve(request.result);
@@ -175,9 +175,9 @@ async function getPreset(id) {
 }
 
 async function deletePreset(id) {
-    if (!db) throw new Error('Database not initialized');
+    if (!dataBase) throw new Error('Database not initialized');
     return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_PRESETS, 'readwrite');
+        const tx = dataBase.transaction(STORE_PRESETS, 'readwrite');
         const store = tx.objectStore(STORE_PRESETS);
         const request = store.delete(id);
         request.onsuccess = () => resolve();
@@ -185,15 +185,15 @@ async function deletePreset(id) {
 }
 
 async function saveCurrentPresetId(id) {
-    if (!db) return;
-    const tx = db.transaction(STORE_SETTINGS, 'readwrite');
+    if (!dataBase) return;
+    const tx = dataBase.transaction(STORE_SETTINGS, 'readwrite');
     tx.objectStore(STORE_SETTINGS).put({ key: 'currentPresetId', value: id });
 }
 
 async function getCurrentPresetId() {
-    if (!db) return null;
+    if (!dataBase) return null;
     return new Promise((resolve) => {
-        const tx = db.transaction(STORE_SETTINGS, 'readonly');
+        const tx = dataBase.transaction(STORE_SETTINGS, 'readonly');
         const request = tx.objectStore(STORE_SETTINGS).get('currentPresetId');
         request.onsuccess = () => resolve(request.result?.value || null);
     });
@@ -304,9 +304,9 @@ async function deleteCurrentUserPreset() {
 // --- SAVED PUZZLES ---
 
 async function getAllSavedPuzzles() {
-    if (!db) return [];
+    if (!dataBase) return [];
     return new Promise((resolve) => {
-        const tx = db.transaction(STORE_PUZZLES, 'readonly');
+        const tx = dataBase.transaction(STORE_PUZZLES, 'readonly');
         const index = tx.objectStore(STORE_PUZZLES).index('updatedAt');
         const request = index.getAll();
         request.onsuccess = () => resolve(request.result.reverse());
@@ -339,9 +339,9 @@ async function onSavedPuzzleSelect() {
 }
 
 async function getSavedPuzzle(id) {
-    if (!db) return null;
+    if (!dataBase) return null;
     return new Promise((resolve) => {
-        const tx = db.transaction(STORE_PUZZLES, 'readonly');
+        const tx = dataBase.transaction(STORE_PUZZLES, 'readonly');
         const request = tx.objectStore(STORE_PUZZLES).get(id);
         request.onsuccess = () => resolve(request.result);
     });
@@ -371,8 +371,8 @@ async function saveCurrentPuzzle() {
 }
 
 async function saveGeneratedPuzzle(name, data, id = null) {
-    if (!db) throw new Error('Database not initialized');
-    const tx = db.transaction(STORE_PUZZLES, 'readwrite');
+    if (!dataBase) throw new Error('Database not initialized');
+    const tx = dataBase.transaction(STORE_PUZZLES, 'readwrite');
     const store = tx.objectStore(STORE_PUZZLES);
     const puzzle = { name, data, updatedAt: Date.now() };
     if (id) puzzle.id = id;
@@ -399,9 +399,9 @@ async function deleteCurrentSavedPuzzle() {
 }
 
 async function deleteGeneratedPuzzle(id) {
-    if (!db) throw new Error('Database not initialized');
+    if (!dataBase) throw new Error('Database not initialized');
     return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE_PUZZLES, 'readwrite');
+        const tx = dataBase.transaction(STORE_PUZZLES, 'readwrite');
         const store = tx.objectStore(STORE_PUZZLES);
         const request = store.delete(id);
         request.onsuccess = () => resolve();
