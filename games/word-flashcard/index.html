@@ -527,6 +527,7 @@
             const db = await initDB();
             const tx = db.transaction(SETS_STORE, 'readwrite');
             tx.objectStore(SETS_STORE).delete(id);
+            syncToCloud();
             return new Promise(r => { tx.oncomplete = r; });
         }
         async function renderWordSets() {
@@ -563,6 +564,7 @@
             await saveWordSetToDB(name, content);
             nameInput.value = '';
             renderWordSets();
+            syncToCloud();
         }
 
         const PRESETS = {
@@ -678,6 +680,35 @@
         };
 
         const loadPersistedData = async () => {
+            // 1. Load from Cloud
+            const cloud = await loadProgress('word_flashcard');
+            
+            // 2. Load from Local
+            const localWords = await dbGet(STORAGE_KEYS.WORDS);
+            const localDur = await dbGet(STORAGE_KEYS.DURATION);
+            const localPrep = await dbGet(STORAGE_KEYS.PREP);
+
+            if (cloud) {
+                // Sync cloud to local
+                if (cloud.words !== undefined) await dbPut(STORAGE_KEYS.WORDS, cloud.words);
+                if (cloud.duration !== undefined) await dbPut(STORAGE_KEYS.DURATION, cloud.duration);
+                if (cloud.prep !== undefined) await dbPut(STORAGE_KEYS.PREP, cloud.prep);
+                
+                // Sync Word Sets if present
+                if (cloud.wordSets) {
+                    const db = await initDB();
+                    const tx = db.transaction(SETS_STORE, 'readwrite');
+                    const store = tx.objectStore(SETS_STORE);
+                    // Simple merge: add cloud sets if they don't exist by name
+                    const localSets = await getAllWordSets();
+                    for (const cs of cloud.wordSets) {
+                        if (!localSets.find(ls => ls.name === cs.name)) {
+                            store.put({ name: cs.name, content: cs.content, createdAt: cs.createdAt });
+                        }
+                    }
+                }
+            }
+
             const words = await dbGet(STORAGE_KEYS.WORDS);
             dom.inputs.list.value = words || '';
             const dur = await dbGet(STORAGE_KEYS.DURATION);
@@ -687,10 +718,25 @@
             updateWordCount();
         };
 
+        const syncToCloud = async () => {
+            if (window.syncTimeout) clearTimeout(window.syncTimeout);
+            window.syncTimeout = setTimeout(async () => {
+                const wordSets = await getAllWordSets();
+                const payload = {
+                    words: dom.inputs.list.value,
+                    duration: dom.inputs.duration.value,
+                    prep: dom.inputs.prep.value,
+                    wordSets: wordSets.map(s => ({ name: s.name, content: s.content, createdAt: s.createdAt }))
+                };
+                saveProgress('word_flashcard', payload);
+            }, 2000);
+        };
+
         const savePersistedData = () => {
             dbPut(STORAGE_KEYS.WORDS, dom.inputs.list.value);
             dbPut(STORAGE_KEYS.DURATION, dom.inputs.duration.value);
             dbPut(STORAGE_KEYS.PREP, dom.inputs.prep.value);
+            syncToCloud();
         };
 
         // --- CORE LOGIC ---
@@ -926,6 +972,7 @@
 
         // Initialize
         window.addEventListener('load', async () => {
+            await requireAuth();
             initTheme();
             document.getElementById('theme-toggle-btn').addEventListener('click', toggleTheme);
             document.getElementById('save-set-btn').addEventListener('click', saveCurrentSet);
