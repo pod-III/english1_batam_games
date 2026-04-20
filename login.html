@@ -1,14 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script defer src="/supabase.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sign In — KlassKit</title>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@700&family=Nunito:wght@400;600;700;800&display=swap"
+    rel="stylesheet">
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -16,255 +21,280 @@
       theme: {
         extend: {
           colors: {
-            pink: '#FF6B95',
-            orange: '#FF8C42',
-            green: '#00E676',
-            blue: '#2979FF',
-            dark: '#1e293b',
-            chalk: '#f8fafc',
+            pink: '#ff4785',
+            orange: '#ff7e33',
+            green: '#00d063',
+            blue: '#1ea7fd',
+            dark: '#111827',
+            slate: {
+              950: '#020617',
+            }
           },
           fontFamily: {
             heading: ['Fredoka', 'sans-serif'],
             body: ['Nunito', 'sans-serif'],
           },
-          boxShadow: {
-            'hard': '4px 4px 0px 0px rgba(30, 41, 59, 1)',
-            'hard-sm': '2px 2px 0px 0px rgba(30, 41, 59, 1)',
-          },
-          keyframes: {
-            'pop-in': {
-              '0%': { opacity: '0', transform: 'scale(0.9) translateY(20px)' },
-              '100%': { opacity: '1', transform: 'scale(1) translateY(0)' },
-            },
-            'float': {
-              '0%, 100%': { transform: 'translateY(0) rotate(0deg)' },
-              '50%': { transform: 'translateY(-12px) rotate(3deg)' },
-            },
-            'float-slow': {
-              '0%, 100%': { transform: 'translateY(0) rotate(0deg)' },
-              '50%': { transform: 'translateY(-8px) rotate(-2deg)' },
-            },
-          },
-          animation: {
-            'pop-in': 'pop-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
-            'float': 'float 6s ease-in-out infinite',
-            'float-slow': 'float-slow 8s ease-in-out infinite',
-          },
+          borderRadius: {
+            'xl': '1rem',
+            '2xl': '1.5rem',
+            '3xl': '2rem',
+          }
         }
       }
     }
   </script>
   <style>
-    /* Grid overlay background – matches base.css */
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      z-index: 0;
-      pointer-events: none;
-      background-image:
-        linear-gradient(rgba(148, 163, 184, 0.06) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(148, 163, 184, 0.06) 1px, transparent 1px);
-      background-size: 28px 28px;
+    :root {
+      --border-primary: #111827;
+      --bg-primary: #f8fafc;
+      --grid-color: rgba(148, 163, 184, 0.12);
     }
 
-    .dark body::before {
-      background-image:
-        linear-gradient(rgba(100, 116, 139, 0.08) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(100, 116, 139, 0.08) 1px, transparent 1px);
+    .dark {
+      --border-primary: #334155;
+      --bg-primary: #020617;
+      --grid-color: rgba(255, 255, 255, 0.05);
     }
 
-    /* Glass card */
+    body {
+      background-color: var(--bg-primary);
+      background-image:
+        linear-gradient(var(--grid-color) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+      background-size: 32px 32px;
+      font-family: 'Nunito', sans-serif;
+    }
+
+    /* Glassmorphism Card */
     .glass-card {
+      background: rgba(255, 255, 255, 0.8);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
-      background: rgba(255, 255, 255, 0.85);
-      border: 3px solid #1e293b;
+      border: 3px solid var(--border-primary);
+      box-shadow: 8px 8px 0px var(--border-primary);
     }
 
     .dark .glass-card {
-      background: rgba(30, 41, 59, 0.85);
-      border-color: rgb(100, 116, 139);
+      background: rgba(15, 23, 42, 0.8);
+      border-color: var(--border-primary);
+      box-shadow: 8px 8px 0px #000000;
     }
 
-    /* Input styling */
-    .auth-input {
-      border: 3px solid #1e293b;
-      border-radius: 1rem;
-      padding: 0.75rem 1rem;
-      font-family: 'Nunito', sans-serif;
-      font-weight: 700;
-      font-size: 0.95rem;
-      transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
-      outline: none;
-      background: #f8fafc;
-      width: 100%;
-      color: #1e293b;
-      transition: border-color 0.2s;
-    }
-
-    .dark .auth-input {
-      background: #0f172a;
-      border-color: rgb(100, 116, 139);
-      color: #f1f5f9;
-    }
-
-    .auth-input:focus {
-      border-color: #2979FF;
-      box-shadow: 0 0 0 3px rgba(41, 121, 255, 0.15);
-    }
-
-    .auth-input::placeholder {
-      color: #94a3b8;
-      font-weight: 600;
-    }
-
-    /* Chunky buttons */
+    /* Chunky Buttons */
     .btn-chunky {
-      border: 3px solid #1e293b;
-      border-radius: 1rem;
-      padding: 0.75rem 1.5rem;
-      font-family: 'Fredoka', sans-serif;
-      font-weight: 700;
-      font-size: 1rem;
-      cursor: pointer;
-      transition: transform 0.15s, box-shadow 0.15s, background 0.2s;
-      box-shadow: 0 4px 0 #1e293b;
       position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-    }
-
-    .dark .btn-chunky {
-      border-color: rgb(100, 116, 139);
-      box-shadow: 0 4px 0 rgb(100, 116, 139);
+      background: white;
+      border: 3px solid var(--border-primary);
+      box-shadow: 0 4px 0 var(--border-primary);
+      transition: all 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
+      cursor: pointer;
     }
 
     .btn-chunky:hover {
       transform: translateY(-2px);
-      box-shadow: 0 6px 0 #1e293b;
-    }
-
-    .dark .btn-chunky:hover {
-      box-shadow: 0 6px 0 rgb(100, 116, 139);
+      box-shadow: 0 6px 0 var(--border-primary);
     }
 
     .btn-chunky:active {
       transform: translateY(4px);
-      box-shadow: 0 0px 0 #1e293b;
+      box-shadow: 0 0px 0 var(--border-primary);
+    }
+
+    .dark .btn-chunky {
+      box-shadow: 0 4px 0 #000000;
+    }
+
+    .dark .btn-chunky:hover {
+      box-shadow: 0 6px 0 #000000;
     }
 
     .dark .btn-chunky:active {
-      box-shadow: 0 0px 0 rgb(100, 116, 139);
+      box-shadow: 0 0px 0 #000000;
     }
 
-    .btn-chunky:focus-visible {
-      outline: 3px solid #2979FF;
-      outline-offset: 2px;
-    }
-
-    /* Message toast */
-    .auth-message {
-      border-radius: 0.75rem;
+    /* Auth Inputs */
+    .auth-input {
+      background: white;
+      border: 3px solid var(--border-primary);
+      border-radius: 1rem;
       padding: 0.75rem 1rem;
-      font-family: 'Nunito', sans-serif;
       font-weight: 700;
-      font-size: 1rem;
-      border: 3px solid #1e293b;
-      background: #f8fafc;
-      cursor: pointer;
+      transition: all 0.2s;
+      outline: none;
+      width: 100%;
+    }
+
+    .dark .auth-input {
+      background: #0f172a;
+      color: white;
+    }
+
+    .auth-input:focus {
+      border-color: #1ea7fd;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 0 rgba(30, 167, 253, 0.2);
+    }
+
+    /* Tabs */
+    .tab-btn {
+      flex: 1;
+      padding: 0.75rem;
+      font-family: 'Fredoka', sans-serif;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border: 3px solid var(--border-primary);
+      background: white;
       transition: all 0.2s;
     }
+
     .dark .tab-btn {
-      border-color: #334155;
-      background: #0f172a;
+      background: #1e293b;
       color: #94a3b8;
     }
+
     .tab-btn:first-child {
-      border-radius: 12px 0 0 12px;
+      border-radius: 1rem 0 0 1rem;
       border-right: none;
     }
+
     .tab-btn:last-child {
-      border-radius: 0 12px 12px 0;
+      border-radius: 0 1rem 1rem 0;
     }
+
     .tab-btn.active {
-      background: #2979FF;
+      background: #1ea7fd;
       color: white;
     }
-    .dark .tab-btn.active {
-      background: #2979FF;
-      color: white;
+
+    /* Animations */
+    @keyframes pop-in {
+      0% {
+        opacity: 0;
+        transform: scale(0.9) translateY(10px);
+      }
+
+      100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
     }
+
+    .animate-pop-in {
+      animation: pop-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
     .tab-content {
       display: none;
     }
+
     .tab-content.active {
       display: block;
     }
   </style>
 </head>
-<body class="min-h-screen flex items-center justify-center text-dark dark:text-slate-200">
-  <div class="neo-card w-full max-w-md mx-4 p-8">
-    <!-- Logo -->
-    <div class="text-center mb-6">
-      <div class="w-16 h-16 bg-pink rounded-2xl border-[3px] border-dark dark:border-slate-600 flex items-center justify-center mx-auto mb-4" style="box-shadow: 4px 4px 0px 0px #1e293b;">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
+
+<body class="min-h-screen flex items-center justify-center p-4">
+
+  <div class="glass-card w-full max-w-md p-8 rounded-3xl animate-pop-in">
+    <!-- Header -->
+    <div class="text-center mb-8">
+      <div
+        class="w-20 h-20 bg-pink rounded-3xl border-[3px] border-dark dark:border-slate-500 flex items-center justify-center mx-auto mb-4 scale-110 rotate-3 shadow-hard"
+        style="box-shadow: 4px 4px 0px var(--border-primary);">
+        <i data-lucide="sparkles" class="w-10 h-10 text-white"></i>
       </div>
-      <h1 class="font-heading font-bold text-3xl">KlassKit</h1>
-      <p class="text-slate-500 dark:text-slate-400 text-sm mt-1">Sign in to access your activities</p>
+      <h1 class="font-heading text-4xl text-dark dark:text-white uppercase tracking-tight">KlassKit</h1>
+      <p class="text-slate-500 dark:text-slate-400 font-bold mt-2">Personalize your learning journey</p>
     </div>
 
-    <!-- Tabs -->
-    <div class="flex mb-6">
-      <button type="button" id="tab-signin" class="tab-btn active" onclick="switchTab('signin')">Sign In</button>
-      <button type="button" id="tab-signup" class="tab-btn" onclick="switchTab('signup')">Sign Up</button>
+    <!-- Auth Tabs -->
+    <div class="flex mb-8">
+      <button type="button" id="tab-signin" class="tab-btn active focus-visible:ring-2 ring-blue ring-offset-2"
+        onclick="switchTab('signin')">Sign In</button>
+      <button type="button" id="tab-signup" class="tab-btn focus-visible:ring-2 ring-blue ring-offset-2"
+        onclick="switchTab('signup')">Sign Up</button>
     </div>
 
     <!-- Sign In Form -->
     <div id="content-signin" class="tab-content active">
-      <form class="space-y-4" onsubmit="return false;">
-        <div>
-          <label class="block text-sm font-bold mb-1 ml-1">Email</label>
-          <input type="email" id="signin-email" class="neo-input" placeholder="you@school.edu" required>
+      <form class="space-y-5" onsubmit="return false;">
+        <div class="space-y-1.5">
+          <label class="block text-sm font-extrabold text-dark dark:text-slate-300 ml-1 uppercase tracking-wider">Email
+            Address</label>
+          <div class="relative">
+            <i data-lucide="mail" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"></i>
+            <input type="email" id="signin-email" class="auth-input pl-11" placeholder="teacher@school.edu" required>
+          </div>
         </div>
-        <div>
-          <label class="block text-sm font-bold mb-1 ml-1">Password</label>
-          <input type="password" id="signin-password" class="neo-input" placeholder="••••••••" required minlength="6">
+        <div class="space-y-1.5">
+          <label
+            class="block text-sm font-extrabold text-dark dark:text-slate-300 ml-1 uppercase tracking-wider">Password</label>
+          <div class="relative">
+            <i data-lucide="lock" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"></i>
+            <input type="password" id="signin-password" class="auth-input pl-11" placeholder="••••••••" required>
+          </div>
         </div>
-        <div id="signin-message" class="hidden text-sm font-bold text-center py-2 rounded-lg"></div>
-        <button type="button" onclick="handleSignIn()" class="neo-btn w-full bg-blue text-white">Sign In</button>
+        <div id="signin-message" class="hidden p-3 rounded-xl border-3 border-dark text-sm font-bold text-center"></div>
+        <button type="button" onclick="handleSignIn()"
+          class="btn-chunky w-full py-3.5 rounded-2xl bg-blue text-white font-heading text-lg uppercase tracking-wide">
+          <span>Let's Go!</span>
+        </button>
       </form>
     </div>
 
     <!-- Sign Up Form -->
     <div id="content-signup" class="tab-content">
-      <form class="space-y-4" onsubmit="return false;">
-        <div>
-          <label class="block text-sm font-bold mb-1 ml-1">Email</label>
-          <input type="email" id="signup-email" class="neo-input" placeholder="you@school.edu" required>
+      <form class="space-y-5" onsubmit="return false;">
+        <div class="space-y-1.5">
+          <label
+            class="block text-sm font-extrabold text-dark dark:text-slate-300 ml-1 uppercase tracking-wider">Display
+            Name</label>
+          <div class="relative">
+            <i data-lucide="user" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"></i>
+            <input type="text" id="signup-displayname" class="auth-input pl-11" placeholder="Professor Awesome"
+              required>
+          </div>
         </div>
-        <div>
-          <label class="block text-sm font-bold mb-1 ml-1">Password</label>
-          <input type="password" id="signup-password" class="neo-input" placeholder="••••••••" required minlength="6">
+        <div class="space-y-1.5">
+          <label class="block text-sm font-extrabold text-dark dark:text-slate-300 ml-1 uppercase tracking-wider">Email
+            Address</label>
+          <div class="relative">
+            <i data-lucide="mail" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"></i>
+            <input type="email" id="signup-email" class="auth-input pl-11" placeholder="teacher@school.edu" required>
+          </div>
         </div>
-        <div>
-          <label class="block text-sm font-bold mb-1 ml-1">Display Name</label>
-          <input type="text" id="signup-displayname" class="neo-input" placeholder="Your name" required>
+        <div class="space-y-1.5">
+          <label class="block text-sm font-extrabold text-dark dark:text-slate-300 ml-1 uppercase tracking-wider">Create
+            Password</label>
+          <div class="relative">
+            <i data-lucide="lock" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"></i>
+            <input type="password" id="signup-password" class="auth-input pl-11" placeholder="••••••••" required
+              minlength="6">
+          </div>
         </div>
-        <div id="signup-message" class="hidden text-sm font-bold text-center py-2 rounded-lg"></div>
-        <button type="button" onclick="handleSignUp()" class="neo-btn w-full bg-green text-white">Create Account</button>
+        <div id="signup-message" class="hidden p-3 rounded-xl border-3 border-dark text-sm font-bold text-center"></div>
+        <button type="button" onclick="handleSignUp()"
+          class="btn-chunky w-full py-3.5 rounded-2xl bg-green text-white font-heading text-lg uppercase tracking-wide">
+          <span>Create Account</span>
+        </button>
       </form>
     </div>
 
-    <!-- Back link -->
-    <div class="mt-6 text-center">
-      <a href="/" class="text-sm font-bold text-slate-400 hover:text-blue transition-colors">← Back to KlassKit</a>
+    <!-- Footer -->
+    <div class="mt-8 text-center">
+      <a href="/"
+        class="group inline-flex items-center gap-2 text-sm font-extrabold text-slate-400 hover:text-blue transition-all">
+        <i data-lucide="chevron-left" class="w-4 h-4 transition-transform group-hover:-translate-x-1"></i>
+        <span>Back to Home</span>
+      </a>
     </div>
   </div>
 
   <script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+
     function switchTab(tab) {
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
@@ -275,35 +305,46 @@
     function showMessage(elementId, text, isError) {
       const el = document.getElementById(elementId);
       el.textContent = text;
-      el.className = 'text-sm font-bold text-center py-2 rounded-lg ' + 
-        (isError ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' : 
-                   'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300');
       el.classList.remove('hidden');
+
+      if (isError) {
+        el.className = 'p-3 rounded-xl border-[3px] border-dark bg-pink/10 text-pink text-sm font-bold text-center dark:border-slate-500';
+      } else {
+        el.className = 'p-3 rounded-xl border-[3px] border-dark bg-green/10 text-green-600 text-sm font-bold text-center dark:border-slate-500';
+      }
     }
 
-    function setLoading(btn, loading) {
+    function setLoading(btn, loading, originalText) {
       btn.disabled = loading;
-      btn.style.opacity = loading ? '0.6' : '1';
+      if (loading) {
+        btn.querySelector('span').textContent = 'Working...';
+        btn.querySelector('i').classList.add('animate-spin');
+      } else {
+        btn.querySelector('span').textContent = originalText;
+        btn.querySelector('i').classList.remove('animate-spin');
+      }
     }
 
     async function handleSignIn() {
       const email = document.getElementById('signin-email').value.trim();
       const pass = document.getElementById('signin-password').value;
       const btn = document.querySelector('#content-signin button');
-      
-      if (!email || !pass) return showMessage('signin-message', 'Please fill in all fields.', true);
-      
-      setLoading(btn, true);
-      const { data, error } = await signIn(email, pass);
-      setLoading(btn, false);
-      
-      if (error) return showMessage('signin-message', error.message, true);
 
-      // after checking for error...
-     await migrateLocalToCloud()
-     const dest = localStorage.getItem('after_login') || '/'
-     localStorage.removeItem('after_login')
-     window.location.href = dest
+      if (!email || !pass) return showMessage('signin-message', 'Fill in all fields!', true);
+
+      setLoading(btn, true, "Let's Go!");
+      const { data, error } = await signIn(email, pass);
+
+      if (error) {
+        setLoading(btn, false, "Let's Go!");
+        return showMessage('signin-message', error.message, true);
+      }
+
+      // Successful login
+      await migrateLocalToCloud();
+      const dest = localStorage.getItem('after_login') || '/';
+      localStorage.removeItem('after_login');
+      window.location.href = dest;
     }
 
     async function handleSignUp() {
@@ -311,29 +352,31 @@
       const pass = document.getElementById('signup-password').value;
       const displayName = document.getElementById('signup-displayname').value.trim();
       const btn = document.querySelector('#content-signup button');
-      
-      if (!email || !pass || !displayName) return showMessage('signup-message', 'Please fill in all fields.', true);
-      if (pass.length < 6) return showMessage('signup-message', 'Password must be at least 6 characters.', true);
-      
-      // Store display name for later
+
+      if (!email || !pass || !displayName) return showMessage('signup-message', 'All fields required!', true);
+      if (pass.length < 6) return showMessage('signup-message', 'Password too short!', true);
+
       localStorage.setItem('klasskit_pending_display_name', displayName);
-      
-      setLoading(btn, true);
+
+      setLoading(btn, true, 'Create Account');
       const { data, error } = await signUp(email, pass, displayName);
-      setLoading(btn, false);
-      
+      setLoading(btn, false, 'Create Account');
+
       if (error) return showMessage('signup-message', error.message, true);
-      
-      showMessage('signup-message', '✅ Check your email for a confirmation link!', false);
+
+      showMessage('signup-message', '✅ Check your email for a link!', false);
     }
 
-    // Allow Enter key
-    document.getElementById('signin-password').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') handleSignIn();
-    });
-    document.getElementById('signup-displayname').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') handleSignUp();
+    // Enter key support
+    document.querySelectorAll('input').forEach(input => {
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          if (input.closest('#content-signin')) handleSignIn();
+          else handleSignUp();
+        }
+      });
     });
   </script>
 </body>
+
 </html>
