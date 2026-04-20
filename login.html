@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script defer src="/supabase.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In — KlassKit</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@700&family=Nunito:wght@400;600;700;800&display=swap"
+    rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            pink: '#ff4785',
+            orange: '#ff7e33',
+            green: '#00d063',
+            blue: '#1ea7fd',
+            dark: '#111827',
+            slate: {
+              950: '#020617',
+            }
+          },
+          fontFamily: {
+            heading: ['Fredoka', 'sans-serif'],
+            body: ['Nunito', 'sans-serif'],
+          },
+          borderRadius: {
+            'xl': '1rem',
+            '2xl': '1.5rem',
+            '3xl': '2rem',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    :root {
+      --border-primary: #111827;
+      --bg-primary: #f8fafc;
+      --grid-color: rgba(148, 163, 184, 0.12);
+    }
+
+    .dark {
+      --border-primary: #334155;
+      --bg-primary: #020617;
+      --grid-color: rgba(255, 255, 255, 0.05);
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      background-image:
+        linear-gradient(var(--grid-color) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+      background-size: 32px 32px;
+      font-family: 'Nunito', sans-serif;
+    }
+
+    /* Glassmorphism Card */
+    .glass-card {
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 3px solid var(--border-primary);
+      box-shadow: 8px 8px 0px var(--border-primary);
+    }
+
+    .dark .glass-card {
+      background: rgba(15, 23, 42, 0.8);
+      border-color: var(--border-primary);
+      box-shadow: 8px 8px 0px #000000;
+    }
+
+    /* Chunky Buttons */
+    .btn-chunky {
+      position: relative;
+      background: white;
+      border: 3px solid var(--border-primary);
+      box-shadow: 0 4px 0 var(--border-primary);
+      transition: all 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
+      cursor: pointer;
+    }
+
+    .btn-chunky:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 0 var(--border-primary);
+    }
+
+    .btn-chunky:active {
+      transform: translateY(4px);
+      box-shadow: 0 0px 0 var(--border-primary);
+    }
+
+    .dark .btn-chunky {
+      box-shadow: 0 4px 0 #000000;
+    }
+
+    .dark .btn-chunky:hover {
+      box-shadow: 0 6px 0 #000000;
+    }
+
+    .dark .btn-chunky:active {
+      box-shadow: 0 0px 0 #000000;
+    }
+
+    /* Auth Inputs */
+    .auth-input {
+      background: white;
+      border: 3px solid var(--border-primary);
+      border-radius: 1rem;
+      padding: 0.75rem 1rem;
+      font-weight: 700;
+      transition: all 0.2s;
+      outline: none;
+      width: 100%;
+    }
+
+    .dark .auth-input {
+      background: #0f172a;
+      color: white;
+    }
+
+    .auth-input:focus {
+      border-color: #1ea7fd;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 0 rgba(30, 167, 253, 0.2);
+    }
+
+    /* Tabs */
+    .tab-btn {
+      flex: 1;
+      padding: 0.75rem;
+      font-family: 'Fredoka', sans-serif;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border: 3px solid var(--border-primary);
+      background: white;
+      transition: all 0.2s;
+    }
+
+    .dark .tab-btn {
+      background: #1e293b;
+      color: #94a3b8;
+    }
+
+    .tab-btn:first-child {
+      border-radius: 1rem 0 0 1rem;
+      border-right: none;
+    }
+
+    .tab-btn:last-child {
+      border-radius: 0 1rem 1rem 0;
+    }
+
+    .tab-btn.active {
+      background: #1ea7fd;
+      color: white;
+    }
+
+    /* Animations */
+    @keyframes pop-in {
+      0% {
+        opacity: 0;
+        transform: scale(0.9) translateY(10px);
+      }
+
+      100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    .animate-pop-in {
+      animation: pop-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+  </style>
+</head>
+
+<body class="min-h-screen flex items-center justify-center p-4">
+
+  <div class="glass-card w-full max-w-md p-8 rounded-3xl animate-pop-in">
+    <!-- Header -->
+    <div class="text-center mb-8">
+      <div
+        class="w-20 h-20 bg-pink rounded-3xl border-[3px] border-dark dark:border-slate-500 flex items-center justify-center mx-auto mb-4 scale-110 rotate-3 shadow-hard"
+        style="box-shadow: 4px 4px 0px var(--border-primary);">
+        <i data-lucide="sparkles" class="w-10 h-10 text-white"></i>
+      </div>
+      <h1 class="font-heading text-4xl text-dark dark:text-white uppercase tracking-tight">KlassKit</h1>
+      <p class="text-slate-500 dark:text-slate-400 font-bold mt-2">Personalize your learning journey</p>
+    </div>
+
+    <!-- Auth Tabs -->
+    <div class="flex mb-8">
+      <button type="button" id="tab-signin" class="tab-btn active focus-visible:ring-2 ring-blue ring-offset-2"
+        onclick="switchTab('signin')">Sign In</button>
+      <button type="button" id="tab-signup" class="tab-btn focus-visible:ring-2 ring-blue ring-offset-2"
+        onclick="switchTab('signup')">Sign Up</button>
+    </div>
+
+    <!-- Sign In Form -->
+    <div id="content-signin" class="tab-content active">
+      <form class="space-y-5" onsubmit="return false;">
+        <div class="space-y-1.5">
+          <label class="block text-sm font-extrabold text-dark dark:text-slate-300 ml-1 uppercase tracking-wider">Email
+            Address</label>
+          <div class="relative">
+            <i data-lucide="mail" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"></i>
+            <input type="email" id="signin-email" class="auth-input pl-11" placeholder="teacher@school.edu" required>
+          </div>
+        </div>
+        <div class="space-y-1.5">
+          <label
+            class="block text-sm font-extrabold text-dark dark:text-slate-300 ml-1 uppercase tracking-wider">Password</label>
+          <div class="relative">
+            <i data-lucide="lock" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"></i>
+            <input type="password" id="signin-password" class="auth-input pl-11" placeholder="••••••••" required>
+          </div>
+        </div>
+        <div id="signin-message" class="hidden p-3 rounded-xl border-3 border-dark text-sm font-bold text-center"></div>
+        <button type="button" onclick="handleSignIn()"
+          class="btn-chunky w-full py-3.5 rounded-2xl bg-blue text-white font-heading text-lg uppercase tracking-wide">
+          <span>Let's Go!</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- Sign Up Form -->
+    <div id="content-signup" class="tab-content">
+      <form class="space-y-5" onsubmit="return false;">
+        <div class="space-y-1.5">
+          <label
+            class="block text-sm font-extrabold text-dark dark:text-slate-300 ml-1 uppercase tracking-wider">Display
+            Name</label>
+          <div class="relative">
+            <i data-lucide="user" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"></i>
+            <input type="text" id="signup-displayname" class="auth-input pl-11" placeholder="Professor Awesome"
+              required>
+          </div>
+        </div>
+        <div class="space-y-1.5">
+          <label class="block text-sm font-extrabold text-dark dark:text-slate-300 ml-1 uppercase tracking-wider">Email
+            Address</label>
+          <div class="relative">
+            <i data-lucide="mail" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"></i>
+            <input type="email" id="signup-email" class="auth-input pl-11" placeholder="teacher@school.edu" required>
+          </div>
+        </div>
+        <div class="space-y-1.5">
+          <label class="block text-sm font-extrabold text-dark dark:text-slate-300 ml-1 uppercase tracking-wider">Create
+            Password</label>
+          <div class="relative">
+            <i data-lucide="lock" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"></i>
+            <input type="password" id="signup-password" class="auth-input pl-11" placeholder="••••••••" required
+              minlength="6">
+          </div>
+        </div>
+        <div id="signup-message" class="hidden p-3 rounded-xl border-3 border-dark text-sm font-bold text-center"></div>
+        <button type="button" onclick="handleSignUp()"
+          class="btn-chunky w-full py-3.5 rounded-2xl bg-green text-white font-heading text-lg uppercase tracking-wide">
+          <span>Create Account</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- Footer -->
+    <div class="mt-8 text-center">
+      <a href="/"
+        class="group inline-flex items-center gap-2 text-sm font-extrabold text-slate-400 hover:text-blue transition-all">
+        <i data-lucide="chevron-left" class="w-4 h-4 transition-transform group-hover:-translate-x-1"></i>
+        <span>Back to Home</span>
+      </a>
+    </div>
+  </div>
+
+  <script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      document.getElementById('tab-' + tab).classList.add('active');
+      document.getElementById('content-' + tab).classList.add('active');
+    }
+
+    function showMessage(elementId, text, isError) {
+      const el = document.getElementById(elementId);
+      el.textContent = text;
+      el.classList.remove('hidden');
+
+      if (isError) {
+        el.className = 'p-3 rounded-xl border-[3px] border-dark bg-pink/10 text-pink text-sm font-bold text-center dark:border-slate-500';
+      } else {
+        el.className = 'p-3 rounded-xl border-[3px] border-dark bg-green/10 text-green-600 text-sm font-bold text-center dark:border-slate-500';
+      }
+    }
+
+    function setLoading(btn, loading, originalText) {
+      btn.disabled = loading;
+      const icon = btn.querySelector('i');
+      if (loading) {
+        btn.querySelector('span').textContent = 'Working...';
+        if (icon) icon.classList.add('animate-spin');
+      } else {
+        btn.querySelector('span').textContent = originalText;
+        if (icon) icon.classList.remove('animate-spin');
+      }
+    }
+
+    async function handleSignIn() {
+      const email = document.getElementById('signin-email').value.trim();
+      const pass = document.getElementById('signin-password').value;
+      const btn = document.querySelector('#content-signin button');
+
+      if (!email || !pass) return showMessage('signin-message', 'Fill in all fields!', true);
+
+      setLoading(btn, true, "Let's Go!");
+      const { data, error } = await signIn(email, pass);
+
+      if (error) {
+        setLoading(btn, false, "Let's Go!");
+        return showMessage('signin-message', error.message, true);
+      }
+
+      // Successful login
+      await migrateLocalToCloud();
+      const dest = localStorage.getItem('after_login') || '/';
+      localStorage.removeItem('after_login');
+      window.location.href = dest;
+    }
+
+    async function handleSignUp() {
+      const email = document.getElementById('signup-email').value.trim();
+      const pass = document.getElementById('signup-password').value;
+      const displayName = document.getElementById('signup-displayname').value.trim();
+      const btn = document.querySelector('#content-signup button');
+
+      if (!email || !pass || !displayName) return showMessage('signup-message', 'All fields required!', true);
+      if (pass.length < 6) return showMessage('signup-message', 'Password too short!', true);
+
+      localStorage.setItem('klasskit_pending_display_name', displayName);
+
+      setLoading(btn, true, 'Create Account');
+      const { data, error } = await signUp(email, pass, displayName);
+      setLoading(btn, false, 'Create Account');
+
+      if (error) return showMessage('signup-message', error.message, true);
+
+      showMessage('signup-message', '✅ Check your email for a link!', false);
+    }
+
+    // Enter key support
+    document.querySelectorAll('input').forEach(input => {
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          if (input.closest('#content-signin')) handleSignIn();
+          else handleSignUp();
+        }
+      });
+    });
+  </script>
+</body>
+
+</html>

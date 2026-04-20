@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Supabase Auth -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/supabase.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Word Scrambler - Desktop Edition</title>
@@ -276,7 +279,29 @@
         function saveText(text) {
              try { 
                 localStorage.setItem(LS_KEY_TEXT, text); 
+                saveToCloud(text);
             } catch(e) { console.error(e); }
+        }
+
+        async function saveToCloud(text) {
+            try {
+                await saveProgress('word_scrambler_data', { text, updatedAt: Date.now() });
+            } catch (e) {
+                console.error("Cloud save failed", e);
+            }
+        }
+
+        async function loadFromCloud() {
+            try {
+                const data = await loadProgress('word_scrambler_data');
+                if (data && data.text) {
+                    textInput.value = data.text;
+                    localStorage.setItem(LS_KEY_TEXT, data.text);
+                    scrambleText();
+                }
+            } catch (e) {
+                console.error("Cloud load failed", e);
+            }
         }
         
         function loadText() {
@@ -432,7 +457,8 @@
         });
 
         // Init
-        window.onload = () => {
+        window.onload = async () => {
+            await requireAuth();
             renderPresets();
             
             const savedText = loadText();
@@ -440,6 +466,8 @@
                 textInput.value = savedText;
                 scrambleText();
             }
+
+            await loadFromCloud();
             
             lucide.createIcons();
             textInput.focus();

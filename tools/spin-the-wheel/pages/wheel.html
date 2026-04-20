@@ -1,7 +1,10 @@
 <!doctype html>
 <html lang="en" class="light">
     <head>
-        <meta charset="UTF-8" />
+    <!-- Supabase Auth -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/supabase.js"></script>
+    <meta charset="UTF-8" />
         <meta
             name="viewport"
             content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
@@ -1492,14 +1495,39 @@
             }
 
             // Data Persistence
-            function saveData() {
-                localStorage.setItem(
-                    "multispin-data",
-                    JSON.stringify({
-                        wheels: wheels,
-                        wheelCount: wheelCount,
-                    }),
-                );
+            async function saveData() {
+                const data = {
+                    wheels: wheels,
+                    wheelCount: wheelCount,
+                    updatedAt: Date.now()
+                };
+                localStorage.setItem("multispin-data", JSON.stringify(data));
+                await saveToCloud(data);
+            }
+
+            async function saveToCloud(data) {
+                try {
+                    await saveProgress('multispin_wheel_data', data);
+                } catch (e) {
+                    console.error("Cloud save failed", e);
+                }
+            }
+
+            async function loadFromCloud() {
+                try {
+                    const data = await loadProgress('multispin_wheel_data');
+                    if (data) {
+                        wheels = data.wheels || wheels;
+                        wheelCount = data.wheelCount || wheelCount;
+                        saveData();
+                        renderItemsList();
+                        for (let i = 0; i < wheelCount; i++) {
+                            drawWheel(i);
+                        }
+                    }
+                } catch (e) {
+                    console.error("Cloud load failed", e);
+                }
             }
 
             function loadData() {
@@ -1541,7 +1569,11 @@
             });
 
             // Start
-            window.onload = init;
+            window.onload = async () => {
+                await requireAuth();
+                await init();
+                await loadFromCloud();
+            };
         </script>
     </body>
 </html>

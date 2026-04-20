@@ -1,7 +1,10 @@
 <!doctype html>
 <html lang="en">
     <head>
-        <meta charset="UTF-8" />
+    <!-- Supabase Auth -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/supabase.js"></script>
+    <meta charset="UTF-8" />
         <meta
             name="viewport"
             content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
@@ -1318,10 +1321,48 @@
                         );
                         await saveToIndexedDB(blob);
                         console.log("✅ Canvas saved to IndexedDB");
+
+                        // Sync to Cloud
+                        const dataURL = canvasMain.toDataURL("image/png", 0.7);
+                        await saveToCloud(dataURL);
                     } catch (e) {
                         console.error("❌ Save failed:", e);
                     }
                 }, 1000);
+            }
+
+            async function saveToCloud(dataURL) {
+                try {
+                    await saveProgress('whiteboard_canvas_data', { 
+                        image: dataURL,
+                        width: canvasMain.width,
+                        height: canvasMain.height,
+                        updatedAt: Date.now() 
+                    });
+                } catch (e) {
+                    console.error("Cloud save failed", e);
+                }
+            }
+
+            async function loadFromCloud() {
+                try {
+                    const data = await loadProgress('whiteboard_canvas_data');
+                    if (data && data.image) {
+                        const img = new Image();
+                        img.src = data.image;
+                        await new Promise((resolve) => {
+                            img.onload = () => {
+                                if (data.width && data.height) {
+                                    resizeCanvas(data.width, data.height);
+                                }
+                                ctxMain.drawImage(img, 0, 0);
+                                resolve();
+                            };
+                        });
+                    }
+                } catch (e) {
+                    console.error("Cloud load failed", e);
+                }
             }
 
             function undo() {
@@ -1363,8 +1404,15 @@
                         img.onload = () => {
                             ctxMain.drawImage(img, 0, 0);
                             URL.revokeObjectURL(img.src);
-                            saveState();
+                            // Initial stack
+                            undoStack = [canvasMain.toDataURL()];
+                            undoIndex = 0;
                             console.log("✅ Canvas loaded from IndexedDB");
+                        };
+                    }
+
+                    // Sync from cloud
+                    await loadFromCloud();
                         };
                     } else {
                         const oldData = localStorage.getItem(STORAGE_KEY);
@@ -1548,6 +1596,7 @@
             });
 
             window.onload = async () => {
+                await requireAuth();
                 await initDB();
                 initView();
                 await loadStorage();

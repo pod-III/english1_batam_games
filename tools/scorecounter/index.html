@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Supabase Auth -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/supabase.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Score Counter - KlassKit</title>
@@ -227,9 +230,67 @@
         // Color rotation for new teams
         const colors = ["blue", "pink", "green", "orange"];
 
+        // Persistence
+        const LS_KEY = 'klasskit_scorecounter_data';
+
+        async function save() {
+            const data = {
+                teams,
+                soundEnabled,
+                updatedAt: Date.now()
+            };
+            localStorage.setItem(LS_KEY, JSON.stringify(data));
+            await saveToCloud(data);
+        }
+
+        async function saveToCloud(data) {
+            try {
+                await saveProgress('scorecounter_data', data);
+            } catch (e) {
+                console.error("Cloud save failed", e);
+            }
+        }
+
+        async function loadFromCloud() {
+            try {
+                const data = await loadProgress('scorecounter_data');
+                if (data && data.teams) {
+                    teams = data.teams;
+                    soundEnabled = data.soundEnabled !== undefined ? data.soundEnabled : true;
+                    renderGrid();
+                    updateSoundUI();
+                }
+            } catch (e) {
+                console.error("Cloud load failed", e);
+            }
+        }
+
+        function loadFromLocalStorage() {
+            const raw = localStorage.getItem(LS_KEY);
+            if (raw) {
+                const data = JSON.parse(raw);
+                teams = data.teams || teams;
+                soundEnabled = data.soundEnabled !== undefined ? data.soundEnabled : true;
+            }
+        }
+
+        function updateSoundUI() {
+            const btn = document.getElementById('soundBtn');
+            const iconName = soundEnabled ? 'volume-2' : 'volume-x';
+            const bgClass = soundEnabled ? 'bg-slate-100 text-slate-600' : 'bg-red-50 text-red-500';
+            
+            btn.innerHTML = `<i data-lucide="${iconName}" class="w-5 h-5"></i>`;
+            btn.className = `w-10 h-10 rounded-full ${bgClass} hover:opacity-90 flex items-center justify-center transition-colors`;
+            lucide.createIcons();
+        }
+
         // Initialization
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
+            await requireAuth();
+            loadFromLocalStorage();
             renderGrid();
+            updateSoundUI();
+            await loadFromCloud();
         });
 
         // --- Custom Modal Logic ---
@@ -276,13 +337,8 @@
         // Toggle Sound
         function toggleSound() {
             soundEnabled = !soundEnabled;
-            const btn = document.getElementById('soundBtn');
-            const iconName = soundEnabled ? 'volume-2' : 'volume-x';
-            const bgClass = soundEnabled ? 'bg-slate-100 text-slate-600' : 'bg-red-50 text-red-500';
-            
-            btn.innerHTML = `<i data-lucide="${iconName}" class="w-5 h-5"></i>`;
-            btn.className = `w-10 h-10 rounded-full ${bgClass} hover:opacity-90 flex items-center justify-center transition-colors`;
-            lucide.createIcons();
+            updateSoundUI();
+            save();
         }
 
         // Simple Audio Context Beep
@@ -390,6 +446,7 @@
             });
             playBeep(440, 'triangle', 0.1);
             renderGrid();
+            save();
         }
 
         async function removeTeam(id) {
@@ -402,6 +459,7 @@
             if (confirmed) {
                 teams = teams.filter(t => t.id !== id);
                 renderGrid();
+                save();
             }
         }
 
@@ -416,12 +474,16 @@
                 teams = [];
                 playBeep(220, 'sawtooth', 0.2);
                 renderGrid();
+                save();
             }
         }
 
         function updateName(id, newName) {
             const team = teams.find(t => t.id === id);
-            if(team) team.name = newName;
+            if(team) {
+                team.name = newName;
+                save();
+            }
         }
 
         function updateScore(id, delta) {
@@ -440,6 +502,7 @@
 
                 if(delta > 0) playBeep(600 + (Math.min(team.score, 20) * 15), 'sine', 0.1);
                 else playBeep(260, 'sawtooth', 0.1);
+                save();
             }
         }
 
@@ -454,6 +517,7 @@
                 teams.forEach(t => t.score = 0);
                 playBeep(330, 'square', 0.1);
                 renderGrid();
+                save();
             }
         }
 

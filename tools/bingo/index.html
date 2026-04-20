@@ -2,6 +2,9 @@
 <html lang="en">
 
 <head>
+    <!-- Supabase Auth -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/supabase.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>KlassKit Bingo Maker</title>
@@ -518,7 +521,10 @@
                     const transaction = db.transaction([STORE_NAME], 'readwrite');
                     const store = transaction.objectStore(STORE_NAME);
                     const request = store.put(preset);
-                    request.onsuccess = () => resolve();
+                    request.onsuccess = async () => {
+                        await saveToCloud();
+                        resolve();
+                    };
                     request.onerror = () => reject(request.error);
                 });
             } catch (error) {
@@ -533,11 +539,50 @@
                     const transaction = db.transaction([STORE_NAME], 'readwrite');
                     const store = transaction.objectStore(STORE_NAME);
                     const request = store.delete(id);
-                    request.onsuccess = () => resolve();
+                    request.onsuccess = async () => {
+                        await saveToCloud();
+                        resolve();
+                    };
                     request.onerror = () => reject(request.error);
                 });
             } catch (error) {
                 console.error("Failed to delete preset", error);
+            }
+        }
+
+        async function saveToCloud() {
+            try {
+                const presets = await getAllPresets();
+                await saveProgress('bingo_presets_data', { presets, updatedAt: Date.now() });
+            } catch (e) {
+                console.error("Cloud save failed", e);
+            }
+        }
+
+        async function loadFromCloud() {
+            try {
+                const data = await loadProgress('bingo_presets_data');
+                if (data && data.presets) {
+                    const db = await openDB();
+                    for (const preset of data.presets) {
+                        await new Promise((resolve, reject) => {
+                            const transaction = db.transaction([STORE_NAME], 'readwrite');
+                            const store = transaction.objectStore(STORE_NAME);
+                            const request = store.put(preset);
+                            request.onsuccess = () => resolve();
+                            request.onerror = () => reject(request.error);
+                        });
+                    }
+                    // Refresh local state
+                    state.presetsList = await getAllPresets();
+                    renderPresetDropdown();
+                    if (state.presetsList.length > 0) {
+                        const mostRecent = [...state.presetsList].sort((a,b) => (b.lastAccessed || 0) - (a.lastAccessed || 0))[0];
+                        await loadPreset(mostRecent.id);
+                    }
+                }
+            } catch (e) {
+                console.error("Cloud load failed", e);
             }
         }
 
@@ -644,6 +689,7 @@
 
         // --- INIT ---
         document.addEventListener('DOMContentLoaded', async () => {
+            await requireAuth();
             lucide.createIcons();
 
             // 1. Load data from IndexedDB
@@ -667,9 +713,14 @@
                 state.presetsList.push(defaultPreset);
             }
 
+            // Sync from cloud
+            await loadFromCloud();
+
             // Load the most recently used preset
             const mostRecent = [...state.presetsList].sort((a,b) => (b.lastAccessed || 0) - (a.lastAccessed || 0))[0];
-            await loadPreset(mostRecent.id);
+            if (mostRecent) {
+                await loadPreset(mostRecent.id);
+            }
             renderPresetDropdown();
 
             // 2. Add Listeners

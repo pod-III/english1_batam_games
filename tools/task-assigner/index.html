@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Supabase Auth -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/supabase.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Task Assigner: KlassKit Edition</title>
@@ -430,7 +433,7 @@
         const STORE_SETTINGS = 'settings';
         const LS_KEY_THEME = 'theme_task-assigner';
 
-        let db = null;
+        let idb = null;
         let currentPresetId = null;
         let currentGroupSize = 1;
         let audioEnabled = true;
@@ -553,10 +556,38 @@
 
         async function initDB() {
             try {
-                db = await openDB();
+                idb = await openDB();
                 await migrateFromLocalStorage();
+                await loadFromCloud();
             } catch (e) {
                 console.error('Failed to initialize IndexedDB:', e);
+            }
+        }
+
+        // --- CLOUD SYNC ---
+        async function saveToCloud() {
+            try {
+                const presets = await getAllPresets();
+                await saveProgress('task_assigner_presets', { presets });
+            } catch (e) {
+                console.error("Cloud save failed", e);
+            }
+        }
+
+        async function loadFromCloud() {
+            try {
+                const data = await loadProgress('task_assigner_presets');
+                if (data && data.presets) {
+                    for (const p of data.presets) {
+                        const local = await getPreset(p.id);
+                        if (!local || p.updatedAt > local.updatedAt) {
+                            await savePreset(p.name, p.content, p.id);
+                        }
+                    }
+                    await renderPresetSelector();
+                }
+            } catch (e) {
+                console.error("Cloud load failed", e);
             }
         }
 
@@ -572,9 +603,9 @@
         }
 
         async function savePreset(name, content, id = null) {
-            if (!db) return;
+            if (!idb) return;
             return new Promise((resolve, reject) => {
-                const tx = db.transaction(STORE_PRESETS, 'readwrite');
+                const tx = idb.transaction(STORE_PRESETS, 'readwrite');
                 const store = tx.objectStore(STORE_PRESETS);
                 const data = { name, content, updatedAt: Date.now() };
                 if (id) data.id = id;
@@ -585,9 +616,9 @@
         }
 
         async function getAllPresets() {
-            if (!db) return [];
+            if (!idb) return [];
             return new Promise((resolve, reject) => {
-                const tx = db.transaction(STORE_PRESETS, 'readonly');
+                const tx = idb.transaction(STORE_PRESETS, 'readonly');
                 const store = tx.objectStore(STORE_PRESETS);
                 const index = store.index('updatedAt');
                 const request = index.getAll();
@@ -597,9 +628,9 @@
         }
 
         async function getPreset(id) {
-            if (!db) return null;
+            if (!idb) return null;
             return new Promise((resolve, reject) => {
-                const tx = db.transaction(STORE_PRESETS, 'readonly');
+                const tx = idb.transaction(STORE_PRESETS, 'readonly');
                 const store = tx.objectStore(STORE_PRESETS);
                 const request = store.get(id);
                 request.onsuccess = () => resolve(request.result);
@@ -608,9 +639,9 @@
         }
 
         async function deletePreset(id) {
-            if (!db) return;
+            if (!idb) return;
             return new Promise((resolve, reject) => {
-                const tx = db.transaction(STORE_PRESETS, 'readwrite');
+                const tx = idb.transaction(STORE_PRESETS, 'readwrite');
                 const store = tx.objectStore(STORE_PRESETS);
                 const request = store.delete(id);
                 request.onsuccess = () => resolve();
@@ -619,9 +650,9 @@
         }
 
         async function saveCurrentPresetId(id) {
-            if (!db) return;
+            if (!idb) return;
             return new Promise((resolve, reject) => {
-                const tx = db.transaction(STORE_SETTINGS, 'readwrite');
+                const tx = idb.transaction(STORE_SETTINGS, 'readwrite');
                 const store = tx.objectStore(STORE_SETTINGS);
                 const request = store.put({ key: 'currentPresetId', value: id });
                 request.onsuccess = () => resolve();
@@ -630,9 +661,9 @@
         }
 
         async function getCurrentPresetId() {
-            if (!db) return null;
+            if (!idb) return null;
             return new Promise((resolve, reject) => {
-                const tx = db.transaction(STORE_SETTINGS, 'readonly');
+                const tx = idb.transaction(STORE_SETTINGS, 'readonly');
                 const store = tx.objectStore(STORE_SETTINGS);
                 const request = store.get('currentPresetId');
                 request.onsuccess = () => resolve(request.result?.value || null);
@@ -684,6 +715,7 @@
             const id = await savePreset(name, content, currentPresetId);
             currentPresetId = id;
             await saveCurrentPresetId(id);
+            await saveToCloud();
             await renderPresetSelector();
             showToast('Preset saved!', 'success');
         }
@@ -711,6 +743,7 @@
                 document.getElementById('peopleInput').value = '';
                 document.getElementById('taskInput').value = '';
                 await saveCurrentPresetId(null);
+                await saveToCloud();
                 await renderPresetSelector();
                 updateCounts();
                 showToast('Preset deleted', 'success');
@@ -948,7 +981,10 @@
             });
         }
 
-        window.onload = initializeApp;
+        window.onload = async () => {
+            await requireAuth();
+            await initializeApp();
+        };
     </script>
 </body>
 </html>

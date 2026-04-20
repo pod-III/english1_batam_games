@@ -8,44 +8,21 @@ const ClassTallyApp = (function () {
     const STATE_STORE = 'game_state';
     const SETS_STORE = 'class_sets';
 
-    async function initDB() {
-        return new Promise((resolve, reject) => {
-            const req = indexedDB.open(DB_NAME, DB_VER);
-            req.onupgradeneeded = (e) => {
-                const db = e.target.result;
-                if (!db.objectStoreNames.contains(STATE_STORE)) db.createObjectStore(STATE_STORE);
-                if (!db.objectStoreNames.contains(SETS_STORE)) db.createObjectStore(SETS_STORE, { keyPath: 'id', autoIncrement: true });
-            };
-            req.onsuccess = (e) => resolve(e.target.result);
-            req.onerror = (e) => reject(e.target.error);
-        });
-    }
-    async function dbPut(key, data) {
-        try { const db = await initDB(); db.transaction(STATE_STORE, 'readwrite').objectStore(STATE_STORE).put(data, key); } catch (e) { console.error(e); }
-    }
-    async function dbGet(key) {
-        try {
-            const db = await initDB();
-            return new Promise((res) => { const r = db.transaction(STATE_STORE, 'readonly').objectStore(STATE_STORE).get(key); r.onsuccess = () => res(r.result); r.onerror = () => res(null); });
-        } catch (e) { return null; }
-    }
-    async function saveClassSetToDB(name, data) {
-        const db = await initDB();
-        const tx = db.transaction(SETS_STORE, 'readwrite');
-        tx.objectStore(SETS_STORE).put({ name, data, createdAt: Date.now() });
-        return new Promise(r => { tx.oncomplete = r; });
-    }
     async function getAllClassSets() {
-        try {
-            const db = await initDB();
-            return new Promise((res) => { const r = db.transaction(SETS_STORE, 'readonly').objectStore(SETS_STORE).getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => res([]); });
-        } catch (e) { return []; }
+        const saved = await loadProgress('class_tally_sets')
+        return saved?.sets || []
     }
+
+    async function saveClassSetToDB(name, data) {
+        const sets = await getAllClassSets()
+        sets.push({ id: Date.now(), name, data, createdAt: Date.now() })
+        await saveProgress('class_tally_sets', { sets })
+    }
+
     async function deleteClassSet(id) {
-        const db = await initDB();
-        const tx = db.transaction(SETS_STORE, 'readwrite');
-        tx.objectStore(SETS_STORE).delete(id);
-        return new Promise(r => { tx.oncomplete = r; });
+        const sets = await getAllClassSets()
+        const filtered = sets.filter(s => s.id !== id)
+        await saveProgress('class_tally_sets', { sets: filtered })
     }
 
     const State = {
@@ -352,26 +329,32 @@ const ClassTallyApp = (function () {
                 cardSize: State.cardSize,
                 isAutoFit: State.isAutoFit
             };
-            localStorage.setItem('class_tally_v1', JSON.stringify(dataToSave));
-            dbPut('classTallyState', dataToSave);
+            saveProgress('class_tally', dataToSave)
         },
-        load: () => {
-            const d = localStorage.getItem('class_tally_v1') || localStorage.getItem('klasskit_tally_v5') || localStorage.getItem('klasskit_tally_v4_state');
-            if (d) {
+        load: async () => {
+            // Try cloud first, fall back to old localStorage keys (auto-migration)
+            let o = await loadProgress('class_tally')
+            if (!o) {
+                const old = localStorage.getItem('class_tally_v1')
+                    || localStorage.getItem('klasskit_tally_v5')
+                    || localStorage.getItem('klasskit_tally_v4_state')
+                if (old) {
+                    try { o = JSON.parse(old) } catch (e) { }
+                }
+            }
+            if (o) {
                 try {
-                    const o = JSON.parse(d);
-                    State.students = o.students || [];
-                    State.soundEnabled = o.sound !== undefined ? o.sound : true;
-                    State.currentGood = o.good || '⭐️';
-                    State.currentBad = o.bad || '⚠️';
-                    // Load the pickedQueue
-                    State.pickedQueue = o.pickedQueue || [];
-                    State.cardSize = o.cardSize || 1;
-                    State.isAutoFit = o.isAutoFit || false;
+                    State.students = o.students || []
+                    State.soundEnabled = o.sound !== undefined ? o.sound : true
+                    State.currentGood = o.good || '⭐️'
+                    State.currentBad = o.bad || '⚠️'
+                    State.pickedQueue = o.pickedQueue || []
+                    State.cardSize = o.cardSize || 1
+                    State.isAutoFit = o.isAutoFit || false
                 } catch (e) {
-                    console.error("Error loading saved state:", e);
-                    State.students = [];
-                    State.pickedQueue = [];
+                    console.error('Error loading saved state:', e)
+                    State.students = []
+                    State.pickedQueue = []
                 }
             }
             State.students = State.students.map(s => ({
@@ -380,16 +363,10 @@ const ClassTallyApp = (function () {
                 avatar: s.avatar || '😀',
                 goodLogs: s.goodLogs || [],
                 badLogs: s.badLogs || []
-            }));
-
-            // Clean up the queue if students were deleted since last save
-            const studentIds = State.students.map(s => s.id);
-            State.pickedQueue = State.pickedQueue.filter(id => studentIds.includes(id));
-
-            // Reset queue if it somehow got corrupted and has more elements than students
-            if (State.pickedQueue.length > State.students.length) {
-                State.pickedQueue = [];
-            }
+            }))
+            const studentIds = State.students.map(s => s.id)
+            State.pickedQueue = State.pickedQueue.filter(id => studentIds.includes(id))
+            if (State.pickedQueue.length > State.students.length) State.pickedQueue = []
         }
     };
 
@@ -1015,9 +992,9 @@ const ClassTallyApp = (function () {
     };
 
     return {
-        init: () => {
+        init: async () => {
             UI.initTheme();
-            Persistence.load();
+            await Persistence.load();
             CanvasDraw.init('signature-canvas');
             UI.initEmojiPickers();
             Keyboard.init();
@@ -1045,4 +1022,7 @@ const ClassTallyApp = (function () {
     };
 })();
 
-window.onload = ClassTallyApp.init;
+window.onload = async function () {
+    await requireAuth()
+    await ClassTallyApp.init()
+}
