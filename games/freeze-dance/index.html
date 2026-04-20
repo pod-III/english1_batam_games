@@ -316,11 +316,32 @@
                 };
 
                 this.initListeners();
-                this.loadSettings();
+            }
+
+            async init() {
+                await requireAuth();
+
+                const cloudData = await loadProgress('freeze_dance');
+                if (cloudData) {
+                    if (cloudData.danceMin) this.els.inputs.danceMin.value = cloudData.danceMin;
+                    if (cloudData.danceMax) this.els.inputs.danceMax.value = cloudData.danceMax;
+                    if (cloudData.freezeMin) this.els.inputs.freezeMin.value = cloudData.freezeMin;
+                    if (cloudData.freezeMax) this.els.inputs.freezeMax.value = cloudData.freezeMax;
+                    if (cloudData.warning) this.els.inputs.warning.value = cloudData.warning;
+                    if (cloudData.students) {
+                        this.state.students = cloudData.students;
+                    }
+                    // Sync to local storage
+                    this.saveSettings(true); // pass true to skip re-syncing to cloud immediately
+                } else {
+                    this.loadSettings();
+                }
+
+                this.renderStudents();
             }
 
             /* --- LOCAL STORAGE PERSISTENCE --- */
-            saveSettings() {
+            saveSettings(skipCloud = false) {
                 const settings = {
                     danceMin: this.els.inputs.danceMin.value,
                     danceMax: this.els.inputs.danceMax.value,
@@ -330,6 +351,14 @@
                     students: this.state.students
                 };
                 localStorage.setItem('freezeDanceSettings', JSON.stringify(settings));
+                if (!skipCloud) this.syncToCloud(settings);
+            }
+
+            syncToCloud(settings) {
+                if (this.syncTimeout) clearTimeout(this.syncTimeout);
+                this.syncTimeout = setTimeout(() => {
+                    saveProgress('freeze_dance', settings);
+                }, 1500);
             }
 
             loadSettings() {
@@ -576,6 +605,7 @@
         }
 
         const game = new FreezeDanceGame();
+        game.init();
         lucide.createIcons();
     </script>
 </body>

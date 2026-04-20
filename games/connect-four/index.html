@@ -403,7 +403,7 @@
             hoverCol: 3,
             moveHistory: [],
 
-            init() {
+            async init() {
                 SoundEngine.init();
                 const n1 = document.getElementById('input-p1').value.trim();
                 const n2 = document.getElementById('input-p2').value.trim();
@@ -420,6 +420,8 @@
                 this.applyThemeColors();
                 this.createHoles();
                 this.resetBoard();
+
+                syncToCloud();
             },
 
             applyThemeColors() {
@@ -534,6 +536,7 @@
                     this.updateUI();
                     this.setHover(c);
                 }
+                syncToCloud();
             },
 
             undoMove() {
@@ -550,6 +553,7 @@
                 this.currentPlayer = player;
                 this.updateUI();
                 this.setHover(col);
+                syncToCloud();
             },
 
             dropPiece(r, c, player) {
@@ -645,17 +649,84 @@
 
                     document.getElementById('winner-modal').classList.remove('hidden');
                     lucide.createIcons();
+                    syncToCloud();
                 } else {
                     document.getElementById('status-text').textContent = "MATCH DRAW!";
                 }
             },
 
-            closeWinnerModal() { document.getElementById('winner-modal').classList.add('hidden'); }
+            closeWinnerModal() { document.getElementById('winner-modal').classList.add('hidden'); },
+
+            renderPersistedBoard() {
+                for (let r = 0; r < this.rows; r++) {
+                    for (let c = 0; c < this.cols; c++) {
+                        const player = this.board[r][c];
+                        if (player !== 0) {
+                            const layer = this.cells[r][c];
+                            const piece = document.createElement('div');
+                            piece.className = `piece bg-${this.colors[player]}`;
+                            layer.appendChild(piece);
+                        }
+                    }
+                }
+            }
         };
 
         function toggleTheme() { document.documentElement.classList.toggle('dark'); }
         lucide.createIcons();
-        window.onload = () => {}
+
+        let syncTimeout = null;
+        function syncToCloud() {
+            if (syncTimeout) clearTimeout(syncTimeout);
+            syncTimeout = setTimeout(() => {
+                saveProgress('connect_four', {
+                    names: Game.names,
+                    colors: Game.colors,
+                    scores: Game.scores,
+                    board: Game.board,
+                    currentPlayer: Game.currentPlayer,
+                    moveHistory: Game.moveHistory,
+                    gameActive: Game.gameActive
+                });
+            }, 1000);
+        }
+
+        window.onload = async () => {
+            await requireAuth();
+            
+            const cloudData = await loadProgress('connect_four');
+            if (cloudData) {
+                if (cloudData.names) Game.names = cloudData.names;
+                if (cloudData.colors) Game.colors = cloudData.colors;
+                if (cloudData.scores) Game.scores = cloudData.scores;
+                
+                // Update UI inputs from cloud data
+                if (Game.names[1]) document.getElementById('input-p1').value = Game.names[1];
+                if (Game.names[2]) document.getElementById('input-p2').value = Game.names[2];
+                if (Game.colors[1]) document.getElementById('color-p1').value = Game.colors[1];
+                if (Game.colors[2]) document.getElementById('color-p2').value = Game.colors[2];
+                
+                // Restore active game if exists
+                if (cloudData.gameActive && cloudData.board) {
+                    Game.board = cloudData.board;
+                    Game.currentPlayer = cloudData.currentPlayer || 1;
+                    Game.moveHistory = cloudData.moveHistory || [];
+                    Game.gameActive = true;
+
+                    Game.applyThemeColors();
+                    Game.createHoles();
+                    Game.renderPersistedBoard();
+                    Game.updateUI();
+                    
+                    document.getElementById('setup-modal').style.display = 'none';
+                    document.getElementById('p1-name-display').textContent = Game.names[1];
+                    document.getElementById('p2-name-display').textContent = Game.names[2];
+                } else {
+                    Game.applyThemeColors();
+                    Game.updateUI();
+                }
+            }
+        }
     </script>
 </body>
 </html>
