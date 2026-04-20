@@ -9,7 +9,7 @@
 
 const DB_NAME = "WordSortDB";
 const DB_VERSION = 1;
-let db = null;
+let dataBase = null;
 
 let categories = [];
 let words = []; // { text, category, id, placed, currentZone }
@@ -47,7 +47,7 @@ function initDB() {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
         request.onerror = () => reject(request.error);
         request.onsuccess = () => {
-            db = request.result;
+            dataBase = request.result;
             resolve();
         };
         request.onupgradeneeded = (event) => {
@@ -74,7 +74,7 @@ async function savePreset() {
     };
 
     try {
-        const tx = db.transaction("presets", "readwrite");
+        const tx = dataBase.transaction("presets", "readwrite");
         const store = tx.objectStore("presets");
         await new Promise((resolve, reject) => {
             const request = store.add(data);
@@ -92,7 +92,7 @@ async function savePreset() {
 
 async function loadPresets() {
     try {
-        const tx = db.transaction("presets", "readonly");
+        const tx = dataBase.transaction("presets", "readonly");
         const store = tx.objectStore("presets");
         const presets = await new Promise((resolve, reject) => {
             const request = store.getAll();
@@ -118,7 +118,7 @@ async function loadPreset() {
     if (!id) return;
 
     try {
-        const tx = db.transaction("presets", "readonly");
+        const tx = dataBase.transaction("presets", "readonly");
         const store = tx.objectStore("presets");
         const preset = await new Promise((resolve, reject) => {
             const request = store.get(id);
