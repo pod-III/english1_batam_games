@@ -1,5 +1,4 @@
-const CACHE_NAME = 'klasskit-v1.1.17
-  ';
+const CACHE_NAME = 'klasskit-v1.1.18';
 
 // Only cache local, reliable assets during the install phase.
 const ASSETS_TO_CACHE = [
