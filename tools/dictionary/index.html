@@ -400,7 +400,10 @@
         };
 
         // --- 2. INITIALIZATION & PERSISTENCE ---
-        function init() {
+        async function init() {
+            const user = await requireAuth();
+            if (!user) return;
+
             try {
                 // 1. Load Theme
                 const storedTheme = localStorage.getItem('theme_dictionary');
@@ -412,34 +415,35 @@
                     lucide.createIcons();
                 }
 
-                // 2. Load Words
-                const storedWords = localStorage.getItem('e1_wordbank');
-                if (storedWords) {
-                    appState.savedWords = JSON.parse(storedWords);
-                } else {
-                    appState.savedWords = initialData;
-                    saveWordsToLocal();
-                }
-
-                // 3. Load Categories
-                const storedCats = localStorage.getItem('e1_categories');
-                if (storedCats) {
-                    const loaded = JSON.parse(storedCats);
-                    if(!Array.isArray(loaded)) {
-                         appState.categories = defaultCategories;
-                         saveCategoriesToLocal();
+                // 2. Load cloud data and merge
+                try {
+                    const cloudData = await loadProgress('dictionary_data');
+                    if (cloudData) {
+                        if (cloudData.savedWords) appState.savedWords = cloudData.savedWords;
+                        if (cloudData.categories) appState.categories = cloudData.categories;
                     } else {
-                        appState.categories = loaded;
+                        // Fallback to local
+                        const storedWords = localStorage.getItem('e1_wordbank');
+                        if (storedWords) appState.savedWords = JSON.parse(storedWords);
+                        else appState.savedWords = initialData;
+
+                        const storedCats = localStorage.getItem('e1_categories');
+                        if (storedCats) {
+                            const loaded = JSON.parse(storedCats);
+                            if(Array.isArray(loaded)) appState.categories = loaded;
+                            else appState.categories = defaultCategories;
+                        } else {
+                            appState.categories = defaultCategories;
+                        }
                     }
-                } else {
-                    appState.categories = defaultCategories;
-                    saveCategoriesToLocal();
+                } catch (e) {
+                    console.warn("Cloud load failed, using local fallback", e);
                 }
 
-                // 4. Load Common Sets (Network)
+                // 3. Load Common Sets (Network)
                 fetchCommonSets();
 
-                // 5. Render
+                // 4. Render
                 renderCategories();
                 updateCategoryDropdowns();
                 renderGrid();
@@ -448,6 +452,17 @@
                 console.error("Initialization Error:", err);
                 showToast("Error loading saved data", "error");
             }
+        }
+
+        let cloudSaveTimeout = null;
+        async function syncToCloud() {
+            clearTimeout(cloudSaveTimeout);
+            cloudSaveTimeout = setTimeout(async () => {
+                await saveProgress('dictionary_data', {
+                    savedWords: appState.savedWords,
+                    categories: appState.categories
+                });
+            }, 1000);
         }
 
         // --- 3. FETCH COMMON SETS ---
@@ -654,6 +669,7 @@
         function saveCategoriesToLocal() {
             try {
                 localStorage.setItem('e1_categories', JSON.stringify(appState.categories));
+                syncToCloud();
             } catch(e) { console.error("Save failed", e); }
         }
 
@@ -998,6 +1014,7 @@
         function saveWordsToLocal() {
             try {
                 localStorage.setItem('e1_wordbank', JSON.stringify(appState.savedWords));
+                syncToCloud();
             } catch(e) { console.error("Save failed", e); }
         }
 

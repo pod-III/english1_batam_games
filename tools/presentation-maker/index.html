@@ -612,7 +612,10 @@
             dragSrcIndex: null,
             colors: ['#FF6B95', '#FF8C42', '#00E676', '#2979FF'],
 
-            init() {
+            async init() {
+                const user = await requireAuth();
+                if (!user) return;
+
                 // Initialize Theme
                 const th = localStorage.getItem('theme_presentation-maker');
                 if (th === 'dark' || (!th && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -621,27 +624,42 @@
                     document.documentElement.classList.remove('dark');
                 }
 
-                // Load Library
-                const libSaved = localStorage.getItem('e1_rapid_library_v1');
-                if (libSaved) { try { this.library = JSON.parse(libSaved); } catch (e) { this.library = []; } }
+                // Load cloud data and merge
+                try {
+                    const cloudData = await loadProgress('presentation_data');
+                    if (cloudData) {
+                        this.library = cloudData.library || [];
+                        this.slides = cloudData.slides || [];
+                        this.currentDeckId = cloudData.currentDeckId || null;
+                        if (this.currentDeckId) {
+                            const deck = this.library.find(d => d.id === this.currentDeckId);
+                            this.updateDeckNameDisplay(deck ? deck.title : 'Unsaved');
+                        }
+                    } else {
+                        // Fallback to local
+                        const libSaved = localStorage.getItem('e1_rapid_library_v1');
+                        if (libSaved) { try { this.library = JSON.parse(libSaved); } catch (e) { this.library = []; } }
 
-                // Load Active Workspace (Scratchpad)
-                const saved = localStorage.getItem('e1_rapid_slides_v4');
-                const metaSaved = localStorage.getItem('e1_rapid_meta_v1');
+                        const saved = localStorage.getItem('e1_rapid_slides_v4');
+                        const metaSaved = localStorage.getItem('e1_rapid_meta_v1');
 
-                if (saved) {
-                    try {
-                        this.slides = JSON.parse(saved);
-                        this.slides = this.slides.map(s => ({ ...s, layout: s.layout || 'split' }));
-                    } catch (e) { this.slides = []; }
-                }
+                        if (saved) {
+                            try {
+                                this.slides = JSON.parse(saved);
+                                this.slides = this.slides.map(s => ({ ...s, layout: s.layout || 'split' }));
+                            } catch (e) { this.slides = []; }
+                        }
 
-                if (metaSaved) {
-                    try {
-                        const meta = JSON.parse(metaSaved);
-                        this.currentDeckId = meta.id;
-                        this.updateDeckNameDisplay(meta.title);
-                    } catch (e) { }
+                        if (metaSaved) {
+                            try {
+                                const meta = JSON.parse(metaSaved);
+                                this.currentDeckId = meta.id;
+                                this.updateDeckNameDisplay(meta.title);
+                            } catch (e) { }
+                        }
+                    }
+                } catch (e) {
+                    console.warn("Cloud load failed, using local fallback", e);
                 }
 
                 if (this.slides.length === 0) this.addSlide();
@@ -653,6 +671,18 @@
                 document.getElementById('presentation-mode').addEventListener('click', (e) => {
                     if (!e.target.closest('button')) this.nextSlide();
                 });
+            },
+
+            cloudSaveTimeout: null,
+            async syncToCloud() {
+                clearTimeout(this.cloudSaveTimeout);
+                this.cloudSaveTimeout = setTimeout(async () => {
+                    await saveProgress('presentation_data', {
+                        library: this.library,
+                        slides: this.slides,
+                        currentDeckId: this.currentDeckId
+                    });
+                }, 1000);
             },
 
             toggleTheme() {
@@ -899,6 +929,7 @@
                     localStorage.removeItem('e1_rapid_meta_v1');
                 }
                 this.updateStats();
+                this.syncToCloud();
             },
 
             switchView(mode) {
@@ -1227,7 +1258,7 @@
             }
         };
 
-        window.onload = () => app.init();
+        window.onload = async () => await app.init();
     </script>
 </body>
 

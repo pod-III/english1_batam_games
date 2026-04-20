@@ -1,1044 +1,940 @@
 <!doctype html>
 <html lang="en" class="light">
-    <head>
+
+<head>
     <!-- Supabase Auth -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/supabase.js"></script>
     <meta charset="UTF-8" />
-        <meta
-            name="viewport"
-            content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
-        />
-        <title>Elimination Grid - KlassKit</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Elimination Grid - KlassKit</title>
 
-        <!-- External Libraries -->
-        <script src="https://unpkg.com/lucide@latest"></script>
-        <script src="https://cdn.tailwindcss.com"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- External Libraries -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
-        <!-- Fonts -->
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link
-            href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap"
-            rel="stylesheet"
-        />
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap"
+        rel="stylesheet" />
 
-        <!-- Theme Configuration -->
-        <script>
-            tailwind.config = {
-                darkMode: "class",
-                theme: {
-                    extend: {
-                        colors: {
-                            pink: "#FF6B95",
-                            orange: "#FF8C42",
-                            green: "#00E676",
-                            blue: "#2979FF",
-                            purple: "#7C4DFF",
-                            dark: "#0f172a",
-                            chalk: "#f8fafc",
-                            surface: "rgba(255, 255, 255, 0.85)",
-                            border: "rgba(203, 213, 225, 0.6)",
-                        },
-                        fontFamily: {
-                            heading: ["Fredoka", "sans-serif"],
-                            body: ["Nunito", "sans-serif"],
-                            mono: ["JetBrains Mono", "monospace"],
-                        },
-                        boxShadow: {
-                            neo: "4px 4px 0px 0px rgba(51, 65, 85, 0.15)",
-                            "neo-sm": "2px 2px 0px 0px rgba(51, 65, 85, 0.15)",
-                            "neo-lg": "8px 8px 0px 0px rgba(51, 65, 85, 0.15)",
-                        },
+    <!-- Theme Configuration -->
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        pink: "#FF6B95",
+                        orange: "#FF8C42",
+                        green: "#00E676",
+                        blue: "#2979FF",
+                        purple: "#7C4DFF",
+                        dark: "#0f172a",
+                        chalk: "#f8fafc",
+                        surface: "rgba(255, 255, 255, 0.85)",
+                        border: "rgba(203, 213, 225, 0.6)",
+                    },
+                    fontFamily: {
+                        heading: ["Fredoka", "sans-serif"],
+                        body: ["Nunito", "sans-serif"],
+                        mono: ["JetBrains Mono", "monospace"],
+                    },
+                    boxShadow: {
+                        neo: "4px 4px 0px 0px rgba(51, 65, 85, 0.15)",
+                        "neo-sm": "2px 2px 0px 0px rgba(51, 65, 85, 0.15)",
+                        "neo-lg": "8px 8px 0px 0px rgba(51, 65, 85, 0.15)",
                     },
                 },
-            };
-        </script>
+            },
+        };
+    </script>
 
-        <style>
-            * {
-                box-sizing: border-box;
-            }
+    <style>
+        * {
+            box-sizing: border-box;
+        }
 
-            html,
-            body {
-                margin: 0;
-                padding: 0;
-                height: 100vh;
-                width: 100vw;
-                overflow: hidden;
-            }
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+        }
 
-            body {
-                font-family: "Nunito", sans-serif;
-                background-color: #f8fafc;
-                background-image:
-                    linear-gradient(#e2e8f0 1.5px, transparent 1.5px),
-                    linear-gradient(90deg, #e2e8f0 1.5px, transparent 1.5px);
-                background-size: 30px 30px;
-                color: #1e293b;
-                user-select: none;
-                -webkit-tap-highlight-color: transparent;
-                transition:
-                    background-color 0.3s,
-                    color 0.3s;
-            }
+        body {
+            font-family: "Nunito", sans-serif;
+            background-color: #f8fafc;
+            background-image:
+                linear-gradient(#e2e8f0 1.5px, transparent 1.5px),
+                linear-gradient(90deg, #e2e8f0 1.5px, transparent 1.5px);
+            background-size: 30px 30px;
+            color: #1e293b;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            transition:
+                background-color 0.3s,
+                color 0.3s;
+        }
 
-            html.dark body {
-                background-color: #020617;
-                background-image:
-                    linear-gradient(#0f172a 1.5px, transparent 1.5px),
-                    linear-gradient(90deg, #0f172a 1.5px, transparent 1.5px);
-                color: #e2e8f0;
-            }
+        html.dark body {
+            background-color: #020617;
+            background-image:
+                linear-gradient(#0f172a 1.5px, transparent 1.5px),
+                linear-gradient(90deg, #0f172a 1.5px, transparent 1.5px);
+            color: #e2e8f0;
+        }
 
-            .glass-panel {
-                background: rgba(255, 255, 255, 0.85);
-                backdrop-filter: blur(24px);
-                -webkit-backdrop-filter: blur(24px);
-            }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+        }
 
-            html.dark .glass-panel {
-                background: rgba(15, 23, 42, 0.8);
-                border-color: rgba(255, 255, 255, 0.1);
-            }
+        html.dark .glass-panel {
+            background: rgba(15, 23, 42, 0.8);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
 
-            .console-frame {
-                background: rgba(255, 255, 255, 0.6);
-                backdrop-filter: blur(24px);
-                -webkit-backdrop-filter: blur(24px);
-                border: 1px solid rgba(203, 213, 225, 0.6);
-                border-radius: 1.5rem;
-                box-shadow: 8px 8px 0px rgba(51, 65, 85, 0.15);
-                overflow: hidden;
-                transition: all 0.3s ease;
-            }
+        .console-frame {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(203, 213, 225, 0.6);
+            border-radius: 1.5rem;
+            box-shadow: 8px 8px 0px rgba(51, 65, 85, 0.15);
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
 
-            html.dark .console-frame {
-                background: rgba(15, 23, 42, 0.8);
-                border-color: rgba(255, 255, 255, 0.1);
-                box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.4);
-            }
+        html.dark .console-frame {
+            background: rgba(15, 23, 42, 0.8);
+            border-color: rgba(255, 255, 255, 0.1);
+            box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.4);
+        }
 
-            .btn-chunky {
-                transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-                transform: translateY(0);
-                position: relative;
-                border: 1px solid rgba(203, 213, 225, 0.6);
-                box-shadow: 4px 4px 0 rgba(51, 65, 85, 0.15);
-                font-family: "Fredoka", sans-serif;
-                font-weight: 700;
-                text-transform: uppercase;
-                letter-spacing: 0.05em;
-            }
+        .btn-chunky {
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform: translateY(0);
+            position: relative;
+            border: 1px solid rgba(203, 213, 225, 0.6);
+            box-shadow: 4px 4px 0 rgba(51, 65, 85, 0.15);
+            font-family: "Fredoka", sans-serif;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
 
-            html.dark .btn-chunky {
-                border-color: rgba(255, 255, 255, 0.1);
-                box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.4);
-                background-color: rgba(30, 41, 59, 0.8);
-                color: #e2e8f0;
-            }
+        html.dark .btn-chunky {
+            border-color: rgba(255, 255, 255, 0.1);
+            box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.4);
+            background-color: rgba(30, 41, 59, 0.8);
+            color: #e2e8f0;
+        }
 
-            .btn-chunky:hover:not(:disabled) {
-                transform: translate(-2px, -2px);
-                box-shadow: 6px 6px 0 rgba(51, 65, 85, 0.15);
-                filter: brightness(105%);
-            }
+        .btn-chunky:hover:not(:disabled) {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 rgba(51, 65, 85, 0.15);
+            filter: brightness(105%);
+        }
 
-            html.dark .btn-chunky:hover:not(:disabled) {
-                box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.4);
-            }
+        html.dark .btn-chunky:hover:not(:disabled) {
+            box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.4);
+        }
 
-            .btn-chunky:active:not(:disabled) {
-                transform: translate(2px, 2px);
-                box-shadow: 2px 2px 0 rgba(51, 65, 85, 0.15) !important;
-            }
+        .btn-chunky:active:not(:disabled) {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0 rgba(51, 65, 85, 0.15) !important;
+        }
 
-            html.dark .btn-chunky:active:not(:disabled) {
-                box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.4) !important;
-            }
+        html.dark .btn-chunky:active:not(:disabled) {
+            box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.4) !important;
+        }
 
-            .btn-chunky:disabled {
-                opacity: 0.5;
-                cursor: not-allowed;
-                transform: translateY(2px);
-                box-shadow: 0 0 0 rgba(51, 65, 85, 0.15);
-                filter: grayscale(100%);
-            }
+        .btn-chunky:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: translateY(2px);
+            box-shadow: 0 0 0 rgba(51, 65, 85, 0.15);
+            filter: grayscale(100%);
+        }
 
-            .custom-scrollbar::-webkit-scrollbar {
-                width: 8px;
-                height: 8px;
-            }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
 
-            .custom-scrollbar::-webkit-scrollbar-track {
-                background: transparent;
-            }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
 
-            .custom-scrollbar::-webkit-scrollbar-thumb {
-                background: rgba(203, 213, 225, 0.6);
-                border-radius: 10px;
-                border: 2px solid transparent;
-                background-clip: content-box;
-            }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(203, 213, 225, 0.6);
+            border-radius: 10px;
+            border: 2px solid transparent;
+            background-clip: content-box;
+        }
 
-            html.dark .custom-scrollbar::-webkit-scrollbar-thumb {
-                background: rgba(255, 255, 255, 0.2);
-            }
+        html.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+        }
 
-            .grid-card {
-                transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-                background: rgba(255, 255, 255, 0.8);
-                border: 1px solid rgba(203, 213, 225, 0.6);
-                box-shadow: 4px 4px 0 rgba(51, 65, 85, 0.15);
-            }
+        .grid-card {
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(203, 213, 225, 0.6);
+            box-shadow: 4px 4px 0 rgba(51, 65, 85, 0.15);
+        }
 
-            html.dark .grid-card {
-                background: rgba(30, 41, 59, 0.8);
-                border-color: rgba(255, 255, 255, 0.1);
-                box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.4);
-            }
+        html.dark .grid-card {
+            background: rgba(30, 41, 59, 0.8);
+            border-color: rgba(255, 255, 255, 0.1);
+            box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.4);
+        }
 
-            .grid-card:hover:not(.eliminated):not(.highlight) {
-                transform: translateY(-4px);
-                box-shadow: 6px 6px 0 rgba(51, 65, 85, 0.15);
-            }
+        .grid-card:hover:not(.eliminated):not(.highlight) {
+            transform: translateY(-4px);
+            box-shadow: 6px 6px 0 rgba(51, 65, 85, 0.15);
+        }
 
-            html.dark .grid-card:hover:not(.eliminated):not(.highlight) {
-                box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.4);
-            }
+        html.dark .grid-card:hover:not(.eliminated):not(.highlight) {
+            box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.4);
+        }
 
-            .grid-card.highlight {
-                background: #fef08a !important;
-                border-color: #ff8c42 !important;
-                transform: translateY(-8px) scale(1.05);
-                box-shadow: 8px 8px 0 rgba(255, 140, 66, 0.3) !important;
-                z-index: 20;
-            }
+        .grid-card.highlight {
+            background: #fef08a !important;
+            border-color: #ff8c42 !important;
+            transform: translateY(-8px) scale(1.05);
+            box-shadow: 8px 8px 0 rgba(255, 140, 66, 0.3) !important;
+            z-index: 20;
+        }
 
-            html.dark .grid-card.highlight {
-                background: #eab308 !important;
-                color: #1e293b !important;
-            }
+        html.dark .grid-card.highlight {
+            background: #eab308 !important;
+            color: #1e293b !important;
+        }
 
-            .grid-card.eliminated {
-                opacity: 0.5;
-                transform: scale(0.95);
-                box-shadow: none !important;
-                border-style: dashed;
-                border-color: #cbd5e1;
-            }
+        .grid-card.eliminated {
+            opacity: 0.5;
+            transform: scale(0.95);
+            box-shadow: none !important;
+            border-style: dashed;
+            border-color: #cbd5e1;
+        }
 
-            html.dark .grid-card.eliminated {
-                border-color: rgba(255, 255, 255, 0.2);
-            }
+        html.dark .grid-card.eliminated {
+            border-color: rgba(255, 255, 255, 0.2);
+        }
 
-            .elimination-mark {
-                position: absolute;
-                inset: 0;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                opacity: 0;
-                transform: scale(0.5);
-                transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            }
+        .elimination-mark {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
 
-            .grid-card.eliminated .elimination-mark {
-                opacity: 1;
-                transform: scale(1);
-            }
+        .grid-card.eliminated .elimination-mark {
+            opacity: 1;
+            transform: scale(1);
+        }
 
-            /* Winner Modal */
-            .winner-modal {
-                background: rgba(15, 23, 42, 0.7);
-                backdrop-filter: blur(12px);
-                transition: opacity 0.5s ease;
-            }
+        /* Winner Modal */
+        .winner-modal {
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(12px);
+            transition: opacity 0.5s ease;
+        }
 
-            .winner-card {
-                background: #ffffff;
-                border: 2px solid #0f172a;
-                box-shadow: 12px 12px 0 rgba(0, 230, 118, 0.3);
-                transform: scale(0.9);
-                opacity: 0;
-                transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            }
+        .winner-card {
+            background: #ffffff;
+            border: 2px solid #0f172a;
+            box-shadow: 12px 12px 0 rgba(0, 230, 118, 0.3);
+            transform: scale(0.9);
+            opacity: 0;
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
 
-            html.dark .winner-card {
-                background: rgba(15, 23, 42, 0.95);
-                border-color: #00e676;
-                box-shadow: 12px 12px 0 rgba(0, 230, 118, 0.2);
-            }
+        html.dark .winner-card {
+            background: rgba(15, 23, 42, 0.95);
+            border-color: #00e676;
+            box-shadow: 12px 12px 0 rgba(0, 230, 118, 0.2);
+        }
 
-            .winner-modal.active .winner-card {
-                transform: scale(1);
-                opacity: 1;
-            }
+        .winner-modal.active .winner-card {
+            transform: scale(1);
+            opacity: 1;
+        }
 
-            .winner-name {
-                background: linear-gradient(
-                    135deg,
+        .winner-name {
+            background: linear-gradient(135deg,
                     #ff6b95 0%,
                     #ff8c42 50%,
-                    #00e676 100%
-                );
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                background-clip: text;
-            }
+                    #00e676 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
 
-            /* Sunburst */
-            .sunburst {
-                position: fixed;
-                top: 50%;
-                left: 50%;
-                width: 200vmax;
-                height: 200vmax;
-                background: repeating-conic-gradient(
-                    from 0deg,
+        /* Sunburst */
+        .sunburst {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: 200vmax;
+            height: 200vmax;
+            background: repeating-conic-gradient(from 0deg,
                     rgba(0, 230, 118, 0.06) 0deg 15deg,
-                    transparent 15deg 30deg
-                );
-                transform: translate(-50%, -50%);
-                pointer-events: none;
-                z-index: 40;
-                opacity: 0;
-                transition: opacity 1s ease;
+                    transparent 15deg 30deg);
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 40;
+            opacity: 0;
+            transition: opacity 1s ease;
+        }
+
+        /* Set/Group Selector */
+        .set-item {
+            transition: all 0.2s ease;
+        }
+
+        .set-item:hover {
+            background: rgba(41, 121, 255, 0.1);
+        }
+
+        .set-item.active {
+            background: rgba(41, 121, 255, 0.15);
+            border-color: #2979ff;
+        }
+
+        html.dark .set-item.active {
+            background: rgba(124, 77, 255, 0.15);
+            border-color: #7c4dff;
+        }
+
+        @keyframes shake {
+
+            10%,
+            90% {
+                transform: translate3d(-2px, 0, 0) rotate(-1deg);
             }
 
-            /* Set/Group Selector */
-            .set-item {
-                transition: all 0.2s ease;
+            20%,
+            80% {
+                transform: translate3d(3px, 0, 0) rotate(2deg);
             }
 
-            .set-item:hover {
-                background: rgba(41, 121, 255, 0.1);
+            30%,
+            50%,
+            70% {
+                transform: translate3d(-5px, 0, 0) rotate(-3deg);
             }
 
-            .set-item.active {
-                background: rgba(41, 121, 255, 0.15);
-                border-color: #2979ff;
+            40%,
+            60% {
+                transform: translate3d(5px, 0, 0) rotate(3deg);
             }
+        }
 
-            html.dark .set-item.active {
-                background: rgba(124, 77, 255, 0.15);
-                border-color: #7c4dff;
-            }
+        .shake {
+            animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+        }
 
-            @keyframes shake {
-                10%,
-                90% {
-                    transform: translate3d(-2px, 0, 0) rotate(-1deg);
-                }
-                20%,
-                80% {
-                    transform: translate3d(3px, 0, 0) rotate(2deg);
-                }
-                30%,
-                50%,
-                70% {
-                    transform: translate3d(-5px, 0, 0) rotate(-3deg);
-                }
-                40%,
-                60% {
-                    transform: translate3d(5px, 0, 0) rotate(3deg);
-                }
-            }
+        /* Toggle Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 48px;
+            height: 24px;
+        }
 
-            .shake {
-                animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-            }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
 
-            /* Toggle Switch */
-            .switch {
-                position: relative;
-                display: inline-block;
-                width: 48px;
-                height: 24px;
-            }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(203, 213, 225, 0.6);
+            border: 1px solid rgba(203, 213, 225, 0.8);
+            transition: 0.3s;
+            border-radius: 34px;
+        }
 
-            .switch input {
-                opacity: 0;
-                width: 0;
-                height: 0;
-            }
+        html.dark .slider {
+            background-color: rgba(30, 41, 59, 0.8);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
 
-            .slider {
-                position: absolute;
-                cursor: pointer;
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            box-shadow: 2px 2px 0px rgba(51, 65, 85, 0.15);
+            transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border-radius: 50%;
+        }
+
+        html.dark .slider:before {
+            background-color: #94a3b8;
+            box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.4);
+        }
+
+        input:checked+.slider {
+            background-color: rgba(0, 230, 118, 0.3);
+            border-color: #00e676;
+        }
+
+        html.dark input:checked+.slider {
+            background-color: rgba(0, 230, 118, 0.2);
+            border-color: #00e676;
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(24px);
+            background-color: #00e676;
+        }
+
+        /* Panel animations */
+        #controls {
+            transition:
+                transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        #controls.collapsed {
+            transform: translateX(-100%);
+            width: 0;
+            min-width: 0;
+            padding: 0;
+            margin: 0;
+            border: none;
+            overflow: hidden;
+        }
+
+        @media (max-width: 768px) {
+            #controls {
+                position: fixed;
                 top: 0;
                 left: 0;
-                right: 0;
-                bottom: 0;
-                background-color: rgba(203, 213, 225, 0.6);
-                border: 1px solid rgba(203, 213, 225, 0.8);
-                transition: 0.3s;
-                border-radius: 34px;
+                height: 100vh;
+                z-index: 100;
+                transform: translateX(-100%);
             }
 
-            html.dark .slider {
-                background-color: rgba(30, 41, 59, 0.8);
-                border-color: rgba(255, 255, 255, 0.1);
-            }
-
-            .slider:before {
-                position: absolute;
-                content: "";
-                height: 16px;
-                width: 16px;
-                left: 3px;
-                bottom: 3px;
-                background-color: white;
-                box-shadow: 2px 2px 0px rgba(51, 65, 85, 0.15);
-                transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-                border-radius: 50%;
-            }
-
-            html.dark .slider:before {
-                background-color: #94a3b8;
-                box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.4);
-            }
-
-            input:checked + .slider {
-                background-color: rgba(0, 230, 118, 0.3);
-                border-color: #00e676;
-            }
-
-            html.dark input:checked + .slider {
-                background-color: rgba(0, 230, 118, 0.2);
-                border-color: #00e676;
-            }
-
-            input:checked + .slider:before {
-                transform: translateX(24px);
-                background-color: #00e676;
-            }
-
-            /* Panel animations */
-            #controls {
-                transition:
-                    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-                    width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            #controls.mobile-open {
+                transform: translateX(0);
             }
 
             #controls.collapsed {
                 transform: translateX(-100%);
-                width: 0;
-                min-width: 0;
-                padding: 0;
-                margin: 0;
-                border: none;
-                overflow: hidden;
+                width: 85%;
+                min-width: 300px;
             }
+        }
+    </style>
+</head>
 
-            @media (max-width: 768px) {
-                #controls {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    height: 100vh;
-                    z-index: 100;
-                    transform: translateX(-100%);
-                }
+<body class="h-screen w-screen overflow-hidden">
+    <div id="toast-container"
+        class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 pointer-events-none"></div>
 
-                #controls.mobile-open {
-                    transform: translateX(0);
-                }
+    <!-- Sunburst Background -->
+    <div id="sunburst" class="sunburst"></div>
 
-                #controls.collapsed {
-                    transform: translateX(-100%);
-                    width: 85%;
-                    min-width: 300px;
-                }
-            }
-        </style>
-    </head>
-    <body class="h-screen w-screen overflow-hidden">
-        <div
-            id="toast-container"
-            class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 pointer-events-none"
-        ></div>
+    <!-- Winner Modal -->
+    <div id="winner-modal" class="winner-modal fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+        <div class="winner-card w-full max-w-md p-6 md:p-8 rounded-3xl text-center relative">
+            <button onclick="closeWinnerModal()"
+                class="absolute top-4 right-4 text-slate-400 hover:text-dark dark:hover:text-slate-200">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
 
-        <!-- Sunburst Background -->
-        <div id="sunburst" class="sunburst"></div>
+            <div class="mb-6 flex justify-center">
+                <div
+                    class="w-20 h-20 bg-green/10 rounded-full flex items-center justify-center border-4 border-green text-green animate-bounce">
+                    <i data-lucide="trophy" class="w-10 h-10"></i>
+                </div>
+            </div>
 
-        <!-- Winner Modal -->
-        <div
-            id="winner-modal"
-            class="winner-modal fixed inset-0 z-50 hidden flex items-center justify-center p-4"
-        >
+            <h2 class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
+                The Winner Is
+            </h2>
+            <h1 id="winner-name-display"
+                class="winner-name text-4xl md:text-5xl font-heading font-bold mb-6 break-words leading-tight">
+                Name
+            </h1>
+
+            <button onclick="resetGrid()"
+                class="w-full btn-chunky bg-green text-dark dark:text-dark py-3 rounded-xl font-bold">
+                <i data-lucide="play" class="w-5 h-5 inline mr-2"></i> Play
+                Again
+            </button>
+        </div>
+    </div>
+
+    <div class="console-frame w-full h-full relative flex z-10 rounded-none md:rounded-2xl">
+        <!-- LEFT PANEL: CONTROLS -->
+        <aside id="controls"
+            class="w-80 glass-panel border-r-[1px] border-slate-300 dark:border-white/10 flex flex-col z-50 h-full shrink-0">
+            <!-- Header -->
             <div
-                class="winner-card w-full max-w-md p-6 md:p-8 rounded-3xl text-center relative"
-            >
-                <button
-                    onclick="closeWinnerModal()"
-                    class="absolute top-4 right-4 text-slate-400 hover:text-dark dark:hover:text-slate-200"
-                >
-                    <i data-lucide="x" class="w-6 h-6"></i>
-                </button>
-
-                <div class="mb-6 flex justify-center">
-                    <div
-                        class="w-20 h-20 bg-green/10 rounded-full flex items-center justify-center border-4 border-green text-green animate-bounce"
-                    >
-                        <i data-lucide="trophy" class="w-10 h-10"></i>
+                class="p-4 border-b-[1px] border-slate-300 dark:border-white/10 bg-slate-50/50 dark:bg-slate-800/50 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-3 flex-1 min-w-0">
+                    <a href="../index.html"
+                        class="p-2 bg-white dark:bg-slate-700 border-[1px] border-slate-300 dark:border-white/10 rounded-lg text-slate-400 hover:text-blue transition-colors shadow-sm"
+                        title="Back to Home">
+                        <i data-lucide="home" class="w-4 h-4"></i>
+                    </a>
+                    <div class="flex-1 min-w-0">
+                        <h1
+                            class="text-xl font-heading text-dark dark:text-slate-100 tracking-wide leading-none truncate">
+                            ELIM<span class="text-pink">GRID</span>
+                        </h1>
+                        <div class="flex items-center gap-2 mt-1">
+                            <button onclick="toggleTheme()"
+                                class="px-2 py-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-[10px] font-bold rounded flex items-center gap-1 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">
+                                <i data-lucide="moon" class="w-3 h-3 hidden dark:block"></i>
+                                <i data-lucide="sun" class="w-3 h-3 block dark:hidden"></i>
+                            </button>
+                            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Classroom
+                                Tool</span>
+                        </div>
                     </div>
                 </div>
-
-                <h2
-                    class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2"
-                >
-                    The Winner Is
-                </h2>
-                <h1
-                    id="winner-name-display"
-                    class="winner-name text-4xl md:text-5xl font-heading font-bold mb-6 break-words leading-tight"
-                >
-                    Name
-                </h1>
-
-                <button
-                    onclick="resetGrid()"
-                    class="w-full btn-chunky bg-green text-dark dark:text-dark py-3 rounded-xl font-bold"
-                >
-                    <i data-lucide="play" class="w-5 h-5 inline mr-2"></i> Play
-                    Again
+                <button onclick="togglePanel()"
+                    class="md:hidden p-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
-        </div>
 
-        <div
-            class="console-frame w-full h-full relative flex z-10 rounded-none md:rounded-2xl"
-        >
-            <!-- LEFT PANEL: CONTROLS -->
-            <aside
-                id="controls"
-                class="w-80 glass-panel border-r-[1px] border-slate-300 dark:border-white/10 flex flex-col z-50 h-full shrink-0"
-            >
-                <!-- Header -->
+            <!-- Content -->
+            <div class="flex-1 p-4 overflow-y-auto custom-scrollbar space-y-4 bg-transparent relative">
+                <!-- SET/GROUP MANAGEMENT -->
                 <div
-                    class="p-4 border-b-[1px] border-slate-300 dark:border-white/10 bg-slate-50/50 dark:bg-slate-800/50 flex justify-between items-center shrink-0"
-                >
-                    <div class="flex items-center gap-3 flex-1 min-w-0">
-                        <a href="../index.html" class="p-2 bg-white dark:bg-slate-700 border-[1px] border-slate-300 dark:border-white/10 rounded-lg text-slate-400 hover:text-blue transition-colors shadow-sm" title="Back to Home">
-                            <i data-lucide="home" class="w-4 h-4"></i>
-                        </a>
-                        <div class="flex-1 min-w-0">
-                            <h1
-                                class="text-xl font-heading text-dark dark:text-slate-100 tracking-wide leading-none truncate"
-                            >
-                                ELIM<span class="text-pink">GRID</span>
-                            </h1>
-                            <div class="flex items-center gap-2 mt-1">
-                                <button
-                                    onclick="toggleTheme()"
-                                    class="px-2 py-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-[10px] font-bold rounded flex items-center gap-1 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
-                                >
-                                    <i
-                                        data-lucide="moon"
-                                        class="w-3 h-3 hidden dark:block"
-                                    ></i>
-                                    <i
-                                        data-lucide="sun"
-                                        class="w-3 h-3 block dark:hidden"
-                                    ></i>
-                                </button>
-                                <span
-                                    class="text-[10px] text-slate-400 font-bold uppercase tracking-widest"
-                                    >Classroom Tool</span
-                                >
-                            </div>
-                        </div>
+                    class="p-3 bg-slate-50/50 dark:bg-slate-800/50 border-[1px] border-slate-300 dark:border-white/10 rounded-xl shadow-sm">
+                    <div
+                        class="flex justify-between items-center border-b-[1px] border-slate-200 dark:border-white/10 pb-2 mb-2">
+                        <label
+                            class="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                            <i data-lucide="folder-open" class="w-4 h-4 text-blue"></i>
+                            Saved Sets
+                        </label>
+                        <button onclick="openSetModal()" class="text-xs text-blue font-bold hover:underline">
+                            + New
+                        </button>
                     </div>
-                    <button
-                        onclick="togglePanel()"
-                        class="md:hidden p-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
-                    >
-                        <i data-lucide="x" class="w-5 h-5"></i>
-                    </button>
+
+                    <!-- Set List -->
+                    <div id="set-list" class="space-y-1 max-h-24 overflow-y-auto custom-scrollbar mb-2">
+                        <!-- Populated by JS -->
+                    </div>
+
+                    <!-- Current Set Info -->
+                    <div class="flex gap-2 pt-2 border-t-[1px] border-slate-200 dark:border-white/10">
+                        <button onclick="saveCurrentSet()"
+                            class="flex-1 btn-chunky bg-green text-dark dark:text-dark py-2 rounded-lg text-xs font-bold">
+                            <i data-lucide="save" class="w-3 h-3 inline mr-1"></i>
+                            SAVE
+                        </button>
+                        <button onclick="deleteCurrentSet()"
+                            class="btn-chunky bg-white dark:bg-slate-700 !text-pink dark:!text-pink py-2 px-3 rounded-lg text-xs font-bold">
+                            <i data-lucide="trash-2" class="w-3 h-3"></i>
+                        </button>
+                    </div>
                 </div>
 
-                <!-- Content -->
+                <!-- ELIMINATE BUTTON -->
+                <button id="eliminateBtn" onclick="triggerElimination()"
+                    class="w-full btn-chunky bg-pink text-white dark:text-white py-5 rounded-xl text-lg tracking-widest flex items-center justify-center gap-3 hover:brightness-110 shadow-neo-lg disabled:opacity-50 disabled:grayscale">
+                    <i data-lucide="bomb" class="w-6 h-6"></i>
+                    ELIMINATE
+                </button>
+
+                <!-- STATS -->
                 <div
-                    class="flex-1 p-4 overflow-y-auto custom-scrollbar space-y-4 bg-transparent relative"
-                >
-                    <!-- SET/GROUP MANAGEMENT -->
+                    class="p-3 bg-slate-50/50 dark:bg-slate-800/50 border-[1px] border-slate-300 dark:border-white/10 rounded-xl shadow-sm">
                     <div
-                        class="p-3 bg-slate-50/50 dark:bg-slate-800/50 border-[1px] border-slate-300 dark:border-white/10 rounded-xl shadow-sm"
-                    >
-                        <div
-                            class="flex justify-between items-center border-b-[1px] border-slate-200 dark:border-white/10 pb-2 mb-2"
-                        >
-                            <label
-                                class="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"
-                            >
-                                <i
-                                    data-lucide="folder-open"
-                                    class="w-4 h-4 text-blue"
-                                ></i>
-                                Saved Sets
-                            </label>
-                            <button
-                                onclick="openSetModal()"
-                                class="text-xs text-blue font-bold hover:underline"
-                            >
-                                + New
-                            </button>
-                        </div>
+                        class="flex justify-between items-center border-b-[1px] border-slate-200 dark:border-white/10 pb-2 mb-2">
+                        <span class="text-xs font-black text-slate-400 uppercase">Survivors</span>
+                        <span id="remainingCount"
+                            class="font-heading font-bold text-2xl text-dark dark:text-white">0</span>
+                    </div>
+                    <div class="w-full bg-slate-200 dark:bg-slate-700 h-3 rounded-full overflow-hidden">
+                        <div id="progressBar" class="h-full bg-blue transition-all duration-500 w-0"></div>
+                    </div>
+                </div>
 
-                        <!-- Set List -->
-                        <div
-                            id="set-list"
-                            class="space-y-1 max-h-24 overflow-y-auto custom-scrollbar mb-2"
-                        >
-                            <!-- Populated by JS -->
-                        </div>
-
-                        <!-- Current Set Info -->
-                        <div
-                            class="flex gap-2 pt-2 border-t-[1px] border-slate-200 dark:border-white/10"
-                        >
-                            <button
-                                onclick="saveCurrentSet()"
-                                class="flex-1 btn-chunky bg-green text-dark dark:text-dark py-2 rounded-lg text-xs font-bold"
-                            >
-                                <i
-                                    data-lucide="save"
-                                    class="w-3 h-3 inline mr-1"
-                                ></i>
-                                SAVE
-                            </button>
-                            <button
-                                onclick="deleteCurrentSet()"
-                                class="btn-chunky bg-white dark:bg-slate-700 !text-pink dark:!text-pink py-2 px-3 rounded-lg text-xs font-bold"
-                            >
-                                <i data-lucide="trash-2" class="w-3 h-3"></i>
-                            </button>
-                        </div>
+                <!-- ADD PARTICIPANT -->
+                <div
+                    class="p-3 bg-slate-50/50 dark:bg-slate-800/50 border-[1px] border-slate-300 dark:border-white/10 rounded-xl shadow-sm space-y-2">
+                    <div
+                        class="flex justify-between items-center border-b-[1px] border-slate-200 dark:border-white/10 pb-2">
+                        <label class="text-xs font-black text-slate-400 uppercase tracking-widest">Edit
+                            Participants</label>
+                        <button onclick="toggleBatch()" class="text-xs text-blue font-bold hover:underline">
+                            Batch
+                        </button>
                     </div>
 
-                    <!-- ELIMINATE BUTTON -->
-                    <button
-                        id="eliminateBtn"
-                        onclick="triggerElimination()"
-                        class="w-full btn-chunky bg-pink text-white dark:text-white py-5 rounded-xl text-lg tracking-widest flex items-center justify-center gap-3 hover:brightness-110 shadow-neo-lg disabled:opacity-50 disabled:grayscale"
-                    >
-                        <i data-lucide="bomb" class="w-6 h-6"></i>
-                        ELIMINATE
-                    </button>
-
-                    <!-- STATS -->
-                    <div
-                        class="p-3 bg-slate-50/50 dark:bg-slate-800/50 border-[1px] border-slate-300 dark:border-white/10 rounded-xl shadow-sm"
-                    >
-                        <div
-                            class="flex justify-between items-center border-b-[1px] border-slate-200 dark:border-white/10 pb-2 mb-2"
-                        >
-                            <span
-                                class="text-xs font-black text-slate-400 uppercase"
-                                >Survivors</span
-                            >
-                            <span
-                                id="remainingCount"
-                                class="font-heading font-bold text-2xl text-dark dark:text-white"
-                                >0</span
-                            >
-                        </div>
-                        <div
-                            class="w-full bg-slate-200 dark:bg-slate-700 h-3 rounded-full overflow-hidden"
-                        >
-                            <div
-                                id="progressBar"
-                                class="h-full bg-blue transition-all duration-500 w-0"
-                            ></div>
-                        </div>
-                    </div>
-
-                    <!-- ADD PARTICIPANT -->
-                    <div
-                        class="p-3 bg-slate-50/50 dark:bg-slate-800/50 border-[1px] border-slate-300 dark:border-white/10 rounded-xl shadow-sm space-y-2"
-                    >
-                        <div
-                            class="flex justify-between items-center border-b-[1px] border-slate-200 dark:border-white/10 pb-2"
-                        >
-                            <label
-                                class="text-xs font-black text-slate-400 uppercase tracking-widest"
-                                >Edit Participants</label
-                            >
-                            <button
-                                onclick="toggleBatch()"
-                                class="text-xs text-blue font-bold hover:underline"
-                            >
-                                Batch
-                            </button>
-                        </div>
-
-                        <div class="flex gap-2">
-                            <input
-                                type="text"
-                                id="optionInput"
-                                placeholder="Enter name..."
-                                class="flex-1 border-[1px] border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 font-bold text-dark dark:text-slate-200 text-sm bg-white/50 dark:bg-slate-900/50 focus:outline-none focus:border-blue focus:ring-1 focus:ring-blue"
-                                onkeydown="
+                    <div class="flex gap-2">
+                        <input type="text" id="optionInput" placeholder="Enter name..."
+                            class="flex-1 border-[1px] border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 font-bold text-dark dark:text-slate-200 text-sm bg-white/50 dark:bg-slate-900/50 focus:outline-none focus:border-blue focus:ring-1 focus:ring-blue"
+                            onkeydown="
                                     if (event.key === 'Enter') addOption();
-                                "
-                            />
-                            <button
-                                onclick="addOption()"
-                                class="btn-chunky bg-green text-dark dark:text-dark px-3 rounded-lg"
-                            >
-                                <i data-lucide="plus" class="w-4 h-4"></i>
-                            </button>
-                        </div>
-
-                        <!-- Batch Input -->
-                        <div id="batchContainer" class="hidden">
-                            <textarea
-                                id="batchInput"
-                                rows="3"
-                                class="w-full p-2 bg-white/50 dark:bg-slate-900/50 text-dark dark:text-slate-200 font-mono text-xs border-[1px] border-slate-300 dark:border-white/10 rounded-lg resize-none mb-2"
-                                placeholder="One name per line..."
-                            ></textarea>
-                            <button
-                                onclick="saveBatch()"
-                                class="w-full btn-chunky bg-dark text-white py-2 rounded-lg text-xs"
-                            >
-                                Update Grid
-                            </button>
-                        </div>
-
-                        <!-- Participant Tags -->
-                        <div
-                            id="optionsList"
-                            class="flex flex-wrap gap-1 max-h-24 overflow-y-auto custom-scrollbar pt-1"
-                        >
-                            <!-- Populated by JS -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Footer -->
-                <div
-                    class="p-3 border-t-[1px] border-slate-300 dark:border-white/10 bg-slate-50/50 dark:bg-slate-800/50 flex justify-between items-center shrink-0"
-                >
-                    <div class="flex items-center gap-2">
-                        <button
-                            onclick="toggleMute()"
-                            id="muteBtn"
-                            class="p-2 bg-white dark:bg-slate-700 border-[1px] border-slate-300 dark:border-white/10 rounded-lg text-slate-400 hover:text-dark dark:hover:text-slate-200 transition-colors"
-                        >
-                            <i
-                                id="muteIcon"
-                                data-lucide="volume-2"
-                                class="w-4 h-4"
-                            ></i>
-                        </button>
-                        <button
-                            onclick="resetGrid()"
-                            class="p-2 bg-white dark:bg-slate-700 border-[1px] border-slate-300 dark:border-white/10 rounded-lg text-slate-400 hover:text-orange transition-colors"
-                        >
-                            <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
-                        </button>
-                        <button
-                            onclick="clearAll()"
-                            class="p-2 bg-white dark:bg-slate-700 border-[1px] border-slate-300 dark:border-white/10 rounded-lg text-slate-400 hover:text-pink transition-colors"
-                        >
-                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                " />
+                        <button onclick="addOption()"
+                            class="btn-chunky bg-green text-dark dark:text-dark px-3 rounded-lg">
+                            <i data-lucide="plus" class="w-4 h-4"></i>
                         </button>
                     </div>
-                    <div
-                        class="font-heading font-black text-slate-400 text-xs uppercase tracking-wider"
-                    >
-                        TOTAL: <span id="totalCount" class="text-blue">0</span>
+
+                    <!-- Batch Input -->
+                    <div id="batchContainer" class="hidden">
+                        <textarea id="batchInput" rows="3"
+                            class="w-full p-2 bg-white/50 dark:bg-slate-900/50 text-dark dark:text-slate-200 font-mono text-xs border-[1px] border-slate-300 dark:border-white/10 rounded-lg resize-none mb-2"
+                            placeholder="One name per line..."></textarea>
+                        <button onclick="saveBatch()"
+                            class="w-full btn-chunky bg-dark text-white py-2 rounded-lg text-xs">
+                            Update Grid
+                        </button>
                     </div>
-                </div>
-            </aside>
 
-            <!-- MAIN GRID AREA -->
-            <main
-                id="main-area"
-                class="flex-1 relative h-full bg-slate-50/50 dark:bg-slate-900/50 flex flex-col overflow-hidden transition-colors duration-300"
-            >
-                <!-- Toggle Panel Button -->
-                <button
-                    id="panel-toggle"
-                    onclick="togglePanel()"
-                    class="absolute top-4 left-4 z-30 p-2 glass-panel border-[1px] border-slate-300 dark:border-white/10 rounded-xl shadow-neo-sm hover:translate-y-[-2px] transition-transform text-slate-500 hover:text-dark dark:hover:text-slate-200"
-                >
-                    <i data-lucide="panel-left-close" class="w-5 h-5"></i>
-                </button>
-
-                <!-- Show Panel Button (when collapsed) -->
-                <button
-                    id="show-panel-btn"
-                    onclick="togglePanel()"
-                    class="hidden absolute top-4 left-4 z-30 p-2 glass-panel border-[1px] border-slate-300 dark:border-white/10 rounded-xl shadow-neo-sm hover:translate-y-[-2px] transition-transform text-slate-500 hover:text-dark dark:hover:text-slate-200"
-                >
-                    <i data-lucide="panel-left-open" class="w-5 h-5"></i>
-                </button>
-
-                <!-- Grid -->
-                <div class="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar">
-                    <div
-                        id="game-grid"
-                        class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4 pb-24"
-                    >
-                        <!-- Cards populated by JS -->
+                    <!-- Participant Tags -->
+                    <div id="optionsList" class="flex flex-wrap gap-1 max-h-24 overflow-y-auto custom-scrollbar pt-1">
+                        <!-- Populated by JS -->
                     </div>
-                </div>
-
-                <!-- Empty State -->
-                <div
-                    id="empty-state"
-                    class="hidden absolute inset-0 flex flex-col items-center justify-center text-slate-400"
-                >
-                    <div
-                        class="w-24 h-24 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center mb-4"
-                    >
-                        <i data-lucide="users" class="w-12 h-12"></i>
-                    </div>
-                    <p class="font-heading text-xl font-bold">
-                        No Participants
-                    </p>
-                    <p class="text-sm">Add students or select a saved set</p>
-                </div>
-            </main>
-        </div>
-
-        <!-- New Set Modal -->
-        <div
-            id="set-modal"
-            class="fixed inset-0 bg-slate-900/60 hidden items-center justify-center z-50 backdrop-blur-sm p-4"
-        >
-            <div
-                class="glass-panel w-full max-w-md border-[1px] border-slate-300 dark:border-white/10 rounded-3xl shadow-neo-lg p-6 relative animate-bounce-in"
-            >
-                <div class="flex justify-between items-center mb-4">
-                    <h2
-                        class="font-heading text-2xl font-bold text-dark dark:text-white"
-                    >
-                        Save New Set
-                    </h2>
-                    <button
-                        onclick="closeSetModal()"
-                        class="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors"
-                    >
-                        <i data-lucide="x" class="w-6 h-6 text-slate-500"></i>
-                    </button>
-                </div>
-
-                <input
-                    type="text"
-                    id="new-set-name"
-                    placeholder="Set name (e.g. Class 7A)"
-                    class="w-full p-4 mb-4 bg-white/50 dark:bg-slate-900/50 text-dark dark:text-slate-200 font-heading text-lg font-bold border-[1px] border-slate-300 dark:border-white/10 rounded-xl focus:border-blue focus:ring-1 focus:ring-blue outline-none shadow-inner"
-                />
-
-                <div class="mt-6 flex gap-3">
-                    <button
-                        onclick="closeSetModal()"
-                        class="flex-1 btn-chunky bg-white dark:bg-slate-700 text-dark dark:text-white py-3 rounded-xl font-bold"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onclick="createNewSet()"
-                        class="flex-1 btn-chunky bg-green text-dark dark:text-dark py-3 rounded-xl font-bold"
-                    >
-                        Create Set
-                    </button>
                 </div>
             </div>
+
+            <!-- Footer -->
+            <div
+                class="p-3 border-t-[1px] border-slate-300 dark:border-white/10 bg-slate-50/50 dark:bg-slate-800/50 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-2">
+                    <button onclick="toggleMute()" id="muteBtn"
+                        class="p-2 bg-white dark:bg-slate-700 border-[1px] border-slate-300 dark:border-white/10 rounded-lg text-slate-400 hover:text-dark dark:hover:text-slate-200 transition-colors">
+                        <i id="muteIcon" data-lucide="volume-2" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="resetGrid()"
+                        class="p-2 bg-white dark:bg-slate-700 border-[1px] border-slate-300 dark:border-white/10 rounded-lg text-slate-400 hover:text-orange transition-colors">
+                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="clearAll()"
+                        class="p-2 bg-white dark:bg-slate-700 border-[1px] border-slate-300 dark:border-white/10 rounded-lg text-slate-400 hover:text-pink transition-colors">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <div class="font-heading font-black text-slate-400 text-xs uppercase tracking-wider">
+                    TOTAL: <span id="totalCount" class="text-blue">0</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN GRID AREA -->
+        <main id="main-area"
+            class="flex-1 relative h-full bg-slate-50/50 dark:bg-slate-900/50 flex flex-col overflow-hidden transition-colors duration-300">
+            <!-- Toggle Panel Button -->
+            <button id="panel-toggle" onclick="togglePanel()"
+                class="absolute top-4 left-4 z-30 p-2 glass-panel border-[1px] border-slate-300 dark:border-white/10 rounded-xl shadow-neo-sm hover:translate-y-[-2px] transition-transform text-slate-500 hover:text-dark dark:hover:text-slate-200">
+                <i data-lucide="panel-left-close" class="w-5 h-5"></i>
+            </button>
+
+            <!-- Show Panel Button (when collapsed) -->
+            <button id="show-panel-btn" onclick="togglePanel()"
+                class="hidden absolute top-4 left-4 z-30 p-2 glass-panel border-[1px] border-slate-300 dark:border-white/10 rounded-xl shadow-neo-sm hover:translate-y-[-2px] transition-transform text-slate-500 hover:text-dark dark:hover:text-slate-200">
+                <i data-lucide="panel-left-open" class="w-5 h-5"></i>
+            </button>
+
+            <!-- Grid -->
+            <div class="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar">
+                <div id="game-grid"
+                    class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 md:gap-4 pb-24">
+                    <!-- Cards populated by JS -->
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="empty-state"
+                class="hidden absolute inset-0 flex flex-col items-center justify-center text-slate-400">
+                <div
+                    class="w-24 h-24 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center mb-4">
+                    <i data-lucide="users" class="w-12 h-12"></i>
+                </div>
+                <p class="font-heading text-xl font-bold">
+                    No Participants
+                </p>
+                <p class="text-sm">Add students or select a saved set</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- New Set Modal -->
+    <div id="set-modal"
+        class="fixed inset-0 bg-slate-900/60 hidden items-center justify-center z-50 backdrop-blur-sm p-4">
+        <div
+            class="glass-panel w-full max-w-md border-[1px] border-slate-300 dark:border-white/10 rounded-3xl shadow-neo-lg p-6 relative animate-bounce-in">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="font-heading text-2xl font-bold text-dark dark:text-white">
+                    Save New Set
+                </h2>
+                <button onclick="closeSetModal()"
+                    class="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition-colors">
+                    <i data-lucide="x" class="w-6 h-6 text-slate-500"></i>
+                </button>
+            </div>
+
+            <input type="text" id="new-set-name" placeholder="Set name (e.g. Class 7A)"
+                class="w-full p-4 mb-4 bg-white/50 dark:bg-slate-900/50 text-dark dark:text-slate-200 font-heading text-lg font-bold border-[1px] border-slate-300 dark:border-white/10 rounded-xl focus:border-blue focus:ring-1 focus:ring-blue outline-none shadow-inner" />
+
+            <div class="mt-6 flex gap-3">
+                <button onclick="closeSetModal()"
+                    class="flex-1 btn-chunky bg-white dark:bg-slate-700 text-dark dark:text-white py-3 rounded-xl font-bold">
+                    Cancel
+                </button>
+                <button onclick="createNewSet()"
+                    class="flex-1 btn-chunky bg-green text-dark dark:text-dark py-3 rounded-xl font-bold">
+                    Create Set
+                </button>
+            </div>
         </div>
+    </div>
 
-        <script>
-            // Theme
-            function toggleTheme() {
-                const isDark = document.documentElement.classList.toggle("dark");
-                localStorage.setItem("theme_spin-the-wheel", isDark ? "dark" : "light");
-                lucide.createIcons();
-            }
+    <script>
+        // Theme
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.toggle("dark");
+            localStorage.setItem("theme_spin-the-wheel", isDark ? "dark" : "light");
+            lucide.createIcons();
+        }
 
-            function loadTheme() {
-                const saved = localStorage.getItem("theme_spin-the-wheel");
-                if (saved === "dark" || (!saved && window.matchMedia("(prefers-color-scheme: dark)").matches))
-                    document.documentElement.classList.add("dark");
-            }
+        function loadTheme() {
+            const saved = localStorage.getItem("theme_spin-the-wheel");
+            if (saved === "dark" || (!saved && window.matchMedia("(prefers-color-scheme: dark)").matches))
+                document.documentElement.classList.add("dark");
+        }
 
-            // Toast
-            function showToast(message, type = "info") {
-                const container = document.getElementById("toast-container");
-                const toast = document.createElement("div");
+        // Toast
+        function showToast(message, type = "info") {
+            const container = document.getElementById("toast-container");
+            const toast = document.createElement("div");
 
-                const colors = {
-                    success: "bg-green text-dark border-green",
-                    error: "bg-pink text-white border-pink",
-                    info: "bg-blue text-white border-blue",
-                    warning: "bg-orange text-dark border-orange",
-                };
+            const colors = {
+                success: "bg-green text-dark border-green",
+                error: "bg-pink text-white border-pink",
+                info: "bg-blue text-white border-blue",
+                warning: "bg-orange text-dark border-orange",
+            };
 
-                toast.className = `${colors[type]} px-4 py-3 rounded-xl shadow-neo border-[1px] font-bold text-sm flex items-center gap-2 pointer-events-auto transform transition-all duration-300 translate-y-[-20px] opacity-0`;
-                toast.innerHTML = `<i data-lucide="${type === "success" ? "check-circle" : type === "error" ? "x-circle" : "info"}" class="w-4 h-4"></i> ${message}`;
+            toast.className = `${colors[type]} px-4 py-3 rounded-xl shadow-neo border-[1px] font-bold text-sm flex items-center gap-2 pointer-events-auto transform transition-all duration-300 translate-y-[-20px] opacity-0`;
+            toast.innerHTML = `<i data-lucide="${type === "success" ? "check-circle" : type === "error" ? "x-circle" : "info"}" class="w-4 h-4"></i> ${message}`;
 
-                container.appendChild(toast);
-                lucide.createIcons();
+            container.appendChild(toast);
+            lucide.createIcons();
 
-                requestAnimationFrame(() =>
-                    toast.classList.remove("translate-y-[-20px]", "opacity-0"),
-                );
-                setTimeout(() => {
-                    toast.classList.add("translate-y-[-20px]", "opacity-0");
-                    setTimeout(() => toast.remove(), 300);
-                }, 2500);
-            }
+            requestAnimationFrame(() =>
+                toast.classList.remove("translate-y-[-20px]", "opacity-0"),
+            );
+            setTimeout(() => {
+                toast.classList.add("translate-y-[-20px]", "opacity-0");
+                setTimeout(() => toast.remove(), 300);
+            }, 2500);
+        }
 
-            // Panel Toggle
-            let panelOpen = true;
+        // Panel Toggle
+        let panelOpen = true;
 
-            function togglePanel() {
-                const controls = document.getElementById("controls");
-                const panelToggle = document.getElementById("panel-toggle");
-                const showPanelBtn = document.getElementById("show-panel-btn");
-                const isMobile = window.innerWidth < 768;
+        function togglePanel() {
+            const controls = document.getElementById("controls");
+            const panelToggle = document.getElementById("panel-toggle");
+            const showPanelBtn = document.getElementById("show-panel-btn");
+            const isMobile = window.innerWidth < 768;
 
-                panelOpen = !panelOpen;
+            panelOpen = !panelOpen;
 
-                if (isMobile) {
-                    controls.classList.toggle("mobile-open", panelOpen);
+            if (isMobile) {
+                controls.classList.toggle("mobile-open", panelOpen);
+            } else {
+                controls.classList.toggle("collapsed", !panelOpen);
+
+                if (panelOpen) {
+                    panelToggle.classList.remove("hidden");
+                    showPanelBtn.classList.add("hidden");
                 } else {
-                    controls.classList.toggle("collapsed", !panelOpen);
+                    panelToggle.classList.add("hidden");
+                    showPanelBtn.classList.remove("hidden");
+                }
+            }
+        }
 
-                    if (panelOpen) {
-                        panelToggle.classList.remove("hidden");
-                        showPanelBtn.classList.add("hidden");
-                    } else {
-                        panelToggle.classList.add("hidden");
-                        showPanelBtn.classList.remove("hidden");
+        // State
+        let participants = [];
+        let eliminated = new Set();
+        let isAnimating = false;
+        let isMuted = false;
+        let audioInitialized = false;
+        let synth, noiseSynth, winSynth;
+
+        // IndexedDB
+        const DB_NAME = "ElimGridDB_v2";
+        const DB_VERSION = 1;
+        let dataBase = null;
+        let currentSetId = null;
+        let sets = [];
+
+        async function initDB() {
+            await requireAuth();
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onerror = () => reject(request.error);
+                request.onsuccess = async () => {
+                    dataBase = request.result;
+                    await loadFromCloud();
+                    resolve(dataBase);
+                };
+                request.onupgradeneeded = (event) => {
+                    const database = event.target.result;
+                    if (!database.objectStoreNames.contains("sets")) {
+                        const setsStore = database.createObjectStore(
+                            "sets",
+                            { keyPath: "id", autoIncrement: true },
+                        );
+                        setsStore.createIndex("updatedAt", "updatedAt", {
+                            unique: false,
+                        });
+                    }
+                    if (!database.objectStoreNames.contains("settings")) {
+                        database.createObjectStore("settings", {
+                            keyPath: "key",
+                        });
+                    }
+                };
+            });
+        }
+
+        async function getAllSets() {
+            return new Promise((resolve, reject) => {
+                const tx = dataBase.transaction("sets", "readonly");
+                const store = tx.objectStore("sets");
+                const index = store.index("updatedAt");
+                const request = index.getAll();
+                request.onsuccess = () => resolve(request.result.reverse());
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function saveSet(setData) {
+            return new Promise((resolve, reject) => {
+                const tx = dataBase.transaction("sets", "readwrite");
+                const store = tx.objectStore("sets");
+                setData.updatedAt = Date.now();
+                const request = setData.id
+                    ? store.put(setData)
+                    : store.add(setData);
+                request.onsuccess = async () => {
+                    await saveToCloud();
+                    resolve(request.result);
+                };
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function deleteSet(id) {
+            return new Promise((resolve, reject) => {
+                const tx = dataBase.transaction("sets", "readwrite");
+                const store = tx.objectStore("sets");
+                const request = store.delete(id);
+                request.onsuccess = async () => {
+                    await saveToCloud();
+                    resolve();
+                };
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function saveToCloud() {
+            try {
+                const allSets = await getAllSets();
+                await saveProgress('elimination_picker_data', { sets: allSets, updatedAt: Date.now() });
+            } catch (e) {
+                console.error("Cloud save failed", e);
+            }
+        }
+
+        async function loadFromCloud() {
+            try {
+                const data = await loadProgress('elimination_picker_data');
+                if (data && data.sets) {
+                    const tx = dataBase.transaction("sets", "readwrite");
+                    const store = tx.objectStore("sets");
+                    for (const set of data.sets) {
+                        store.put(set);
                     }
                 }
+            } catch (e) {
+                console.error("Cloud load failed", e);
             }
+        }
 
-            // State
-            let participants = [];
-            let eliminated = new Set();
-            let isAnimating = false;
-            let isMuted = false;
-            let audioInitialized = false;
-            let synth, noiseSynth, winSynth;
+        async function getCurrentSetId() {
+            return new Promise((resolve, reject) => {
+                const tx = dataBase.transaction("settings", "readonly");
+                const store = tx.objectStore("settings");
+                const request = store.get("currentSetId");
+                request.onsuccess = () => resolve(request.result?.value);
+                request.onerror = () => reject(request.error);
+            });
+        }
 
-            // IndexedDB
-            const DB_NAME = "ElimGridDB_v2";
-            const DB_VERSION = 1;
-            let db = null;
-            let currentSetId = null;
-            let sets = [];
-
-            async function initDB() {
-                return new Promise((resolve, reject) => {
-                    const request = indexedDB.open(DB_NAME, DB_VERSION);
-                    request.onerror = () => reject(request.error);
-                    request.onsuccess = () => {
-                        db = request.result;
-                        resolve(db);
-                    };
-                    request.onupgradeneeded = (event) => {
-                        const database = event.target.result;
-                        if (!database.objectStoreNames.contains("sets")) {
-                            const setsStore = database.createObjectStore(
-                                "sets",
-                                { keyPath: "id", autoIncrement: true },
-                            );
-                            setsStore.createIndex("updatedAt", "updatedAt", {
-                                unique: false,
-                            });
-                        }
-                        if (!database.objectStoreNames.contains("settings")) {
-                            database.createObjectStore("settings", {
-                                keyPath: "key",
-                            });
-                        }
-                    };
+        async function saveCurrentSetId(id) {
+            return new Promise((resolve, reject) => {
+                const tx = dataBase.transaction("settings", "readwrite");
+                const store = tx.objectStore("settings");
+                const request = store.put({
+                    key: "currentSetId",
+                    value: id,
                 });
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        // Set Management
+        async function loadSets() {
+            sets = await getAllSets();
+            renderSetList();
+        }
+
+        function renderSetList() {
+            const list = document.getElementById("set-list");
+
+            if (sets.length === 0) {
+                list.innerHTML =
+                    '<p class="text-xs text-slate-400 text-center py-2">No saved sets</p>';
+                return;
             }
 
-            async function getAllSets() {
-                return new Promise((resolve, reject) => {
-                    const tx = db.transaction("sets", "readonly");
-                    const store = tx.objectStore("sets");
-                    const index = store.index("updatedAt");
-                    const request = index.getAll();
-                    request.onsuccess = () => resolve(request.result.reverse());
-                    request.onerror = () => reject(request.error);
-                });
-            }
-
-            async function saveSet(setData) {
-                return new Promise((resolve, reject) => {
-                    const tx = db.transaction("sets", "readwrite");
-                    const store = tx.objectStore("sets");
-                    setData.updatedAt = Date.now();
-                    const request = setData.id
-                        ? store.put(setData)
-                        : store.add(setData);
-                    request.onsuccess = () => resolve(request.result);
-                    request.onerror = () => reject(request.error);
-                });
-            }
-
-            async function deleteSet(id) {
-                return new Promise((resolve, reject) => {
-                    const tx = db.transaction("sets", "readwrite");
-                    const store = tx.objectStore("sets");
-                    const request = store.delete(id);
-                    request.onsuccess = () => resolve();
-                    request.onerror = () => reject(request.error);
-                });
-            }
-
-            async function getCurrentSetId() {
-                return new Promise((resolve, reject) => {
-                    const tx = db.transaction("settings", "readonly");
-                    const store = tx.objectStore("settings");
-                    const request = store.get("currentSetId");
-                    request.onsuccess = () => resolve(request.result?.value);
-                    request.onerror = () => reject(request.error);
-                });
-            }
-
-            async function saveCurrentSetId(id) {
-                return new Promise((resolve, reject) => {
-                    const tx = db.transaction("settings", "readwrite");
-                    const store = tx.objectStore("settings");
-                    const request = store.put({
-                        key: "currentSetId",
-                        value: id,
-                    });
-                    request.onsuccess = () => resolve();
-                    request.onerror = () => reject(request.error);
-                });
-            }
-
-            // Set Management
-            async function loadSets() {
-                sets = await getAllSets();
-                renderSetList();
-            }
-
-            function renderSetList() {
-                const list = document.getElementById("set-list");
-
-                if (sets.length === 0) {
-                    list.innerHTML =
-                        '<p class="text-xs text-slate-400 text-center py-2">No saved sets</p>';
-                    return;
-                }
-
-                list.innerHTML = sets
-                    .map(
-                        (s) => `
+            list.innerHTML = sets
+                .map(
+                    (s) => `
                 <div class="set-item flex items-center gap-2 p-2 rounded-lg border-[1px] border-transparent cursor-pointer ${s.id === currentSetId ? "active" : ""}"
                      onclick="switchSet(${s.id})">
                     <div class="w-6 h-6 rounded-full bg-blue flex items-center justify-center text-white text-xs font-bold">
@@ -1048,220 +944,220 @@
                     <span class="text-xs text-slate-400">${s.participants?.length || 0}</span>
                 </div>
             `,
-                    )
-                    .join("");
+                )
+                .join("");
+        }
+
+        async function switchSet(id) {
+            const set = sets.find((s) => s.id === id);
+            if (!set) return;
+
+            currentSetId = id;
+            participants = [...(set.participants || [])];
+            eliminated.clear();
+
+            await saveCurrentSetId(id);
+            renderSetList();
+            renderGrid();
+            renderList();
+
+            showToast(`Loaded "${set.name}"`, "success");
+        }
+
+        async function saveCurrentSet() {
+            if (!currentSetId) {
+                openSetModal();
+                return;
             }
 
-            async function switchSet(id) {
-                const set = sets.find((s) => s.id === id);
-                if (!set) return;
+            const set = sets.find((s) => s.id === currentSetId);
+            if (!set) return;
 
-                currentSetId = id;
-                participants = [...(set.participants || [])];
+            set.participants = [...participants];
+            await saveSet(set);
+            await loadSets();
+
+            showToast(`Saved "${set.name}"`, "success");
+        }
+
+        async function createNewSet() {
+            const name = document
+                .getElementById("new-set-name")
+                .value.trim();
+            if (!name) {
+                showToast("Please enter a name", "error");
+                return;
+            }
+
+            const newSet = {
+                name,
+                participants: [...participants],
+                updatedAt: Date.now(),
+            };
+
+            const id = await saveSet(newSet);
+            await loadSets();
+            await switchSet(id);
+            closeSetModal();
+
+            showToast(`Created "${name}"`, "success");
+        }
+
+        async function deleteCurrentSet() {
+            if (!currentSetId) {
+                showToast("No set selected", "error");
+                return;
+            }
+
+            if (sets.length <= 1) {
+                showToast("Cannot delete last set", "error");
+                return;
+            }
+
+            if (!confirm("Delete this set?")) return;
+
+            await deleteSet(currentSetId);
+            sets = sets.filter((s) => s.id !== currentSetId);
+
+            // Switch to another set
+            if (sets.length > 0) {
+                await switchSet(sets[0].id);
+            } else {
+                currentSetId = null;
+                participants = [];
                 eliminated.clear();
-
-                await saveCurrentSetId(id);
-                renderSetList();
                 renderGrid();
                 renderList();
-
-                showToast(`Loaded "${set.name}"`, "success");
             }
 
-            async function saveCurrentSet() {
-                if (!currentSetId) {
-                    openSetModal();
-                    return;
-                }
+            await loadSets();
+            showToast("Set deleted", "info");
+        }
 
-                const set = sets.find((s) => s.id === currentSetId);
-                if (!set) return;
+        // Set Modal
+        function openSetModal() {
+            document.getElementById("new-set-name").value = "";
+            document.getElementById("set-modal").classList.remove("hidden");
+            document.getElementById("set-modal").classList.add("flex");
+        }
 
-                set.participants = [...participants];
-                await saveSet(set);
-                await loadSets();
+        function closeSetModal() {
+            document.getElementById("set-modal").classList.add("hidden");
+            document.getElementById("set-modal").classList.remove("flex");
+        }
 
-                showToast(`Saved "${set.name}"`, "success");
-            }
+        // Audio
+        async function initAudio() {
+            if (audioInitialized || isMuted) return;
+            await Tone.start();
 
-            async function createNewSet() {
-                const name = document
-                    .getElementById("new-set-name")
-                    .value.trim();
-                if (!name) {
-                    showToast("Please enter a name", "error");
-                    return;
-                }
+            synth = new Tone.MembraneSynth({
+                pitchDecay: 0.05,
+                octaves: 2,
+                oscillator: { type: "sine" },
+                envelope: {
+                    attack: 0.001,
+                    decay: 0.05,
+                    sustain: 0,
+                    release: 0.01,
+                },
+                volume: -10,
+            }).toDestination();
 
-                const newSet = {
-                    name,
-                    participants: [...participants],
-                    updatedAt: Date.now(),
-                };
+            noiseSynth = new Tone.NoiseSynth({
+                noise: { type: "white" },
+                envelope: { attack: 0.005, decay: 0.1, sustain: 0 },
+            }).toDestination();
 
-                const id = await saveSet(newSet);
-                await loadSets();
-                await switchSet(id);
-                closeSetModal();
+            winSynth = new Tone.PolySynth(Tone.Synth, {
+                volume: -5,
+                oscillator: { type: "triangle" },
+                envelope: {
+                    attack: 0.01,
+                    decay: 0.1,
+                    sustain: 0.1,
+                    release: 1,
+                },
+            }).toDestination();
 
-                showToast(`Created "${name}"`, "success");
-            }
+            audioInitialized = true;
+        }
 
-            async function deleteCurrentSet() {
-                if (!currentSetId) {
-                    showToast("No set selected", "error");
-                    return;
-                }
+        function playTick() {
+            if (!isMuted && synth)
+                synth.triggerAttackRelease("C2", "32n", Tone.now());
+        }
 
-                if (sets.length <= 1) {
-                    showToast("Cannot delete last set", "error");
-                    return;
-                }
+        function playBoom() {
+            if (!isMuted && noiseSynth)
+                noiseSynth.triggerAttackRelease("16n", Tone.now());
+        }
 
-                if (!confirm("Delete this set?")) return;
-
-                await deleteSet(currentSetId);
-                sets = sets.filter((s) => s.id !== currentSetId);
-
-                // Switch to another set
-                if (sets.length > 0) {
-                    await switchSet(sets[0].id);
-                } else {
-                    currentSetId = null;
-                    participants = [];
-                    eliminated.clear();
-                    renderGrid();
-                    renderList();
-                }
-
-                await loadSets();
-                showToast("Set deleted", "info");
-            }
-
-            // Set Modal
-            function openSetModal() {
-                document.getElementById("new-set-name").value = "";
-                document.getElementById("set-modal").classList.remove("hidden");
-                document.getElementById("set-modal").classList.add("flex");
-            }
-
-            function closeSetModal() {
-                document.getElementById("set-modal").classList.add("hidden");
-                document.getElementById("set-modal").classList.remove("flex");
-            }
-
-            // Audio
-            async function initAudio() {
-                if (audioInitialized || isMuted) return;
-                await Tone.start();
-
-                synth = new Tone.MembraneSynth({
-                    pitchDecay: 0.05,
-                    octaves: 2,
-                    oscillator: { type: "sine" },
-                    envelope: {
-                        attack: 0.001,
-                        decay: 0.05,
-                        sustain: 0,
-                        release: 0.01,
-                    },
-                    volume: -10,
-                }).toDestination();
-
-                noiseSynth = new Tone.NoiseSynth({
-                    noise: { type: "white" },
-                    envelope: { attack: 0.005, decay: 0.1, sustain: 0 },
-                }).toDestination();
-
-                winSynth = new Tone.PolySynth(Tone.Synth, {
-                    volume: -5,
-                    oscillator: { type: "triangle" },
-                    envelope: {
-                        attack: 0.01,
-                        decay: 0.1,
-                        sustain: 0.1,
-                        release: 1,
-                    },
-                }).toDestination();
-
-                audioInitialized = true;
-            }
-
-            function playTick() {
-                if (!isMuted && synth)
-                    synth.triggerAttackRelease("C2", "32n", Tone.now());
-            }
-
-            function playBoom() {
-                if (!isMuted && noiseSynth)
-                    noiseSynth.triggerAttackRelease("16n", Tone.now());
-            }
-
-            function playWin() {
-                if (!isMuted && winSynth) {
-                    const now = Tone.now();
-                    winSynth.triggerAttackRelease(
-                        ["C4", "E4", "G4"],
-                        "8n",
-                        now,
-                    );
-                    winSynth.triggerAttackRelease(
-                        ["E4", "G4", "C5"],
-                        "8n",
-                        now + 0.1,
-                    );
-                    winSynth.triggerAttackRelease(
-                        ["G4", "C5", "E5"],
-                        "2n",
-                        now + 0.2,
-                    );
-                }
-            }
-
-            function toggleMute() {
-                isMuted = !isMuted;
-                const icon = document.getElementById("muteIcon");
-                icon.setAttribute(
-                    "data-lucide",
-                    isMuted ? "volume-x" : "volume-2",
+        function playWin() {
+            if (!isMuted && winSynth) {
+                const now = Tone.now();
+                winSynth.triggerAttackRelease(
+                    ["C4", "E4", "G4"],
+                    "8n",
+                    now,
                 );
-                if (!isMuted && !audioInitialized) initAudio();
+                winSynth.triggerAttackRelease(
+                    ["E4", "G4", "C5"],
+                    "8n",
+                    now + 0.1,
+                );
+                winSynth.triggerAttackRelease(
+                    ["G4", "C5", "E5"],
+                    "2n",
+                    now + 0.2,
+                );
+            }
+        }
+
+        function toggleMute() {
+            isMuted = !isMuted;
+            const icon = document.getElementById("muteIcon");
+            icon.setAttribute(
+                "data-lucide",
+                isMuted ? "volume-x" : "volume-2",
+            );
+            if (!isMuted && !audioInitialized) initAudio();
+            lucide.createIcons();
+        }
+
+        // Grid Rendering
+        function renderGrid() {
+            const grid = document.getElementById("game-grid");
+            const emptyState = document.getElementById("empty-state");
+
+            grid.innerHTML = "";
+
+            if (participants.length === 0) {
+                emptyState.classList.remove("hidden");
+                updateStats();
                 lucide.createIcons();
+                return;
             }
 
-            // Grid Rendering
-            function renderGrid() {
-                const grid = document.getElementById("game-grid");
-                const emptyState = document.getElementById("empty-state");
+            emptyState.classList.add("hidden");
 
-                grid.innerHTML = "";
+            participants.forEach((name, i) => {
+                const isEliminated = eliminated.has(i);
+                const card = document.createElement("div");
+                card.id = `card-${i}`;
+                card.className = `grid-card relative rounded-2xl p-4 min-h-[100px] flex flex-col items-center justify-center cursor-pointer select-none ${isEliminated ? "eliminated" : ""}`;
+                card.onclick = () => manualToggle(i);
 
-                if (participants.length === 0) {
-                    emptyState.classList.remove("hidden");
-                    updateStats();
-                    lucide.createIcons();
-                    return;
-                }
+                const display =
+                    name.length > 15 ? name.substring(0, 13) + "..." : name;
+                const fontSize =
+                    name.length > 10
+                        ? "text-sm"
+                        : name.length > 6
+                            ? "text-base"
+                            : "text-lg";
 
-                emptyState.classList.add("hidden");
-
-                participants.forEach((name, i) => {
-                    const isEliminated = eliminated.has(i);
-                    const card = document.createElement("div");
-                    card.id = `card-${i}`;
-                    card.className = `grid-card relative rounded-2xl p-4 min-h-[100px] flex flex-col items-center justify-center cursor-pointer select-none ${isEliminated ? "eliminated" : ""}`;
-                    card.onclick = () => manualToggle(i);
-
-                    const display =
-                        name.length > 15 ? name.substring(0, 13) + "..." : name;
-                    const fontSize =
-                        name.length > 10
-                            ? "text-sm"
-                            : name.length > 6
-                              ? "text-base"
-                              : "text-lg";
-
-                    card.innerHTML = `
+                card.innerHTML = `
                     <div class="text-center font-heading font-bold text-dark dark:text-white break-words w-full leading-tight ${fontSize}" title="${name}">
                         ${display}
                     </div>
@@ -1270,317 +1166,320 @@
                     </div>
                 `;
 
-                    grid.appendChild(card);
-                });
+                grid.appendChild(card);
+            });
 
-                updateStats();
-                lucide.createIcons();
-            }
+            updateStats();
+            lucide.createIcons();
+        }
 
-            function renderList() {
-                const list = document.getElementById("optionsList");
-                list.innerHTML = "";
+        function renderList() {
+            const list = document.getElementById("optionsList");
+            list.innerHTML = "";
 
-                participants.forEach((name, i) => {
-                    const tag = document.createElement("div");
-                    tag.className =
-                        "flex items-center gap-1 bg-white dark:bg-slate-700 border-[1px] border-slate-300 dark:border-white/10 rounded-lg px-2 py-1 text-xs font-bold text-dark dark:text-slate-200 shadow-neo-sm";
-                    tag.innerHTML = `
+            participants.forEach((name, i) => {
+                const tag = document.createElement("div");
+                tag.className =
+                    "flex items-center gap-1 bg-white dark:bg-slate-700 border-[1px] border-slate-300 dark:border-white/10 rounded-lg px-2 py-1 text-xs font-bold text-dark dark:text-slate-200 shadow-neo-sm";
+                tag.innerHTML = `
                     ${name}
                     <button onclick="event.stopPropagation(); removeParticipant(${i})" class="text-slate-400 hover:text-pink">
                         <i data-lucide="x" class="w-3 h-3"></i>
                     </button>
                 `;
-                    list.appendChild(tag);
-                });
-
-                lucide.createIcons();
-            }
-
-            function updateStats() {
-                const total = participants.length;
-                const remaining = total - eliminated.size;
-
-                document.getElementById("remainingCount").textContent =
-                    remaining;
-                document.getElementById("totalCount").textContent = total;
-
-                const bar = document.getElementById("progressBar");
-                const pct = total === 0 ? 0 : (remaining / total) * 100;
-                bar.style.width = `${pct}%`;
-
-                bar.className = `h-full transition-all duration-500 ${pct > 50 ? "bg-blue" : pct > 20 ? "bg-orange" : "bg-pink"}`;
-
-                const btn = document.getElementById("eliminateBtn");
-                btn.disabled = remaining <= 1 || isAnimating;
-            }
-
-            // Actions
-            function addOption() {
-                const input = document.getElementById("optionInput");
-                const val = input.value.trim();
-                if (!val) return;
-
-                participants.push(val);
-                input.value = "";
-                saveCurrentSet();
-                renderGrid();
-                renderList();
-            }
-
-            function removeParticipant(index) {
-                participants.splice(index, 1);
-                const newEliminated = new Set();
-                eliminated.forEach((oldIdx) => {
-                    if (oldIdx < index) newEliminated.add(oldIdx);
-                    else if (oldIdx > index) newEliminated.add(oldIdx - 1);
-                });
-                eliminated = newEliminated;
-
-                saveCurrentSet();
-                renderGrid();
-                renderList();
-            }
-
-            function toggleBatch() {
-                const container = document.getElementById("batchContainer");
-                const input = document.getElementById("batchInput");
-
-                if (container.classList.contains("hidden")) {
-                    input.value = participants.join("\n");
-                    container.classList.remove("hidden");
-                } else {
-                    container.classList.add("hidden");
-                }
-            }
-
-            function saveBatch() {
-                const input = document.getElementById("batchInput");
-                participants = input.value
-                    .split(/[\n,]+/)
-                    .map((s) => s.trim())
-                    .filter((s) => s.length > 0);
-                eliminated.clear();
-                saveCurrentSet();
-                toggleBatch();
-                renderGrid();
-                renderList();
-            }
-
-            function clearAll() {
-                if (!confirm("Clear all participants?")) return;
-                participants = [];
-                eliminated.clear();
-                saveCurrentSet();
-                renderGrid();
-                renderList();
-            }
-
-            function resetGrid() {
-                eliminated.clear();
-
-                // Hide sunburst
-                document.getElementById("sunburst").style.opacity = "0";
-
-                // Hide modal
-                const modal = document.getElementById("winner-modal");
-                modal.classList.remove("active");
-                setTimeout(() => {
-                    modal.classList.add("hidden");
-                    modal.classList.remove("flex");
-                }, 300);
-
-                // Show all cards
-                document
-                    .querySelectorAll(".grid-card")
-                    .forEach((c) => (c.style.opacity = "1"));
-
-                isAnimating = false;
-                renderGrid();
-            }
-
-            function manualToggle(index) {
-                if (isAnimating) return;
-
-                if (eliminated.has(index)) {
-                    eliminated.delete(index);
-                } else {
-                    eliminated.add(index);
-                }
-
-                renderGrid();
-                checkWinner();
-            }
-
-            // Elimination Animation
-            async function triggerElimination() {
-                const available = participants
-                    .map((_, i) => i)
-                    .filter((i) => !eliminated.has(i));
-                if (available.length <= 1 || isAnimating) return;
-
-                isAnimating = true;
-                await initAudio();
-
-                const btn = document.getElementById("eliminateBtn");
-                btn.disabled = true;
-
-                let rounds = 15 + Math.floor(Math.random() * 10);
-                let delay = 50;
-                let lastIdx = -1;
-
-                for (let i = 0; i < rounds; i++) {
-                    const current =
-                        available[Math.floor(Math.random() * available.length)];
-
-                    if (lastIdx !== -1) {
-                        document
-                            .getElementById(`card-${lastIdx}`)
-                            ?.classList.remove("highlight");
-                    }
-
-                    const card = document.getElementById(`card-${current}`);
-                    if (card) {
-                        card.classList.add("highlight");
-                        lastIdx = current;
-                        playTick();
-                    }
-
-                    await new Promise((r) => setTimeout(r, delay));
-                    delay *= 1.1;
-                }
-
-                // Final victim
-                const victim = lastIdx;
-                const victimCard = document.getElementById(`card-${victim}`);
-
-                victimCard.classList.add("shake");
-                await new Promise((r) => setTimeout(r, 500));
-
-                playBoom();
-                eliminated.add(victim);
-
-                victimCard.classList.remove("highlight", "shake");
-                victimCard.classList.add("eliminated");
-
-                isAnimating = false;
-                updateStats();
-                checkWinner();
-            }
-
-            function checkWinner() {
-                const remaining = participants.length - eliminated.size;
-                if (remaining === 1 && participants.length > 1) {
-                    const winnerIdx = participants.findIndex(
-                        (_, i) => !eliminated.has(i),
-                    );
-                    setTimeout(() => declareWinner(winnerIdx), 300);
-                }
-            }
-
-            function declareWinner(index) {
-                playWin();
-
-                const winnerName = participants[index];
-
-                // Show sunburst
-                document.getElementById("sunburst").style.opacity = "0.6";
-
-                // Update and show modal
-                document.getElementById("winner-name-display").textContent =
-                    winnerName;
-
-                const modal = document.getElementById("winner-modal");
-                modal.classList.remove("hidden");
-                modal.classList.add("flex");
-                requestAnimationFrame(() => modal.classList.add("active"));
-
-                // Confetti
-                const colors = ["#FF6B95", "#FF8C42", "#00E676", "#2979FF"];
-                const end = Date.now() + 3000;
-
-                (function frame() {
-                    confetti({
-                        particleCount: 5,
-                        angle: 60,
-                        spread: 55,
-                        origin: { x: 0 },
-                        colors,
-                    });
-                    confetti({
-                        particleCount: 5,
-                        angle: 120,
-                        spread: 55,
-                        origin: { x: 1 },
-                        colors,
-                    });
-                    if (Date.now() < end) requestAnimationFrame(frame);
-                })();
-            }
-
-            function closeWinnerModal() {
-                const modal = document.getElementById("winner-modal");
-                modal.classList.remove("active");
-                setTimeout(() => {
-                    modal.classList.add("hidden");
-                    modal.classList.remove("flex");
-                }, 300);
-
-                document.getElementById("sunburst").style.opacity = "0";
-            }
-
-            // Initialization
-            async function init() {
-                loadTheme();
-                await initDB();
-                await loadSets();
-
-                const savedId = await getCurrentSetId();
-                if (savedId && sets.find((s) => s.id === savedId)) {
-                    await switchSet(savedId);
-                } else if (sets.length > 0) {
-                    await switchSet(sets[0].id);
-                } else {
-                    // Create default set
-                    participants = [
-                        "Alice",
-                        "Bob",
-                        "Charlie",
-                        "Diana",
-                        "Evan",
-                        "Fiona",
-                    ];
-                    const id = await saveSet({
-                        name: "Default Set",
-                        participants: [...participants],
-                        updatedAt: Date.now(),
-                    });
-                    await loadSets();
-                    await switchSet(id);
-                }
-
-                lucide.createIcons();
-
-                if (window.innerWidth < 768) {
-                    panelOpen = false;
-                    document
-                        .getElementById("controls")
-                        .classList.remove("mobile-open");
-                }
-            }
-
-            // Resize handler
-            window.addEventListener("resize", () => {
-                const controls = document.getElementById("controls");
-                if (window.innerWidth >= 768) {
-                    controls.classList.remove("hidden-panel-mobile");
-                } else {
-                    controls.classList.remove("hidden-panel-desktop");
-                }
+                list.appendChild(tag);
             });
 
-            // Start
-            window.onload = init;
-        </script>
-    </body>
+            lucide.createIcons();
+        }
+
+        function updateStats() {
+            const total = participants.length;
+            const remaining = total - eliminated.size;
+
+            document.getElementById("remainingCount").textContent =
+                remaining;
+            document.getElementById("totalCount").textContent = total;
+
+            const bar = document.getElementById("progressBar");
+            const pct = total === 0 ? 0 : (remaining / total) * 100;
+            bar.style.width = `${pct}%`;
+
+            bar.className = `h-full transition-all duration-500 ${pct > 50 ? "bg-blue" : pct > 20 ? "bg-orange" : "bg-pink"}`;
+
+            const btn = document.getElementById("eliminateBtn");
+            btn.disabled = remaining <= 1 || isAnimating;
+        }
+
+        // Actions
+        function addOption() {
+            const input = document.getElementById("optionInput");
+            const val = input.value.trim();
+            if (!val) return;
+
+            participants.push(val);
+            input.value = "";
+            saveCurrentSet();
+            renderGrid();
+            renderList();
+        }
+
+        function removeParticipant(index) {
+            participants.splice(index, 1);
+            const newEliminated = new Set();
+            eliminated.forEach((oldIdx) => {
+                if (oldIdx < index) newEliminated.add(oldIdx);
+                else if (oldIdx > index) newEliminated.add(oldIdx - 1);
+            });
+            eliminated = newEliminated;
+
+            saveCurrentSet();
+            renderGrid();
+            renderList();
+        }
+
+        function toggleBatch() {
+            const container = document.getElementById("batchContainer");
+            const input = document.getElementById("batchInput");
+
+            if (container.classList.contains("hidden")) {
+                input.value = participants.join("\n");
+                container.classList.remove("hidden");
+            } else {
+                container.classList.add("hidden");
+            }
+        }
+
+        function saveBatch() {
+            const input = document.getElementById("batchInput");
+            participants = input.value
+                .split(/[\n,]+/)
+                .map((s) => s.trim())
+                .filter((s) => s.length > 0);
+            eliminated.clear();
+            saveCurrentSet();
+            toggleBatch();
+            renderGrid();
+            renderList();
+        }
+
+        function clearAll() {
+            if (!confirm("Clear all participants?")) return;
+            participants = [];
+            eliminated.clear();
+            saveCurrentSet();
+            renderGrid();
+            renderList();
+        }
+
+        function resetGrid() {
+            eliminated.clear();
+
+            // Hide sunburst
+            document.getElementById("sunburst").style.opacity = "0";
+
+            // Hide modal
+            const modal = document.getElementById("winner-modal");
+            modal.classList.remove("active");
+            setTimeout(() => {
+                modal.classList.add("hidden");
+                modal.classList.remove("flex");
+            }, 300);
+
+            // Show all cards
+            document
+                .querySelectorAll(".grid-card")
+                .forEach((c) => (c.style.opacity = "1"));
+
+            isAnimating = false;
+            renderGrid();
+        }
+
+        function manualToggle(index) {
+            if (isAnimating) return;
+
+            if (eliminated.has(index)) {
+                eliminated.delete(index);
+            } else {
+                eliminated.add(index);
+            }
+
+            renderGrid();
+            checkWinner();
+        }
+
+        // Elimination Animation
+        async function triggerElimination() {
+            const available = participants
+                .map((_, i) => i)
+                .filter((i) => !eliminated.has(i));
+            if (available.length <= 1 || isAnimating) return;
+
+            isAnimating = true;
+            await initAudio();
+
+            const btn = document.getElementById("eliminateBtn");
+            btn.disabled = true;
+
+            let rounds = 15 + Math.floor(Math.random() * 10);
+            let delay = 50;
+            let lastIdx = -1;
+
+            for (let i = 0; i < rounds; i++) {
+                const current =
+                    available[Math.floor(Math.random() * available.length)];
+
+                if (lastIdx !== -1) {
+                    document
+                        .getElementById(`card-${lastIdx}`)
+                        ?.classList.remove("highlight");
+                }
+
+                const card = document.getElementById(`card-${current}`);
+                if (card) {
+                    card.classList.add("highlight");
+                    lastIdx = current;
+                    playTick();
+                }
+
+                await new Promise((r) => setTimeout(r, delay));
+                delay *= 1.1;
+            }
+
+            // Final victim
+            const victim = lastIdx;
+            const victimCard = document.getElementById(`card-${victim}`);
+
+            victimCard.classList.add("shake");
+            await new Promise((r) => setTimeout(r, 500));
+
+            playBoom();
+            eliminated.add(victim);
+
+            victimCard.classList.remove("highlight", "shake");
+            victimCard.classList.add("eliminated");
+
+            isAnimating = false;
+            updateStats();
+            checkWinner();
+        }
+
+        function checkWinner() {
+            const remaining = participants.length - eliminated.size;
+            if (remaining === 1 && participants.length > 1) {
+                const winnerIdx = participants.findIndex(
+                    (_, i) => !eliminated.has(i),
+                );
+                setTimeout(() => declareWinner(winnerIdx), 300);
+            }
+        }
+
+        function declareWinner(index) {
+            playWin();
+
+            const winnerName = participants[index];
+
+            // Show sunburst
+            document.getElementById("sunburst").style.opacity = "0.6";
+
+            // Update and show modal
+            document.getElementById("winner-name-display").textContent =
+                winnerName;
+
+            const modal = document.getElementById("winner-modal");
+            modal.classList.remove("hidden");
+            modal.classList.add("flex");
+            requestAnimationFrame(() => modal.classList.add("active"));
+
+            // Confetti
+            const colors = ["#FF6B95", "#FF8C42", "#00E676", "#2979FF"];
+            const end = Date.now() + 3000;
+
+            (function frame() {
+                confetti({
+                    particleCount: 5,
+                    angle: 60,
+                    spread: 55,
+                    origin: { x: 0 },
+                    colors,
+                });
+                confetti({
+                    particleCount: 5,
+                    angle: 120,
+                    spread: 55,
+                    origin: { x: 1 },
+                    colors,
+                });
+                if (Date.now() < end) requestAnimationFrame(frame);
+            })();
+        }
+
+        function closeWinnerModal() {
+            const modal = document.getElementById("winner-modal");
+            modal.classList.remove("active");
+            setTimeout(() => {
+                modal.classList.add("hidden");
+                modal.classList.remove("flex");
+            }, 300);
+
+            document.getElementById("sunburst").style.opacity = "0";
+        }
+
+        // Initialization
+        async function init() {
+            await requireAuth();
+            loadTheme();
+            await initDB();
+            await loadFromCloud();
+            await loadSets();
+
+            const savedId = await getCurrentSetId();
+            if (savedId && sets.find((s) => s.id === savedId)) {
+                await switchSet(savedId);
+            } else if (sets.length > 0) {
+                await switchSet(sets[0].id);
+            } else {
+                // Create default set
+                participants = [
+                    "Alice",
+                    "Bob",
+                    "Charlie",
+                    "Diana",
+                    "Evan",
+                    "Fiona",
+                ];
+                const id = await saveSet({
+                    name: "Default Set",
+                    participants: [...participants],
+                    updatedAt: Date.now(),
+                });
+                await loadSets();
+                await switchSet(id);
+            }
+
+            lucide.createIcons();
+
+            if (window.innerWidth < 768) {
+                panelOpen = false;
+                document
+                    .getElementById("controls")
+                    .classList.remove("mobile-open");
+            }
+        }
+
+        // Resize handler
+        window.addEventListener("resize", () => {
+            const controls = document.getElementById("controls");
+            if (window.innerWidth >= 768) {
+                controls.classList.remove("hidden-panel-mobile");
+            } else {
+                controls.classList.remove("hidden-panel-desktop");
+            }
+        });
+
+        // Start
+        window.onload = init;
+    </script>
+</body>
+
 </html>
