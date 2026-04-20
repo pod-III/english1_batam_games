@@ -1,4 +1,7 @@
-const CACHE_NAME = 'klasskit-v1.1.14';
+const CACHE_NAME = 'klasskit-v1.1.17
+  ';
+
+// Only cache local, reliable assets during the install phase.
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -10,10 +13,7 @@ const ASSETS_TO_CACHE = [
   './css/home.css',
   './css/side-panel.css',
   './media/icon.png',
-  './media/icon.ico',
-  'https://unpkg.com/lucide@latest',
-  'https://cdn.tailwindcss.com',
-  'https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;800&display=swap'
+  './media/icon.ico'
 ];
 
 // Install Event
