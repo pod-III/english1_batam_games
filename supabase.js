@@ -168,14 +168,20 @@ async function saveProgress(toolKey, data) {
 async function loadProgress(toolKey) {
   const user = await getUser()
   if (user) {
+    // 1. Fetch as an array instead of .single() to prevent 406 errors
     const { data } = await db.from('user_progress')
-      .select('data').eq('tool_key', toolKey).single()
-    if (data) {
+      .select('data')
+      .eq('tool_key', toolKey)
+      .limit(1)
+
+    // 2. Check if the array contains any rows
+    if (data && data.length > 0) {
       // Prioritize cloud and sync to local for seamless usage
-      localStorage.setItem(`prog_${toolKey}`, JSON.stringify(data.data))
-      return data.data
+      localStorage.setItem(`prog_${toolKey}`, JSON.stringify(data[0].data))
+      return data[0].data
     }
   }
+  
   const local = localStorage.getItem(`prog_${toolKey}`)
   return local ? JSON.parse(local) : null
 }
