@@ -6,7 +6,7 @@ A curated collection of **50 interactive classroom tools and games** for English
 ![Games](https://img.shields.io/badge/games-50-green)
 ![License](https://img.shields.io/badge/license-MIT-orange)
 
-> **Live Demo:** [Open Activity Hub](https://klasskit.vercel.app)
+> **Live Demo:** [Open Activity Hub](https://klasskit.fun)
 
 ---
 
