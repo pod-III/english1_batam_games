@@ -46,6 +46,12 @@ self.addEventListener('fetch', (event) => {
   // Only handle HTTP/HTTPS, ignore others like chrome-extension
   if (!(event.request.url.indexOf('http') === 0)) return;
 
+  // FIX: Ignore non-GET requests (like POST, PUT, DELETE)
+  if (event.request.method !== 'GET') {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
