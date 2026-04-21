@@ -2,7 +2,7 @@
 
 A curated collection of **50 interactive classroom tools and games** for English Language Teaching. Built for teachers, by teachers — designed to run in any modern browser with zero installation.
 
-![Version](https://img.shields.io/badge/version-1.1.18-blue)
+![Version](https://img.shields.io/badge/version-1.1.19-blue)
 ![Games](https://img.shields.io/badge/games-50-green)
 ![License](https://img.shields.io/badge/license-MIT-orange)
 
