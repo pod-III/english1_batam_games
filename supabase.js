@@ -43,6 +43,31 @@ async function requireAuth() {
   return user
 }
 
+async function requireAdmin() {
+  const user = await getUser()
+  if (!user) {
+    location.href = '/login.html'
+    return new Promise(() => {})
+  }
+
+  const { data: profile, error } = await db
+    .from('profiles')
+    .select('role, display_name')
+    .eq('id', user.id)
+    .single()
+
+  if (error) console.error('[AdminGuard] Profile lookup error:', error)
+  console.log('[AdminGuard] Profile data:', profile)
+
+  if (profile?.role !== 'admin') {
+    console.warn('[AdminGuard] Access Denied: Role is', profile?.role)
+    location.href = '/'
+    return new Promise(() => {})
+  }
+
+  return { user, profile }
+}
+
 async function signUp(email, pass, displayName) {
   return db.auth.signUp({
     email,

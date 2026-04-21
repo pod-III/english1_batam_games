@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KlassKit Admin | Workspace</title>
+    
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/supabase.js"></script>
+    
+    <!-- Tailwind & Fonts -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@700&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        pink: '#ff4785',
+                        orange: '#ff7e33',
+                        green: '#00d063',
+                        blue: '#1ea7fd',
+                        dark: '#020617',
+                        slate: {
+                            900: '#0f172a',
+                            800: '#1e293b'
+                        }
+                    },
+                    fontFamily: {
+                        heading: ['Fredoka', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        .font-heading { font-family: 'Fredoka', sans-serif; }
+        .font-body { font-family: 'Nunito', sans-serif; }
+
+        body {
+            background-color: #f8fafc;
+            background-image: 
+                linear-gradient(rgba(30, 41, 59, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(30, 41, 59, 0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        .neo-border { border: 3px solid #020617; }
+        .neo-shadow { box-shadow: 4px 4px 0px 0px #020617; }
+        .neo-shadow-hover:hover { box-shadow: 6px 6px 0px 0px #020617; transform: translate(-2px, -2px); }
+        .neo-shadow-active:active { box-shadow: 0px 0px 0px 0px #020617; transform: translate(4px, 4px); }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+        /* Glassmorphism Classes */
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .tool-badge {
+            @apply px-2 py-1 rounded-lg text-xs font-black uppercase tracking-wider;
+        }
+
+        #loadingOverlay {
+            transition: opacity 0.5s ease;
+        }
+    </style>
+</head>
+<body class="font-body text-dark overflow-hidden h-screen flex">
+
+    <!-- Auth Guard Loading -->
+    <div id="loadingOverlay" class="fixed inset-0 z-[100] bg-dark flex flex-col items-center justify-center text-white">
+        <div class="w-16 h-16 border-4 border-blue border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p class="font-heading text-xl tracking-widest animate-pulse">VERIFYING ADMIN STATUS...</p>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="w-72 bg-dark text-white flex flex-col p-6 z-20 neo-border border-r-4 shadow-2xl">
+        <div class="flex items-center gap-3 mb-12">
+            <div class="p-2 bg-blue rounded-xl neo-border border-2">
+                <i data-lucide="shield-check" class="text-white w-8 h-8"></i>
+            </div>
+            <div>
+                <h1 class="font-heading text-2xl tracking-tight leading-none">KLASS<span class="text-blue">KIT</span></h1>
+                <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Admin Control</p>
+            </div>
+        </div>
+
+        <nav class="flex-grow space-y-3">
+            <a href="#" class="flex items-center gap-4 p-4 rounded-2xl bg-blue/10 border-2 border-blue text-blue font-black neo-shadow transition-all">
+                <i data-lucide="layout-dashboard"></i> Dashboard
+            </a>
+            <a href="#" class="flex items-center gap-4 p-4 rounded-2xl text-slate-400 hover:bg-slate-800 hover:text-white border-2 border-transparent transition-all">
+                <i data-lucide="users"></i> Users
+            </a>
+            <a href="#" class="flex items-center gap-4 p-4 rounded-2xl text-slate-400 hover:bg-slate-800 hover:text-white border-2 border-transparent transition-all">
+                <i data-lucide="database"></i> System Logs
+            </a>
+            <a href="#" class="flex items-center gap-4 p-4 rounded-2xl text-slate-400 hover:bg-slate-800 hover:text-white border-2 border-transparent transition-all">
+                <i data-lucide="settings"></i> Settings
+            </a>
+        </nav>
+
+        <div class="pt-6 border-t border-slate-800">
+            <button onclick="signOut()" class="w-full flex items-center gap-4 p-4 rounded-2xl text-pink hover:bg-pink/10 transition-all font-bold">
+                <i data-lucide="log-out"></i> Sign Out
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-grow flex flex-col min-w-0">
+        <!-- Top Bar -->
+        <header class="h-24 bg-white/80 backdrop-blur-md border-b-4 border-dark flex items-center justify-between px-10 shrink-0">
+            <div class="flex items-center gap-6">
+                <div class="relative group">
+                    <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue transition-colors"></i>
+                    <input type="text" id="toolSearch" placeholder="Filter by Tool Key..." 
+                        class="w-80 pl-12 pr-4 py-3 bg-slate-100 rounded-2xl border-2 border-transparent focus:border-dark focus:bg-white focus:outline-none font-bold transition-all shadow-sm">
+                </div>
+            </div>
+
+            <div class="flex items-center gap-6">
+                <div class="text-right">
+                    <p class="text-sm font-black uppercase text-slate-400" id="adminName">Admin User</p>
+                    <p class="text-[10px] text-blue font-bold tracking-widest">SUPER USER</p>
+                </div>
+                <div class="w-12 h-12 rounded-full neo-border border-2 bg-pink flex items-center justify-center">
+                    <i data-lucide="user" class="text-white"></i>
+                </div>
+            </div>
+        </header>
+
+        <!-- Dynamic Content Area -->
+        <div class="flex-grow overflow-y-auto custom-scrollbar p-10 space-y-10">
+            
+            <!-- Stats -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <div class="bg-white p-6 rounded-[2rem] neo-border neo-shadow">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="p-3 bg-blue/10 text-blue rounded-2xl border-2 border-blue">
+                            <i data-lucide="users" class="w-6 h-6"></i>
+                        </div>
+                        <span class="text-[10px] font-black bg-blue/10 text-blue px-2 py-1 rounded-lg">LAST 30D</span>
+                    </div>
+                    <h3 class="font-heading text-4xl mb-1" id="totalUsers">0</h3>
+                    <p class="text-xs font-black uppercase text-slate-400 tracking-widest">Total Unique Users</p>
+                </div>
+
+                <div class="bg-white p-6 rounded-[2rem] neo-border neo-shadow">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="p-3 bg-orange/10 text-orange rounded-2xl border-2 border-orange">
+                            <i data-lucide="zap" class="w-6 h-6"></i>
+                        </div>
+                        <span class="text-[10px] font-black bg-orange/10 text-orange px-2 py-1 rounded-lg">LIVE DATA</span>
+                    </div>
+                    <h3 class="font-heading text-4xl mb-1" id="totalProgress">0</h3>
+                    <p class="text-xs font-black uppercase text-slate-400 tracking-widest">Cloud Progress Rows</p>
+                </div>
+
+                <div class="bg-white p-6 rounded-[2rem] neo-border neo-shadow lg:col-span-2 flex items-center justify-between overflow-hidden relative">
+                    <div class="relative z-10">
+                        <h3 class="font-heading text-2xl mb-2">Cloud Synced Successfully</h3>
+                        <p class="text-sm font-bold text-slate-500 leading-tight max-w-[280px]">Real-time connection to Supabase is active and operational.</p>
+                    </div>
+                    <i data-lucide="globe" class="w-32 h-32 text-green/5 absolute -right-4 -bottom-4 rotate-12"></i>
+                    <div class="p-4 bg-green text-white rounded-2xl neo-border border-2 relative z-10">
+                        <i data-lucide="activity" class="w-8 h-8"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table Container -->
+            <div class="bg-white rounded-[2.5rem] neo-border neo-shadow overflow-hidden flex flex-col min-h-[600px]">
+                <div class="p-8 border-b-4 border-dark flex justify-between items-center bg-slate-50">
+                    <h2 class="font-heading text-2xl tracking-tight">Active User Progress</h2>
+                    <button onclick="fetchData()" class="px-6 py-2 bg-dark text-white rounded-xl font-heading tracking-widest hover:bg-slate-800 transition-all flex items-center gap-2">
+                        <i data-lucide="refresh-cw" id="refreshIcon" class="w-4 h-4"></i> REFRESH
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto flex-grow custom-scrollbar">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="sticky top-0 bg-slate-50 z-10">
+                            <tr class="border-b-2 border-dark text-slate-400 transition-colors">
+                                <th class="p-6 font-black uppercase text-[10px] tracking-[0.2em] w-32 text-center">User Hash</th>
+                                <th class="p-6 font-black uppercase text-[10px] tracking-[0.2em]">Tool Key</th>
+                                <th class="p-6 font-black uppercase text-[10px] tracking-[0.2em]">Last Updated</th>
+                                <th class="p-6 font-black uppercase text-[10px] tracking-[0.2em]">Data Payload</th>
+                                <th class="p-6 font-black uppercase text-[10px] tracking-[0.2em] text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="progressTableBody" class="font-bold text-sm divide-y divide-slate-100">
+                            <!-- Rows will be injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        let allProgress = [];
+
+        // 1. Auth Guard & Initialization
+        async function init() {
+            try {
+                const { user, profile } = await requireAdmin();
+                
+                document.getElementById('adminName').innerText = profile.display_name || 'Admin';
+                
+                // Remove overlay
+                const overlay = document.getElementById('loadingOverlay');
+                overlay.style.opacity = '0';
+                setTimeout(() => overlay.remove(), 500);
+
+                lucide.createIcons();
+                fetchData();
+
+            } catch (e) {
+                console.error("Initialization Failed", e);
+            }
+        }
+
+        async function fetchData() {
+            const refreshIcon = document.getElementById('refreshIcon');
+            refreshIcon.classList.add('animate-spin');
+
+            const { data, error } = await db
+                .from('user_progress')
+                .select('*')
+                .order('updated_at', { ascending: false });
+
+            refreshIcon.classList.remove('animate-spin');
+
+            if (error) {
+                console.error(error);
+                return;
+            }
+
+            allProgress = data;
+            renderTable(allProgress);
+            updateStats(allProgress);
+        }
+
+        function updateStats(data) {
+            const uniqueUsers = new Set(data.map(r => r.user_id)).size;
+            document.getElementById('totalUsers').innerText = uniqueUsers;
+            document.getElementById('totalProgress').innerText = data.length;
+        }
+
+        function renderTable(data) {
+            const body = document.getElementById('progressTableBody');
+            body.innerHTML = '';
+
+            data.forEach(row => {
+                const date = new Date(row.updated_at).toLocaleString();
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition-colors group";
+                
+                // Format data preview
+                const dataPreview = JSON.stringify(row.data).substring(0, 50) + '...';
+
+                tr.innerHTML = `
+                    <td class="p-6 text-center">
+                        <span class="bg-slate-100 px-3 py-2 rounded-xl border border-slate-200 text-xs font-mono">
+                            ${row.user_id.substring(0, 8)}
+                        </span>
+                    </td>
+                    <td class="p-6">
+                        <span class="px-2 py-1 rounded-lg text-xs font-black uppercase bg-blue/10 text-blue border border-blue/20">
+                            ${row.tool_key}
+                        </span>
+                    </td>
+                    <td class="p-6 text-slate-500 text-xs">${date}</td>
+                    <td class="p-6">
+                        <div class="max-w-[300px] truncate bg-slate-50 p-2 rounded-lg border border-slate-100 text-[10px] font-mono text-slate-400 group-hover:text-dark transition-colors">
+                            ${dataPreview}
+                        </div>
+                    </td>
+                    <td class="p-6 text-right">
+                        <button onclick="confirmDelete('${row.user_id}', '${row.tool_key}')" 
+                            class="p-3 bg-pink/10 text-pink hover:bg-pink hover:text-white rounded-xl transition-all opacity-0 group-hover:opacity-100">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </td>
+                `;
+                body.appendChild(tr);
+            });
+            lucide.createIcons();
+        }
+
+        async function confirmDelete(userId, toolKey) {
+            if (!confirm(`Delete progress for user ${userId.substring(0, 8)} on tool "${toolKey}"?`)) return;
+
+            const { error } = await db
+                .from('user_progress')
+                .delete()
+                .match({ user_id: userId, tool_key: toolKey });
+
+            if (error) {
+                alert("Error deleting record: " + error.message);
+            } else {
+                fetchData();
+            }
+        }
+
+        // Search filtering
+        document.getElementById('toolSearch').addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const filtered = allProgress.filter(r => 
+                r.tool_key.toLowerCase().includes(term) || 
+                r.user_id.toLowerCase().includes(term)
+            );
+            renderTable(filtered);
+        });
+
+        // Initialize
+        init();
+    </script>
+</body>
+</html>
