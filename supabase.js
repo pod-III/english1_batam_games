@@ -111,14 +111,54 @@ function clearLocalCache() {
   }
 }
 
+/**
+ * Recursively strips potential binary/Base64 data from a payload 
+ * to prevent cloud database bloat.
+ */
+function sanitizeCloudPayload(data) {
+  if (!data) return data
+  
+  // Clone to avoid mutating local storage state
+  const clean = JSON.parse(JSON.stringify(data))
+
+  const traverse = (obj) => {
+    for (const key in obj) {
+      const val = obj[key]
+      
+      if (typeof val === 'string') {
+        // Strip Base64 images or very long strings that look like binary
+        const isDataUrl = val.startsWith('data:')
+        const isTooLong = val.length > 10000 // 10KB per string limit
+        
+        if (isDataUrl || isTooLong) {
+          obj[key] = `[STRIPPED_FOR_CLOUD_SECURITY: ${isDataUrl ? 'Media' : 'LargePayload'}]`
+        }
+      } else if (typeof val === 'object' && val !== null) {
+        traverse(val)
+      }
+    }
+  }
+
+  traverse(clean)
+  return clean
+}
+
 /* ── DATA HELPERS (replaces localStorage) ── */
 async function saveProgress(toolKey, data) {
+  // 1. Always save full data locally first
   localStorage.setItem(`prog_${toolKey}`, JSON.stringify(data))
+
   const user = await getUser()
   if (!user) return
+
+  // 2. Sanitize data before sending to Cloud DB
+  const sanitizedData = sanitizeCloudPayload(data)
+
   await db.from('user_progress').upsert(
     {
-      user_id: user.id, tool_key: toolKey, data,
+      user_id: user.id, 
+      tool_key: toolKey, 
+      data: sanitizedData, // Only cloud gets the stripped version
       updated_at: new Date().toISOString()
     },
     { onConflict: 'user_id,tool_key' }
