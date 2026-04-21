@@ -152,7 +152,7 @@ const Storage = {
   set(key, value) {
     try {
       localStorage.setItem(key, JSON.stringify(value));
-      
+
       // If this is a hub key, trigger a cloud save in background
       const hubKeys = Object.values(CONFIG.storageKeys);
       if (hubKeys.includes(key)) {
@@ -202,7 +202,7 @@ const Storage = {
 
     console.log('[CloudPersistence] Syncing with cloud...');
     const cloudHubState = await loadProgress('klasskit_hub');
-    
+
     if (cloudHubState) {
       console.log('[CloudPersistence] Found cloud state:', cloudHubState);
       let changed = false;
@@ -1962,7 +1962,28 @@ async function initAuthIndicator() {
     loggedInDiv.classList.remove('hidden');
     const displayName = user.user_metadata?.display_name || user.email?.split('@')[0] || 'User';
     if (usernameEl) usernameEl.textContent = displayName;
+
+    // Check if admin and show link
+    console.log('[HubAuth] Querying role for UID:', user.id);
+    const { data: profile, error: roleError } = await db
+      .from('profiles').select('role').eq('id', user.id).single();
+    
+    if (roleError) {
+      console.error('[HubAuth] ERROR CODE:', roleError.code);
+      console.error('[HubAuth] ERROR MESSAGE:', roleError.message);
+      console.error('[HubAuth] FULL ERROR OBJECT:', roleError);
+    }
+    
+    console.log('[HubAuth] RAW PROFILE DATA:', profile);
+    console.log('[HubAuth] FINAL DETECTED ROLE:', profile?.role);
+
+    if (profile?.role === 'admin') {
+      console.log("[HubAuth] Success! Admin access granted.");
+      const adminLink = document.getElementById('auth-admin-link');
+      if (adminLink) adminLink.classList.remove('hidden');
+    }
   } else {
+    console.log("is user")
     signInLink.classList.remove('hidden');
     loggedInDiv.classList.add('hidden');
   }

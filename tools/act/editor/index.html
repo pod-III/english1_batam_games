@@ -665,6 +665,32 @@
             ];
 
             lucide.createIcons();
+            let syncTimeout;
+
+            async function saveToCloud() {
+                if (syncTimeout) clearTimeout(syncTimeout);
+                syncTimeout = setTimeout(async () => {
+                    try {
+                        await saveProgress('act_custom_workspace', { activities, updatedAt: Date.now() });
+                        console.log("Cloud sync complete");
+                    } catch (e) {
+                        console.error("Cloud sync failed", e);
+                    }
+                }, 2000);
+            }
+
+            async function loadFromCloud() {
+                try {
+                    const data = await loadProgress('act_custom_workspace');
+                    if (data && data.activities) {
+                        activities = data.activities;
+                        updateActivityList();
+                        setNextAvailableId();
+                    }
+                } catch (e) {
+                    console.error("Cloud load failed", e);
+                }
+            }
 
             // --- FILE & DATA HANDLING ---
             document
@@ -753,6 +779,7 @@
                     if (addedCount > 0) {
                         updateActivityList();
                         setNextAvailableId();
+                        saveToCloud();
 
                         // Clean up and close
                         document.getElementById("pasteArea").value = "";
@@ -950,6 +977,7 @@
 
                 resetForm();
                 updateActivityList();
+                saveToCloud();
             }
 
             function editActivity(id) {
@@ -1014,6 +1042,7 @@
                 activities = activities.filter((a) => a.id !== id);
                 if (originalEditingId === id) resetForm();
                 updateActivityList();
+                saveToCloud();
                 showToast(`Activity #${id} Deleted.`, true);
             }
 
@@ -1048,6 +1077,7 @@
                 }
 
                 updateActivityList();
+                saveToCloud();
                 showToast("All IDs successfully re-indexed!");
             }
 
@@ -1124,9 +1154,11 @@
                 }, 3000);
             }
 
-            window.onload = () => {
+            window.onload = async () => {
+                await requireAuth();
+                await loadFromCloud();
                 setNextAvailableId();
-                addStep();
+                if (activities.length === 0) addStep();
                 updateActivityList();
             };
         </script>
