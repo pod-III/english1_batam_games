@@ -151,7 +151,7 @@ async function sendPasswordReset(email) {
   if (isSandbox()) return { error: "Reset not available in Sandbox." };
   
   // Update this URL to where your actual reset page is hosted
-  const resetUrl = window.location.origin + 'api/reset-password.html';
+  const resetUrl = 'https://www.klasskit.fun/api/reset-password.html';
   
   return await db.auth.resetPasswordForEmail(email, {
     ConfirmationURL: resetUrl,
