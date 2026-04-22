@@ -21,24 +21,32 @@
             transform: translate(2px, 2px);
             box-shadow: 2px 2px 0px #0F172A;
         }
+        .input-field {
+            border: 3px solid #0F172A;
+        }
     </style>
 </head>
 <body class="bg-[#F8FAFC] flex items-center justify-center min-h-screen p-4">
 
     <div class="neo-brutalism-card bg-white w-full max-w-md p-8">
         <h1 class="text-3xl font-black text-[#4F46E5] uppercase mb-2">New Password</h1>
-        <p class="text-slate-600 mb-6">Enter a new password for your KlassKit account.</p>
+        <p class="text-slate-600 mb-6">Please enter and confirm your new password for KlassKit.</p>
 
-        <form id="resetForm" class="space-y-4">
+        <form id="resetForm" class="space-y-5">
             <div>
                 <label class="block font-bold text-[#0F172A] mb-1">New Password</label>
                 <input type="password" id="newPassword" required 
-                    class="w-full p-3 border-3 border-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#4F46E5] text-lg font-medium"
-                    style="border: 3px solid #0F172A;">
+                    class="input-field w-full p-3 focus:outline-none focus:ring-2 focus:ring-[#4F46E5] text-lg font-medium">
+            </div>
+
+            <div>
+                <label class="block font-bold text-[#0F172A] mb-1">Confirm New Password</label>
+                <input type="password" id="confirmPassword" required 
+                    class="input-field w-full p-3 focus:outline-none focus:ring-2 focus:ring-[#4F46E5] text-lg font-medium">
             </div>
             
             <button type="submit" 
-                class="neo-brutalism-btn w-full py-4 bg-[#F59E0B] text-[#0F172A] font-black text-xl uppercase">
+                class="neo-brutalism-btn w-full py-4 bg-[#F59E0B] text-[#0F172A] font-black text-xl uppercase mt-4">
                 Update Password
             </button>
         </form>
@@ -53,25 +61,39 @@
         resetForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
 
+            // 1. Reset message box
+            messageBox.classList.add('hidden');
+            messageBox.style.backgroundColor = 'transparent';
+
+            // 2. Extra layer: Check if passwords match
+            if (newPassword !== confirmPassword) {
+                showFeedback("Passwords do not match. Please try again.", "#FECACA"); // Red
+                return;
+            }
+
+            // 3. Call your helper function from supabase.js
             const { data, error } = await updatePassword(newPassword);
 
-            messageBox.classList.remove('hidden');
             if (error) {
-                messageBox.style.backgroundColor = '#FECACA'; // Red
-                messageBox.innerText = "Error: " + error.message;
+                showFeedback("Error: " + error.message, "#FECACA");
             } else {
-                messageBox.style.backgroundColor = '#CCFBF1'; // Teal
-                messageBox.innerText = "Success! Password updated. Redirecting to login...";
+                showFeedback("Success! Password updated. Redirecting...", "#CCFBF1"); // Teal
                 
-                // Send them back to login after a short delay
                 setTimeout(() => {
                     window.location.href = '/login.html';
                 }, 2000);
             }
         });
 
-        // Safety: Ensure user is actually coming from a recovery link
+        function showFeedback(text, bgColor) {
+            messageBox.innerText = text;
+            messageBox.style.backgroundColor = bgColor;
+            messageBox.classList.remove('hidden');
+        }
+
+        // Redirect if not authenticated/recovery mode
         window.addEventListener('load', async () => {
             const user = await getUser();
             if (!user && !window.location.hash.includes('type=recovery')) {
