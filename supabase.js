@@ -147,6 +147,27 @@ function sanitizeCloudPayload(data) {
   return clean
 }
 
+async function sendPasswordReset(email) {
+  if (isSandbox()) return { error: "Reset not available in Sandbox." };
+  
+  // Update this URL to where your actual reset page is hosted
+  const resetUrl = window.location.origin + '/reset-password.html';
+  
+  return await db.auth.resetPasswordForEmail(email, {
+    redirectTo: resetUrl,
+  });
+}
+
+async function updatePassword(newPassword) {
+  if (isSandbox()) return { success: true };
+  
+  const { data, error } = await db.auth.updateUser({
+    password: newPassword
+  });
+  
+  return { data, error };
+}
+
 /* ── DATA HELPERS ── */
 async function saveProgress(toolKey, data) {
   localStorage.setItem(`prog_${toolKey}`, JSON.stringify(data))
@@ -239,3 +260,4 @@ async function migrateLocalToCloud() {
 
   localStorage.setItem('migrated_to_cloud', 'true')
 }
+
