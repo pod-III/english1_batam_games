@@ -154,7 +154,7 @@ async function sendPasswordReset(email) {
   const resetUrl = window.location.origin + 'api/reset-password.html';
   
   return await db.auth.resetPasswordForEmail(email, {
-    redirectTo: resetUrl,
+    ConfirmationURL: resetUrl,
   });
 }
 
