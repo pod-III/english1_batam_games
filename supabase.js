@@ -177,24 +177,20 @@ async function loadProgress(toolKey) {
 
   const user = await getUser()
   if (user) {
-    // FIX: Explicitly filter by user_id to prevent admin query crashes
-    const { data, error } = await db.from('user_progress')
+    // 1. Fetch as an array instead of .single() to prevent 406 errors
+    const { data } = await db.from('user_progress')
       .select('data')
       .eq('tool_key', toolKey)
-      .eq('user_id', user.id)
-      .single()
+      .limit(1)
 
-    // Ignore PGRST116 (No rows found) - it just means no progress is saved yet
-    if (error && error.code !== 'PGRST116') {
-      console.error('[Load] DB Error:', error)
-    }
-
-    if (data) {
-      localStorage.setItem(`prog_${toolKey}`, JSON.stringify(data.data))
-      return data.data
+    // 2. Check if the array contains any rows
+    if (data && data.length > 0) {
+      // Prioritize cloud and sync to local for seamless usage
+      localStorage.setItem(`prog_${toolKey}`, JSON.stringify(data[0].data))
+      return data[0].data
     }
   }
-
+  
   const local = localStorage.getItem(`prog_${toolKey}`)
   return local ? JSON.parse(local) : null
 }
