@@ -1715,6 +1715,50 @@ const Footer = {
   }
 };
 
+// --- BUG REPORT ---
+const BugReport = {
+  open() {
+    AudioEngine.click();
+    const modal = document.getElementById('bug-report-modal');
+    const iframe = document.getElementById('bug-report-iframe');
+    const loader = document.getElementById('bug-report-loader');
+
+    if (!modal || !iframe) return;
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+
+    if (loader) loader.style.opacity = '1';
+    iframe.src = CONFIG.helpUrl;
+
+    iframe.onload = () => {
+      if (loader) loader.style.opacity = '0';
+      iframe.classList.remove('opacity-0');
+      iframe.classList.add('opacity-100');
+      setTimeout(() => { if (loader) loader.style.display = 'none'; }, 300);
+    };
+  },
+
+  close() {
+    const modal = document.getElementById('bug-report-modal');
+    const iframe = document.getElementById('bug-report-iframe');
+    const loader = document.getElementById('bug-report-loader');
+
+    if (!modal || !iframe) return;
+
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    iframe.src = 'about:blank';
+    iframe.classList.add('opacity-0');
+    iframe.classList.remove('opacity-100');
+    if (loader) {
+      loader.style.display = 'flex';
+      loader.style.opacity = '1';
+    }
+    AudioEngine.click();
+  }
+};
+
 // --- APP CONTROLLER ---
 const App = {
   async init() {
@@ -1842,7 +1886,9 @@ const App = {
       togglePin: (param) => { PinnedGames.toggle(param); Hero.updateStats(); },
       surpriseMe: () => Hero.surpriseMe(),
       continueGame: (param) => GameModal.open(param),
-      openFeedback: () => window.open(CONFIG.helpUrl, '_blank'),
+      openFeedback: () => BugReport.open(),
+      openBugReport: () => BugReport.open(),
+      closeBugReport: () => BugReport.close(),
       showLanding: () => LandingPage.showLanding(),
       showLibrary: () => LandingPage.showLibrary(),
       setViewMode: (param) => ViewMode.set(param)
