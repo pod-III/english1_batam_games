@@ -3,18 +3,14 @@
  * --------------------------------
  * Loads the Supabase JS v2 client (imported via CDN in <head>)
  * and exposes a thin convenience API for auth.
- *
- * Usage:
- *   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
- *   <script src="/supabase.js"></script>
  */
 
 // ── Config ────────────────────────────────────────────────────────────────
 const SUPABASE_URL = 'https://mkarfktuvtllaxpunwtb.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_5Fd483qrg6bEFa_T1oNyLg_gymEgi4P';
 
-const { createClient } = supabase
-const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+const { createClient } = (typeof supabase !== 'undefined') ? supabase : { createClient: () => ({ auth: { getSession: async () => ({ data: { session: null } }), signOut: async () => {} }, from: () => ({ select: () => ({ eq: () => ({ single: async () => ({ error: 'Supabase not loaded' }), update: async () => ({ error: 'Supabase not loaded' }) }) }) }) }) }
+const db = (typeof supabase !== 'undefined') ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null
 
 /* ── MODE HELPERS ── */
 function isSandbox() {
@@ -42,7 +38,6 @@ async function requireAuth() {
     return new Promise(() => { })
   }
 
-  // Safety Check: If the user ID has changed, clear the local cache immediately
   const lastUserId = localStorage.getItem('kk_current_user_id')
   if (lastUserId && lastUserId !== user.id) {
     console.warn('[Auth] User ID mismatch. Clearing local cache for safety.')
@@ -57,12 +52,12 @@ async function requireAuth() {
 async function requireAdmin() {
   if (isSandbox()) {
     location.href = '/hub.html';
-    return new Promise(() => {});
+    return new Promise(() => { });
   }
   const user = await getUser()
   if (!user) {
     location.href = '/login.html'
-    return new Promise(() => {})
+    return new Promise(() => { })
   }
 
   const { data: profile, error } = await db
@@ -72,12 +67,11 @@ async function requireAdmin() {
     .single()
 
   if (error) console.error('[AdminGuard] Profile lookup error:', error)
-  console.log('[AdminGuard] Profile data:', profile)
 
   if (profile?.role !== 'admin') {
-    console.warn('[AdminGuard] Access Denied: Role is', profile?.role)
+    console.warn('[AdminGuard] Access Denied.')
     location.href = '/hub.html'
-    return new Promise(() => {})
+    return new Promise(() => { })
   }
 
   return { user, profile }
@@ -92,9 +86,11 @@ async function signUp(email, pass, displayName) {
     }
   })
 }
+
 async function signIn(email, pass) {
   return db.auth.signInWithPassword({ email, password: pass })
 }
+
 async function signOut() {
   if (!isSandbox()) {
     await db.auth.signOut()
@@ -105,7 +101,6 @@ async function signOut() {
 
 function clearLocalCache() {
   console.log('[Auth] Clearing local cache...');
-  // Clear all tool progress
   const keys = Object.keys(localStorage)
   keys.forEach(key => {
     if (key.startsWith('prog_') ||
@@ -122,36 +117,35 @@ function clearLocalCache() {
     }
   })
 
-  // Trigger hub state refresh if Storage exists
   if (window.Storage && typeof window.Storage.syncWithCloud === 'function') {
     window.Storage.syncWithCloud()
   }
 }
 
-/**
- * Recursively strips potential binary/Base64 data from a payload 
- * to prevent cloud database bloat.
- */
 function sanitizeCloudPayload(data) {
   if (!data) return data
-  
-  // Clone to avoid mutating local storage state
-  const clean = JSON.parse(JSON.stringify(data))
+  let clean
+  try {
+    clean = JSON.parse(JSON.stringify(data))
+  } catch (e) {
+    console.error('[Sanitize] Circular reference or non-JSON data detected.', e)
+    return { error: 'data_not_serializable' }
+  }
 
-  const traverse = (obj) => {
+  const traverse = (obj, depth = 0) => {
+    if (depth > 10) return // Safety depth limit
     for (const key in obj) {
       const val = obj[key]
-      
+
       if (typeof val === 'string') {
-        // Strip Base64 images or very long strings that look like binary
         const isDataUrl = val.startsWith('data:')
-        const isTooLong = val.length > 10000 // 10KB per string limit
-        
+        const isTooLong = val.length > 10000
+
         if (isDataUrl || isTooLong) {
           obj[key] = `[STRIPPED_FOR_CLOUD_SECURITY: ${isDataUrl ? 'Media' : 'LargePayload'}]`
         }
       } else if (typeof val === 'object' && val !== null) {
-        traverse(val)
+        traverse(val, depth + 1)
       }
     }
   }
@@ -160,24 +154,22 @@ function sanitizeCloudPayload(data) {
   return clean
 }
 
-/* ── DATA HELPERS (replaces localStorage) ── */
+/* ── DATA HELPERS ── */
 async function saveProgress(toolKey, data) {
-  // 1. Always save full data locally first
   localStorage.setItem(`prog_${toolKey}`, JSON.stringify(data))
 
-  if (isSandbox()) return; // Skip cloud sync in sandbox
+  if (isSandbox()) return;
 
   const user = await getUser()
   if (!user) return
 
-  // 2. Sanitize data before sending to Cloud DB
   const sanitizedData = sanitizeCloudPayload(data)
 
   await db.from('user_progress').upsert(
     {
-      user_id: user.id, 
-      tool_key: toolKey, 
-      data: sanitizedData, // Only cloud gets the stripped version
+      user_id: user.id,
+      tool_key: toolKey,
+      data: sanitizedData,
       updated_at: new Date().toISOString()
     },
     { onConflict: 'user_id,tool_key' }
@@ -189,16 +181,27 @@ async function loadProgress(toolKey) {
     const local = localStorage.getItem(`prog_${toolKey}`);
     return local ? JSON.parse(local) : null;
   }
+
   const user = await getUser()
   if (user) {
-    const { data } = await db.from('user_progress')
-      .select('data').eq('tool_key', toolKey).single()
+    // FIX: Explicitly filter by user_id to prevent admin query crashes
+    const { data, error } = await db.from('user_progress')
+      .select('data')
+      .eq('tool_key', toolKey)
+      .eq('user_id', user.id)
+      .single()
+
+    // Ignore PGRST116 (No rows found) - it just means no progress is saved yet
+    if (error && error.code !== 'PGRST116') {
+      console.error('[Load] DB Error:', error)
+    }
+
     if (data) {
-      // Prioritize cloud and sync to local for seamless usage
       localStorage.setItem(`prog_${toolKey}`, JSON.stringify(data.data))
       return data.data
     }
   }
+
   const local = localStorage.getItem(`prog_${toolKey}`)
   return local ? JSON.parse(local) : null
 }
@@ -208,13 +211,12 @@ async function updateDisplayName(displayName) {
   const user = await getUser()
   if (!user) return { error: 'Not logged in' }
 
-  // Update in auth metadata (so getUser() reflects it immediately)
   const { error: authError } = await db.auth.updateUser({
     data: { display_name: displayName }
   })
   if (authError) return { error: authError.message }
 
-  // Update in profiles table (for admin queries and leaderboards later)
+  // FIX: Strictly limit the update payload to only the display_name
   const { error: dbError } = await db
     .from('profiles')
     .update({ display_name: displayName })
@@ -233,12 +235,17 @@ async function migrateLocalToCloud() {
 
   const keys = Object.keys(localStorage).filter(k => k.startsWith('prog_'))
   for (const key of keys) {
-    const toolKey = key.replace('prog_', '')
-    const data = JSON.parse(localStorage.getItem(key))
-    await saveProgress(toolKey, data)
+    try {
+      const toolKey = key.replace('prog_', '')
+      const raw = localStorage.getItem(key)
+      if (!raw) continue
+      const data = JSON.parse(raw)
+      await saveProgress(toolKey, data)
+    } catch (e) {
+      console.error(`[Migrate] Failed to migrate ${key}:`, e)
+    }
   }
 
-  // Also migrate hub state if it exists
   if (window.Storage && typeof window.Storage.triggerCloudSave === 'function') {
     await window.Storage.triggerCloudSave()
   }
