@@ -151,7 +151,7 @@ async function sendPasswordReset(email) {
   if (isSandbox()) return { error: "Reset not available in Sandbox." };
   
   // Update this URL to where your actual reset page is hosted
-  const resetUrl = window.location.origin + '/reset-password.html';
+  const resetUrl = window.location.origin + 'api/reset-password/index.html';
   
   return await db.auth.resetPasswordForEmail(email, {
     redirectTo: resetUrl,

@@ -197,7 +197,6 @@
 <body class="min-h-screen flex items-center justify-center p-4">
 
   <div class="glass-card w-full max-w-md p-8 rounded-3xl animate-pop-in">
-    <!-- Header -->
     <div class="text-center mb-8">
       <div
         class="w-20 h-20 bg-pink rounded-3xl border-[3px] border-dark dark:border-slate-500 flex items-center justify-center mx-auto mb-4 scale-110 rotate-3 shadow-hard"
@@ -208,15 +207,13 @@
       <p class="text-slate-500 dark:text-slate-400 font-bold mt-2">Personalize your learning journey</p>
     </div>
 
-    <!-- Auth Tabs -->
-    <div class="flex mb-8">
+    <div id="auth-tabs" class="flex mb-8">
       <button type="button" id="tab-signin" class="tab-btn active focus-visible:ring-2 ring-blue ring-offset-2"
         onclick="switchTab('signin')">Sign In</button>
       <button type="button" id="tab-signup" class="tab-btn focus-visible:ring-2 ring-blue ring-offset-2"
         onclick="switchTab('signup')">Sign Up</button>
     </div>
 
-    <!-- Sign In Form -->
     <div id="content-signin" class="tab-content active">
       <form class="space-y-5" onsubmit="return false;">
         <div class="space-y-1.5">
@@ -234,6 +231,11 @@
             <i data-lucide="lock" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"></i>
             <input type="password" id="signin-password" class="auth-input pl-11" placeholder="••••••••" required>
           </div>
+          <div class="text-right px-1 pt-1">
+            <button type="button" onclick="switchTab('forgot')" class="text-xs font-black text-blue hover:underline uppercase tracking-tighter">
+              Forgot Password?
+            </button>
+          </div>
         </div>
         <div id="signin-message" class="hidden p-3 rounded-xl border-3 border-dark text-sm font-bold text-center"></div>
         <button type="button" onclick="handleSignIn()"
@@ -243,7 +245,6 @@
       </form>
     </div>
 
-    <!-- Sign Up Form -->
     <div id="content-signup" class="tab-content">
       <form class="space-y-5" onsubmit="return false;">
         <div class="space-y-1.5">
@@ -264,19 +265,50 @@
             <input type="email" id="signup-email" class="auth-input pl-11" placeholder="teacher@school.edu" required>
           </div>
         </div>
-        <div class="space-y-1.5">
-          <label class="block text-sm font-extrabold text-dark dark:text-slate-300 ml-1 uppercase tracking-wider">Create
-            Password</label>
-          <div class="relative">
-            <i data-lucide="lock" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"></i>
-            <input type="password" id="signup-password" class="auth-input pl-11" placeholder="••••••••" required
-              minlength="6">
+        
+        <div class="grid grid-cols-2 gap-3">
+          <div class="space-y-1.5">
+            <label class="block text-sm font-extrabold text-dark dark:text-slate-300 ml-1 uppercase tracking-wider">Password</label>
+            <div class="relative">
+              <i data-lucide="lock" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"></i>
+              <input type="password" id="signup-password" class="auth-input pl-11" placeholder="••••••••" required minlength="6">
+            </div>
+          </div>
+          <div class="space-y-1.5">
+            <label class="block text-sm font-extrabold text-dark dark:text-slate-300 ml-1 uppercase tracking-wider">Confirm</label>
+            <div class="relative">
+              <i data-lucide="shield-check" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"></i>
+              <input type="password" id="signup-confirm" class="auth-input pl-11" placeholder="••••••••" required minlength="6">
+            </div>
           </div>
         </div>
+
         <div id="signup-message" class="hidden p-3 rounded-xl border-3 border-dark text-sm font-bold text-center"></div>
         <button type="button" onclick="handleSignUp()"
           class="btn-chunky w-full py-3.5 rounded-2xl bg-green text-white font-heading text-lg uppercase tracking-wide">
           <span>Create Account</span>
+        </button>
+      </form>
+    </div>
+
+    <div id="content-forgot" class="tab-content">
+      <div class="mb-4">
+        <button type="button" onclick="switchTab('signin')" class="inline-flex items-center text-xs font-black text-slate-400 hover:text-dark uppercase tracking-tighter transition-colors">
+          <i data-lucide="arrow-left" class="w-3 h-3 mr-1"></i> Back to Sign In
+        </button>
+      </div>
+      <form class="space-y-5" onsubmit="return false;">
+        <div class="space-y-1.5">
+          <label class="block text-sm font-extrabold text-dark dark:text-slate-300 ml-1 uppercase tracking-wider">Reset Email</label>
+          <div class="relative">
+            <i data-lucide="mail" class="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"></i>
+            <input type="email" id="forgot-email" class="auth-input pl-11" placeholder="teacher@school.edu" required>
+          </div>
+        </div>
+        <div id="forgot-message" class="hidden p-3 rounded-xl border-3 border-dark text-sm font-bold text-center"></div>
+        <button type="button" onclick="handleForgotPassword()"
+          class="btn-chunky w-full py-3.5 rounded-2xl bg-orange text-white font-heading text-lg uppercase tracking-wide">
+          <span>Send Reset Link</span>
         </button>
       </form>
     </div>
@@ -297,7 +329,15 @@
     function switchTab(tab) {
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-      document.getElementById('tab-' + tab).classList.add('active');
+      
+      const tabGroup = document.getElementById('auth-tabs');
+      if (tab === 'forgot') {
+        tabGroup.classList.add('hidden'); // Hide the top tabs for forgot password mode
+      } else {
+        tabGroup.classList.remove('hidden');
+        document.getElementById('tab-' + tab).classList.add('active');
+      }
+
       document.getElementById('content-' + tab).classList.add('active');
     }
 
@@ -315,13 +355,11 @@
 
     function setLoading(btn, loading, originalText) {
       btn.disabled = loading;
-      const icon = btn.querySelector('i');
+      const span = btn.querySelector('span');
       if (loading) {
-        btn.querySelector('span').textContent = 'Working...';
-        if (icon) icon.classList.add('animate-spin');
+        span.textContent = 'Working...';
       } else {
-        btn.querySelector('span').textContent = originalText;
-        if (icon) icon.classList.remove('animate-spin');
+        span.textContent = originalText;
       }
     }
 
@@ -350,10 +388,12 @@
     async function handleSignUp() {
       const email = document.getElementById('signup-email').value.trim();
       const pass = document.getElementById('signup-password').value;
+      const confirm = document.getElementById('signup-confirm').value;
       const displayName = document.getElementById('signup-displayname').value.trim();
       const btn = document.querySelector('#content-signup button');
 
       if (!email || !pass || !displayName) return showMessage('signup-message', 'All fields required!', true);
+      if (pass !== confirm) return showMessage('signup-message', 'Passwords do not match!', true);
       if (pass.length < 6) return showMessage('signup-message', 'Password too short!', true);
 
       localStorage.setItem('klasskit_pending_display_name', displayName);
@@ -367,12 +407,28 @@
       showMessage('signup-message', '✅ Check your email for a link!', false);
     }
 
+    async function handleForgotPassword() {
+      const email = document.getElementById('forgot-email').value.trim();
+      const btn = document.querySelector('#content-forgot button');
+
+      if (!email) return showMessage('forgot-message', 'Please enter your email!', true);
+
+      setLoading(btn, true, 'Send Reset Link');
+      const { data, error } = await sendPasswordReset(email); // Make sure this function is in your supabase.js
+      setLoading(btn, false, 'Send Reset Link');
+
+      if (error) return showMessage('forgot-message', error.message, true);
+
+      showMessage('forgot-message', '✅ Check your inbox for a reset link!', false);
+    }
+
     // Enter key support
     document.querySelectorAll('input').forEach(input => {
       input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
           if (input.closest('#content-signin')) handleSignIn();
-          else handleSignUp();
+          else if (input.closest('#content-signup')) handleSignUp();
+          else if (input.closest('#content-forgot')) handleForgotPassword();
         }
       });
     });
