@@ -3,10 +3,6 @@
  * --------------------------------
  * Loads the Supabase JS v2 client (imported via CDN in <head>)
  * and exposes a thin convenience API for auth.
- *
- * Usage:
- *   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
- *   <script src="/supabase.js"></script>
  */
 
 // ── Config ────────────────────────────────────────────────────────────────
@@ -16,13 +12,24 @@ const SUPABASE_ANON_KEY = 'sb_publishable_5Fd483qrg6bEFa_T1oNyLg_gymEgi4P';
 const { createClient } = supabase
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
-/* ── AUTH HELPERS ── */
+/* ── MODE HELPERS ── */
+function isSandbox() {
+  return localStorage.getItem('kk_mode') === 'sandbox';
+}
+
 async function getUser() {
+  if (isSandbox()) {
+    return { id: 'sandbox_user', is_sandbox: true, email: 'sandbox@local' };
+  }
   const { data: { session } } = await db.auth.getSession()
   return session?.user ?? null
 }
 
 async function requireAuth() {
+  if (isSandbox()) {
+    console.log("[Auth] Sandbox Mode Active. Bypassing Auth.");
+    return { id: 'sandbox_user', is_sandbox: true };
+  }
   const user = await getUser()
   if (!user) {
     const target = (window !== window.top) ? window.top : window
@@ -31,7 +38,6 @@ async function requireAuth() {
     return new Promise(() => { })
   }
 
-  // Safety Check: If the user ID has changed, clear the local cache immediately
   const lastUserId = localStorage.getItem('kk_current_user_id')
   if (lastUserId && lastUserId !== user.id) {
     console.warn('[Auth] User ID mismatch. Clearing local cache for safety.')
@@ -44,10 +50,14 @@ async function requireAuth() {
 }
 
 async function requireAdmin() {
+  if (isSandbox()) {
+    location.href = '/hub.html';
+    return new Promise(() => { });
+  }
   const user = await getUser()
   if (!user) {
     location.href = '/login.html'
-    return new Promise(() => {})
+    return new Promise(() => { })
   }
 
   const { data: profile, error } = await db
@@ -57,12 +67,11 @@ async function requireAdmin() {
     .single()
 
   if (error) console.error('[AdminGuard] Profile lookup error:', error)
-  console.log('[AdminGuard] Profile data:', profile)
 
   if (profile?.role !== 'admin') {
-    console.warn('[AdminGuard] Access Denied: Role is', profile?.role)
-    location.href = '/'
-    return new Promise(() => {})
+    console.warn('[AdminGuard] Access Denied.')
+    location.href = '/hub.html'
+    return new Promise(() => { })
   }
 
   return { user, profile }
@@ -77,18 +86,21 @@ async function signUp(email, pass, displayName) {
     }
   })
 }
+
 async function signIn(email, pass) {
   return db.auth.signInWithPassword({ email, password: pass })
 }
+
 async function signOut() {
-  await db.auth.signOut()
+  if (!isSandbox()) {
+    await db.auth.signOut()
+  }
   clearLocalCache()
-  location.href = '/login.html'
+  location.href = '/index.html'
 }
 
 function clearLocalCache() {
   console.log('[Auth] Clearing local cache...');
-  // Clear all tool progress
   const keys = Object.keys(localStorage)
   keys.forEach(key => {
     if (key.startsWith('prog_') ||
@@ -105,31 +117,23 @@ function clearLocalCache() {
     }
   })
 
-  // Trigger hub state refresh if Storage exists
   if (window.Storage && typeof window.Storage.syncWithCloud === 'function') {
     window.Storage.syncWithCloud()
   }
 }
 
-/**
- * Recursively strips potential binary/Base64 data from a payload 
- * to prevent cloud database bloat.
- */
 function sanitizeCloudPayload(data) {
   if (!data) return data
-  
-  // Clone to avoid mutating local storage state
   const clean = JSON.parse(JSON.stringify(data))
 
   const traverse = (obj) => {
     for (const key in obj) {
       const val = obj[key]
-      
+
       if (typeof val === 'string') {
-        // Strip Base64 images or very long strings that look like binary
         const isDataUrl = val.startsWith('data:')
-        const isTooLong = val.length > 10000 // 10KB per string limit
-        
+        const isTooLong = val.length > 10000
+
         if (isDataUrl || isTooLong) {
           obj[key] = `[STRIPPED_FOR_CLOUD_SECURITY: ${isDataUrl ? 'Media' : 'LargePayload'}]`
         }
@@ -143,22 +147,22 @@ function sanitizeCloudPayload(data) {
   return clean
 }
 
-/* ── DATA HELPERS (replaces localStorage) ── */
+/* ── DATA HELPERS ── */
 async function saveProgress(toolKey, data) {
-  // 1. Always save full data locally first
   localStorage.setItem(`prog_${toolKey}`, JSON.stringify(data))
+
+  if (isSandbox()) return;
 
   const user = await getUser()
   if (!user) return
 
-  // 2. Sanitize data before sending to Cloud DB
   const sanitizedData = sanitizeCloudPayload(data)
 
   await db.from('user_progress').upsert(
     {
-      user_id: user.id, 
-      tool_key: toolKey, 
-      data: sanitizedData, // Only cloud gets the stripped version
+      user_id: user.id,
+      tool_key: toolKey,
+      data: sanitizedData,
       updated_at: new Date().toISOString()
     },
     { onConflict: 'user_id,tool_key' }
@@ -166,6 +170,11 @@ async function saveProgress(toolKey, data) {
 }
 
 async function loadProgress(toolKey) {
+  if (isSandbox()) {
+    const local = localStorage.getItem(`prog_${toolKey}`);
+    return local ? JSON.parse(local) : null;
+  }
+
   const user = await getUser()
   if (user) {
     // 1. Fetch as an array instead of .single() to prevent 406 errors
@@ -187,16 +196,16 @@ async function loadProgress(toolKey) {
 }
 
 async function updateDisplayName(displayName) {
+  if (isSandbox()) return { success: true };
   const user = await getUser()
   if (!user) return { error: 'Not logged in' }
 
-  // Update in auth metadata (so getUser() reflects it immediately)
   const { error: authError } = await db.auth.updateUser({
     data: { display_name: displayName }
   })
   if (authError) return { error: authError.message }
 
-  // Update in profiles table (for admin queries and leaderboards later)
+  // FIX: Strictly limit the update payload to only the display_name
   const { error: dbError } = await db
     .from('profiles')
     .update({ display_name: displayName })
@@ -208,6 +217,7 @@ async function updateDisplayName(displayName) {
 }
 
 async function migrateLocalToCloud() {
+  if (isSandbox()) return;
   if (localStorage.getItem('migrated_to_cloud')) return
   const user = await getUser()
   if (!user) return
@@ -219,7 +229,6 @@ async function migrateLocalToCloud() {
     await saveProgress(toolKey, data)
   }
 
-  // Also migrate hub state if it exists
   if (window.Storage && typeof window.Storage.triggerCloudSave === 'function') {
     await window.Storage.triggerCloudSave()
   }

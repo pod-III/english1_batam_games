@@ -181,6 +181,7 @@ const Storage = {
   triggerCloudSave() {
     if (this._saveTimeout) clearTimeout(this._saveTimeout);
     this._saveTimeout = setTimeout(async () => {
+      if (typeof isSandbox === 'function' && isSandbox()) return;
       const user = await getUser();
       if (!user) return;
 
@@ -197,6 +198,7 @@ const Storage = {
   },
 
   async syncWithCloud() {
+    if (typeof isSandbox === 'function' && isSandbox()) return;
     const user = await getUser();
     if (!user) return;
 
@@ -1960,6 +1962,12 @@ async function initAuthIndicator() {
   if (user) {
     signInLink.classList.add('hidden');
     loggedInDiv.classList.remove('hidden');
+    
+    if (user.is_sandbox) {
+      if (usernameEl) usernameEl.innerHTML = '<span class="flex items-center gap-2"><i data-lucide="shield-check" class="w-4 h-4 text-green"></i> Sandbox Mode</span>';
+      return;
+    }
+
     const displayName = user.user_metadata?.display_name || user.email?.split('@')[0] || 'User';
     if (usernameEl) usernameEl.textContent = displayName;
 
