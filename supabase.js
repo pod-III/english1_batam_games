@@ -16,13 +16,24 @@ const SUPABASE_ANON_KEY = 'sb_publishable_5Fd483qrg6bEFa_T1oNyLg_gymEgi4P';
 const { createClient } = supabase
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
-/* ── AUTH HELPERS ── */
+/* ── MODE HELPERS ── */
+function isSandbox() {
+  return localStorage.getItem('kk_mode') === 'sandbox';
+}
+
 async function getUser() {
+  if (isSandbox()) {
+    return { id: 'sandbox_user', is_sandbox: true, email: 'sandbox@local' };
+  }
   const { data: { session } } = await db.auth.getSession()
   return session?.user ?? null
 }
 
 async function requireAuth() {
+  if (isSandbox()) {
+    console.log("[Auth] Sandbox Mode Active. Bypassing Auth.");
+    return { id: 'sandbox_user', is_sandbox: true };
+  }
   const user = await getUser()
   if (!user) {
     const target = (window !== window.top) ? window.top : window
@@ -44,6 +55,10 @@ async function requireAuth() {
 }
 
 async function requireAdmin() {
+  if (isSandbox()) {
+    location.href = '/hub.html';
+    return new Promise(() => {});
+  }
   const user = await getUser()
   if (!user) {
     location.href = '/login.html'
@@ -61,7 +76,7 @@ async function requireAdmin() {
 
   if (profile?.role !== 'admin') {
     console.warn('[AdminGuard] Access Denied: Role is', profile?.role)
-    location.href = '/'
+    location.href = '/hub.html'
     return new Promise(() => {})
   }
 
@@ -81,9 +96,11 @@ async function signIn(email, pass) {
   return db.auth.signInWithPassword({ email, password: pass })
 }
 async function signOut() {
-  await db.auth.signOut()
+  if (!isSandbox()) {
+    await db.auth.signOut()
+  }
   clearLocalCache()
-  location.href = '/login.html'
+  location.href = '/index.html'
 }
 
 function clearLocalCache() {
@@ -148,6 +165,8 @@ async function saveProgress(toolKey, data) {
   // 1. Always save full data locally first
   localStorage.setItem(`prog_${toolKey}`, JSON.stringify(data))
 
+  if (isSandbox()) return; // Skip cloud sync in sandbox
+
   const user = await getUser()
   if (!user) return
 
@@ -166,6 +185,10 @@ async function saveProgress(toolKey, data) {
 }
 
 async function loadProgress(toolKey) {
+  if (isSandbox()) {
+    const local = localStorage.getItem(`prog_${toolKey}`);
+    return local ? JSON.parse(local) : null;
+  }
   const user = await getUser()
   if (user) {
     const { data } = await db.from('user_progress')
@@ -181,6 +204,7 @@ async function loadProgress(toolKey) {
 }
 
 async function updateDisplayName(displayName) {
+  if (isSandbox()) return { success: true };
   const user = await getUser()
   if (!user) return { error: 'Not logged in' }
 
@@ -202,6 +226,7 @@ async function updateDisplayName(displayName) {
 }
 
 async function migrateLocalToCloud() {
+  if (isSandbox()) return;
   if (localStorage.getItem('migrated_to_cloud')) return
   const user = await getUser()
   if (!user) return
