@@ -149,12 +149,11 @@ function sanitizeCloudPayload(data) {
 
 async function sendPasswordReset(email) {
   if (isSandbox()) return { error: "Reset not available in Sandbox." };
-  
-  // Update this URL to where your actual reset page is hosted
+
   const resetUrl = 'https://klasskit.fun/api/reset-password.html';
-  
+
   return await db.auth.resetPasswordForEmail(email, {
-    ConfirmationURL: resetUrl,
+    redirectTo: resetUrl,
   });
 }
 
