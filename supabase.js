@@ -9,8 +9,8 @@
 const SUPABASE_URL = 'https://mkarfktuvtllaxpunwtb.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_5Fd483qrg6bEFa_T1oNyLg_gymEgi4P';
 
-const { createClient } = (typeof supabase !== 'undefined') ? supabase : { createClient: () => ({ auth: { getSession: async () => ({ data: { session: null } }), signOut: async () => {} }, from: () => ({ select: () => ({ eq: () => ({ single: async () => ({ error: 'Supabase not loaded' }), update: async () => ({ error: 'Supabase not loaded' }) }) }) }) }) }
-const db = (typeof supabase !== 'undefined') ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null
+const { createClient } = supabase
+const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 /* ── MODE HELPERS ── */
 function isSandbox() {
@@ -124,16 +124,9 @@ function clearLocalCache() {
 
 function sanitizeCloudPayload(data) {
   if (!data) return data
-  let clean
-  try {
-    clean = JSON.parse(JSON.stringify(data))
-  } catch (e) {
-    console.error('[Sanitize] Circular reference or non-JSON data detected.', e)
-    return { error: 'data_not_serializable' }
-  }
+  const clean = JSON.parse(JSON.stringify(data))
 
-  const traverse = (obj, depth = 0) => {
-    if (depth > 10) return // Safety depth limit
+  const traverse = (obj) => {
     for (const key in obj) {
       const val = obj[key]
 
@@ -145,7 +138,7 @@ function sanitizeCloudPayload(data) {
           obj[key] = `[STRIPPED_FOR_CLOUD_SECURITY: ${isDataUrl ? 'Media' : 'LargePayload'}]`
         }
       } else if (typeof val === 'object' && val !== null) {
-        traverse(val, depth + 1)
+        traverse(val)
       }
     }
   }
@@ -235,15 +228,9 @@ async function migrateLocalToCloud() {
 
   const keys = Object.keys(localStorage).filter(k => k.startsWith('prog_'))
   for (const key of keys) {
-    try {
-      const toolKey = key.replace('prog_', '')
-      const raw = localStorage.getItem(key)
-      if (!raw) continue
-      const data = JSON.parse(raw)
-      await saveProgress(toolKey, data)
-    } catch (e) {
-      console.error(`[Migrate] Failed to migrate ${key}:`, e)
-    }
+    const toolKey = key.replace('prog_', '')
+    const data = JSON.parse(localStorage.getItem(key))
+    await saveProgress(toolKey, data)
   }
 
   if (window.Storage && typeof window.Storage.triggerCloudSave === 'function') {
