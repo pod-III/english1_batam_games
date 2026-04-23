@@ -12,6 +12,8 @@ let idb = null;
 let blobUrlMap = {}; // blobUrl -> idbKey
 let searchCache = null;
 let strippedContentCache = new Map();
+let sortMode = 'date-desc';
+let draggedNoteId = null;
 
 const FOLDER_COLORS = [
     { name: 'Blue', hex: '#2979FF' },
@@ -230,6 +232,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     notes = await getAllNotes();
     folders = (await getSetting('folders')) || [];
+    sortMode = (await getSetting('sortMode')) || 'date-desc';
+    updateSortDropdownUI();
     await loadFromCloud(); // Sync with cloud on startup
     await purgeExpiredTrash(); // Auto-delete notes trashed >14 days ago
 
@@ -244,10 +248,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     renderNotesList();
 
-    // Close context menus on outside click
+    // Close context menus and sort dropdown on outside click
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.note-ctx-menu') && !e.target.closest('.note-ctx-trigger')) {
             document.querySelectorAll('.note-ctx-menu').forEach(m => m.remove());
+        }
+        if (!e.target.closest('#sortDropdown') && !e.target.closest('#sortBtn')) {
+            document.getElementById('sortDropdown')?.classList.add('hidden');
         }
     });
 
@@ -641,7 +648,7 @@ function updateUIState() {
 // ===== NOTE CRUD =====
 async function createNewNote() {
     if (isTrashMode) return;
-    const newNote = { id: Date.now().toString(), title: '', content: '', updatedAt: Date.now(), deleted: false, folderId: activeFolderId || null };
+    const newNote = { id: Date.now().toString(), title: '', content: '', updatedAt: Date.now(), deleted: false, folderId: null };
     notes.unshift(newNote);
     await saveNoteToDB(newNote);
     saveToCloud();
@@ -843,6 +850,180 @@ async function loadFromCloud() {
     }
 }
 
+// ===== SORT HELPERS =====
+function sortNotes(notesList) {
+    const sorted = [...notesList];
+    switch (sortMode) {
+        case 'date-desc': return sorted.sort((a, b) => b.updatedAt - a.updatedAt);
+        case 'date-asc': return sorted.sort((a, b) => a.updatedAt - b.updatedAt);
+        case 'title-asc': return sorted.sort((a, b) => (a.title || 'Untitled').localeCompare(b.title || 'Untitled'));
+        case 'title-desc': return sorted.sort((a, b) => (b.title || 'Untitled').localeCompare(a.title || 'Untitled'));
+        case 'manual': return sorted.sort((a, b) => (a.sortOrder ?? 9999) - (b.sortOrder ?? 9999));
+        default: return sorted;
+    }
+}
+
+function toggleSortDropdown() {
+    const dropdown = document.getElementById('sortDropdown');
+    dropdown.classList.toggle('hidden');
+    if (!dropdown.classList.contains('hidden')) {
+        lucide.createIcons({ scope: dropdown });
+    }
+}
+
+async function setSortMode(mode) {
+    sortMode = mode;
+    await saveSetting('sortMode', mode);
+    updateSortDropdownUI();
+    document.getElementById('sortDropdown').classList.add('hidden');
+    renderNotesList();
+    showToast(`Sorted: ${getSortLabel(mode)}`, 'info');
+}
+
+function getSortLabel(mode) {
+    const labels = { 'date-desc': 'Newest', 'date-asc': 'Oldest', 'title-asc': 'A → Z', 'title-desc': 'Z → A', 'manual': 'Manual' };
+    return labels[mode] || mode;
+}
+
+function updateSortDropdownUI() {
+    document.querySelectorAll('#sortDropdown button').forEach(btn => {
+        btn.classList.toggle('active-sort', btn.dataset.sort === sortMode);
+    });
+}
+
+// ===== DRAG AND DROP =====
+function handleDragStart(e, noteId) {
+    draggedNoteId = noteId;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', noteId);
+    setTimeout(() => {
+        const el = document.querySelector(`[data-note-id="${noteId}"]`);
+        if (el) el.classList.add('note-dragging');
+    }, 0);
+}
+
+function handleDragEnd() {
+    document.querySelectorAll('.note-dragging').forEach(el => el.classList.remove('note-dragging'));
+    document.querySelectorAll('.folder-drop-target').forEach(el => el.classList.remove('folder-drop-target'));
+    document.querySelectorAll('.unfiled-drop-target').forEach(el => el.classList.remove('unfiled-drop-target'));
+    document.querySelectorAll('.drop-indicator').forEach(el => el.remove());
+    draggedNoteId = null;
+}
+
+function setupFolderDropTarget(headerEl, folderId) {
+    headerEl.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        headerEl.classList.add('folder-drop-target');
+    });
+    headerEl.addEventListener('dragleave', () => {
+        headerEl.classList.remove('folder-drop-target');
+    });
+    headerEl.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        headerEl.classList.remove('folder-drop-target');
+        const noteId = e.dataTransfer.getData('text/plain');
+        if (!noteId) return;
+        const note = notes.find(n => n.id === noteId);
+        if (note && note.folderId !== folderId) {
+            await moveNoteToFolder(noteId, folderId);
+            const folder = folders.find(f => f.id === folderId);
+            showToast(`Moved to "${folder?.name || 'folder'}"`, 'folder');
+        }
+    });
+}
+
+function setupUnfiledDropTarget(headerEl) {
+    headerEl.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        headerEl.classList.add('unfiled-drop-target');
+    });
+    headerEl.addEventListener('dragleave', () => {
+        headerEl.classList.remove('unfiled-drop-target');
+    });
+    headerEl.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        headerEl.classList.remove('unfiled-drop-target');
+        const noteId = e.dataTransfer.getData('text/plain');
+        if (!noteId) return;
+        const note = notes.find(n => n.id === noteId);
+        if (note && note.folderId) {
+            await moveNoteToFolder(noteId, null);
+            showToast('Moved to Unfiled', 'info');
+        }
+    });
+}
+
+function setupNoteReorderDrop(noteEl, targetNoteId, groupNotes) {
+    noteEl.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        // Show drop indicator
+        const rect = noteEl.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        const isAbove = e.clientY < midY;
+        noteEl.querySelectorAll('.drop-indicator').forEach(el => el.remove());
+        // Don't show indicator on self
+        if (targetNoteId === draggedNoteId) return;
+        const indicator = document.createElement('div');
+        indicator.className = 'drop-indicator';
+        if (isAbove) {
+            noteEl.parentElement.insertBefore(indicator, noteEl);
+        } else {
+            noteEl.parentElement.insertBefore(indicator, noteEl.nextSibling);
+        }
+    });
+
+    noteEl.addEventListener('dragleave', () => {
+        noteEl.parentElement?.querySelectorAll('.drop-indicator').forEach(el => el.remove());
+    });
+
+    noteEl.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        noteEl.parentElement?.querySelectorAll('.drop-indicator').forEach(el => el.remove());
+        const noteId = e.dataTransfer.getData('text/plain');
+        if (!noteId || noteId === targetNoteId) return;
+
+        const dragNote = notes.find(n => n.id === noteId);
+        const targetNote = notes.find(n => n.id === targetNoteId);
+        if (!dragNote || !targetNote) return;
+
+        // Move to the same folder as the target
+        const targetFolderId = targetNote.folderId || null;
+        dragNote.folderId = targetFolderId;
+
+        // Calculate new sort order
+        const rect = noteEl.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        const insertBefore = e.clientY < midY;
+
+        const targetIdx = groupNotes.findIndex(n => n.id === targetNoteId);
+        const newOrder = [...groupNotes.filter(n => n.id !== noteId)];
+        const insertIdx = insertBefore ? targetIdx : targetIdx + 1;
+        newOrder.splice(Math.min(insertIdx, newOrder.length), 0, dragNote);
+
+        // Update sortOrder for all notes in the group
+        for (let i = 0; i < newOrder.length; i++) {
+            newOrder[i].sortOrder = i;
+            newOrder[i].updatedAt = Date.now();
+            await saveNoteToDB(newOrder[i]);
+        }
+
+        // Auto-switch to manual sort
+        if (sortMode !== 'manual') {
+            sortMode = 'manual';
+            await saveSetting('sortMode', 'manual');
+            updateSortDropdownUI();
+        }
+
+        saveToCloud();
+        renderNotesList();
+        showToast('Notes reordered', 'success');
+    });
+}
+
 // ===== RENDER NOTES LIST =====
 function renderNotesList() {
     const list = document.getElementById('notesList');
@@ -867,8 +1048,9 @@ function renderNotesList() {
             list.innerHTML = `<div class="text-center py-8 text-gray-400 font-bold text-sm">${isTrashMode ? 'Trash is empty.' : 'No notes found.'}</div>`;
             return;
         }
+        const sortedFiltered = sortNotes(filtered);
         const fragment = document.createDocumentFragment();
-        filtered.forEach(note => fragment.appendChild(buildNoteItem(note)));
+        sortedFiltered.forEach(note => fragment.appendChild(buildNoteItem(note, sortedFiltered)));
         list.appendChild(fragment);
         lucide.createIcons({ scope: list });
         return;
@@ -879,24 +1061,31 @@ function renderNotesList() {
 
     // Render each folder
     folders.forEach(folder => {
-        const folderNotes = modeFiltered.filter(n => n.folderId === folder.id);
+        const folderNotes = sortNotes(modeFiltered.filter(n => n.folderId === folder.id));
         const section = document.createElement('div');
-        section.className = 'folder-section mb-2';
+        section.className = 'folder-section mb-3';
 
         const isActive = activeFolderId === folder.id;
-        section.innerHTML = `
-            <div class="folder-header flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer select-none group transition-all ${isActive ? 'bg-blue/10 border border-blue/30' : 'hover:bg-slate-100 dark:hover:bg-slate-800/60'}" data-folder-id="${folder.id}">
-                <div class="w-3 h-3 rounded-full flex-none" style="background-color: ${folder.color}"></div>
-                <i data-lucide="chevron-${folder.collapsed ? 'right' : 'down'}" class="w-3.5 h-3.5 text-gray-400 flex-none"></i>
-                <span class="font-heading font-bold text-sm text-dark dark:text-slate-200 truncate flex-1">${folder.name}</span>
-                <span class="text-[10px] font-bold bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-slate-400 px-1.5 py-0.5 rounded-md">${folderNotes.length}</span>
-                <button class="folder-menu-btn opacity-0 group-hover:opacity-100 text-gray-400 hover:text-dark dark:hover:text-white p-1 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition-all" onclick="event.stopPropagation(); showFolderMenu(event, '${folder.id}')">
-                    <i data-lucide="more-horizontal" class="w-3.5 h-3.5 pointer-events-none"></i>
-                </button>
+        const chevron = folder.collapsed ? 'chevron-right' : 'chevron-down';
+        const folderIcon = folder.collapsed ? 'folder' : 'folder-open';
+
+        const headerDiv = document.createElement('div');
+        headerDiv.className = `folder-header flex items-center gap-2.5 px-3 py-3 rounded-xl cursor-pointer select-none group transition-all ${isActive ? 'bg-blue/10 border border-blue/30' : 'border border-transparent hover:bg-slate-100/80 dark:hover:bg-slate-800/60'}`;
+        headerDiv.style.borderLeftColor = folder.color;
+        headerDiv.dataset.folderId = folder.id;
+        headerDiv.innerHTML = `
+            <div class="folder-icon-wrap" style="background: ${folder.color}20; border: 2px solid ${folder.color}50;">
+                <i data-lucide="${folderIcon}" class="w-4 h-4" style="color: ${folder.color}"></i>
             </div>
+            <i data-lucide="${chevron}" class="w-3 h-3 text-gray-400 flex-none"></i>
+            <span class="font-heading font-bold text-sm text-dark dark:text-slate-200 truncate flex-1">${folder.name}</span>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-lg" style="background: ${folder.color}15; color: ${folder.color}; border: 1px solid ${folder.color}30;">${folderNotes.length}</span>
+            <button class="folder-menu-btn opacity-0 group-hover:opacity-100 text-gray-400 hover:text-dark dark:hover:text-white p-1 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition-all" onclick="event.stopPropagation(); showFolderMenu(event, '${folder.id}')">
+                <i data-lucide="more-horizontal" class="w-3.5 h-3.5 pointer-events-none"></i>
+            </button>
         `;
 
-        section.querySelector('.folder-header').addEventListener('click', (e) => {
+        headerDiv.addEventListener('click', (e) => {
             if (e.target.closest('.folder-menu-btn')) return;
             if (activeFolderId === folder.id) {
                 activeFolderId = null;
@@ -908,31 +1097,46 @@ function renderNotesList() {
             renderNotesList();
         });
 
+        // Make folder header a drop target
+        setupFolderDropTarget(headerDiv, folder.id);
+
+        section.appendChild(headerDiv);
+
         if (!folder.collapsed && folderNotes.length > 0) {
             const notesContainer = document.createElement('div');
-            notesContainer.className = 'pl-4 border-l-2 ml-4 mt-1 mb-2';
-            notesContainer.style.borderColor = folder.color + '40';
-            folderNotes.forEach(note => notesContainer.appendChild(buildNoteItem(note)));
+            notesContainer.className = 'folder-notes-container pl-4 border-l-2 ml-5 mt-1 mb-2';
+            notesContainer.style.borderColor = folder.color + '30';
+            folderNotes.forEach(note => notesContainer.appendChild(buildNoteItem(note, folderNotes)));
             section.appendChild(notesContainer);
+        }
+
+        if (!folder.collapsed && folderNotes.length === 0) {
+            const emptyHint = document.createElement('div');
+            emptyHint.className = 'text-[11px] text-gray-300 dark:text-slate-600 font-bold pl-12 py-2 italic';
+            emptyHint.textContent = 'Drop notes here';
+            section.appendChild(emptyHint);
         }
 
         fragment.appendChild(section);
     });
 
     // Unfiled notes
-    const unfiledNotes = modeFiltered.filter(n => !n.folderId || !folders.some(f => f.id === n.folderId));
-    if (unfiledNotes.length > 0) {
+    const unfiledNotes = sortNotes(modeFiltered.filter(n => !n.folderId || !folders.some(f => f.id === n.folderId)));
+    if (unfiledNotes.length > 0 || folders.length > 0) {
         if (folders.length > 0) {
             const unfiledHeader = document.createElement('div');
-            unfiledHeader.className = 'flex items-center gap-2 px-3 py-2 mt-2 mb-1';
+            unfiledHeader.className = 'flex items-center gap-2.5 px-3 py-2.5 mt-3 mb-1 rounded-xl border border-transparent transition-all';
             unfiledHeader.innerHTML = `
-                <i data-lucide="inbox" class="w-3.5 h-3.5 text-gray-300"></i>
-                <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Unfiled</span>
-                <span class="text-[10px] font-bold bg-gray-100 dark:bg-slate-800 text-gray-400 px-1.5 py-0.5 rounded-md">${unfiledNotes.length}</span>
+                <div class="folder-icon-wrap" style="background: rgba(148,163,184,0.1); border: 2px solid rgba(148,163,184,0.25);">
+                    <i data-lucide="inbox" class="w-4 h-4 text-gray-400"></i>
+                </div>
+                <span class="text-xs font-heading font-bold text-gray-400 uppercase tracking-wider flex-1">Unfiled</span>
+                <span class="text-[10px] font-bold bg-gray-100 dark:bg-slate-800 text-gray-400 px-2 py-0.5 rounded-lg">${unfiledNotes.length}</span>
             `;
+            setupUnfiledDropTarget(unfiledHeader);
             fragment.appendChild(unfiledHeader);
         }
-        unfiledNotes.forEach(note => fragment.appendChild(buildNoteItem(note)));
+        unfiledNotes.forEach(note => fragment.appendChild(buildNoteItem(note, unfiledNotes)));
     }
 
     if (modeFiltered.length === 0) {
@@ -944,7 +1148,7 @@ function renderNotesList() {
     lucide.createIcons({ scope: list });
 }
 
-function buildNoteItem(note) {
+function buildNoteItem(note, groupNotes) {
     const el = document.createElement('div');
     const title = note.title || 'Untitled Lesson';
     const date = new Date(note.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
@@ -952,7 +1156,21 @@ function buildNoteItem(note) {
     let baseClasses = "note-item p-4 rounded-xl cursor-pointer mb-2 relative overflow-hidden group/note";
     if (isActive) baseClasses += isTrashMode ? " active-trash" : " active";
     el.className = baseClasses;
-    el.onclick = (e) => { if (e.target.closest('.note-ctx-trigger')) return; loadNote(note.id); if (window.innerWidth < 768) toggleSidebar(); };
+    el.dataset.noteId = note.id;
+
+    // Make draggable (not in trash mode)
+    if (!isTrashMode) {
+        el.draggable = true;
+        el.addEventListener('dragstart', (e) => handleDragStart(e, note.id));
+        el.addEventListener('dragend', handleDragEnd);
+        setupNoteReorderDrop(el, note.id, groupNotes || []);
+    }
+
+    el.onclick = (e) => {
+        if (e.target.closest('.note-ctx-trigger') || e.target.closest('.drag-handle')) return;
+        loadNote(note.id);
+        if (window.innerWidth < 768) toggleSidebar();
+    };
 
     if (!strippedContentCache.has(note.id)) {
         strippedContentCache.set(note.id, fastStripHtml(note.content).toLowerCase());
@@ -963,15 +1181,18 @@ function buildNoteItem(note) {
 
     el.innerHTML = `
         <div class="flex justify-between items-start mb-1.5 relative z-10">
-            <h4 class="font-heading font-bold truncate pr-2 ${titleColor}">${title}</h4>
-            <div class="flex items-center gap-1">
+            <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                ${!isTrashMode ? '<i data-lucide="grip-vertical" class="drag-handle w-3.5 h-3.5 flex-none"></i>' : ''}
+                <h4 class="font-heading font-bold truncate pr-2 ${titleColor}">${title}</h4>
+            </div>
+            <div class="flex items-center gap-1 flex-none">
                 <span class="text-[10px] font-bold ${badgeColor} px-2 py-1 rounded-md">${date}</span>
                 ${!isTrashMode ? `<button class="note-ctx-trigger opacity-0 group-hover/note:opacity-100 text-gray-400 hover:text-dark dark:hover:text-white p-1 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition-all" onclick="event.stopPropagation(); showNoteContextMenu(event, '${note.id}')">
                     <i data-lucide="more-vertical" class="w-3.5 h-3.5 pointer-events-none"></i>
                 </button>` : ''}
             </div>
         </div>
-        <p class="text-xs ${isActive ? 'text-dark' : 'text-gray-400'} truncate font-bold relative z-10">${rawText.substring(0, 60) || 'Empty note...'}</p>`;
+        <p class="text-xs ${isActive ? 'text-dark' : 'text-gray-400'} truncate font-bold relative z-10 ${!isTrashMode ? 'pl-5' : ''}">${rawText.substring(0, 60) || 'Empty note...'}</p>`;
     return el;
 }
 
