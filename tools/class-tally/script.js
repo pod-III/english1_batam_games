@@ -43,6 +43,7 @@ const ClassTallyApp = (function () {
         isPicking: false,
         cardSize: 1,
         isAutoFit: false,
+        editingStudentId: null,
 
         // NEW STATE PROPERTY FOR NON-REPEATING PICKER
         pickedQueue: [],
@@ -390,6 +391,26 @@ const ClassTallyApp = (function () {
                 return;
             }
 
+            // --- EDIT MODE ---
+            if (State.editingStudentId) {
+                const s = State.students.find(x => x.id === State.editingStudentId);
+                if (s) {
+                    s.name = view === 'type' ? name : (s.name || 'Artist');
+                    s.signatureData = view === 'draw' ? CanvasDraw.getSignature() : null;
+                    s.avatar = State.currentAvatar;
+                    s.cardColor = State.currentCardColor;
+                }
+                State.editingStudentId = null;
+                document.getElementById('student-name-input').value = '';
+                UI.hideStudentModal();
+                CanvasDraw.clear();
+                Persistence.save();
+                UI.render();
+                Audio.playGood();
+                return;
+            }
+
+            // --- CREATE MODE ---
             const newStudent = {
                 id: Date.now(),
                 name: view === 'type' ? name : 'Artist',
@@ -436,6 +457,56 @@ const ClassTallyApp = (function () {
             else if (type === 'bad' && s.badLogs.length > 0) s.badLogs.pop();
             Persistence.save();
             UI.updateCardLogs(id);
+        },
+
+        emptyScore: (id) => {
+            const s = State.students.find(x => x.id === id); if (!s) return;
+            const total = s.goodLogs.length + s.badLogs.length;
+            if (total === 0) return;
+            UI.showConfirmationModal(
+                'Reset Score?',
+                `This will clear all ${total} point(s) for ${s.name}. This cannot be undone.`,
+                'Reset',
+                (yes) => {
+                    if (yes) {
+                        s.goodLogs = [];
+                        s.badLogs = [];
+                        Persistence.save();
+                        UI.updateCardLogs(id);
+                        Audio.playTick();
+                    }
+                }
+            );
+        },
+
+        editStudent: (id) => {
+            const s = State.students.find(x => x.id === id); if (!s) return;
+            State.editingStudentId = id;
+            UI.showStudentModal(id);
+        },
+
+        addBulk: () => {
+             const input = document.getElementById('bulk-import-input').value;
+             if (!input.trim()) return;
+             const names = input.split('\n').map(n => n.trim()).filter(n => n.length > 0);
+             if (names.length === 0) return;
+
+             names.forEach(name => {
+                 State.students.push({
+                     id: Date.now() + Math.floor(Math.random() * 10000),
+                     name: name,
+                     signatureData: null,
+                     avatar: State.AVATARS[Math.floor(Math.random() * State.AVATARS.length)], // Random avatar
+                     goodLogs: [], badLogs: [],
+                     cardColor: State.CARD_COLORS[Math.floor(Math.random() * State.CARD_COLORS.length)].hex // Random color
+                 });
+             });
+             
+             document.getElementById('bulk-import-input').value = '';
+             UI.hideManageClassesModal();
+             Persistence.save();
+             UI.render();
+             Audio.playGood();
         },
 
         // MODIFIED: NON-REPEATING PICK RANDOM LOGIC
@@ -561,12 +632,46 @@ const ClassTallyApp = (function () {
                 if (canvas) CanvasDraw.resizeObserver.unobserve(canvas);
             }
         },
-        showStudentModal: () => {
-            UI.setModalView('type');
+        showStudentModal: (editId) => {
+            const isEdit = !!editId;
+            const student = isEdit ? State.students.find(x => x.id === editId) : null;
+
+            // Pre-fill fields if editing
+            if (student) {
+                State.currentAvatar = student.avatar || '😀';
+                State.currentCardColor = student.cardColor || '#3B82F6';
+                document.getElementById('student-name-input').value = student.signatureData ? '' : (student.name || '');
+                if (student.signatureData) {
+                    UI.setModalView('draw');
+                } else {
+                    UI.setModalView('type');
+                }
+            } else {
+                State.editingStudentId = null;
+                document.getElementById('student-name-input').value = '';
+                UI.setModalView('type');
+            }
+
             UI.initCardColorPicker();
             UI.initAvatarPicker();
+
+            // Update modal title & button text
+            const titleEl = document.getElementById('modal-student-title');
+            const subtitleEl = document.getElementById('modal-student-subtitle');
+            const confirmBtn = document.getElementById('btn-add-confirm');
+            if (titleEl) titleEl.textContent = isEdit ? 'Edit Student' : 'New Student';
+            if (subtitleEl) subtitleEl.textContent = isEdit ? 'Update profile card' : 'Create a profile card';
+            if (confirmBtn) {
+                confirmBtn.innerHTML = isEdit
+                    ? '<i data-lucide="check" class="w-5 h-5"></i> Save Changes'
+                    : '<i data-lucide="check" class="w-5 h-5"></i> Create Student';
+            }
+
             document.getElementById('add-student-modal').classList.remove('hidden');
-            setTimeout(() => document.getElementById('add-student-modal').classList.remove('opacity-0'), 10);
+            setTimeout(() => {
+                document.getElementById('add-student-modal').classList.remove('opacity-0');
+                lucide.createIcons();
+            }, 10);
         },
         toggleModalPosition: () => {
             const modal = document.getElementById('add-student-modal');
@@ -637,7 +742,6 @@ const ClassTallyApp = (function () {
         closeAllDropdowns: () => {
             document.getElementById('dropdown-good').classList.add('hidden');
             document.getElementById('dropdown-bad').classList.add('hidden');
-            document.getElementById('dropdown-classes').classList.add('hidden');
         },
 
         initEmojiPickers: () => {
@@ -675,15 +779,26 @@ const ClassTallyApp = (function () {
             if (saved === 'dark') document.documentElement.classList.add('dark');
             else document.documentElement.classList.remove('dark');
         },
-        toggleClassesDropdown: (e) => {
-            e.stopPropagation();
-            const dropdown = document.getElementById('dropdown-classes');
-            dropdown.classList.toggle('hidden');
-            document.getElementById('dropdown-good').classList.add('hidden');
-            document.getElementById('dropdown-bad').classList.add('hidden');
+        showManageClassesModal: () => {
+            document.getElementById('manage-classes-modal').classList.remove('hidden');
+            setTimeout(() => document.getElementById('manage-classes-modal').classList.remove('opacity-0'), 10);
+            UI.renderClassSets();
         },
-        closeClassesDropdown: () => {
-            document.getElementById('dropdown-classes').classList.add('hidden');
+        hideManageClassesModal: () => {
+            document.getElementById('manage-classes-modal').classList.add('opacity-0');
+            setTimeout(() => document.getElementById('manage-classes-modal').classList.add('hidden'), 300);
+        },
+        setManagerView: (v) => {
+            document.querySelectorAll('.tab-mgr-btn').forEach(b => {
+                b.classList.remove('bg-white', 'dark:bg-slate-800', 'shadow', 'shadow-slate-200/50', 'dark:shadow-none', 'text-brand-blue');
+                b.classList.add('text-slate-500', 'hover:text-slate-700', 'dark:text-slate-400', 'dark:hover:text-white');
+            });
+            const activeBtn = document.getElementById(`tab-mgr-${v}`);
+            activeBtn.classList.remove('text-slate-500', 'hover:text-slate-700', 'dark:text-slate-400', 'dark:hover:text-white');
+            activeBtn.classList.add('bg-white', 'dark:bg-slate-800', 'shadow', 'shadow-slate-200/50', 'dark:shadow-none', 'text-brand-blue');
+            
+            document.querySelectorAll('.tab-mgr-content').forEach(c => c.classList.add('hidden'));
+            document.getElementById(`mgr-content-${v}`).classList.remove('hidden');
         },
         saveCurrentClass: async () => {
             const nameInput = document.getElementById('class-set-name');
@@ -706,7 +821,7 @@ const ClassTallyApp = (function () {
             Persistence.save();
             UI.initEmojiPickers();
             UI.render();
-            UI.closeClassesDropdown();
+            UI.hideManageClassesModal();
         },
         renderClassSets: async () => {
             const list = document.getElementById('classes-list');
@@ -828,9 +943,11 @@ const ClassTallyApp = (function () {
 
         updateCardLogs: (id) => {
             const s = State.students.find(x => x.id === id); if (!s) return;
-            const logContainer = document.querySelector(`#card-${id} .custom-scrollbar`);
-            const goodCounter = document.querySelector(`#card-${id} .good-count`);
-            const badCounter = document.querySelector(`#card-${id} .bad-count`);
+            const cardEl = document.getElementById(`card-${id}`);
+            if (!cardEl) return;
+            const logContainer = cardEl.querySelector(`.custom-scrollbar`);
+            const goodCounter = cardEl.querySelector(`.good-count`);
+            const badCounter = cardEl.querySelector(`.bad-count`);
 
             if (logContainer) {
                 logContainer.innerHTML = `
@@ -888,12 +1005,20 @@ const ClassTallyApp = (function () {
                             <div class="flex-1 min-w-0 pr-2">
                                 ${s.signatureData ?
                         `<img src="${s.signatureData}" class="h-16 object-contain -ml-2" alt="Signature" />` :
-                        `<h3 class="text-3xl font-black text-slate-800 truncate tracking-tight leading-none" title="${s.name}">${s.name}</h3>`
+                        `<h3 class="text-3xl font-black text-slate-800 truncate tracking-tight leading-none cursor-text hover:text-brand-blue transition-colors" title="Click to edit name" onclick="ClassTallyApp.Student.editStudent(${s.id})">${s.name}</h3>`
                     }
                             </div>
-                            <button onclick="ClassTallyApp.Student.remove(${s.id})" class="text-slate-200 hover:text-red-400 p-2 -mt-2 -mr-2 rounded-xl hover:bg-red-50 transition-colors">
-                                <i data-lucide="x" class="w-5 h-5"></i>
-                            </button>
+                            <div class="flex gap-1 -mt-2 -mr-2">
+                                <button onclick="ClassTallyApp.Student.editStudent(${s.id})" title="Edit Name" class="text-slate-300 hover:text-brand-blue p-2 rounded-xl hover:bg-blue-50 transition-colors">
+                                    <i data-lucide="pencil" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="ClassTallyApp.Student.emptyScore(${s.id})" title="Reset Score" class="text-slate-300 hover:text-brand-orange p-2 rounded-xl hover:bg-orange-50 transition-colors">
+                                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="ClassTallyApp.Student.remove(${s.id})" title="Delete Student" class="text-slate-300 hover:text-red-400 p-2 rounded-xl hover:bg-red-50 transition-colors">
+                                    <i data-lucide="x" class="w-5 h-5"></i>
+                                </button>
+                            </div>
                         </div>
 
                         <div class="flex-grow bg-white rounded-xl border border-slate-100 p-2.5 mb-4 relative group/logs overflow-hidden shadow-inner">
