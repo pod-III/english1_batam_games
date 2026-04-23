@@ -330,7 +330,7 @@ async function processImageInput(inputEl) {
         quill.setSelection(range.index + 1);
     } catch (err) {
         console.error('Failed to insert image:', err);
-        alert('Failed to insert image. Please try again.');
+        showToast('Failed to insert image', 'error');
     }
     inputEl.value = '';
 }
@@ -541,7 +541,7 @@ async function processImport(inputElement) {
     reader.onload = async function (e) {
         try {
             const imported = JSON.parse(e.target.result);
-            if (!Array.isArray(imported)) { alert('Invalid backup file format.'); return; }
+            if (!Array.isArray(imported)) { showToast('Invalid backup format', 'error'); return; }
 
             // Clear current notes from DB first
             for (const n of notes) {
@@ -571,9 +571,9 @@ async function processImport(inputElement) {
             if (first) await loadNote(first.id);
             else await createNewNote();
             renderNotesList();
-            alert('Backup restored successfully!');
+            showToast('Backup restored!', 'success');
         } catch (err) {
-            alert('Error parsing JSON file.');
+            showToast('Error parsing file', 'error');
             console.error(err);
         }
     };
@@ -982,7 +982,7 @@ async function saveFolders() {
 }
 
 async function createFolder() {
-    const name = prompt('Folder name:');
+    const name = await showPrompt('New Folder', 'Give your new workspace a name', 'folder-plus');
     if (!name || !name.trim()) return;
     const color = FOLDER_COLORS[folders.length % FOLDER_COLORS.length].hex;
     const folder = { id: 'folder_' + Date.now(), name: name.trim(), color, collapsed: false };
@@ -995,11 +995,12 @@ async function createFolder() {
 async function renameFolder(id) {
     const folder = folders.find(f => f.id === id);
     if (!folder) return;
-    const newName = prompt('Rename folder:', folder.name);
+    const newName = await showPrompt('Rename Folder', 'Enter a new name for this folder', 'pencil', folder.name);
     if (!newName || !newName.trim()) return;
     folder.name = newName.trim();
     await saveFolders();
     renderNotesList();
+    showToast('Folder renamed', 'success');
 }
 
 async function changeFolderColor(id) {
@@ -1174,10 +1175,10 @@ async function exportPDF() {
 
         await html2pdf().set(opt).from(printEl).save();
         printEl.classList.add('hidden');
-        if (status) status.textContent = 'PDF Saved';
+        showToast('PDF Exported', 'success');
     } catch (err) {
         console.error('PDF Export Error:', err);
-        alert('Failed to generate PDF. Please try again.');
+        showToast('PDF Export Failed', 'error');
         if (status) status.textContent = 'PDF Failed';
     }
 }
@@ -1195,8 +1196,10 @@ function showModal(title, desc, confirmText, iconName) {
         if (confirmText) confirmBtn.innerText = confirmText;
         if (iconName) { iconEl.setAttribute('data-lucide', iconName); lucide.createIcons(); }
         modal.classList.remove('hidden');
+        modal.classList.add('flex');
         const cleanup = (value) => {
             modal.classList.add('hidden');
+            modal.classList.remove('flex');
             confirmBtn.onclick = null;
             cancelBtn.onclick = null;
             iconEl.setAttribute('data-lucide', 'trash-2');
@@ -1208,21 +1211,72 @@ function showModal(title, desc, confirmText, iconName) {
     });
 }
 
-function showToast(message, iconName = 'check-circle') {
-    const container = document.getElementById('toastContainer');
+function showPrompt(title, desc, iconName, defaultValue = '') {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('promptModal');
+        const titleEl = document.getElementById('promptTitle');
+        const descEl = document.getElementById('promptDesc');
+        const confirmBtn = document.getElementById('promptConfirm');
+        const cancelBtn = document.getElementById('promptCancel');
+        const iconEl = document.getElementById('promptIcon');
+        const inputEl = document.getElementById('promptInput');
+
+        titleEl.innerText = title;
+        descEl.innerText = desc;
+        inputEl.value = defaultValue;
+        if (iconName) { iconEl.setAttribute('data-lucide', iconName); lucide.createIcons(); }
+        
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        inputEl.focus();
+        inputEl.select();
+
+        const cleanup = (value) => {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            confirmBtn.onclick = null;
+            cancelBtn.onclick = null;
+            resolve(value);
+        };
+
+        confirmBtn.onclick = () => cleanup(inputEl.value);
+        cancelBtn.onclick = () => cleanup(null);
+        inputEl.onkeydown = (e) => {
+            if(e.key === 'Enter') cleanup(inputEl.value);
+            if(e.key === 'Escape') cleanup(null);
+        };
+    });
+}
+
+function showToast(message, type = "success") {
+    const container = document.getElementById("toastContainer");
     if (!container) return;
 
-    const toast = document.createElement('div');
-    toast.className = 'toast bg-dark/90 dark:bg-slate-800/90 text-white px-6 py-3 rounded-2xl shadow-neo-lg backdrop-blur-xl border border-white/20 flex items-center gap-3 min-w-[200px] pointer-events-auto';
-    toast.innerHTML = `
-        <i data-lucide="${iconName}" class="w-5 h-5 text-blue"></i>
-        <span class="font-heading font-bold text-sm tracking-wide">${message}</span>
-    `;
+    const toast = document.createElement("div");
+    const colors = {
+        success: "bg-green text-dark border-dark",
+        error: "bg-pink text-white border-dark",
+        info: "bg-blue text-white border-dark",
+        folder: "bg-orange text-dark border-dark",
+    };
+
+    const icons = {
+        success: "check-circle",
+        error: "alert-circle",
+        info: "info",
+        folder: "folder",
+    };
+
+    toast.className = `${colors[type] || colors.success} px-6 py-3 rounded-2xl shadow-neo border-2 border-dark font-bold text-sm flex items-center gap-2 pointer-events-auto animate-pop`;
+    toast.innerHTML = `<i data-lucide="${icons[type] || icons.success}" class="w-4 h-4"></i> ${message}`;
 
     container.appendChild(toast);
     lucide.createIcons({ scope: toast });
 
     setTimeout(() => {
-        toast.remove();
-    }, 3200);
+        toast.style.opacity = "0";
+        toast.style.transform = "translateY(20px)";
+        toast.style.transition = "all 0.4s ease";
+        setTimeout(() => toast.remove(), 400);
+    }, 3000);
 }
