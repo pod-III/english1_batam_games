@@ -1,4 +1,6 @@
-const CACHE_NAME = 'klasskit-v1.1.20';
+// Be sure to bump this version number whenever you change this file
+// so the browser knows to run the 'install' and 'activate' steps again.
+const CACHE_NAME = 'klasskit-v1.1.21';
 
 // Only cache local, reliable assets during the install phase.
 const ASSETS_TO_CACHE = [
@@ -22,6 +24,7 @@ self.addEventListener('install', (event) => {
       return cache.addAll(ASSETS_TO_CACHE);
     })
   );
+  // Forces the waiting service worker to become the active service worker.
   self.skipWaiting();
 });
 
@@ -38,43 +41,37 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
+  // Immediately claims any open clients/tabs
   self.clients.claim();
 });
 
-// Fetch Event
+// Fetch Event - UPDATED TO NETWORK-FIRST STRATEGY
 self.addEventListener('fetch', (event) => {
   // Only handle HTTP/HTTPS, ignore others like chrome-extension
   if (!(event.request.url.indexOf('http') === 0)) return;
 
-  // FIX: Ignore non-GET requests (like POST, PUT, DELETE)
+  // Ignore non-GET requests (like POST, PUT, DELETE)
   if (event.request.method !== 'GET') {
-    event.respondWith(fetch(event.request));
-    return;
+    return; // Let the browser handle it naturally
   }
 
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        // Return cached response
-        return cachedResponse;
-      }
-
-      // If not in cache, fetch from network
-      return fetch(event.request).then((networkResponse) => {
-        // Cache the new response if it's a successful local asset
+    // 1. Try the Network First
+    fetch(event.request)
+      .then((networkResponse) => {
+        // If we get a successful response, clone it and update the cache in the background
         if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
           const responseToCache = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseToCache);
           });
         }
+        // Return the fresh network response
         return networkResponse;
-      }).catch(() => {
-        // Fallback for when offline and asset not in cache
-        if (event.request.mode === 'navigate') {
-          return caches.match('./index.html');
-        }
-      });
-    })
+      })
+      .catch(() => {
+        // 2. If the Network fails (offline), Fallback to Cache
+        return caches.match(event.request);
+      })
   );
 });
