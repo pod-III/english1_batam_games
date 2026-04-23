@@ -41,6 +41,34 @@ function showToast(message, type = "info") {
     }, 3000);
 }
 
+function showConfirm(title, message) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('confirmModal');
+        const titleEl = document.getElementById('confirmTitle');
+        const msgEl = document.getElementById('confirmMessage');
+        const yesBtn = document.getElementById('confirmBtnYes');
+        const noBtn = document.getElementById('confirmBtnNo');
+
+        titleEl.textContent = title;
+        msgEl.textContent = message;
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        lucide.createIcons();
+
+        const cleanup = (value) => {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            yesBtn.onclick = null;
+            noBtn.onclick = null;
+            resolve(value);
+        };
+
+        yesBtn.onclick = () => cleanup(true);
+        noBtn.onclick = () => cleanup(false);
+        modal.onclick = (e) => { if(e.target === modal) cleanup(false); };
+    });
+}
+
 // --- Core Functions ---
 
 function toggleTheme() {
@@ -338,6 +366,7 @@ function addNewPage() {
     saveState();
     state.pages.push([]);
     renderAllPages();
+    showToast("New page added", "success");
     // Scroll to new page
     setTimeout(() => {
         const wrappers = document.querySelectorAll(".page-wrapper");
@@ -487,17 +516,21 @@ async function handleBulkImageImport(input) {
     showToast(`Imported ${files.length} images into cards`, "success");
 }
 
-function deletePage(index) {
+async function deletePage(index) {
     if (state.pages.length <= 1) {
         showToast("You need at least one page.", "error");
         return;
     }
-    if (
-        confirm(`Delete Page ${index + 1}? This cannot be undone.`)
-    ) {
+    const confirmed = await showConfirm(
+        "Delete Page",
+        `Delete Page ${index + 1}? This cannot be undone.`
+    );
+
+    if (confirmed) {
         saveState(); // Save current state of other pages first
         state.pages.splice(index, 1);
         renderAllPages();
+        showToast("Page deleted", "info");
     }
 }
 
@@ -933,11 +966,12 @@ function handleFileSelect(file, uid, pageIndex) {
 }
 
 async function resetTool() {
-    if (
-        confirm(
-            "Clear everything? This will delete all cards and pages.",
-        )
-    ) {
+    const confirmed = await showConfirm(
+        "Clear Workspace",
+        "Clear everything? This will delete all cards and pages."
+    );
+
+    if (confirmed) {
         // Reset state to defaults
         state = {
             orientation: "portrait",
@@ -955,15 +989,6 @@ async function resetTool() {
         // Update IndexedDB
         await dbPut('cardMakerState', state);
 
-        // Update Cloud State
-        try {
-            await saveProgress('card_maker_state', state);
-            showToast("Workspace cleared and synced to cloud", "success");
-        } catch (e) {
-            console.error("Cloud sync failed during reset", e);
-            showToast("Workspace cleared locally, but cloud sync failed", "warning");
-        }
-
         // Update UI
         inputCols.value = state.gridCols;
         inputRows.value = state.gridRows;
@@ -972,6 +997,15 @@ async function resetTool() {
         setImageSize(state.imgHeight, false);
         setFontSize(state.fontSize, false);
         updateToggleUI();
+        
+        showToast("Workspace cleared", "success");
+
+        // Update Cloud State (Background)
+        try {
+            saveProgress('card_maker_state', state);
+        } catch (e) {
+            console.error("Cloud sync failed during reset", e);
+        }
         
         // Scroll to top
         window.scrollTo({ top: 0, behavior: 'smooth' });
