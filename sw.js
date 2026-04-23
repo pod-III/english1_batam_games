@@ -1,6 +1,6 @@
 // Be sure to bump this version number whenever you change this file
 // so the browser knows to run the 'install' and 'activate' steps again.
-const CACHE_NAME = 'klasskit-v1.1.21';
+const CACHE_NAME = 'klasskit-v1.1.22';
 
 // Only cache local, reliable assets during the install phase.
 const ASSETS_TO_CACHE = [
