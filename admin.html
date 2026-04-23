@@ -399,6 +399,17 @@
                     </div>
                 </div>
 
+                <!-- Activity Graph -->
+                <div class="neo bg-slate-800 rounded-[20px] p-6 mb-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="font-heading text-lg text-white">Activity (Last 14 Days)</h2>
+                        <div class="chip bg-blue/10 text-blue border-blue/40">Saves / Updates</div>
+                    </div>
+                    <div class="relative h-40 flex items-end gap-1.5 pb-6 border-b-2 border-slate-700 mt-10" id="activityGraph">
+                        <!-- Bars injected by JS -->
+                    </div>
+                </div>
+
                 <!-- Tool breakdown -->
                 <div class="neo bg-slate-800 rounded-[20px] p-6">
                     <h2 class="font-heading text-lg text-white mb-4">Tool usage breakdown</h2>
@@ -603,7 +614,7 @@
 
             const [progressRes, profilesRes] = await Promise.all([
                 db.from('user_progress').select('*').order('updated_at', { ascending: false }),
-                db.from('profiles').select('id, display_name, role')
+                db.from('profiles').select('*')
             ])
 
             document.getElementById('refreshIcon').classList.remove('animate-spin')
@@ -650,6 +661,52 @@
             <div class="h-full rounded-full transition-all duration-500" style="width:${Math.round(count / max * 100)}%;background:${colors[i % colors.length]}"></div>
           </div>
         </div>`).join('')
+
+            updateGraph()
+        }
+
+        function updateGraph() {
+            const days = 14;
+            const today = new Date();
+            const counts = [];
+            
+            for (let i = days - 1; i >= 0; i--) {
+                const d = new Date(today);
+                d.setDate(d.getDate() - i);
+                const dateStr = d.toISOString().split('T')[0];
+                counts.push({ dateStr, count: 0, dateObj: d });
+            }
+            
+            allProgress.forEach(r => {
+                const dateStr = (r.updated_at ? new Date(r.updated_at) : new Date()).toISOString().split('T')[0];
+                const bucket = counts.find(c => c.dateStr === dateStr);
+                if (bucket) bucket.count++;
+            });
+            
+            const maxCount = Math.max(...counts.map(c => c.count), 1);
+            
+            const graphEl = document.getElementById('activityGraph');
+            if(!graphEl) return;
+            graphEl.innerHTML = counts.map(c => {
+               const heightPercent = Math.max((c.count / maxCount) * 100, 2);
+               const label = c.dateObj.toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
+               const isToday = c.dateStr === today.toISOString().split('T')[0];
+               
+               return `
+                 <div class="flex-1 h-full flex flex-col justify-end group relative">
+                    <div class="w-full relative flex flex-col justify-end h-[120px]">
+                       <div class="w-full ${isToday ? 'bg-orange' : 'bg-blue'} border-2 border-slate-700 rounded-t-md transition-all duration-500 opacity-80 group-hover:opacity-100 shadow-[2px_0_0_rgba(0,0,0,0.3)]" style="height: ${heightPercent}%;"></div>
+                       
+                       <div class="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 border-2 border-slate-700 text-white text-[10px] font-bold py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 shadow-lg">
+                           ${c.count} saves
+                       </div>
+                    </div>
+                    <div class="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[9px] ${isToday ? 'text-white font-black' : 'text-slate-500 font-bold'} uppercase whitespace-nowrap hidden md:block">
+                       ${label}
+                    </div>
+                 </div>
+               `
+            }).join('');
         }
 
         // ── FILTERS ──
@@ -664,7 +721,7 @@
             const search = document.getElementById('searchInput').value.toLowerCase()
             const tool = document.getElementById('toolFilter').value
 
-            const filtered = allProgress.filter(r => {
+            const filteredRows = allProgress.filter(r => {
                 const name = (allProfiles[r.user_id]?.display_name || '').toLowerCase()
                 const matchSearch = !search
                     || name.includes(search)
@@ -674,13 +731,20 @@
                 return matchSearch && matchTool
             })
 
-            renderUsersTable(filtered)
-            renderProgressTable(filtered)
+            const filteredUserIds = Object.keys(allProfiles).filter(uid => {
+                const name = (allProfiles[uid]?.display_name || '').toLowerCase()
+                const matchSearch = !search || name.includes(search) || uid.toLowerCase().includes(search)
+                const hasUsedTool = !tool || allProgress.some(r => r.user_id === uid && r.tool_key === tool)
+                return matchSearch && hasUsedTool
+            })
+
+            renderUsersTable(filteredUserIds, filteredRows)
+            renderProgressTable(filteredRows)
 
             document.getElementById('userCount').textContent =
-                new Set(filtered.map(r => r.user_id)).size + ' users'
+                filteredUserIds.length + ' users'
             document.getElementById('progressCount').textContent =
-                filtered.length + ' rows'
+                filteredRows.length + ' rows'
         }
 
         function clearFilters() {
@@ -690,26 +754,38 @@
         }
 
         // ── USERS TABLE ──
-        function renderUsersTable(rows) {
+        function renderUsersTable(userIds, rows) {
             const byUser = {}
+            userIds.forEach(uid => { byUser[uid] = { rows: [], latest: 0 } })
+
             rows.forEach(r => {
-                if (!byUser[r.user_id]) byUser[r.user_id] = { rows: [], latest: r.updated_at }
-                byUser[r.user_id].rows.push(r)
-                if (r.updated_at > byUser[r.user_id].latest) byUser[r.user_id].latest = r.updated_at
+                if (byUser[r.user_id]) {
+                    byUser[r.user_id].rows.push(r)
+                    if (r.updated_at > byUser[r.user_id].latest) byUser[r.user_id].latest = r.updated_at
+                }
             })
 
             const body = document.getElementById('usersTableBody')
-            if (!Object.keys(byUser).length) {
+            if (!userIds.length) {
                 body.innerHTML = '<tr><td colspan="6" class="text-center py-12 text-slate-500 font-bold">No users found</td></tr>'
                 return
             }
 
-            body.innerHTML = Object.entries(byUser).map(([uid, info]) => {
+            body.innerHTML = userIds.map(uid => {
+                const info = byUser[uid]
                 const profile = allProfiles[uid]
                 const name = profile?.display_name || '—'
                 const role = profile?.role || 'user'
                 const tools = [...new Set(info.rows.map(r => r.tool_key))]
-                const date = new Date(info.latest).toLocaleDateString()
+                let activeDate = 'Never'
+                if (info.latest) {
+                    activeDate = new Date(info.latest).toLocaleDateString()
+                } else if (profile?.updated_at) {
+                    activeDate = new Date(profile.updated_at).toLocaleDateString()
+                } else if (profile?.created_at) {
+                    activeDate = new Date(profile.created_at).toLocaleDateString()
+                }
+                const date = activeDate
                 const initial = name[0]?.toUpperCase() || '?'
                 const isAdmin = role === 'admin'
 
@@ -729,16 +805,17 @@
             </select>
           </td>
           <td class="px-5 py-3">
-            <div class="flex flex-wrap gap-1">
+            ${tools.length === 0 ? '<span class="text-xs text-slate-500 italic">No activity yet</span>' : 
+            `<div class="flex flex-wrap gap-1">
               ${tools.map(t => `<span class="chip bg-blue/10 text-blue border-blue/30">${t}</span>`).join('')}
-            </div>
+            </div>`}
           </td>
           <td class="px-5 py-3 text-xs text-slate-500">${date}</td>
           <td class="px-5 py-3 text-right">
-            <button onclick="viewUser('${uid}')"
+            ${tools.length > 0 ? `<button onclick="viewUser('${uid}')"
               class="neo-btn px-3 py-1.5 bg-slate-700 text-slate-300 rounded-xl text-xs opacity-0 group-hover:opacity-100 transition-opacity">
               View
-            </button>
+            </button>` : ''}
           </td>
         </tr>`
             }).join('')
