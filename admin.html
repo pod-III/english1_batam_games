@@ -253,8 +253,11 @@
         </div>
     </div>
 
+    <!-- Mobile overlay -->
+    <div id="mobileOverlay" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-40 hidden lg:hidden" onclick="toggleSidebar()"></div>
+
     <!-- Sidebar -->
-    <aside class="w-64 bg-slate-950 flex flex-col flex-shrink-0 border-r-[3px] border-slate-800">
+    <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 bg-slate-950 flex flex-col flex-shrink-0 border-r-[3px] border-slate-800 transform -translate-x-full transition-transform duration-300 lg:relative lg:translate-x-0">
         <!-- Branding -->
         <div class="p-5 border-b-[3px] border-slate-800">
             <div class="flex items-center gap-3">
@@ -317,31 +320,48 @@
 
         <!-- Top bar -->
         <header
-            class="flex-shrink-0 h-16 bg-slate-950 border-b-[3px] border-slate-800 flex items-center justify-between px-6">
-            <div class="flex items-center gap-3">
+            class="flex-shrink-0 bg-slate-950 border-b-[3px] border-slate-800 flex flex-col md:flex-row min-h-[64px] items-stretch md:items-center justify-between p-4 md:px-6 gap-4">
+            
+            <div class="flex w-full items-center justify-between lg:hidden pb-4 md:pb-0 border-b-2 border-slate-800 md:border-b-0 md:w-auto">
+                <button onclick="toggleSidebar()" class="neo-btn p-2 text-slate-400 hover:text-white bg-slate-800 rounded-xl">
+                    <i data-lucide="menu" class="w-5 h-5"></i>
+                </button>
+                <div class="font-heading font-bold text-white tracking-widest uppercase md:hidden">Admin Panel</div>
+                <button onclick="fetchData()" class="neo-btn p-2 bg-blue text-white rounded-xl md:hidden">
+                    <i data-lucide="refresh-cw" class="w-4 h-4 refreshIcon"></i>
+                </button>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 md:gap-3 w-full md:w-auto flex-1">
                 <!-- Search -->
-                <div class="relative">
+                <div class="relative flex-1 min-w-[150px]">
                     <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"></i>
                     <input type="text" id="searchInput" placeholder="Search name or tool..."
-                        class="w-64 pl-9 pr-4 py-2 bg-slate-800 border-2 border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 outline-none focus:border-blue transition-colors"
+                        class="w-full pl-9 pr-4 py-2 bg-slate-800 border-2 border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 outline-none focus:border-blue transition-colors"
                         oninput="applyFilters()">
                 </div>
                 <!-- Tool filter -->
                 <select id="toolFilter" onchange="applyFilters()"
-                    class="px-3 py-2 bg-slate-800 border-2 border-slate-700 rounded-xl text-sm text-slate-300 outline-none focus:border-blue transition-colors">
+                    class="flex-1 md:flex-none px-3 py-2 bg-slate-800 border-2 border-slate-700 rounded-xl text-sm text-slate-300 outline-none focus:border-blue transition-colors min-w-[120px]">
                     <option value="">All tools</option>
                 </select>
                 <!-- Clear -->
                 <button onclick="clearFilters()"
-                    class="neo-btn px-3 py-1.5 bg-slate-800 text-slate-300 rounded-xl text-sm">Clear</button>
+                    class="neo-btn px-3 py-1.5 bg-slate-800 text-slate-300 rounded-xl text-sm hidden sm:block">Clear</button>
             </div>
-            <div class="flex items-center gap-3">
-                <div id="lastRefreshed" class="text-xs text-slate-500 font-mono"></div>
+            
+            <div class="hidden md:flex items-center gap-3 w-full md:w-auto justify-end">
+                <div id="lastRefreshed" class="hidden lg:block text-xs text-slate-500 font-mono"></div>
                 <button onclick="fetchData()" class="neo-btn px-4 py-1.5 bg-blue text-white rounded-xl text-sm">
-                    <i data-lucide="refresh-cw" id="refreshIcon" class="w-4 h-4"></i> Refresh
+                    <i data-lucide="refresh-cw" class="w-4 h-4 refreshIcon"></i> Refresh
                 </button>
             </div>
         </header>
+
+        <!-- Floating Refresh Button for Mobile -->
+        <button onclick="fetchData()" class="fixed bottom-6 right-6 z-30 neo-btn p-4 bg-blue text-white rounded-full shadow-lg md:hidden">
+            <i data-lucide="refresh-cw" class="w-6 h-6 refreshIcon"></i>
+        </button>
 
         <!-- Content -->
         <div class="flex-1 overflow-y-auto scrollbar p-6 space-y-6">
@@ -349,7 +369,7 @@
             <!-- DASHBOARD VIEW -->
             <div id="view-dashboard">
                 <!-- Stats -->
-                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                     <div class="stat-card neo bg-slate-800">
                         <div class="flex items-start justify-between mb-3">
                             <div
@@ -610,14 +630,14 @@
 
         // ── FETCH ──
         async function fetchData() {
-            document.getElementById('refreshIcon').classList.add('animate-spin')
+            document.querySelectorAll('.refreshIcon').forEach(i => i.classList.add('animate-spin'))
 
             const [progressRes, profilesRes] = await Promise.all([
                 db.from('user_progress').select('*').order('updated_at', { ascending: false }),
                 db.from('profiles').select('*')
             ])
 
-            document.getElementById('refreshIcon').classList.remove('animate-spin')
+            document.querySelectorAll('.refreshIcon').forEach(i => i.classList.remove('animate-spin'))
             document.getElementById('lastRefreshed').textContent = 'Updated ' + new Date().toLocaleTimeString()
 
             if (progressRes.error) { console.error(progressRes.error); return }
@@ -1008,8 +1028,20 @@
             }
         }
 
+        function toggleSidebar() {
+            const sb = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            sb.classList.toggle('-translate-x-full');
+            overlay.classList.toggle('hidden');
+        }
+
         // ── NAV ──
         function setView(view) {
+            const sb = document.getElementById('sidebar');
+            if (sb && !sb.classList.contains('-translate-x-full') && window.innerWidth < 1024) {
+                toggleSidebar();
+            }
+
             ['dashboard', 'users', 'progress', 'logs', 'settings'].forEach(v => {
                 const viewEl = document.getElementById('view-' + v)
                 if (viewEl) viewEl.classList.toggle('hidden', v !== view)
