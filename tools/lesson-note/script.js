@@ -1,6 +1,8 @@
 // ===== GLOBAL STATE =====
 let notes = [];
+let folders = [];
 let currentNoteId = null;
+let activeFolderId = null;
 let quill;
 let isZenMode = false;
 let isOutlineOpen = false;
@@ -10,6 +12,15 @@ let idb = null;
 let blobUrlMap = {}; // blobUrl -> idbKey
 let searchCache = null;
 let strippedContentCache = new Map();
+
+const FOLDER_COLORS = [
+    { name: 'Blue', hex: '#2979FF' },
+    { name: 'Orange', hex: '#FF8C42' },
+    { name: 'Pink', hex: '#FF6B95' },
+    { name: 'Green', hex: '#00E676' },
+    { name: 'Purple', hex: '#7C4DFF' },
+    { name: 'Teal', hex: '#00BCD4' },
+];
 
 // ===== UTILITIES =====
 function debounce(func, wait) {
@@ -218,6 +229,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initQuill();
 
     notes = await getAllNotes();
+    folders = (await getSetting('folders')) || [];
     await loadFromCloud(); // Sync with cloud on startup
     await purgeExpiredTrash(); // Auto-delete notes trashed >14 days ago
 
@@ -231,6 +243,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     renderNotesList();
+
+    // Close context menus on outside click
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.note-ctx-menu') && !e.target.closest('.note-ctx-trigger')) {
+            document.querySelectorAll('.note-ctx-menu').forEach(m => m.remove());
+        }
+    });
 
     document.getElementById('noteTitle').addEventListener('input', () => {
         saveCurrentNote();
@@ -622,7 +641,7 @@ function updateUIState() {
 // ===== NOTE CRUD =====
 async function createNewNote() {
     if (isTrashMode) return;
-    const newNote = { id: Date.now().toString(), title: '', content: '', updatedAt: Date.now(), deleted: false };
+    const newNote = { id: Date.now().toString(), title: '', content: '', updatedAt: Date.now(), deleted: false, folderId: activeFolderId || null };
     notes.unshift(newNote);
     await saveNoteToDB(newNote);
     saveToCloud();
@@ -782,7 +801,7 @@ async function saveToCloud() {
     if (statusText) statusText.innerText = 'Syncing...';
     
     try {
-        await saveProgress('lesson_notes', { notes });
+        await saveProgress('lesson_notes', { notes, folders });
         if (statusText) statusText.innerText = 'Cloud Synced';
         setTimeout(() => {
             if (statusText && statusText.innerText === 'Cloud Synced') statusText.innerText = originalText;
@@ -814,6 +833,11 @@ async function loadFromCloud() {
                 renderNotesList();
             }
         }
+        // Sync folders from cloud if present
+        if (cloudData && cloudData.folders) {
+            folders = cloudData.folders;
+            await saveSetting('folders', folders);
+        }
     } catch (e) {
         console.warn('Cloud load failed', e);
     }
@@ -824,48 +848,278 @@ function renderNotesList() {
     const list = document.getElementById('notesList');
     const search = document.getElementById('searchInput').value.toLowerCase();
     list.innerHTML = '';
-    const filtered = notes.filter(n => {
-        const matchesMode = isTrashMode ? n.deleted === true : n.deleted !== true;
-        if (!matchesMode) return false;
-        
-        if (!search) return true;
 
-        if (!strippedContentCache.has(n.id)) {
-            strippedContentCache.set(n.id, fastStripHtml(n.content).toLowerCase());
+    // Filter by trash/active mode
+    const modeFiltered = notes.filter(n => isTrashMode ? n.deleted === true : n.deleted !== true);
+
+    // If searching or in trash mode, render flat list
+    if (search || isTrashMode) {
+        const filtered = modeFiltered.filter(n => {
+            if (!search) return true;
+            if (!strippedContentCache.has(n.id)) {
+                strippedContentCache.set(n.id, fastStripHtml(n.content).toLowerCase());
+            }
+            const contentMatch = strippedContentCache.get(n.id).includes(search);
+            const titleMatch = (n.title || 'Untitled').toLowerCase().includes(search);
+            return titleMatch || contentMatch;
+        });
+        if (filtered.length === 0) {
+            list.innerHTML = `<div class="text-center py-8 text-gray-400 font-bold text-sm">${isTrashMode ? 'Trash is empty.' : 'No notes found.'}</div>`;
+            return;
         }
-        
-        const contentMatch = strippedContentCache.get(n.id).includes(search);
-        const titleMatch = (n.title || 'Untitled').toLowerCase().includes(search);
-        
-        return titleMatch || contentMatch;
-    });
-    if (filtered.length === 0) {
-        list.innerHTML = `<div class="text-center py-8 text-gray-400 font-bold text-sm">${isTrashMode ? 'Trash is empty.' : 'No notes found.'}</div>`;
+        const fragment = document.createDocumentFragment();
+        filtered.forEach(note => fragment.appendChild(buildNoteItem(note)));
+        list.appendChild(fragment);
+        lucide.createIcons({ scope: list });
         return;
     }
+
+    // ── FOLDER GROUPED VIEW ──
     const fragment = document.createDocumentFragment();
-    filtered.forEach(note => {
-        const el = document.createElement('div');
-        const title = note.title || 'Untitled Lesson';
-        const date = new Date(note.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        const isActive = note.id === currentNoteId;
-        let baseClasses = "note-item p-4 rounded-xl cursor-pointer mb-2 relative overflow-hidden";
-        if (isActive) baseClasses += isTrashMode ? " active-trash" : " active";
-        el.className = baseClasses;
-        el.onclick = () => { loadNote(note.id); if (window.innerWidth < 768) toggleSidebar(); };
-        const rawText = strippedContentCache.get(note.id) || "";
-        const titleColor = isActive ? (isTrashMode ? 'text-pink text-lg' : 'text-blue text-lg') : 'text-dark text-base';
-        const badgeColor = isActive ? (isTrashMode ? 'bg-pink text-white border-[1px] border-white/20' : 'bg-blue text-white border-[1px] border-white/20') : 'bg-gray-200 text-gray-500';
-        el.innerHTML = `
-            <div class="flex justify-between items-start mb-1.5 relative z-10">
-                <h4 class="font-heading font-bold truncate pr-2 ${titleColor}">${title}</h4>
-                <span class="text-[10px] font-bold ${badgeColor} px-2 py-1 rounded-md">${date}</span>
+
+    // Render each folder
+    folders.forEach(folder => {
+        const folderNotes = modeFiltered.filter(n => n.folderId === folder.id);
+        const section = document.createElement('div');
+        section.className = 'folder-section mb-2';
+
+        const isActive = activeFolderId === folder.id;
+        section.innerHTML = `
+            <div class="folder-header flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer select-none group transition-all ${isActive ? 'bg-blue/10 border border-blue/30' : 'hover:bg-slate-100 dark:hover:bg-slate-800/60'}" data-folder-id="${folder.id}">
+                <div class="w-3 h-3 rounded-full flex-none" style="background-color: ${folder.color}"></div>
+                <i data-lucide="chevron-${folder.collapsed ? 'right' : 'down'}" class="w-3.5 h-3.5 text-gray-400 flex-none"></i>
+                <span class="font-heading font-bold text-sm text-dark dark:text-slate-200 truncate flex-1">${folder.name}</span>
+                <span class="text-[10px] font-bold bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-slate-400 px-1.5 py-0.5 rounded-md">${folderNotes.length}</span>
+                <button class="folder-menu-btn opacity-0 group-hover:opacity-100 text-gray-400 hover:text-dark dark:hover:text-white p-1 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition-all" onclick="event.stopPropagation(); showFolderMenu(event, '${folder.id}')">
+                    <i data-lucide="more-horizontal" class="w-3.5 h-3.5 pointer-events-none"></i>
+                </button>
             </div>
-            <p class="text-xs ${isActive ? 'text-dark' : 'text-gray-400'} truncate font-bold relative z-10">${rawText.substring(0, 60) || 'Empty note...'}</p>`;
-        fragment.appendChild(el);
+        `;
+
+        section.querySelector('.folder-header').addEventListener('click', (e) => {
+            if (e.target.closest('.folder-menu-btn')) return;
+            if (activeFolderId === folder.id) {
+                activeFolderId = null;
+            } else {
+                activeFolderId = folder.id;
+            }
+            folder.collapsed = !folder.collapsed;
+            saveFolders();
+            renderNotesList();
+        });
+
+        if (!folder.collapsed && folderNotes.length > 0) {
+            const notesContainer = document.createElement('div');
+            notesContainer.className = 'pl-4 border-l-2 ml-4 mt-1 mb-2';
+            notesContainer.style.borderColor = folder.color + '40';
+            folderNotes.forEach(note => notesContainer.appendChild(buildNoteItem(note)));
+            section.appendChild(notesContainer);
+        }
+
+        fragment.appendChild(section);
     });
+
+    // Unfiled notes
+    const unfiledNotes = modeFiltered.filter(n => !n.folderId || !folders.some(f => f.id === n.folderId));
+    if (unfiledNotes.length > 0) {
+        if (folders.length > 0) {
+            const unfiledHeader = document.createElement('div');
+            unfiledHeader.className = 'flex items-center gap-2 px-3 py-2 mt-2 mb-1';
+            unfiledHeader.innerHTML = `
+                <i data-lucide="inbox" class="w-3.5 h-3.5 text-gray-300"></i>
+                <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Unfiled</span>
+                <span class="text-[10px] font-bold bg-gray-100 dark:bg-slate-800 text-gray-400 px-1.5 py-0.5 rounded-md">${unfiledNotes.length}</span>
+            `;
+            fragment.appendChild(unfiledHeader);
+        }
+        unfiledNotes.forEach(note => fragment.appendChild(buildNoteItem(note)));
+    }
+
+    if (modeFiltered.length === 0) {
+        list.innerHTML = `<div class="text-center py-8 text-gray-400 font-bold text-sm">No notes yet.</div>`;
+        return;
+    }
+
     list.appendChild(fragment);
-    lucide.createIcons({ props: {}, nameAttr: "data-lucide", attrs: {}, scope: list });
+    lucide.createIcons({ scope: list });
+}
+
+function buildNoteItem(note) {
+    const el = document.createElement('div');
+    const title = note.title || 'Untitled Lesson';
+    const date = new Date(note.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const isActive = note.id === currentNoteId;
+    let baseClasses = "note-item p-4 rounded-xl cursor-pointer mb-2 relative overflow-hidden group/note";
+    if (isActive) baseClasses += isTrashMode ? " active-trash" : " active";
+    el.className = baseClasses;
+    el.onclick = (e) => { if (e.target.closest('.note-ctx-trigger')) return; loadNote(note.id); if (window.innerWidth < 768) toggleSidebar(); };
+
+    if (!strippedContentCache.has(note.id)) {
+        strippedContentCache.set(note.id, fastStripHtml(note.content).toLowerCase());
+    }
+    const rawText = strippedContentCache.get(note.id) || "";
+    const titleColor = isActive ? (isTrashMode ? 'text-pink text-lg' : 'text-blue text-lg') : 'text-dark text-base';
+    const badgeColor = isActive ? (isTrashMode ? 'bg-pink text-white border-[1px] border-white/20' : 'bg-blue text-white border-[1px] border-white/20') : 'bg-gray-200 text-gray-500';
+
+    el.innerHTML = `
+        <div class="flex justify-between items-start mb-1.5 relative z-10">
+            <h4 class="font-heading font-bold truncate pr-2 ${titleColor}">${title}</h4>
+            <div class="flex items-center gap-1">
+                <span class="text-[10px] font-bold ${badgeColor} px-2 py-1 rounded-md">${date}</span>
+                ${!isTrashMode ? `<button class="note-ctx-trigger opacity-0 group-hover/note:opacity-100 text-gray-400 hover:text-dark dark:hover:text-white p-1 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-700 transition-all" onclick="event.stopPropagation(); showNoteContextMenu(event, '${note.id}')">
+                    <i data-lucide="more-vertical" class="w-3.5 h-3.5 pointer-events-none"></i>
+                </button>` : ''}
+            </div>
+        </div>
+        <p class="text-xs ${isActive ? 'text-dark' : 'text-gray-400'} truncate font-bold relative z-10">${rawText.substring(0, 60) || 'Empty note...'}</p>`;
+    return el;
+}
+
+// ===== FOLDER CRUD =====
+async function saveFolders() {
+    await saveSetting('folders', folders);
+    saveToCloud();
+}
+
+async function createFolder() {
+    const name = prompt('Folder name:');
+    if (!name || !name.trim()) return;
+    const color = FOLDER_COLORS[folders.length % FOLDER_COLORS.length].hex;
+    const folder = { id: 'folder_' + Date.now(), name: name.trim(), color, collapsed: false };
+    folders.push(folder);
+    await saveFolders();
+    renderNotesList();
+    showToast(`Folder "${name.trim()}" created!`, 'folder');
+}
+
+async function renameFolder(id) {
+    const folder = folders.find(f => f.id === id);
+    if (!folder) return;
+    const newName = prompt('Rename folder:', folder.name);
+    if (!newName || !newName.trim()) return;
+    folder.name = newName.trim();
+    await saveFolders();
+    renderNotesList();
+}
+
+async function changeFolderColor(id) {
+    const folder = folders.find(f => f.id === id);
+    if (!folder) return;
+    const currentIdx = FOLDER_COLORS.findIndex(c => c.hex === folder.color);
+    const nextIdx = (currentIdx + 1) % FOLDER_COLORS.length;
+    folder.color = FOLDER_COLORS[nextIdx].hex;
+    await saveFolders();
+    renderNotesList();
+}
+
+async function deleteFolder(id) {
+    const folder = folders.find(f => f.id === id);
+    if (!folder) return;
+    const folderNotes = notes.filter(n => n.folderId === id && !n.deleted);
+    const confirmed = await showModal('Delete Folder?', `"${folder.name}" will be deleted. ${folderNotes.length} note(s) inside will be moved to Unfiled.`, 'Delete Folder');
+    if (!confirmed) return;
+
+    // Move notes to unfiled
+    for (const note of folderNotes) {
+        note.folderId = null;
+        await saveNoteToDB(note);
+    }
+    folders = folders.filter(f => f.id !== id);
+    if (activeFolderId === id) activeFolderId = null;
+    await saveFolders();
+    renderNotesList();
+}
+
+async function moveNoteToFolder(noteId, folderId) {
+    const note = notes.find(n => n.id === noteId);
+    if (!note) return;
+    note.folderId = folderId;
+    note.updatedAt = Date.now();
+    await saveNoteToDB(note);
+    saveToCloud();
+    renderNotesList();
+}
+
+// ===== CONTEXT MENUS =====
+function showNoteContextMenu(e, noteId) {
+    document.querySelectorAll('.note-ctx-menu').forEach(m => m.remove());
+    const menu = document.createElement('div');
+    menu.className = 'note-ctx-menu absolute z-50 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg p-2 min-w-[180px] animate-pop';
+
+    let items = '';
+    // Move to folder options
+    if (folders.length > 0) {
+        items += `<div class="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 py-1">Move to</div>`;
+        folders.forEach(f => {
+            items += `<button class="w-full text-left px-3 py-2 text-sm font-bold text-dark dark:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 transition-colors" onclick="moveNoteToFolder('${noteId}', '${f.id}'); this.closest('.note-ctx-menu').remove()">
+                <div class="w-2.5 h-2.5 rounded-full flex-none" style="background:${f.color}"></div>
+                ${f.name}
+            </button>`;
+        });
+        // Unfiled option
+        items += `<button class="w-full text-left px-3 py-2 text-sm font-bold text-gray-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 transition-colors" onclick="moveNoteToFolder('${noteId}', null); this.closest('.note-ctx-menu').remove()">
+            <i data-lucide="inbox" class="w-3 h-3 pointer-events-none"></i> Unfiled
+        </button>`;
+        items += `<div class="border-t border-slate-100 dark:border-slate-700 my-1"></div>`;
+    }
+    items += `<button class="w-full text-left px-3 py-2 text-sm font-bold text-pink rounded-lg hover:bg-pink/10 flex items-center gap-2 transition-colors" onclick="document.querySelectorAll('.note-ctx-menu').forEach(m=>m.remove()); softDeleteNote('${noteId}')">
+        <i data-lucide="trash-2" class="w-3.5 h-3.5 pointer-events-none"></i> Move to Trash
+    </button>`;
+
+    menu.innerHTML = items;
+
+    // Position near the button
+    const rect = e.target.closest('.note-ctx-trigger').getBoundingClientRect();
+    const sidebar = document.getElementById('notesList');
+    const sidebarRect = sidebar.getBoundingClientRect();
+    menu.style.position = 'fixed';
+    menu.style.top = Math.min(rect.bottom + 4, window.innerHeight - 250) + 'px';
+    menu.style.left = Math.min(rect.left - 140, sidebarRect.right - 200) + 'px';
+
+    document.body.appendChild(menu);
+    lucide.createIcons({ scope: menu });
+}
+
+function showFolderMenu(e, folderId) {
+    document.querySelectorAll('.note-ctx-menu').forEach(m => m.remove());
+    const menu = document.createElement('div');
+    menu.className = 'note-ctx-menu absolute z-50 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg p-2 min-w-[160px] animate-pop';
+    menu.innerHTML = `
+        <button class="w-full text-left px-3 py-2 text-sm font-bold text-dark dark:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 transition-colors" onclick="this.closest('.note-ctx-menu').remove(); renameFolder('${folderId}')">
+            <i data-lucide="pencil" class="w-3.5 h-3.5 pointer-events-none"></i> Rename
+        </button>
+        <button class="w-full text-left px-3 py-2 text-sm font-bold text-dark dark:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 transition-colors" onclick="this.closest('.note-ctx-menu').remove(); changeFolderColor('${folderId}')">
+            <i data-lucide="palette" class="w-3.5 h-3.5 pointer-events-none"></i> Change Color
+        </button>
+        <div class="border-t border-slate-100 dark:border-slate-700 my-1"></div>
+        <button class="w-full text-left px-3 py-2 text-sm font-bold text-pink rounded-lg hover:bg-pink/10 flex items-center gap-2 transition-colors" onclick="this.closest('.note-ctx-menu').remove(); deleteFolder('${folderId}')">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5 pointer-events-none"></i> Delete Folder
+        </button>
+    `;
+    const rect = e.target.closest('.folder-menu-btn').getBoundingClientRect();
+    menu.style.position = 'fixed';
+    menu.style.top = rect.bottom + 4 + 'px';
+    menu.style.left = Math.max(rect.left - 120, 8) + 'px';
+    document.body.appendChild(menu);
+    lucide.createIcons({ scope: menu });
+}
+
+async function softDeleteNote(noteId) {
+    const confirmed = await showModal('Move to Trash?', 'You can restore this note later from the Trash bin.', 'Trash It');
+    if (!confirmed) return;
+    const noteIndex = notes.findIndex(n => n.id === noteId);
+    if (noteIndex !== -1) {
+        notes[noteIndex].deleted = true;
+        notes[noteIndex].updatedAt = Date.now();
+        await saveNoteToDB(notes[noteIndex]);
+        if (noteId === currentNoteId) {
+            const nextNote = notes.find(n => !n.deleted);
+            if (nextNote) await loadNote(nextNote.id);
+            else await createNewNote();
+        }
+        renderNotesList();
+        saveToCloud();
+    }
 }
 
 // ===== UTILITY =====
@@ -952,4 +1206,23 @@ function showModal(title, desc, confirmText, iconName) {
         confirmBtn.onclick = () => cleanup(true);
         cancelBtn.onclick = () => cleanup(false);
     });
+}
+
+function showToast(message, iconName = 'check-circle') {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    toast.className = 'toast bg-dark/90 dark:bg-slate-800/90 text-white px-6 py-3 rounded-2xl shadow-neo-lg backdrop-blur-xl border border-white/20 flex items-center gap-3 min-w-[200px] pointer-events-auto';
+    toast.innerHTML = `
+        <i data-lucide="${iconName}" class="w-5 h-5 text-blue"></i>
+        <span class="font-heading font-bold text-sm tracking-wide">${message}</span>
+    `;
+
+    container.appendChild(toast);
+    lucide.createIcons({ scope: toast });
+
+    setTimeout(() => {
+        toast.remove();
+    }, 3200);
 }
