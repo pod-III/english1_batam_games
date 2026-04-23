@@ -219,6 +219,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     notes = await getAllNotes();
     await loadFromCloud(); // Sync with cloud on startup
+    await purgeExpiredTrash(); // Auto-delete notes trashed >14 days ago
 
     const lastActiveId = await getSetting('lastActiveNoteId');
     const noteToLoad = notes.find(n => n.id === lastActiveId && !n.deleted) || notes.find(n => !n.deleted);
@@ -681,6 +682,15 @@ async function softDeleteCurrentNote() {
     }
 }
 
+async function deleteImagesInContent(content) {
+    if (!content) return;
+    const regex = /idb:\/\/([\w_-]+)/g;
+    let m;
+    while ((m = regex.exec(content)) !== null) {
+        try { await deleteImage(m[1]); } catch (e) { console.warn('Failed to delete image', m[1]); }
+    }
+}
+
 async function permanentDeleteCurrentNote() {
     if (!currentNoteId) return;
     const confirmed = await showModal('Delete Forever?', 'This action cannot be undone. The note will be gone.', 'Delete Forever');
@@ -702,6 +712,46 @@ async function permanentDeleteCurrentNote() {
             renderNotesList();
         }
     }
+}
+
+async function emptyTrash() {
+    const trashedNotes = notes.filter(n => n.deleted);
+    if (trashedNotes.length === 0) return;
+
+    const confirmed = await showModal(
+        'Empty Trash?',
+        `This will permanently delete ${trashedNotes.length} note(s). This cannot be undone.`,
+        'Delete All',
+        'flame'
+    );
+    if (!confirmed) return;
+
+    for (const note of trashedNotes) {
+        await deleteImagesInContent(note.content);
+        await deleteNoteFromDB(note.id);
+    }
+    notes = notes.filter(n => !n.deleted);
+    saveToCloud();
+
+    currentNoteId = null;
+    document.getElementById('noteTitle').value = "";
+    quill.root.innerHTML = "<p>Trash is empty.</p>";
+    renderNotesList();
+}
+
+async function purgeExpiredTrash() {
+    const TWO_WEEKS = 14 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    const expired = notes.filter(n => n.deleted && (now - n.updatedAt) > TWO_WEEKS);
+    if (expired.length === 0) return;
+
+    for (const note of expired) {
+        await deleteImagesInContent(note.content);
+        await deleteNoteFromDB(note.id);
+    }
+    notes = notes.filter(n => !expired.some(e => e.id === n.id));
+    saveToCloud();
+    console.log(`Auto-purged ${expired.length} expired trash note(s).`);
 }
 
 async function restoreCurrentNote() {
