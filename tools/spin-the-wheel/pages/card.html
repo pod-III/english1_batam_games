@@ -607,9 +607,9 @@
 
     <!-- Focus Actions (no overlay) -->
     <div id="focus-actions" class="focus-actions">
-        <button onclick="removeFocusedCard()"
+        <button onclick="eliminateFocusedCard()"
             class="btn-chunky bg-white dark:bg-slate-700 text-dark dark:text-slate-200 border-[1px] border-slate-300 dark:border-white/10 py-3 px-6 rounded-xl font-bold flex items-center gap-2 hover:text-pink hover:border-pink">
-            <i data-lucide="trash" class="w-5 h-5"></i> Remove
+            <i data-lucide="x-circle" class="w-5 h-5"></i> Eliminate
         </button>
         <button onclick="unfocusCard()"
             class="btn-chunky bg-blue text-white py-3 px-6 rounded-xl font-bold flex items-center gap-2">
@@ -641,8 +641,7 @@
                                 <i data-lucide="moon" class="w-3 h-3 hidden dark:block"></i>
                                 <i data-lucide="sun" class="w-3 h-3 block dark:hidden"></i>
                             </button>
-                            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Card
-                                Flipper</span>
+                            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">List Flipper</span>
                         </div>
                     </div>
                 </div>
@@ -687,7 +686,7 @@
                         <label
                             class="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                             <i data-lucide="folder-open" class="w-4 h-4 text-green"></i>
-                            Saved Decks
+                            Saved Lists
                         </label>
                         <button onclick="openDeckModal()" class="text-xs text-blue font-bold hover:underline">
                             + New
@@ -699,7 +698,7 @@
                         <!-- Populated by JS -->
                     </div>
 
-                    <!-- Current Deck Actions -->
+                    <!-- Current List Actions -->
                     <div class="flex gap-2 pt-2 border-t-[1px] border-slate-200 dark:border-white/10">
                         <button onclick="saveCurrentDeck()"
                             class="flex-1 btn-chunky bg-green text-dark dark:text-dark py-2 rounded-lg text-xs font-bold">
@@ -718,6 +717,13 @@
                     </div>
                 </div>
 
+                <!-- Session Reset -->
+                <button onclick="resetSession()"
+                    class="w-full btn-chunky bg-slate-100 dark:bg-slate-800 text-slate-500 py-2 rounded-lg text-xs font-bold">
+                    <i data-lucide="rotate-ccw" class="w-3 h-3 inline mr-1"></i>
+                    RESET SESSION
+                </button>
+
                 <!-- DRAW RANDOM (Stack Mode) -->
                 <button id="draw-random-btn" onclick="drawRandomCard()"
                     class="hidden w-full btn-chunky bg-gradient-to-r from-pink to-orange text-white dark:text-white py-4 rounded-xl text-lg tracking-widest flex items-center justify-center gap-3 hover:brightness-110 shadow-neo-lg">
@@ -730,14 +736,14 @@
                     class="p-3 bg-slate-50/50 dark:bg-slate-800/50 border-[1px] border-slate-300 dark:border-white/10 rounded-xl shadow-sm space-y-2">
                     <div
                         class="flex justify-between items-center border-b-[1px] border-slate-200 dark:border-white/10 pb-2">
-                        <label class="text-xs font-black text-slate-400 uppercase tracking-widest">Edit Cards</label>
+                        <label class="text-xs font-black text-slate-400 uppercase tracking-widest">Edit Items</label>
                         <button onclick="toggleBatch()" class="text-xs text-blue font-bold hover:underline">
                             Batch
                         </button>
                     </div>
 
                     <div class="flex gap-2">
-                        <input type="text" id="card-input" placeholder="Word or name..."
+                        <input type="text" id="card-input" placeholder="Name or word..."
                             class="flex-1 border-[1px] border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 font-bold text-dark dark:text-slate-200 text-sm bg-white/50 dark:bg-slate-900/50 focus:outline-none focus:border-blue focus:ring-1 focus:ring-blue"
                             onkeydown="
                                     if (event.key === 'Enter') addCard();
@@ -753,9 +759,8 @@
                         <textarea id="batch-input" rows="3"
                             class="w-full p-2 bg-white/50 dark:bg-slate-900/50 text-dark dark:text-slate-200 font-mono text-xs border-[1px] border-slate-300 dark:border-white/10 rounded-lg resize-none mb-2"
                             placeholder="One card per line..."></textarea>
-                        <button onclick="saveBatch()"
-                            class="w-full btn-chunky bg-dark text-white py-2 rounded-lg text-xs">
-                            Update Deck
+                        <button onclick="saveBatch()" class="w-full btn-chunky bg-dark text-white py-2 rounded-lg text-xs">
+                            Update List
                         </button>
                     </div>
 
@@ -920,6 +925,7 @@
         let cards = [];
         let decks = [];
         let currentDeckId = null;
+        let eliminatedIndices = new Set(); // Session-based elimination
         let viewMode = "spread"; // 'spread' or 'stack'
         let focusedCardIndex = -1;
         let isShuffling = false;
@@ -959,11 +965,11 @@
 
         async function saveToCloud() {
             const allDecks = await getAllDecks();
-            await saveProgress({ decks: allDecks });
+            await saveProgress('mystery_deck_data', { decks: allDecks });
         }
 
         async function loadFromCloud() {
-            const data = await loadProgress();
+            const data = await loadProgress('mystery_deck_data');
             if (data && data.decks) {
                 const tx = dataBase.transaction("decks", "readwrite");
                 const store = tx.objectStore("decks");
@@ -1151,7 +1157,8 @@
             if (!deck) return;
 
             currentDeckId = id;
-            cards = [...(deck.cards || [])];
+            cards = [...(deck.cards || deck.items || deck.options || [])];
+            eliminatedIndices.clear();
 
             unfocusCard();
 
@@ -1295,6 +1302,21 @@
         }
 
         // Card Rendering
+        function resetSession() {
+            eliminatedIndices.clear();
+            renderCards();
+            showToast("Session reset", "info");
+        }
+
+        function eliminateFocusedCard() {
+            if (focusedCardIndex !== -1) {
+                eliminatedIndices.add(focusedCardIndex);
+                unfocusCard();
+                renderCards();
+                showToast("Item eliminated", "info");
+            }
+        }
+
         function renderCards() {
             const container = document.getElementById("cards-container");
             const emptyState = document.getElementById("empty-state");
@@ -1459,7 +1481,8 @@
         function createCardElement(cardText, index) {
             const wrapper = document.createElement("div");
             wrapper.id = `card-${index}`;
-            wrapper.className = "playing-card card-3d";
+            const isEliminated = eliminatedIndices.has(index);
+            wrapper.className = `playing-card card-3d ${isEliminated ? 'opacity-20 pointer-events-none' : ''}`;
             wrapper.dataset.index = index;
 
             const fontSize =
@@ -1603,21 +1626,20 @@
             focusedCardIndex = -1;
         }
 
-        function removeFocusedCard() {
+        function eliminateFocusedCard() {
             if (focusedCardIndex === -1) return;
 
             const index = focusedCardIndex;
             const cardEl = document.getElementById(`card-${index}`);
 
-            // Animate removal
+            // Animate removal from session
             cardEl.classList.add("removing");
 
             setTimeout(() => {
-                cards.splice(index, 1);
-                saveCurrentDeck();
+                eliminatedIndices.add(index);
                 unfocusCard();
                 renderCards();
-                renderCardList();
+                showToast("Eliminated from session", "info");
             }, 400);
         }
 
@@ -1629,16 +1651,16 @@
 
             cards.push(val);
             input.value = "";
-            saveCurrentDeck();
             renderCards();
             renderCardList();
+            showToast(`Item added to session`, "info");
         }
 
         function removeCard(index) {
             cards.splice(index, 1);
-            saveCurrentDeck();
             renderCards();
             renderCardList();
+            showToast(`Item removed from session`, "info");
         }
 
         function toggleBatch() {
@@ -1659,18 +1681,18 @@
                 .split(/[\n,]+/)
                 .map((s) => s.trim())
                 .filter((s) => s.length > 0);
-            saveCurrentDeck();
             toggleBatch();
             renderCards();
             renderCardList();
+            showToast(`Updated session list`, "success");
         }
 
         function clearAll() {
-            if (!confirm("Clear all cards?")) return;
+            if (!confirm("Clear all cards in session?")) return;
             cards = [];
-            saveCurrentDeck();
             renderCards();
             renderCardList();
+            showToast(`Session cleared`, "info");
         }
 
         async function saveToCloud() {
