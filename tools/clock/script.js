@@ -275,9 +275,24 @@ const sidebar = {
     toggle() {
         state.sidebarCollapsed = !state.sidebarCollapsed;
         const el = DOM.get('app-sidebar');
-        if (el) el.classList.toggle('collapsed', state.sidebarCollapsed);
-        localStorage.setItem(CONSTANTS.LS_SIDEBAR, state.sidebarCollapsed);
-        saveAllToCloud();
+        const overlay = DOM.get('sidebar-overlay');
+        
+        if (window.innerWidth < 768) {
+            // Mobile Drawer Logic
+            if (el) {
+                el.classList.toggle('mobile-open');
+                const isOpen = el.classList.contains('mobile-open');
+                if (overlay) {
+                    overlay.classList.toggle('hidden', !isOpen);
+                    setTimeout(() => overlay.classList.toggle('opacity-0', !isOpen), 10);
+                }
+            }
+        } else {
+            // Desktop Collapse Logic
+            if (el) el.classList.toggle('collapsed', state.sidebarCollapsed);
+            localStorage.setItem(CONSTANTS.LS_SIDEBAR, state.sidebarCollapsed);
+            saveAllToCloud();
+        }
     }
 };
 
@@ -1329,6 +1344,19 @@ function switchTool(toolId) {
 
     state.currentTool = toolId;
     utils.safeIconUpdate();
+
+    // Auto-hide sidebar on mobile after choosing a tool
+    if (window.innerWidth < 768) {
+        const el = DOM.get('app-sidebar');
+        const overlay = DOM.get('sidebar-overlay');
+        if (el && el.classList.contains('mobile-open')) {
+            el.classList.remove('mobile-open');
+            if (overlay) {
+                overlay.classList.add('opacity-0');
+                setTimeout(() => overlay.classList.add('hidden'), 300);
+            }
+        }
+    }
 }
 
 // --- INPUT VALIDATION ---
