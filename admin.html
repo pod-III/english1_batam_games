@@ -299,6 +299,9 @@
             <button onclick="setView('logs')" id="nav-logs" class="sidebar-link w-full text-slate-400">
                 <i data-lucide="scroll-text" class="w-4 h-4 flex-shrink-0"></i> System Logs
             </button>
+            <button onclick="setView('announcements')" id="nav-announcements" class="sidebar-link w-full text-slate-400">
+                <i data-lucide="megaphone" class="w-4 h-4 flex-shrink-0"></i> Announcements
+            </button>
             <button onclick="setView('settings')" id="nav-settings" class="sidebar-link w-full text-slate-400">
                 <i data-lucide="settings" class="w-4 h-4 flex-shrink-0"></i> Settings
             </button>
@@ -537,6 +540,64 @@
                 </div>
             </div>
 
+            <!-- ANNOUNCEMENTS VIEW -->
+            <div id="view-announcements" class="hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Create Announcement Form -->
+                    <div class="lg:col-span-1">
+                        <div class="neo bg-slate-800 rounded-[20px] p-6 sticky top-6">
+                            <h2 class="font-heading text-lg text-white mb-6">Create Announcement</h2>
+                            <form id="announcementForm" onsubmit="saveAnnouncement(event)" class="space-y-4">
+                                <input type="hidden" id="announcementId">
+                                <div>
+                                    <label class="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Title</label>
+                                    <input type="text" id="annTitle" required placeholder="e.g. New Games Added!"
+                                        class="w-full bg-slate-900 border-2 border-slate-700 rounded-xl p-3 text-sm text-white focus:border-blue outline-none transition-colors">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Type</label>
+                                    <select id="annType" class="w-full bg-slate-900 border-2 border-slate-700 rounded-xl p-3 text-sm text-white focus:border-blue outline-none transition-colors">
+                                        <option value="info">Information</option>
+                                        <option value="update">Update</option>
+                                        <option value="alert">Alert</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Content</label>
+                                    <textarea id="annContent" required placeholder="Details about the update..."
+                                        class="w-full bg-slate-900 border-2 border-slate-700 rounded-xl p-3 text-sm text-white focus:border-blue outline-none transition-colors"
+                                        rows="4"></textarea>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="annActive" class="sr-only peer" checked>
+                                        <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green"></div>
+                                    </label>
+                                    <span class="text-xs font-bold text-slate-400">Published / Active</span>
+                                </div>
+                                <div class="pt-4 flex gap-2">
+                                    <button type="button" onclick="resetAnnForm()" class="neo-btn flex-1 justify-center px-4 py-2.5 bg-slate-700 text-white rounded-xl text-sm">Cancel</button>
+                                    <button type="submit" class="neo-btn flex-[2] justify-center px-4 py-2.5 bg-blue text-white rounded-xl text-sm">Save Announcement</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Announcements List -->
+                    <div class="lg:col-span-2">
+                        <div class="neo bg-slate-800 rounded-[20px] overflow-hidden">
+                            <div class="p-5 border-b-[3px] border-slate-700 flex items-center justify-between">
+                                <h2 class="font-heading text-lg text-white">History</h2>
+                                <div id="annCount" class="chip bg-green/10 text-green border-green/40">0 items</div>
+                            </div>
+                            <div id="annList" class="divide-y divide-slate-700/50 max-h-[70vh] overflow-y-auto scrollbar">
+                                <!-- Announcements injected here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- SETTINGS VIEW -->
             <div id="view-settings" class="hidden">
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -612,6 +673,7 @@
     <script>
         let allProgress = []
         let allProfiles = {}
+        let allAnnouncements = []
         let pendingDelete = null
         let currentView = 'dashboard'
 
@@ -646,9 +708,14 @@
             profilesRes.data?.forEach(p => allProfiles[p.id] = p)
             allProgress = progressRes.data || []
 
+            // Fetch Announcements
+            const annRes = await db.from('announcements').select('*').order('created_at', { ascending: false })
+            allAnnouncements = annRes.data || []
+
             updateStats()
             populateToolFilter()
             applyFilters()
+            renderAnnouncements()
         }
         // ── STATS ──
         function updateStats() {
@@ -1042,7 +1109,7 @@
                 toggleSidebar();
             }
 
-            ['dashboard', 'users', 'progress', 'logs', 'settings'].forEach(v => {
+            ['dashboard', 'users', 'progress', 'logs', 'announcements', 'settings'].forEach(v => {
                 const viewEl = document.getElementById('view-' + v)
                 if (viewEl) viewEl.classList.toggle('hidden', v !== view)
 
@@ -1056,6 +1123,99 @@
             currentView = view
             if (view === 'logs') renderLogsTable()
             if (view === 'settings') loadSettings()
+            if (view === 'announcements') renderAnnouncements()
+        }
+
+        // ── ANNOUNCEMENTS LOGIC ──
+        async function saveAnnouncement(e) {
+            e.preventDefault()
+            const id = document.getElementById('announcementId').value
+            const payload = {
+                title: document.getElementById('annTitle').value,
+                type: document.getElementById('annType').value,
+                content: document.getElementById('annContent').value,
+                is_active: document.getElementById('annActive').checked
+            }
+
+            let res
+            if (id) {
+                res = await db.from('announcements').update(payload).eq('id', id)
+            } else {
+                res = await db.from('announcements').insert([payload])
+            }
+
+            if (res.error) {
+                alert('Error saving: ' + res.error.message)
+            } else {
+                resetAnnForm()
+                fetchData()
+            }
+        }
+
+        function renderAnnouncements() {
+            const list = document.getElementById('annList')
+            const count = document.getElementById('annCount')
+            if (!list) return
+
+            count.textContent = allAnnouncements.length + ' items'
+
+            if (!allAnnouncements.length) {
+                list.innerHTML = '<div class="p-12 text-center text-slate-500 font-bold">No announcements created yet.</div>'
+                return
+            }
+
+            list.innerHTML = allAnnouncements.map(ann => {
+                const date = new Date(ann.created_at).toLocaleDateString()
+                const typeColors = {
+                    info: 'blue',
+                    update: 'green',
+                    alert: 'orange'
+                }
+                const color = typeColors[ann.type] || 'blue'
+
+                return `
+                    <div class="p-5 hover:bg-slate-700/30 transition-colors group">
+                        <div class="flex items-start justify-between mb-2">
+                            <div class="flex items-center gap-3">
+                                <span class="chip bg-${color}/10 text-${color} border-${color}/30 uppercase">${ann.type}</span>
+                                <h3 class="font-bold text-white">${ann.title}</h3>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[10px] font-mono text-slate-500">${date}</span>
+                                ${!ann.is_active ? '<span class="chip bg-slate-700 text-slate-400 border-slate-600">DRAFT</span>' : ''}
+                            </div>
+                        </div>
+                        <p class="text-sm text-slate-400 mb-4 whitespace-pre-wrap">${ann.content}</p>
+                        <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onclick="editAnnouncement('${ann.id}')" class="neo-btn px-3 py-1.5 bg-blue/20 text-blue border-blue/30 rounded-lg text-xs">Edit</button>
+                            <button onclick="deleteAnnouncement('${ann.id}')" class="neo-btn px-3 py-1.5 bg-red-500/20 text-red-400 border-red-500/30 rounded-lg text-xs">Delete</button>
+                        </div>
+                    </div>
+                `
+            }).join('')
+        }
+
+        function editAnnouncement(id) {
+            const ann = allAnnouncements.find(a => a.id === id)
+            if (!ann) return
+            document.getElementById('announcementId').value = ann.id
+            document.getElementById('annTitle').value = ann.title
+            document.getElementById('annType').value = ann.type
+            document.getElementById('annContent').value = ann.content
+            document.getElementById('annActive').checked = ann.is_active
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+        }
+
+        async function deleteAnnouncement(id) {
+            if (!confirm('Permanently delete this announcement?')) return
+            const { error } = await db.from('announcements').delete().eq('id', id)
+            if (error) alert(error.message)
+            else fetchData()
+        }
+
+        function resetAnnForm() {
+            document.getElementById('announcementForm').reset()
+            document.getElementById('announcementId').value = ''
         }
 
         // Keyboard shortcuts

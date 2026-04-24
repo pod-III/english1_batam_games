@@ -19,7 +19,8 @@ const CONFIG = {
     tabs: "openTabs",
     pinned: "pinnedGameIds",
     homeView: "klasskit_homeView",
-    viewMode: "klasskit_viewMode"
+    viewMode: "klasskit_viewMode",
+    lastReadAnn: "klasskit_lastReadAnn"
   }
 };
 
@@ -535,6 +536,166 @@ const Hero = {
     this.updateHeading();
     this.updateStats();
     this.updateContinueBtn();
+    Announcements.init();
+  }
+};
+
+// --- ANNOUNCEMENTS ---
+const Announcements = {
+  list: [],
+
+  async init() {
+    await this.fetch();
+    this.render();
+    this.renderPanel();
+    this.checkNew();
+  },
+
+  async fetch() {
+    try {
+      const { data, error } = await db
+        .from('announcements')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      this.list = data || [];
+    } catch (err) {
+      console.warn('[Announcements] Fetch error:', err);
+      this.list = [];
+    }
+  },
+
+  render() {
+    const container = document.getElementById('announcement-board');
+    if (!container) return;
+
+    if (this.list.length === 0) {
+      container.classList.add('hidden');
+      return;
+    }
+
+    container.classList.remove('hidden');
+    
+    // Check for unread
+    const lastRead = Storage.get(CONFIG.storageKeys.lastReadAnn, 0);
+    const latestTime = new Date(this.list[0].created_at).getTime();
+    const hasNew = latestTime > lastRead;
+
+    const badge = document.getElementById('ann-new-badge');
+    const headerBadge = document.getElementById('header-ann-badge');
+    if (badge) badge.classList.toggle('hidden', !hasNew);
+    if (headerBadge) headerBadge.classList.toggle('hidden', !hasNew);
+
+    const listEl = document.getElementById('ann-items-list');
+    if (!listEl) return;
+
+    listEl.innerHTML = this.list.map((ann, i) => {
+      const date = new Date(ann.created_at).toLocaleDateString();
+      const typeColors = {
+        info: 'blue',
+        update: 'green',
+        alert: 'orange'
+      };
+      const color = typeColors[ann.type] || 'blue';
+      const icon = ann.type === 'alert' ? 'alert-triangle' : (ann.type === 'update' ? 'sparkles' : 'info');
+
+      return `
+        <div class="ann-card bg-white dark:bg-slate-800 p-6 rounded-2xl border-[3px] border-dark dark:border-slate-600 shadow-hard dark:shadow-neon-sm animate-pop-in" style="animation-delay: ${i * 0.1}s">
+          <div class="flex items-start justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-lg bg-${color}/10 text-${color} flex items-center justify-center border-2 border-${color}/20">
+                <i data-lucide="${icon}" class="w-4 h-4"></i>
+              </div>
+              <span class="text-[10px] font-black text-${color} uppercase tracking-tight">${ann.type}</span>
+            </div>
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">${date}</span>
+          </div>
+          <h4 class="text-xl font-heading font-bold text-dark dark:text-white mb-2 leading-tight">${ann.title}</h4>
+          <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-body font-semibold whitespace-pre-wrap">${ann.content}</p>
+        </div>
+      `;
+    }).join('');
+
+    Utils.refreshIcons(listEl);
+  },
+
+  markAsRead() {
+    if (this.list.length > 0) {
+      const latestTime = new Date(this.list[0].created_at).getTime();
+      Storage.set(CONFIG.storageKeys.lastReadAnn, latestTime);
+      const badge = document.getElementById('ann-new-badge');
+      const headerBadge = document.getElementById('header-ann-badge');
+      if (badge) badge.classList.add('hidden');
+      if (headerBadge) headerBadge.classList.add('hidden');
+    }
+  },
+
+  checkNew() {
+    if (this.list.length > 0) {
+      const lastRead = Storage.get(CONFIG.storageKeys.lastReadAnn, 0);
+      const latestTime = new Date(this.list[0].created_at).getTime();
+      if (latestTime > lastRead) {
+        UI.showToast(`New announcement: ${this.list[0].title}`, 'info', 5000);
+      }
+    }
+  },
+
+  renderPanel() {
+    const listEl = document.getElementById('panel-ann-list');
+    if (!listEl) return;
+
+    if (this.list.length === 0) {
+      listEl.innerHTML = '<div class="text-center p-8 text-slate-500 font-bold">No notifications yet.</div>';
+      return;
+    }
+
+    listEl.innerHTML = this.list.map((ann, i) => {
+      const date = new Date(ann.created_at).toLocaleDateString();
+      const typeColors = {
+        info: 'blue',
+        update: 'green',
+        alert: 'orange'
+      };
+      const color = typeColors[ann.type] || 'blue';
+      const icon = ann.type === 'alert' ? 'alert-triangle' : (ann.type === 'update' ? 'sparkles' : 'info');
+
+      return `
+        <div class="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border-2 border-dark dark:border-slate-700 animate-pop-in">
+          <div class="flex items-start justify-between mb-2">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-${color}"></span>
+              <span class="text-[9px] font-black uppercase text-slate-500">${ann.type}</span>
+            </div>
+            <span class="text-[9px] font-bold text-slate-400">${date}</span>
+          </div>
+          <h4 class="text-sm font-bold text-dark dark:text-white mb-1">${ann.title}</h4>
+          <p class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">${ann.content}</p>
+        </div>
+      `;
+    }).join('');
+    Utils.refreshIcons(listEl);
+  },
+
+  togglePanel(show = null) {
+    AudioEngine.click();
+    const panel = document.getElementById('notification-panel');
+    if (!panel) return;
+
+    const isVisible = !panel.classList.contains('translate-x-full');
+    const targetShow = show !== null ? show : !isVisible;
+
+    if (targetShow) {
+      panel.classList.remove('translate-x-full');
+      this.markAsRead();
+    } else {
+      panel.classList.add('translate-x-full');
+    }
+  },
+
+  toggleBoard() {
+    this.togglePanel();
   }
 };
 
@@ -1858,6 +2019,7 @@ const App = {
       toggleTheme: () => Theme.toggle(),
       toggleSound: () => AudioEngine.toggle(),
       openGame: (param) => GameModal.open(param),
+      toggleNotifications: () => Announcements.togglePanel(),
       returnToHome: () => TabManager.returnToHome(),
       closeAllTabs: () => TabManager.confirmCloseAllTabs(),
       confirmDelete: () => TabManager.closeAllTabsConfirmed(),
