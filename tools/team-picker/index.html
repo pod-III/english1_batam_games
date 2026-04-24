@@ -314,6 +314,19 @@
                         <button onclick="app.markAllAbsent()" class="btn-chunky bg-white dark:bg-slate-700 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider">All Out</button>
                         <button onclick="app.reset()" class="btn-chunky bg-pink text-white py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider">Clear</button>
                     </div>
+                    <div class="pt-1 border-t border-slate-200 dark:border-white/10 space-y-1.5">
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                            <i data-lucide="clipboard-copy" class="w-3 h-3"></i> Copy Roster As
+                        </p>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="app.copyRoster('lines')" class="btn-chunky bg-blue text-white py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5">
+                                <i data-lucide="list" class="w-3 h-3"></i> Lines
+                            </button>
+                            <button onclick="app.copyRoster('csv')" class="btn-chunky bg-purple text-white py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5">
+                                <i data-lucide="table-2" class="w-3 h-3"></i> CSV
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="flex-1 overflow-y-auto custom-scrollbar min-h-[150px]">
@@ -697,6 +710,38 @@
                 this.saveToCloud();
                 this.renderRoster();
                 this.showToast('All students marked absent.');
+            },
+
+            copyRoster(format = 'lines') {
+                const cls = this.classes[this.activeClassId];
+                if (!cls?.roster?.length) { this.showToast('Roster is empty.', 'error'); return; }
+
+                const present = cls.roster.filter(s => s.present !== false);
+                const absent  = cls.roster.filter(s => s.present === false);
+
+                let text = '';
+                if (format === 'csv') {
+                    text += 'Name,Gender,Status\n';
+                    cls.roster.forEach(s => {
+                        const g = s.gender === 'U' ? '' : s.gender;
+                        const status = s.present !== false ? 'Present' : 'Absent';
+                        text += `${s.name},${g},${status}\n`;
+                    });
+                } else {
+                    if (present.length) {
+                        text += `--- Present (${present.length}) ---\n`;
+                        text += present.map(s => s.name).join('\n') + '\n';
+                    }
+                    if (absent.length) {
+                        text += `\n--- Absent (${absent.length}) ---\n`;
+                        text += absent.map(s => s.name).join('\n') + '\n';
+                    }
+                }
+
+                navigator.clipboard.writeText(text.trim()).then(() => {
+                    const label = format === 'csv' ? 'CSV' : 'Line list';
+                    this.showToast(`${label} copied! ✅`, 'success');
+                }).catch(() => this.showToast('Copy failed.', 'error'));
             },
 
             removeStudent(studentId) {
