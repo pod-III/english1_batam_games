@@ -1,6 +1,6 @@
 // Be sure to bump this version number whenever you change this file
 // so the browser knows to run the 'install' and 'activate' steps again.
-const CACHE_NAME = 'klasskit-v1.1.24';
+const CACHE_NAME = 'klasskit-v1.1.25';
 
 // Only cache local, reliable assets during the install phase.
 const ASSETS_TO_CACHE = [
@@ -14,7 +14,8 @@ const ASSETS_TO_CACHE = [
   './css/home.css',
   './css/side-panel.css',
   './media/icon.png',
-  './media/icon.ico'
+  './media/icon.ico',
+  './media/icon.webp'
 ];
 
 // Install Event
