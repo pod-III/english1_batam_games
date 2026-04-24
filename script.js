@@ -623,8 +623,12 @@ const Announcements = {
 
   markAsRead() {
     if (this.list.length > 0) {
-      const latestTime = new Date(this.list[0].created_at).getTime();
-      Storage.set(CONFIG.storageKeys.lastReadAnn, latestTime);
+      const latestTime = this.list[0].created_at;
+      const latestTimestamp = new Date(latestTime).getTime();
+      
+      // Update Local Storage (this triggers the existing Hub Cloud Sync automatically)
+      Storage.set(CONFIG.storageKeys.lastReadAnn, latestTimestamp);
+      
       const badge = document.getElementById('ann-new-badge');
       const headerBadge = document.getElementById('header-ann-badge');
       if (badge) badge.classList.add('hidden');
