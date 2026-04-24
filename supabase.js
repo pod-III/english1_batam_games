@@ -78,11 +78,13 @@ async function requireAdmin() {
 }
 
 async function signUp(email, pass, displayName) {
+  const confirmationUrl = 'http://klasskit.fun/api/confirmation.html';
   return db.auth.signUp({
     email,
     password: pass,
     options: {
-      data: { display_name: displayName }
+      data: { display_name: displayName },
+      emailRedirectTo: confirmationUrl
     }
   })
 }
