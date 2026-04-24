@@ -14,6 +14,9 @@ const ASSETS_TO_CACHE = [
   './css/home.css',
   './css/side-panel.css',
   './media/icon.png',
+  './media/icon-180.png',
+  './media/icon-192.png',
+  './media/icon-512.png',
   './media/icon.ico',
   './media/icon.webp'
 ];
