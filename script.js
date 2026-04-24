@@ -557,7 +557,8 @@ const Announcements = {
         .from('announcements')
         .select('*')
         .eq('is_active', true)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(5);
 
       if (error) throw error;
       this.list = data || [];
@@ -613,7 +614,7 @@ const Announcements = {
             <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">${date}</span>
           </div>
           <h4 class="text-xl font-heading font-bold text-dark dark:text-white mb-2 leading-tight">${ann.title}</h4>
-          <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-body font-semibold whitespace-pre-wrap">${ann.content}</p>
+          <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-body font-semibold whitespace-pre-wrap">${this.formatText(ann.content)}</p>
         </div>
       `;
     }).join('');
@@ -675,7 +676,7 @@ const Announcements = {
             <span class="text-[9px] font-bold text-slate-400">${date}</span>
           </div>
           <h4 class="text-sm font-bold text-dark dark:text-white mb-1">${ann.title}</h4>
-          <p class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">${ann.content}</p>
+          <p class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">${this.formatText(ann.content)}</p>
         </div>
       `;
     }).join('');
@@ -700,6 +701,14 @@ const Announcements = {
 
   toggleBoard() {
     this.togglePanel();
+  },
+
+  formatText(text) {
+    if (!text) return '';
+    return text
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em>$1</em>')
+      .replace(/\n/g, '<br>');
   }
 };
 
