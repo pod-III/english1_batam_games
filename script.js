@@ -587,14 +587,14 @@ const StorageManager = {
         textEl.textContent = `${usedMB} MB / ${limitMB} MB`;
         barEl.style.width = `${usage.percent}%`;
         
-        // Color coding
-        barEl.classList.remove('bg-blue', 'bg-orange', 'bg-red-500', 'bg-slate-300');
-        if (usage.percent >= 90) {
-          barEl.classList.add('bg-red-500');
-        } else if (usage.percent >= 80) {
+        // Dynamic Color Triage
+        barEl.classList.remove('bg-blue', 'bg-orange', 'bg-pink', 'bg-slate-300', 'bg-green');
+        if (usage.percent >= 85) {
+          barEl.classList.add('bg-pink');
+        } else if (usage.percent >= 60) {
           barEl.classList.add('bg-orange');
         } else {
-          barEl.classList.add('bg-blue');
+          barEl.classList.add('bg-green');
         }
     }
   }
@@ -1198,6 +1198,11 @@ const LandingPage = {
     const libraryView = document.getElementById('library-view');
     const homeBtn = document.getElementById('nav-home-btn');
     if (!landingView || !libraryView) return;
+
+    // Reset state to original
+    State.filters = { category: 'all', searchTerm: '', difficulty: 'all', tags: [] };
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) searchInput.value = '';
 
     this.currentView = 'landing';
     landingView.style.display = '';
