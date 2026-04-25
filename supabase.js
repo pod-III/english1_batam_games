@@ -322,7 +322,7 @@ async function getUserStorageUsage() {
 /**
  * Uploads a media file with compression and quota checks.
  */
-async function uploadMedia(file, activityId) {
+async function uploadMedia(file, toolId, setId = null) {
   if (isSandbox()) throw new Error('Storage not available in Sandbox.');
 
   const user = await getUser();
@@ -335,13 +335,14 @@ async function uploadMedia(file, activityId) {
   // 2. Check quota
   const usage = await getUserStorageUsage();
   
-  // To handle overwrites accurately, check if file exists
   const filename = file.name.replace(/\.[^/.]+$/, "").replace(/[^a-z0-9]/gi, '_').toLowerCase();
-  const filePath = `${user.id}/${activityId}/${filename}.webp`;
+  const subPath = setId ? `${toolId}/${setId}` : toolId;
+  const dirPath = `${user.id}/${subPath}`;
+  const filePath = `${dirPath}/${filename}.webp`;
   
   let oldSize = 0;
   try {
-    const { data: existingFiles } = await db.storage.from(STORAGE_CONFIG.bucket).list(`${user.id}/${activityId}`);
+    const { data: existingFiles } = await db.storage.from(STORAGE_CONFIG.bucket).list(dirPath);
     const existing = existingFiles?.find(f => f.name === `${filename}.webp`);
     if (existing) {
       oldSize = existing.metadata.size;
@@ -440,6 +441,62 @@ async function deleteMedia(filePath) {
     .eq('id', user.id);
 
   return { success: true };
+}
+
+/**
+ * Helper to delete media file from its Supabase URL.
+ */
+async function deleteMediaFromUrl(url) {
+  if (!url || typeof url !== 'string' || !url.includes(STORAGE_CONFIG.bucket)) return;
+  try {
+    const path = url.split(STORAGE_CONFIG.bucket + '/')[1].split('?')[0];
+    await deleteMedia(path);
+  } catch (e) {
+    console.warn('[Storage] URL-based deletion failed:', e);
+  }
+}
+
+/**
+ * Deletes an entire folder and updates usage.
+ */
+async function deleteFolder(folderPath) {
+  if (isSandbox()) return;
+  const user = await getUser();
+  if (!user) return;
+
+  try {
+    // 1. List all files in folder
+    const { data: files, error: listError } = await db.storage
+      .from(STORAGE_CONFIG.bucket)
+      .list(folderPath);
+    
+    if (listError || !files || files.length === 0) return;
+
+    // 2. Calculate total size
+    const totalSize = files.reduce((sum, f) => sum + (f.metadata?.size || 0), 0);
+    const filePaths = files.map(f => `${folderPath}/${f.name}`);
+
+    // 3. Delete files
+    const { error: delError } = await db.storage
+      .from(STORAGE_CONFIG.bucket)
+      .remove(filePaths);
+    
+    if (delError) throw delError;
+
+    // 4. Update usage
+    const usage = await getUserStorageUsage();
+    const newUsage = Math.max(0, usage.used - totalSize);
+    
+    await db
+      .from('profiles')
+      .update({ storage_usage: newUsage })
+      .eq('id', user.id);
+
+    return { success: true, freed: totalSize };
+  } catch (e) {
+    console.error('[Storage] Folder deletion failed:', e);
+    throw e;
+  }
 }
 
 /**

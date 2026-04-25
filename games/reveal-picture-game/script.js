@@ -58,6 +58,13 @@ const DB = {
 
     async deletePreset(id) {
         if (!this.dataBase) await this.init();
+        
+        // Cloud Cleanup
+        const { data: { user } } = await db.auth.getUser();
+        if (!isSandbox() && user) {
+            deleteFolder(`${user.id}/reveal_picture/${id}`).catch(e => console.warn("Cloud folder delete failed", e));
+        }
+
         return new Promise((resolve, reject) => {
             const transaction = this.dataBase.transaction(['Presets'], 'readwrite');
             const store = transaction.objectStore('Presets');
@@ -433,6 +440,11 @@ renderImageManagerList() {
 
     async deleteImage(index) {
     if (index < 0 || index >= Game.images.length) return;
+
+    const url = Game.images[index];
+    if (url && url.includes('klasskit-media')) {
+        deleteMediaFromUrl(url).catch(e => console.error("Cloud delete failed", e));
+    }
 
     Game.images.splice(index, 1);
 
@@ -816,7 +828,7 @@ const handleFiles = async (files) => {
             // Check if we should upload to cloud
             const { data: { user } } = await db.auth.getUser();
             if (!isSandbox() && user) {
-                const url = await uploadMedia(f, 'reveal_picture');
+                const url = await uploadMedia(f, 'reveal_picture', App.activePresetId);
                 list.push(url);
             } else {
                 // Fallback to local DataURL (stored in IndexedDB by app.saveCurrentState)

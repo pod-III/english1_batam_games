@@ -124,6 +124,12 @@ async function getAllCardSets() {
     } catch(e) { return []; }
 }
 async function deleteCardSet(id) {
+    // Cloud Cleanup
+    const { data: { user } } = await db.auth.getUser();
+    if (!isSandbox() && user) {
+        deleteFolder(`${user.id}/card_maker/${id}`).catch(e => console.warn("Cloud folder delete failed", e));
+    }
+
     const db = await initDB();
     const tx = db.transaction(SETS_STORE, 'readwrite');
     tx.objectStore(SETS_STORE).delete(id);
@@ -219,6 +225,9 @@ async function loadState() {
             const parsed = JSON.parse(saved);
             // Merge saved state with defaults to handle version upgrades
             state = { ...state, ...parsed };
+        } catch (e) { console.warn("Failed to parse state", e); }
+    }
+    if (!state.id) state.id = 'cards_' + Date.now();
 
             // Restore UI Controls
             inputCols.value = state.gridCols || 3;
@@ -489,7 +498,7 @@ async function handleBulkImageImport(input) {
             let imgSource;
             const { data: { user } } = await db.auth.getUser();
             if (!isSandbox() && user) {
-                imgSource = await uploadMedia(file, 'card_maker');
+                imgSource = await uploadMedia(file, 'card_maker', state.id);
             } else {
                 imgSource = await new Promise((resolve, reject) => {
                     const reader = new FileReader();
@@ -742,6 +751,10 @@ function removeImage(pageIndex, cardIndex) {
     const delBtn = document.getElementById(`del-${uid}`);
 
     if (img) {
+        const url = img.src;
+        if (url && url.includes('klasskit-media')) {
+            deleteMediaFromUrl(url).catch(e => console.error("Cloud delete failed", e));
+        }
         img.src = "";
         img.classList.add("hidden");
     }

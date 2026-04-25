@@ -820,7 +820,7 @@
                     let imgSource;
                     const { data: { user } } = await db.auth.getUser();
                     if (!isSandbox() && user) {
-                        imgSource = await uploadMedia(file, 'card_match');
+                        imgSource = await uploadMedia(file, 'card_match', this.activePresetId);
                     } else {
                         imgSource = await new Promise((resolve, reject) => {
                             const reader = new FileReader();
@@ -862,7 +862,7 @@
                     try {
                         let imgSource;
                         if (canUpload) {
-                            imgSource = await uploadMedia(file, 'card_match');
+                            imgSource = await uploadMedia(file, 'card_match', this.activePresetId);
                         } else {
                             imgSource = await new Promise((resolve, reject) => {
                                 const reader = new FileReader();
@@ -985,6 +985,12 @@
             },
 
             executeDeletePreset: async function() {
+                // Cloud Cleanup
+                const { data: { user } } = await db.auth.getUser();
+                if (!isSandbox() && user) {
+                    deleteFolder(`${user.id}/card_match/${this.activePresetId}`).catch(e => console.warn("Cloud folder delete failed", e));
+                }
+
                 await deletePresetFromDB(this.activePresetId);
                 await syncToCloud();
                 this.presetsList = this.presetsList.filter(p => p.id !== this.activePresetId);
@@ -1070,6 +1076,15 @@
             },
 
             removePair: function (idx) {
+                const pair = this.pairs[idx];
+                if (pair) {
+                    if (pair.item1.type === 'image' && pair.item1.content.includes('klasskit-media')) {
+                        deleteMediaFromUrl(pair.item1.content).catch(e => console.error("Cloud delete failed (item1)", e));
+                    }
+                    if (pair.item2.type === 'image' && pair.item2.content.includes('klasskit-media')) {
+                        deleteMediaFromUrl(pair.item2.content).catch(e => console.error("Cloud delete failed (item2)", e));
+                    }
+                }
                 this.pairs.splice(idx, 1);
                 this.saveAndRender();
             },

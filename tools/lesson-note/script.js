@@ -122,7 +122,13 @@ function saveNoteToDB(note) {
     });
 }
 
-function deleteNoteFromDB(id) {
+async function deleteNoteFromDB(id) {
+    // Cloud Cleanup
+    const { data: { user } } = await db.auth.getUser();
+    if (!isSandbox() && user) {
+        deleteFolder(`${user.id}/lesson_note/${id}`).catch(e => console.warn("Cloud folder delete failed", e));
+    }
+
     return new Promise((resolve, reject) => {
         const tx = idb.transaction(STORES.NOTES, 'readwrite');
         tx.objectStore(STORES.NOTES).delete(id);
@@ -328,7 +334,7 @@ async function processImageInput(inputEl) {
         
         if (!isSandbox() && user) {
             // Upload to Cloud
-            const url = await uploadMedia(file, 'lesson_note');
+            const url = await uploadMedia(file, 'lesson_note', currentNoteId);
             const range = quill.getSelection(true);
             quill.insertEmbed(range.index, 'image', url);
             quill.setSelection(range.index + 1);
@@ -745,10 +751,19 @@ async function softDeleteCurrentNote() {
 
 async function deleteImagesInContent(content) {
     if (!content) return;
-    const regex = /idb:\/\/([\w_-]+)/g;
+    // 1. Local images
+    const localRegex = /idb:\/\/([\w_-]+)/g;
     let m;
-    while ((m = regex.exec(content)) !== null) {
-        try { await deleteImage(m[1]); } catch (e) { console.warn('Failed to delete image', m[1]); }
+    while ((m = localRegex.exec(content)) !== null) {
+        try { await deleteImage(m[1]); } catch (e) { console.warn('Failed to delete local image', m[1]); }
+    }
+    // 2. Cloud images
+    const cloudRegex = /https:\/\/[^"'\s]+\/storage\/v1\/object\/public\/klasskit-media\/[^"'\s]+/g;
+    const cloudMatches = content.match(cloudRegex) || [];
+    for (const cloudUrl of cloudMatches) {
+        try {
+            await deleteMediaFromUrl(cloudUrl);
+        } catch (e) { console.warn('Failed to delete cloud image', cloudUrl); }
     }
 }
 

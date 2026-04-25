@@ -796,6 +796,12 @@
                     this.library = this.library.filter(d => d.id !== id);
                     localStorage.setItem('e1_rapid_library_v1', JSON.stringify(this.library));
 
+                    // Cloud Cleanup
+                    const { data: { user } } = await db.auth.getUser();
+                    if (!isSandbox() && user) {
+                        deleteFolder(`${user.id}/presentation_maker/${id}`).catch(e => console.warn("Cloud folder delete failed", e));
+                    }
+
                     if (this.currentDeckId === id) {
                         this.currentDeckId = null;
                         this.updateDeckNameDisplay("Unsaved Session (Deleted)");
@@ -1155,7 +1161,7 @@
                         const { data: { user } } = await db.auth.getUser();
                         let imgSource;
                         if (!isSandbox() && user) {
-                            imgSource = await uploadMedia(file, 'presentation');
+                            imgSource = await uploadMedia(file, 'presentation_maker', this.currentDeckId || 'unsaved');
                         } else {
                             imgSource = await new Promise((resolve, reject) => {
                                 const reader = new FileReader();
@@ -1174,7 +1180,15 @@
                 input.click();
             },
 
-            removeImage(index) { this.slides[index].image = null; this.saveWorkspace(); this.render(); },
+            removeImage(index) { 
+                const url = this.slides[index].image;
+                if (url && url.includes('klasskit-media')) {
+                    deleteMediaFromUrl(url).catch(e => console.error("Cloud delete failed", e));
+                }
+                this.slides[index].image = null; 
+                this.saveWorkspace(); 
+                this.render(); 
+            },
 
             compressImage(img) {
                 const canvas = document.getElementById('compression-canvas'); const ctx = canvas.getContext('2d');
