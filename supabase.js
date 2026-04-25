@@ -382,6 +382,17 @@ async function uploadMedia(file, toolId, setId = null) {
 }
 
 /**
+ * Copies a file within the private bucket.
+ */
+async function copyMedia(fromPath, toPath) {
+  if (isSandbox()) return;
+  const { error } = await db.storage
+    .from(STORAGE_CONFIG.bucket)
+    .copy(fromPath, toPath);
+  if (error) throw error;
+}
+
+/**
  * Resolves a stored media URL to a signed URL if it belongs to our private bucket.
  */
 async function resolveMediaUrl(url) {
