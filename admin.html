@@ -248,7 +248,7 @@
                 style="box-shadow:3px 3px 0 #1e293b">
                 <i data-lucide="trash-2" class="w-7 h-7 text-white"></i>
             </div>
-            <h3 class="font-heading text-2xl text-center text-dark dark:text-white mb-2">Delete Progress?</h3>
+            <h3 class="font-heading text-2xl text-center text-dark dark:text-white mb-2" id="deleteModalTitle">Confirm Delete</h3>
             <p class="text-slate-500 text-sm text-center mb-6" id="deleteModalMsg"></p>
             <div class="flex gap-3">
                 <button onclick="closeDeleteModal()"
@@ -382,7 +382,7 @@
             <!-- DASHBOARD VIEW -->
             <div id="view-dashboard">
                 <!-- Stats -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                     <div class="stat-card neo bg-slate-800">
                         <div class="flex items-start justify-between mb-3">
                             <div
@@ -745,7 +745,7 @@
                                 <label class="block font-bold text-white mb-2">Global Announcement</label>
                                 <textarea id="setting-announcement" placeholder="Banner text for all users..."
                                     class="w-full bg-slate-900 border-2 border-slate-700 rounded-xl p-3 text-sm text-white focus:border-blue outline-none transition-colors"
-                                    rows="3" oninput="saveSettings()"></textarea>
+                                    rows="3" oninput="debouncedSaveSettings()"></textarea>
                             </div>
                         </div>
                     </div>
@@ -770,7 +770,7 @@
                                 <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Admin
                                     API Endpoint</div>
                                 <div class="text-[10px] font-mono text-slate-400 break-all">
-                                    https://mkarfktuvtllaxpunwtb.supabase.co/rest/v1/user_progress</div>
+                                    https://mkarfktuvtllaxpunwtb.supabase.co/rest/v1/[PROTECTED]</div>
                             </div>
                         </div>
                     </div>
@@ -796,6 +796,7 @@
             cloud: 1
         }
         const PAGE_SIZE = 25
+        let settingsTimeout = null
 
         // ── INIT ──
         async function init() {
@@ -1211,12 +1212,25 @@
         }
 
         // ── DELETE MODAL ──
-        function openDeleteModal(userId, toolKey) {
-            const profile = allProfiles[userId]
-            const name = profile?.display_name || userId.slice(0, 8)
-            pendingDelete = { userId, toolKey }
-            document.getElementById('deleteModalMsg').textContent =
-                `This will permanently delete "${toolKey}" data for ${name}.`
+        function openDeleteModal(idOrUser, toolOrType) {
+            let title = "Delete Item?"
+            let msg = "This action cannot be undone."
+            
+            if (toolOrType === 'announcement') {
+                const ann = allAnnouncements.find(a => a.id === idOrUser)
+                title = "Delete Announcement?"
+                msg = `Permanently delete "${ann?.title || 'this announcement'}"?`
+                pendingDelete = { id: idOrUser, type: 'announcement' }
+            } else {
+                const profile = allProfiles[idOrUser]
+                const name = profile?.display_name || idOrUser.slice(0, 8)
+                title = "Delete Progress?"
+                msg = `This will permanently delete "${toolOrType}" data for ${name}.`
+                pendingDelete = { userId: idOrUser, toolKey: toolOrType, type: 'progress' }
+            }
+
+            document.getElementById('deleteModalTitle').textContent = title
+            document.getElementById('deleteModalMsg').textContent = msg
             document.getElementById('deleteModalBg').classList.remove('hidden')
             lucide.createIcons()
         }
@@ -1228,17 +1242,26 @@
 
         async function executeDelete() {
             if (!pendingDelete) return
-            const { userId, toolKey } = pendingDelete
-            const { error } = await db
-                .from('user_progress')
-                .delete()
-                .match({ user_id: userId, tool_key: toolKey })
+            
+            if (pendingDelete.type === 'announcement') {
+                const { error } = await db.from('announcements').delete().eq('id', pendingDelete.id)
+                if (error) alert('Error: ' + error.message)
+                else fetchData()
+            } else {
+                const { userId, toolKey } = pendingDelete
+                const { error } = await db
+                    .from('user_progress')
+                    .delete()
+                    .match({ user_id: userId, tool_key: toolKey })
 
+                if (error) { alert('Error: ' + error.message) }
+                else {
+                    allProgress = allProgress.filter(r => !(r.user_id === userId && r.tool_key === toolKey))
+                    updateStats()
+                    applyFilters()
+                }
+            }
             closeDeleteModal()
-            if (error) { alert('Error: ' + error.message); return }
-            allProgress = allProgress.filter(r => !(r.user_id === userId && r.tool_key === toolKey))
-            updateStats()
-            applyFilters()
         }
 
         // ── LOGS ──
@@ -1271,6 +1294,11 @@
         }
 
         // ── SETTINGS ──
+        function debouncedSaveSettings() {
+            clearTimeout(settingsTimeout)
+            settingsTimeout = setTimeout(saveSettings, 500)
+        }
+
         function saveSettings() {
             const settings = {
                 maintenance: document.getElementById('setting-maintenance').checked,
@@ -1633,7 +1661,7 @@
                         <p class="text-sm text-slate-400 mb-4 whitespace-pre-wrap">${ann.content}</p>
                         <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button onclick="editAnnouncement('${ann.id}')" class="neo-btn px-3 py-1.5 bg-blue/20 text-blue border-blue/30 rounded-lg text-xs">Edit</button>
-                            <button onclick="deleteAnnouncement('${ann.id}')" class="neo-btn px-3 py-1.5 bg-red-500/20 text-red-400 border-red-500/30 rounded-lg text-xs">Delete</button>
+                            <button onclick="openDeleteModal('${ann.id}', 'announcement')" class="neo-btn px-3 py-1.5 bg-red-500/20 text-red-400 border-red-500/30 rounded-lg text-xs">Delete</button>
                         </div>
                     </div>
                 `
@@ -1651,12 +1679,6 @@
             window.scrollTo({ top: 0, behavior: 'smooth' })
         }
 
-        async function deleteAnnouncement(id) {
-            if (!confirm('Permanently delete this announcement?')) return
-            const { error } = await db.from('announcements').delete().eq('id', id)
-            if (error) alert(error.message)
-            else fetchData()
-        }
 
         function resetAnnForm() {
             document.getElementById('announcementForm').reset()
