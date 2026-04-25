@@ -389,6 +389,8 @@ function getContentForSave() {
     for (const [blobUrl, idbKey] of Object.entries(blobUrlMap)) {
         html = html.split(blobUrl).join(`idb://${idbKey}`);
     }
+    // 2. Strip tokens from Supabase Signed URLs to make them persistent/re-signable
+    html = html.replace(/(https:\/\/[^?]+klasskit-media\/[^?]+)(\?token=[^"'\s]+)/g, '$1');
     return html;
 }
 
@@ -420,6 +422,16 @@ async function resolveImagesInHtml(html) {
     for (const res of results) {
         if (res) html = html.split(res.from).join(res.to);
     }
+
+    // 2. Resolve Cloud Storage URLs (Private Bucket Fix)
+    const cloudMatches = html.match(/https:\/\/[^"'\s]+\/storage\/v1\/object\/public\/klasskit-media\/[^"'\s]+/g) || [];
+    for (const cloudUrl of cloudMatches) {
+        try {
+            const signedUrl = await resolveMediaUrl(cloudUrl);
+            html = html.split(cloudUrl).join(signedUrl);
+        } catch (e) { console.warn('Failed to resolve cloud image', cloudUrl); }
+    }
+
     return html;
 }
 

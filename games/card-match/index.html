@@ -1056,7 +1056,17 @@
                     `;
                     container.appendChild(div);
                 });
+                this.hydrateThumbnails();
                 lucide.createIcons();
+            },
+
+            async hydrateThumbnails() {
+                const thumbs = document.querySelectorAll('.card-preview img, #game-grid img');
+                for (const img of thumbs) {
+                    if (img.src && img.src.includes('klasskit-media')) {
+                        img.src = await resolveMediaUrl(img.src);
+                    }
+                }
             },
 
             removePair: function (idx) {
@@ -1066,7 +1076,7 @@
 
             // --- GAME LOGIC ---
 
-            startGame: function () {
+            startGame: async function () {
                 if (this.pairs.length < 2) return this.toast("Need at least 2 pairs!");
 
                 // Switch Screens
@@ -1092,6 +1102,11 @@
                         content: pair.item2.content
                     });
                 });
+
+                // Resolve all images
+                for (let card of cards) {
+                    if (card.type === 'image') card.content = await resolveMediaUrl(card.content);
+                }
 
                 // Shuffle
                 cards.sort(() => Math.random() - 0.5);

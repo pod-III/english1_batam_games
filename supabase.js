@@ -264,7 +264,7 @@ async function migrateLocalToCloud() {
 
 /* ── STORAGE HELPERS ── */
 const STORAGE_CONFIG = {
-  bucket: 'media',
+  bucket: 'klasskit-media',
   defaultLimit: 50 * 1024 * 1024, // 50MB
   quality: 0.8
 };
@@ -371,12 +371,37 @@ async function uploadMedia(file, activityId) {
     .update({ storage_usage: newUsage })
     .eq('id', user.id);
 
-  // 5. Return URL
-  const { data: { publicUrl } } = db.storage
+  // 5. Return Signed URL (Bucket is private)
+  const { data, error: signError } = await db.storage
     .from(STORAGE_CONFIG.bucket)
-    .getPublicUrl(filePath);
+    .createSignedUrl(filePath, 3600); // 1 hour expiry
 
-  return publicUrl;
+  if (signError) throw signError;
+  return data.signedUrl;
+}
+
+/**
+ * Resolves a stored media URL to a signed URL if it belongs to our private bucket.
+ */
+async function resolveMediaUrl(url) {
+  if (!url || typeof url !== 'string' || !url.includes(STORAGE_CONFIG.bucket)) return url;
+  
+  try {
+    const parts = url.split(STORAGE_CONFIG.bucket + '/');
+    if (parts.length < 2) return url;
+    
+    // Extract path and remove any existing query params/tokens
+    const filePath = parts[1].split('?')[0];
+    
+    const { data, error } = await db.storage
+      .from(STORAGE_CONFIG.bucket)
+      .createSignedUrl(filePath, 3600);
+      
+    return data?.signedUrl || url;
+  } catch (e) {
+    console.error('[Storage] URL resolution failed:', e);
+    return url;
+  }
 }
 
 /**

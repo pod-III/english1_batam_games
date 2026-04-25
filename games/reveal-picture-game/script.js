@@ -617,13 +617,13 @@ const Game = {
         if (window.innerWidth < 768) UI.togglePanel(true);
     },
 
-    loadLevel() {
+    async loadLevel() {
         // Bounds check
         if (this.currentIndex >= this.images.length) this.currentIndex = 0;
         if (this.currentIndex < 0) this.currentIndex = this.images.length - 1;
 
         // Update Image
-        document.getElementById('target-image').src = this.images[this.currentIndex];
+        document.getElementById('target-image').src = await resolveMediaUrl(this.images[this.currentIndex]);
         document.getElementById('round-display').textContent = `${this.currentIndex + 1} / ${this.images.length}`;
 
         // Save Persistence

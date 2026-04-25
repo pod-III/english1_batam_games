@@ -862,7 +862,11 @@ function renderSinglePage(pageIndex, pageData) {
         const img = document.createElement("img");
         img.className = `image-preview ${savedCard.img ? "" : "hidden"}`;
         img.id = `img-${uid}`;
-        img.src = savedCard.img || "";
+        if (savedCard.img) {
+            resolveMediaUrl(savedCard.img).then(url => {
+                img.src = url;
+            });
+        }
 
         const icon = document.createElement("div");
         icon.className = `no-print opacity-20 group-hover:opacity-100 transition-opacity duration-200 ${savedCard.img ? "hidden" : ""}`;
