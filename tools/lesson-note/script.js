@@ -324,17 +324,28 @@ async function processImageInput(inputEl) {
     const file = inputEl.files[0];
     if (!file) return;
     try {
-        const id = `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-        const arrayBuffer = await file.arrayBuffer();
-        await storeImage(id, arrayBuffer, file.type);
+        const { data: { user } } = await db.auth.getUser();
+        
+        if (!isSandbox() && user) {
+            // Upload to Cloud
+            const url = await uploadMedia(file, 'lesson_note');
+            const range = quill.getSelection(true);
+            quill.insertEmbed(range.index, 'image', url);
+            quill.setSelection(range.index + 1);
+        } else {
+            // Fallback to local IDB
+            const id = `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+            const arrayBuffer = await file.arrayBuffer();
+            await storeImage(id, arrayBuffer, file.type);
 
-        const blob = new Blob([arrayBuffer], { type: file.type });
-        const blobUrl = URL.createObjectURL(blob);
-        blobUrlMap[blobUrl] = id;
+            const blob = new Blob([arrayBuffer], { type: file.type });
+            const blobUrl = URL.createObjectURL(blob);
+            blobUrlMap[blobUrl] = id;
 
-        const range = quill.getSelection(true);
-        quill.insertEmbed(range.index, 'image', blobUrl);
-        quill.setSelection(range.index + 1);
+            const range = quill.getSelection(true);
+            quill.insertEmbed(range.index, 'image', blobUrl);
+            quill.setSelection(range.index + 1);
+        }
     } catch (err) {
         console.error('Failed to insert image:', err);
         showToast('Failed to insert image', 'error');
@@ -344,18 +355,30 @@ async function processImageInput(inputEl) {
 
 async function convertBase64ImagesToIDB() {
     const images = quill.root.querySelectorAll('img[src^="data:"]');
+    const { data: { user } } = await db.auth.getUser();
+    const canUpload = !isSandbox() && user;
+
     for (const img of images) {
         const src = img.getAttribute('src');
         const match = src.match(/^data:([^;]+);base64,(.+)$/);
         if (match) {
             try {
-                const id = `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-                const arrayBuffer = base64ToArrayBuffer(match[2]);
-                await storeImage(id, arrayBuffer, match[1]);
-                const blob = new Blob([arrayBuffer], { type: match[1] });
-                const blobUrl = URL.createObjectURL(blob);
-                blobUrlMap[blobUrl] = id;
-                img.setAttribute('src', blobUrl);
+                const mimeType = match[1];
+                const base64Data = match[2];
+                const arrayBuffer = base64ToArrayBuffer(base64Data);
+                const blob = new Blob([arrayBuffer], { type: mimeType });
+                const file = new File([blob], `pasted_image_${Date.now()}.webp`, { type: mimeType });
+
+                if (canUpload) {
+                    const url = await uploadMedia(file, 'lesson_note');
+                    img.setAttribute('src', url);
+                } else {
+                    const id = `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+                    await storeImage(id, arrayBuffer, mimeType);
+                    const blobUrl = URL.createObjectURL(blob);
+                    blobUrlMap[blobUrl] = id;
+                    img.setAttribute('src', blobUrl);
+                }
             } catch (e) { console.warn('Failed to convert pasted image', e); }
         }
     }

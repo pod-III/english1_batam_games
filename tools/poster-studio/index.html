@@ -4,6 +4,7 @@
 <head>
     <!-- Supabase Auth -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
     <script src="/supabase.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -797,7 +798,10 @@
                     `;
                 },
                 render: (d, c, fs) => {
-                    if (d.imageId) return `<div class="w-full h-full flex items-center justify-center overflow-hidden" style="background-color: var(--bg-slate-tint)"><img data-idb-id="${d.imageId}" src="${Store.imgCache.get(d.imageId) || ''}" class="w-full h-full object-cover"></div>`;
+                if (d.imageId) {
+                    const src = Store.imgCache.get(d.imageId) || (d.imageId.startsWith('http') ? d.imageId : '');
+                    return `<div class="w-full h-full flex items-center justify-center overflow-hidden" style="background-color: var(--bg-slate-tint)"><img data-idb-id="${d.imageId}" src="${src}" class="w-full h-full object-cover"></div>`;
+                }
                     return `<div class="w-full h-full flex items-center justify-center overflow-hidden" style="background-color: var(--bg-slate-tint)"><img src="${d.url}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/400?text=Select+Image'"></div>`;
                 }
             }
@@ -897,11 +901,24 @@
             // ... (Image logic same as before) ...
             async uploadImage(input) {
                 const file = input.files[0]; if (!file) return;
-                const imgId = crypto.randomUUID();
-                const blob = new Blob([file], { type: file.type });
-                Store.imgCache.set(imgId, URL.createObjectURL(blob));
-                const tx = Store.db.transaction('imgs', 'readwrite');
-                tx.objectStore('imgs').put(blob, imgId);
+                
+                let imgId;
+                const { data: { user } } = await db.auth.getUser();
+                if (!isSandbox() && user) {
+                    try {
+                        imgId = await uploadMedia(file, 'poster_studio');
+                    } catch (err) {
+                        console.error("Cloud upload failed", err);
+                    }
+                }
+                
+                if (!imgId) {
+                    imgId = crypto.randomUUID();
+                    const blob = new Blob([file], { type: file.type });
+                    Store.imgCache.set(imgId, URL.createObjectURL(blob));
+                    const tx = Store.db.transaction('imgs', 'readwrite');
+                    tx.objectStore('imgs').put(blob, imgId);
+                }
 
                 if (App.currentImageModId) {
                     const key = App.currentImageKey || 'imageId';
@@ -1279,8 +1296,13 @@
             async hydrateImages() {
                 const imgs = document.querySelectorAll('img[data-idb-id]');
                 for (const img of imgs) {
-                    const src = await Store.getImage(img.dataset.idbId);
-                    if (src) img.src = src;
+                    const id = img.dataset.idbId;
+                    if (id && id.startsWith('http')) {
+                        img.src = id;
+                    } else {
+                        const src = await Store.getImage(id);
+                        if (src) img.src = src;
+                    }
                 }
             }
         };

@@ -197,7 +197,15 @@ async function syncSetsToCloud() {
 
 async function syncStateToCloud() {
     try {
-        await saveProgress('card_maker_state', state);
+        // Strip large dataURLs from cloud sync to avoid payload limits
+        const cloudState = JSON.parse(JSON.stringify(state));
+        cloudState.pages = cloudState.pages.map(page => 
+            page.map(card => ({
+                ...card,
+                img: (card.img && card.img.startsWith('http')) ? card.img : "" 
+            }))
+        );
+        await saveProgress('card_maker_state', cloudState);
         console.log("✅ Card State synced to cloud");
     } catch (e) {
         console.error("Cloud sync failed", e);
@@ -474,19 +482,25 @@ async function handleBulkImageImport(input) {
 
     const cardsPerPage = state.gridCols * state.gridRows;
 
-    // Read all images first
+    // Process all images
     const newCards = [];
     for (const file of files) {
         try {
-            const dataUrl = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = (e) => resolve(e.target.result);
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
-            newCards.push({ text: "", img: dataUrl, label: "" });
+            let imgSource;
+            const { data: { user } } = await db.auth.getUser();
+            if (!isSandbox() && user) {
+                imgSource = await uploadMedia(file, 'card_maker');
+            } else {
+                imgSource = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+            }
+            newCards.push({ text: "", img: imgSource, label: "" });
         } catch (e) {
-            console.error("Image load failed", e);
+            console.error("Image processing failed", e);
         }
     }
 

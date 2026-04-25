@@ -175,10 +175,11 @@ const app = {
     async syncToCloud() {
         if (window.syncTimeout) clearTimeout(window.syncTimeout);
         window.syncTimeout = setTimeout(() => {
-            // Sync metadata only (ids, titles, settings) to avoid large blobs
+            // Sync metadata + cloud image URLs to avoid large blobs
             const metadata = this.presets.map(p => ({
                 id: p.id,
                 title: p.title,
+                images: (p.images || []).filter(img => img.startsWith('http')), 
                 currentIndex: p.currentIndex,
                 gridSize: p.gridSize,
                 lastAccessed: p.lastAccessed
@@ -205,8 +206,8 @@ const app = {
                     await DB.savePreset(local);
                     changed = true;
                 } else {
-                    // New preset from another device (will have no images locally)
-                    const newPreset = { ...cp, images: [] };
+                    // New preset from another device (will have cloud URLs in images)
+                    const newPreset = { ...cp, images: cp.images || [] };
                     this.presets.push(newPreset);
                     await DB.savePreset(newPreset);
                     changed = true;
@@ -806,28 +807,38 @@ document.getElementById('grid-slider').addEventListener('input', (e) => Game.upd
 document.getElementById('sound-toggle').addEventListener('click', Audio.toggle);
 
 // 2. File Loading & Persistence
-const handleFiles = (files) => {
+const handleFiles = async (files) => {
     const list = [];
-    let loaded = 0;
-
-    // Show loader immediately
     UI.toggleLoader(true);
 
-    Array.from(files).forEach(f => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            list.push(e.target.result);
-            loaded++;
-            if (loaded === files.length) {
-                // SAVE TO APP STATE INSTEAD OF DB DIRECTLY
-                Game.start(list);
-                app.saveCurrentState();
-                UI.toggleLoader(false);
-                UI.showToast(`Saved ${files.length} Images to Preset!`, "success");
+    for (const f of Array.from(files)) {
+        try {
+            // Check if we should upload to cloud
+            const { data: { user } } = await db.auth.getUser();
+            if (!isSandbox() && user) {
+                const url = await uploadMedia(f, 'reveal_picture');
+                list.push(url);
+            } else {
+                // Fallback to local DataURL (stored in IndexedDB by app.saveCurrentState)
+                const dataUrl = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.readAsDataURL(f);
+                });
+                list.push(dataUrl);
             }
-        };
-        reader.readAsDataURL(f);
-    });
+        } catch (err) {
+            console.error("File processing failed:", err);
+            UI.showToast("Failed to process some images", "error");
+        }
+    }
+
+    if (list.length > 0) {
+        Game.start(list);
+        await app.saveCurrentState();
+        UI.showToast(`Saved ${list.length} Images to Preset!`, "success");
+    }
+    UI.toggleLoader(false);
 };
 
 document.getElementById('file-input').addEventListener('change', (e) => handleFiles(e.target.files));

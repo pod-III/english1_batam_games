@@ -4,6 +4,7 @@
 <head>
     <!-- Supabase Auth -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
     <script src="/supabase.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -504,13 +505,17 @@
         function syncToCloud() {
             if (window.syncTimeout) clearTimeout(window.syncTimeout);
             window.syncTimeout = setTimeout(() => {
-                // Prepare a clean object without images to sync to cloud
+                // Prepare a clean object without images to sync to cloud, unless they are Supabase URLs
                 const cloudPayload = {
                     gridSize: gridSize,
                     customData: {}
                 };
                 Object.keys(customData).forEach(k => {
-                    cloudPayload.customData[k] = { text: customData[k].text, img: "" };
+                    const data = customData[k];
+                    cloudPayload.customData[k] = { 
+                        text: data.text, 
+                        img: (data.img && data.img.startsWith('http')) ? data.img : "" 
+                    };
                 });
                 saveProgress('memory_block', cloudPayload);
             }, 1500);
@@ -695,8 +700,11 @@
             saveBtn.innerHTML = `<i data-lucide="loader-2" class="animate-spin w-5 h-5"></i> Saving...`;
             lucide.createIcons();
 
+            const { data: { user } } = await db.auth.getUser();
+            const canUpload = !isSandbox() && user;
+
             const promises = currentColors.map(key => {
-                return new Promise((resolve) => {
+                return new Promise(async (resolve) => {
                     const textVal = document.getElementById(`input-text-${key}`).value;
                     const fileInput = document.getElementById(`input-img-${key}`);
 
@@ -704,12 +712,22 @@
                     customData[key].text = textVal;
 
                     if (fileInput.files && fileInput.files[0]) {
-                        const reader = new FileReader();
-                        reader.onload = function (e) {
-                            customData[key].img = e.target.result;
+                        try {
+                            if (canUpload) {
+                                customData[key].img = await uploadMedia(fileInput.files[0], 'memory_block');
+                                resolve();
+                            } else {
+                                const reader = new FileReader();
+                                reader.onload = function (e) {
+                                    customData[key].img = e.target.result;
+                                    resolve();
+                                }
+                                reader.readAsDataURL(fileInput.files[0]);
+                            }
+                        } catch (err) {
+                            console.error("Image upload failed", err);
                             resolve();
                         }
-                        reader.readAsDataURL(fileInput.files[0]);
                     } else {
                         resolve();
                     }

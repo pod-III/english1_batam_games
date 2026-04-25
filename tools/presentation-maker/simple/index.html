@@ -4,6 +4,7 @@
 <head>
     <!-- Supabase Auth -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
     <script src="/supabase.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -379,9 +380,17 @@
         async function saveToCloud() {
             try {
                 const text = await dbGet('presentationText');
-                const images = await dbGet('presentationImages');
-                const sets = await getAllSets();
-                await saveProgress('speedy_slides_data', { text, images, sets });
+                const rawImages = await dbGet('presentationImages');
+                const rawSets = await getAllSets();
+
+                // Strip local blobs from cloud sync, keep Supabase URLs
+                const cleanImages = (rawImages || []).map(img => (img && img.startsWith('http')) ? img : "");
+                const cleanSets = (rawSets || []).map(s => ({
+                    ...s,
+                    images: (s.images || []).map(img => (img && img.startsWith('http')) ? img : "")
+                }));
+
+                await saveProgress('speedy_slides_data', { text, images: cleanImages, sets: cleanSets });
             } catch (e) {
                 console.error("Cloud save failed", e);
             }
@@ -508,24 +517,34 @@
                 document.getElementById('item-count').innerText = `${total} item${total !== 1 ? 's' : ''}`;
             },
 
-            handleImages(event) {
+            async handleImages(event) {
                 const files = event.target.files;
                 if (!files || files.length === 0) return;
                 
-                let loaded = 0;
-                Array.from(files).forEach(f => {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        this.images.push(e.target.result);
-                        loaded++;
-                        if (loaded === files.length) {
-                            this.updateImageUI();
-                            this.updateCount();
-                            dbPut('presentationImages', this.images);
+                const { data: { user } } = await db.auth.getUser();
+                const canUpload = !isSandbox() && user;
+
+                for (const file of Array.from(files)) {
+                    try {
+                        let imgSource;
+                        if (canUpload) {
+                            imgSource = await uploadMedia(file, 'presentation_simple');
+                        } else {
+                            imgSource = await new Promise((resolve, reject) => {
+                                const reader = new FileReader();
+                                reader.onload = (e) => resolve(e.target.result);
+                                reader.onerror = reject;
+                                reader.readAsDataURL(file);
+                            });
                         }
-                    };
-                    reader.readAsDataURL(f);
-                });
+                        this.images.push(imgSource);
+                    } catch (err) {
+                        console.error("Image processing failed", err);
+                    }
+                }
+                this.updateImageUI();
+                this.updateCount();
+                dbPut('presentationImages', this.images);
             },
 
             clearImages() {
