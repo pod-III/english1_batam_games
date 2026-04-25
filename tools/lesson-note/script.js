@@ -10,6 +10,7 @@ let isTrashMode = false;
 let isDarkMode = false;
 let idb = null;
 let blobUrlMap = {}; // blobUrl -> idbKey
+let cloudUrlMap = {}; // signedUrl -> originalUrl
 let searchCache = null;
 let strippedContentCache = new Map();
 let sortMode = 'date-desc';
@@ -376,7 +377,7 @@ async function convertBase64ImagesToIDB() {
                 const file = new File([blob], `pasted_image_${Date.now()}.webp`, { type: mimeType });
 
                 if (canUpload) {
-                    const url = await uploadMedia(file, 'lesson_note');
+                    const url = await uploadMedia(file, 'lesson_note', currentNoteId);
                     img.setAttribute('src', url);
                 } else {
                     const id = `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -390,13 +391,23 @@ async function convertBase64ImagesToIDB() {
     }
 }
 
+// No extra declarations here
+
 function getContentForSave() {
     let html = quill.root.innerHTML;
-    for (const [blobUrl, idbKey] of Object.entries(blobUrlMap)) {
-        html = html.split(blobUrl).join(`idb://${idbKey}`);
+    
+    // Convert blob URLs back to idb://
+    for (const [blobUrl, id] of Object.entries(blobUrlMap)) {
+        html = html.split(blobUrl).join(`idb://${id}`);
     }
-    // 2. Strip tokens from Supabase Signed URLs to make them persistent/re-signable
-    html = html.replace(/(https:\/\/[^?]+klasskit-media\/[^?]+)(\?token=[^"'\s]+)/g, '$1');
+
+    // Convert signed URLs back to original cloud paths
+    for (const [signedUrl, originalUrl] of Object.entries(cloudUrlMap)) {
+        // Strip tokens to ensure persistent path
+        const baseOriginal = originalUrl.split('?')[0];
+        html = html.split(signedUrl).join(baseOriginal);
+    }
+
     return html;
 }
 
@@ -406,36 +417,38 @@ async function resolveImagesInHtml(html) {
         URL.revokeObjectURL(url);
     }
     blobUrlMap = {};
+    cloudUrlMap = {};
 
-    const regex = /idb:\/\/([\w_-]+)/g;
-    const ids = Array.from(new Set([...html.matchAll(regex)].map(m => m[1])));
+    // 1. Resolve idb:// URLs
+    const idbRegex = /idb:\/\/([\w_-]+)/g;
+    const idbIds = Array.from(new Set([...html.matchAll(idbRegex)].map(m => m[1])));
     
-    if (ids.length === 0) return html;
-
-    const results = await Promise.all(ids.map(async id => {
+    for (const id of idbIds) {
         try {
             const data = await getImage(id);
             if (data) {
                 const blob = new Blob([data.data], { type: data.type });
                 const blobUrl = URL.createObjectURL(blob);
                 blobUrlMap[blobUrl] = id;
-                return { from: `idb://${id}`, to: blobUrl };
+                html = html.split(`idb://${id}`).join(blobUrl);
             }
-        } catch (e) { console.warn('Failed to load image', id); }
-        return null;
-    }));
-
-    for (const res of results) {
-        if (res) html = html.split(res.from).join(res.to);
+        } catch (e) { console.warn('Failed to load local image', id); }
     }
 
-    // 2. Resolve Cloud Storage URLs (Private Bucket Fix)
-    const cloudMatches = html.match(/https:\/\/[^"'\s]+\/storage\/v1\/object\/public\/klasskit-media\/[^"'\s]+/g) || [];
-    for (const cloudUrl of cloudMatches) {
+    // 2. Resolve Supabase URLs (klasskit-media bucket)
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const imgs = doc.querySelectorAll('img');
+    const cloudImgs = Array.from(imgs).filter(img => img.src.includes('klasskit-media'));
+
+    for (const imgEl of cloudImgs) {
+        const originalUrl = imgEl.src;
         try {
-            const signedUrl = await resolveMediaUrl(cloudUrl);
-            html = html.split(cloudUrl).join(signedUrl);
-        } catch (e) { console.warn('Failed to resolve cloud image', cloudUrl); }
+            const signedUrl = await resolveMediaUrl(originalUrl);
+            if (signedUrl !== originalUrl) {
+                cloudUrlMap[signedUrl] = originalUrl;
+                html = html.split(originalUrl).join(signedUrl);
+            }
+        } catch (e) { console.warn('Failed to resolve cloud image', originalUrl); }
     }
 
     return html;
