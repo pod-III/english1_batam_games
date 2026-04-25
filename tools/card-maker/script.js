@@ -229,19 +229,16 @@ async function loadState() {
     }
     if (!state.id) state.id = 'cards_' + Date.now();
 
-            // Restore UI Controls
-            inputCols.value = state.gridCols || 3;
-            inputRows.value = state.gridRows || 3;
+    // Restore UI Controls
+    inputCols.value = state.gridCols || 3;
+    inputRows.value = state.gridRows || 3;
 
-            // Apply visual settings (without saving again to avoid loops)
-            setOrientation(state.orientation, false);
-            setImageSize(state.imgHeight ?? 50, false);
-            setFontSize(state.fontSize || 2, false);
-            updateToggleUI();
-        } catch (e) {
-            console.error("Load Error:", e);
-        }
-    }
+    // Apply visual settings (without saving again to avoid loops)
+    setOrientation(state.orientation, false);
+    setImageSize(state.imgHeight ?? 50, false);
+    setFontSize(state.fontSize || 2, false);
+    updateToggleUI();
+    renderAllPages();
 
     // Sync from Cloud
     try {
@@ -255,23 +252,20 @@ async function loadState() {
             setImageSize(state.imgHeight ?? 50, false);
             setFontSize(state.fontSize || 2, false);
             updateToggleUI();
+            renderAllPages();
         }
 
         const cloudSets = await loadProgress('card_maker_sets');
         if (cloudSets && cloudSets.length > 0) {
             // Merge cloud sets into local DB
-            const db = await initDB();
-            for (const set of cloudSets) {
-                const tx = db.transaction(SETS_STORE, 'readwrite');
-                // Use put to overwrite/add
-                tx.objectStore(SETS_STORE).put(set);
+            for (const s of cloudSets) {
+                await saveCardSetToDB(s.name, s.stateData);
             }
             renderCardSets();
         }
     } catch (e) {
-        console.error("Cloud load failed", e);
+        console.error("Cloud load failed:", e);
     }
-
     // Ensure at least one page exists
     if (!state.pages || state.pages.length === 0) {
         state.pages = [[]];
@@ -301,7 +295,7 @@ function saveState() {
                 ? labelElement.innerText
                 : "";
             const text = textElement ? textElement.innerText : "";
-            const imgSrc = imgElement ? imgElement.src : "";
+            const imgSrc = imgElement ? (imgElement.dataset.original || imgElement.src) : "";
             // Check if image is actually visible/set. If src is empty or hidden, save empty string.
             const hasImage =
                 imgElement &&
@@ -876,6 +870,7 @@ function renderSinglePage(pageIndex, pageData) {
         img.className = `image-preview ${savedCard.img ? "" : "hidden"}`;
         img.id = `img-${uid}`;
         if (savedCard.img) {
+            img.dataset.original = savedCard.img; // Store original URL to prevent saveState wiping it
             resolveMediaUrl(savedCard.img).then(url => {
                 img.src = url;
             });
@@ -973,15 +968,28 @@ function renderSinglePage(pageIndex, pageData) {
     pagesContainer.appendChild(wrapper);
 }
 
-function handleFileSelect(file, uid, pageIndex) {
+async function handleFileSelect(file, uid, pageIndex) {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (re) => {
-        const img = document.getElementById(`img-${uid}`);
-        const icon = document.getElementById(`icon-${uid}`);
-        const delBtn = document.getElementById(`del-${uid}`);
+    
+    const img = document.getElementById(`img-${uid}`);
+    const icon = document.getElementById(`icon-${uid}`);
+    const delBtn = document.getElementById(`del-${uid}`);
 
-        img.src = reader.result;
+    try {
+        let imgSource;
+        const { data: { user } } = await db.auth.getUser();
+        if (!isSandbox() && user) {
+            imgSource = await uploadMedia(file, 'card_maker', state.id);
+        } else {
+            imgSource = await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.readAsDataURL(file);
+            });
+        }
+
+        img.src = imgSource;
+        img.dataset.original = imgSource;
         img.classList.remove("hidden");
         icon.classList.add("hidden");
         delBtn.classList.remove("hidden");
@@ -992,8 +1000,10 @@ function handleFileSelect(file, uid, pageIndex) {
         img.style.padding = state.imgHeight === 100 ? "0" : "4px";
 
         saveState();
-    };
-    reader.readAsDataURL(file);
+    } catch (e) {
+        console.error("Image upload failed", e);
+        showToast("Image upload failed", "error");
+    }
 }
 
 async function resetTool() {
