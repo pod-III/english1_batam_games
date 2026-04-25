@@ -47,12 +47,11 @@ const MediaManager = {
 
         this.refreshBtn.addEventListener('click', () => this.loadData());
 
-        this.clearAllBtn.addEventListener('click', () => this.handleClearAll());
+        // Clear all button click is handled dynamically in loadCloudData/loadSandboxData
     },
 
     open() {
         this.modal.classList.remove('hidden');
-        this.currentPath = [];
         this.loadData();
     },
 
@@ -99,172 +98,132 @@ const MediaManager = {
         const user = await getUser();
         if (!user) return;
 
-        // Fetch all files flat if at root, or use cached
-        if (this.currentPath.length === 0) {
-            // Using recursive list by fetching flat
-            // Note: Supabase JS v2 list does not support recursive natively in all versions, 
-            // but we can query with search or just list everything if possible.
-            // Wait, we'll list folders level by level for simplicity.
-            const pathStr = this.currentPath.length > 0 ? `${user.id}/${this.currentPath.join('/')}` : user.id;
-            
-            const { data, error } = await db.storage.from('klasskit-media').list(pathStr, { limit: 1000 });
-            if (error) {
-                console.error("Cloud list error", error);
-                return;
-            }
-            
-            this.renderCloudLevel(data);
-        } else {
-            const pathStr = `${user.id}/${this.currentPath.join('/')}`;
-            const { data, error } = await db.storage.from('klasskit-media').list(pathStr, { limit: 1000 });
-            if (error) return;
-            this.renderCloudLevel(data);
-        }
-        
-        this.renderBreadcrumbs();
-    },
-
-    async renderCloudLevel(items) {
-        this.grid.innerHTML = '';
-        if (!items || items.length === 0) {
-            this.empty.classList.remove('hidden');
-            return;
-        }
-
-        // Filter out empty folder placeholders
-        const validItems = items.filter(item => item.name !== '.emptyFolderPlaceholder');
-        if (validItems.length === 0) {
-            this.empty.classList.remove('hidden');
-            return;
-        }
-
         this.clearAllBtn.classList.remove('hidden');
-        this.clearAllBtn.onclick = () => this.handleClearCloudCurrent();
+        this.clearAllBtn.onclick = () => this.handleClearCloudAll();
 
-        for (const item of validItems) {
-            // In Supabase, if metadata is null, it's usually a folder
-            const isFolder = !item.metadata;
-            
-            const card = document.createElement('div');
-            card.className = "bg-white dark:bg-slate-800 rounded-xl border-2 border-slate-200 dark:border-slate-700 p-3 flex flex-col gap-2 relative group hover:border-blue transition-colors cursor-pointer";
-            
-            if (isFolder) {
-                card.onclick = () => {
-                    this.currentPath.push(item.name);
-                    this.loadData();
-                };
-                card.innerHTML = `
-                    <div class="flex-1 flex items-center justify-center bg-slate-50 dark:bg-slate-900 rounded-lg aspect-square">
-                        <i data-lucide="folder" class="w-12 h-12 text-blue opacity-80"></i>
-                    </div>
-                    <div class="text-center font-bold text-sm text-slate-700 dark:text-slate-300 truncate w-full" title="${item.name}">${item.name}</div>
-                    <button class="delete-btn hidden absolute top-1 right-1 bg-red-500 text-white p-1.5 rounded-lg border-2 border-dark shadow-hard-sm hover:scale-110" title="Delete Folder">
-                        <i data-lucide="trash-2" class="w-3 h-3"></i>
-                    </button>
-                `;
-                
-                const delBtn = card.querySelector('.delete-btn');
-                delBtn.onclick = async (e) => {
-                    e.stopPropagation();
-                    if(confirm(`Delete folder "${item.name}" and all contents?`)) {
-                        await this.deleteCloudFolder(item.name);
-                    }
-                };
-            } else {
-                // It's a file. Get signed URL for preview
-                card.innerHTML = `
-                    <div class="flex-1 flex items-center justify-center bg-slate-100 dark:bg-slate-900 rounded-lg aspect-square overflow-hidden relative">
-                        <div class="absolute inset-0 flex items-center justify-center"><i data-lucide="image" class="w-8 h-8 text-slate-300"></i></div>
-                        <img class="w-full h-full object-cover relative z-10 opacity-0 transition-opacity duration-300" />
-                    </div>
-                    <div class="text-center font-bold text-xs text-slate-500 dark:text-slate-400 truncate w-full" title="${item.name}">${item.name}</div>
-                    <button class="delete-btn absolute top-1 right-1 bg-red-500 text-white p-1.5 rounded-lg border-2 border-dark shadow-hard-sm hover:scale-110" title="Delete File">
-                        <i data-lucide="trash-2" class="w-3 h-3"></i>
-                    </button>
-                `;
-                
-                // Fetch image preview async
-                this.loadCloudPreview(card.querySelector('img'), item.name);
-                
-                const delBtn = card.querySelector('.delete-btn');
-                delBtn.onclick = async (e) => {
-                    e.stopPropagation();
-                    if(confirm(`Delete file "${item.name}"?`)) {
-                        await this.deleteCloudFile(item.name);
-                    }
-                };
-            }
-            this.grid.appendChild(card);
-        }
+        this.grid.innerHTML = '';
+        // Change grid to a flex container for sections
+        this.grid.className = 'h-full overflow-y-auto p-6 flex flex-col gap-8 custom-scrollbar';
+        this.breadcrumbs.innerHTML = '<span class="text-dark dark:text-white font-bold">All Cloud Media (Grouped by Tool/Set)</span>';
+
+        const allFiles = await this.fetchAllCloudFiles(user.id);
         
-        // Show delete buttons on hover for folders
-        this.grid.querySelectorAll('.group').forEach(el => {
-            el.addEventListener('mouseenter', () => {
-                const btn = el.querySelector('.delete-btn');
-                if(btn) btn.classList.remove('hidden');
+        if (allFiles.length === 0) {
+            this.empty.classList.remove('hidden');
+            return;
+        }
+
+        // Group by relative path
+        const groups = {};
+        for (const file of allFiles) {
+            const parts = file.fullPath.split('/');
+            parts.shift(); // remove user_id
+            parts.pop(); // remove filename
+            const groupName = parts.join('/') || 'Root';
+            
+            if (!groups[groupName]) groups[groupName] = [];
+            groups[groupName].push(file);
+        }
+
+        for (const [groupName, files] of Object.entries(groups)) {
+            let label = groupName.split('/').map(p => p.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')).join(' > ');
+            
+            const section = this.createSection(label, async () => {
+                if(confirm(`Delete all media in ${label}?`)) {
+                    this.showLoader();
+                    await deleteFolder(`${user.id}/${groupName}`);
+                    this.loadData();
+                    if(typeof StorageManager !== 'undefined') StorageManager.update();
+                }
             });
-            el.addEventListener('mouseleave', () => {
-                const btn = el.querySelector('.delete-btn');
-                if(btn) btn.classList.add('hidden');
-            });
-        });
+            const grid = section.querySelector('.media-grid');
+
+            for (const file of files) {
+                grid.appendChild(this.createCloudCard(user.id, file));
+            }
+            this.grid.appendChild(section);
+        }
         
         lucide.createIcons();
     },
+
+    async fetchAllCloudFiles(path, files = []) {
+        const { data, error } = await db.storage.from('klasskit-media').list(path, { limit: 1000 });
+        if (error || !data) return files;
+        
+        for (const item of data) {
+            if (item.name === '.emptyFolderPlaceholder') continue;
+            
+            if (!item.metadata) {
+                // Folder
+                await this.fetchAllCloudFiles(`${path}/${item.name}`, files);
+            } else {
+                // File
+                files.push({ ...item, fullPath: `${path}/${item.name}` });
+            }
+        }
+        return files;
+    },
+
+    createCloudCard(userId, file) {
+        const card = document.createElement('div');
+        card.className = "bg-white dark:bg-slate-800 rounded-xl border-[3px] border-dark dark:border-slate-700 p-3 flex flex-col gap-2 relative group hover:border-blue transition-colors shadow-hard-sm";
+        
+        card.innerHTML = `
+            <div class="flex-1 flex items-center justify-center bg-slate-100 dark:bg-slate-900 rounded-lg aspect-square overflow-hidden relative">
+                <div class="absolute inset-0 flex items-center justify-center"><i data-lucide="image" class="w-8 h-8 text-slate-300"></i></div>
+                <img class="w-full h-full object-cover relative z-10 opacity-0 transition-opacity duration-300" />
+            </div>
+            <div class="text-center font-bold text-xs text-slate-500 dark:text-slate-400 truncate w-full" title="${file.name}">${file.name}</div>
+            <button class="delete-btn hidden absolute top-1 right-1 bg-red-500 text-white p-1.5 rounded-lg border-2 border-dark shadow-hard-sm hover:scale-110" title="Delete File">
+                <i data-lucide="trash-2" class="w-3 h-3"></i>
+            </button>
+        `;
+        
+        this.loadCloudPreview(card.querySelector('img'), file.fullPath);
+        
+        const delBtn = card.querySelector('.delete-btn');
+        delBtn.onclick = async (e) => {
+            e.stopPropagation();
+            if(confirm(`Delete file "${file.name}"?`)) {
+                this.showLoader();
+                await db.storage.from('klasskit-media').remove([file.fullPath]);
+                this.loadData();
+                if(typeof StorageManager !== 'undefined') StorageManager.update();
+            }
+        };
+
+        card.addEventListener('mouseenter', () => delBtn.classList.remove('hidden'));
+        card.addEventListener('mouseleave', () => delBtn.classList.add('hidden'));
+
+        return card;
+    },
     
-    async loadCloudPreview(imgEl, fileName) {
-        const user = await getUser();
-        const pathStr = `${user.id}/${this.currentPath.length > 0 ? this.currentPath.join('/') + '/' : ''}${fileName}`;
-        const { data } = await db.storage.from('klasskit-media').createSignedUrl(pathStr, 60);
+    async loadCloudPreview(imgEl, fullPath) {
+        const { data } = await db.storage.from('klasskit-media').createSignedUrl(fullPath, 60);
         if (data && data.signedUrl) {
             imgEl.src = data.signedUrl;
             imgEl.onload = () => imgEl.classList.remove('opacity-0');
         }
     },
     
-    async deleteCloudFolder(folderName) {
-        const user = await getUser();
-        const pathStr = `${user.id}/${this.currentPath.length > 0 ? this.currentPath.join('/') + '/' : ''}${folderName}`;
-        this.showLoader();
-        await deleteFolder(pathStr);
-        this.loadData();
-        // Update hub storage badge
-        if(typeof StorageManager !== 'undefined') StorageManager.update();
-    },
-    
-    async deleteCloudFile(fileName) {
-        const user = await getUser();
-        const pathStr = `${user.id}/${this.currentPath.length > 0 ? this.currentPath.join('/') + '/' : ''}${fileName}`;
-        this.showLoader();
-        await db.storage.from('klasskit-media').remove([pathStr]);
-        this.loadData();
-        if(typeof StorageManager !== 'undefined') StorageManager.update();
-    },
-    
-    async handleClearCloudCurrent() {
-        if (!confirm("Are you sure you want to delete ALL items in this view?")) return;
+    async handleClearCloudAll() {
+        if (!confirm("Are you sure you want to delete ALL your cloud media across all tools? This cannot be undone.")) return;
         
-        if (this.currentPath.length === 0) {
-            // At root, we need to delete all folders
-            const user = await getUser();
-            const { data } = await db.storage.from('klasskit-media').list(user.id);
-            if(data) {
-                this.showLoader();
-                for (const item of data) {
-                    const pathStr = `${user.id}/${item.name}`;
-                    if (!item.metadata) {
-                        await deleteFolder(pathStr);
-                    } else {
-                        await db.storage.from('klasskit-media').remove([pathStr]);
-                    }
+        const user = await getUser();
+        const { data } = await db.storage.from('klasskit-media').list(user.id);
+        if(data) {
+            this.showLoader();
+            for (const item of data) {
+                const pathStr = `${user.id}/${item.name}`;
+                if (!item.metadata) {
+                    await deleteFolder(pathStr);
+                } else {
+                    await db.storage.from('klasskit-media').remove([pathStr]);
                 }
-                this.loadData();
-                if(typeof StorageManager !== 'undefined') StorageManager.update();
             }
-        } else {
-            // Delete the current folder we are inside, then go back
-            const folderName = this.currentPath.pop();
-            await this.deleteCloudFolder(folderName);
+            this.loadData();
+            if(typeof StorageManager !== 'undefined') StorageManager.update();
         }
     },
 
@@ -275,119 +234,93 @@ const MediaManager = {
         this.clearAllBtn.classList.remove('hidden');
         this.clearAllBtn.onclick = () => this.handleClearSandboxAll();
         
-        if (this.currentPath.length === 0) {
-            // Show known DBs as folders
-            this.renderSandboxRoot();
-        } else {
-            // Show files in specific DB
-            await this.renderSandboxFolder(this.currentPath[0]);
-        }
-        this.renderBreadcrumbs();
-    },
-    
-    renderSandboxRoot() {
         this.grid.innerHTML = '';
-        for (const dbInfo of this.KNOWN_DB_NAMES) {
-            const card = document.createElement('div');
-            card.className = "bg-white dark:bg-slate-800 rounded-xl border-2 border-slate-200 dark:border-slate-700 p-3 flex flex-col gap-2 relative group hover:border-blue transition-colors cursor-pointer";
-            card.onclick = () => {
-                this.currentPath.push(dbInfo.name);
-                this.loadData();
-            };
-            card.innerHTML = `
-                <div class="flex-1 flex items-center justify-center bg-slate-50 dark:bg-slate-900 rounded-lg aspect-square">
-                    <i data-lucide="database" class="w-12 h-12 text-orange opacity-80"></i>
-                </div>
-                <div class="text-center font-bold text-sm text-slate-700 dark:text-slate-300 truncate w-full" title="${dbInfo.label}">${dbInfo.label}</div>
-            `;
-            this.grid.appendChild(card);
-        }
-        lucide.createIcons();
-    },
-    
-    async renderSandboxFolder(dbName) {
-        this.grid.innerHTML = '';
-        const dbInfo = this.KNOWN_DB_NAMES.find(d => d.name === dbName);
-        if (!dbInfo) {
-            this.empty.classList.remove('hidden');
-            return;
-        }
+        this.grid.className = 'h-full overflow-y-auto p-6 flex flex-col gap-8 custom-scrollbar';
+        this.breadcrumbs.innerHTML = '<span class="text-dark dark:text-white font-bold">All Local Media (Grouped by Tool)</span>';
+        
+        let hasAnyMedia = false;
 
-        try {
-            const items = await this.getAllFromIDB(dbInfo.name, dbInfo.store);
-            if (!items || items.length === 0) {
-                this.empty.classList.remove('hidden');
-                return;
-            }
-            
-            for (const item of items) {
-                const isBlob = item.value instanceof Blob;
-                const isDataUrl = typeof item.value === 'string' && item.value.startsWith('data:image');
-                const isUrlObj = item.value && item.value.dataUrl; // Some tools wrap it
+        for (const dbInfo of this.KNOWN_DB_NAMES) {
+            try {
+                const items = await this.getAllFromIDB(dbInfo.name, dbInfo.store);
+                if (!items || items.length === 0) continue;
                 
-                if (!isBlob && !isDataUrl && !isUrlObj) continue; // Skip non-images
+                const validItems = items.filter(item => {
+                    const isBlob = item.value instanceof Blob;
+                    const isDataUrl = typeof item.value === 'string' && item.value.startsWith('data:image');
+                    const isUrlObj = item.value && item.value.dataUrl;
+                    return isBlob || isDataUrl || isUrlObj;
+                });
                 
-                let srcUrl = '';
-                if (isBlob) srcUrl = URL.createObjectURL(item.value);
-                else if (isDataUrl) srcUrl = item.value;
-                else if (isUrlObj) srcUrl = item.value.dataUrl;
-                
-                const card = document.createElement('div');
-                card.className = "bg-white dark:bg-slate-800 rounded-xl border-2 border-slate-200 dark:border-slate-700 p-3 flex flex-col gap-2 relative group";
-                
-                card.innerHTML = `
-                    <div class="flex-1 flex items-center justify-center bg-slate-100 dark:bg-slate-900 rounded-lg aspect-square overflow-hidden relative">
-                        <img src="${srcUrl}" class="w-full h-full object-cover relative z-10" />
-                    </div>
-                    <div class="text-center font-bold text-[10px] text-slate-500 truncate w-full" title="Key: ${item.key}">Key: ${item.key}</div>
-                    <button class="delete-btn hidden absolute top-1 right-1 bg-red-500 text-white p-1.5 rounded-lg border-2 border-dark shadow-hard-sm hover:scale-110" title="Delete File">
-                        <i data-lucide="trash-2" class="w-3 h-3"></i>
-                    </button>
-                `;
-                
-                const delBtn = card.querySelector('.delete-btn');
-                delBtn.onclick = async () => {
-                    if(confirm("Delete this local file?")) {
-                        await this.deleteFromIDB(dbInfo.name, dbInfo.store, item.key);
+                if (validItems.length === 0) continue;
+                hasAnyMedia = true;
+
+                const section = this.createSection(dbInfo.label, async () => {
+                    if(confirm(`Delete all local media in ${dbInfo.label}?`)) {
+                        this.showLoader();
+                        await this.clearIDBStore(dbInfo.name, dbInfo.store);
                         this.loadData();
                         if(typeof StorageManager !== 'undefined') StorageManager.update();
                     }
-                };
-                this.grid.appendChild(card);
+                });
+                const grid = section.querySelector('.media-grid');
+
+                for (const item of validItems) {
+                    grid.appendChild(this.createSandboxCard(dbInfo, item));
+                }
+                this.grid.appendChild(section);
+            } catch (e) {
+                console.error("IDB Error parsing", dbInfo.name, e);
             }
-            
-            this.grid.querySelectorAll('.group').forEach(el => {
-                el.addEventListener('mouseenter', () => el.querySelector('.delete-btn')?.classList.remove('hidden'));
-                el.addEventListener('mouseleave', () => el.querySelector('.delete-btn')?.classList.add('hidden'));
-            });
-            
-            lucide.createIcons();
-            
-            if (this.grid.children.length === 0) {
-                this.empty.classList.remove('hidden');
-            }
-            
-        } catch (e) {
-            console.error("IDB Error", e);
+        }
+        
+        if (!hasAnyMedia) {
             this.empty.classList.remove('hidden');
         }
+        
+        lucide.createIcons();
+    },
+
+    createSandboxCard(dbInfo, item) {
+        let srcUrl = '';
+        if (item.value instanceof Blob) srcUrl = URL.createObjectURL(item.value);
+        else if (typeof item.value === 'string') srcUrl = item.value;
+        else if (item.value && item.value.dataUrl) srcUrl = item.value.dataUrl;
+        
+        const card = document.createElement('div');
+        card.className = "bg-white dark:bg-slate-800 rounded-xl border-[3px] border-dark dark:border-slate-700 p-3 flex flex-col gap-2 relative group shadow-hard-sm";
+        
+        card.innerHTML = `
+            <div class="flex-1 flex items-center justify-center bg-slate-100 dark:bg-slate-900 rounded-lg aspect-square overflow-hidden relative">
+                <img src="${srcUrl}" class="w-full h-full object-cover relative z-10" />
+            </div>
+            <div class="text-center font-bold text-[10px] text-slate-500 truncate w-full" title="${item.key}">${item.key}</div>
+            <button class="delete-btn hidden absolute top-1 right-1 bg-red-500 text-white p-1.5 rounded-lg border-2 border-dark shadow-hard-sm hover:scale-110" title="Delete File">
+                <i data-lucide="trash-2" class="w-3 h-3"></i>
+            </button>
+        `;
+        
+        const delBtn = card.querySelector('.delete-btn');
+        delBtn.onclick = async () => {
+            if(confirm("Delete this local file?")) {
+                this.showLoader();
+                await this.deleteFromIDB(dbInfo.name, dbInfo.store, item.key);
+                this.loadData();
+                if(typeof StorageManager !== 'undefined') StorageManager.update();
+            }
+        };
+
+        card.addEventListener('mouseenter', () => delBtn.classList.remove('hidden'));
+        card.addEventListener('mouseleave', () => delBtn.classList.add('hidden'));
+
+        return card;
     },
     
     async handleClearSandboxAll() {
-        if (!confirm("Are you sure you want to clear this local sandbox data?")) return;
+        if (!confirm("Are you sure you want to clear ALL local sandbox data?")) return;
         
-        if (this.currentPath.length === 0) {
-            // Clear all known DBs
-            for (const dbInfo of this.KNOWN_DB_NAMES) {
-                await this.clearIDBStore(dbInfo.name, dbInfo.store);
-            }
-        } else {
-            // Clear current DB
-            const dbName = this.currentPath[0];
-            const dbInfo = this.KNOWN_DB_NAMES.find(d => d.name === dbName);
-            if (dbInfo) {
-                await this.clearIDBStore(dbInfo.name, dbInfo.store);
-            }
+        for (const dbInfo of this.KNOWN_DB_NAMES) {
+            await this.clearIDBStore(dbInfo.name, dbInfo.store);
         }
         this.loadData();
         if(typeof StorageManager !== 'undefined') StorageManager.update();
@@ -452,52 +385,28 @@ const MediaManager = {
     // ---------------------------------------------------------
     // COMMON UI HELPERS
     // ---------------------------------------------------------
-    renderBreadcrumbs() {
-        let html = `
-            <button class="hover:text-blue transition-colors flex items-center gap-1" onclick="MediaManager.navigateHome()">
-                <i data-lucide="home" class="w-4 h-4"></i> Root
+    createSection(title, onClearGroup) {
+        const section = document.createElement('div');
+        section.className = "flex flex-col gap-4";
+        
+        const header = document.createElement('div');
+        header.className = "flex items-center justify-between border-b-[3px] border-dark dark:border-slate-700 pb-2";
+        header.innerHTML = `
+            <h3 class="font-heading font-black text-xl text-dark dark:text-white tracking-tight uppercase">${title}</h3>
+            <button class="stick-btn h-8 w-8 hover:bg-red-50 hover:border-red-500 hover:text-red-500 text-slate-400 !shadow-none rounded-lg border-2" title="Clear Group">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
             </button>
         `;
         
-        let pathSoFar = [];
-        for (let i = 0; i < this.currentPath.length; i++) {
-            const part = this.currentPath[i];
-            pathSoFar.push(part);
-            const isLast = i === this.currentPath.length - 1;
-            
-            let label = part;
-            // Prettify known DB names in sandbox
-            if (isSandbox()) {
-                const known = this.KNOWN_DB_NAMES.find(d => d.name === part);
-                if (known) label = known.label;
-            }
-            
-            html += `<i data-lucide="chevron-right" class="w-3 h-3 text-slate-400"></i>`;
-            
-            if (isLast) {
-                html += `<span class="text-dark dark:text-white">${label}</span>`;
-            } else {
-                const targetIdx = i;
-                html += `
-                    <button class="hover:text-blue transition-colors" onclick="MediaManager.navigateTo(${targetIdx})">
-                        ${label}
-                    </button>
-                `;
-            }
-        }
-        
-        this.breadcrumbs.innerHTML = html;
-        lucide.createIcons();
-    },
+        const clearBtn = header.querySelector('button');
+        clearBtn.onclick = onClearGroup;
 
-    navigateHome() {
-        this.currentPath = [];
-        this.loadData();
-    },
-    
-    navigateTo(index) {
-        this.currentPath = this.currentPath.slice(0, index + 1);
-        this.loadData();
+        const grid = document.createElement('div');
+        grid.className = "media-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4";
+
+        section.appendChild(header);
+        section.appendChild(grid);
+        return section;
     },
 
     showLoader() {
