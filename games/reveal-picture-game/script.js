@@ -828,7 +828,7 @@ const handleFiles = async (files) => {
             // Check if we should upload to cloud
             const { data: { user } } = await db.auth.getUser();
             if (!isSandbox() && user) {
-                const url = await uploadMedia(f, 'reveal_picture', App.activePresetId);
+                const url = await uploadMedia(f, 'reveal_picture', app.activePresetId);
                 list.push(url);
             } else {
                 // Fallback to local DataURL (stored in IndexedDB by app.saveCurrentState)
