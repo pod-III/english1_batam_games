@@ -291,18 +291,6 @@
             </div>
         </div>
 
-        <!-- Storage Badge -->
-        <div id="storage-badge" class="hidden p-5 border-b-[3px] border-slate-800">
-            <div class="flex flex-col gap-2">
-                <div class="flex items-center justify-between">
-                    <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Your Storage</span>
-                    <span id="storageText" class="text-[10px] text-slate-400 font-mono">0 MB / 10 MB</span>
-                </div>
-                <div class="h-2 bg-slate-800 border-2 border-slate-700 rounded-full overflow-hidden">
-                    <div id="storageBar" class="h-full bg-blue transition-all duration-500" style="width: 0%"></div>
-                </div>
-            </div>
-        </div>
 
         <!-- Nav -->
         <nav class="flex-1 p-4 space-y-1">
@@ -320,6 +308,9 @@
             </button>
             <button onclick="setView('announcements')" id="nav-announcements" class="sidebar-link w-full text-slate-400">
                 <i data-lucide="megaphone" class="w-4 h-4 flex-shrink-0"></i> Announcements
+            </button>
+            <button onclick="setView('cloud')" id="nav-cloud" class="sidebar-link w-full text-slate-400">
+                <i data-lucide="cloud" class="w-4 h-4 flex-shrink-0"></i> Cloud Usage
             </button>
             <button onclick="setView('settings')" id="nav-settings" class="sidebar-link w-full text-slate-400">
                 <i data-lucide="settings" class="w-4 h-4 flex-shrink-0"></i> Settings
@@ -493,6 +484,9 @@
                                         Role</th>
                                     <th
                                         class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                        Storage</th>
+                                    <th
+                                        class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
                                         Tools used</th>
                                     <th
                                         class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
@@ -629,6 +623,63 @@
                 </div>
             </div>
 
+            <!-- CLOUD USAGE VIEW -->
+            <div id="view-cloud" class="hidden">
+                <div class="space-y-6">
+                    <!-- Storage Summary -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="md:col-span-2 neo bg-slate-800 rounded-[20px] p-6">
+                            <div class="flex items-center justify-between mb-6">
+                                <h2 class="font-heading text-lg text-white">Global Storage Status</h2>
+                                <button onclick="syncAllStorage()" id="syncAllBtn" class="neo-btn px-4 py-2 bg-blue text-white rounded-xl text-xs">
+                                    <i data-lucide="refresh-cw" class="w-4 h-4 mr-1"></i> Sync All Storage
+                                </button>
+                            </div>
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-between text-sm">
+                                    <span class="text-slate-400">Total Used Across All Users</span>
+                                    <span id="globalStorageUsed" class="font-bold text-white font-mono">0.0 MB</span>
+                                </div>
+                                <div class="h-4 bg-slate-900 border-2 border-slate-700 rounded-full overflow-hidden">
+                                    <div id="globalStorageBar" class="h-full bg-blue transition-all duration-700" style="width: 0%"></div>
+                                </div>
+                                <div class="text-[10px] text-slate-500 font-bold uppercase tracking-widest text-center">
+                                    Capacity monitoring based on user limits
+                                </div>
+                            </div>
+                        </div>
+                        <div class="neo bg-slate-800 rounded-[20px] p-6 flex flex-col justify-center items-center text-center">
+                            <div class="w-12 h-12 rounded-2xl bg-orange/20 border-2 border-orange/40 flex items-center justify-center mb-4">
+                                <i data-lucide="users" class="w-6 h-6 text-orange"></i>
+                            </div>
+                            <div class="text-2xl font-heading text-white mb-1" id="globalActiveUsers">—</div>
+                            <div class="text-xs text-slate-500 font-bold uppercase tracking-widest">Active Storage Users</div>
+                        </div>
+                    </div>
+
+                    <!-- User Storage Table -->
+                    <div class="neo bg-slate-800 rounded-[20px] overflow-hidden">
+                        <div class="p-5 border-b-[3px] border-slate-700">
+                            <h2 class="font-heading text-lg text-white">User Storage Breakdown</h2>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="border-b-2 border-slate-700 bg-slate-900">
+                                        <th class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">User</th>
+                                        <th class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Usage</th>
+                                        <th class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Limit</th>
+                                        <th class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Progress</th>
+                                        <th class="text-right px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cloudTableBody" class="divide-y divide-slate-700/50"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- SETTINGS VIEW -->
             <div id="view-settings" class="hidden">
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -756,30 +807,9 @@
             populateToolFilter()
             applyFilters()
             renderAnnouncements()
-            updateStorageStats()
+            if (currentView === 'cloud') renderCloudTable()
         }
 
-        async function updateStorageStats() {
-            try {
-                const usage = await getUserStorageUsage();
-                const usedMB = (usage.used / (1024 * 1024)).toFixed(1);
-                const limitMB = (usage.limit / (1024 * 1024)).toFixed(0);
-                
-                // Update sidebar
-                const badge = document.getElementById('storage-badge');
-                const text = document.getElementById('storageText');
-                const bar = document.getElementById('storageBar');
-                if (badge) badge.classList.remove('hidden');
-                if (text) text.textContent = `${usedMB} MB / ${limitMB} MB`;
-                if (bar) bar.style.width = `${usage.percent}%`;
-                
-                // Update stat card
-                const stat = document.getElementById('statStorage');
-                if (stat) stat.textContent = `${usedMB} MB`;
-            } catch (err) {
-                console.error('[Admin] Storage update error:', err);
-            }
-        }
         // ── STATS ──
         function updateStats() {
             const uniqueUsers = new Set(allProgress.map(r => r.user_id)).size
@@ -794,6 +824,12 @@
             document.getElementById('statRows').textContent = allProgress.length
             document.getElementById('statTools').textContent = uniqueTools
             document.getElementById('statLatest').textContent = latest
+
+            // Global Storage Stat
+            const totalUsed = Object.values(allProfiles).reduce((sum, p) => sum + (p.storage_usage || 0), 0)
+            const totalUsedMB = (totalUsed / (1024 * 1024)).toFixed(1)
+            const statStorage = document.getElementById('statStorage')
+            if (statStorage) statStorage.textContent = `${totalUsedMB} MB`
 
             // Tool breakdown chart
             const toolCounts = {}
@@ -953,6 +989,14 @@
               <option value="user" ${role === 'user' ? 'selected' : ''}>User</option>
               <option value="admin" ${isAdmin ? 'selected' : ''}>Admin</option>
             </select>
+          </td>
+          <td class="px-5 py-3">
+            <div class="flex flex-col gap-1">
+                <span class="text-xs font-bold text-white">${( (profile?.storage_usage || 0) / (1024*1024) ).toFixed(1)} MB</span>
+                <div class="w-16 h-1 bg-slate-700 rounded-full overflow-hidden">
+                    <div class="h-full bg-blue" style="width: ${Math.min(100, Math.round(((profile?.storage_usage || 0) / (profile?.storage_limit || 50*1024*1024)) * 100))}%"></div>
+                </div>
+            </div>
           </td>
           <td class="px-5 py-3">
             ${tools.length === 0 ? '<span class="text-xs text-slate-500 italic">No activity yet</span>' : 
@@ -1172,7 +1216,7 @@
                 toggleSidebar();
             }
 
-            ['dashboard', 'users', 'progress', 'logs', 'announcements', 'settings'].forEach(v => {
+            ['dashboard', 'users', 'progress', 'logs', 'announcements', 'cloud', 'settings'].forEach(v => {
                 const viewEl = document.getElementById('view-' + v)
                 if (viewEl) viewEl.classList.toggle('hidden', v !== view)
 
@@ -1187,6 +1231,157 @@
             if (view === 'logs') renderLogsTable()
             if (view === 'settings') loadSettings()
             if (view === 'announcements') renderAnnouncements()
+            if (view === 'cloud') renderCloudTable()
+        }
+
+        // ── CLOUD USAGE LOGIC ──
+        function renderCloudTable() {
+            const body = document.getElementById('cloudTableBody')
+            if (!body) return
+
+            const profiles = Object.values(allProfiles).sort((a, b) => (b.storage_usage || 0) - (a.storage_usage || 0))
+            
+            let totalUsed = 0
+            let totalLimit = 0
+            
+            body.innerHTML = profiles.map(p => {
+                const used = p.storage_usage || 0
+                const limit = p.storage_limit || (50 * 1024 * 1024)
+                const percent = Math.min(100, Math.round((used / limit) * 100))
+                const usedMB = (used / (1024 * 1024)).toFixed(1)
+                const limitMB = (limit / (1024 * 1024)).toFixed(0)
+                const name = p.display_name || '—'
+                const initial = name[0]?.toUpperCase() || '?'
+                
+                totalUsed += used
+                totalLimit += limit
+
+                return `
+                    <tr class="group hover:bg-slate-700/20 transition-colors">
+                        <td class="px-5 py-4">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-blue/20 border-2 border-blue/40 flex items-center justify-center font-heading text-blue text-xs flex-shrink-0">${initial}</div>
+                                <div>
+                                    <div class="font-bold text-white text-sm">${name}</div>
+                                    <div class="text-[10px] text-slate-500 font-mono">${p.id.slice(0, 12)}...</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-5 py-4 font-mono text-xs text-white">${usedMB} MB</td>
+                        <td class="px-5 py-4 font-mono text-xs text-slate-400">${limitMB} MB</td>
+                        <td class="px-5 py-4">
+                            <div class="flex flex-col gap-1 w-32">
+                                <div class="flex justify-between text-[10px] font-bold">
+                                    <span class="${percent > 90 ? 'text-pink' : 'text-blue'}">${percent}%</span>
+                                </div>
+                                <div class="h-2 bg-slate-900 border-2 border-slate-700 rounded-full overflow-hidden">
+                                    <div class="h-full ${percent > 90 ? 'bg-pink' : 'bg-blue'} transition-all duration-500" style="width: ${percent}%"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="px-5 py-4 text-right">
+                            <button onclick="syncUserStorage('${p.id}')" id="sync-btn-${p.id}" class="neo-btn px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-[10px] hover:text-white group-hover:border-blue transition-colors">
+                                <i data-lucide="refresh-cw" class="w-3 h-3 sync-icon-${p.id}"></i> Sync
+                            </button>
+                        </td>
+                    </tr>
+                `
+            }).join('')
+
+            // Update Summary
+            const globalUsedMB = (totalUsed / (1024 * 1024)).toFixed(1)
+            const globalLimitMB = (totalLimit / (1024 * 1024)).toFixed(0)
+            const globalPercent = Math.min(100, Math.round((totalUsed / totalLimit) * 100))
+            
+            document.getElementById('globalStorageUsed').textContent = `${globalUsedMB} MB / ${globalLimitMB} MB`
+            document.getElementById('globalStorageBar').style.width = `${globalPercent}%`
+            document.getElementById('globalStorageBar').className = `h-full transition-all duration-700 ${globalPercent > 90 ? 'bg-pink' : 'bg-blue'}`
+            
+            const activeUsers = profiles.filter(p => (p.storage_usage || 0) > 0).length
+            document.getElementById('globalActiveUsers').textContent = activeUsers
+
+            lucide.createIcons()
+        }
+
+        async function syncUserStorage(userId) {
+            const btn = document.getElementById(`sync-btn-${userId}`)
+            const icon = document.querySelector(`.sync-icon-${userId}`)
+            if (icon) icon.classList.add('animate-spin')
+            if (btn) btn.disabled = true
+
+            try {
+                // Recursive folder size calculation
+                let totalSize = 0
+                let fileCount = 0
+
+                async function walk(path) {
+                    const { data: items, error } = await db.storage.from('klasskit-media').list(path)
+                    if (error) {
+                        // If folder doesn't exist, it's not necessarily an error, just 0 size
+                        if (error.message?.includes('not found')) return
+                        throw error
+                    }
+                    
+                    for (const item of items) {
+                        if (item.id === null) { // It's a folder
+                            await walk(`${path}/${item.name}`)
+                        } else {
+                            totalSize += (item.metadata?.size || 0)
+                            fileCount++
+                        }
+                    }
+                }
+
+                await walk(userId)
+
+                // Update Profile in DB
+                const { error: updateError } = await db
+                    .from('profiles')
+                    .update({ storage_usage: totalSize })
+                    .eq('id', userId)
+
+                if (updateError) throw updateError
+
+                // Update local state
+                if (allProfiles[userId]) {
+                    allProfiles[userId].storage_usage = totalSize
+                }
+
+                if (currentView === 'cloud') renderCloudTable()
+                if (currentView === 'users') applyFilters()
+                updateStats()
+
+                console.log(`[Sync] Updated ${userId}: ${totalSize} bytes (${fileCount} files)`)
+            } catch (err) {
+                console.error('[Sync] Error:', err)
+                alert(`Failed to sync storage for user: ${err.message}`)
+            } finally {
+                if (icon) icon.classList.remove('animate-spin')
+                if (btn) btn.disabled = false
+            }
+        }
+
+        async function syncAllStorage() {
+            const btn = document.getElementById('syncAllBtn')
+            const icon = btn.querySelector('i')
+            if (icon) icon.classList.add('animate-spin')
+            btn.disabled = true
+
+            const userIds = Object.keys(allProfiles)
+            let successCount = 0
+            
+            for (const uid of userIds) {
+                try {
+                    await syncUserStorage(uid)
+                    successCount++
+                } catch (e) {
+                    console.warn(`[SyncAll] Failed for ${uid}:`, e)
+                }
+            }
+
+            if (icon) icon.classList.remove('animate-spin')
+            btn.disabled = false
+            alert(`Sync complete! Successfully updated ${successCount} of ${userIds.length} users.`)
         }
 
         // ── ANNOUNCEMENTS LOGIC ──
