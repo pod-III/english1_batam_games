@@ -270,58 +270,28 @@ const STORAGE_CONFIG = {
 };
 
 /**
- * Compresses an image file client-side to WebP format.
+ * Compresses an image file client-side to WebP format using browser-image-compression.
  */
-async function compressImage(file, quality = STORAGE_CONFIG.quality) {
-  return new Promise((resolve, reject) => {
-    if (!file.type.startsWith('image/')) {
-      return resolve(file); // Return original if not an image
+async function compressImage(file) {
+  if (!file.type.startsWith('image/')) return file;
+
+  const options = {
+    maxSizeMB: 0.2, // 200KB
+    maxWidthOrHeight: 800,
+    useWebWorker: true,
+    fileType: 'image/webp'
+  };
+
+  try {
+    if (typeof imageCompression === 'undefined') {
+      console.warn('[Storage] browser-image-compression not loaded. Falling back to original.');
+      return file;
     }
-
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target.result;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-
-        // Optional: Resize if too large (e.g., max 1920px)
-        const maxDim = 1920;
-        if (width > maxDim || height > maxDim) {
-          if (width > height) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          } else {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-
-        canvas.toBlob((blob) => {
-          if (blob) {
-            // Create a new File object from the blob
-            const newFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".webp", {
-              type: 'image/webp',
-              lastModified: Date.now()
-            });
-            resolve(newFile);
-          } else {
-            reject(new Error('Compression failed'));
-          }
-        }, 'image/webp', quality);
-      };
-      img.onerror = reject;
-    };
-    reader.onerror = reject;
-  });
+    return await imageCompression(file, options);
+  } catch (error) {
+    console.error('[Storage] Compression failed:', error);
+    return file;
+  }
 }
 
 /**
