@@ -10,6 +10,7 @@ let isTrashMode = false;
 let isDarkMode = false;
 let idb = null;
 let blobUrlMap = {}; // blobUrl -> idbKey
+let cloudUrlMap = {}; // signedUrl -> originalUrl
 let searchCache = null;
 let strippedContentCache = new Map();
 let sortMode = 'date-desc';
@@ -122,7 +123,13 @@ function saveNoteToDB(note) {
     });
 }
 
-function deleteNoteFromDB(id) {
+async function deleteNoteFromDB(id) {
+    // Cloud Cleanup
+    const { data: { user } } = await db.auth.getUser();
+    if (!isSandbox() && user) {
+        deleteFolder(`${user.id}/lesson_note/${id}`).catch(e => console.warn("Cloud folder delete failed", e));
+    }
+
     return new Promise((resolve, reject) => {
         const tx = idb.transaction(STORES.NOTES, 'readwrite');
         tx.objectStore(STORES.NOTES).delete(id);
@@ -324,17 +331,28 @@ async function processImageInput(inputEl) {
     const file = inputEl.files[0];
     if (!file) return;
     try {
-        const id = `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-        const arrayBuffer = await file.arrayBuffer();
-        await storeImage(id, arrayBuffer, file.type);
+        const { data: { user } } = await db.auth.getUser();
+        
+        if (!isSandbox() && user) {
+            // Upload to Cloud
+            const url = await uploadMedia(file, 'lesson_note', currentNoteId);
+            const range = quill.getSelection(true);
+            quill.insertEmbed(range.index, 'image', url);
+            quill.setSelection(range.index + 1);
+        } else {
+            // Fallback to local IDB
+            const id = `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+            const arrayBuffer = await file.arrayBuffer();
+            await storeImage(id, arrayBuffer, file.type);
 
-        const blob = new Blob([arrayBuffer], { type: file.type });
-        const blobUrl = URL.createObjectURL(blob);
-        blobUrlMap[blobUrl] = id;
+            const blob = new Blob([arrayBuffer], { type: file.type });
+            const blobUrl = URL.createObjectURL(blob);
+            blobUrlMap[blobUrl] = id;
 
-        const range = quill.getSelection(true);
-        quill.insertEmbed(range.index, 'image', blobUrl);
-        quill.setSelection(range.index + 1);
+            const range = quill.getSelection(true);
+            quill.insertEmbed(range.index, 'image', blobUrl);
+            quill.setSelection(range.index + 1);
+        }
     } catch (err) {
         console.error('Failed to insert image:', err);
         showToast('Failed to insert image', 'error');
@@ -344,28 +362,52 @@ async function processImageInput(inputEl) {
 
 async function convertBase64ImagesToIDB() {
     const images = quill.root.querySelectorAll('img[src^="data:"]');
+    const { data: { user } } = await db.auth.getUser();
+    const canUpload = !isSandbox() && user;
+
     for (const img of images) {
         const src = img.getAttribute('src');
         const match = src.match(/^data:([^;]+);base64,(.+)$/);
         if (match) {
             try {
-                const id = `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-                const arrayBuffer = base64ToArrayBuffer(match[2]);
-                await storeImage(id, arrayBuffer, match[1]);
-                const blob = new Blob([arrayBuffer], { type: match[1] });
-                const blobUrl = URL.createObjectURL(blob);
-                blobUrlMap[blobUrl] = id;
-                img.setAttribute('src', blobUrl);
+                const mimeType = match[1];
+                const base64Data = match[2];
+                const arrayBuffer = base64ToArrayBuffer(base64Data);
+                const blob = new Blob([arrayBuffer], { type: mimeType });
+                const file = new File([blob], `pasted_image_${Date.now()}.webp`, { type: mimeType });
+
+                if (canUpload) {
+                    const url = await uploadMedia(file, 'lesson_note', currentNoteId);
+                    img.setAttribute('src', url);
+                } else {
+                    const id = `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+                    await storeImage(id, arrayBuffer, mimeType);
+                    const blobUrl = URL.createObjectURL(blob);
+                    blobUrlMap[blobUrl] = id;
+                    img.setAttribute('src', blobUrl);
+                }
             } catch (e) { console.warn('Failed to convert pasted image', e); }
         }
     }
 }
 
+// No extra declarations here
+
 function getContentForSave() {
     let html = quill.root.innerHTML;
-    for (const [blobUrl, idbKey] of Object.entries(blobUrlMap)) {
-        html = html.split(blobUrl).join(`idb://${idbKey}`);
+    
+    // Convert blob URLs back to idb://
+    for (const [blobUrl, id] of Object.entries(blobUrlMap)) {
+        html = html.split(blobUrl).join(`idb://${id}`);
     }
+
+    // Convert signed URLs back to original cloud paths
+    for (const [signedUrl, originalUrl] of Object.entries(cloudUrlMap)) {
+        // Strip tokens to ensure persistent path
+        const baseOriginal = originalUrl.split('?')[0];
+        html = html.split(signedUrl).join(baseOriginal);
+    }
+
     return html;
 }
 
@@ -375,28 +417,40 @@ async function resolveImagesInHtml(html) {
         URL.revokeObjectURL(url);
     }
     blobUrlMap = {};
+    cloudUrlMap = {};
 
-    const regex = /idb:\/\/([\w_-]+)/g;
-    const ids = Array.from(new Set([...html.matchAll(regex)].map(m => m[1])));
+    // 1. Resolve idb:// URLs
+    const idbRegex = /idb:\/\/([\w_-]+)/g;
+    const idbIds = Array.from(new Set([...html.matchAll(idbRegex)].map(m => m[1])));
     
-    if (ids.length === 0) return html;
-
-    const results = await Promise.all(ids.map(async id => {
+    for (const id of idbIds) {
         try {
             const data = await getImage(id);
             if (data) {
                 const blob = new Blob([data.data], { type: data.type });
                 const blobUrl = URL.createObjectURL(blob);
                 blobUrlMap[blobUrl] = id;
-                return { from: `idb://${id}`, to: blobUrl };
+                html = html.split(`idb://${id}`).join(blobUrl);
             }
-        } catch (e) { console.warn('Failed to load image', id); }
-        return null;
-    }));
-
-    for (const res of results) {
-        if (res) html = html.split(res.from).join(res.to);
+        } catch (e) { console.warn('Failed to load local image', id); }
     }
+
+    // 2. Resolve Supabase URLs (klasskit-media bucket)
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const imgs = doc.querySelectorAll('img');
+    const cloudImgs = Array.from(imgs).filter(img => img.src.includes('klasskit-media'));
+
+    for (const imgEl of cloudImgs) {
+        const originalUrl = imgEl.src;
+        try {
+            const signedUrl = await resolveMediaUrl(originalUrl);
+            if (signedUrl !== originalUrl) {
+                cloudUrlMap[signedUrl] = originalUrl;
+                html = html.split(originalUrl).join(signedUrl);
+            }
+        } catch (e) { console.warn('Failed to resolve cloud image', originalUrl); }
+    }
+
     return html;
 }
 
@@ -710,10 +764,19 @@ async function softDeleteCurrentNote() {
 
 async function deleteImagesInContent(content) {
     if (!content) return;
-    const regex = /idb:\/\/([\w_-]+)/g;
+    // 1. Local images
+    const localRegex = /idb:\/\/([\w_-]+)/g;
     let m;
-    while ((m = regex.exec(content)) !== null) {
-        try { await deleteImage(m[1]); } catch (e) { console.warn('Failed to delete image', m[1]); }
+    while ((m = localRegex.exec(content)) !== null) {
+        try { await deleteImage(m[1]); } catch (e) { console.warn('Failed to delete local image', m[1]); }
+    }
+    // 2. Cloud images
+    const cloudRegex = /https:\/\/[^"'\s]+\/storage\/v1\/object\/public\/klasskit-media\/[^"'\s]+/g;
+    const cloudMatches = content.match(cloudRegex) || [];
+    for (const cloudUrl of cloudMatches) {
+        try {
+            await deleteMediaFromUrl(cloudUrl);
+        } catch (e) { console.warn('Failed to delete cloud image', cloudUrl); }
     }
 }
 

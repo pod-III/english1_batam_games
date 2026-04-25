@@ -4,6 +4,7 @@
 <head>
     <!-- Supabase Auth -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
     <script src="/supabase.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -374,9 +375,10 @@
     </script>
 
     <script>
-        const DB_NAME = 'SimonGameKlassKitDB_V2'; // Version 2 for expanded data
-        const DB_VERSION = 1;
+        const DB_NAME = 'SimonGameKlassKitDB_V2';
+        const DB_VERSION = 2; // Bumped for images store
         const STORE_NAME = 'settings';
+        const IMG_STORE = 'images';
         let dataBase;
 
         function initDB() {
@@ -387,6 +389,9 @@
                     if (!dataBase.objectStoreNames.contains(STORE_NAME)) {
                         dataBase.createObjectStore(STORE_NAME);
                     }
+                    if (!dataBase.objectStoreNames.contains(IMG_STORE)) {
+                        dataBase.createObjectStore(IMG_STORE);
+                    }
                 };
                 request.onsuccess = (e) => {
                     dataBase = e.target.result;
@@ -394,6 +399,54 @@
                 };
                 request.onerror = (e) => reject(e.target.error);
             });
+        }
+
+        async function getImg(url) {
+            try {
+                const db = await initDB();
+                return new Promise((res) => {
+                    const r = db.transaction(IMG_STORE, 'readonly').objectStore(IMG_STORE).get(url);
+                    r.onsuccess = () => res(r.result);
+                    r.onerror = () => res(null);
+                });
+            } catch(e) { return null; }
+        }
+
+        async function putImg(url, blob) {
+            try {
+                const db = await initDB();
+                db.transaction(IMG_STORE, 'readwrite').objectStore(IMG_STORE).put(blob, url);
+            } catch(e) { }
+        }
+
+        const blobCache = new Map();
+
+        async function resolveAndCache(url) {
+            if (!url || !url.includes('klasskit-media')) return url;
+            if (blobCache.has(url)) return blobCache.get(url);
+
+            // 1. Check IDB
+            const cachedBlob = await getImg(url);
+            if (cachedBlob) {
+                const bUrl = URL.createObjectURL(cachedBlob);
+                blobCache.set(url, bUrl);
+                return bUrl;
+            }
+
+            // 2. Fetch from Cloud and Cache
+            try {
+                const signedUrl = await resolveMediaUrl(url);
+                const resp = await fetch(signedUrl);
+                const blob = await resp.blob();
+                
+                await putImg(url, blob);
+                const bUrl = URL.createObjectURL(blob);
+                blobCache.set(url, bUrl);
+                return bUrl;
+            } catch (e) {
+                console.warn("Cloud cache failed", e);
+                return url;
+            }
         }
 
         async function saveSettings(settings) {
@@ -477,25 +530,28 @@
                 const cloudData = await loadProgress('memory_block');
                 if (cloudData) {
                     gridSize = cloudData.gridSize || 2;
-                    customData = cloudData.customData || {};
-                    // Merge cloud text with local IndexedDB images if they exist
-                    const localSaved = await loadSettings();
-                    Object.keys(ALL_COLORS).forEach(k => {
-                        if (!customData[k]) customData[k] = { text: "", img: "" };
-                        if (localSaved[k] && localSaved[k].img) {
-                            customData[k].img = localSaved[k].img;
-                        }
-                    });
-
-                    setMode(gridSize);
+                    // Support legacy format and new mode-specific format
+                    if (cloudData.customData && !cloudData.customData['2']) {
+                        // Migrating legacy global data to current mode
+                        customData = { 2: {}, 3: {} };
+                        customData[gridSize] = cloudData.customData;
+                    } else {
+                        customData = cloudData.customData || { 2: {}, 3: {} };
+                    }
                 } else {
                     const saved = await loadSettings();
-                    // Initialize customData with defaults if not present
-                    Object.keys(ALL_COLORS).forEach(k => {
-                        if (!saved[k]) saved[k] = { text: "", img: "" };
-                    });
-                    customData = saved;
+                    if (saved && !saved['2']) {
+                        customData = { 2: saved, 3: {} };
+                    } else {
+                        customData = saved || { 2: {}, 3: {} };
+                    }
                 }
+                
+                // Ensure both modes initialized
+                if (!customData['2']) customData['2'] = {};
+                if (!customData['3']) customData['3'] = {};
+
+                setMode(gridSize);
             } catch (err) {
                 console.error("DB Error", err);
             }
@@ -504,16 +560,26 @@
         function syncToCloud() {
             if (window.syncTimeout) clearTimeout(window.syncTimeout);
             window.syncTimeout = setTimeout(() => {
-                // Prepare a clean object without images to sync to cloud
                 const cloudPayload = {
                     gridSize: gridSize,
                     customData: {}
                 };
-                Object.keys(customData).forEach(k => {
-                    cloudPayload.customData[k] = { text: customData[k].text, img: "" };
+                
+                // Sync all modes
+                [2, 3].forEach(mode => {
+                    cloudPayload.customData[mode] = {};
+                    const modeData = customData[mode] || {};
+                    Object.keys(modeData).forEach(k => {
+                        const data = modeData[k];
+                        cloudPayload.customData[mode][k] = { 
+                            text: data.text, 
+                            img: (data.img && data.img.startsWith('http')) ? data.img : "" 
+                        };
+                    });
                 });
+
                 saveProgress('memory_block', cloudPayload);
-            }, 1500);
+            }, 2000);
         }
 
         // --- Mode Switching ---
@@ -549,7 +615,8 @@
 
             currentColors.forEach(colorKey => {
                 const config = ALL_COLORS[colorKey];
-                const data = customData[colorKey] || { text: "", img: "" };
+                const modeData = customData[gridSize] || {};
+                const data = modeData[colorKey] || { text: "", img: "" };
 
                 const btn = document.createElement('button');
                 btn.id = colorKey;
@@ -565,7 +632,11 @@
                 const img = document.createElement('img');
                 img.id = `img-display-${colorKey}`;
                 img.className = "pad-img mb-2 transition-transform group-hover:scale-105 " + (data.img ? "" : "hidden");
-                img.src = data.img || "";
+                if (data.img) {
+                    resolveAndCache(data.img).then(url => {
+                        img.src = url;
+                    });
+                }
 
                 // Text
                 const span = document.createElement('span');
@@ -655,28 +726,41 @@
             // Only show inputs for the colors used in the current difficulty
             currentColors.forEach(key => {
                 const config = ALL_COLORS[key];
-                const data = customData[key] || { text: "", img: "" };
+                const modeData = customData[gridSize] || {};
+                const data = modeData[key] || { text: "", img: "" };
 
                 // Card HTML
                 const div = document.createElement('div');
-                div.className = `p-4 rounded-2xl border-2 border-slate-900 bg-slate-50 relative group`;
+                div.className = `p-4 rounded-2xl border-2 border-slate-900 bg-slate-50 relative group flex flex-col items-center`;
                 // Add slight tint based on color
                 div.style.backgroundColor = config.hex + '15'; // 15 = low opacity hex
 
                 div.innerHTML = `
-                    <div class="flex items-center gap-2 mb-3">
+                    <div class="flex items-center gap-2 mb-3 w-full">
                         <div class="w-4 h-4 rounded-full border border-slate-900" style="background-color: ${config.hex}"></div>
                         <span class="font-bold text-slate-900">${config.label} Block</span>
                     </div>
+                    
+                    <div id="preview-${key}" class="w-full aspect-square rounded-xl border-2 border-dashed border-slate-300 mb-3 overflow-hidden flex items-center justify-center bg-white/50">
+                        ${data.img ? `<img src="" data-src="${data.img}" class="w-full h-full object-cover">` : `<i data-lucide="image" class="w-8 h-8 text-slate-300"></i>`}
+                    </div>
+
                     <input type="text" id="input-text-${key}" value="${data.text}" placeholder="e.g. Word" class="w-full border-2 border-slate-200 focus:border-slate-900 rounded-xl p-2 mb-3 text-sm font-bold text-slate-700 focus:outline-none transition-colors bg-white">
+                    
                     <div class="file-input-wrapper w-full">
                         <button class="w-full bg-white border-2 border-slate-200 hover:border-slate-900 text-slate-600 rounded-xl py-2 text-xs font-bold flex items-center justify-center gap-2 transition-colors">
-                            <i data-lucide="image-plus" class="w-4 h-4"></i> <span id="label-${key}">${data.img ? 'Image Set' : 'Upload Image'}</span>
+                            <i data-lucide="image-plus" class="w-4 h-4"></i> <span id="label-${key}">${data.img ? 'Change Image' : 'Upload Image'}</span>
                         </button>
                         <input type="file" id="input-img-${key}" accept="image/*" onchange="updateFileLabel('${key}')">
                     </div>
                 `;
                 setupGrid.appendChild(div);
+
+                // Resolve preview image if exists
+                if (data.img) {
+                    const pImg = div.querySelector(`img[data-src]`);
+                    resolveAndCache(data.img).then(url => { if (pImg) pImg.src = url; });
+                }
             });
             lucide.createIcons();
         }
@@ -695,21 +779,36 @@
             saveBtn.innerHTML = `<i data-lucide="loader-2" class="animate-spin w-5 h-5"></i> Saving...`;
             lucide.createIcons();
 
+            const { data: { user } } = await db.auth.getUser();
+            const canUpload = !isSandbox() && user;
+
             const promises = currentColors.map(key => {
-                return new Promise((resolve) => {
+                return new Promise(async (resolve) => {
                     const textVal = document.getElementById(`input-text-${key}`).value;
                     const fileInput = document.getElementById(`input-img-${key}`);
 
-                    if (!customData[key]) customData[key] = {};
-                    customData[key].text = textVal;
+                    if (!customData[gridSize]) customData[gridSize] = {};
+                    if (!customData[gridSize][key]) customData[gridSize][key] = {};
+                    
+                    customData[gridSize][key].text = textVal;
 
                     if (fileInput.files && fileInput.files[0]) {
-                        const reader = new FileReader();
-                        reader.onload = function (e) {
-                            customData[key].img = e.target.result;
+                        try {
+                            if (canUpload) {
+                                customData[gridSize][key].img = await uploadMedia(fileInput.files[0], 'memory_block', gridSize.toString());
+                                resolve();
+                            } else {
+                                const reader = new FileReader();
+                                reader.onload = function (e) {
+                                    customData[gridSize][key].img = e.target.result;
+                                    resolve();
+                                }
+                                reader.readAsDataURL(fileInput.files[0]);
+                            }
+                        } catch (err) {
+                            console.error("Image upload failed", err);
                             resolve();
                         }
-                        reader.readAsDataURL(fileInput.files[0]);
                     } else {
                         resolve();
                     }
@@ -732,13 +831,23 @@
             }, 500);
         }
 
-        function clearData() {
-            if (confirm("Reset customizations for these blocks?")) {
+        async function clearData() {
+            if (confirm("Reset all customizations for this mode (including cloud images)?")) {
+                const { data: { user } } = await db.auth.getUser();
+                if (!isSandbox() && user) {
+                    // Purge cloud folder for this specific mode
+                    await deleteFolder(`${user.id}/memory_block/${gridSize}`).catch(e => console.warn(e));
+                }
+
+                if (!customData[gridSize]) customData[gridSize] = {};
                 currentColors.forEach(k => {
-                    customData[k] = { text: "", img: "" };
+                    customData[gridSize][k] = { text: "", img: "" };
                 });
-                clearSettings();
+                
+                await saveSettings(customData);
+                syncToCloud();
                 renderSetupInputs();
+                showToast("Cleared all data for this mode", "success");
             }
         }
 

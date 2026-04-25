@@ -4,6 +4,7 @@
 <head>
     <!-- Supabase Auth -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
     <script src="/supabase.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -603,7 +604,16 @@
             if (cloudSyncTimeout) clearTimeout(cloudSyncTimeout);
             cloudSyncTimeout = setTimeout(async () => {
                 const presets = await getAllPresets();
-                await saveProgress('card-match', { presets });
+                // Strip DataURLs from cloud sync to save space, but keep Supabase URLs
+                const syncPresets = presets.map(p => ({
+                    ...p,
+                    pairs: (p.pairs || []).map(pair => ({
+                        ...pair,
+                        item1: { ...pair.item1, content: pair.item1.content.startsWith('http') ? pair.item1.content : (pair.item1.type === 'image' ? "" : pair.item1.content) },
+                        item2: { ...pair.item2, content: pair.item2.content.startsWith('http') ? pair.item2.content : (pair.item2.type === 'image' ? "" : pair.item2.content) }
+                    }))
+                }));
+                await saveProgress('card-match', { presets: syncPresets });
             }, 1000);
         }
 
@@ -796,7 +806,7 @@
             },
 
             // Mode 2: Text-Image
-            addMixedPair: function () {
+            addMixedPair: async function () {
                 if (this.pairs.length >= 12) return this.toast("Max 12 pairs allowed!");
 
                 const txtInput = document.getElementById('mixed-text-input');
@@ -806,13 +816,25 @@
 
                 if (!textVal || !file) return this.toast("Please provide both text and image.");
 
-                const reader = new FileReader();
-                reader.onload = (e) => {
+                try {
+                    let imgSource;
+                    const { data: { user } } = await db.auth.getUser();
+                    if (!isSandbox() && user) {
+                        imgSource = await uploadMedia(file, 'card_match', this.activePresetId);
+                    } else {
+                        imgSource = await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = (e) => resolve(e.target.result);
+                            reader.onerror = reject;
+                            reader.readAsDataURL(file);
+                        });
+                    }
+
                     this.pairs.push({
                         id: Date.now() + Math.random(),
                         type: 'text-image',
                         item1: { type: 'text', content: textVal },
-                        item2: { type: 'image', content: e.target.result }
+                        item2: { type: 'image', content: imgSource }
                     });
 
                     // Reset
@@ -820,30 +842,47 @@
                     imgInput.value = '';
                     this.saveAndRender();
                     this.toast("Mixed pair added!");
-                };
-                reader.readAsDataURL(file);
+                } catch (err) {
+                    console.error("Image processing failed", err);
+                    this.toast("Image processing failed", "error");
+                }
             },
 
             // Mode 3: Image-Image (Self Match)
-            handleImagePairs: function (files) {
+            handleImagePairs: async function (files) {
                 if (this.pairs.length >= 12) return this.toast("Max 12 pairs allowed!");
 
-                Array.from(files).forEach(file => {
-                    if (!file.type.startsWith('image/')) return;
-                    if (this.pairs.length >= 12) return;
+                const { data: { user } } = await db.auth.getUser();
+                const canUpload = !isSandbox() && user;
 
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
+                for (const file of Array.from(files)) {
+                    if (!file.type.startsWith('image/')) continue;
+                    if (this.pairs.length >= 12) break;
+
+                    try {
+                        let imgSource;
+                        if (canUpload) {
+                            imgSource = await uploadMedia(file, 'card_match', this.activePresetId);
+                        } else {
+                            imgSource = await new Promise((resolve, reject) => {
+                                const reader = new FileReader();
+                                reader.onload = (e) => resolve(e.target.result);
+                                reader.onerror = reject;
+                                reader.readAsDataURL(file);
+                            });
+                        }
+
                         this.pairs.push({
                             id: Date.now() + Math.random(),
                             type: 'image-image',
-                            item1: { type: 'image', content: e.target.result },
-                            item2: { type: 'image', content: e.target.result } // Matches self
+                            item1: { type: 'image', content: imgSource },
+                            item2: { type: 'image', content: imgSource } // Matches self
                         });
                         this.saveAndRender();
-                    };
-                    reader.readAsDataURL(file);
-                });
+                    } catch (err) {
+                        console.error("Image processing failed", err);
+                    }
+                }
             },
 
             clearPairs: function () {
@@ -946,6 +985,12 @@
             },
 
             executeDeletePreset: async function() {
+                // Cloud Cleanup
+                const { data: { user } } = await db.auth.getUser();
+                if (!isSandbox() && user) {
+                    deleteFolder(`${user.id}/card_match/${this.activePresetId}`).catch(e => console.warn("Cloud folder delete failed", e));
+                }
+
                 await deletePresetFromDB(this.activePresetId);
                 await syncToCloud();
                 this.presetsList = this.presetsList.filter(p => p.id !== this.activePresetId);
@@ -1017,17 +1062,36 @@
                     `;
                     container.appendChild(div);
                 });
+                this.hydrateThumbnails();
                 lucide.createIcons();
             },
 
+            async hydrateThumbnails() {
+                const thumbs = document.querySelectorAll('.card-preview img, #game-grid img');
+                for (const img of thumbs) {
+                    if (img.src && img.src.includes('klasskit-media')) {
+                        img.src = await resolveMediaUrl(img.src);
+                    }
+                }
+            },
+
             removePair: function (idx) {
+                const pair = this.pairs[idx];
+                if (pair) {
+                    if (pair.item1.type === 'image' && pair.item1.content.includes('klasskit-media')) {
+                        deleteMediaFromUrl(pair.item1.content).catch(e => console.error("Cloud delete failed (item1)", e));
+                    }
+                    if (pair.item2.type === 'image' && pair.item2.content.includes('klasskit-media')) {
+                        deleteMediaFromUrl(pair.item2.content).catch(e => console.error("Cloud delete failed (item2)", e));
+                    }
+                }
                 this.pairs.splice(idx, 1);
                 this.saveAndRender();
             },
 
             // --- GAME LOGIC ---
 
-            startGame: function () {
+            startGame: async function () {
                 if (this.pairs.length < 2) return this.toast("Need at least 2 pairs!");
 
                 // Switch Screens
@@ -1053,6 +1117,11 @@
                         content: pair.item2.content
                     });
                 });
+
+                // Resolve all images
+                for (let card of cards) {
+                    if (card.type === 'image') card.content = await resolveMediaUrl(card.content);
+                }
 
                 // Shuffle
                 cards.sort(() => Math.random() - 0.5);

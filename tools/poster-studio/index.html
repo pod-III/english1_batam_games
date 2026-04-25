@@ -4,6 +4,7 @@
 <head>
     <!-- Supabase Auth -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
     <script src="/supabase.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -797,7 +798,10 @@
                     `;
                 },
                 render: (d, c, fs) => {
-                    if (d.imageId) return `<div class="w-full h-full flex items-center justify-center overflow-hidden" style="background-color: var(--bg-slate-tint)"><img data-idb-id="${d.imageId}" src="${Store.imgCache.get(d.imageId) || ''}" class="w-full h-full object-cover"></div>`;
+                if (d.imageId) {
+                    const src = Store.imgCache.get(d.imageId) || ''; 
+                    return `<div class="w-full h-full flex items-center justify-center overflow-hidden" style="background-color: var(--bg-slate-tint)"><img data-idb-id="${d.imageId}" src="${src}" class="w-full h-full object-cover"></div>`;
+                }
                     return `<div class="w-full h-full flex items-center justify-center overflow-hidden" style="background-color: var(--bg-slate-tint)"><img src="${d.url}" class="w-full h-full object-cover" onerror="this.src='https://via.placeholder.com/400?text=Select+Image'"></div>`;
                 }
             }
@@ -814,7 +818,7 @@
             async init() {
                 // IDB
                 Store.db = await new Promise((res, rej) => {
-                    const req = indexedDB.open('PosterStudioDB', 1);
+                    const req = indexedDB.open('PosterStudioDB', 2);
                     req.onupgradeneeded = e => { if (!e.target.result.objectStoreNames.contains('imgs')) e.target.result.createObjectStore('imgs'); };
                     req.onsuccess = e => res(e.target.result);
                     req.onerror = rej;
@@ -897,11 +901,24 @@
             // ... (Image logic same as before) ...
             async uploadImage(input) {
                 const file = input.files[0]; if (!file) return;
-                const imgId = crypto.randomUUID();
-                const blob = new Blob([file], { type: file.type });
-                Store.imgCache.set(imgId, URL.createObjectURL(blob));
-                const tx = Store.db.transaction('imgs', 'readwrite');
-                tx.objectStore('imgs').put(blob, imgId);
+                
+                let imgId;
+                const { data: { user } } = await db.auth.getUser();
+                if (!isSandbox() && user) {
+                    try {
+                        imgId = await uploadMedia(file, 'poster_studio', Store.current.id);
+                    } catch (err) {
+                        console.error("Cloud upload failed", err);
+                    }
+                }
+                
+                if (!imgId) {
+                    imgId = crypto.randomUUID();
+                    const blob = new Blob([file], { type: file.type });
+                    Store.imgCache.set(imgId, URL.createObjectURL(blob));
+                    const tx = Store.db.transaction('imgs', 'readwrite');
+                    tx.objectStore('imgs').put(blob, imgId);
+                }
 
                 if (App.currentImageModId) {
                     const key = App.currentImageKey || 'imageId';
@@ -914,6 +931,9 @@
                 }
             },
             async deleteImage(id) {
+                if (id && id.includes('klasskit-media')) {
+                    deleteMediaFromUrl(id).catch(e => console.error("Cloud delete failed", e));
+                }
                 return new Promise(res => {
                     const tx = Store.db.transaction('imgs', 'readwrite');
                     tx.objectStore('imgs').delete(id);
@@ -921,32 +941,69 @@
                 });
             },
             async getAllImages() {
-                return new Promise(res => {
-                    const tx = Store.db.transaction('imgs', 'readonly');
-                    const req = tx.objectStore('imgs').getAllKeys();
-                    req.onsuccess = async () => {
-                        const keys = req.result;
-                        const images = [];
-                        for (const k of keys) {
-                            const url = await Store.getImage(k);
-                            images.push({ id: k, url });
-                        }
-                        res(images);
-                    };
+                const images = [];
+
+                // 1. Local IndexedDB
+                const localKeys = await new Promise(res => {
+                    try {
+                        const tx = Store.db.transaction('imgs', 'readonly');
+                        const req = tx.objectStore('imgs').getAllKeys();
+                        req.onsuccess = () => res(req.result);
+                        req.onerror = () => res([]);
+                    } catch(e) { res([]); }
                 });
+                for (const k of localKeys) {
+                    const url = await Store.getImage(k);
+                    images.push({ id: k, url });
+                }
+
+                // 2. Cloud Storage (if not sandbox)
+                const { data: { user } } = await db.auth.getUser();
+                if (!isSandbox() && user) {
+                    try {
+                        const dir = `${user.id}/poster_studio/${Store.current.id}`;
+                        const { data: files } = await db.storage.from(STORAGE_CONFIG.bucket).list(dir);
+                        if (files) {
+                            for (const f of files) {
+                                if (f.name === '.emptyFolderPlaceholder') continue;
+                                const path = `${dir}/${f.name}`;
+                                const cloudUrl = `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_CONFIG.bucket}/${path}`;
+                                // Check if not already in list (some might be in cache)
+                                if (!images.find(x => x.id === cloudUrl)) {
+                                    images.push({ id: cloudUrl, url: Store.imgCache.get(cloudUrl) || '' });
+                                }
+                            }
+                        }
+                    } catch (e) { console.warn("Cloud image list failed", e); }
+                }
+
+                return images;
             },
             async getImage(id) {
+                if (!id) return null;
                 if (Store.imgCache.has(id)) return Store.imgCache.get(id);
+                
+                // Cloud URL Support
+                if (id.includes('klasskit-media')) {
+                    const signed = await resolveMediaUrl(id);
+                    // Don't cache signed URLs long-term as they expire, but keep for session
+                    Store.imgCache.set(id, signed);
+                    return signed;
+                }
+
                 return new Promise(res => {
-                    const tx = Store.db.transaction('imgs', 'readonly');
-                    const req = tx.objectStore('imgs').get(id);
-                    req.onsuccess = () => {
-                        if (req.result) {
-                            const url = URL.createObjectURL(req.result);
-                            Store.imgCache.set(id, url);
-                            res(url);
-                        } else res(null);
-                    }
+                    try {
+                        const tx = Store.db.transaction('imgs', 'readonly');
+                        const req = tx.objectStore('imgs').get(id);
+                        req.onsuccess = () => {
+                            if (req.result) {
+                                const url = URL.createObjectURL(req.result);
+                                Store.imgCache.set(id, url);
+                                res(url);
+                            } else res(null);
+                        };
+                        req.onerror = () => res(null);
+                    } catch(e) { res(null); }
                 });
             },
 
@@ -1126,10 +1183,17 @@
                 if (images.length === 0) { grid.innerHTML = '<div class="col-span-full text-center p-8 text-slate-400 font-bold border-2 border-dashed border-slate-300 rounded-xl">No images</div>'; return; }
                 grid.innerHTML = images.map(img => `
                     <div class="relative group aspect-square bg-slate-200 rounded-xl border-2 border-brand-dark overflow-hidden cursor-pointer shadow-sm hover:shadow-neo-sm transition-all" onclick="App.selectImage('${img.id}')">
-                        <img src="${img.url}" class="w-full h-full object-cover">
+                        <img data-original-src="${img.id}" src="${img.url || ''}" class="w-full h-full object-cover">
                         <button onclick="event.stopPropagation(); App.deleteImageAsset('${img.id}')" class="absolute top-1 right-1 p-1 bg-red-500 text-white rounded border border-brand-dark opacity-0 group-hover:opacity-100 transition-opacity"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                     </div>`).join('');
                 lucide.createIcons();
+                
+                // Post-resolve images
+                const imgs = grid.querySelectorAll('img[data-original-src]');
+                for (const img of imgs) {
+                    const original = img.dataset.originalSrc;
+                    Store.getImage(original).then(src => { if (src) img.src = src; });
+                }
             },
             selectImage(imgId) { Store.selectImage(imgId); },
             deleteImageAsset(id) { if (confirm('Delete image?')) Store.deleteImage(id).then(App.refreshImageLibrary); },
@@ -1171,7 +1235,19 @@
                 lucide.createIcons();
                 document.getElementById('library-modal').classList.remove('hidden');
             },
-            deletePoster(id) { App.showConfirm('Delete Project?', () => { Store.state.posters = Store.state.posters.filter(p => p.id !== id); if (id === Store.current.id) App.switchPoster(Store.state.posters[0].id); else { Store.save(); App.openLibrary(); } }); },
+            async deletePoster(id) { 
+                App.showConfirm('Delete Project?', async () => { 
+                    // Cloud Cleanup
+                    const { data: { user } } = await db.auth.getUser();
+                    if (!isSandbox() && user) {
+                        deleteFolder(`${user.id}/poster_studio/${id}`).catch(e => console.warn("Cloud folder delete failed", e));
+                    }
+
+                    Store.state.posters = Store.state.posters.filter(p => p.id !== id); 
+                    if (id === Store.current.id) App.switchPoster(Store.state.posters[0].id); 
+                    else { Store.save(); App.openLibrary(); } 
+                }); 
+            },
             exportPoster() { const a = document.createElement('a'); a.href = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(Store.current)); a.download = `Poster_${Store.current.global.title}.json`; a.click(); },
             handleFileImport(input) { const f = input.files[0]; if (!f) return; const r = new FileReader(); r.onload = e => { try { const j = JSON.parse(e.target.result); j.id = crypto.randomUUID(); Store.state.posters.push(j); App.switchPoster(j.id); } catch (err) { alert('Invalid file'); } }; r.readAsText(f); },
 
@@ -1279,8 +1355,13 @@
             async hydrateImages() {
                 const imgs = document.querySelectorAll('img[data-idb-id]');
                 for (const img of imgs) {
-                    const src = await Store.getImage(img.dataset.idbId);
-                    if (src) img.src = src;
+                    const id = img.dataset.idbId;
+                    if (id && id.startsWith('http')) {
+                        img.src = await resolveMediaUrl(id);
+                    } else {
+                        const src = await Store.getImage(id);
+                        if (src) img.src = src;
+                    }
                 }
             }
         };

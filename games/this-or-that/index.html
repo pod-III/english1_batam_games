@@ -4,6 +4,7 @@
 <head>
     <!-- Supabase Auth -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
     <script src="/supabase.js"></script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -502,12 +503,13 @@
     <script>
         // --- IndexedDB Wrapper ---
         const DB_NAME = "KKThisOrThatDB";
-        const DB_VERSION = 2; // Bumped for presets store
+        const DB_VERSION = 3; // Bumped for image_cache store
         const STORE_NAME = "gameData";
         const STORE_PRESETS = "userPresets";
         const STORE_IMAGES = "imageHashes"; // For deduplication
+        const STORE_CACHE = "image_cache"; // For cloud caching
 
-        let currentPresetId = null;
+        let currentPresetId = "states";
 
         function openDB() {
             return new Promise((resolve, reject) => {
@@ -525,10 +527,59 @@
                     if (!db.objectStoreNames.contains(STORE_IMAGES)) {
                         db.createObjectStore(STORE_IMAGES, { keyPath: "hash" });
                     }
+                    if (!db.objectStoreNames.contains(STORE_CACHE)) {
+                        db.createObjectStore(STORE_CACHE);
+                    }
                 };
                 request.onsuccess = (e) => resolve(e.target.result);
                 request.onerror = (e) => reject(e.target.error);
             });
+        }
+
+        async function getCacheImg(url) {
+            try {
+                const db = await openDB();
+                return new Promise((res) => {
+                    const r = db.transaction(STORE_CACHE, "readonly").objectStore(STORE_CACHE).get(url);
+                    r.onsuccess = () => res(r.result);
+                    r.onerror = () => res(null);
+                });
+            } catch(e) { return null; }
+        }
+
+        async function putCacheImg(url, blob) {
+            try {
+                const db = await openDB();
+                db.transaction(STORE_CACHE, "readwrite").objectStore(STORE_CACHE).put(blob, url);
+            } catch(e) { }
+        }
+
+        const blobCache = new Map();
+
+        async function resolveAndCache(url) {
+            if (!url || !url.includes('klasskit-media')) return url;
+            if (blobCache.has(url)) return blobCache.get(url);
+
+            const cachedBlob = await getCacheImg(url);
+            if (cachedBlob) {
+                const bUrl = URL.createObjectURL(cachedBlob);
+                blobCache.set(url, bUrl);
+                return bUrl;
+            }
+
+            try {
+                const signedUrl = await resolveMediaUrl(url);
+                const resp = await fetch(signedUrl);
+                const blob = await resp.blob();
+                
+                await putCacheImg(url, blob);
+                const bUrl = URL.createObjectURL(blob);
+                blobCache.set(url, bUrl);
+                return bUrl;
+            } catch (e) {
+                console.warn("Cloud cache failed", e);
+                return url;
+            }
         }
 
         // --- PRESET MANAGEMENT ---
@@ -558,9 +609,15 @@
         }
 
         async function deleteUserPreset(id) {
-            const db = await openDB();
+            // Cloud Cleanup
+            const { data: { user } } = await db.auth.getUser();
+            if (!isSandbox() && user) {
+                deleteFolder(`${user.id}/this_or_that/${id}`).catch(e => console.warn("Cloud folder delete failed", e));
+            }
+
+            const localDb = await openDB();
             return new Promise((resolve, reject) => {
-                const tx = db.transaction(STORE_PRESETS, "readwrite");
+                const tx = localDb.transaction(STORE_PRESETS, "readwrite");
                 const store = tx.objectStore(STORE_PRESETS);
                 const request = store.delete(id);
                 request.onsuccess = () => resolve();
@@ -609,17 +666,17 @@
             if (syncTimeout) clearTimeout(syncTimeout);
             syncTimeout = setTimeout(async () => {
                 const presets = await getAllPresets();
-                // Strip images from cloud sync to save space
+                // Strip local DataURLs from cloud sync, but keep Supabase URLs
                 const cleanPresets = presets.map(p => ({
                     ...p,
                     data: p.data.map(slide => ({
                         ...slide,
-                        images: [] // Don't sync images to cloud yet
+                        images: (slide.images || []).map(img => (img && img.startsWith('http')) ? img : "")
                     }))
                 }));
                 const cleanQuestions = questions.map(s => ({
                     ...s,
-                    images: []
+                    images: (s.images || []).map(img => (img && img.startsWith('http')) ? img : "")
                 }));
 
                 await saveProgress('this_or_that', {
@@ -679,10 +736,50 @@
 
         async function saveCurrentUserPreset() {
             const name = document.getElementById("userPresetNameInput").value.trim() || "Untitled";
-            const id = await saveUserPreset(name, editorData, currentPresetId);
+            const oldId = currentPresetId;
+            const id = await saveUserPreset(name, editorData, (typeof oldId === 'number') ? oldId : null);
+            
+            // Migration Logic: If we saved from "states" or "custom" to a real ID
+            if (oldId === "states" || oldId === "custom") {
+                const { data: { user } } = await db.auth.getUser();
+                if (!isSandbox() && user) {
+                    console.log("Finalizing cloud folder...");
+                    
+                    const oldDir = `${user.id}/this_or_that/${oldId}`;
+                    const newDir = `${user.id}/this_or_that/${id}`;
+
+                    // 1. List files in old dir
+                    const { data: files } = await db.storage.from(STORAGE_CONFIG.bucket).list(oldDir);
+                    if (files && files.length > 0) {
+                        for (const file of files) {
+                            if (file.name === '.emptyFolderPlaceholder') continue;
+                            const oldPath = `${oldDir}/${file.name}`;
+                            const newPath = `${newDir}/${file.name}`;
+                            await copyMedia(oldPath, newPath).catch(e => console.warn("Copy failed", e));
+                        }
+                        
+                        // 2. Update editorData URLs to point to new ID
+                        const oldDirUrl = `/this_or_that/${oldId}/`;
+                        const newDirUrl = `/this_or_that/${id}/`;
+                        editorData.forEach(slide => {
+                            if (slide.images) {
+                                slide.images = slide.images.map(img => (img && img.includes(oldDirUrl)) ? img.replace(oldDirUrl, newDirUrl) : img);
+                            }
+                        });
+                        
+                        // 3. Save again with updated URLs
+                        await saveUserPreset(name, editorData, id);
+                        
+                        // 4. Delete old folder
+                        await deleteFolder(oldDir).catch(e => console.warn(e));
+                    }
+                }
+            }
+
             currentPresetId = id;
             await saveCurrentPresetId(id);
             await renderPresetSelector();
+            renderBuilder();
             customAlert("Preset saved successfully!");
         }
 
@@ -916,6 +1013,8 @@
                 const savedPresetId = await getCurrentPresetId();
                 if (savedPresetId) {
                     currentPresetId = savedPresetId;
+                } else {
+                    currentPresetId = "states";
                 }
                 if (savedData) {
                     questions = savedData;
@@ -959,12 +1058,14 @@
 
         function loadPreset(key) {
             playSound("click");
+            currentPresetId = key;
             editorData = JSON.parse(JSON.stringify(PRESETS[key]));
             renderBuilder();
         }
 
         function loadBlank() {
             playSound("click");
+            currentPresetId = "states";
             editorData = [{ question: "", options: ["", ""], images: [] }];
             renderBuilder();
         }
@@ -1025,52 +1126,27 @@
             const file = event.target.files[0];
             if (!file) return;
 
-            const reader = new FileReader();
-            reader.onload = async function (e) {
-                const img = new Image();
-                img.onload = async function () {
-                    const canvas = document.createElement('canvas');
-                    const MAX_SIZE = 600;
-                    let width = img.width;
-                    let height = img.height;
-
-                    if (width > height) {
-                        if (width > MAX_SIZE) {
-                            height *= MAX_SIZE / width;
-                            width = MAX_SIZE;
-                        }
-                    } else {
-                        if (height > MAX_SIZE) {
-                            width *= MAX_SIZE / height;
-                            height = MAX_SIZE;
-                        }
-                    }
-                    canvas.width = width;
-                    canvas.height = height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0, width, height);
-
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-
-                    // Check for existing image hash
-                    const hash = await hashImage(dataUrl);
-                    const existing = await getImageByHash(hash);
-
-                    if (!editorData[sIdx].images) editorData[sIdx].images = [];
-
-                    if (existing) {
-                        // Use existing image to prevent duplication
-                        editorData[sIdx].images[oIdx] = existing;
-                    } else {
-                        // Store new image
-                        await storeImageHash(hash, dataUrl);
-                        editorData[sIdx].images[oIdx] = dataUrl;
-                    }
-                    renderBuilder();
+            try {
+                const { data: { user } } = await db.auth.getUser();
+                let imgSource;
+                if (!isSandbox() && user) {
+                    imgSource = await uploadMedia(file, 'this_or_that', currentPresetId);
+                } else {
+                    imgSource = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => resolve(e.target.result);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(file);
+                    });
                 }
-                img.src = e.target.result;
+                
+                if (!editorData[sIdx].images) editorData[sIdx].images = [];
+                editorData[sIdx].images[oIdx] = imgSource;
+                renderBuilder();
+            } catch (err) {
+                console.error("Image upload failed", err);
+                customAlert("Failed to process image.");
             }
-            reader.readAsDataURL(file);
         }
 
         function renderBuilder() {
@@ -1130,7 +1206,7 @@
                                 <div class="flex items-center gap-1.5">
                                     <div class="relative w-10 h-10 flex-shrink-0">
                                         ${hasImg ? `
-                                            <img src="${hasImg}" class="w-10 h-10 rounded-lg border-2 border-kkdark object-cover shadow-hard-sm">
+                                            <img data-src="${hasImg}" class="w-10 h-10 rounded-lg border-2 border-kkdark object-cover shadow-hard-sm">
                                             <button onclick="removeImage(${sIdx}, ${oIdx})" class="absolute -top-1.5 -right-1.5 bg-red-500 text-white w-5 h-5 rounded-full border-2 border-kkdark flex items-center justify-center shadow-hard-sm hover:scale-110 transition-transform">
                                                 <i data-lucide="x" class="w-2.5 h-2.5"></i>
                                             </button>
@@ -1175,6 +1251,17 @@
                     </div>`;
             }
             lucide.createIcons();
+
+            // Resolve cloud images in builder
+            const imgs = container.querySelectorAll('img[data-src]');
+            for (const img of imgs) {
+                const src = img.getAttribute('data-src');
+                if (src && src.includes('klasskit-media')) {
+                    resolveAndCache(src).then(url => { img.src = url; });
+                } else {
+                    img.src = src;
+                }
+            }
         }
 
         function updateQuestion(sIdx, val) { editorData[sIdx].question = val; }
@@ -1183,6 +1270,10 @@
         function removeImage(sIdx, oIdx) {
             playSound("click");
             if (editorData[sIdx].images) {
+                const url = editorData[sIdx].images[oIdx];
+                if (url && url.includes('klasskit-media')) {
+                    deleteMediaFromUrl(url).catch(e => console.error("Cloud delete failed", e));
+                }
                 editorData[sIdx].images[oIdx] = null;
                 renderBuilder();
             }
@@ -1236,13 +1327,13 @@
 
             try {
                 await saveGameData(questions);
-                syncToCloud();
-                closeSetupModal();
-                startGame();
             } catch (error) {
-                customAlert("Failed to save to browser database. Try clearing some data.");
-                console.error("IndexedDB Save Error:", error);
+                console.warn("Failed to save to local database (might be out of storage or in private mode):", error);
             }
+            
+            syncToCloud();
+            closeSetupModal();
+            startGame();
         }
 
         function startGame() {
@@ -1317,10 +1408,18 @@
                 }
 
                 panel.innerHTML = backgroundLayer + contentLayer;
+
+                // Resolve cloud images in slide
+                if (imgSrc && imgSrc.includes('klasskit-media')) {
+                    const bgImg = panel.querySelector('.bg-image-layer');
+                    resolveAndCache(imgSrc).then(url => { if (bgImg) bgImg.src = url; });
+                }
+
                 panel.onclick = () => { playSound("pop"); };
                 container.appendChild(panel);
             });
 
+            hydrateImages();
             lucide.createIcons();
             playSound("pop");
         }

@@ -262,3 +262,270 @@ async function migrateLocalToCloud() {
   localStorage.setItem('migrated_to_cloud', 'true')
 }
 
+/* ── STORAGE HELPERS ── */
+const STORAGE_CONFIG = {
+  bucket: 'klasskit-media',
+  defaultLimit: 50 * 1024 * 1024, // 50MB
+  quality: 0.8
+};
+
+/**
+ * Compresses an image file client-side to WebP format using browser-image-compression.
+ */
+async function compressImage(file) {
+  if (!file.type.startsWith('image/')) return file;
+
+  const options = {
+    maxSizeMB: 0.2, // 200KB
+    maxWidthOrHeight: 800,
+    useWebWorker: true,
+    fileType: 'image/webp'
+  };
+
+  try {
+    if (typeof imageCompression === 'undefined') {
+      console.warn('[Storage] browser-image-compression not loaded. Falling back to original.');
+      return file;
+    }
+    return await imageCompression(file, options);
+  } catch (error) {
+    console.error('[Storage] Compression failed:', error);
+    return file;
+  }
+}
+
+/**
+ * Returns user storage usage: { used, limit, percent }
+ */
+async function getUserStorageUsage() {
+  const user = await getUser();
+  if (!user || user.is_sandbox) {
+    if (navigator.storage && navigator.storage.estimate) {
+      try {
+        const estimate = await navigator.storage.estimate();
+        const used = estimate.usage || 0;
+        const limit = estimate.quota || STORAGE_CONFIG.defaultLimit;
+        const percent = Math.min(100, Math.round((used / limit) * 100));
+        return { used, limit, percent, isSandbox: true };
+      } catch (e) { }
+    }
+    return { used: 0, limit: STORAGE_CONFIG.defaultLimit, percent: 0, isSandbox: true };
+  }
+
+  const { data, error } = await db
+    .from('profiles')
+    .select('storage_usage, storage_limit')
+    .eq('id', user.id)
+    .single();
+
+  if (error) {
+    console.error('[Storage] Usage lookup error:', error);
+    return { used: 0, limit: STORAGE_CONFIG.defaultLimit, percent: 0 };
+  }
+
+  const used = data.storage_usage || 0;
+  const limit = data.storage_limit || STORAGE_CONFIG.defaultLimit;
+  const percent = Math.min(100, Math.round((used / limit) * 100));
+
+  return { used, limit, percent };
+}
+
+/**
+ * Uploads a media file with compression and quota checks.
+ */
+async function uploadMedia(file, toolId, setId = null) {
+  if (isSandbox()) throw new Error('Storage not available in Sandbox.');
+
+  const user = await getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // 1. Compress
+  const compressedFile = await compressImage(file);
+  const fileSize = compressedFile.size;
+
+  // 2. Check quota
+  const usage = await getUserStorageUsage();
+  
+  const filename = file.name.replace(/\.[^/.]+$/, "").replace(/[^a-z0-9]/gi, '_').toLowerCase();
+  const subPath = setId ? `${toolId}/${setId}` : toolId;
+  const dirPath = `${user.id}/${subPath}`;
+  const filePath = `${dirPath}/${filename}.webp`;
+  
+  let oldSize = 0;
+  try {
+    const { data: existingFiles } = await db.storage.from(STORAGE_CONFIG.bucket).list(dirPath);
+    const existing = existingFiles?.find(f => f.name === `${filename}.webp`);
+    if (existing) {
+      oldSize = existing.metadata.size;
+    }
+  } catch (e) {
+    console.warn('[Storage] Could not check existing file size:', e);
+  }
+
+  if (usage.used - oldSize + fileSize > usage.limit) {
+    throw new Error('Storage quota exceeded');
+  }
+
+  // 3. Upload
+  const { error: uploadError } = await db.storage
+    .from(STORAGE_CONFIG.bucket)
+    .upload(filePath, compressedFile, {
+      contentType: 'image/webp',
+      upsert: true
+    });
+
+  if (uploadError) throw uploadError;
+
+  // 4. Update usage in profile
+  const newUsage = usage.used - oldSize + fileSize;
+  await db
+    .from('profiles')
+    .update({ storage_usage: newUsage })
+    .eq('id', user.id);
+
+  // 5. Return Signed URL (Bucket is private)
+  const { data, error: signError } = await db.storage
+    .from(STORAGE_CONFIG.bucket)
+    .createSignedUrl(filePath, 3600); // 1 hour expiry
+
+  if (signError) throw signError;
+  return data.signedUrl;
+}
+
+/**
+ * Copies a file within the private bucket.
+ */
+async function copyMedia(fromPath, toPath) {
+  if (isSandbox()) return;
+  const { error } = await db.storage
+    .from(STORAGE_CONFIG.bucket)
+    .copy(fromPath, toPath);
+  if (error) throw error;
+}
+
+/**
+ * Resolves a stored media URL to a signed URL if it belongs to our private bucket.
+ */
+async function resolveMediaUrl(url) {
+  if (!url || typeof url !== 'string' || !url.includes(STORAGE_CONFIG.bucket)) return url;
+  
+  try {
+    const parts = url.split(STORAGE_CONFIG.bucket + '/');
+    if (parts.length < 2) return url;
+    
+    // Extract path and remove any existing query params/tokens
+    const filePath = parts[1].split('?')[0];
+    
+    const { data, error } = await db.storage
+      .from(STORAGE_CONFIG.bucket)
+      .createSignedUrl(filePath, 3600);
+      
+    return data?.signedUrl || url;
+  } catch (e) {
+    console.error('[Storage] URL resolution failed:', e);
+    return url;
+  }
+}
+
+/**
+ * Deletes a media file and updates storage usage.
+ */
+async function deleteMedia(filePath) {
+  if (isSandbox()) return;
+
+  const user = await getUser();
+  if (!user) return;
+
+  // 1. Get file size before deletion
+  let fileSize = 0;
+  try {
+    const pathParts = filePath.split('/');
+    const filename = pathParts.pop();
+    const dir = pathParts.join('/');
+    const { data: files } = await db.storage.from(STORAGE_CONFIG.bucket).list(dir);
+    const file = files?.find(f => f.name === filename);
+    if (file) fileSize = file.metadata.size;
+  } catch (e) {
+    console.warn('[Storage] Could not get file size for deletion:', e);
+  }
+
+  // 2. Delete from Storage
+  const { error } = await db.storage.from(STORAGE_CONFIG.bucket).remove([filePath]);
+  if (error) throw error;
+
+  // 3. Update usage
+  const usage = await getUserStorageUsage();
+  const newUsage = Math.max(0, usage.used - fileSize);
+  
+  await db
+    .from('profiles')
+    .update({ storage_usage: newUsage })
+    .eq('id', user.id);
+
+  return { success: true };
+}
+
+/**
+ * Helper to delete media file from its Supabase URL.
+ */
+async function deleteMediaFromUrl(url) {
+  if (!url || typeof url !== 'string' || !url.includes(STORAGE_CONFIG.bucket)) return;
+  try {
+    const path = url.split(STORAGE_CONFIG.bucket + '/')[1].split('?')[0];
+    await deleteMedia(path);
+  } catch (e) {
+    console.warn('[Storage] URL-based deletion failed:', e);
+  }
+}
+
+/**
+ * Deletes an entire folder and updates usage.
+ */
+async function deleteFolder(folderPath) {
+  if (isSandbox()) return;
+  const user = await getUser();
+  if (!user) return;
+
+  try {
+    // 1. List all files in folder
+    const { data: files, error: listError } = await db.storage
+      .from(STORAGE_CONFIG.bucket)
+      .list(folderPath);
+    
+    if (listError || !files || files.length === 0) return;
+
+    // 2. Calculate total size
+    const totalSize = files.reduce((sum, f) => sum + (f.metadata?.size || 0), 0);
+    const filePaths = files.map(f => `${folderPath}/${f.name}`);
+
+    // 3. Delete files
+    const { error: delError } = await db.storage
+      .from(STORAGE_CONFIG.bucket)
+      .remove(filePaths);
+    
+    if (delError) throw delError;
+
+    // 4. Update usage
+    const usage = await getUserStorageUsage();
+    const newUsage = Math.max(0, usage.used - totalSize);
+    
+    await db
+      .from('profiles')
+      .update({ storage_usage: newUsage })
+      .eq('id', user.id);
+
+    return { success: true, freed: totalSize };
+  } catch (e) {
+    console.error('[Storage] Folder deletion failed:', e);
+    throw e;
+  }
+}
+
+/**
+ * Replaces an existing media file (overwrites).
+ */
+async function replaceMedia(oldPath, newFile, activityId) {
+  // uploadMedia already handles upsert: true and usage calculation
+  return await uploadMedia(newFile, activityId);
+}
+

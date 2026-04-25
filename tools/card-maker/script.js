@@ -124,6 +124,12 @@ async function getAllCardSets() {
     } catch(e) { return []; }
 }
 async function deleteCardSet(id) {
+    // Cloud Cleanup
+    const { data: { user } } = await db.auth.getUser();
+    if (!isSandbox() && user) {
+        deleteFolder(`${user.id}/card_maker/${id}`).catch(e => console.warn("Cloud folder delete failed", e));
+    }
+
     const db = await initDB();
     const tx = db.transaction(SETS_STORE, 'readwrite');
     tx.objectStore(SETS_STORE).delete(id);
@@ -197,7 +203,15 @@ async function syncSetsToCloud() {
 
 async function syncStateToCloud() {
     try {
-        await saveProgress('card_maker_state', state);
+        // Strip large dataURLs from cloud sync to avoid payload limits
+        const cloudState = JSON.parse(JSON.stringify(state));
+        cloudState.pages = cloudState.pages.map(page => 
+            page.map(card => ({
+                ...card,
+                img: (card.img && card.img.startsWith('http')) ? card.img : "" 
+            }))
+        );
+        await saveProgress('card_maker_state', cloudState);
         console.log("✅ Card State synced to cloud");
     } catch (e) {
         console.error("Cloud sync failed", e);
@@ -211,20 +225,20 @@ async function loadState() {
             const parsed = JSON.parse(saved);
             // Merge saved state with defaults to handle version upgrades
             state = { ...state, ...parsed };
-
-            // Restore UI Controls
-            inputCols.value = state.gridCols || 3;
-            inputRows.value = state.gridRows || 3;
-
-            // Apply visual settings (without saving again to avoid loops)
-            setOrientation(state.orientation, false);
-            setImageSize(state.imgHeight ?? 50, false);
-            setFontSize(state.fontSize || 2, false);
-            updateToggleUI();
-        } catch (e) {
-            console.error("Load Error:", e);
-        }
+        } catch (e) { console.warn("Failed to parse state", e); }
     }
+    if (!state.id) state.id = 'cards_' + Date.now();
+
+    // Restore UI Controls
+    inputCols.value = state.gridCols || 3;
+    inputRows.value = state.gridRows || 3;
+
+    // Apply visual settings (without saving again to avoid loops)
+    setOrientation(state.orientation, false);
+    setImageSize(state.imgHeight ?? 50, false);
+    setFontSize(state.fontSize || 2, false);
+    updateToggleUI();
+    renderAllPages();
 
     // Sync from Cloud
     try {
@@ -238,23 +252,20 @@ async function loadState() {
             setImageSize(state.imgHeight ?? 50, false);
             setFontSize(state.fontSize || 2, false);
             updateToggleUI();
+            renderAllPages();
         }
 
         const cloudSets = await loadProgress('card_maker_sets');
         if (cloudSets && cloudSets.length > 0) {
             // Merge cloud sets into local DB
-            const db = await initDB();
-            for (const set of cloudSets) {
-                const tx = db.transaction(SETS_STORE, 'readwrite');
-                // Use put to overwrite/add
-                tx.objectStore(SETS_STORE).put(set);
+            for (const s of cloudSets) {
+                await saveCardSetToDB(s.name, s.stateData);
             }
             renderCardSets();
         }
     } catch (e) {
-        console.error("Cloud load failed", e);
+        console.error("Cloud load failed:", e);
     }
-
     // Ensure at least one page exists
     if (!state.pages || state.pages.length === 0) {
         state.pages = [[]];
@@ -284,7 +295,7 @@ function saveState() {
                 ? labelElement.innerText
                 : "";
             const text = textElement ? textElement.innerText : "";
-            const imgSrc = imgElement ? imgElement.src : "";
+            const imgSrc = imgElement ? (imgElement.dataset.original || imgElement.src) : "";
             // Check if image is actually visible/set. If src is empty or hidden, save empty string.
             const hasImage =
                 imgElement &&
@@ -474,19 +485,25 @@ async function handleBulkImageImport(input) {
 
     const cardsPerPage = state.gridCols * state.gridRows;
 
-    // Read all images first
+    // Process all images
     const newCards = [];
     for (const file of files) {
         try {
-            const dataUrl = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = (e) => resolve(e.target.result);
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
-            newCards.push({ text: "", img: dataUrl, label: "" });
+            let imgSource;
+            const { data: { user } } = await db.auth.getUser();
+            if (!isSandbox() && user) {
+                imgSource = await uploadMedia(file, 'card_maker', state.id);
+            } else {
+                imgSource = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+            }
+            newCards.push({ text: "", img: imgSource, label: "" });
         } catch (e) {
-            console.error("Image load failed", e);
+            console.error("Image processing failed", e);
         }
     }
 
@@ -728,6 +745,10 @@ function removeImage(pageIndex, cardIndex) {
     const delBtn = document.getElementById(`del-${uid}`);
 
     if (img) {
+        const url = img.src;
+        if (url && url.includes('klasskit-media')) {
+            deleteMediaFromUrl(url).catch(e => console.error("Cloud delete failed", e));
+        }
         img.src = "";
         img.classList.add("hidden");
     }
@@ -848,7 +869,12 @@ function renderSinglePage(pageIndex, pageData) {
         const img = document.createElement("img");
         img.className = `image-preview ${savedCard.img ? "" : "hidden"}`;
         img.id = `img-${uid}`;
-        img.src = savedCard.img || "";
+        if (savedCard.img) {
+            img.dataset.original = savedCard.img; // Store original URL to prevent saveState wiping it
+            resolveMediaUrl(savedCard.img).then(url => {
+                img.src = url;
+            });
+        }
 
         const icon = document.createElement("div");
         icon.className = `no-print opacity-20 group-hover:opacity-100 transition-opacity duration-200 ${savedCard.img ? "hidden" : ""}`;
@@ -942,15 +968,28 @@ function renderSinglePage(pageIndex, pageData) {
     pagesContainer.appendChild(wrapper);
 }
 
-function handleFileSelect(file, uid, pageIndex) {
+async function handleFileSelect(file, uid, pageIndex) {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (re) => {
-        const img = document.getElementById(`img-${uid}`);
-        const icon = document.getElementById(`icon-${uid}`);
-        const delBtn = document.getElementById(`del-${uid}`);
+    
+    const img = document.getElementById(`img-${uid}`);
+    const icon = document.getElementById(`icon-${uid}`);
+    const delBtn = document.getElementById(`del-${uid}`);
 
-        img.src = reader.result;
+    try {
+        let imgSource;
+        const { data: { user } } = await db.auth.getUser();
+        if (!isSandbox() && user) {
+            imgSource = await uploadMedia(file, 'card_maker', state.id);
+        } else {
+            imgSource = await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.readAsDataURL(file);
+            });
+        }
+
+        img.src = imgSource;
+        img.dataset.original = imgSource;
         img.classList.remove("hidden");
         icon.classList.add("hidden");
         delBtn.classList.remove("hidden");
@@ -961,8 +1000,10 @@ function handleFileSelect(file, uid, pageIndex) {
         img.style.padding = state.imgHeight === 100 ? "0" : "4px";
 
         saveState();
-    };
-    reader.readAsDataURL(file);
+    } catch (e) {
+        console.error("Image upload failed", e);
+        showToast("Image upload failed", "error");
+    }
 }
 
 async function resetTool() {

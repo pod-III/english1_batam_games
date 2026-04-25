@@ -4,6 +4,7 @@
 <head>
     <!-- Supabase Auth -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
     <script src="/supabase.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -679,9 +680,22 @@
             async syncToCloud() {
                 clearTimeout(this.cloudSaveTimeout);
                 this.cloudSaveTimeout = setTimeout(async () => {
+                    // Strip local DataURLs from cloud sync, but keep Supabase URLs
+                    const cleanSlides = this.slides.map(s => ({
+                        ...s,
+                        image: (s.image && s.image.startsWith('http')) ? s.image : ""
+                    }));
+                    const cleanLibrary = this.library.map(d => ({
+                        ...d,
+                        slides: d.slides.map(s => ({
+                            ...s,
+                            image: (s.image && s.image.startsWith('http')) ? s.image : ""
+                        }))
+                    }));
+
                     await saveProgress('presentation_data', {
-                        library: this.library,
-                        slides: this.slides,
+                        library: cleanLibrary,
+                        slides: cleanSlides,
                         currentDeckId: this.currentDeckId
                     });
                 }, 1000);
@@ -781,6 +795,12 @@
                 if (c) {
                     this.library = this.library.filter(d => d.id !== id);
                     localStorage.setItem('e1_rapid_library_v1', JSON.stringify(this.library));
+
+                    // Cloud Cleanup
+                    const { data: { user } } = await db.auth.getUser();
+                    if (!isSandbox() && user) {
+                        deleteFolder(`${user.id}/presentation_maker/${id}`).catch(e => console.warn("Cloud folder delete failed", e));
+                    }
 
                     if (this.currentDeckId === id) {
                         this.currentDeckId = null;
@@ -976,7 +996,17 @@
                 if (this.viewMode === 'list') this.renderList();
                 else this.renderGrid();
 
+                this.hydrateThumbnails();
                 lucide.createIcons();
+            },
+
+            async hydrateThumbnails() {
+                const thumbs = document.querySelectorAll('.slide-thumb img, .grid-card img');
+                for (const img of thumbs) {
+                    if (img.src && img.src.includes('klasskit-media')) {
+                        img.src = await resolveMediaUrl(img.src);
+                    }
+                }
             },
 
             renderList() {
@@ -1120,23 +1150,45 @@
             updateSlideLayout(index, value) { this.slides[index].layout = value; this.saveWorkspace(); this.render(); },
 
             triggerImageUpload(index) {
-                const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*';
-                input.onchange = (e) => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.onchange = async (e) => {
                     const file = e.target.files[0];
-                    if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (evt) => {
-                            const img = new Image();
-                            img.onload = () => { this.slides[index].image = this.compressImage(img); this.saveWorkspace(); this.render(); };
-                            img.src = evt.target.result;
-                        };
-                        reader.readAsDataURL(file);
+                    if (!file) return;
+                    
+                    try {
+                        const { data: { user } } = await db.auth.getUser();
+                        let imgSource;
+                        if (!isSandbox() && user) {
+                            imgSource = await uploadMedia(file, 'presentation_maker', this.currentDeckId || 'unsaved');
+                        } else {
+                            imgSource = await new Promise((resolve, reject) => {
+                                const reader = new FileReader();
+                                reader.onload = (e) => resolve(e.target.result);
+                                reader.onerror = reject;
+                                reader.readAsDataURL(file);
+                            });
+                        }
+                        this.slides[index].image = imgSource;
+                        this.saveWorkspace(); this.render();
+                    } catch (err) {
+                        console.error("Image upload failed", err);
+                        this.showToast("Failed to upload image", "alert-circle");
                     }
                 };
                 input.click();
             },
 
-            removeImage(index) { this.slides[index].image = null; this.saveWorkspace(); this.render(); },
+            removeImage(index) { 
+                const url = this.slides[index].image;
+                if (url && url.includes('klasskit-media')) {
+                    deleteMediaFromUrl(url).catch(e => console.error("Cloud delete failed", e));
+                }
+                this.slides[index].image = null; 
+                this.saveWorkspace(); 
+                this.render(); 
+            },
 
             compressImage(img) {
                 const canvas = document.getElementById('compression-canvas'); const ctx = canvas.getContext('2d');
@@ -1184,7 +1236,7 @@
                 this.renderShowSlide();
             },
 
-            renderShowSlide() {
+            async renderShowSlide() {
                 const s = this.presentationSlides[this.currentIndex];
                 const container = document.getElementById('slide-display-container');
                 const txt = document.getElementById('display-word');
@@ -1199,7 +1251,7 @@
                 img.classList.remove('hidden');
 
                 txt.innerText = s.text;
-                if (s.image) img.src = s.image; else img.src = "";
+                if (s.image) img.src = await resolveMediaUrl(s.image); else img.src = "";
 
                 if (layout === 'hero' || (layout === 'split' && !s.image)) img.classList.add('hidden');
 

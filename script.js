@@ -537,6 +537,67 @@ const Hero = {
     this.updateStats();
     this.updateContinueBtn();
     Announcements.init();
+    StorageManager.init();
+  }
+};
+
+// --- STORAGE MANAGER ---
+const StorageManager = {
+  async init() {
+    const user = await getUser();
+    if (!user) return;
+
+    document.getElementById('storage-badge')?.classList.remove('hidden');
+    await this.update();
+  },
+
+  async update() {
+    try {
+      const usage = await getUserStorageUsage();
+      this.render(usage);
+      
+      // Quota check (80%) - skip for sandbox
+      if (!usage.isSandbox && usage.percent >= 80) {
+        const lastWarned = localStorage.getItem('kk_quota_warned_at');
+        const now = Date.now();
+        // Warn once every 24h
+        if (!lastWarned || (now - parseInt(lastWarned)) > 24 * 60 * 60 * 1000) {
+          UI.showToast(`Storage Quota: ${usage.percent}% used. Consider cleaning up old images.`, 'warning', 5000);
+          localStorage.setItem('kk_quota_warned_at', now.toString());
+        }
+      }
+    } catch (err) {
+      console.warn('[StorageManager] Update error:', err);
+    }
+  },
+
+  render(usage) {
+    const textEl = document.getElementById('storage-text');
+    const barEl = document.getElementById('storage-bar');
+    if (!textEl || !barEl) return;
+
+    const usedMB = (usage.used / (1024 * 1024)).toFixed(1);
+    
+    if (usage.isSandbox) {
+        textEl.textContent = `${usedMB} MB Used (Local)`;
+        barEl.style.width = `${usage.percent}%`;
+        barEl.classList.remove('bg-blue', 'bg-orange', 'bg-red-500');
+        barEl.classList.add('bg-slate-300');
+    } else {
+        const limitMB = (usage.limit / (1024 * 1024)).toFixed(0);
+        textEl.textContent = `${usedMB} MB / ${limitMB} MB`;
+        barEl.style.width = `${usage.percent}%`;
+        
+        // Color coding
+        barEl.classList.remove('bg-blue', 'bg-orange', 'bg-red-500', 'bg-slate-300');
+        if (usage.percent >= 90) {
+          barEl.classList.add('bg-red-500');
+        } else if (usage.percent >= 80) {
+          barEl.classList.add('bg-orange');
+        } else {
+          barEl.classList.add('bg-blue');
+        }
+    }
   }
 };
 

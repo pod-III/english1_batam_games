@@ -11,6 +11,7 @@
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1ea7fd">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
     <script src="/supabase.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -290,6 +291,19 @@
             </div>
         </div>
 
+        <!-- Storage Badge -->
+        <div id="storage-badge" class="hidden p-5 border-b-[3px] border-slate-800">
+            <div class="flex flex-col gap-2">
+                <div class="flex items-center justify-between">
+                    <span class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Your Storage</span>
+                    <span id="storageText" class="text-[10px] text-slate-400 font-mono">0 MB / 10 MB</span>
+                </div>
+                <div class="h-2 bg-slate-800 border-2 border-slate-700 rounded-full overflow-hidden">
+                    <div id="storageBar" class="h-full bg-blue transition-all duration-500" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+
         <!-- Nav -->
         <nav class="flex-1 p-4 space-y-1">
             <button onclick="setView('dashboard')" id="nav-dashboard" class="sidebar-link active w-full text-slate-300">
@@ -424,6 +438,18 @@
                         </div>
                         <div class="font-heading text-xl text-white mb-1" id="statLatest">—</div>
                         <div class="text-xs text-slate-400 font-bold uppercase tracking-widest">Last activity</div>
+                    </div>
+
+                    <div class="stat-card neo bg-slate-800">
+                        <div class="flex items-start justify-between mb-3">
+                            <div
+                                class="w-9 h-9 rounded-xl bg-orange/20 border-2 border-orange/40 flex items-center justify-center">
+                                <i data-lucide="database" class="w-4 h-4 text-orange"></i>
+                            </div>
+                            <span class="chip bg-orange/10 text-orange border-orange/40">Storage</span>
+                        </div>
+                        <div class="font-heading text-2xl text-white mb-1" id="statStorage">—</div>
+                        <div class="text-xs text-slate-400 font-bold uppercase tracking-widest">Cloud usage</div>
                     </div>
                 </div>
 
@@ -730,6 +756,29 @@
             populateToolFilter()
             applyFilters()
             renderAnnouncements()
+            updateStorageStats()
+        }
+
+        async function updateStorageStats() {
+            try {
+                const usage = await getUserStorageUsage();
+                const usedMB = (usage.used / (1024 * 1024)).toFixed(1);
+                const limitMB = (usage.limit / (1024 * 1024)).toFixed(0);
+                
+                // Update sidebar
+                const badge = document.getElementById('storage-badge');
+                const text = document.getElementById('storageText');
+                const bar = document.getElementById('storageBar');
+                if (badge) badge.classList.remove('hidden');
+                if (text) text.textContent = `${usedMB} MB / ${limitMB} MB`;
+                if (bar) bar.style.width = `${usage.percent}%`;
+                
+                // Update stat card
+                const stat = document.getElementById('statStorage');
+                if (stat) stat.textContent = `${usedMB} MB`;
+            } catch (err) {
+                console.error('[Admin] Storage update error:', err);
+            }
         }
         // ── STATS ──
         function updateStats() {
