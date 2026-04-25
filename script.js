@@ -2005,7 +2005,7 @@ const Footer = {
     const parts = [];
     if (version) parts.push(`v${version}`);
     if (updated) parts.push(`Updated ${updated}`);
-    el.innerHTML = parts.join('<span class="footer-version-dot"></span>');
+    el.innerHTML = parts.join('<br>');
   }
 };
 
