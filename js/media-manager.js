@@ -63,6 +63,7 @@ const MediaManager = {
         this.showLoader();
         this.grid.innerHTML = '';
         this.empty.classList.add('hidden');
+        this.empty.classList.remove('flex');
         this.clearAllBtn.classList.add('hidden');
         
         try {
@@ -110,6 +111,7 @@ const MediaManager = {
         
         if (allFiles.length === 0) {
             this.empty.classList.remove('hidden');
+            this.empty.classList.add('flex');
             return;
         }
 
@@ -167,16 +169,16 @@ const MediaManager = {
 
     createCloudCard(userId, file) {
         const card = document.createElement('div');
-        card.className = "bg-white dark:bg-slate-800 rounded-xl border-[3px] border-dark dark:border-slate-700 p-3 flex flex-col gap-2 relative group hover:border-blue transition-colors shadow-hard-sm";
+        card.className = "bg-white dark:bg-slate-800 rounded-2xl border-[3px] border-dark dark:border-slate-600 p-3 flex flex-col gap-2 relative group shadow-hard hover:-translate-y-1 hover:shadow-hard-lg transition-all duration-200 cursor-pointer";
         
         card.innerHTML = `
-            <div class="flex-1 flex items-center justify-center bg-slate-100 dark:bg-slate-900 rounded-lg aspect-square overflow-hidden relative">
+            <div class="flex-1 flex items-center justify-center bg-slate-100 dark:bg-slate-900 rounded-xl border-2 border-dark/20 dark:border-slate-700/50 aspect-square overflow-hidden relative">
                 <div class="absolute inset-0 flex items-center justify-center"><i data-lucide="image" class="w-8 h-8 text-slate-300"></i></div>
                 <img class="w-full h-full object-cover relative z-10 opacity-0 transition-opacity duration-300" />
             </div>
-            <div class="text-center font-bold text-xs text-slate-500 dark:text-slate-400 truncate w-full" title="${file.name}">${file.name}</div>
-            <button class="delete-btn hidden absolute top-1 right-1 bg-red-500 text-white p-1.5 rounded-lg border-2 border-dark shadow-hard-sm hover:scale-110" title="Delete File">
-                <i data-lucide="trash-2" class="w-3 h-3"></i>
+            <div class="text-center font-bold text-xs text-slate-500 dark:text-slate-400 truncate w-full px-2" title="${file.name}">${file.name}</div>
+            <button class="delete-btn opacity-0 group-hover:opacity-100 absolute -top-3 -right-3 w-10 h-10 bg-red-500 text-white rounded-xl border-3 border-dark dark:border-slate-500 shadow-hard hover:bg-red-600 transition-all z-20 flex items-center justify-center hover:scale-110 btn-chunky" title="Delete File">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
             </button>
         `;
         
@@ -192,9 +194,6 @@ const MediaManager = {
                 if(typeof StorageManager !== 'undefined') StorageManager.update();
             }
         };
-
-        card.addEventListener('mouseenter', () => delBtn.classList.remove('hidden'));
-        card.addEventListener('mouseleave', () => delBtn.classList.add('hidden'));
 
         return card;
     },
@@ -276,6 +275,7 @@ const MediaManager = {
         
         if (!hasAnyMedia) {
             this.empty.classList.remove('hidden');
+            this.empty.classList.add('flex');
         }
         
         lucide.createIcons();
@@ -288,15 +288,15 @@ const MediaManager = {
         else if (item.value && item.value.dataUrl) srcUrl = item.value.dataUrl;
         
         const card = document.createElement('div');
-        card.className = "bg-white dark:bg-slate-800 rounded-xl border-[3px] border-dark dark:border-slate-700 p-3 flex flex-col gap-2 relative group shadow-hard-sm";
+        card.className = "bg-white dark:bg-slate-800 rounded-2xl border-[3px] border-dark dark:border-slate-600 p-3 flex flex-col gap-2 relative group shadow-hard hover:-translate-y-1 hover:shadow-hard-lg transition-all duration-200 cursor-pointer";
         
         card.innerHTML = `
-            <div class="flex-1 flex items-center justify-center bg-slate-100 dark:bg-slate-900 rounded-lg aspect-square overflow-hidden relative">
+            <div class="flex-1 flex items-center justify-center bg-slate-100 dark:bg-slate-900 rounded-xl border-2 border-dark/20 dark:border-slate-700/50 aspect-square overflow-hidden relative">
                 <img src="${srcUrl}" class="w-full h-full object-cover relative z-10" />
             </div>
-            <div class="text-center font-bold text-[10px] text-slate-500 truncate w-full" title="${item.key}">${item.key}</div>
-            <button class="delete-btn hidden absolute top-1 right-1 bg-red-500 text-white p-1.5 rounded-lg border-2 border-dark shadow-hard-sm hover:scale-110" title="Delete File">
-                <i data-lucide="trash-2" class="w-3 h-3"></i>
+            <div class="text-center font-bold text-[10px] text-slate-500 dark:text-slate-400 truncate w-full px-2" title="${item.key}">${item.key}</div>
+            <button class="delete-btn opacity-0 group-hover:opacity-100 absolute -top-3 -right-3 w-10 h-10 bg-red-500 text-white rounded-xl border-3 border-dark dark:border-slate-500 shadow-hard hover:bg-red-600 transition-all z-20 flex items-center justify-center hover:scale-110 btn-chunky" title="Delete File">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
             </button>
         `;
         
@@ -309,9 +309,6 @@ const MediaManager = {
                 if(typeof StorageManager !== 'undefined') StorageManager.update();
             }
         };
-
-        card.addEventListener('mouseenter', () => delBtn.classList.remove('hidden'));
-        card.addEventListener('mouseleave', () => delBtn.classList.add('hidden'));
 
         return card;
     },
@@ -390,10 +387,15 @@ const MediaManager = {
         section.className = "flex flex-col gap-4";
         
         const header = document.createElement('div');
-        header.className = "flex items-center justify-between border-b-[3px] border-dark dark:border-slate-700 pb-2";
+        header.className = "flex items-center justify-between border-b-[4px] border-dark dark:border-slate-600 pb-4 mb-2";
         header.innerHTML = `
-            <h3 class="font-heading font-black text-xl text-dark dark:text-white tracking-tight uppercase">${title}</h3>
-            <button class="stick-btn h-8 w-8 hover:bg-red-50 hover:border-red-500 hover:text-red-500 text-slate-400 !shadow-none rounded-lg border-2" title="Clear Group">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-blue text-white rounded-xl border-3 border-dark dark:border-slate-500 flex items-center justify-center shadow-hard-sm">
+                    <i data-lucide="folder" class="w-5 h-5"></i>
+                </div>
+                <h3 class="font-heading font-black text-2xl text-dark dark:text-white tracking-tight uppercase">${title}</h3>
+            </div>
+            <button class="btn-chunky bg-red-500 text-white w-10 h-10 rounded-xl border-3 border-dark dark:border-slate-500 shadow-hard flex items-center justify-center hover:bg-red-600 transition-colors" title="Clear Group">
                 <i data-lucide="trash-2" class="w-4 h-4"></i>
             </button>
         `;
