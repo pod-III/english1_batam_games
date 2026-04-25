@@ -618,7 +618,7 @@ const Announcements = {
         .select('*')
         .eq('is_active', true)
         .order('created_at', { ascending: false })
-        .limit(5);
+        .limit(3);
 
       if (error) throw error;
       this.list = data || [];
@@ -653,7 +653,7 @@ const Announcements = {
     if (!listEl) return;
 
     listEl.innerHTML = this.list.map((ann, i) => {
-      const date = new Date(ann.created_at).toLocaleDateString();
+      const date = new Date(ann.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
       const typeColors = {
         info: 'blue',
         update: 'green',
@@ -663,18 +663,30 @@ const Announcements = {
       const icon = ann.type === 'alert' ? 'alert-triangle' : (ann.type === 'update' ? 'sparkles' : 'info');
 
       return `
-        <div class="ann-card bg-white dark:bg-slate-800 p-6 rounded-2xl border-[3px] border-dark dark:border-slate-600 shadow-hard dark:shadow-neon-sm animate-pop-in" style="animation-delay: ${i * 0.1}s">
-          <div class="flex items-start justify-between mb-3">
-            <div class="flex items-center gap-2">
-              <div class="w-8 h-8 rounded-lg bg-${color}/10 text-${color} flex items-center justify-center border-2 border-${color}/20">
-                <i data-lucide="${icon}" class="w-4 h-4"></i>
+        <div onclick="Announcements.viewDetail('${ann.id}')" 
+          class="ann-card bg-white dark:bg-slate-800 p-6 rounded-2xl border-[3px] border-dark dark:border-slate-600 shadow-hard dark:shadow-neon-sm hover:border-blue dark:hover:border-blue transition-all cursor-pointer group animate-pop-in" 
+          style="animation-delay: ${i * 0.1}s">
+          
+          <div class="flex items-start justify-between mb-4">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-${color}/10 text-${color} flex items-center justify-center border-2 border-${color}/20">
+                <i data-lucide="${icon}" class="w-5 h-5"></i>
               </div>
-              <span class="text-[10px] font-black text-${color} uppercase tracking-tight">${ann.type}</span>
+              <div>
+                <span class="text-[10px] font-black text-${color} uppercase tracking-widest">${ann.type}</span>
+                <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">${date}</div>
+              </div>
             </div>
-            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">${date}</span>
+            <i data-lucide="chevron-right" class="w-5 h-5 text-slate-300 group-hover:text-blue transition-colors"></i>
           </div>
-          <h4 class="text-xl font-heading font-bold text-dark dark:text-white mb-2 leading-tight">${ann.title}</h4>
-          <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-body font-semibold whitespace-pre-wrap">${this.formatText(ann.content)}</p>
+          
+          <h4 class="text-xl font-heading font-black text-dark dark:text-white mb-3 leading-tight group-hover:text-blue transition-colors">${ann.title}</h4>
+          <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-body font-semibold line-clamp-3 mb-4">${this.formatText(ann.content).replace(/<br>/g, ' ')}</p>
+          
+          <div class="flex items-center gap-2 text-[10px] font-black text-blue uppercase tracking-[0.2em] opacity-0 group-hover:opacity-100 transition-opacity">
+            <span>View Full Update</span>
+            <i data-lucide="arrow-right" class="w-3 h-3"></i>
+          </div>
         </div>
       `;
     }).join('');
@@ -864,14 +876,14 @@ const RecentGames = {
       if (!game) return '';
       return `
         <button data-action="openGame" data-param="${game.id}"
-          class="recent-pill bg-white dark:bg-slate-800 flex items-center gap-3 px-3 py-2 rounded-xl shrink-0 min-w-[150px] group hover:bg-slate-50 dark:hover:bg-slate-700 border-2 border-dark dark:border-slate-500 shadow-hard-sm"
+          class="recent-pill bg-white dark:bg-slate-800 flex items-center gap-2 px-2 py-1.5 rounded-xl shrink-0 min-w-[120px] group hover:bg-slate-50 dark:hover:bg-slate-700 border-2 border-dark dark:border-slate-500 shadow-hard-sm"
           aria-label="Resume ${game.title}">
-          <div class="w-10 h-10 rounded-lg ${Utils.getColorClass(game.color)} flex items-center justify-center text-white border-2 border-dark dark:border-slate-300 shadow-sm">
-            <i data-lucide="${game.icon}" class="w-5 h-5"></i>
+          <div class="w-8 h-8 rounded-lg ${Utils.getColorClass(game.color)} flex items-center justify-center text-white border-2 border-dark dark:border-slate-300 shadow-sm">
+            <i data-lucide="${game.icon}" class="w-4 h-4"></i>
           </div>
           <div class="text-left">
-            <div class="text-xs font-bold text-dark dark:text-white truncate w-24">${game.title}</div>
-            <div class="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase">RESUME</div>
+            <div class="text-[10px] font-black text-dark dark:text-white truncate w-20 leading-tight">${game.title}</div>
+            <div class="text-[8px] text-slate-400 font-black uppercase tracking-tighter">RESUME</div>
           </div>
         </button>
       `;
@@ -921,19 +933,18 @@ const PinnedGames = {
     container.innerHTML = pinnedIds.map(id => {
       const game = State.getGameById(id);
       if (!game) return '';
-      // reuse createCard or a smaller version? plan said "similar to Quick Launch"
       return `
-        <article class="recent-pill bg-white dark:bg-slate-800 flex items-center gap-3 px-3 py-2 rounded-xl shrink-0 min-w-[180px] group hover:bg-slate-50 dark:hover:bg-slate-700 border-2 border-dark dark:border-slate-500 shadow-hard-sm cursor-pointer"
+        <article class="recent-pill bg-white dark:bg-slate-800 flex items-center gap-2 px-2.5 py-1.5 rounded-xl shrink-0 min-w-[150px] group hover:bg-slate-50 dark:hover:bg-slate-700 border-2 border-dark dark:border-slate-500 shadow-hard-sm cursor-pointer"
           data-action="openGame" data-param="${game.id}">
-          <div class="w-10 h-10 rounded-lg ${Utils.getColorClass(game.color)} flex items-center justify-center text-white border-2 border-dark dark:border-slate-300 shadow-sm relative">
-             <i data-lucide="${game.icon}" class="w-5 h-5"></i>
+          <div class="w-8 h-8 rounded-lg ${Utils.getColorClass(game.color)} flex items-center justify-center text-white border-2 border-dark dark:border-slate-300 shadow-sm relative">
+             <i data-lucide="${game.icon}" class="w-4 h-4"></i>
           </div>
           <div class="text-left flex-1">
-            <div class="text-sm font-bold text-dark dark:text-white truncate w-32">${game.title}</div>
-            <div class="text-[10px] text-slate-500 dark:text-slate-400 font-bold uppercase">${game.category}</div>
+            <div class="text-xs font-black text-dark dark:text-white truncate w-24 leading-tight">${game.title}</div>
+            <div class="text-[9px] text-slate-400 font-black uppercase tracking-tight">${game.category}</div>
           </div>
           <button data-action="togglePin" data-param="${game.id}" class="p-1 hover:text-red-500 text-slate-400 transition-colors" title="Unpin">
-            <i data-lucide="pin-off" class="w-4 h-4"></i>
+            <i data-lucide="pin-off" class="w-3.5 h-3.5"></i>
           </button>
         </article>
       `;
