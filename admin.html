@@ -491,7 +491,6 @@
                                     <th
                                         class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
                                         Last active</th>
-                                    <th class="px-5 py-3"></th>
                                 </tr>
                             </thead>
                             <tbody id="usersTableBody" class="divide-y divide-slate-700/50"></tbody>
@@ -947,7 +946,8 @@
             rows.forEach(r => {
                 if (byUser[r.user_id]) {
                     byUser[r.user_id].rows.push(r)
-                    if (r.updated_at > byUser[r.user_id].latest) byUser[r.user_id].latest = r.updated_at
+                    const rowTs = r.updated_at ? new Date(r.updated_at).getTime() : 0
+                    if (rowTs > byUser[r.user_id].latest) byUser[r.user_id].latest = rowTs
                 }
             })
 
@@ -964,12 +964,27 @@
                 const role = profile?.role || 'user'
                 const tools = [...new Set(info.rows.map(r => r.tool_key))]
                 let activeDate = 'Never'
+                let latestTs = 0
+                
                 if (info.latest) {
-                    activeDate = new Date(info.latest).toLocaleDateString()
-                } else if (profile?.updated_at) {
-                    activeDate = new Date(profile.updated_at).toLocaleDateString()
-                } else if (profile?.created_at) {
-                    activeDate = new Date(profile.created_at).toLocaleDateString()
+                    latestTs = info.latest
+                }
+                if (profile?.updated_at && new Date(profile.updated_at).getTime() > latestTs) {
+                    latestTs = new Date(profile.updated_at).getTime()
+                }
+                if (profile?.created_at && new Date(profile.created_at).getTime() > latestTs) {
+                    latestTs = new Date(profile.created_at).getTime()
+                }
+                
+                if (latestTs > 0) {
+                    const d = new Date(latestTs)
+                    const now = new Date()
+                    const diffDays = Math.floor((now - d) / (1000 * 60 * 60 * 24))
+                    
+                    if (diffDays === 0) activeDate = 'Today'
+                    else if (diffDays === 1) activeDate = 'Yesterday'
+                    else if (diffDays < 7) activeDate = `${diffDays} days ago`
+                    else activeDate = d.toLocaleDateString()
                 }
                 const date = activeDate
                 const initial = name[0]?.toUpperCase() || '?'
@@ -1005,12 +1020,6 @@
             </div>`}
           </td>
           <td class="px-5 py-3 text-xs text-slate-500">${date}</td>
-          <td class="px-5 py-3 text-right">
-            ${tools.length > 0 ? `<button onclick="viewUser('${uid}')"
-              class="neo-btn px-3 py-1.5 bg-slate-700 text-slate-300 rounded-xl text-xs opacity-0 group-hover:opacity-100 transition-opacity">
-              View
-            </button>` : ''}
-          </td>
         </tr>`
             }).join('')
         }
