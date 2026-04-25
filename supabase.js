@@ -303,7 +303,10 @@ async function getUserStorageUsage() {
     if (navigator.storage && navigator.storage.estimate) {
       try {
         const estimate = await navigator.storage.estimate();
-        return { used: estimate.usage || 0, limit: estimate.quota || STORAGE_CONFIG.defaultLimit, percent: 0, isSandbox: true };
+        const used = estimate.usage || 0;
+        const limit = estimate.quota || STORAGE_CONFIG.defaultLimit;
+        const percent = Math.min(100, Math.round((used / limit) * 100));
+        return { used, limit, percent, isSandbox: true };
       } catch (e) { }
     }
     return { used: 0, limit: STORAGE_CONFIG.defaultLimit, percent: 0, isSandbox: true };

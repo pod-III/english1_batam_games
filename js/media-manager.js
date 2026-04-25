@@ -229,7 +229,7 @@ const MediaManager = {
         await deleteFolder(pathStr);
         this.loadData();
         // Update hub storage badge
-        if(typeof updateStorageUsageUI === 'function') updateStorageUsageUI();
+        if(typeof StorageManager !== 'undefined') StorageManager.update();
     },
     
     async deleteCloudFile(fileName) {
@@ -238,7 +238,7 @@ const MediaManager = {
         this.showLoader();
         await db.storage.from('klasskit-media').remove([pathStr]);
         this.loadData();
-        if(typeof updateStorageUsageUI === 'function') updateStorageUsageUI();
+        if(typeof StorageManager !== 'undefined') StorageManager.update();
     },
     
     async handleClearCloudCurrent() {
@@ -259,7 +259,7 @@ const MediaManager = {
                     }
                 }
                 this.loadData();
-                if(typeof updateStorageUsageUI === 'function') updateStorageUsageUI();
+                if(typeof StorageManager !== 'undefined') StorageManager.update();
             }
         } else {
             // Delete the current folder we are inside, then go back
@@ -350,6 +350,7 @@ const MediaManager = {
                     if(confirm("Delete this local file?")) {
                         await this.deleteFromIDB(dbInfo.name, dbInfo.store, item.key);
                         this.loadData();
+                        if(typeof StorageManager !== 'undefined') StorageManager.update();
                     }
                 };
                 this.grid.appendChild(card);
@@ -389,6 +390,7 @@ const MediaManager = {
             }
         }
         this.loadData();
+        if(typeof StorageManager !== 'undefined') StorageManager.update();
     },
 
     // --- IDB Helpers ---

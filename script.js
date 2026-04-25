@@ -580,7 +580,7 @@ const StorageManager = {
     
     if (usage.isSandbox) {
         textEl.textContent = `${usedMB} MB Used (Local)`;
-        barEl.style.width = '0%';
+        barEl.style.width = `${usage.percent}%`;
         barEl.classList.remove('bg-blue', 'bg-orange', 'bg-red-500');
         barEl.classList.add('bg-slate-300');
     } else {
