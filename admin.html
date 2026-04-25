@@ -212,6 +212,37 @@
         body {
             background: #0f172a
         }
+        .animate-slide-in {
+            animation: slideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        .animate-slide-out {
+            animation: slideOut 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%) translateY(20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0) translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideOut {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
     </style>
 </head>
 
@@ -259,6 +290,9 @@
         </div>
     </div>
 
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
+
     <!-- Mobile overlay -->
     <div id="mobileOverlay" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-40 hidden lg:hidden" onclick="toggleSidebar()"></div>
 
@@ -301,7 +335,7 @@
                 <i data-lucide="users" class="w-4 h-4 flex-shrink-0"></i> Users
             </button>
             <button onclick="setView('progress')" id="nav-progress" class="sidebar-link w-full text-slate-400">
-                <i data-lucide="database" class="w-4 h-4 flex-shrink-0"></i> Progress Data
+                <i data-lucide="bar-chart-2" class="w-4 h-4 flex-shrink-0"></i> Progress Data
             </button>
             <button onclick="setView('logs')" id="nav-logs" class="sidebar-link w-full text-slate-400">
                 <i data-lucide="scroll-text" class="w-4 h-4 flex-shrink-0"></i> System Logs
@@ -310,7 +344,7 @@
                 <i data-lucide="megaphone" class="w-4 h-4 flex-shrink-0"></i> Announcements
             </button>
             <button onclick="setView('cloud')" id="nav-cloud" class="sidebar-link w-full text-slate-400">
-                <i data-lucide="cloud" class="w-4 h-4 flex-shrink-0"></i> Cloud Usage
+                <i data-lucide="hard-drive" class="w-4 h-4 flex-shrink-0"></i> Cloud Usage
             </button>
             <button onclick="setView('settings')" id="nav-settings" class="sidebar-link w-full text-slate-400">
                 <i data-lucide="settings" class="w-4 h-4 flex-shrink-0"></i> Settings
@@ -335,14 +369,14 @@
         <header
             class="flex-shrink-0 bg-slate-950 border-b-[3px] border-slate-800 flex flex-col md:flex-row min-h-[64px] items-stretch md:items-center justify-between p-4 md:px-6 gap-4">
             
-            <div class="flex w-full items-center justify-between lg:hidden pb-4 md:pb-0 border-b-2 border-slate-800 md:border-b-0 md:w-auto">
-                <button onclick="toggleSidebar()" class="neo-btn p-2 text-slate-400 hover:text-white bg-slate-800 rounded-xl">
-                    <i data-lucide="menu" class="w-5 h-5"></i>
-                </button>
-                <div class="font-heading font-bold text-white tracking-widest uppercase md:hidden">Admin Panel</div>
-                <button onclick="fetchData()" class="neo-btn p-2 bg-blue text-white rounded-xl md:hidden">
-                    <i data-lucide="refresh-cw" class="w-4 h-4 refreshIcon"></i>
-                </button>
+            <div class="flex items-center gap-4">
+                <div class="flex items-center justify-between lg:hidden pb-4 md:pb-0 border-b-2 border-slate-800 md:border-b-0 md:w-auto">
+                    <button onclick="toggleSidebar()" class="neo-btn p-2 text-slate-400 hover:text-white bg-slate-800 rounded-xl">
+                        <i data-lucide="menu" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <h1 id="view-title" class="font-heading text-xl text-white">Dashboard</h1>
+                <div class="hidden lg:block w-px h-6 bg-slate-800 mx-1"></div>
             </div>
 
             <div class="flex flex-wrap items-center gap-2 md:gap-3 w-full md:w-auto flex-1">
@@ -351,7 +385,7 @@
                     <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"></i>
                     <input type="text" id="searchInput" placeholder="Search name or tool..."
                         class="w-full pl-9 pr-4 py-2 bg-slate-800 border-2 border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 outline-none focus:border-blue transition-colors"
-                        oninput="applyFilters()">
+                        oninput="debouncedSearch()">
                 </div>
                 <!-- Tool filter -->
                 <select id="toolFilter" onchange="applyFilters()"
@@ -797,6 +831,7 @@
         }
         const PAGE_SIZE = 25
         let settingsTimeout = null
+        let searchTimeout = null
 
         // ── INIT ──
         async function init() {
@@ -860,6 +895,31 @@
             applyFilters()
             renderAnnouncements()
             if (currentView === 'cloud') renderCloudTable()
+            showToast('Data refreshed')
+        }
+
+        // ── TOAST SYSTEM ──
+        function showToast(msg, type = 'success') {
+            const container = document.getElementById('toast-container')
+            const toast = document.createElement('div')
+            toast.className = `neo p-4 min-w-[240px] flex items-center gap-3 animate-slide-in pointer-events-auto bg-slate-800 border-2 ${type === 'success' ? 'border-green/40 text-green' : 'border-pink/40 text-pink'}`
+            toast.style.boxShadow = '4px 4px 0 #000'
+            toast.innerHTML = `
+                <i data-lucide="${type === 'success' ? 'check-circle' : 'alert-circle'}" class="w-5 h-5"></i>
+                <span class="text-sm font-bold">${msg}</span>
+            `
+            container.appendChild(toast)
+            lucide.createIcons()
+            setTimeout(() => {
+                toast.classList.add('animate-slide-out')
+                setTimeout(() => toast.remove(), 500)
+            }, 3000)
+        }
+
+        // ── SEARCH DEBOUNCE ──
+        function debouncedSearch() {
+            clearTimeout(searchTimeout)
+            searchTimeout = setTimeout(applyFilters, 300)
         }
 
         // ── STATS ──
@@ -1037,6 +1097,12 @@
             const pagedRows = filteredRows.slice(progStart, progStart + PAGE_SIZE)
             document.getElementById('progress-page-info').textContent = `Page ${pagination.progress} of ${progPages}`
 
+            // Pagination counts for reliable clamping
+            pagination.lastFilteredCounts = {
+                users: filteredUserIds.length,
+                progress: filteredRows.length
+            }
+
             renderUsersTable(pagedUserIds, filteredRows)
             renderProgressTable(pagedRows)
             updateSortIcons()
@@ -1112,9 +1178,13 @@
           </td>
           <td class="px-5 py-3">
             <div class="flex flex-col gap-1">
-                <span class="text-xs font-bold text-white">${( (profile?.storage_usage || 0) / (1024*1024) ).toFixed(1)} MB</span>
-                <div class="w-16 h-1 bg-slate-700 rounded-full overflow-hidden">
-                    <div class="h-full bg-blue" style="width: ${Math.min(100, Math.round(((profile?.storage_usage || 0) / (profile?.storage_limit || 50*1024*1024)) * 100))}%"></div>
+                <div class="flex justify-between items-center w-24">
+                    <span class="text-[10px] font-bold text-white">${((profile?.storage_usage || 0) / (1024 * 1024)).toFixed(1)} MB</span>
+                    <span class="text-[10px] text-slate-500 font-mono">${Math.min(100, Math.round(((profile?.storage_usage || 0) / (profile?.storage_limit || 50 * 1024 * 1024)) * 100))}%</span>
+                </div>
+                <div class="w-24 h-1 bg-slate-700 rounded-full overflow-hidden">
+                    <div class="h-full ${((profile?.storage_usage || 0) / (profile?.storage_limit || 50 * 1024 * 1024)) * 100 < 60 ? 'bg-green' : (((profile?.storage_usage || 0) / (profile?.storage_limit || 50 * 1024 * 1024)) * 100 < 85 ? 'bg-orange' : 'bg-pink')}" 
+                        style="width: ${Math.min(100, Math.round(((profile?.storage_usage || 0) / (profile?.storage_limit || 50 * 1024 * 1024)) * 100))}%"></div>
                 </div>
             </div>
           </td>
@@ -1245,8 +1315,11 @@
             
             if (pendingDelete.type === 'announcement') {
                 const { error } = await db.from('announcements').delete().eq('id', pendingDelete.id)
-                if (error) alert('Error: ' + error.message)
-                else fetchData()
+                if (error) showToast('Error: ' + error.message, 'error')
+                else {
+                    showToast('Announcement deleted')
+                    fetchData()
+                }
             } else {
                 const { userId, toolKey } = pendingDelete
                 const { error } = await db
@@ -1254,8 +1327,9 @@
                     .delete()
                     .match({ user_id: userId, tool_key: toolKey })
 
-                if (error) { alert('Error: ' + error.message) }
+                if (error) { showToast('Error: ' + error.message, 'error') }
                 else {
+                    showToast('Progress data deleted')
                     allProgress = allProgress.filter(r => !(r.user_id === userId && r.tool_key === toolKey))
                     updateStats()
                     applyFilters()
@@ -1336,9 +1410,10 @@
                 .eq('id', userId)
 
             if (error) {
-                alert('Error updating role: ' + error.message)
+                showToast('Error updating role: ' + error.message, 'error')
             } else {
                 allProfiles[userId].role = newRole
+                showToast('User role updated')
                 applyFilters()
             }
         }
@@ -1360,6 +1435,19 @@
             ['dashboard', 'users', 'progress', 'logs', 'announcements', 'cloud', 'settings'].forEach(v => {
                 const viewEl = document.getElementById('view-' + v)
                 if (viewEl) viewEl.classList.toggle('hidden', v !== view)
+
+                if (v === view) {
+                    const titles = {
+                        dashboard: 'Dashboard',
+                        users: 'User Management',
+                        progress: 'Progress Data',
+                        logs: 'Audit Logs',
+                        announcements: 'Announcements',
+                        cloud: 'Cloud Storage',
+                        settings: 'Settings'
+                    }
+                    document.getElementById('view-title').textContent = titles[v] || v
+                }
 
                 const btn = document.getElementById('nav-' + v)
                 if (btn) {
@@ -1413,6 +1501,9 @@
             const pagedProfiles = profiles.slice(cloudStart, cloudStart + PAGE_SIZE)
             document.getElementById('cloud-page-info').textContent = `Page ${pagination.cloud} of ${cloudPages}`
 
+            // Pagination counts for reliable clamping
+            pagination.lastFilteredCounts.cloud = profiles.length
+
             let totalUsed = 0
             let totalLimit = 0
             
@@ -1422,6 +1513,7 @@
                 const percent = Math.min(100, Math.round((used / limit) * 100))
                 const usedMB = (used / (1024 * 1024)).toFixed(1)
                 const limitMB = (limit / (1024 * 1024)).toFixed(0)
+                const barColor = percent < 60 ? 'bg-green' : (percent < 85 ? 'bg-orange' : 'bg-pink')
                 const name = p.display_name || '—'
                 const initial = name[0]?.toUpperCase() || '?'
                 
@@ -1444,10 +1536,10 @@
                         <td class="px-5 py-4">
                             <div class="flex flex-col gap-1 w-32">
                                 <div class="flex justify-between text-[10px] font-bold">
-                                    <span class="${percent > 90 ? 'text-pink' : 'text-blue'}">${percent}%</span>
+                                    <span class="${percent > 85 ? 'text-pink' : 'text-blue'}">${percent}%</span>
                                 </div>
                                 <div class="h-2 bg-slate-900 border-2 border-slate-700 rounded-full overflow-hidden">
-                                    <div class="h-full ${percent > 90 ? 'bg-pink' : 'bg-blue'} transition-all duration-500" style="width: ${percent}%"></div>
+                                    <div class="h-full ${barColor} transition-all duration-500" style="width: ${percent}%"></div>
                                 </div>
                             </div>
                         </td>
@@ -1492,12 +1584,12 @@
         }
 
         function changePage(tableView, delta) {
-            const items = tableView === 'cloud' ? Object.keys(allProfiles) : 
-                         (tableView === 'users' ? Object.keys(allProfiles) : allProgress)
-            // Note: items count here is rough, but applyFilters/renderCloud will clamp it correctly
+            const count = pagination.lastFilteredCounts?.[tableView] || 0
+            const maxPages = Math.ceil(count / PAGE_SIZE) || 1
             
             pagination[tableView] += delta
             if (pagination[tableView] < 1) pagination[tableView] = 1
+            if (pagination[tableView] > maxPages) pagination[tableView] = maxPages
             
             if (tableView === 'cloud') renderCloudTable()
             else applyFilters()
@@ -1569,7 +1661,7 @@
                 console.log(`[Sync] Updated ${userId}: ${totalSize} bytes (${fileCount} files)`)
             } catch (err) {
                 console.error('[Sync] Error:', err)
-                alert(`Failed to sync storage for user: ${err.message}`)
+                showToast(`Failed to sync storage: ${err.message}`, 'error')
             } finally {
                 if (icon) icon.classList.remove('animate-spin')
                 if (btn) btn.disabled = false
@@ -1596,7 +1688,7 @@
 
             if (icon) icon.classList.remove('animate-spin')
             btn.disabled = false
-            alert(`Sync complete! Successfully updated ${successCount} of ${userIds.length} users.`)
+            showToast(`Sync complete! Updated ${successCount} users.`)
         }
 
         // ── ANNOUNCEMENTS LOGIC ──
@@ -1618,8 +1710,9 @@
             }
 
             if (res.error) {
-                alert('Error saving: ' + res.error.message)
+                showToast('Error saving: ' + res.error.message, 'error')
             } else {
+                showToast('Announcement saved')
                 resetAnnForm()
                 fetchData()
             }
