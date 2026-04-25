@@ -372,7 +372,6 @@ const UI = {
     const modal = document.getElementById(modalId);
     if (!modal) return;
     modal.classList.toggle('hidden', !show);
-    modal.style.display = show ? 'block' : 'none';
     modal.setAttribute('aria-hidden', String(!show));
     if (modalId === 'game-modal') document.body.style.overflow = show ? 'hidden' : '';
   },
@@ -713,35 +712,93 @@ const Announcements = {
     if (!listEl) return;
 
     if (this.list.length === 0) {
-      listEl.innerHTML = '<div class="text-center p-8 text-slate-500 font-bold">No notifications yet.</div>';
+      listEl.innerHTML = '<div class="text-center p-12 text-slate-500 font-bold">No notifications yet.</div>';
       return;
     }
 
+    const lastRead = Storage.get(CONFIG.storageKeys.lastReadAnn, 0);
+
     listEl.innerHTML = this.list.map((ann, i) => {
-      const date = new Date(ann.created_at).toLocaleDateString();
+      const date = new Date(ann.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
       const typeColors = {
         info: 'blue',
         update: 'green',
         alert: 'orange'
       };
       const color = typeColors[ann.type] || 'blue';
-      const icon = ann.type === 'alert' ? 'alert-triangle' : (ann.type === 'update' ? 'sparkles' : 'info');
+      const isUnread = new Date(ann.created_at).getTime() > lastRead;
+      const statusIcon = isUnread ? 'mail' : 'mail-open';
+      const statusColor = isUnread ? 'text-blue' : 'text-slate-400';
 
       return `
-        <div class="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border-2 border-dark dark:border-slate-700 animate-pop-in">
-          <div class="flex items-start justify-between mb-2">
+        <div onclick="Announcements.viewDetail('${ann.id}')" 
+          class="p-5 bg-white dark:bg-slate-800 rounded-2xl border-2 border-dark dark:border-slate-700 hover:border-blue dark:hover:border-blue transition-all cursor-pointer group animate-pop-in relative overflow-hidden shadow-sm hover:shadow-md"
+          style="animation-delay: ${i * 0.05}s">
+          
+          ${isUnread ? '<div class="absolute top-0 right-0 w-3 h-3 bg-blue rounded-bl-lg"></div>' : ''}
+          
+          <div class="flex items-start justify-between mb-3">
             <div class="flex items-center gap-2">
-              <span class="w-2 h-2 rounded-full bg-${color}"></span>
-              <span class="text-[9px] font-black uppercase text-slate-500">${ann.type}</span>
+              <i data-lucide="${statusIcon}" class="w-4 h-4 ${statusColor}"></i>
+              <span class="text-[10px] font-black uppercase tracking-widest text-slate-500">${ann.type}</span>
             </div>
-            <span class="text-[9px] font-bold text-slate-400">${date}</span>
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">${date}</span>
           </div>
-          <h4 class="text-sm font-bold text-dark dark:text-white mb-1">${ann.title}</h4>
-          <p class="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">${this.formatText(ann.content)}</p>
+          
+          <h4 class="text-lg font-heading font-black text-dark dark:text-white mb-2 group-hover:text-blue transition-colors leading-tight">${ann.title}</h4>
+          <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-semibold line-clamp-2">${this.formatText(ann.content).replace(/<br>/g, ' ')}</p>
+          
+          <div class="mt-4 flex items-center gap-1 text-[10px] font-black text-blue uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
+            <span>Read More</span>
+            <i data-lucide="chevron-right" class="w-3 h-3"></i>
+          </div>
         </div>
       `;
     }).join('');
     Utils.refreshIcons(listEl);
+  },
+
+  viewDetail(annId) {
+    const ann = this.list.find(a => a.id === annId);
+    if (!ann) return;
+
+    AudioEngine.click();
+    
+    // Populate Modal
+    const titleEl = document.getElementById('ann-detail-title');
+    const typeEl = document.getElementById('ann-detail-type');
+    const dateEl = document.getElementById('ann-detail-date');
+    const contentEl = document.getElementById('ann-detail-content');
+    const iconEl = document.getElementById('ann-detail-icon');
+    const headerEl = document.getElementById('ann-detail-header');
+    
+    if (titleEl) titleEl.textContent = ann.title;
+    if (typeEl) typeEl.textContent = ann.type;
+    if (dateEl) dateEl.textContent = new Date(ann.created_at).toLocaleDateString(undefined, { 
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+    });
+    if (contentEl) contentEl.innerHTML = this.formatText(ann.content);
+    
+    // Set type icon and header color
+    const typeConfigs = {
+      info: { icon: 'info', color: 'bg-blue' },
+      update: { icon: 'sparkles', color: 'bg-green' },
+      alert: { icon: 'alert-triangle', color: 'bg-orange' }
+    };
+    const config = typeConfigs[ann.type] || typeConfigs.info;
+    
+    if (iconEl) iconEl.setAttribute('data-lucide', config.icon);
+    if (headerEl) {
+      headerEl.className = headerEl.className.replace(/bg-(blue|green|orange)/g, config.color);
+    }
+    
+    Utils.refreshIcons(headerEl);
+    UI.toggleModal('ann-detail-modal', true);
+  },
+
+  closeDetail() {
+    AudioEngine.click();
+    UI.toggleModal('ann-detail-modal', false);
   },
 
   togglePanel(show = null) {
@@ -754,9 +811,11 @@ const Announcements = {
 
     if (targetShow) {
       panel.classList.remove('translate-x-full');
-      this.markAsRead();
+      // No longer auto-marking as read on open, user can use the button or read specific ones
     } else {
       panel.classList.add('translate-x-full');
+      // Optional: mark as read when closing?
+      // this.markAsRead(); 
     }
   },
 
