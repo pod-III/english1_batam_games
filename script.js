@@ -544,7 +544,6 @@ const Hero = {
 // --- STORAGE MANAGER ---
 const StorageManager = {
   async init() {
-    if (typeof isSandbox === 'function' && isSandbox()) return;
     const user = await getUser();
     if (!user) return;
 
@@ -557,8 +556,8 @@ const StorageManager = {
       const usage = await getUserStorageUsage();
       this.render(usage);
       
-      // Quota check (80%)
-      if (usage.percent >= 80) {
+      // Quota check (80%) - skip for sandbox
+      if (!usage.isSandbox && usage.percent >= 80) {
         const lastWarned = localStorage.getItem('kk_quota_warned_at');
         const now = Date.now();
         // Warn once every 24h
@@ -578,19 +577,26 @@ const StorageManager = {
     if (!textEl || !barEl) return;
 
     const usedMB = (usage.used / (1024 * 1024)).toFixed(1);
-    const limitMB = (usage.limit / (1024 * 1024)).toFixed(0);
     
-    textEl.textContent = `${usedMB} MB / ${limitMB} MB`;
-    barEl.style.width = `${usage.percent}%`;
-    
-    // Color coding
-    barEl.classList.remove('bg-blue', 'bg-orange', 'bg-red-500');
-    if (usage.percent >= 90) {
-      barEl.classList.add('bg-red-500');
-    } else if (usage.percent >= 80) {
-      barEl.classList.add('bg-orange');
+    if (usage.isSandbox) {
+        textEl.textContent = `${usedMB} MB Used (Local)`;
+        barEl.style.width = '0%';
+        barEl.classList.remove('bg-blue', 'bg-orange', 'bg-red-500');
+        barEl.classList.add('bg-slate-300');
     } else {
-      barEl.classList.add('bg-blue');
+        const limitMB = (usage.limit / (1024 * 1024)).toFixed(0);
+        textEl.textContent = `${usedMB} MB / ${limitMB} MB`;
+        barEl.style.width = `${usage.percent}%`;
+        
+        // Color coding
+        barEl.classList.remove('bg-blue', 'bg-orange', 'bg-red-500', 'bg-slate-300');
+        if (usage.percent >= 90) {
+          barEl.classList.add('bg-red-500');
+        } else if (usage.percent >= 80) {
+          barEl.classList.add('bg-orange');
+        } else {
+          barEl.classList.add('bg-blue');
+        }
     }
   }
 };

@@ -299,7 +299,15 @@ async function compressImage(file) {
  */
 async function getUserStorageUsage() {
   const user = await getUser();
-  if (!user || user.is_sandbox) return { used: 0, limit: STORAGE_CONFIG.defaultLimit, percent: 0 };
+  if (!user || user.is_sandbox) {
+    if (navigator.storage && navigator.storage.estimate) {
+      try {
+        const estimate = await navigator.storage.estimate();
+        return { used: estimate.usage || 0, limit: estimate.quota || STORAGE_CONFIG.defaultLimit, percent: 0, isSandbox: true };
+      } catch (e) { }
+    }
+    return { used: 0, limit: STORAGE_CONFIG.defaultLimit, percent: 0, isSandbox: true };
+  }
 
   const { data, error } = await db
     .from('profiles')
