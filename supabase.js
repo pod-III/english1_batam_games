@@ -262,3 +262,196 @@ async function migrateLocalToCloud() {
   localStorage.setItem('migrated_to_cloud', 'true')
 }
 
+/* ── STORAGE HELPERS ── */
+const STORAGE_CONFIG = {
+  bucket: 'media',
+  defaultLimit: 50 * 1024 * 1024, // 50MB
+  quality: 0.8
+};
+
+/**
+ * Compresses an image file client-side to WebP format.
+ */
+async function compressImage(file, quality = STORAGE_CONFIG.quality) {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) {
+      return resolve(file); // Return original if not an image
+    }
+
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        // Optional: Resize if too large (e.g., max 1920px)
+        const maxDim = 1920;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob((blob) => {
+          if (blob) {
+            // Create a new File object from the blob
+            const newFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".webp", {
+              type: 'image/webp',
+              lastModified: Date.now()
+            });
+            resolve(newFile);
+          } else {
+            reject(new Error('Compression failed'));
+          }
+        }, 'image/webp', quality);
+      };
+      img.onerror = reject;
+    };
+    reader.onerror = reject;
+  });
+}
+
+/**
+ * Returns user storage usage: { used, limit, percent }
+ */
+async function getUserStorageUsage() {
+  const user = await getUser();
+  if (!user || user.is_sandbox) return { used: 0, limit: STORAGE_CONFIG.defaultLimit, percent: 0 };
+
+  const { data, error } = await db
+    .from('profiles')
+    .select('storage_usage, storage_limit')
+    .eq('id', user.id)
+    .single();
+
+  if (error) {
+    console.error('[Storage] Usage lookup error:', error);
+    return { used: 0, limit: STORAGE_CONFIG.defaultLimit, percent: 0 };
+  }
+
+  const used = data.storage_usage || 0;
+  const limit = data.storage_limit || STORAGE_CONFIG.defaultLimit;
+  const percent = Math.min(100, Math.round((used / limit) * 100));
+
+  return { used, limit, percent };
+}
+
+/**
+ * Uploads a media file with compression and quota checks.
+ */
+async function uploadMedia(file, activityId) {
+  if (isSandbox()) throw new Error('Storage not available in Sandbox.');
+
+  const user = await getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // 1. Compress
+  const compressedFile = await compressImage(file);
+  const fileSize = compressedFile.size;
+
+  // 2. Check quota
+  const usage = await getUserStorageUsage();
+  
+  // To handle overwrites accurately, check if file exists
+  const filename = file.name.replace(/\.[^/.]+$/, "").replace(/[^a-z0-9]/gi, '_').toLowerCase();
+  const filePath = `${user.id}/${activityId}/${filename}.webp`;
+  
+  let oldSize = 0;
+  try {
+    const { data: existingFiles } = await db.storage.from(STORAGE_CONFIG.bucket).list(`${user.id}/${activityId}`);
+    const existing = existingFiles?.find(f => f.name === `${filename}.webp`);
+    if (existing) {
+      oldSize = existing.metadata.size;
+    }
+  } catch (e) {
+    console.warn('[Storage] Could not check existing file size:', e);
+  }
+
+  if (usage.used - oldSize + fileSize > usage.limit) {
+    throw new Error('Storage quota exceeded');
+  }
+
+  // 3. Upload
+  const { error: uploadError } = await db.storage
+    .from(STORAGE_CONFIG.bucket)
+    .upload(filePath, compressedFile, {
+      contentType: 'image/webp',
+      upsert: true
+    });
+
+  if (uploadError) throw uploadError;
+
+  // 4. Update usage in profile
+  const newUsage = usage.used - oldSize + fileSize;
+  await db
+    .from('profiles')
+    .update({ storage_usage: newUsage })
+    .eq('id', user.id);
+
+  // 5. Return URL
+  const { data: { publicUrl } } = db.storage
+    .from(STORAGE_CONFIG.bucket)
+    .getPublicUrl(filePath);
+
+  return publicUrl;
+}
+
+/**
+ * Deletes a media file and updates storage usage.
+ */
+async function deleteMedia(filePath) {
+  if (isSandbox()) return;
+
+  const user = await getUser();
+  if (!user) return;
+
+  // 1. Get file size before deletion
+  let fileSize = 0;
+  try {
+    const pathParts = filePath.split('/');
+    const filename = pathParts.pop();
+    const dir = pathParts.join('/');
+    const { data: files } = await db.storage.from(STORAGE_CONFIG.bucket).list(dir);
+    const file = files?.find(f => f.name === filename);
+    if (file) fileSize = file.metadata.size;
+  } catch (e) {
+    console.warn('[Storage] Could not get file size for deletion:', e);
+  }
+
+  // 2. Delete from Storage
+  const { error } = await db.storage.from(STORAGE_CONFIG.bucket).remove([filePath]);
+  if (error) throw error;
+
+  // 3. Update usage
+  const usage = await getUserStorageUsage();
+  const newUsage = Math.max(0, usage.used - fileSize);
+  
+  await db
+    .from('profiles')
+    .update({ storage_usage: newUsage })
+    .eq('id', user.id);
+
+  return { success: true };
+}
+
+/**
+ * Replaces an existing media file (overwrites).
+ */
+async function replaceMedia(oldPath, newFile, activityId) {
+  // uploadMedia already handles upsert: true and usage calculation
+  return await uploadMedia(newFile, activityId);
+}
+
