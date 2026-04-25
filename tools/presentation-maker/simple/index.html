@@ -307,15 +307,50 @@
         </div>
     </div>
 
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
+
     <script>
         // Initialize Lucide Icons
         lucide.createIcons();
 
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const colors = {
+                info: 'bg-white dark:bg-slate-800 border-blue text-dark dark:text-chalk',
+                success: 'bg-green/10 dark:bg-green/20 border-green text-green-700 dark:text-green-400',
+                error: 'bg-pink/10 dark:bg-pink/20 border-pink text-pink-700 dark:text-pink-400'
+            };
+            
+            toast.className = `flex items-center gap-3 px-6 py-4 rounded-2xl border-2 shadow-hard dark:shadow-hard-white animate-pop-in pointer-events-auto ${colors[type]}`;
+            
+            const icon = {
+                info: 'info',
+                success: 'check-circle',
+                error: 'alert-circle'
+            }[type];
+
+            toast.innerHTML = `
+                <i data-lucide="${icon}" class="w-5 h-5"></i>
+                <span class="font-bold font-title">${message}</span>
+            `;
+            
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2', 'transition-all', 'duration-300');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
         // --- IndexedDB ---
         const DB_NAME = 'PresentationDB';
-        const DB_VER = 1;
+        const DB_VER = 2;
         const STATE_STORE = 'game_state';
         const SETS_STORE = 'slide_sets';
+        const IMG_STORE = 'images';
 
         let idb = null;
 
@@ -327,13 +362,62 @@
                     const database = e.target.result;
                     if (!database.objectStoreNames.contains(STATE_STORE)) database.createObjectStore(STATE_STORE);
                     if (!database.objectStoreNames.contains(SETS_STORE)) database.createObjectStore(SETS_STORE, { keyPath: 'id', autoIncrement: true });
+                    if (!database.objectStoreNames.contains(IMG_STORE)) database.createObjectStore(IMG_STORE);
                 };
                 req.onsuccess = (e) => {
                     idb = e.target.result;
-                    resolve(idb);
+                resolve(idb);
                 };
                 req.onerror = (e) => reject(e.target.error);
             });
+        }
+
+        async function getImg(url) {
+            try {
+                const database = await initDB();
+                return new Promise((res) => {
+                    const r = database.transaction(IMG_STORE, 'readonly').objectStore(IMG_STORE).get(url);
+                    r.onsuccess = () => res(r.result);
+                    r.onerror = () => res(null);
+                });
+            } catch(e) { return null; }
+        }
+
+        async function putImg(url, blob) {
+            try {
+                const database = await initDB();
+                database.transaction(IMG_STORE, 'readwrite').objectStore(IMG_STORE).put(blob, url);
+            } catch(e) { }
+        }
+
+        const blobCache = new Map();
+
+        async function resolveAndCache(url) {
+            if (!url || !url.includes('klasskit-media')) return url;
+            if (blobCache.has(url)) return blobCache.get(url);
+
+            // 1. Check IDB
+            const cachedBlob = await getImg(url);
+            if (cachedBlob) {
+                const bUrl = URL.createObjectURL(cachedBlob);
+                blobCache.set(url, bUrl);
+                return bUrl;
+            }
+
+            // 2. Fetch from Cloud and Cache
+            try {
+                const signedUrl = await resolveMediaUrl(url);
+                const resp = await fetch(signedUrl);
+                const blob = await resp.blob();
+                
+                await putImg(url, blob);
+                const bUrl = URL.createObjectURL(blob);
+                blobCache.set(url, bUrl);
+                return bUrl;
+            } catch (e) {
+                console.warn("Cloud cache failed", e);
+                return url;
+            }
         }
         async function dbPut(key, data) {
             try { 
@@ -521,9 +605,12 @@
                 const files = event.target.files;
                 if (!files || files.length === 0) return;
                 
+                showToast(`Saving ${files.length} image${files.length > 1 ? 's' : ''}...`, "info");
+
                 const { data: { user } } = await db.auth.getUser();
                 const canUpload = !isSandbox() && user;
 
+                let successCount = 0;
                 for (const file of Array.from(files)) {
                     try {
                         let imgSource;
@@ -538,23 +625,38 @@
                             });
                         }
                         this.images.push(imgSource);
+                        successCount++;
                     } catch (err) {
                         console.error("Image processing failed", err);
                     }
                 }
+
+                if (successCount > 0) {
+                    showToast(`Successfully saved ${successCount} image${successCount > 1 ? 's' : ''}`, "success");
+                }
+                
                 this.updateImageUI();
                 this.updateCount();
                 dbPut('presentationImages', this.images);
             },
 
-            clearImages() {
+            async clearImages() {
+                if (!confirm('Clear all images from local and cloud?')) return;
+                
+                const { data: { user } } = await db.auth.getUser();
+                if (!isSandbox() && user) {
+                    showToast("Purging cloud folder...", "info");
+                    await deleteFolder(`${user.id}/presentation_simple`).catch(e => console.warn(e));
+                }
+                
                 this.images = [];
                 const input = document.getElementById('image-input');
                 if (input) input.value = '';
                 this.updateImageUI();
                 this.updateCount();
-                dbPut('presentationImages', this.images);
+                await dbPut('presentationImages', this.images);
                 this.closeImageManager();
+                showToast("All images cleared", "success");
             },
 
             updateImageUI() {
@@ -621,25 +723,27 @@
                 const imgs = document.querySelectorAll('#image-manager-list img, #display-image');
                 for (const img of imgs) {
                     if (img.src && img.src.includes('klasskit-media')) {
-                        img.src = await resolveMediaUrl(img.src);
+                    img.src = await resolveAndCache(img.src);
                     }
                 }
             },
 
-            deleteImage(index) {
+            async deleteImage(index) {
                 if (index < 0 || index >= this.images.length) return;
                 const url = this.images[index];
                 if (url && url.includes('klasskit-media')) {
-                    deleteMediaFromUrl(url).catch(e => console.error("Cloud delete failed", e));
+                    showToast("Deleting from cloud...", "info");
+                    await deleteMediaFromUrl(url).catch(e => console.error("Cloud delete failed", e));
                 }
                 this.images.splice(index, 1);
                 this.updateImageUI();
                 this.updateCount();
-                dbPut('presentationImages', this.images);
+                await dbPut('presentationImages', this.images);
                 this.renderImageManagerList();
                 if (this.images.length === 0) {
                     this.closeImageManager();
                 }
+                showToast("Image deleted", "success");
             },
 
             shuffleArray(array) {
@@ -709,11 +813,12 @@
                 const overlay = document.getElementById('presentation-mode');
 
                 const currentContent = this.words[this.currentIndex];
+                const isImage = currentContent.startsWith('data:image/') || currentContent.includes('klasskit-media');
 
-                if (currentContent.startsWith('data:image/')) {
+                if (isImage) {
                     display.style.display = 'none';
                     displayImg.style.display = 'block';
-                    displayImg.src = await resolveMediaUrl(currentContent);
+                    displayImg.src = await resolveAndCache(currentContent);
                     
                     displayImg.classList.remove('slide-text');
                     void displayImg.offsetWidth;
