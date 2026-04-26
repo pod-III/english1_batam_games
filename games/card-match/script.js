@@ -22,13 +22,23 @@ tailwind.config = {
                 'hard-sm': '2px 2px 0px 0px #1e293b',
             },
             animation: {
-                'pop': 'pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                'pop': 'pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                'slide-up': 'slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+                'fade-in': 'fadeIn 0.5s ease-out forwards',
                 'bounce-slight': 'bounceSlight 2s infinite',
             },
             keyframes: {
                 pop: {
-                    '0%': { transform: 'scale(0.9)', opacity: '0' },
+                    '0%': { transform: 'scale(0.95)', opacity: '0' },
                     '100%': { transform: 'scale(1)', opacity: '1' }
+                },
+                slideUp: {
+                    '0%': { transform: 'translateY(20px)', opacity: '0' },
+                    '100%': { transform: 'translateY(0)', opacity: '1' }
+                },
+                fadeIn: {
+                    '0%': { opacity: '0' },
+                    '100%': { opacity: '1' }
                 },
                 bounceSlight: {
                     '0%, 100%': { transform: 'translateY(0)' },
@@ -212,6 +222,39 @@ const app = {
 
         this.setupEventListeners();
         this.toggleInputMode(); // Initialize helper text
+
+        // Land on Mode Selection
+        this.showModeSelection();
+    },
+
+    showModeSelection: function () {
+        document.getElementById('mode-selection').classList.remove('hidden');
+        document.getElementById('teacher-console').classList.add('hidden');
+        document.getElementById('game-screen').classList.add('hidden');
+        document.getElementById('win-modal').classList.add('hidden');
+        document.getElementById('teacher-mode-btn').classList.add('invisible');
+    },
+
+    selectMode: function (mode) {
+        document.getElementById('mode-selection').classList.add('hidden');
+        document.getElementById('teacher-console').classList.remove('hidden');
+        document.getElementById('teacher-mode-btn').classList.remove('invisible');
+
+        // Reset UI before switching
+        const sameWordToggle = document.getElementById('single-word-mode');
+
+        if (mode === 'text-definition') {
+            this.switchTab('text');
+            if (sameWordToggle) sameWordToggle.checked = false;
+        } else if (mode === 'text-text') {
+            this.switchTab('text');
+            if (sameWordToggle) sameWordToggle.checked = true;
+        } else if (mode === 'text-img') {
+            this.switchTab('mixed');
+        } else if (mode === 'img-img') {
+            this.switchTab('image');
+        }
+        this.toggleInputMode();
     },
 
     setupEventListeners: function () {
