@@ -1003,12 +1003,30 @@ window.addEventListener("keydown", (e) => {
     }
 });
 
-window.onload = async () => {
-    await requireAuth();
-    await initDB();
-    initView();
-    await loadStorage();
+// Initialize icons immediately if lucide is available
+if (typeof lucide !== 'undefined') {
     lucide.createIcons();
+}
+
+window.onload = async () => {
+    // Call again to be sure
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
+
+    try {
+        await requireAuth();
+        await initDB();
+        initView();
+        await loadStorage();
+    } catch (e) {
+        console.error("Initialization failed:", e);
+    }
+
+    // Final call after everything is loaded
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
 
     console.log("🚀 All Optimizations Active:");
     console.log("✅ IndexedDB storage");
