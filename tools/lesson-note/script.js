@@ -124,10 +124,15 @@ function saveNoteToDB(note) {
 }
 
 async function deleteNoteFromDB(id) {
-    // Cloud Cleanup
-    const { data: { user } } = await db.auth.getUser();
+    // Cloud cleanup
+    const user = await getUser();
     if (!isSandbox() && user) {
-        deleteFolder(`${user.id}/lesson_note/${id}`).catch(e => console.warn("Cloud folder delete failed", e));
+        db.from('notes').delete().eq('id', id).eq('user_id', user.id)
+            .then(() => console.log(`[Cloud] Deleted note ${id}`))
+            .catch(e => console.warn('Cloud note delete failed', e));
+
+        deleteFolder(`${user.id}/lesson_note/${id}`)
+            .catch(e => console.warn('Cloud folder delete failed', e));
     }
 
     return new Promise((resolve, reject) => {
@@ -865,16 +870,37 @@ async function restoreCurrentNote() {
 
 // ===== CLOUD SYNC =====
 async function saveToCloud() {
+    if (isSandbox()) return;
+    const user = await getUser();
+    if (!user) return;
+
     const statusText = document.getElementById('statusText');
-    const originalText = statusText ? statusText.innerText : 'Auto-saved';
-    
     if (statusText) statusText.innerText = 'Syncing...';
-    
+
     try {
-        await saveProgress('lesson_notes', { notes, folders });
+        // Save only the current note, not all notes
+        const note = notes.find(n => n.id === currentNoteId);
+        if (note) {
+            await db.from('notes').upsert({
+                id: note.id,
+                user_id: user.id,
+                title: note.title || '',
+                content: note.content || '',
+                folder_id: note.folderId || null,
+                deleted: note.deleted || false,
+                updated_at: note.updatedAt
+            }, { onConflict: 'id,user_id' });
+        }
+
+        // Save folders separately
+        await db.from('note_folders').upsert({
+            user_id: user.id,
+            folders: folders
+        }, { onConflict: 'user_id' });
+
         if (statusText) statusText.innerText = 'Cloud Synced';
         setTimeout(() => {
-            if (statusText && statusText.innerText === 'Cloud Synced') statusText.innerText = originalText;
+            if (statusText?.innerText === 'Cloud Synced') statusText.innerText = 'Auto-saved';
         }, 3000);
     } catch (e) {
         console.warn('Cloud save failed', e);
@@ -883,33 +909,55 @@ async function saveToCloud() {
 }
 
 async function loadFromCloud() {
-    try {
-        const cloudData = await loadProgress('lesson_notes');
-        if (cloudData && cloudData.notes) {
-            const cloudNotes = cloudData.notes;
-            let hasChanges = false;
+    if (isSandbox()) return;
+    const user = await getUser();
+    if (!user) return;
 
+    try {
+        // Load all notes for this user
+        const { data: cloudNotes, error } = await db
+            .from('notes')
+            .select('*')
+            .eq('user_id', user.id);
+
+        if (error) throw error;
+
+        if (cloudNotes?.length) {
+            let hasChanges = false;
             for (const cn of cloudNotes) {
                 const localNote = notes.find(n => n.id === cn.id);
-                // If cloud note is newer or doesn't exist locally, update local
-                if (!localNote || cn.updatedAt > localNote.updatedAt) {
-                    await saveNoteToDB(cn);
+                if (!localNote || cn.updated_at > localNote.updatedAt) {
+                    const mapped = {
+                        id: cn.id,
+                        title: cn.title,
+                        content: cn.content,
+                        folderId: cn.folder_id,
+                        deleted: cn.deleted,
+                        updatedAt: cn.updated_at
+                    };
+                    await saveNoteToDB(mapped);
                     hasChanges = true;
                 }
             }
-
             if (hasChanges) {
                 notes = await getAllNotes();
-                renderNotesList();
             }
         }
-        // Sync folders from cloud if present
-        if (cloudData && cloudData.folders) {
-            folders = cloudData.folders;
+
+        // Load folders
+        const { data: folderData } = await db
+            .from('note_folders')
+            .select('folders')
+            .eq('user_id', user.id)
+            .single();
+
+        if (folderData?.folders) {
+            folders = folderData.folders;
             await saveSetting('folders', folders);
         }
+
     } catch (e) {
-        console.warn('Cloud load failed', e);
+        console.error('Cloud load failed', e);
     }
 }
 
