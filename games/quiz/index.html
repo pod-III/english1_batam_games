@@ -1,518 +1,750 @@
 <!DOCTYPE html>
-<html lang="en" class="light">
-
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>English 1 Story Quiz</title>
-
-    <!-- Google Fonts: Fredoka & Nunito -->
+    <title>KlassKit: Quiz Maker</title>
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;700;800&display=swap"
-        rel="stylesheet">
-
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@700&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-
-    <!-- Global Styles -->
-    <link rel="stylesheet" href="../../css/base.css">
-    <link rel="stylesheet" href="../../css/components.css">
-
-    <!-- Tailwind Config -->
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        pink: '#ff4785',
-                        orange: '#ff7e33',
-                        green: '#00d063',
-                        blue: '#1ea7fd',
-                        dark: '#111827',
-                        chalk: '#f8fafc'
-                    },
-                    fontFamily: {
-                        heading: ['Fredoka', 'sans-serif'],
-                        body: ['Nunito', 'sans-serif']
-                    },
-                    boxShadow: {
-                        'hard': '4px 4px 0px 0px #111827',
-                        'hard-lg': '8px 8px 0px 0px #111827',
-                    }
-                }
-            }
-        }
-    </script>
-
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Supabase Auth (Implicitly required for cloud sync helper) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/supabase.js"></script>
     <style>
-        /* Specific Styles for Story Quiz */
-        .notebook-line {
-            background-image: linear-gradient(var(--grid-color) 1px, transparent 1px);
-            background-size: 100% 2.5rem;
+        :root {
+            --color-pink: #ff4785;
+            --color-orange: #ff7e33;
+            --color-green: #00d063;
+            --color-blue: #1ea7fd;
+            --bg-primary: #f8fafc;
+            --text-primary: #111827;
+            --border-primary: #111827;
+            --radius-xl: 1.5rem;
+            --radius-2xl: 2rem;
         }
 
-        .spiral-dot {
-            @apply w-4 h-4 rounded-full bg-slate-300 border-2 border-dark mb-2 shadow-inner dark:bg-slate-600 dark:border-slate-400;
+        .dark {
+            --bg-primary: #020617;
+            --text-primary: #f8fafc;
+            --border-primary: #334155;
         }
 
-        /* Option specific colors */
-        .opt-a { @apply bg-pink text-white hover:bg-pink/90; }
-        .opt-b { @apply bg-blue text-white hover:bg-blue/90; }
-        .opt-c { @apply bg-orange text-white hover:bg-orange/90; }
-        .opt-d { @apply bg-green text-white hover:bg-green/90; }
-
-        .timer-bar {
-            transition: width 1s linear, background-color 0.3s ease;
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            margin: 0;
+            overflow-x: hidden;
+            min-height: 100vh;
         }
 
-        /* Custom Animations */
+        /* Grid Background Pattern */
+        .bg-pattern {
+            position: fixed;
+            inset: 0;
+            z-index: -20;
+            background-image: radial-gradient(var(--border-primary) 1px, transparent 1px);
+            background-size: 32px 32px;
+            opacity: 0.05;
+        }
+
+        .font-heading { font-family: 'Fredoka', sans-serif; font-weight: 700; }
+        .border-dark { border: 4px solid var(--border-primary); }
+        .shadow-hard { box-shadow: 0 6px 0 var(--border-primary); }
+        .shadow-hard-lg { box-shadow: 0 10px 0 var(--border-primary); }
+        
+        .btn-chunky {
+            transition: all 0.1s active;
+            cursor: pointer;
+            user-select: none;
+        }
+        .btn-chunky:hover { transform: translateY(-2px); box-shadow: 0 8px 0 var(--border-primary); }
+        .btn-chunky:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--border-primary); }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(16px);
+            border: 4px solid var(--border-primary);
+        }
+        .dark .glass-panel {
+            background: rgba(15, 23, 42, 0.85);
+            border: 4px solid var(--border-primary);
+        }
+
+        .animate-pop-in { animation: pop-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
         @keyframes pop-in {
-            0% { transform: scale(0.95); opacity: 0; }
+            0% { transform: scale(0.9); opacity: 0; }
             100% { transform: scale(1); opacity: 1; }
         }
 
-        .animate-pop-in {
-            animation: pop-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+
+        .option-btn {
+            position: relative;
+            overflow: hidden;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        /* Quiz Feedback States */
+        .option-btn.correct { background-color: var(--color-green) !important; border-color: var(--border-primary); color: white; transform: scale(1.05); z-index: 10; }
+        .option-btn.wrong { background-color: var(--color-pink) !important; border-color: var(--border-primary); color: white; opacity: 0.8; }
+        .option-btn.dimmed { opacity: 0.3; filter: grayscale(0.5); pointer-events: none; }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--color-blue); border-radius: 10px; }
+
+        /* Multi-save List Item */
+        .collection-item {
+            transition: all 0.2s;
+        }
+        .collection-item:hover {
+            transform: translateX(8px);
         }
     </style>
-
 </head>
+<body class="selection:bg-blue selection:text-white">
 
-<body class="bg-chalk dark:bg-dark text-dark dark:text-white min-h-screen p-4 md:p-8 flex flex-col items-center relative overflow-x-hidden">
+    <div class="bg-pattern"></div>
 
     <!-- Floating Background Shapes -->
-    <div class="absolute top-20 left-10 text-pink opacity-5 pointer-events-none -z-10 animate-pulse">
-        <i data-lucide="sparkles" class="w-24 h-24"></i>
+    <div class="fixed top-20 left-10 text-pink opacity-10 pointer-events-none -z-10 animate-float" style="animation-duration: 8s">
+        <i data-lucide="sparkles" class="w-20 h-20"></i>
     </div>
-    <div class="absolute bottom-20 right-10 text-blue opacity-5 pointer-events-none -z-10 animate-bounce" style="animation-duration: 10s">
-        <i data-lucide="graduation-cap" class="w-32 h-32"></i>
+    <div class="fixed bottom-20 right-10 text-blue opacity-10 pointer-events-none -z-10 animate-float" style="animation-duration: 10s">
+        <i data-lucide="graduation-cap" class="w-24 h-24"></i>
     </div>
-    <div class="absolute top-1/2 left-1/4 text-green opacity-5 pointer-events-none -z-10 rotate-12">
-        <i data-lucide="atom" class="w-20 h-20"></i>
+    <div class="fixed top-1/2 right-20 text-orange opacity-10 pointer-events-none -z-10 animate-float" style="animation-duration: 12s">
+        <i data-lucide="atom" class="w-28 h-28"></i>
     </div>
 
-    <!-- Header Section -->
-    <header class="w-full max-w-5xl flex justify-between items-center mb-12 animate-pop-in z-10">
-        <div class="flex items-center gap-4">
-            <div class="w-12 h-12 bg-white dark:bg-slate-800 rounded-xl border-4 border-dark dark:border-slate-500 flex items-center justify-center shadow-hard shrink-0">
-                <img src="../../media/icon.webp" class="w-8 h-8 object-contain" alt="KlassKit Logo">
+    <!-- Header -->
+    <header class="max-w-6xl mx-auto w-full mt-6 px-4 z-50">
+        <div class="glass-panel rounded-[2rem] p-4 shadow-hard flex justify-between items-center gap-4 border-dark">
+            <div class="flex items-center gap-4">
+                <div class="w-14 h-14 rounded-2xl bg-white dark:bg-slate-800 border-4 border-dark flex items-center justify-center shadow-hard transform rotate-[-3deg]">
+                    <img src="../../media/icon.webp" class="w-10 h-10 object-contain" alt="KlassKit Logo">
+                </div>
+                <div>
+                    <h1 class="text-3xl font-heading text-dark dark:text-white leading-none tracking-tight uppercase">QUIZ MAKER</h1>
+                    <p class="text-[10px] font-black text-slate-400 tracking-[0.3em] uppercase mt-1">Classroom Edition</p>
+                </div>
             </div>
-            <div class="flex flex-col">
-                <h1 class="text-3xl font-heading hidden sm:block uppercase tracking-tight leading-none">
-                    KlassKit
-                </h1>
-                <span class="text-blue font-heading font-bold text-sm uppercase tracking-widest hidden sm:block">Story Quiz</span>
-            </div>
-        </div>
 
-        <div class="flex gap-4">
-            <a href="../../hub.html" class="stick-btn glass-panel text-blue" title="Back to Hub">
-                <i data-lucide="layout-grid" class="w-5 h-5"></i>
-            </a>
-            <button onclick="toggleTheme()" class="stick-btn glass-panel" title="Toggle Theme">
-                <i data-lucide="moon" class="w-5 h-5 dark:hidden"></i>
-                <i data-lucide="sun" class="w-5 h-5 hidden dark:block"></i>
-            </button>
-            <button onclick="location.reload()" class="stick-btn glass-panel text-orange" title="Restart Game">
-                <i data-lucide="refresh-ccw" class="w-5 h-5"></i>
-            </button>
+            <div class="flex items-center gap-3">
+                <button onclick="toggleTheme()" class="btn-chunky bg-white dark:bg-slate-800 w-12 h-12 flex items-center justify-center rounded-2xl border-4 border-dark shadow-hard text-dark dark:text-white">
+                    <i data-lucide="moon" id="theme-icon" class="w-6 h-6"></i>
+                </button>
+                <button id="setup-toggle" onclick="toggleMode()" class="btn-chunky bg-blue text-white px-6 py-3 rounded-2xl border-4 border-dark shadow-hard font-heading flex items-center gap-2">
+                    <i data-lucide="settings" class="w-5 h-5"></i>
+                    <span>SETUP</span>
+                </button>
+            </div>
+
         </div>
     </header>
 
-
-    <!-- START SCREEN -->
-    <main id="start-modal" class="hub-card max-w-lg w-full p-10 text-center animate-pop-in">
-        <div class="flex justify-center mb-8">
-            <div class="relative">
-                <div class="absolute -top-4 -right-4 bg-orange text-white px-4 py-1.5 rounded-full border-4 border-dark font-heading font-bold rotate-12 shadow-hard-sm z-10 text-sm">
-                    FUN!
-                </div>
-                <div class="bg-blue p-8 rounded-full border-4 border-dark dark:border-slate-500 shadow-hard-lg">
-                    <i data-lucide="play-circle" class="w-16 h-16 text-white fill-current"></i>
-                </div>
-            </div>
-        </div>
-
-        <h2 class="text-5xl font-heading mb-4 text-dark dark:text-white uppercase tracking-tight">Adventure Quiz</h2>
-        <p class="text-xl font-body font-bold text-slate-500 dark:text-slate-400 mb-10">Test your comprehension skills!</p>
-
-        <div class="text-left space-y-6 mb-10">
-            <div class="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-4 border-dark dark:border-slate-500 shadow-hard-sm">
-                <label class="block font-heading font-bold text-lg mb-3 uppercase tracking-wide">Question Timer</label>
-                <div class="relative">
-                    <select id="timer-setting"
-                        class="w-full font-bold bg-transparent outline-none border-b-4 border-dark dark:border-slate-500 pb-2 cursor-pointer appearance-none">
-                        <option value="15">Expert (15s)</option>
-                        <option value="30" selected>Normal (30s)</option>
-                        <option value="60">Easy (60s)</option>
-                    </select>
-                    <i data-lucide="chevron-down" class="absolute right-0 bottom-3 w-5 h-5 pointer-events-none"></i>
-                </div>
-            </div>
+    <main class="max-w-6xl mx-auto w-full mt-12 px-4 pb-20">
+        
+        <!-- Setup Mode (Console) -->
+        <div id="setup-mode" class="hidden animate-pop-in grid lg:grid-cols-3 gap-8">
             
-            <div class="p-4 bg-green rounded-2xl border-4 border-dark dark:border-slate-500 shadow-hard-sm flex items-center justify-center text-white">
-                <i data-lucide="zap" class="w-8 h-8 mr-3 fill-current animate-pulse"></i>
-                <span class="font-heading font-bold text-xl uppercase tracking-wider">Ready to Read?</span>
-            </div>
-        </div>
-
-        <button onclick="startGame()" class="btn-chunky bg-pink text-white w-full py-6 text-3xl rounded-2xl">
-            START QUIZ
-        </button>
-    </main>
-
-    <!-- QUIZ SCREEN -->
-    <main id="quiz-container" class="w-full max-w-5xl hidden flex-col gap-8 animate-pop-in">
-
-        <!-- Stats Top Bar -->
-        <div class="flex flex-wrap gap-4 items-center justify-between">
-            <div class="flex gap-4">
-                <div class="p-4 px-8 bg-orange text-white rounded-2xl border-4 border-dark dark:border-slate-500 shadow-hard flex items-center gap-4">
-                    <i data-lucide="star" class="w-8 h-8 fill-current"></i>
-                    <span id="display-score" class="font-heading text-4xl font-bold tracking-tight">0000</span>
-                </div>
-            </div>
-
-            <div id="progress-indicator" class="glass-panel px-6 py-4 flex gap-3 rounded-2xl">
-                <!-- dots populated by JS -->
-            </div>
-        </div>
-
-        <!-- The "Notebook" Question Area -->
-        <div class="relative">
-            <!-- Notebook Spirals -->
-            <div class="absolute -top-4 left-10 flex gap-4 z-20">
-                <div class="spiral-dot"></div>
-                <div class="spiral-dot"></div>
-                <div class="spiral-dot"></div>
-                <div class="spiral-dot"></div>
-            </div>
-
-            <div class="bg-white dark:bg-slate-800 rounded-3xl border-4 border-dark dark:border-slate-500 shadow-hard-lg overflow-hidden relative">
-                <!-- Header Strip -->
-                <div class="bg-blue h-14 border-b-4 border-dark dark:border-slate-500 flex items-center justify-between px-8">
-                    <span class="text-white font-heading font-bold tracking-widest uppercase text-xs"
-                        id="question-count-label">Question 1 of 5</span>
-                    <div class="flex gap-2">
-                        <div class="w-3.5 h-3.5 rounded-full bg-white/30"></div>
-                        <div class="w-3.5 h-3.5 rounded-full bg-white/30"></div>
+            <!-- Left: Collections Sidebar -->
+            <div class="lg:col-span-1 space-y-6">
+                <div class="glass-panel rounded-[2rem] p-6 shadow-hard bg-white/90 dark:bg-slate-800/90">
+                    <h3 class="text-xl font-heading uppercase mb-4 flex items-center gap-2 text-pink">
+                        <i data-lucide="folder-heart" class="w-5 h-5"></i>
+                        Saved Quizzes
+                    </h3>
+                    <div id="collections-list" class="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                        <!-- Collections injected here -->
+                    </div>
+                    <div class="mt-6 pt-4 border-t-2 border-dashed border-slate-300">
+                        <button onclick="createNewCollection()" class="btn-chunky w-full bg-blue text-white py-3 rounded-xl border-4 border-dark shadow-hard font-bold flex items-center justify-center gap-2">
+                            <i data-lucide="plus" class="w-5 h-5"></i> NEW QUIZ
+                        </button>
                     </div>
                 </div>
 
-                <!-- Page Content -->
-                <div class="p-10 md:p-16 notebook-line min-h-[250px] flex flex-col items-center justify-center relative">
-                    <h2 id="question-text" class="text-3xl md:text-5xl font-heading font-bold text-center leading-tight tracking-tight">
-                        Loading...</h2>
-
-                    <!-- Reveal Answer Action -->
-                    <button id="reveal-btn" onclick="revealAnswer()"
-                        class="absolute bottom-6 right-6 stick-btn bg-green text-white p-4 rounded-full shadow-hard-sm group"
-                        title="Reveal Answer">
-                        <i data-lucide="lightbulb" class="w-7 h-7 group-hover:fill-current"></i>
-                    </button>
-                </div>
-
-                <!-- Footer Timer Bar -->
-                <div class="h-5 bg-slate-100 dark:bg-slate-900 border-t-4 border-dark dark:border-slate-500">
-                    <div id="timer-bar" class="timer-bar bg-pink h-full w-full"></div>
+                <div class="glass-panel rounded-[2rem] p-6 shadow-hard bg-orange/10 dark:bg-orange/5 border-orange">
+                    <h3 class="text-xl font-heading uppercase mb-4 flex items-center gap-2 text-orange">
+                        <i data-lucide="zap" class="w-5 h-5"></i>
+                        Quick Presets
+                    </h3>
+                    <div class="grid grid-cols-1 gap-2">
+                        <button onclick="loadPreset('b1_english')" class="btn-chunky bg-white dark:bg-slate-800 p-3 rounded-xl border-2 border-dark text-left text-sm font-bold hover:bg-orange hover:text-white transition-all">B1 English Mastery</button>
+                        <button onclick="loadPreset('math_basics')" class="btn-chunky bg-white dark:bg-slate-800 p-3 rounded-xl border-2 border-dark text-left text-sm font-bold hover:bg-orange hover:text-white transition-all">Math Foundations</button>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Manual Navigation Bar (Hidden until answered) -->
-        <div id="next-bar" class="hidden justify-center animate-pop-in">
-            <button onclick="nextQuestion()" class="btn-chunky bg-dark dark:bg-slate-700 text-white px-16 py-5 text-3xl rounded-2xl group">
-                NEXT QUESTION <i data-lucide="arrow-right"
-                    class="w-10 h-10 ml-4 group-hover:translate-x-2 transition-transform"></i>
-            </button>
-        </div>
+            <!-- Right: Editor -->
+            <div class="lg:col-span-2 space-y-6">
+                <div class="glass-panel rounded-[2.5rem] p-8 shadow-hard-lg">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+                        <div class="flex-1 w-full">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 block ml-1">Quiz Name</label>
+                            <input type="text" id="quiz-name-input" oninput="updateCollectionName(this.value)" class="text-3xl font-heading uppercase tracking-tighter bg-transparent border-b-4 border-slate-200 focus:border-blue outline-none w-full pb-1" placeholder="UNTITLED QUIZ">
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="deleteCurrentCollection()" class="btn-chunky bg-pink text-white w-12 h-12 rounded-xl border-4 border-dark shadow-hard flex items-center justify-center" title="Delete Quiz">
+                                <i data-lucide="trash-2" class="w-6 h-6"></i>
+                            </button>
+                        </div>
+                    </div>
 
-        <!-- Options Grid -->
-        <div id="options-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <button onclick="selectOption('a')" id="btn-a"
-                class="btn-chunky opt-a p-8 text-left justify-start gap-8 group min-h-[140px] rounded-2xl">
-                <div class="bg-white/20 p-5 rounded-2xl border-4 border-white/30 font-heading font-bold text-4xl w-20 h-20 flex items-center justify-center shadow-hard-sm">
-                    A</div>
-                <span id="opt-text-a" class="text-2xl font-bold flex-1">Option A</span>
-                <i data-lucide="triangle" class="w-12 h-12 opacity-30 fill-current"></i>
-            </button>
-            <button onclick="selectOption('b')" id="btn-b"
-                class="btn-chunky opt-b p-8 text-left justify-start gap-8 group min-h-[140px] rounded-2xl">
-                <div class="bg-white/20 p-5 rounded-2xl border-4 border-white/30 font-heading font-bold text-4xl w-20 h-20 flex items-center justify-center shadow-hard-sm">
-                    B</div>
-                <span id="opt-text-b" class="text-2xl font-bold flex-1">Option B</span>
-                <i data-lucide="square" class="w-12 h-12 opacity-30 fill-current"></i>
-            </button>
-            <button onclick="selectOption('c')" id="btn-c"
-                class="btn-chunky opt-c p-8 text-left justify-start gap-8 group min-h-[140px] rounded-2xl">
-                <div class="bg-white/20 p-5 rounded-2xl border-4 border-white/30 font-heading font-bold text-4xl w-20 h-20 flex items-center justify-center shadow-hard-sm">
-                    C</div>
-                <span id="opt-text-c" class="text-2xl font-bold flex-1">Option C</span>
-                <i data-lucide="circle" class="w-12 h-12 opacity-30 fill-current"></i>
-            </button>
-            <button onclick="selectOption('d')" id="btn-d"
-                class="btn-chunky opt-d p-8 text-left justify-start gap-8 group min-h-[140px] rounded-2xl">
-                <div class="bg-white/20 p-5 rounded-2xl border-4 border-white/30 font-heading font-bold text-4xl w-20 h-20 flex items-center justify-center shadow-hard-sm">
-                    D</div>
-                <span id="opt-text-d" class="text-2xl font-bold flex-1">Option D</span>
-                <i data-lucide="hexagon" class="w-12 h-12 opacity-30 fill-current"></i>
-            </button>
-        </div>
-    </main>
+                    <div id="questions-editor" class="space-y-6 max-h-[600px] overflow-y-auto pr-4 custom-scrollbar">
+                        <!-- Question editors will be injected here -->
+                    </div>
 
-
-    <!-- RESULT SCREEN -->
-    <main id="result-container" class="hub-card max-w-2xl w-full p-12 text-center hidden animate-pop-in mt-6">
-        <div class="flex justify-center mb-10">
-            <div id="trophy-box" class="bg-green p-12 rounded-full border-4 border-dark dark:border-slate-500 shadow-hard-lg rotate-12">
-                <i data-lucide="trophy" class="w-24 h-24 text-white"></i>
+                    <div class="mt-10 pt-8 border-t-4 border-dark border-dotted flex justify-center">
+                        <button onclick="saveAndPlay()" class="btn-chunky bg-green text-white px-12 py-5 rounded-[2rem] border-4 border-dark shadow-hard-lg font-heading text-3xl tracking-tight">
+                            START GAME
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <h2 id="result-title" class="text-6xl font-heading mb-3 uppercase tracking-tight">WELL DONE!</h2>
-        <p id="result-text" class="text-2xl font-bold text-slate-500 dark:text-slate-400 mb-12">You're a storytelling master.</p>
-
-        <div class="grid grid-cols-2 gap-8 mb-12">
-            <div class="p-8 bg-blue text-white rounded-2xl border-4 border-dark dark:border-slate-500 shadow-hard">
-                <p class="font-heading uppercase text-sm font-bold tracking-widest opacity-80 mb-2">Final Score</p>
-                <p class="text-6xl font-heading font-bold" id="final-score">0</p>
+        <!-- Play Mode -->
+        <div id="play-mode" class="animate-pop-in max-w-4xl mx-auto">
+            <div id="landing-screen" class="glass-panel rounded-[3rem] p-12 shadow-hard-lg text-center">
+                <div class="w-24 h-24 bg-blue text-white rounded-[2rem] border-4 border-dark shadow-hard flex items-center justify-center mx-auto mb-8 transform rotate-6 animate-float">
+                    <i data-lucide="play" class="w-12 h-12 fill-current"></i>
+                </div>
+                <h2 id="landing-title" class="text-5xl font-heading uppercase tracking-tighter mb-4">READY FOR CLASS?</h2>
+                <p id="landing-desc" class="text-xl text-slate-500 font-bold mb-10 max-w-md mx-auto">Load a quiz in SETUP to begin the challenge.</p>
+                <button id="start-btn" onclick="startQuiz()" class="btn-chunky bg-green text-white px-16 py-6 rounded-[2.5rem] border-4 border-dark shadow-hard-lg font-heading text-4xl tracking-tight uppercase disabled:grayscale disabled:opacity-50">
+                    START THE BATTLE!
+                </button>
             </div>
-            <div class="p-8 bg-pink text-white rounded-2xl border-4 border-dark dark:border-slate-500 shadow-hard">
-                <p class="font-heading uppercase text-sm font-bold tracking-widest opacity-80 mb-2">Correct</p>
-                <p class="text-6xl font-heading font-bold" id="final-correct">0 / 0</p>
+
+            <!-- Quiz Screen -->
+            <div id="quiz-screen" class="hidden space-y-8">
+                <!-- Progress Header -->
+                <div class="flex justify-between items-center px-4">
+                    <div class="flex items-center gap-4">
+                        <div class="bg-white dark:bg-slate-800 border-4 border-dark rounded-2xl px-6 py-2 shadow-hard font-heading text-2xl" id="progress-text">1/10</div>
+                        <div class="w-48 h-6 bg-slate-200 dark:bg-slate-800 border-4 border-dark rounded-full shadow-hard overflow-hidden">
+                            <div id="progress-bar" class="h-full bg-blue transition-all duration-500" style="width: 10%;"></div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="bg-white dark:bg-slate-800 border-4 border-dark rounded-2xl px-6 py-2 shadow-hard font-heading text-2xl flex items-center gap-2">
+                            <i data-lucide="trophy" class="w-6 h-6 text-orange"></i>
+                            <span id="score-text">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Question Card -->
+                <div class="glass-panel rounded-[3rem] p-10 md:p-14 shadow-hard-lg text-center relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-full h-6 bg-blue border-b-4 border-dark"></div>
+                    <h3 id="question-text" class="text-3xl md:text-5xl font-heading leading-tight tracking-tight mb-12 mt-4">Question goes here?</h3>
+                    
+                    <div id="options-container" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+                        <!-- Options injected here -->
+                    </div>
+
+                    <div id="feedback-controls" class="hidden flex justify-center animate-pop-in">
+                        <button onclick="nextQuestion()" class="btn-chunky bg-dark text-white px-12 py-4 rounded-2xl border-4 border-slate-500 shadow-hard font-heading text-2xl flex items-center gap-3">
+                            NEXT QUESTION <i data-lucide="arrow-right" class="w-6 h-6"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Result Screen -->
+            <div id="result-screen" class="hidden glass-panel rounded-[3rem] p-12 shadow-hard-lg text-center">
+                <div class="w-24 h-24 bg-green text-white rounded-[2rem] border-4 border-dark shadow-hard flex items-center justify-center mx-auto mb-8 transform -rotate-6">
+                    <i data-lucide="award" class="w-12 h-12"></i>
+                </div>
+                <h2 class="text-5xl font-heading uppercase tracking-tighter mb-2">QUIZ FINISHED!</h2>
+                <p id="final-message" class="text-2xl text-slate-500 font-bold mb-10">Excellent work today!</p>
+                
+                <div class="grid grid-cols-2 gap-6 max-w-md mx-auto mb-10">
+                    <div class="bg-white dark:bg-slate-800 border-4 border-dark rounded-2xl p-6 shadow-hard">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Score</p>
+                        <p id="final-score" class="text-5xl font-heading">0/10</p>
+                    </div>
+                    <div class="bg-white dark:bg-slate-800 border-4 border-dark rounded-2xl p-6 shadow-hard">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Rank</p>
+                        <p id="final-rank" class="text-4xl font-heading text-blue">A+</p>
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <button onclick="startQuiz()" class="btn-chunky bg-green text-white px-10 py-4 rounded-2xl border-4 border-dark shadow-hard font-heading text-2xl uppercase">RETRY</button>
+                    <button onclick="toggleMode('setup')" class="btn-chunky bg-white dark:bg-slate-800 text-dark dark:text-white px-10 py-4 rounded-2xl border-4 border-dark shadow-hard font-heading text-2xl uppercase">EDIT QUIZ</button>
+                </div>
             </div>
         </div>
 
-        <button onclick="location.reload()" class="btn-chunky bg-orange text-white w-full py-6 text-3xl rounded-2xl">
-            PLAY AGAIN <i data-lucide="rotate-cw" class="w-10 h-10 ml-4"></i>
-        </button>
     </main>
 
     <!-- Footer -->
-    <footer class="mt-12 text-center text-slate-400 dark:text-slate-500 font-bold text-sm py-8 z-10">
+    <footer class="mt-auto text-center text-slate-400 dark:text-slate-500 font-bold text-xs py-10">
         <p>Built for teachers • Part of KlassKit</p>
-        <p class="text-[10px] uppercase tracking-widest mt-1 opacity-60">Made by Fahrul Ahyan</p>
+        <p class="text-[9px] uppercase tracking-[0.2em] mt-1 opacity-50">Designed by Antigravity</p>
     </footer>
 
-
-
     <script>
+        // --- DATA & STATE ---
+        const PRESETS = {
+            b1_english: [
+                { q: "If I _____ you, I would go to the doctor.", o: ["am", "was", "were", "be"], a: 2 },
+                { q: "She has been working here _____ 2015.", o: ["for", "since", "from", "during"], a: 1 },
+                { q: "Which of these is NOT a past participle?", o: ["Gone", "Done", "Been", "Going"], a: 3 },
+                { q: "By the time we arrived, the film _____.", o: ["started", "was starting", "had started", "has started"], a: 2 },
+                { q: "I'm looking forward _____ you next week.", o: ["to see", "to seeing", "seeing", "for seeing"], a: 1 },
+                { q: "He suggested _____ to the park.", o: ["go", "to go", "going", "goes"], a: 2 },
+                { q: "That is the man _____ car was stolen.", o: ["who", "whom", "whose", "which"], a: 2 },
+                { q: "You _____ better hurry or you'll be late.", o: ["would", "had", "should", "will"], a: 1 },
+                { q: "I wish I _____ more time to study.", o: ["have", "had", "would have", "was having"], a: 1 },
+                { q: "The bridge _____ by next Christmas.", o: ["will build", "will be building", "will have been built", "is built"], a: 2 }
+            ],
+            math_basics: [
+                { q: "What is 15 x 6?", o: ["80", "90", "75", "95"], a: 1 },
+                { q: "Square root of 144?", o: ["10", "11", "12", "14"], a: 2 },
+                { q: "What is 25% of 200?", o: ["40", "50", "60", "25"], a: 1 },
+                { q: "Sum of angles in a triangle?", o: ["90°", "180°", "270°", "360°"], a: 1 },
+                { q: "Which is a prime number?", o: ["9", "15", "21", "17"], a: 3 },
+                { q: "Value of Pi (approx)?", o: ["3.12", "3.14", "3.16", "3.18"], a: 1 },
+                { q: "1/2 + 1/4 = ?", o: ["1/6", "2/6", "3/4", "2/4"], a: 2 },
+                { q: "What is 7 squared?", o: ["14", "47", "49", "56"], a: 2 },
+                { q: "Sides in a hexagon?", o: ["5", "6", "7", "8"], a: 1 },
+                { q: "100 / 4 x 2 = ?", o: ["12.5", "50", "25", "200"], a: 1 }
+            ]
+        };
+
+        let collections = [];
+        let currentCollectionId = null;
+        let isAnswering = false;
+        
+        let currentQuestions = [];
+        let currentStep = 0;
+        let score = 0;
+        let isSetupMode = false;
+
         // --- THEME SYNC ---
         function initTheme() {
             const saved = localStorage.getItem('theme_hub');
             if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
                 document.documentElement.classList.add('dark');
             }
+            updateThemeUI();
         }
-        initTheme();
 
         function toggleTheme() {
             const isDark = document.documentElement.classList.toggle('dark');
             localStorage.setItem('theme_hub', isDark ? 'dark' : 'light');
+            updateThemeUI();
         }
 
-        lucide.createIcons();
-
-        // --- QUIZ DATA ---
-        const quizData = [
-            { question: "Where did Leo find the mysterious map?", a: "Library", b: "Beach", c: "Bottle", d: "Bedroom", correct: "c" },
-            { question: "What color was the glowing stone?", a: "Emerald Green", b: "Ruby Red", c: "Ocean Blue", d: "Sunset Orange", correct: "a" },
-            { question: "Who helped Leo decipher the map?", a: "Grandfather", b: "Parrot", c: "Teacher", d: "Pirate", correct: "a" },
-            { question: "Why did they hurry through the cave?", a: "Darkness", b: "A Bear", c: "The Tide", d: "Hunger", correct: "c" },
-            { question: "What was the true 'treasure' found?", a: "Gold Coins", b: "Magic Sword", c: "Rare Jewels", d: "Story Journal", correct: "d" }
-        ];
-
-        // --- GAME STATE ---
-        let currentIndex = 0;
-        let score = 0;
-        let correctCount = 0;
-        let timeLimit = 30;
-        let timeLeft = 30;
-        let timerId;
-        let isAnswering = false;
-        let revealUsed = false;
-
-        // --- UI LOGIC ---
-        function startGame() {
-            timeLimit = parseInt(document.getElementById('timer-setting').value);
-
-            document.getElementById('start-modal').classList.add('hidden');
-            document.getElementById('quiz-container').classList.remove('hidden');
-            document.getElementById('quiz-container').classList.add('flex');
-
-            initProgress();
-            loadQuestion();
+        function updateThemeUI() {
+            const isDark = document.documentElement.classList.contains('dark');
+            const icon = document.getElementById('theme-icon');
+            if (icon) {
+                icon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+                lucide.createIcons();
+            }
         }
 
-        function initProgress() {
-            const bar = document.getElementById('progress-indicator');
-            bar.innerHTML = '';
-            quizData.forEach((_, i) => {
-                const dot = document.createElement('div');
-                dot.id = `dot-${i}`;
-                dot.className = "w-4 h-4 rounded-full border-2 border-dark dark:border-slate-500 bg-slate-200 dark:bg-slate-700 transition-all";
-                bar.appendChild(dot);
+        // --- MODE TOGGLE ---
+        function toggleMode(target) {
+            isSetupMode = target === 'setup' ? true : (target === 'play' ? false : !isSetupMode);
+            
+            const setup = document.getElementById('setup-mode');
+            const play = document.getElementById('play-mode');
+            const toggleBtn = document.getElementById('setup-toggle');
+            const icon = toggleBtn.querySelector('[data-lucide]');
+
+            if (isSetupMode) {
+                setup.classList.remove('hidden');
+                setup.classList.add('grid');
+                play.classList.add('hidden');
+                toggleBtn.querySelector('span').textContent = 'PLAY';
+                if (icon) icon.setAttribute('data-lucide', 'play');
+                renderCollections();
+                renderEditor();
+            } else {
+                setup.classList.add('hidden');
+                setup.classList.remove('grid');
+                play.classList.remove('hidden');
+                toggleBtn.querySelector('span').textContent = 'SETUP';
+                if (icon) icon.setAttribute('data-lucide', 'settings');
+                resetQuizState();
+            }
+            lucide.createIcons();
+        }
+
+        // --- COLLECTIONS LOGIC ---
+        function createNewCollection() {
+            const id = 'quiz_' + Date.now();
+            const newQuiz = {
+                id,
+                name: "New Classroom Quiz",
+                questions: Array(10).fill().map(() => ({ q: "", o: ["", "", "", ""], a: 0 })),
+                timestamp: Date.now()
+            };
+            collections.push(newQuiz);
+            currentCollectionId = id;
+            currentQuestions = newQuiz.questions;
+            saveData();
+            renderCollections();
+            renderEditor();
+        }
+
+        function selectCollection(id) {
+            const quiz = collections.find(c => c.id === id);
+            if (quiz) {
+                currentCollectionId = id;
+                currentQuestions = quiz.questions;
+                renderCollections();
+                renderEditor();
+                AudioEngine.playTone(600, 'sine', 0.1);
+            }
+        }
+
+        function deleteCurrentCollection() {
+            if (collections.length <= 1) {
+                alert("You must have at least one quiz!");
+                return;
+            }
+            if (confirm("Permanently delete this quiz set?")) {
+                collections = collections.filter(c => c.id !== currentCollectionId);
+                currentCollectionId = collections[0].id;
+                currentQuestions = collections[0].questions;
+                saveData();
+                renderCollections();
+                renderEditor();
+            }
+        }
+
+        function updateCollectionName(name) {
+            const quiz = collections.find(c => c.id === currentCollectionId);
+            if (quiz) {
+                quiz.name = name;
+                saveData();
+                renderCollections();
+            }
+        }
+
+        function renderCollections() {
+            const list = document.getElementById('collections-list');
+            list.innerHTML = '';
+            
+            collections.sort((a, b) => b.timestamp - a.timestamp).forEach(quiz => {
+                const isActive = quiz.id === currentCollectionId;
+                const btn = document.createElement('button');
+                btn.className = `collection-item w-full p-4 rounded-2xl border-4 font-bold text-left flex items-center gap-3 shadow-hard transition-all ${isActive ? 'bg-pink text-white border-dark scale-[1.02] z-10' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 hover:border-pink hover:text-pink'}`;
+                btn.innerHTML = `
+                    <div class="w-8 h-8 rounded-lg bg-black/10 flex items-center justify-center shrink-0">
+                        <i data-lucide="scroll-text" class="w-4 h-4"></i>
+                    </div>
+                    <span class="truncate">${quiz.name || 'Untitled'}</span>
+                `;
+                btn.onclick = () => selectCollection(quiz.id);
+                list.appendChild(btn);
             });
-        }
-
-        function loadQuestion() {
-            isAnswering = false;
-            revealUsed = false;
-            document.getElementById('next-bar').classList.add('hidden');
-            document.getElementById('options-grid').classList.remove('opacity-50', 'pointer-events-none');
-            document.getElementById('reveal-btn').classList.remove('hidden');
-
-            resetOptionStyles();
-
-            const q = quizData[currentIndex];
-            document.getElementById('question-count-label').innerText = `Question ${currentIndex + 1} of ${quizData.length}`;
-            document.getElementById('question-text').innerText = q.question;
-            document.getElementById('opt-text-a').innerText = q.a;
-            document.getElementById('opt-text-b').innerText = q.b;
-            document.getElementById('opt-text-c').innerText = q.c;
-            document.getElementById('opt-text-d').innerText = q.d;
-
-            timeLeft = timeLimit;
-            updateTimer();
-            clearInterval(timerId);
-            timerId = setInterval(tick, 1000);
-
-            // Mark current progress dot
-            const currentDot = document.getElementById(`dot-${currentIndex}`);
-            currentDot.classList.add('scale-150', 'bg-blue');
-            currentDot.classList.remove('bg-slate-200', 'dark:bg-slate-700');
+            
+            const activeQuiz = collections.find(c => c.id === currentCollectionId);
+            document.getElementById('quiz-name-input').value = activeQuiz ? activeQuiz.name : "";
+            
+            // Update Play Mode Landing
+            const landingTitle = document.getElementById('landing-title');
+            const landingDesc = document.getElementById('landing-desc');
+            const startBtn = document.getElementById('start-btn');
+            
+            if (activeQuiz) {
+                landingTitle.textContent = activeQuiz.name.toUpperCase();
+                landingDesc.textContent = `${activeQuiz.questions.filter(q => q.q).length} questions are ready.`;
+                startBtn.disabled = false;
+            } else {
+                landingTitle.textContent = "NO QUIZ LOADED";
+                landingDesc.textContent = "Please create or select a quiz in SETUP.";
+                startBtn.disabled = true;
+            }
             
             lucide.createIcons();
         }
 
-        function tick() {
-            timeLeft--;
-            updateTimer();
-            if (timeLeft <= 0) {
-                clearInterval(timerId);
-                selectOption(null); // Timeout
+        // --- EDITOR LOGIC ---
+        function renderEditor() {
+            const container = document.getElementById('questions-editor');
+            container.innerHTML = '';
+
+            currentQuestions.forEach((q, idx) => {
+                const card = document.createElement('div');
+                card.className = 'bg-white dark:bg-slate-800 border-4 border-dark rounded-2xl p-6 shadow-hard space-y-4';
+                card.innerHTML = `
+                    <div class="flex items-start gap-4 mb-2">
+                        <span class="w-10 h-10 shrink-0 rounded-xl bg-blue text-white flex items-center justify-center font-black text-lg border-2 border-dark shadow-hard-sm">${idx + 1}</span>
+                        <div class="flex-1 space-y-2">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Question Prompt</label>
+                            <input type="text" value="${q.q}" oninput="updateQuestion(${idx}, 'q', this.value)" placeholder="Enter question..." class="w-full bg-slate-50 dark:bg-slate-900 border-2 border-dark rounded-xl px-4 py-3 font-bold text-dark dark:text-white focus:outline-none focus:border-blue shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)]">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pl-14">
+                        ${q.o.map((opt, oIdx) => `
+                            <div class="space-y-1">
+                                <div class="flex items-center gap-2">
+                                    <input type="radio" name="correct-${idx}" ${q.a === oIdx ? 'checked' : ''} onchange="updateQuestion(${idx}, 'a', ${oIdx})" class="w-5 h-5 accent-green cursor-pointer">
+                                    <input type="text" value="${opt}" oninput="updateOption(${idx}, ${oIdx}, this.value)" placeholder="Option ${oIdx + 1}" class="flex-1 bg-slate-50 dark:bg-slate-900 border-2 border-dark rounded-lg px-3 py-2 text-sm font-bold text-dark dark:text-slate-200 focus:outline-none focus:border-green shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)]">
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function updateQuestion(idx, field, val) {
+            currentQuestions[idx][field] = val;
+            saveData();
+        }
+
+        function updateOption(qIdx, oIdx, val) {
+            currentQuestions[qIdx].o[oIdx] = val;
+            saveData();
+        }
+
+        // --- PERSISTENCE ---
+        let syncTimeout = null;
+        async function saveData() {
+            localStorage.setItem('quiz_maker_collections', JSON.stringify(collections));
+            localStorage.setItem('quiz_maker_last_id', currentCollectionId);
+            
+            // Cloud Sync
+            if (syncTimeout) clearTimeout(syncTimeout);
+            syncTimeout = setTimeout(async () => {
+                try {
+                    await saveProgress('quiz_maker', { collections, lastId: currentCollectionId });
+                } catch (e) {
+                    console.warn("Cloud sync failed", e);
+                }
+            }, 2000);
+        }
+
+        async function loadData() {
+            // Local load
+            const local = localStorage.getItem('quiz_maker_collections');
+            const lastId = localStorage.getItem('quiz_maker_last_id');
+            
+            if (local) {
+                collections = JSON.parse(local);
+                currentCollectionId = lastId || (collections[0] ? collections[0].id : null);
+                if (currentCollectionId) {
+                    currentQuestions = collections.find(c => c.id === currentCollectionId)?.questions || [];
+                }
+            }
+
+            // Cloud load
+            try {
+                const cloud = await loadProgress('quiz_maker');
+                if (cloud && cloud.collections) {
+                    collections = cloud.collections;
+                    currentCollectionId = cloud.lastId || collections[0].id;
+                    currentQuestions = collections.find(c => c.id === currentCollectionId).questions;
+                    localStorage.setItem('quiz_maker_collections', JSON.stringify(collections));
+                    if (isSetupMode) { renderCollections(); renderEditor(); }
+                }
+            } catch (e) { }
+
+            if (collections.length === 0) {
+                createNewCollection();
             }
         }
 
-        function updateTimer() {
-            const bar = document.getElementById('timer-bar');
-            const perc = (timeLeft / timeLimit) * 100;
-            bar.style.width = `${perc}%`;
-            bar.className = `timer-bar h-full ${perc < 30 ? 'bg-red-500' : 'bg-pink'}`;
+        function loadPreset(key) {
+            if (PRESETS[key]) {
+                const id = 'quiz_preset_' + key + '_' + Date.now();
+                const newQuiz = {
+                    id,
+                    name: key === 'b1_english' ? "B1 English Mastery" : "Math Foundations",
+                    questions: JSON.parse(JSON.stringify(PRESETS[key])),
+                    timestamp: Date.now()
+                };
+                collections.push(newQuiz);
+                currentCollectionId = id;
+                currentQuestions = newQuiz.questions;
+                saveData();
+                renderCollections();
+                renderEditor();
+                AudioEngine.playTone(800, 'sine', 0.1);
+            }
         }
 
-        function revealAnswer() {
-            if (isAnswering) return;
-            revealUsed = true;
-            const correct = quizData[currentIndex].correct;
-            const btn = document.getElementById(`btn-${correct}`);
-
-            // Pulse the correct answer
-            btn.classList.add('ring-8', 'ring-green', 'animate-pulse');
-            setTimeout(() => btn.classList.remove('animate-pulse'), 2000);
+        function resetQuiz() {
+            if (confirm("Reset current questions to blank?")) {
+                currentQuestions.forEach(q => {
+                    q.q = "";
+                    q.o = ["", "", "", ""];
+                    q.a = 0;
+                });
+                saveData();
+                renderEditor();
+            }
         }
 
-        function selectOption(letter) {
+        function saveAndPlay() {
+            saveData();
+            toggleMode('play');
+        }
+
+        // --- GAME LOGIC ---
+        function resetQuizState() {
+            currentStep = 0;
+            score = 0;
+            isAnswering = false;
+            document.getElementById('landing-screen').classList.remove('hidden');
+            document.getElementById('quiz-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('feedback-controls').classList.add('hidden');
+        }
+
+        function startQuiz() {
+            currentStep = 0;
+            score = 0;
+            isAnswering = false;
+            document.getElementById('landing-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('quiz-screen').classList.remove('hidden');
+            showQuestion();
+        }
+
+        function showQuestion() {
+            isAnswering = false;
+            const q = currentQuestions[currentStep];
+            document.getElementById('question-text').textContent = q.q || "Untitled Question";
+            document.getElementById('progress-text').textContent = `${currentStep + 1}/${currentQuestions.length}`;
+            document.getElementById('progress-bar').style.width = `${((currentStep + 1) / currentQuestions.length) * 100}%`;
+            document.getElementById('score-text').textContent = score;
+            document.getElementById('feedback-controls').classList.add('hidden');
+
+            const container = document.getElementById('options-container');
+            container.innerHTML = '';
+
+            const colors = ['bg-pink', 'bg-orange', 'bg-blue', 'bg-green'];
+            q.o.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = `option-btn btn-chunky ${colors[idx % 4]} text-white px-8 py-6 rounded-2xl border-4 border-dark shadow-hard font-heading text-xl md:text-2xl transition-all`;
+                btn.textContent = opt || `Option ${idx + 1}`;
+                btn.onclick = () => selectOption(idx);
+                container.appendChild(btn);
+            });
+        }
+
+        function selectOption(idx) {
             if (isAnswering) return;
             isAnswering = true;
-            clearInterval(timerId);
-
-            const q = quizData[currentIndex];
-            const isCorrect = letter === q.correct;
-
-            // Visual feedback
-            const btns = ['a', 'b', 'c', 'd'];
-            btns.forEach(l => {
-                const b = document.getElementById(`btn-${l}`);
-                b.style.opacity = "0.3";
-                b.classList.add('pointer-events-none');
+            
+            const q = currentQuestions[currentStep];
+            const correct = q.a;
+            const btns = document.querySelectorAll('.option-btn');
+            
+            // UI Feedback
+            btns.forEach((btn, bIdx) => {
+                btn.classList.add('dimmed');
+                if (bIdx === correct) {
+                    btn.classList.remove('dimmed');
+                    btn.classList.add('correct');
+                } else if (bIdx === idx) {
+                    btn.classList.remove('dimmed');
+                    btn.classList.add('wrong');
+                }
             });
 
-            const correctBtn = document.getElementById(`btn-${q.correct}`);
-            correctBtn.style.opacity = "1";
-            correctBtn.classList.add('ring-8', 'ring-green', 'ring-offset-4', 'dark:ring-offset-dark');
-
-            if (letter && !isCorrect) {
-                const wrongBtn = document.getElementById(`btn-${letter}`);
-                wrongBtn.style.opacity = "1";
-                wrongBtn.classList.add('ring-8', 'ring-red-500', 'ring-offset-4', 'dark:ring-offset-dark');
-            }
-
-            // Scoring
-            const currentDot = document.getElementById(`dot-${currentIndex}`);
-            currentDot.classList.remove('scale-150');
-
-            if (isCorrect && !revealUsed) {
-                const points = Math.round((timeLeft / timeLimit) * 500) + 500;
-                score += points;
-                correctCount++;
-                currentDot.className = "w-4 h-4 rounded-full border-2 border-dark dark:border-slate-500 bg-green";
-            } else if (isCorrect && revealUsed) {
-                currentDot.className = "w-4 h-4 rounded-full border-2 border-dark dark:border-slate-500 bg-orange";
+            if (idx === correct) {
+                score++;
+                AudioEngine.correct();
+                confetti({ particleCount: 40, spread: 50, origin: { y: 0.8 }, colors: ['#00d063', '#1ea7fd'] });
             } else {
-                currentDot.className = "w-4 h-4 rounded-full border-2 border-dark dark:border-slate-500 bg-red-500";
+                AudioEngine.wrong();
             }
 
-            document.getElementById('display-score').innerText = score.toString().padStart(4, '0');
-            document.getElementById('next-bar').classList.remove('hidden');
-            document.getElementById('next-bar').classList.add('flex');
-            document.getElementById('reveal-btn').classList.add('hidden');
-        }
-
-        function resetOptionStyles() {
-            ['a', 'b', 'c', 'd'].forEach(l => {
-                const b = document.getElementById(`btn-${l}`);
-                b.style.opacity = "1";
-                b.classList.remove('pointer-events-none', 'ring-8', 'ring-green', 'ring-red-500', 'ring-offset-4', 'dark:ring-offset-dark');
-            });
+            document.getElementById('score-text').textContent = score;
+            document.getElementById('feedback-controls').classList.remove('hidden');
+            lucide.createIcons();
         }
 
         function nextQuestion() {
-            currentIndex++;
-            if (currentIndex < quizData.length) {
-                loadQuestion();
+            currentStep++;
+            if (currentStep < currentQuestions.length) {
+                showQuestion();
             } else {
-                showResults();
+                showResult();
             }
         }
 
-        function showResults() {
-            document.getElementById('quiz-container').classList.add('hidden');
-            document.getElementById('result-container').classList.remove('hidden');
+        function showResult() {
+            document.getElementById('quiz-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+            
+            document.getElementById('final-score').textContent = `${score}/${currentQuestions.length}`;
+            
+            let rank = "F";
+            let msg = "Try again!";
+            const ratio = score / (currentQuestions.length || 1);
+            
+            if (ratio >= 0.9) { rank = "S"; msg = "Legendary Performance!"; }
+            else if (ratio >= 0.8) { rank = "A"; msg = "Excellent Work!"; }
+            else if (ratio >= 0.6) { rank = "B"; msg = "Good Job!"; }
+            else if (ratio >= 0.4) { rank = "C"; msg = "Keep Practicing!"; }
 
-            document.getElementById('final-score').innerText = score;
-            document.getElementById('final-correct').innerText = `${correctCount} / ${quizData.length}`;
-
-            const perc = (correctCount / quizData.length) * 100;
-            const title = document.getElementById('result-title');
-            const trophy = document.getElementById('trophy-box');
-
-            if (perc >= 80) {
-                title.innerText = "SUPERSTAR!";
-                trophy.className = "bg-green p-12 rounded-full border-4 border-dark dark:border-slate-500 shadow-hard-lg rotate-12";
-            } else if (perc >= 50) {
-                title.innerText = "GREAT JOB!";
-                trophy.className = "bg-blue p-12 rounded-full border-4 border-dark dark:border-slate-500 shadow-hard-lg -rotate-6";
-            } else {
-                title.innerText = "KEEP TRYING!";
-                trophy.className = "bg-orange p-12 rounded-full border-4 border-dark dark:border-slate-500 shadow-hard-lg rotate-0";
+            document.getElementById('final-rank').textContent = rank;
+            document.getElementById('final-message').textContent = msg;
+            
+            if (ratio >= 0.8) {
+                confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
             }
+        }
+
+        // --- AUDIO ENGINE ---
+        const AudioEngine = {
+            playTone: function(freq, type, duration, vol=0.1) {
+                try {
+                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                    gain.gain.setValueAtTime(vol, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start();
+                    osc.stop(ctx.currentTime + duration);
+                } catch (e) {}
+            },
+            correct: function() {
+                this.playTone(600, 'sine', 0.2);
+                setTimeout(() => this.playTone(900, 'sine', 0.3), 100);
+            },
+            wrong: function() {
+                this.playTone(300, 'sawtooth', 0.3);
+            }
+        };
+
+        // Initialize
+        window.onload = async () => {
+            await requireAuth();
+            initTheme();
+            await loadData();
             lucide.createIcons();
-
-            // Store high score
-            const best = localStorage.getItem('quiz_highscore') || 0;
-            if (score > best) {
-                localStorage.setItem('quiz_highscore', score);
-            }
-        }
+        };
     </script>
-
 </body>
-
 </html>
