@@ -954,48 +954,6 @@ const PinnedGames = {
 
 // Stats module removed
 
-// --- FEATURED SECTION ---
-const FeaturedSection = {
-  render() {
-    const featured = State.games.filter(g => g.featured === true && g.active !== false);
-    const section = document.getElementById('featured-section');
-    const list = document.getElementById('featured-list');
-    const badge = document.getElementById('featured-count-badge');
-    if (!section || !list) return;
-
-    if (featured.length === 0) {
-      section.classList.add('hidden');
-      return;
-    }
-
-    section.classList.remove('hidden');
-    if (badge) badge.textContent = `${featured.length} apps`;
-
-    list.innerHTML = featured.map(game => {
-      const baseColor = game.color.replace('text-', '').split('-')[0];
-      const bgClass = `bg-${baseColor}`;
-      const bgLightClass = `bg-${baseColor}/15`;
-      return `
-        <div class="featured-card" data-action="openGame" data-param="${game.id}" role="button" tabindex="0"
-          aria-label="Launch ${game.title}">
-          <div class="featured-card-visual ${bgLightClass}">
-            <div class="bg-white dark:bg-slate-700 p-4 rounded-2xl border-2 border-dark dark:border-slate-400 shadow-hard dark:shadow-neon-sm relative z-10">
-              <i data-lucide="${game.icon}" class="w-10 h-10 ${game.color} dark:text-white"></i>
-            </div>
-          </div>
-          <div class="featured-card-body">
-            <div class="featured-card-title">${game.title}</div>
-            <div class="featured-card-desc">${game.description}</div>
-            <div class="featured-card-action ${bgClass}">
-              <i data-lucide="play" class="w-4 h-4 fill-current"></i> LAUNCH
-            </div>
-          </div>
-        </div>
-      `;
-    }).join('');
-    Utils.refreshIcons(list);
-  }
-};
 
 // --- GAME GRID ---
 const GameGrid = {
@@ -1613,7 +1571,7 @@ const TabManager = {
   toggleSplitScreen() {
     if (this.tabs.length < 2) {
       // Need at least 2 tabs to split screen
-      const section = document.getElementById('featured-section') || document.body;
+      const section = document.body;
       const warning = document.createElement('div');
       warning.className = 'fixed bottom-4 left-1/2 -translate-x-1/2 bg-dark text-white px-6 py-3 rounded-xl shadow-hard z-[100] animate-pop-in font-bold text-sm flex items-center gap-3';
       warning.innerHTML = `<i data-lucide="info" class="w-5 h-5 text-blue"></i> Open at least 2 activities to use Split Screen`;
@@ -2098,7 +2056,6 @@ const App = {
       GameGrid.render();
       PinnedGames.render();
       RecentGames.render();
-      FeaturedSection.render();
       Hero.init();
       Footer.render();
       Search.setup();
