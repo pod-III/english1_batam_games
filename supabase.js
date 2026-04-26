@@ -78,7 +78,7 @@ async function requireAdmin() {
 }
 
 async function signUp(email, pass, displayName) {
-  const confirmationUrl = 'http://klasskit.fun/api/confirmation.html';
+  const confirmationUrl = 'https://klasskit.fun/api/confirmation.html';
   return db.auth.signUp({
     email,
     password: pass,
@@ -273,7 +273,7 @@ const STORAGE_CONFIG = {
  * Compresses an image file client-side to WebP format using browser-image-compression.
  */
 async function compressImage(file) {
-  if (!file.type.startsWith('image/')) return file;
+  if (!file.type.startsWith('image/') || file.type === 'image/svg+xml') return file;
 
   const options = {
     maxSizeMB: 0.2, // 200KB
@@ -572,7 +572,7 @@ async function recalculateUserStorage(userId) {
  * Replaces an existing media file (overwrites).
  */
 async function replaceMedia(oldPath, newFile, activityId) {
-  // uploadMedia already handles upsert: true and usage calculation
+  if (oldPath) await deleteMedia(oldPath).catch(() => {});
   return await uploadMedia(newFile, activityId);
 }
 
