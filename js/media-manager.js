@@ -45,7 +45,30 @@ const MediaManager = {
             btn.addEventListener('click', () => this.close());
         });
 
-        this.refreshBtn.addEventListener('click', () => this.loadData());
+        this.refreshBtn.addEventListener('click', async () => {
+            if (isSandbox()) {
+                this.loadData();
+                return;
+            }
+
+            const btn = this.refreshBtn;
+            const icon = btn.querySelector('i');
+            if (icon) icon.classList.add('animate-spin');
+            btn.disabled = true;
+
+            try {
+                const user = await getUser();
+                if (user) {
+                    await recalculateUserStorage(user.id);
+                    // Update main Hub UI if it exists
+                    if (typeof StorageManager !== 'undefined') await StorageManager.update();
+                }
+                await this.loadData();
+            } finally {
+                if (icon) icon.classList.remove('animate-spin');
+                btn.disabled = false;
+            }
+        });
 
         // Clear all button click is handled dynamically in loadCloudData/loadSandboxData
     },
@@ -87,8 +110,7 @@ const MediaManager = {
         if (usage.isSandbox) {
             this.usageText.innerText = `Used: ${mbUsed} MB (Local)`;
         } else {
-            const mbLimit = (usage.limit / (1024 * 1024)).toFixed(0);
-            this.usageText.innerText = `${mbUsed} MB / ${mbLimit} MB`;
+            this.usageText.innerText = `${usage.percent}% Storage Capacity Used`;
         }
     },
 

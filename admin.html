@@ -859,9 +859,10 @@
         async function fetchData() {
             document.querySelectorAll('.refreshIcon').forEach(i => i.classList.add('animate-spin'))
 
-            const [progressRes, profilesRes] = await Promise.all([
+            const [progressRes, profilesRes, quotasRes] = await Promise.all([
                 db.from('user_progress').select('*').order('updated_at', { ascending: false }),
-                db.from('profiles').select('*')
+                db.from('profiles').select('*'),
+                db.from('storage_quotas').select('*')
             ])
 
             document.querySelectorAll('.refreshIcon').forEach(i => i.classList.remove('animate-spin'))
@@ -869,10 +870,16 @@
 
             if (progressRes.error) { console.error(progressRes.error); return }
 
+            const quotaMap = {}
+            quotasRes.data?.forEach(q => { quotaMap[q.user_id] = q })
+
             allProfiles = {}
             profilesRes.data?.forEach(p => {
+                const quota = quotaMap[p.id] || {}
                 allProfiles[p.id] = {
                     ...p,
+                    storage_usage: quota.storage_usage || 0,
+                    storage_limit: quota.storage_limit || 10485760,
                     last_active_ts: p.updated_at ? new Date(p.updated_at).getTime() : (p.created_at ? new Date(p.created_at).getTime() : 0)
                 }
             })
@@ -1617,41 +1624,11 @@
             if (btn) btn.disabled = true
 
             try {
-                // Recursive folder size calculation
-                let totalSize = 0
-                let fileCount = 0
-
-                async function walk(path) {
-                    const { data: items, error } = await db.storage.from('klasskit-media').list(path)
-                    if (error) {
-                        // If folder doesn't exist, it's not necessarily an error, just 0 size
-                        if (error.message?.includes('not found')) return
-                        throw error
-                    }
-                    
-                    for (const item of items) {
-                        if (item.id === null) { // It's a folder
-                            await walk(`${path}/${item.name}`)
-                        } else {
-                            totalSize += (item.metadata?.size || 0)
-                            fileCount++
-                        }
-                    }
-                }
-
-                await walk(userId)
-
-                // Update Profile in DB
-                const { error: updateError } = await db
-                    .from('profiles')
-                    .update({ storage_usage: totalSize })
-                    .eq('id', userId)
-
-                if (updateError) throw updateError
+                const result = await recalculateUserStorage(userId)
 
                 // Update local state
                 if (allProfiles[userId]) {
-                    allProfiles[userId].storage_usage = totalSize
+                    allProfiles[userId].storage_usage = result.used
                 }
 
                 if (currentView === 'cloud') renderCloudTable()

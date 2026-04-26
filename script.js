@@ -583,8 +583,7 @@ const StorageManager = {
         barEl.classList.remove('bg-blue', 'bg-orange', 'bg-red-500');
         barEl.classList.add('bg-slate-300');
     } else {
-        const limitMB = (usage.limit / (1024 * 1024)).toFixed(0);
-        textEl.textContent = `${usedMB} MB / ${limitMB} MB`;
+        textEl.textContent = `${usage.percent}% Storage Used`;
         barEl.style.width = `${usage.percent}%`;
         
         // Dynamic Color Triage

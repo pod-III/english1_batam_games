@@ -313,9 +313,9 @@ async function getUserStorageUsage() {
   }
 
   const { data, error } = await db
-    .from('profiles')
+    .from('storage_quotas')
     .select('storage_usage, storage_limit')
-    .eq('id', user.id)
+    .eq('user_id', user.id)
     .single();
 
   if (error) {
@@ -379,9 +379,9 @@ async function uploadMedia(file, toolId, setId = null) {
   // 4. Update usage in profile
   const newUsage = usage.used - oldSize + fileSize;
   await db
-    .from('profiles')
+    .from('storage_quotas')
     .update({ storage_usage: newUsage })
-    .eq('id', user.id);
+    .eq('user_id', user.id);
 
   // 5. Return Signed URL (Bucket is private)
   const { data, error: signError } = await db.storage
@@ -458,9 +458,9 @@ async function deleteMedia(filePath) {
   const newUsage = Math.max(0, usage.used - fileSize);
   
   await db
-    .from('profiles')
+    .from('storage_quotas')
     .update({ storage_usage: newUsage })
-    .eq('id', user.id);
+    .eq('user_id', user.id);
 
   return { success: true };
 }
@@ -510,14 +510,61 @@ async function deleteFolder(folderPath) {
     const newUsage = Math.max(0, usage.used - totalSize);
     
     await db
-      .from('profiles')
+      .from('storage_quotas')
       .update({ storage_usage: newUsage })
-      .eq('id', user.id);
+      .eq('user_id', user.id);
 
     return { success: true, freed: totalSize };
   } catch (e) {
     console.error('[Storage] Folder deletion failed:', e);
     throw e;
+  }
+}
+
+/**
+ * Recalculates total storage usage for a user by walking their bucket path.
+ * This is used to re-sync the database counter with reality.
+ */
+async function recalculateUserStorage(userId) {
+  if (isSandbox()) return { used: 0, fileCount: 0 };
+
+  let totalSize = 0;
+  let fileCount = 0;
+
+  async function walk(path) {
+    const { data: items, error } = await db.storage.from(STORAGE_CONFIG.bucket).list(path);
+    if (error) {
+      if (error.message?.includes('not found')) return;
+      throw error;
+    }
+
+    for (const item of items) {
+      if (item.id === null) {
+        // Folder
+        await walk(`${path}/${item.name}`);
+      } else {
+        // File
+        totalSize += (item.metadata?.size || 0);
+        fileCount++;
+      }
+    }
+  }
+
+  try {
+    await walk(userId);
+
+    // Update storage_quotas table
+    const { error: updateError } = await db
+      .from('storage_quotas')
+      .update({ storage_usage: totalSize })
+      .eq('user_id', userId);
+
+    if (updateError) throw updateError;
+
+    return { used: totalSize, fileCount };
+  } catch (err) {
+    console.error(`[Storage] Recalculate failed for ${userId}:`, err);
+    throw err;
   }
 }
 
