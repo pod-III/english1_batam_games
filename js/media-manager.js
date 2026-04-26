@@ -17,11 +17,29 @@ const MediaManager = {
     cloudFiles: [], // Cache of flat file list from Supabase
     
     KNOWN_DB_NAMES: [
-        { name: 'KKPosterStudioDB', label: 'Poster Studio', store: 'images' },
+        { name: 'PosterStudioDB', label: 'Poster Studio', store: 'imgs' },
+        { name: 'PresentationDB', label: 'Speedy Slides', store: 'images' },
+        { name: 'KlassKit_Resources', label: 'Poster Display', store: 'posters' },
+        { name: 'KlassKitRevealDB', label: 'Reveal Picture', store: 'Presets' },
+        { name: 'KlassKitMemoryDB_V3', label: 'Card Match (V3)', store: 'Presets' },
+        { name: 'KlassKitMemoryDB_V2', label: 'Card Match (V2)', store: 'Configs' },
         { name: 'KKThisOrThatDB', label: 'This or That', store: 'image_cache' },
-        { name: 'KKMemoryBlockDB', label: 'Memory Block', store: 'image_cache' },
-        { name: 'KKPresentationSimpleDB', label: 'Speedy Slides', store: 'media' },
-        { name: 'KKPresentationSimpleDB', label: 'Speedy Slides Cache', store: 'image_cache' },
+        { name: 'SimonGameKlassKitDB_V2', label: 'Memory Block', store: 'image_cache' },
+        { name: 'FlashcardDB', label: 'Word Flashcards', store: 'flashcards' },
+        { name: 'MysteryBoxDB', label: 'Mystery Box (Legacy)', store: 'images' },
+        { name: 'WordSearchDB', label: 'Word Search', store: 'games' },
+        { name: 'WordSortDB', label: 'Word Sort', store: 'sets' },
+        { name: 'CrosswordDB', label: 'Crossword', store: 'puzzles' },
+        { name: 'HangmanDB', label: 'Hangman', store: 'games' },
+        { name: 'BingoDB', label: 'Bingo', store: 'sets' },
+        { name: 'CardMakerDB', label: 'Card Maker', store: 'game_state' },
+    ],
+
+    KNOWN_LS_KEYS: [
+        { key: 'e1_rapid_slides_v4', label: 'Speedy Slides (Legacy)' },
+        { key: 'flashcard_klasskit_state_v5', label: 'Card Maker (Legacy)' },
+        { key: 'prog_presentation_data', label: 'Slides Data' },
+        { key: 'prog_card_maker_state', label: 'Card Maker Data' }
     ],
     
     init() {
@@ -266,12 +284,15 @@ const MediaManager = {
                 const items = await this.getAllFromIDB(dbInfo.name, dbInfo.store);
                 if (!items || items.length === 0) continue;
                 
-                const validItems = items.filter(item => {
-                    const isBlob = item.value instanceof Blob;
-                    const isDataUrl = typeof item.value === 'string' && item.value.startsWith('data:image');
-                    const isUrlObj = item.value && item.value.dataUrl;
-                    return isBlob || isDataUrl || isUrlObj;
-                });
+                const validItems = [];
+                for (const item of items) {
+                    if (this.isImageValue(item.value)) {
+                        validItems.push(item);
+                    } else if (typeof item.value === 'object' && item.value !== null) {
+                        // Scan for images inside the object
+                        this.extractImagesFromObject(item.value, item.key, validItems);
+                    }
+                }
                 
                 if (validItems.length === 0) continue;
                 hasAnyMedia = true;
@@ -295,12 +316,70 @@ const MediaManager = {
             }
         }
         
+        // --- LocalStorage Scraper (Legacy/Small items) ---
+        for (const lsInfo of this.KNOWN_LS_KEYS) {
+            try {
+                const raw = localStorage.getItem(lsInfo.key);
+                if (!raw) continue;
+                const data = JSON.parse(raw);
+                const validItems = [];
+                this.extractImagesFromObject(data, lsInfo.key, validItems);
+
+                if (validItems.length === 0) continue;
+                hasAnyMedia = true;
+
+                const section = this.createSection(lsInfo.label, () => {
+                    if (confirm(`Clear all local data for ${lsInfo.label}?`)) {
+                        localStorage.removeItem(lsInfo.key);
+                        this.loadData();
+                    }
+                });
+                const grid = section.querySelector('.media-grid');
+                for (const item of validItems) {
+                    grid.appendChild(this.createSandboxCard({ name: 'LocalStorage', label: lsInfo.label, store: lsInfo.key }, item));
+                }
+                this.grid.appendChild(section);
+            } catch (e) {
+                console.warn(`Failed to scrape LS key ${lsInfo.key}:`, e);
+            }
+        }
+        
         if (!hasAnyMedia) {
             this.empty.classList.remove('hidden');
             this.empty.classList.add('flex');
         }
         
         lucide.createIcons();
+    },
+
+    isImageValue(val) {
+        if (val instanceof Blob) return true;
+        if (typeof val === 'string' && val.startsWith('data:image')) return true;
+        if (val && typeof val === 'object' && val.dataUrl) return true;
+        return false;
+    },
+
+    extractImagesFromObject(obj, key, results) {
+        const seen = new Set();
+        const walk = (o) => {
+            if (!o || typeof o !== 'object' || seen.has(o)) return;
+            seen.add(o);
+            
+            for (const k in o) {
+                const val = o[k];
+                if (this.isImageValue(val)) {
+                    // Create a pseudo-item for the manager UI
+                    results.push({
+                        key: key, // Keep parent key for context
+                        value: val,
+                        isNested: true
+                    });
+                } else if (typeof val === 'object') {
+                    walk(val);
+                }
+            }
+        };
+        walk(obj);
     },
 
     createSandboxCard(dbInfo, item) {
@@ -323,14 +402,19 @@ const MediaManager = {
         `;
         
         const delBtn = card.querySelector('.delete-btn');
-        delBtn.onclick = async () => {
-            if(confirm("Delete this local file?")) {
-                this.showLoader();
-                await this.deleteFromIDB(dbInfo.name, dbInfo.store, item.key);
-                this.loadData();
-                if(typeof StorageManager !== 'undefined') StorageManager.update();
-            }
-        };
+        if (dbInfo.name === 'LocalStorage') {
+            delBtn.remove();
+        } else {
+            delBtn.onclick = async (e) => {
+                e.stopPropagation();
+                if(confirm("Delete this local file?")) {
+                    this.showLoader();
+                    await this.deleteFromIDB(dbInfo.name, dbInfo.store, item.key);
+                    this.loadData();
+                    if(typeof StorageManager !== 'undefined') StorageManager.update();
+                }
+            };
+        }
 
         return card;
     },
