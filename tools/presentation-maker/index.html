@@ -605,6 +605,47 @@
     <canvas id="compression-canvas" class="hidden"></canvas>
 
     <script>
+        // --- IndexedDB for Sandbox ---
+        const DB_NAME = 'PresentationDB';
+        const DB_VER = 2;
+        const IMG_STORE = 'images';
+
+        async function initDB() {
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open(DB_NAME, DB_VER);
+                req.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(IMG_STORE)) db.createObjectStore(IMG_STORE);
+                };
+                req.onsuccess = (e) => resolve(e.target.result);
+                req.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        async function getImg(url) {
+            try {
+                const db = await initDB();
+                return new Promise((res) => {
+                    const r = db.transaction(IMG_STORE, 'readonly').objectStore(IMG_STORE).get(url);
+                    r.onsuccess = () => res(r.result);
+                    r.onerror = () => res(null);
+                });
+            } catch(e) { return null; }
+        }
+
+        async function putImg(url, blob) {
+            try {
+                const db = await initDB();
+                db.transaction(IMG_STORE, 'readwrite').objectStore(IMG_STORE).put(blob, url);
+            } catch(e) { }
+        }
+
+        async function resolveLocalMedia(url) {
+            if (!url || !url.startsWith('klasskit-local:')) return url;
+            const blob = await getImg(url);
+            return blob ? URL.createObjectURL(blob) : "";
+        }
+
         lucide.createIcons();
 
         const app = {
@@ -1003,8 +1044,12 @@
             async hydrateThumbnails() {
                 const thumbs = document.querySelectorAll('.slide-thumb img, .grid-card img');
                 for (const img of thumbs) {
-                    if (img.src && img.src.includes('klasskit-media')) {
-                        img.src = await resolveMediaUrl(img.src);
+                    if (img.src) {
+                        if (img.src.includes('klasskit-media')) {
+                            img.src = await resolveMediaUrl(img.src);
+                        } else if (img.src.startsWith('klasskit-local:')) {
+                            img.src = await resolveLocalMedia(img.src);
+                        }
                     }
                 }
             },
@@ -1163,12 +1208,10 @@
                         if (!isSandbox() && user) {
                             imgSource = await uploadMedia(file, 'presentation_maker', this.currentDeckId || 'unsaved');
                         } else {
-                            imgSource = await new Promise((resolve, reject) => {
-                                const reader = new FileReader();
-                                reader.onload = (e) => resolve(e.target.result);
-                                reader.onerror = reject;
-                                reader.readAsDataURL(file);
-                            });
+                            // Sandbox Mode: Use IDB
+                            const localUrl = `klasskit-local:presentation/${Date.now()}`;
+                            await putImg(localUrl, file);
+                            imgSource = localUrl;
                         }
                         this.slides[index].image = imgSource;
                         this.saveWorkspace(); this.render();
@@ -1251,7 +1294,10 @@
                 img.classList.remove('hidden');
 
                 txt.innerText = s.text;
-                if (s.image) img.src = await resolveMediaUrl(s.image); else img.src = "";
+                if (s.image) {
+                    if (s.image.startsWith('klasskit-local:')) img.src = await resolveLocalMedia(s.image);
+                    else img.src = await resolveMediaUrl(s.image);
+                } else img.src = "";
 
                 if (layout === 'hero' || (layout === 'split' && !s.image)) img.classList.add('hidden');
 

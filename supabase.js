@@ -97,8 +97,14 @@ async function signOut() {
   if (!isSandbox()) {
     await db.auth.signOut()
   }
+  localStorage.removeItem('kk_mode');
   clearLocalCache()
   location.href = '/index.html'
+}
+
+function switchMode() {
+  localStorage.removeItem('kk_mode');
+  location.href = '/index.html';
 }
 
 function clearLocalCache() {
@@ -304,7 +310,7 @@ async function getUserStorageUsage() {
       try {
         const estimate = await navigator.storage.estimate();
         const used = estimate.usage || 0;
-        const limit = estimate.quota || STORAGE_CONFIG.defaultLimit;
+        const limit = STORAGE_CONFIG.defaultLimit; // Use fixed 50MB for sandbox UI consistency
         const percent = Math.min(100, Math.round((used / limit) * 100));
         return { used, limit, percent, isSandbox: true };
       } catch (e) { }
