@@ -110,14 +110,26 @@ function loadQuestion() {
             html += `<input type="text" class="blank-input answer-input" data-index="${index}" ${clueAttr} autocomplete="off">`;
         } else {
             if (t.type === 'space') {
-                html += t.text.replace(/ /g, '&nbsp;');
+                html += t.text;
             } else {
                 html += t.text;
             }
         }
     });
 
-    document.getElementById('sentence-container').innerHTML = html;
+    const container = document.getElementById('sentence-container');
+    container.innerHTML = html;
+
+    // Auto-fit font size based on content length
+    const textLength = currentQ.rawText.length;
+    let fontSize = 'text-4xl';
+    if (textLength > 400) fontSize = 'text-base';
+    else if (textLength > 250) fontSize = 'text-lg';
+    else if (textLength > 150) fontSize = 'text-xl';
+    else if (textLength > 80) fontSize = 'text-2xl';
+    else if (textLength > 40) fontSize = 'text-3xl';
+
+    container.className = `font-body leading-relaxed font-bold text-dark dark:text-chalk text-justify w-full ${fontSize}`;
 
     setTimeout(() => {
         const firstInput = document.querySelector('.answer-input');
@@ -432,11 +444,23 @@ function syncToCloud() {
 // Initialize on load
 window.onload = initGame;
 
-// Listen for "Enter" key on game input
+let checkTimeout = null;
+
+// Listen for input changes to trigger auto-check
+document.addEventListener('input', function (e) {
+    if (e.target.classList.contains('answer-input')) {
+        if (checkTimeout) clearTimeout(checkTimeout);
+        checkTimeout = setTimeout(() => {
+            checkAnswer();
+        }, 500);
+    }
+});
+
+// Listen for "Enter" key on game inputs to check immediately
 document.addEventListener('keypress', function (e) {
     if (e.key === 'Enter') {
-        const gameInput = document.getElementById('answer-input');
-        if (document.activeElement === gameInput) {
+        if (e.target.classList.contains('answer-input')) {
+            if (checkTimeout) clearTimeout(checkTimeout);
             checkAnswer();
         }
     }
