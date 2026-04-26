@@ -5,7 +5,8 @@ async function syncToCloud() {
     syncTimeout = setTimeout(async () => {
         const game_state = {
             word_input: await getFromDB('word_input'),
-            grid_size: await getFromDB('grid_size'),
+            grid_rows: await getFromDB('grid_rows'),
+            grid_cols: await getFromDB('grid_cols'),
             puzzle_data: await getFromDB('puzzle_data')
         };
         const word_sets = await getAllWordSets();
@@ -65,7 +66,8 @@ async function getFromDB(key) {
 
 async function saveGameState() {
     await saveToDB('word_input', els.input.value);
-    await saveToDB('grid_size', GRID_SIZE);
+    await saveToDB('grid_rows', GRID_ROWS);
+    await saveToDB('grid_cols', GRID_COLS);
     if (puzzle) await saveToDB('puzzle_data', puzzle);
     syncToCloud();
 }
@@ -74,18 +76,11 @@ async function loadGameState() {
     const input = await getFromDB('word_input');
     if (input) els.input.value = input;
     
-    const size = await getFromDB('grid_size');
-    if (size) {
-        GRID_SIZE = size;
-        document.querySelectorAll('.grid-btn').forEach(btn => {
-            if (parseInt(btn.dataset.size) === GRID_SIZE) {
-                btn.classList.add('bg-blue', 'text-white', 'shadow-neo-sm');
-                btn.classList.remove('bg-slate-100', 'dark:bg-slate-800', 'text-slate-400', 'dark:text-slate-500');
-            } else {
-                btn.classList.remove('bg-blue', 'text-white', 'shadow-neo-sm');
-                btn.classList.add('bg-slate-100', 'dark:bg-slate-800', 'text-slate-400', 'dark:text-slate-500');
-            }
-        });
+    const rows = await getFromDB('grid_rows');
+    const cols = await getFromDB('grid_cols');
+    if (rows && cols) {
+        GRID_ROWS = rows;
+        GRID_COLS = cols;
     }
 
     const savedPuzzle = await getFromDB('puzzle_data');
@@ -210,7 +205,8 @@ function toggleTheme() {
 }
 
 // --- STATE ---
-let GRID_SIZE = 15;
+let GRID_ROWS = 15;
+let GRID_COLS = 15;
 let CELL_SIZE = 45;
 let grid = [];
 let words = [];
@@ -256,7 +252,7 @@ function autoFitGrid() {
     const padding = 32;
     const availableWidth = els.container.offsetWidth - padding;
     const availableHeight = els.container.offsetHeight - padding;
-    const size = Math.floor(Math.min(availableWidth / GRID_SIZE, availableHeight / GRID_SIZE));
+    const size = Math.floor(Math.min(availableWidth / GRID_COLS, availableHeight / GRID_ROWS));
     CELL_SIZE = Math.max(25, Math.min(size, 80));
     updateGridSize();
 }
@@ -289,21 +285,17 @@ function updateGridSize() {
 // --- LAYOUT ENGINE (Core Logic) ---
 
 function generateLayout(inputWords) {
-    grid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(null));
+    // Initial large search space for layout engine
+    const searchSize = 30;
+    grid = Array(searchSize).fill(null).map(() => Array(searchSize).fill(null));
     words = [];
-    const first = inputWords[0];
 
-    if (first.word.length > GRID_SIZE) {
-        console.error("Longest word is too long for the current grid size.");
-        return false;
-    }
-
-    // This part should actually call findBestGrid
-    const best = findBestGrid(inputWords, 10);
+    const best = findBestGrid(inputWords, 15, searchSize);
     if (best) {
-        puzzle = best;
-        grid = puzzle.grid;
-        words = puzzle.words;
+        // Crop the best result to the bounding box
+        cropToBoundingBox(best);
+        
+        puzzle = { grid: grid, words: words, rows: GRID_ROWS, cols: GRID_COLS };
         saveGameState();
         render();
         return true;
@@ -311,19 +303,76 @@ function generateLayout(inputWords) {
     return false;
 }
 
-function findBestGrid(inputWords, attempts) {
+function cropToBoundingBox(puzzleData) {
+    const tempGrid = puzzleData.grid;
+    const tempWords = puzzleData.words;
+    
+    let minR = 100, maxR = -1, minC = 100, maxC = -1;
+    
+    // Find bounds
+    for (let r = 0; r < tempGrid.length; r++) {
+        for (let c = 0; c < tempGrid[r].length; c++) {
+            if (tempGrid[r][c] !== null) {
+                minR = Math.min(minR, r);
+                maxR = Math.max(maxR, r);
+                minC = Math.min(minC, c);
+                maxC = Math.max(maxC, c);
+            }
+        }
+    }
+
+    if (maxR === -1) return; // Should not happen if words were placed
+
+    // Add 1 cell padding for aesthetics
+    minR = Math.max(0, minR - 1);
+    maxR = Math.min(tempGrid.length - 1, maxR + 1);
+    minC = Math.max(0, minC - 1);
+    maxC = Math.min(tempGrid[0].length - 1, maxC + 1);
+
+    GRID_ROWS = (maxR - minR) + 1;
+    GRID_COLS = (maxC - minC) + 1;
+
+    // Re-map grid
+    grid = Array(GRID_ROWS).fill(null).map(() => Array(GRID_COLS).fill(null));
+    for (let r = minR; r <= maxR; r++) {
+        for (let c = minC; c <= maxC; c++) {
+            grid[r - minR][c - minC] = tempGrid[r][c];
+        }
+    }
+
+    // Re-map words
+    words = tempWords.map(w => ({
+        ...w,
+        row: w.row - minR,
+        col: w.col - minC
+    }));
+}
+
+function findBestGrid(inputWords, attempts, size) {
     let best = null;
     let maxPlaced = -1;
 
     for (let i = 0; i < attempts; i++) {
-        // Reset for attempt
-        grid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(null));
-        words = [];
+        const currentGrid = Array(size).fill(null).map(() => Array(size).fill(null));
+        const currentPlacedWords = [];
         const wordsToPlace = JSON.parse(JSON.stringify(inputWords));
         
         // Place first word centered
         const first = wordsToPlace[0];
-        placeWord(first, Math.floor(GRID_SIZE / 2), Math.floor((GRID_SIZE - first.word.length) / 2), 'across');
+        const startR = Math.floor(size / 2);
+        const startC = Math.floor((size - first.word.length) / 2);
+        
+        // Internal placement helper for findBestGrid
+        const place = (item, r, c, dir) => {
+            currentPlacedWords.push({ ...item, row: r, col: c, dir: dir, placed: true });
+            for (let j = 0; j < item.word.length; j++) {
+                const row = dir === 'across' ? r : r + j;
+                const col = dir === 'across' ? c + j : c;
+                currentGrid[row][col] = item.word[j];
+            }
+        };
+
+        place(first, startR, startC, 'across');
         first.placed = true;
 
         const remaining = wordsToPlace.slice(1);
@@ -331,7 +380,27 @@ function findBestGrid(inputWords, attempts) {
 
         for (let pass = 0; pass < 50; pass++) {
             remaining.forEach(item => {
-                if (!item.placed) if (tryFitWord(item)) { item.placed = true; placedCount++; }
+                if (!item.placed) {
+                    // tryFitWord implementation using local currentGrid
+                    let fitted = false;
+                    for (let charIdx = 0; charIdx < item.word.length && !fitted; charIdx++) {
+                        const char = item.word[charIdx];
+                        for (let r = 0; r < size && !fitted; r++) {
+                            for (let c = 0; c < size && !fitted; c++) {
+                                if (currentGrid[r][c] === char) {
+                                    if (checkPlacementDynamic(item.word, r - charIdx, c, 'down', currentGrid, size)) {
+                                        place(item, r - charIdx, c, 'down');
+                                        fitted = true;
+                                    } else if (checkPlacementDynamic(item.word, r, c - charIdx, 'across', currentGrid, size)) {
+                                        place(item, r, c - charIdx, 'across');
+                                        fitted = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (fitted) { item.placed = true; placedCount++; }
+                }
             });
             if (remaining.every(w => w.placed)) break;
         }
@@ -339,95 +408,72 @@ function findBestGrid(inputWords, attempts) {
         if (placedCount > maxPlaced) {
             maxPlaced = placedCount;
             // Finalize numbers for this candidate
-            const currentWords = words.filter(w => w.placed);
-            currentWords.sort((a, b) => (a.row - b.row) || (a.col - b.col));
+            const finalizedWords = currentPlacedWords.filter(w => w.placed);
+            finalizedWords.sort((a, b) => (a.row - b.row) || (a.col - b.col));
             let num = 1;
-            currentWords.forEach((w, idx) => {
-                const existing = currentWords.slice(0, idx).find(prev => prev.row === w.row && prev.col === w.col && prev.dir !== w.dir);
+            finalizedWords.forEach((w, idx) => {
+                const existing = finalizedWords.slice(0, idx).find(prev => prev.row === w.row && prev.col === w.col);
                 w.num = existing ? existing.num : num++;
             });
-            best = { grid: JSON.parse(JSON.stringify(grid)), words: currentWords };
+            best = { grid: currentGrid, words: finalizedWords };
         }
         if (maxPlaced === inputWords.length) break;
     }
     return best;
 }
 
-function placeWord(item, r, c, dir) {
-    words.push({ ...item, row: r, col: c, dir: dir, placed: true });
-    for (let i = 0; i < item.word.length; i++) {
-        const row = dir === 'across' ? r : r + i;
-        const col = dir === 'across' ? c + i : c;
-        grid[row][col] = item.word[i];
-    }
-}
-
-function tryFitWord(item) {
-    for (let i = 0; i < item.word.length; i++) {
-        const char = item.word[i];
-        for (let r = 0; r < GRID_SIZE; r++) {
-            for (let c = 0; c < GRID_SIZE; c++) {
-                if (grid[r][c] === char) {
-                    if (checkPlacement(item.word, r - i, c, 'down')) { placeWord(item, r - i, c, 'down'); return true; }
-                    if (checkPlacement(item.word, r, c - i, 'across')) { placeWord(item, r, c - i, 'across'); return true; }
-                }
-            }
-        }
-    }
-    return false;
-}
-
-function checkPlacement(word, startR, startC, dir) {
+function checkPlacementDynamic(word, startR, startC, dir, targetGrid, size) {
     if (startR < 0 || startC < 0) return false;
-    if (dir === 'across' && startC + word.length > GRID_SIZE) return false;
-    if (dir === 'down' && startR + word.length > GRID_SIZE) return false;
+    if (dir === 'across' && startC + word.length > size) return false;
+    if (dir === 'down' && startR + word.length > size) return false;
 
     for (let i = 0; i < word.length; i++) {
         const r = dir === 'across' ? startR : startR + i;
         const c = dir === 'across' ? startC + i : startC;
-        const currentVal = grid[r][c];
+        const currentVal = targetGrid[r][c];
         const char = word[i];
 
         if (currentVal !== null && currentVal !== char) return false;
 
         if (currentVal === char) {
             if (dir === 'across') {
-                if (grid[r][c - 1] !== null && grid[r][c + 1] !== null) return false;
+                if (targetGrid[r][c - 1] !== null && targetGrid[r][c + 1] !== null) return false;
             }
             if (dir === 'down') {
-                if (grid[r - 1][c] !== null && grid[r + 1][c] !== null) return false;
+                if (targetGrid[r - 1][c] !== null && targetGrid[r + 1][c] !== null) return false;
             }
         }
 
         if (currentVal === null) {
             if (dir === 'across') {
-                if (r > 0 && grid[r - 1][c] !== null) return false;
-                if (r < GRID_SIZE - 1 && grid[r + 1][c] !== null) return false;
+                if (r > 0 && targetGrid[r - 1][c] !== null) return false;
+                if (r < size - 1 && targetGrid[r + 1][c] !== null) return false;
             } else {
-                if (c > 0 && grid[r][c - 1] !== null) return false;
-                if (c < GRID_SIZE - 1 && grid[r][c + 1] !== null) return false;
+                if (c > 0 && targetGrid[r][c - 1] !== null) return false;
+                if (c < size - 1 && targetGrid[r][c + 1] !== null) return false;
             }
         }
     }
 
     if (dir === 'across') {
-        if (startC > 0 && grid[startR][startC - 1] !== null) return false;
-        if (startC + word.length < GRID_SIZE && grid[startR][startC + word.length] !== null) return false;
+        if (startC > 0 && targetGrid[startR][startC - 1] !== null) return false;
+        if (startC + word.length < size && targetGrid[startR][startC + word.length] !== null) return false;
     } else {
-        if (startR > 0 && grid[startR - 1][startC] !== null) return false;
-        if (startR + word.length < GRID_SIZE && grid[startR + word.length][startC] !== null) return false;
+        if (startR > 0 && targetGrid[startR - 1][startC] !== null) return false;
+        if (startR + word.length < size && targetGrid[startR + word.length][startC] !== null) return false;
     }
 
     return true;
 }
 
+
 // --- RENDER ---
 function render() {
     els.grid.innerHTML = '';
-    els.grid.style.gridTemplateColumns = `repeat(${GRID_SIZE}, 1fr)`;
+    els.grid.style.gridTemplateColumns = `repeat(${GRID_COLS}, 1fr)`;
 
-    for (let r = 0; r < GRID_SIZE; r++) {
-        for (let c = 0; c < GRID_SIZE; c++) {
+    for (let r = 0; r < GRID_ROWS; r++) {
+        for (let c = 0; c < GRID_COLS; c++) {
             const cell = document.createElement('div');
             cell.className = 'cw-cell ' + (grid[r][c] ? 'filled' : 'empty');
             cell.dataset.r = r; cell.dataset.c = c;
@@ -610,7 +656,8 @@ function preparePrintVersion() {
     const printGrid = els.grid.cloneNode(true);
     printGrid.id = "print-grid-clone";
     printGrid.className = "print-grid";
-    printGrid.style.gridTemplateColumns = `repeat(${GRID_SIZE}, 1fr)`;
+    printGrid.style.gridTemplateColumns = `repeat(${GRID_COLS}, 1fr)`;
+    printGrid.style.gridTemplateRows = `repeat(${GRID_ROWS}, 1fr)`;
     printGrid.querySelectorAll('.cw-cell').forEach(cell => {
         cell.classList.remove('cell-focused', 'word-highlight', 'locked', 'error');
         cell.style.width = ''; cell.style.height = '';
