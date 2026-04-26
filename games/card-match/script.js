@@ -805,13 +805,22 @@ const app = {
         cards.sort(() => Math.random() - 0.5);
 
         // Render Grid
+        // Dynamic Grid Columns based on card count
         const grid = document.getElementById('game-grid');
         if (!grid) return;
         grid.innerHTML = '';
-
-        // Adjust grid cols based on count
-        if (cards.length <= 12) grid.className = "grid grid-cols-3 sm:grid-cols-4 gap-3 sm:gap-4 mx-auto max-w-lg";
-        else grid.className = "grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-6 gap-3 sm:gap-4 mx-auto";
+        grid.className = 'grid gap-3 sm:gap-6 mx-auto perspective-1000';
+        
+        const count = cards.length;
+        if (count <= 8) {
+            grid.classList.add('grid-cols-2', 'sm:grid-cols-4', 'max-w-4xl');
+        } else if (count <= 12) {
+            grid.classList.add('grid-cols-3', 'sm:grid-cols-4', 'max-w-5xl');
+        } else if (count <= 16) {
+            grid.classList.add('grid-cols-4', 'sm:grid-cols-4', 'max-w-6xl');
+        } else {
+            grid.classList.add('grid-cols-4', 'sm:grid-cols-6', 'max-w-full');
+        }
 
         cards.forEach((card, index) => {
             const el = document.createElement('div');
@@ -820,14 +829,15 @@ const app = {
             el.dataset.matchId = card.matchId;
 
             const len = card.content.length;
-            const sizeClass = len > 60 ? 'text-[9px] sm:text-[10px]' : len > 30 ? 'text-xs sm:text-sm' : len > 12 ? 'text-base sm:text-lg' : 'text-xl sm:text-2xl';
-            const weightClass = len > 30 ? 'font-bold' : 'font-black';
+            // Bumped sizes significantly for better visibility
+            const sizeClass = len > 60 ? 'text-xs sm:text-sm' : len > 30 ? 'text-sm sm:text-lg' : len > 12 ? 'text-xl sm:text-2xl' : 'text-3xl sm:text-4xl';
+            const weightClass = 'font-black'; // Always heavy for Brutalist look
             
             if (card.type === 'image') {
-                innerContent = `<div class="w-full h-full p-1.5"><img src="${card.content}" class="w-full h-full object-contain rounded-lg"></div>`;
+                innerContent = `<div class="w-full h-full p-2"><img src="${card.content}" class="w-full h-full object-contain rounded-lg"></div>`;
             } else {
-                innerContent = `<div class="w-full h-full flex items-center justify-center p-3 text-center">
-                    <span class="${sizeClass} ${weightClass} leading-[1.1] text-dark break-words uppercase font-heading">${card.content}</span>
+                innerContent = `<div class="w-full h-full flex items-center justify-center p-4 text-center leading-[1] overflow-hidden">
+                    <span class="${sizeClass} ${weightClass} text-dark break-words uppercase font-heading tracking-tight w-full">${card.content}</span>
                 </div>`;
             }
 
