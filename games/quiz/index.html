@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English 1 Story Quiz</title>
+
+    <!-- Google Fonts: Fredoka & Nunito -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Global Styles -->
+    <link rel="stylesheet" href="../../css/base.css">
+    <link rel="stylesheet" href="../../css/components.css">
+
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        pink: '#ff4785',
+                        orange: '#ff7e33',
+                        green: '#00d063',
+                        blue: '#1ea7fd',
+                        dark: '#111827',
+                        chalk: '#f8fafc'
+                    },
+                    fontFamily: {
+                        heading: ['Fredoka', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif']
+                    },
+                    boxShadow: {
+                        'hard': '4px 4px 0px 0px #111827',
+                        'hard-lg': '8px 8px 0px 0px #111827',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Specific Styles for Story Quiz */
+        .notebook-line {
+            background-image: linear-gradient(var(--grid-color) 1px, transparent 1px);
+            background-size: 100% 2.5rem;
+        }
+
+        .spiral-dot {
+            @apply w-4 h-4 rounded-full bg-slate-300 border-2 border-dark mb-2 shadow-inner dark:bg-slate-600 dark:border-slate-400;
+        }
+
+        /* Option specific colors */
+        .opt-a { @apply bg-pink text-white hover:bg-pink/90; }
+        .opt-b { @apply bg-blue text-white hover:bg-blue/90; }
+        .opt-c { @apply bg-orange text-white hover:bg-orange/90; }
+        .opt-d { @apply bg-green text-white hover:bg-green/90; }
+
+        .timer-bar {
+            transition: width 1s linear, background-color 0.3s ease;
+        }
+
+        /* Custom Animations */
+        @keyframes pop-in {
+            0% { transform: scale(0.95); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .animate-pop-in {
+            animation: pop-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+    </style>
+
+</head>
+
+<body class="bg-chalk dark:bg-dark text-dark dark:text-white min-h-screen p-4 md:p-8 flex flex-col items-center relative overflow-x-hidden">
+
+    <!-- Floating Background Shapes -->
+    <div class="absolute top-20 left-10 text-pink opacity-5 pointer-events-none -z-10 animate-pulse">
+        <i data-lucide="sparkles" class="w-24 h-24"></i>
+    </div>
+    <div class="absolute bottom-20 right-10 text-blue opacity-5 pointer-events-none -z-10 animate-bounce" style="animation-duration: 10s">
+        <i data-lucide="graduation-cap" class="w-32 h-32"></i>
+    </div>
+    <div class="absolute top-1/2 left-1/4 text-green opacity-5 pointer-events-none -z-10 rotate-12">
+        <i data-lucide="atom" class="w-20 h-20"></i>
+    </div>
+
+    <!-- Header Section -->
+    <header class="w-full max-w-5xl flex justify-between items-center mb-12 animate-pop-in z-10">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 bg-white dark:bg-slate-800 rounded-xl border-4 border-dark dark:border-slate-500 flex items-center justify-center shadow-hard shrink-0">
+                <img src="../../media/icon.webp" class="w-8 h-8 object-contain" alt="KlassKit Logo">
+            </div>
+            <div class="flex flex-col">
+                <h1 class="text-3xl font-heading hidden sm:block uppercase tracking-tight leading-none">
+                    KlassKit
+                </h1>
+                <span class="text-blue font-heading font-bold text-sm uppercase tracking-widest hidden sm:block">Story Quiz</span>
+            </div>
+        </div>
+
+        <div class="flex gap-4">
+            <a href="../../hub.html" class="stick-btn glass-panel text-blue" title="Back to Hub">
+                <i data-lucide="layout-grid" class="w-5 h-5"></i>
+            </a>
+            <button onclick="toggleTheme()" class="stick-btn glass-panel" title="Toggle Theme">
+                <i data-lucide="moon" class="w-5 h-5 dark:hidden"></i>
+                <i data-lucide="sun" class="w-5 h-5 hidden dark:block"></i>
+            </button>
+            <button onclick="location.reload()" class="stick-btn glass-panel text-orange" title="Restart Game">
+                <i data-lucide="refresh-ccw" class="w-5 h-5"></i>
+            </button>
+        </div>
+    </header>
+
+
+    <!-- START SCREEN -->
+    <main id="start-modal" class="hub-card max-w-lg w-full p-10 text-center animate-pop-in">
+        <div class="flex justify-center mb-8">
+            <div class="relative">
+                <div class="absolute -top-4 -right-4 bg-orange text-white px-4 py-1.5 rounded-full border-4 border-dark font-heading font-bold rotate-12 shadow-hard-sm z-10 text-sm">
+                    FUN!
+                </div>
+                <div class="bg-blue p-8 rounded-full border-4 border-dark dark:border-slate-500 shadow-hard-lg">
+                    <i data-lucide="play-circle" class="w-16 h-16 text-white fill-current"></i>
+                </div>
+            </div>
+        </div>
+
+        <h2 class="text-5xl font-heading mb-4 text-dark dark:text-white uppercase tracking-tight">Adventure Quiz</h2>
+        <p class="text-xl font-body font-bold text-slate-500 dark:text-slate-400 mb-10">Test your comprehension skills!</p>
+
+        <div class="text-left space-y-6 mb-10">
+            <div class="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-4 border-dark dark:border-slate-500 shadow-hard-sm">
+                <label class="block font-heading font-bold text-lg mb-3 uppercase tracking-wide">Question Timer</label>
+                <div class="relative">
+                    <select id="timer-setting"
+                        class="w-full font-bold bg-transparent outline-none border-b-4 border-dark dark:border-slate-500 pb-2 cursor-pointer appearance-none">
+                        <option value="15">Expert (15s)</option>
+                        <option value="30" selected>Normal (30s)</option>
+                        <option value="60">Easy (60s)</option>
+                    </select>
+                    <i data-lucide="chevron-down" class="absolute right-0 bottom-3 w-5 h-5 pointer-events-none"></i>
+                </div>
+            </div>
+            
+            <div class="p-4 bg-green rounded-2xl border-4 border-dark dark:border-slate-500 shadow-hard-sm flex items-center justify-center text-white">
+                <i data-lucide="zap" class="w-8 h-8 mr-3 fill-current animate-pulse"></i>
+                <span class="font-heading font-bold text-xl uppercase tracking-wider">Ready to Read?</span>
+            </div>
+        </div>
+
+        <button onclick="startGame()" class="btn-chunky bg-pink text-white w-full py-6 text-3xl rounded-2xl">
+            START QUIZ
+        </button>
+    </main>
+
+    <!-- QUIZ SCREEN -->
+    <main id="quiz-container" class="w-full max-w-5xl hidden flex-col gap-8 animate-pop-in">
+
+        <!-- Stats Top Bar -->
+        <div class="flex flex-wrap gap-4 items-center justify-between">
+            <div class="flex gap-4">
+                <div class="p-4 px-8 bg-orange text-white rounded-2xl border-4 border-dark dark:border-slate-500 shadow-hard flex items-center gap-4">
+                    <i data-lucide="star" class="w-8 h-8 fill-current"></i>
+                    <span id="display-score" class="font-heading text-4xl font-bold tracking-tight">0000</span>
+                </div>
+            </div>
+
+            <div id="progress-indicator" class="glass-panel px-6 py-4 flex gap-3 rounded-2xl">
+                <!-- dots populated by JS -->
+            </div>
+        </div>
+
+        <!-- The "Notebook" Question Area -->
+        <div class="relative">
+            <!-- Notebook Spirals -->
+            <div class="absolute -top-4 left-10 flex gap-4 z-20">
+                <div class="spiral-dot"></div>
+                <div class="spiral-dot"></div>
+                <div class="spiral-dot"></div>
+                <div class="spiral-dot"></div>
+            </div>
+
+            <div class="bg-white dark:bg-slate-800 rounded-3xl border-4 border-dark dark:border-slate-500 shadow-hard-lg overflow-hidden relative">
+                <!-- Header Strip -->
+                <div class="bg-blue h-14 border-b-4 border-dark dark:border-slate-500 flex items-center justify-between px-8">
+                    <span class="text-white font-heading font-bold tracking-widest uppercase text-xs"
+                        id="question-count-label">Question 1 of 5</span>
+                    <div class="flex gap-2">
+                        <div class="w-3.5 h-3.5 rounded-full bg-white/30"></div>
+                        <div class="w-3.5 h-3.5 rounded-full bg-white/30"></div>
+                    </div>
+                </div>
+
+                <!-- Page Content -->
+                <div class="p-10 md:p-16 notebook-line min-h-[250px] flex flex-col items-center justify-center relative">
+                    <h2 id="question-text" class="text-3xl md:text-5xl font-heading font-bold text-center leading-tight tracking-tight">
+                        Loading...</h2>
+
+                    <!-- Reveal Answer Action -->
+                    <button id="reveal-btn" onclick="revealAnswer()"
+                        class="absolute bottom-6 right-6 stick-btn bg-green text-white p-4 rounded-full shadow-hard-sm group"
+                        title="Reveal Answer">
+                        <i data-lucide="lightbulb" class="w-7 h-7 group-hover:fill-current"></i>
+                    </button>
+                </div>
+
+                <!-- Footer Timer Bar -->
+                <div class="h-5 bg-slate-100 dark:bg-slate-900 border-t-4 border-dark dark:border-slate-500">
+                    <div id="timer-bar" class="timer-bar bg-pink h-full w-full"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Manual Navigation Bar (Hidden until answered) -->
+        <div id="next-bar" class="hidden justify-center animate-pop-in">
+            <button onclick="nextQuestion()" class="btn-chunky bg-dark dark:bg-slate-700 text-white px-16 py-5 text-3xl rounded-2xl group">
+                NEXT QUESTION <i data-lucide="arrow-right"
+                    class="w-10 h-10 ml-4 group-hover:translate-x-2 transition-transform"></i>
+            </button>
+        </div>
+
+        <!-- Options Grid -->
+        <div id="options-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <button onclick="selectOption('a')" id="btn-a"
+                class="btn-chunky opt-a p-8 text-left justify-start gap-8 group min-h-[140px] rounded-2xl">
+                <div class="bg-white/20 p-5 rounded-2xl border-4 border-white/30 font-heading font-bold text-4xl w-20 h-20 flex items-center justify-center shadow-hard-sm">
+                    A</div>
+                <span id="opt-text-a" class="text-2xl font-bold flex-1">Option A</span>
+                <i data-lucide="triangle" class="w-12 h-12 opacity-30 fill-current"></i>
+            </button>
+            <button onclick="selectOption('b')" id="btn-b"
+                class="btn-chunky opt-b p-8 text-left justify-start gap-8 group min-h-[140px] rounded-2xl">
+                <div class="bg-white/20 p-5 rounded-2xl border-4 border-white/30 font-heading font-bold text-4xl w-20 h-20 flex items-center justify-center shadow-hard-sm">
+                    B</div>
+                <span id="opt-text-b" class="text-2xl font-bold flex-1">Option B</span>
+                <i data-lucide="square" class="w-12 h-12 opacity-30 fill-current"></i>
+            </button>
+            <button onclick="selectOption('c')" id="btn-c"
+                class="btn-chunky opt-c p-8 text-left justify-start gap-8 group min-h-[140px] rounded-2xl">
+                <div class="bg-white/20 p-5 rounded-2xl border-4 border-white/30 font-heading font-bold text-4xl w-20 h-20 flex items-center justify-center shadow-hard-sm">
+                    C</div>
+                <span id="opt-text-c" class="text-2xl font-bold flex-1">Option C</span>
+                <i data-lucide="circle" class="w-12 h-12 opacity-30 fill-current"></i>
+            </button>
+            <button onclick="selectOption('d')" id="btn-d"
+                class="btn-chunky opt-d p-8 text-left justify-start gap-8 group min-h-[140px] rounded-2xl">
+                <div class="bg-white/20 p-5 rounded-2xl border-4 border-white/30 font-heading font-bold text-4xl w-20 h-20 flex items-center justify-center shadow-hard-sm">
+                    D</div>
+                <span id="opt-text-d" class="text-2xl font-bold flex-1">Option D</span>
+                <i data-lucide="hexagon" class="w-12 h-12 opacity-30 fill-current"></i>
+            </button>
+        </div>
+    </main>
+
+
+    <!-- RESULT SCREEN -->
+    <main id="result-container" class="hub-card max-w-2xl w-full p-12 text-center hidden animate-pop-in mt-6">
+        <div class="flex justify-center mb-10">
+            <div id="trophy-box" class="bg-green p-12 rounded-full border-4 border-dark dark:border-slate-500 shadow-hard-lg rotate-12">
+                <i data-lucide="trophy" class="w-24 h-24 text-white"></i>
+            </div>
+        </div>
+
+        <h2 id="result-title" class="text-6xl font-heading mb-3 uppercase tracking-tight">WELL DONE!</h2>
+        <p id="result-text" class="text-2xl font-bold text-slate-500 dark:text-slate-400 mb-12">You're a storytelling master.</p>
+
+        <div class="grid grid-cols-2 gap-8 mb-12">
+            <div class="p-8 bg-blue text-white rounded-2xl border-4 border-dark dark:border-slate-500 shadow-hard">
+                <p class="font-heading uppercase text-sm font-bold tracking-widest opacity-80 mb-2">Final Score</p>
+                <p class="text-6xl font-heading font-bold" id="final-score">0</p>
+            </div>
+            <div class="p-8 bg-pink text-white rounded-2xl border-4 border-dark dark:border-slate-500 shadow-hard">
+                <p class="font-heading uppercase text-sm font-bold tracking-widest opacity-80 mb-2">Correct</p>
+                <p class="text-6xl font-heading font-bold" id="final-correct">0 / 0</p>
+            </div>
+        </div>
+
+        <button onclick="location.reload()" class="btn-chunky bg-orange text-white w-full py-6 text-3xl rounded-2xl">
+            PLAY AGAIN <i data-lucide="rotate-cw" class="w-10 h-10 ml-4"></i>
+        </button>
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-12 text-center text-slate-400 dark:text-slate-500 font-bold text-sm py-8 z-10">
+        <p>Built for teachers • Part of KlassKit</p>
+        <p class="text-[10px] uppercase tracking-widest mt-1 opacity-60">Made by Fahrul Ahyan</p>
+    </footer>
+
+
+
+    <script>
+        // --- THEME SYNC ---
+        function initTheme() {
+            const saved = localStorage.getItem('theme_hub');
+            if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            }
+        }
+        initTheme();
+
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme_hub', isDark ? 'dark' : 'light');
+        }
+
+        lucide.createIcons();
+
+        // --- QUIZ DATA ---
+        const quizData = [
+            { question: "Where did Leo find the mysterious map?", a: "Library", b: "Beach", c: "Bottle", d: "Bedroom", correct: "c" },
+            { question: "What color was the glowing stone?", a: "Emerald Green", b: "Ruby Red", c: "Ocean Blue", d: "Sunset Orange", correct: "a" },
+            { question: "Who helped Leo decipher the map?", a: "Grandfather", b: "Parrot", c: "Teacher", d: "Pirate", correct: "a" },
+            { question: "Why did they hurry through the cave?", a: "Darkness", b: "A Bear", c: "The Tide", d: "Hunger", correct: "c" },
+            { question: "What was the true 'treasure' found?", a: "Gold Coins", b: "Magic Sword", c: "Rare Jewels", d: "Story Journal", correct: "d" }
+        ];
+
+        // --- GAME STATE ---
+        let currentIndex = 0;
+        let score = 0;
+        let correctCount = 0;
+        let timeLimit = 30;
+        let timeLeft = 30;
+        let timerId;
+        let isAnswering = false;
+        let revealUsed = false;
+
+        // --- UI LOGIC ---
+        function startGame() {
+            timeLimit = parseInt(document.getElementById('timer-setting').value);
+
+            document.getElementById('start-modal').classList.add('hidden');
+            document.getElementById('quiz-container').classList.remove('hidden');
+            document.getElementById('quiz-container').classList.add('flex');
+
+            initProgress();
+            loadQuestion();
+        }
+
+        function initProgress() {
+            const bar = document.getElementById('progress-indicator');
+            bar.innerHTML = '';
+            quizData.forEach((_, i) => {
+                const dot = document.createElement('div');
+                dot.id = `dot-${i}`;
+                dot.className = "w-4 h-4 rounded-full border-2 border-dark dark:border-slate-500 bg-slate-200 dark:bg-slate-700 transition-all";
+                bar.appendChild(dot);
+            });
+        }
+
+        function loadQuestion() {
+            isAnswering = false;
+            revealUsed = false;
+            document.getElementById('next-bar').classList.add('hidden');
+            document.getElementById('options-grid').classList.remove('opacity-50', 'pointer-events-none');
+            document.getElementById('reveal-btn').classList.remove('hidden');
+
+            resetOptionStyles();
+
+            const q = quizData[currentIndex];
+            document.getElementById('question-count-label').innerText = `Question ${currentIndex + 1} of ${quizData.length}`;
+            document.getElementById('question-text').innerText = q.question;
+            document.getElementById('opt-text-a').innerText = q.a;
+            document.getElementById('opt-text-b').innerText = q.b;
+            document.getElementById('opt-text-c').innerText = q.c;
+            document.getElementById('opt-text-d').innerText = q.d;
+
+            timeLeft = timeLimit;
+            updateTimer();
+            clearInterval(timerId);
+            timerId = setInterval(tick, 1000);
+
+            // Mark current progress dot
+            const currentDot = document.getElementById(`dot-${currentIndex}`);
+            currentDot.classList.add('scale-150', 'bg-blue');
+            currentDot.classList.remove('bg-slate-200', 'dark:bg-slate-700');
+            
+            lucide.createIcons();
+        }
+
+        function tick() {
+            timeLeft--;
+            updateTimer();
+            if (timeLeft <= 0) {
+                clearInterval(timerId);
+                selectOption(null); // Timeout
+            }
+        }
+
+        function updateTimer() {
+            const bar = document.getElementById('timer-bar');
+            const perc = (timeLeft / timeLimit) * 100;
+            bar.style.width = `${perc}%`;
+            bar.className = `timer-bar h-full ${perc < 30 ? 'bg-red-500' : 'bg-pink'}`;
+        }
+
+        function revealAnswer() {
+            if (isAnswering) return;
+            revealUsed = true;
+            const correct = quizData[currentIndex].correct;
+            const btn = document.getElementById(`btn-${correct}`);
+
+            // Pulse the correct answer
+            btn.classList.add('ring-8', 'ring-green', 'animate-pulse');
+            setTimeout(() => btn.classList.remove('animate-pulse'), 2000);
+        }
+
+        function selectOption(letter) {
+            if (isAnswering) return;
+            isAnswering = true;
+            clearInterval(timerId);
+
+            const q = quizData[currentIndex];
+            const isCorrect = letter === q.correct;
+
+            // Visual feedback
+            const btns = ['a', 'b', 'c', 'd'];
+            btns.forEach(l => {
+                const b = document.getElementById(`btn-${l}`);
+                b.style.opacity = "0.3";
+                b.classList.add('pointer-events-none');
+            });
+
+            const correctBtn = document.getElementById(`btn-${q.correct}`);
+            correctBtn.style.opacity = "1";
+            correctBtn.classList.add('ring-8', 'ring-green', 'ring-offset-4', 'dark:ring-offset-dark');
+
+            if (letter && !isCorrect) {
+                const wrongBtn = document.getElementById(`btn-${letter}`);
+                wrongBtn.style.opacity = "1";
+                wrongBtn.classList.add('ring-8', 'ring-red-500', 'ring-offset-4', 'dark:ring-offset-dark');
+            }
+
+            // Scoring
+            const currentDot = document.getElementById(`dot-${currentIndex}`);
+            currentDot.classList.remove('scale-150');
+
+            if (isCorrect && !revealUsed) {
+                const points = Math.round((timeLeft / timeLimit) * 500) + 500;
+                score += points;
+                correctCount++;
+                currentDot.className = "w-4 h-4 rounded-full border-2 border-dark dark:border-slate-500 bg-green";
+            } else if (isCorrect && revealUsed) {
+                currentDot.className = "w-4 h-4 rounded-full border-2 border-dark dark:border-slate-500 bg-orange";
+            } else {
+                currentDot.className = "w-4 h-4 rounded-full border-2 border-dark dark:border-slate-500 bg-red-500";
+            }
+
+            document.getElementById('display-score').innerText = score.toString().padStart(4, '0');
+            document.getElementById('next-bar').classList.remove('hidden');
+            document.getElementById('next-bar').classList.add('flex');
+            document.getElementById('reveal-btn').classList.add('hidden');
+        }
+
+        function resetOptionStyles() {
+            ['a', 'b', 'c', 'd'].forEach(l => {
+                const b = document.getElementById(`btn-${l}`);
+                b.style.opacity = "1";
+                b.classList.remove('pointer-events-none', 'ring-8', 'ring-green', 'ring-red-500', 'ring-offset-4', 'dark:ring-offset-dark');
+            });
+        }
+
+        function nextQuestion() {
+            currentIndex++;
+            if (currentIndex < quizData.length) {
+                loadQuestion();
+            } else {
+                showResults();
+            }
+        }
+
+        function showResults() {
+            document.getElementById('quiz-container').classList.add('hidden');
+            document.getElementById('result-container').classList.remove('hidden');
+
+            document.getElementById('final-score').innerText = score;
+            document.getElementById('final-correct').innerText = `${correctCount} / ${quizData.length}`;
+
+            const perc = (correctCount / quizData.length) * 100;
+            const title = document.getElementById('result-title');
+            const trophy = document.getElementById('trophy-box');
+
+            if (perc >= 80) {
+                title.innerText = "SUPERSTAR!";
+                trophy.className = "bg-green p-12 rounded-full border-4 border-dark dark:border-slate-500 shadow-hard-lg rotate-12";
+            } else if (perc >= 50) {
+                title.innerText = "GREAT JOB!";
+                trophy.className = "bg-blue p-12 rounded-full border-4 border-dark dark:border-slate-500 shadow-hard-lg -rotate-6";
+            } else {
+                title.innerText = "KEEP TRYING!";
+                trophy.className = "bg-orange p-12 rounded-full border-4 border-dark dark:border-slate-500 shadow-hard-lg rotate-0";
+            }
+            lucide.createIcons();
+
+            // Store high score
+            const best = localStorage.getItem('quiz_highscore') || 0;
+            if (score > best) {
+                localStorage.setItem('quiz_highscore', score);
+            }
+        }
+    </script>
+
+</body>
+
+</html>
