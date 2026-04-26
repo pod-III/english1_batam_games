@@ -360,8 +360,8 @@ const app = {
     addMixedPair: async function () {
         if (this.pairs.length >= 12) return this.toast("Max 12 pairs allowed!");
 
-        const txtInput = document.getElementById('mixed-text-input');
-        const imgInput = document.getElementById('mixed-img-input');
+        const txtInput = document.getElementById('mixed-text');
+        const imgInput = document.getElementById('mixed-file');
         const textVal = txtInput.value.trim();
         const file = imgInput.files[0];
 
@@ -479,6 +479,34 @@ const app = {
         if (startBtn) startBtn.disabled = this.pairs.length < 2;
     },
 
+    saveCurrentDeck: async function () {
+        const btn = document.getElementById('save-deck-btn');
+        const icon = btn.querySelector('i');
+        const text = btn.querySelector('span') || btn;
+
+        try {
+            await this.updatePresetTitle();
+            await savePresetToDB(this.presetsList.find(p => p.id === this.activePresetId));
+            await syncToCloud();
+
+            // Success State
+            btn.classList.replace('bg-blue', 'bg-green');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i> Saved!';
+            lucide.createIcons();
+
+            setTimeout(() => {
+                btn.classList.replace('bg-green', 'bg-blue');
+                btn.innerHTML = originalHTML;
+                lucide.createIcons();
+            }, 2000);
+
+            this.toast("Deck saved successfully!", "success");
+        } catch (err) {
+            this.toast("Failed to save deck", "error");
+        }
+    },
+
     updatePresetTitle: async function () {
         const titleInput = document.getElementById('presetTitleInput');
         if (!titleInput) return;
@@ -584,39 +612,43 @@ const app = {
         countBadge.innerText = this.pairs.length;
 
         if (this.pairs.length === 0) {
-            container.innerHTML = `<div class="text-center text-slate-400 py-10 italic text-sm">No pairs added yet.<br>Add some to start playing!</div>`;
+            container.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-20 text-slate-300">
+                    <i data-lucide="layers-2" class="w-12 h-12 mb-4 opacity-20"></i>
+                    <p class="font-bold uppercase tracking-widest text-xs">Deck is empty</p>
+                </div>
+            `;
+            lucide.createIcons();
             return;
         }
 
         this.pairs.forEach((pair, idx) => {
             const div = document.createElement('div');
-            div.className = 'flex items-center justify-between bg-white p-3 rounded-lg border-2 border-slate-100 mb-2 shadow-sm';
+            div.className = 'flex items-center justify-between bg-white p-3 rounded-xl border-2 border-dark mb-3 animate-pop shadow-hard-sm';
 
-            let previewHTML = '';
-
-            // Helper to render tiny preview
+            // Helper to render preview
             const renderItem = (item) => {
-                if (item.type === 'text') return `<span class="bg-slate-100 px-2 py-0.5 rounded text-xs font-mono font-bold text-dark truncate max-w-[80px]">${item.content}</span>`;
-                return `<img src="${item.content}" class="w-8 h-8 rounded object-cover border border-dark">`;
+                if (item.type === 'text') return `<span class="px-2 py-1 bg-slate-50 border border-slate-100 rounded-md text-xs font-bold text-dark truncate max-w-[100px]">${item.content}</span>`;
+                return `<div class="w-10 h-10 rounded-lg border border-dark overflow-hidden shadow-sm"><img src="${item.content}" class="w-full h-full object-cover"></div>`;
             };
 
             const icon = pair.type === 'text-text' ? 'type' : pair.type === 'image-image' ? 'copy' : 'image-plus';
-            const color = pair.type === 'text-text' ? 'text-pink' : pair.type === 'image-image' ? 'text-green' : 'text-blue';
+            const colorClass = pair.type === 'text-text' ? 'bg-pink' : pair.type === 'image-image' ? 'bg-green' : 'bg-blue';
 
-            previewHTML = `
+            div.innerHTML = `
                 <div class="flex items-center gap-3">
-                    <i data-lucide="${icon}" class="w-4 h-4 ${color}"></i>
+                    <div class="${colorClass} text-white p-1.5 rounded-lg border-2 border-dark">
+                        <i data-lucide="${icon}" class="w-3.5 h-3.5"></i>
+                    </div>
                     <div class="flex items-center gap-2">
                         ${renderItem(pair.item1)}
-                        <span class="text-slate-300">↔</span>
+                        <i data-lucide="arrow-right-left" class="w-3 h-3 text-slate-200"></i>
                         ${renderItem(pair.item2)}
                     </div>
                 </div>
-            `;
-
-            div.innerHTML = `
-                ${previewHTML}
-                <button onclick="app.removePair(${idx})" class="text-red-400 hover:text-red-600"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                <button onclick="app.removePair(${idx})" class="p-1.5 text-slate-300 hover:text-pink transition-colors">
+                    <i data-lucide="x-circle" class="w-5 h-5"></i>
+                </button>
             `;
             container.appendChild(div);
         });
