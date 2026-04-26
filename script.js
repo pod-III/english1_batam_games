@@ -1864,6 +1864,34 @@ const TabManager = {
     });
   },
 
+  toggleSidePanel() {
+    AudioEngine.click();
+    const panel = document.getElementById('side-panel');
+    const area = document.getElementById('tab-content-area');
+    const toggleBtn = document.querySelector('[data-action="toggleSidePanel"] i');
+
+    if (!panel || !area) return;
+
+    const isCollapsed = panel.classList.toggle('collapsed');
+    area.classList.toggle('expanded', isCollapsed);
+
+    if (toggleBtn) {
+      toggleBtn.classList.toggle('rotate-180', isCollapsed);
+    }
+
+    // Attempt to resize or trigger a window resize event so games adapt
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 300);
+  },
+
+  toggleSidePanelMobile() {
+    AudioEngine.click();
+    const panel = document.getElementById('side-panel');
+    if (!panel) return;
+    panel.classList.toggle('open');
+  },
+
   switchToNextTab(direction = 1) {
     if (this.tabs.length === 0) return;
     const currentIndex = this.tabs.findIndex(t => t.id === this.activeTabId);
@@ -2190,6 +2218,8 @@ const App = {
         UI.toggleModal('game-modal', true);
         TabManager.updateEmptyState();
       },
+      toggleSidePanel: () => TabManager.toggleSidePanel(),
+      toggleSidePanelMobile: () => TabManager.toggleSidePanelMobile(),
       filterGames: (param) => Filters.setCategory(param),
       clearRecent: () => RecentGames.clear(),
       clearSearch: () => Search.clear(),
