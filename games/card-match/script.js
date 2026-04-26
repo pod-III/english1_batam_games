@@ -223,7 +223,6 @@ const app = {
         this.setupEventListeners();
         this.toggleInputMode(); // Initialize helper text
 
-        // Land on Mode Selection
         this.showModeSelection();
     },
 
@@ -233,6 +232,20 @@ const app = {
         document.getElementById('game-screen').classList.add('hidden');
         document.getElementById('win-modal').classList.add('hidden');
         document.getElementById('teacher-mode-btn').classList.add('invisible');
+    },
+
+    showConsole: function () {
+        // Stop any running game
+        if (this.gameState.timerInterval) clearInterval(this.gameState.timerInterval);
+        this.gameState.active = false;
+
+        document.getElementById('mode-selection').classList.add('hidden');
+        document.getElementById('teacher-console').classList.remove('hidden');
+        document.getElementById('game-screen').classList.add('hidden');
+        document.getElementById('win-modal').classList.add('hidden');
+        document.getElementById('teacher-mode-btn').classList.remove('invisible');
+        
+        lucide.createIcons();
     },
 
     selectMode: function (mode) {
@@ -405,12 +418,18 @@ const app = {
     addMixedPair: async function () {
         if (this.pairs.length >= 12) return this.toast("Max 12 pairs allowed!");
 
+        const btn = document.querySelector('#tab-mixed button[onclick="app.addMixedPair()"]');
         const txtInput = document.getElementById('mixed-text');
         const imgInput = document.getElementById('mixed-file');
         const textVal = txtInput.value.trim();
         const file = imgInput.files[0];
 
         if (!textVal || !file) return this.toast("Please provide both text and image.");
+
+        const originalHTML = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> UPLOADING...';
+        lucide.createIcons();
 
         try {
             let imgSource;
@@ -442,6 +461,10 @@ const app = {
         } catch (err) {
             console.error("Mixed Pair Add Failed:", err);
             this.toast(`Upload failed: ${err.message || 'Unknown error'}`, "error");
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+            lucide.createIcons();
         }
     },
 
@@ -449,10 +472,16 @@ const app = {
     addImagePair: async function () {
         if (this.pairs.length >= 12) return this.toast("Max 12 pairs allowed!");
 
+        const btn = document.querySelector('#tab-image button[onclick="app.addImagePair()"]');
         const f1 = document.getElementById('img1-file').files[0];
         const f2 = document.getElementById('img2-file').files[0];
 
         if (!f1 || !f2) return this.toast("Please upload both images.");
+
+        const originalHTML = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> UPLOADING...';
+        lucide.createIcons();
 
         try {
             const { data: { user } } = await db.auth.getUser();
@@ -488,6 +517,10 @@ const app = {
         } catch (err) {
             console.error("Image Pair Add Failed:", err);
             this.toast(`Upload failed: ${err.message || 'Unknown error'}`, "error");
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+            lucide.createIcons();
         }
     },
 
@@ -786,22 +819,24 @@ const app = {
             el.dataset.index = index;
             el.dataset.matchId = card.matchId;
 
-            let innerContent = '';
+            const len = card.content.length;
+            const sizeClass = len > 60 ? 'text-[9px] sm:text-[10px]' : len > 30 ? 'text-xs sm:text-sm' : len > 12 ? 'text-base sm:text-lg' : 'text-xl sm:text-2xl';
+            const weightClass = len > 30 ? 'font-bold' : 'font-black';
+            
             if (card.type === 'image') {
-                innerContent = `<img src="${card.content}" class="w-full h-full object-cover">`;
+                innerContent = `<div class="w-full h-full p-1.5"><img src="${card.content}" class="w-full h-full object-contain rounded-lg"></div>`;
             } else {
-                // Adaptive Text Sizing
-                const len = card.content.length;
-                const sizeClass = len > 50 ? 'text-[10px]' : len > 15 ? 'text-xs' : len > 8 ? 'text-sm' : 'text-base';
-                innerContent = `<div class="w-full h-full flex items-center justify-center p-2"><span class="${sizeClass} font-bold leading-tight break-words">${card.content}</span></div>`;
+                innerContent = `<div class="w-full h-full flex items-center justify-center p-3 text-center">
+                    <span class="${sizeClass} ${weightClass} leading-[1.1] text-dark break-words uppercase font-heading">${card.content}</span>
+                </div>`;
             }
 
             el.innerHTML = `
                 <div class="card-inner">
                     <div class="card-front">
-                        <i data-lucide="help-circle" class="text-white/50 w-8 h-8"></i>
+                        <i data-lucide="sparkle" class="text-white/40 w-10 h-10 animate-pulse"></i>
                     </div>
-                    <div class="card-back border-2 border-slate-100 bg-white overflow-hidden rounded-lg">
+                    <div class="card-back border-4 border-dark bg-white overflow-hidden rounded-xl shadow-inner">
                         ${innerContent}
                     </div>
                 </div>
