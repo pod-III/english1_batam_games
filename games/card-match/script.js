@@ -259,27 +259,72 @@ const app = {
 
     setupEventListeners: function () {
         // Preset Dropdown
-        document.getElementById('presetSelect').addEventListener('change', (e) => {
-            this.loadPresetData(e.target.value);
-        });
+        const select = document.getElementById('presetSelect');
+        if (select) {
+            select.addEventListener('change', (e) => {
+                this.loadPresetData(e.target.value);
+            });
+        }
 
-        // Drag & Drop
-        const dropZone = document.getElementById('drop-zone');
-        const fileInput = document.getElementById('img-input');
-
-        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('drag-over');
-            this.handleImagePairs(e.dataTransfer.files);
-        });
-        fileInput.addEventListener('change', (e) => this.handleImagePairs(e.target.files));
+        // Drag & Drop / File Select Wiring
+        this.setupDropZone('mixed-drop', 'mixed-file');
+        this.setupDropZone('img1-drop', 'img1-file');
+        this.setupDropZone('img2-drop', 'img2-file');
 
         // Buttons
-        document.getElementById('start-game-btn').onclick = () => this.startGame();
-        document.getElementById('teacher-mode-btn').onclick = () => this.showConsole();
-        document.getElementById('restart-btn').onclick = () => this.restartGame();
+        const startBtn = document.getElementById('start-game-btn');
+        if (startBtn) startBtn.onclick = () => this.startGame();
+        
+        const teacherBtn = document.getElementById('teacher-mode-btn');
+        if (teacherBtn) teacherBtn.onclick = () => this.showConsole();
+        
+        const restartBtn = document.getElementById('restart-btn');
+        if (restartBtn) restartBtn.onclick = () => this.restartGame();
+    },
+
+    setupDropZone: function (dropId, fileId) {
+        const drop = document.getElementById(dropId);
+        const file = document.getElementById(fileId);
+        if (!drop || !file) return;
+
+        file.addEventListener('change', () => {
+            if (file.files && file.files[0]) {
+                const name = file.files[0].name;
+                const p = drop.querySelector('p');
+                if (p) p.innerText = name;
+                drop.classList.add('bg-blue/5', 'border-blue');
+                const icon = drop.querySelector('i');
+                if (icon) icon.setAttribute('data-lucide', 'check-circle');
+                lucide.createIcons();
+            }
+        });
+
+        drop.onclick = () => file.click();
+        drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('border-blue', 'scale-[0.98]', 'bg-blue/5'); });
+        drop.addEventListener('dragleave', () => {
+            if (!file.files || !file.files[0]) {
+                drop.classList.remove('border-blue', 'scale-[0.98]', 'bg-blue/5');
+            }
+        });
+        drop.addEventListener('drop', (e) => {
+            e.preventDefault();
+            drop.classList.remove('scale-[0.98]');
+            if (e.dataTransfer && e.dataTransfer.files.length > 0) {
+                file.files = e.dataTransfer.files;
+                file.dispatchEvent(new Event('change'));
+            }
+        });
+    },
+
+    resetDropZone: function (dropId, originalText, originalIcon) {
+        const drop = document.getElementById(dropId);
+        if (!drop) return;
+        const p = drop.querySelector('p');
+        if (p) p.innerText = originalText;
+        const icon = drop.querySelector('i');
+        if (icon) icon.setAttribute('data-lucide', originalIcon);
+        drop.classList.remove('bg-blue/5', 'border-blue');
+        lucide.createIcons();
     },
 
     switchTab: function (tabName) {
@@ -391,48 +436,58 @@ const app = {
             // Reset
             txtInput.value = '';
             imgInput.value = '';
+            this.resetDropZone('mixed-drop', 'Click or drag image here', 'upload-cloud');
             this.saveAndRender();
             this.toast("Mixed pair added!");
         } catch (err) {
-            console.error("Image processing failed", err);
-            this.toast("Image processing failed", "error");
+            console.error("Mixed Pair Add Failed:", err);
+            this.toast(`Upload failed: ${err.message || 'Unknown error'}`, "error");
         }
     },
 
-    // Mode 3: Image-Image (Self Match)
-    handleImagePairs: async function (files) {
+    // Mode 3: Image-Image
+    addImagePair: async function () {
         if (this.pairs.length >= 12) return this.toast("Max 12 pairs allowed!");
 
-        const { data: { user } } = await db.auth.getUser();
-        const canUpload = !isSandbox() && user;
+        const f1 = document.getElementById('img1-file').files[0];
+        const f2 = document.getElementById('img2-file').files[0];
 
-        for (const file of Array.from(files)) {
-            if (!file.type.startsWith('image/')) continue;
-            if (this.pairs.length >= 12) break;
+        if (!f1 || !f2) return this.toast("Please upload both images.");
 
-            try {
-                let imgSource;
-                if (canUpload) {
-                    imgSource = await uploadMedia(file, 'card_match', this.activePresetId);
-                } else {
-                    imgSource = await new Promise((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.onload = (e) => resolve(e.target.result);
-                        reader.onerror = reject;
-                        reader.readAsDataURL(file);
-                    });
-                }
+        try {
+            const { data: { user } } = await db.auth.getUser();
+            const canUpload = !isSandbox() && user;
 
-                this.pairs.push({
-                    id: Date.now() + Math.random(),
-                    type: 'image-image',
-                    item1: { type: 'image', content: imgSource },
-                    item2: { type: 'image', content: imgSource } // Matches self
+            const processFile = async (file) => {
+                if (canUpload) return await uploadMedia(file, 'card_match', this.activePresetId);
+                return await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
                 });
-                this.saveAndRender();
-            } catch (err) {
-                console.error("Image processing failed", err);
-            }
+            };
+
+            const src1 = await processFile(f1);
+            const src2 = await processFile(f2);
+
+            this.pairs.push({
+                id: Date.now() + Math.random(),
+                type: 'image-image',
+                item1: { type: 'image', content: src1 },
+                item2: { type: 'image', content: src2 }
+            });
+
+            // Reset
+            document.getElementById('img1-file').value = '';
+            document.getElementById('img2-file').value = '';
+            this.resetDropZone('img1-drop', 'Card 1', 'image');
+            this.resetDropZone('img2-drop', 'Card 2', 'image');
+            this.saveAndRender();
+            this.toast("Image pair added!");
+        } catch (err) {
+            console.error("Image Pair Add Failed:", err);
+            this.toast(`Upload failed: ${err.message || 'Unknown error'}`, "error");
         }
     },
 
