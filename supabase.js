@@ -97,8 +97,14 @@ async function signOut() {
   if (!isSandbox()) {
     await db.auth.signOut()
   }
+  localStorage.removeItem('kk_mode');
   clearLocalCache()
   location.href = '/index.html'
+}
+
+function switchMode() {
+  localStorage.removeItem('kk_mode');
+  location.href = '/index.html';
 }
 
 function clearLocalCache() {
