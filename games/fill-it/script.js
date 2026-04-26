@@ -120,14 +120,17 @@ function loadQuestion() {
     const container = document.getElementById('sentence-container');
     container.innerHTML = html;
 
-    // Auto-fit font size based on content length
+    // Auto-fit font size based on content length and screen space
     const textLength = currentQ.rawText.length;
-    let fontSize = 'text-4xl';
-    if (textLength > 400) fontSize = 'text-base';
-    else if (textLength > 250) fontSize = 'text-lg';
-    else if (textLength > 150) fontSize = 'text-xl';
-    else if (textLength > 80) fontSize = 'text-2xl';
-    else if (textLength > 40) fontSize = 'text-3xl';
+    let fontSize = 'text-[2.5rem]'; // Fallback
+    
+    if (textLength > 600) fontSize = 'text-base sm:text-lg';
+    else if (textLength > 400) fontSize = 'text-lg sm:text-xl';
+    else if (textLength > 250) fontSize = 'text-xl sm:text-2xl';
+    else if (textLength > 150) fontSize = 'text-2xl sm:text-3xl';
+    else if (textLength > 80) fontSize = 'text-3xl sm:text-4xl';
+    else if (textLength > 40) fontSize = 'text-4xl sm:text-5xl';
+    else fontSize = 'text-5xl sm:text-6xl';
 
     container.className = `font-body leading-relaxed font-bold text-dark dark:text-chalk text-justify w-full ${fontSize}`;
 
