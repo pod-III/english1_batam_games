@@ -28,12 +28,42 @@ function migrateOldQuestion(q) {
     return { rawText, tokens };
 }
 
-// Default Curriculum
+// Default Curriculum (3 Rows, 3 Sentences each)
 const defaultQuestions = [
-    { sentence: "The cat sat on the _.", answer: "mat", clue: "a small rug" },
-    { sentence: "She likes to _ a book every night.", answer: "read", clue: "look at words" },
-    { sentence: "An apple a day keeps the _ away.", answer: "doctor", clue: "medical person" }
-].map(migrateOldQuestion);
+    {
+        rawText: "Plants need sunlight to grow. They also require water and nutrients from the soil. This process is called photosynthesis.",
+        tokens: tokenizeText("Plants need sunlight to grow. They also require water and nutrients from the soil. This process is called photosynthesis.")
+    },
+    {
+        rawText: "The Great Wall of China is a famous landmark. It was built thousands of years ago to protect the empire. Today, it is visited by millions of tourists.",
+        tokens: tokenizeText("The Great Wall of China is a famous landmark. It was built thousands of years ago to protect the empire. Today, it is visited by millions of tourists.")
+    },
+    {
+        rawText: "I went to the store to buy some groceries. I forgot my wallet at home so I had to go back. It was a very busy afternoon.",
+        tokens: tokenizeText("I went to the store to buy some groceries. I forgot my wallet at home so I had to go back. It was a very busy afternoon.")
+    }
+];
+
+// Helper to set default blanks
+function setDefaultBlank(q, word, clue) {
+    const token = q.tokens.find(t => t.text.toLowerCase() === word.toLowerCase() && !t.isBlank);
+    if (token) {
+        token.isBlank = true;
+        token.clue = clue;
+    }
+}
+
+setDefaultBlank(defaultQuestions[0], "sunlight", "Energy from the sun");
+setDefaultBlank(defaultQuestions[0], "water", "H2O");
+setDefaultBlank(defaultQuestions[0], "photosynthesis", "Process of making food");
+
+setDefaultBlank(defaultQuestions[1], "China", "Country with the Wall");
+setDefaultBlank(defaultQuestions[1], "protect", "To keep safe");
+setDefaultBlank(defaultQuestions[1], "tourists", "People who visit");
+
+setDefaultBlank(defaultQuestions[2], "store", "Place to buy things");
+setDefaultBlank(defaultQuestions[2], "wallet", "Used to carry money");
+setDefaultBlank(defaultQuestions[2], "busy", "Full of activity");
 
 let questions = [];
 let currentQuestionIndex = 0;
