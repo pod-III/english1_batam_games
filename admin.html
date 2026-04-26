@@ -337,6 +337,9 @@
             <button onclick="setView('progress')" id="nav-progress" class="sidebar-link w-full text-slate-400">
                 <i data-lucide="bar-chart-2" class="w-4 h-4 flex-shrink-0"></i> Progress Data
             </button>
+            <button onclick="setView('notes')" id="nav-notes" class="sidebar-link w-full text-slate-400">
+                <i data-lucide="book-open" class="w-4 h-4 flex-shrink-0"></i> Lesson Notes
+            </button>
             <button onclick="setView('logs')" id="nav-logs" class="sidebar-link w-full text-slate-400">
                 <i data-lucide="scroll-text" class="w-4 h-4 flex-shrink-0"></i> System Logs
             </button>
@@ -416,7 +419,7 @@
             <!-- DASHBOARD VIEW -->
             <div id="view-dashboard">
                 <!-- Stats -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
                     <div class="stat-card neo bg-slate-800">
                         <div class="flex items-start justify-between mb-3">
                             <div
@@ -475,6 +478,18 @@
                         </div>
                         <div class="font-heading text-2xl text-white mb-1" id="statStorage">—</div>
                         <div class="text-xs text-slate-400 font-bold uppercase tracking-widest">Cloud usage</div>
+                    </div>
+
+                    <div class="stat-card neo bg-slate-800">
+                        <div class="flex items-start justify-between mb-3">
+                            <div
+                                class="w-9 h-9 rounded-xl bg-blue/20 border-2 border-blue/40 flex items-center justify-center">
+                                <i data-lucide="book-open" class="w-4 h-4 text-blue"></i>
+                            </div>
+                            <span class="chip bg-blue/10 text-blue border-blue/40">Notes</span>
+                        </div>
+                        <div class="font-heading text-4xl text-white mb-1" id="statNotes">—</div>
+                        <div class="text-xs text-slate-400 font-bold uppercase tracking-widest">Total user notes</div>
                     </div>
                 </div>
 
@@ -578,6 +593,45 @@
                         <div class="flex gap-2">
                             <button onclick="changePage('progress', -1)" class="neo-btn px-3 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs">Prev</button>
                             <button onclick="changePage('progress', 1)" class="neo-btn px-3 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs">Next</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NOTES VIEW -->
+            <div id="view-notes" class="hidden">
+                <div class="neo bg-slate-800 rounded-[20px] overflow-hidden">
+                    <div class="p-5 border-b-[3px] border-slate-700 flex items-center justify-between">
+                        <h2 class="font-heading text-lg text-white">Lesson Notes</h2>
+                        <div id="notesCount" class="chip bg-blue/10 text-blue border-blue/40">0 notes</div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b-2 border-slate-700 bg-slate-900">
+                                    <th onclick="toggleSort('notes', 'user')"
+                                        class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:text-blue transition-colors">
+                                        <div class="flex items-center gap-1">User <span id="sort-notes-user"></span></div></th>
+                                    <th onclick="toggleSort('notes', 'title')"
+                                        class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:text-blue transition-colors">
+                                        <div class="flex items-center gap-1">Title <span id="sort-notes-title"></span></div></th>
+                                    <th onclick="toggleSort('notes', 'updated_at')"
+                                        class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:text-blue transition-colors">
+                                        <div class="flex items-center gap-1">Updated <span id="sort-notes-updated_at"></span></div></th>
+                                    <th
+                                        class="px-5 py-3 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                        Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="notesTableBody" class="divide-y divide-slate-700/50"></tbody>
+                        </table>
+                    </div>
+                    <!-- Pagination -->
+                    <div class="p-4 border-t-[3px] border-slate-700 flex items-center justify-between bg-slate-900/50">
+                        <div class="text-[10px] text-slate-500 font-bold uppercase tracking-widest" id="notes-page-info">Page 1 of 1</div>
+                        <div class="flex gap-2">
+                            <button onclick="changePage('notes', -1)" class="neo-btn px-3 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs">Prev</button>
+                            <button onclick="changePage('notes', 1)" class="neo-btn px-3 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs">Next</button>
                         </div>
                     </div>
                 </div>
@@ -815,6 +869,7 @@
 
     <script>
         let allProgress = []
+        let allNotes = []
         let allProfiles = {}
         let allAnnouncements = []
         let pendingDelete = null
@@ -822,11 +877,13 @@
         let sortConfig = {
             users: { col: 'active', dir: 'desc' },
             progress: { col: 'updated_at', dir: 'desc' },
+            notes: { col: 'updated_at', dir: 'desc' },
             cloud: { col: 'usage', dir: 'desc' }
         }
         let pagination = {
             users: 1,
             progress: 1,
+            notes: 1,
             cloud: 1
         }
         const PAGE_SIZE = 25
@@ -859,8 +916,9 @@
         async function fetchData() {
             document.querySelectorAll('.refreshIcon').forEach(i => i.classList.add('animate-spin'))
 
-            const [progressRes, profilesRes, quotasRes] = await Promise.all([
+            const [progressRes, notesRes, profilesRes, quotasRes] = await Promise.all([
                 db.from('user_progress').select('*').order('updated_at', { ascending: false }),
+                db.from('notes').select('*').order('updated_at', { ascending: false }),
                 db.from('profiles').select('*'),
                 db.from('storage_quotas').select('*')
             ])
@@ -884,6 +942,7 @@
                 }
             })
             allProgress = progressRes.data || []
+            allNotes = notesRes.data || []
 
             // Pre-calculate latest activity from progress
             allProgress.forEach(r => {
@@ -931,16 +990,16 @@
 
         // ── STATS ──
         function updateStats() {
-            const uniqueUsers = new Set(allProgress.map(r => r.user_id)).size
-            const usersWithNoData = Object.keys(allProfiles).length -
-                new Set(allProgress.map(r => r.user_id)).size
-            const uniqueTools = new Set(allProgress.map(r => r.tool_key)).size
-            const latest = allProgress[0]?.updated_at
-                ? new Date(allProgress[0].updated_at).toLocaleDateString()
+            const uniqueTools = new Set([...allProgress.map(r => r.tool_key), ...allNotes.map(n => 'lesson-note')]).size
+            const latestProgress = allProgress[0]?.updated_at ? new Date(allProgress[0].updated_at).getTime() : 0
+            const latestNote = allNotes[0]?.updated_at ? new Date(allNotes[0].updated_at).getTime() : 0
+            const latest = Math.max(latestProgress, latestNote) 
+                ? new Date(Math.max(latestProgress, latestNote)).toLocaleDateString()
                 : '—'
 
             document.getElementById('statUsers').textContent = Object.keys(allProfiles).length
             document.getElementById('statRows').textContent = allProgress.length
+            document.getElementById('statNotes').textContent = allNotes.length
             document.getElementById('statTools').textContent = uniqueTools
             document.getElementById('statLatest').textContent = latest
 
@@ -953,6 +1012,7 @@
             // Tool breakdown chart
             const toolCounts = {}
             allProgress.forEach(r => { toolCounts[r.tool_key] = (toolCounts[r.tool_key] || 0) + 1 })
+            if (allNotes.length > 0) toolCounts['lesson-note'] = (toolCounts['lesson-note'] || 0) + allNotes.length
             const sorted = Object.entries(toolCounts).sort((a, b) => b[1] - a[1])
             const max = sorted[0]?.[1] || 1
             const colors = ['#FF6B95', '#2979FF', '#FF8C42', '#00E676', '#a855f7', '#06b6d4']
@@ -1016,7 +1076,7 @@
 
         // ── FILTERS ──
         function populateToolFilter() {
-            const tools = [...new Set(allProgress.map(r => r.tool_key))].sort()
+            const tools = [...new Set([...allProgress.map(r => r.tool_key), 'lesson-note'])].sort()
             const sel = document.getElementById('toolFilter')
             sel.innerHTML = '<option value="">All tools</option>' +
                 tools.map(t => `<option value="${t}">${t}</option>`).join('')
@@ -1039,8 +1099,18 @@
             let filteredUserIds = Object.keys(allProfiles).filter(uid => {
                 const name = (allProfiles[uid]?.display_name || '').toLowerCase()
                 const matchSearch = !search || name.includes(search) || uid.toLowerCase().includes(search)
-                const hasUsedTool = !tool || allProgress.some(r => r.user_id === uid && r.tool_key === tool)
+                const hasUsedTool = !tool || allProgress.some(r => r.user_id === uid && r.tool_key === tool) || (tool === 'lesson-note' && allNotes.some(n => n.user_id === uid))
                 return matchSearch && hasUsedTool
+            })
+
+            let filteredNotes = allNotes.filter(n => {
+                const name = (allProfiles[n.user_id]?.display_name || '').toLowerCase()
+                const matchSearch = !search
+                    || name.includes(search)
+                    || n.user_id.toLowerCase().includes(search)
+                    || (n.title || '').toLowerCase().includes(search)
+                const matchTool = !tool || tool === 'lesson-note'
+                return matchSearch && matchTool
             })
 
             // Sort Users
@@ -1090,6 +1160,27 @@
                 return 0
             })
 
+            // Sort Notes
+            filteredNotes.sort((a, b) => {
+                const conf = sortConfig.notes
+                let valA, valB
+
+                if (conf.col === 'user') {
+                    valA = (allProfiles[a.user_id]?.display_name || '').toLowerCase()
+                    valB = (allProfiles[b.user_id]?.display_name || '').toLowerCase()
+                } else if (conf.col === 'title') {
+                    valA = (a.title || '').toLowerCase()
+                    valB = (b.title || '').toLowerCase()
+                } else if (conf.col === 'updated_at') {
+                    valA = new Date(a.updated_at).getTime()
+                    valB = new Date(b.updated_at).getTime()
+                }
+
+                if (valA < valB) return conf.dir === 'asc' ? -1 : 1
+                if (valA > valB) return conf.dir === 'asc' ? 1 : -1
+                return 0
+            })
+
             // Pagination for Users
             const userPages = Math.ceil(filteredUserIds.length / PAGE_SIZE) || 1
             if (pagination.users > userPages) pagination.users = userPages
@@ -1104,20 +1195,31 @@
             const pagedRows = filteredRows.slice(progStart, progStart + PAGE_SIZE)
             document.getElementById('progress-page-info').textContent = `Page ${pagination.progress} of ${progPages}`
 
+            // Pagination for Notes
+            const notesPages = Math.ceil(filteredNotes.length / PAGE_SIZE) || 1
+            if (pagination.notes > notesPages) pagination.notes = notesPages
+            const notesStart = (pagination.notes - 1) * PAGE_SIZE
+            const pagedNotes = filteredNotes.slice(notesStart, notesStart + PAGE_SIZE)
+            document.getElementById('notes-page-info').textContent = `Page ${pagination.notes} of ${notesPages}`
+
             // Pagination counts for reliable clamping
             pagination.lastFilteredCounts = {
                 users: filteredUserIds.length,
-                progress: filteredRows.length
+                progress: filteredRows.length,
+                notes: filteredNotes.length
             }
 
             renderUsersTable(pagedUserIds, filteredRows)
             renderProgressTable(pagedRows)
+            renderNotesTable(pagedNotes)
             updateSortIcons()
 
             document.getElementById('userCount').textContent =
                 filteredUserIds.length + ' users'
             document.getElementById('progressCount').textContent =
                 filteredRows.length + ' rows'
+            document.getElementById('notesCount').textContent =
+                filteredNotes.length + ' notes'
         }
 
         function clearFilters() {
@@ -1255,6 +1357,65 @@
             lucide.createIcons()
         }
 
+        // ── NOTES TABLE ──
+        function renderNotesTable(rows) {
+            const body = document.getElementById('notesTableBody')
+            if (!body) return
+            if (!rows.length) {
+                body.innerHTML = '<tr><td colspan="4" class="text-center py-12 text-slate-500 font-bold">No notes found</td></tr>'
+                return
+            }
+
+            body.innerHTML = rows.map(note => {
+                const profile = allProfiles[note.user_id]
+                const name = profile?.display_name || '—'
+                const date = new Date(note.updated_at).toLocaleString()
+                const initial = name[0]?.toUpperCase() || '?'
+
+                return `<tr class="group transition-colors">
+          <td class="px-5 py-3">
+            <div class="flex items-center gap-2">
+              <div class="w-7 h-7 rounded-lg bg-blue/20 border-2 border-blue/30 flex items-center justify-center text-blue text-xs font-heading flex-shrink-0">${initial}</div>
+              <div>
+                <div class="font-bold text-white text-sm">${name}</div>
+                <div class="font-mono text-[10px] text-slate-600">${note.user_id.slice(0, 8)}...</div>
+              </div>
+            </div>
+          </td>
+          <td class="px-5 py-3">
+            <span class="font-bold text-slate-200">${note.title || 'Untitled'}</span>
+          </td>
+          <td class="px-5 py-3 text-xs text-slate-500 whitespace-nowrap">${date}</td>
+          <td class="px-5 py-3">
+            <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button onclick="openNoteModal('${note.id}')"
+                class="neo-btn px-3 py-1.5 bg-blue text-white rounded-xl text-xs">
+                <i data-lucide="eye" class="w-3 h-3"></i> View
+              </button>
+              <button onclick="openDeleteModal('${note.id}','note')"
+                class="neo-btn px-3 py-1.5 bg-red-500 text-white rounded-xl text-xs">
+                <i data-lucide="trash-2" class="w-3 h-3"></i>
+              </button>
+            </div>
+          </td>
+        </tr>`
+            }).join('')
+            lucide.createIcons()
+        }
+
+        function openNoteModal(noteId) {
+            const note = allNotes.find(n => n.id === noteId)
+            const profile = allProfiles[note.user_id]
+            if (!note) return
+
+            document.getElementById('viewModalTitle').textContent =
+                (profile?.display_name || note.user_id.slice(0, 8)) + ' — ' + (note.title || 'Untitled')
+            document.getElementById('viewModalSub').textContent =
+                'Updated ' + new Date(note.updated_at).toLocaleString()
+            document.getElementById('viewModalContent').textContent = note.content
+            document.getElementById('viewModalBg').classList.remove('hidden')
+        }
+
         // ── VIEW MODAL ──
         function openViewModal(userId, toolKey) {
             const row = allProgress.find(r => r.user_id === userId && r.tool_key === toolKey)
@@ -1298,6 +1459,11 @@
                 title = "Delete Announcement?"
                 msg = `Permanently delete "${ann?.title || 'this announcement'}"?`
                 pendingDelete = { id: idOrUser, type: 'announcement' }
+            } else if (toolOrType === 'note') {
+                const note = allNotes.find(n => n.id === idOrUser)
+                title = "Delete Note?"
+                msg = `Permanently delete note "${note?.title || 'Untitled'}"?`
+                pendingDelete = { id: idOrUser, type: 'note' }
             } else {
                 const profile = allProfiles[idOrUser]
                 const name = profile?.display_name || idOrUser.slice(0, 8)
@@ -1326,6 +1492,15 @@
                 else {
                     showToast('Announcement deleted')
                     fetchData()
+                }
+            } else if (pendingDelete.type === 'note') {
+                const { error } = await db.from('notes').delete().eq('id', pendingDelete.id)
+                if (error) showToast('Error: ' + error.message, 'error')
+                else {
+                    showToast('Note deleted')
+                    allNotes = allNotes.filter(n => n.id !== pendingDelete.id)
+                    updateStats()
+                    applyFilters()
                 }
             } else {
                 const { userId, toolKey } = pendingDelete
@@ -1439,7 +1614,7 @@
                 toggleSidebar();
             }
 
-            ['dashboard', 'users', 'progress', 'logs', 'announcements', 'cloud', 'settings'].forEach(v => {
+            ['dashboard', 'users', 'progress', 'notes', 'logs', 'announcements', 'cloud', 'settings'].forEach(v => {
                 const viewEl = document.getElementById('view-' + v)
                 if (viewEl) viewEl.classList.toggle('hidden', v !== view)
 
@@ -1448,6 +1623,7 @@
                         dashboard: 'Dashboard',
                         users: 'User Management',
                         progress: 'Progress Data',
+                        notes: 'Lesson Notes',
                         logs: 'Audit Logs',
                         announcements: 'Announcements',
                         cloud: 'Cloud Storage',
