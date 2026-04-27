@@ -210,6 +210,61 @@ const State = {
     totalWords: 0
 };
 
+// --- DIFFICULTY ---
+const Difficulty = {
+    allowBackwards: false,
+    allowDiagonal: false,
+};
+
+function getActiveDirs() {
+    // Always: forward horizontal + forward vertical
+    const dirs = [{ r: 0, c: 1 }, { r: 1, c: 0 }];
+    if (Difficulty.allowBackwards) {
+        dirs.push({ r: 0, c: -1 }, { r: -1, c: 0 });
+    }
+    if (Difficulty.allowDiagonal) {
+        dirs.push({ r: 1, c: 1 }, { r: -1, c: 1 });
+        // Backward diagonals only when both modes active
+        if (Difficulty.allowBackwards) {
+            dirs.push({ r: -1, c: -1 }, { r: 1, c: -1 });
+        }
+    }
+    return dirs;
+}
+
+function toggleDifficulty(mode) {
+    if (mode === 'backwards') {
+        Difficulty.allowBackwards = !Difficulty.allowBackwards;
+        document.getElementById('toggle-backwards').classList.toggle('active', Difficulty.allowBackwards);
+    } else if (mode === 'diagonal') {
+        Difficulty.allowDiagonal = !Difficulty.allowDiagonal;
+        document.getElementById('toggle-diagonal').classList.toggle('active', Difficulty.allowDiagonal);
+    }
+    updateDifficultyLabel();
+}
+
+function updateDifficultyLabel() {
+    const el = document.getElementById('difficulty-label');
+    if (!el) return;
+    const { allowBackwards, allowDiagonal } = Difficulty;
+    let text, colorClass;
+    if (!allowBackwards && !allowDiagonal) {
+        text = '⭐ Easy — Horizontal &amp; Vertical';
+        colorClass = 'bg-green/10 border-green/30 text-green';
+    } else if (allowBackwards && !allowDiagonal) {
+        text = '⭐⭐ Medium — + Backwards';
+        colorClass = 'bg-orange/10 border-orange/30 text-orange';
+    } else if (!allowBackwards && allowDiagonal) {
+        text = '⭐⭐ Medium — + Diagonal';
+        colorClass = 'bg-orange/10 border-orange/30 text-orange';
+    } else {
+        text = '⭐⭐⭐ Hard — All Directions';
+        colorClass = 'bg-pink/10 border-pink/30 text-pink';
+    }
+    el.className = `text-center py-1.5 px-3 border-2 rounded-lg ${colorClass}`;
+    el.innerHTML = `<span class="text-[10px] font-bold uppercase tracking-widest">${text}</span>`;
+}
+
 // --- DOM ELEMENTS ---
 const els = {
     grid: document.getElementById('word-grid'),
@@ -316,6 +371,12 @@ async function onUserPresetSelect() {
         els.sizeSlider.value = preset.data.size || '10';
         els.sizeDisplay.innerText = `${els.sizeSlider.value}x${els.sizeSlider.value}`;
         els.userPresetNameInput.value = preset.name;
+        // Restore difficulty
+        Difficulty.allowBackwards = preset.data.allowBackwards || false;
+        Difficulty.allowDiagonal = preset.data.allowDiagonal || false;
+        document.getElementById('toggle-backwards').classList.toggle('active', Difficulty.allowBackwards);
+        document.getElementById('toggle-diagonal').classList.toggle('active', Difficulty.allowDiagonal);
+        updateDifficultyLabel();
         await saveCurrentPresetId(id);
     }
 }
@@ -323,7 +384,7 @@ async function onUserPresetSelect() {
 async function saveCurrentUserPreset() {
     try {
         const name = els.userPresetNameInput.value.trim() || 'Untitled';
-        const data = { words: els.input.value, size: els.sizeSlider.value };
+        const data = { words: els.input.value, size: els.sizeSlider.value, allowBackwards: Difficulty.allowBackwards, allowDiagonal: Difficulty.allowDiagonal };
         const id = await savePreset(name, data, currentPresetId);
         currentPresetId = id;
         await saveCurrentPresetId(id);
@@ -579,12 +640,9 @@ function initGame(size, words) {
 }
 
 function placeWord(word, size) {
-    const dirs = [
-        { r: 0, c: 1 }, { r: 1, c: 0 }, { r: 1, c: 1 }, { r: -1, c: 1 },
-        { r: 0, c: -1 }, { r: -1, c: 0 }, { r: -1, c: -1 }, { r: 1, c: -1 }
-    ];
-    for (let i = 0; i < 100; i++) {
-        const d = dirs[Math.floor(Math.random() * 8)];
+    const dirs = getActiveDirs();
+    for (let i = 0; i < 150; i++) {
+        const d = dirs[Math.floor(Math.random() * dirs.length)];
         const r = Math.floor(Math.random() * size);
         const c = Math.floor(Math.random() * size);
         const er = r + d.r * (word.length - 1);
@@ -770,6 +828,12 @@ window.onload = async () => {
             els.sizeSlider.value = p.data.size || '10';
             els.sizeDisplay.innerText = `${els.sizeSlider.value}x${els.sizeSlider.value}`;
             els.userPresetNameInput.value = p.name;
+            // Restore difficulty
+            Difficulty.allowBackwards = p.data.allowBackwards || false;
+            Difficulty.allowDiagonal = p.data.allowDiagonal || false;
+            document.getElementById('toggle-backwards').classList.toggle('active', Difficulty.allowBackwards);
+            document.getElementById('toggle-diagonal').classList.toggle('active', Difficulty.allowDiagonal);
+            updateDifficultyLabel();
         }
     }
     await loadFromCloud();
