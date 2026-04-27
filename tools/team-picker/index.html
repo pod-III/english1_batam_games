@@ -466,9 +466,13 @@
                 }
 
                 this.migrateClasses();
-                this.saveStateLocal();
                 this.updateDisplay();
-                await this.loadFromCloud();
+                
+                // Load from cloud but don't let it destroy newer local data
+                if (!isSandbox()) {
+                    await this.loadFromCloud();
+                }
+                
                 this.renderClassSelector();
                 this.renderRoster();
                 this.setGenderMode(this.genderMode);
@@ -499,10 +503,13 @@
 
             /* ── Persistence ── */
             saveStateLocal() {
-                localStorage.setItem('e1_teampicker_state', JSON.stringify({
+                const state = {
                     classes: this.classes,
-                    activeClassId: this.activeClassId
-                }));
+                    activeClassId: this.activeClassId,
+                    updatedAt: Date.now()
+                };
+                localStorage.setItem('e1_teampicker_state', JSON.stringify(state));
+                return state;
             },
 
             async saveToCloud() {
@@ -518,27 +525,45 @@
             async loadFromCloud() {
                 try {
                     const data = await loadProgress('team_picker_data');
-                    if (data) {
-                        if (data.classes) {
-                            this.classes = data.classes;
-                            this.activeClassId = data.activeClassId || Object.keys(data.classes)[0];
-                        } else if (data.names !== undefined) {
-                            this.classes = {
-                                class_1: {
-                                    id: 'class_1', name: 'Class 1',
-                                    roster: data.names.split('\n').map(n => n.trim()).filter(n => n).map(name => {
-                                        let p = this.parseGender(name);
-                                        return { id: this._uid(), name: p.name, gender: p.gender, present: true };
-                                    })
-                                }
-                            };
-                            this.activeClassId = 'class_1';
-                        }
-                        this.migrateClasses();
-                        this.saveStateLocal();
-                        this.renderClassSelector();
-                        this.renderRoster();
+                    if (!data) return;
+
+                    // 1. Resolve timestamps
+                    const stateStr = localStorage.getItem('e1_teampicker_state');
+                    let localUpdatedAt = 0;
+                    if (stateStr) {
+                        try { localUpdatedAt = JSON.parse(stateStr).updatedAt || 0; } catch(e){}
                     }
+                    const cloudUpdatedAt = data.updatedAt || 0;
+
+                    // 2. If local is newer, don't overwrite
+                    if (localUpdatedAt > cloudUpdatedAt && Object.keys(this.classes).length > 0) {
+                        console.log("[Sync] Local data is newer. Skipping cloud load.");
+                        return;
+                    }
+
+                    // 3. Handle data structures
+                    if (data.classes && Object.keys(data.classes).length > 0) {
+                        // Merge or overwrite classes
+                        this.classes = data.classes;
+                        this.activeClassId = data.activeClassId || Object.keys(data.classes)[0];
+                    } else if (data.names !== undefined && Object.keys(this.classes).length <= 1) {
+                        // Only migrate legacy names if we don't already have complex classes
+                        this.classes = {
+                            class_1: {
+                                id: 'class_1', name: 'Class 1',
+                                roster: data.names.split('\n').map(n => n.trim()).filter(n => n).map(name => {
+                                    let p = this.parseGender(name);
+                                    return { id: this._uid(), name: p.name, gender: p.gender, present: true };
+                                })
+                            }
+                        };
+                        this.activeClassId = 'class_1';
+                    }
+
+                    this.migrateClasses();
+                    this.saveStateLocal();
+                    this.renderClassSelector();
+                    this.renderRoster();
                 } catch (e) { console.error('Cloud load failed', e); }
             },
 
