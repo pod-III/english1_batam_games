@@ -1024,12 +1024,16 @@ const GameGrid = {
     // Group by category
     const tools = gamesToRender.filter(g => g.category === 'tool');
     const gamesList = gamesToRender.filter(g => g.category === 'game');
-    const other = gamesToRender.filter(g => g.category !== 'tool' && g.category !== 'game');
+    const workshop = gamesToRender.filter(g => g.category === 'workshop');
+    const other = gamesToRender.filter(g => !['tool', 'game', 'workshop'].includes(g.category));
 
     let html = '';
 
     if (tools.length > 0) {
       html += this.renderCategorySection('tools', 'wrench', 'var(--color-blue)', 'Teaching Tools', tools);
+    }
+    if (workshop.length > 0) {
+      html += this.renderCategorySection('workshop', 'hammer', 'var(--color-pink)', 'Workshop Tools', workshop);
     }
     if (gamesList.length > 0) {
       html += this.renderCategorySection('games', 'gamepad-2', 'var(--color-green)', 'Classroom Games', gamesList);
