@@ -491,13 +491,16 @@ const Hero = {
     const active = State.games.filter(g => g.active !== false);
     const tools = active.filter(g => g.category === 'tool').length;
     const games = active.filter(g => g.category === 'game').length;
+    const workshop = active.filter(g => g.category === 'workshop').length;
     const pinned = PinnedGames.get().length;
 
     const toolsEl = document.getElementById('stat-tools');
     const gamesEl = document.getElementById('stat-games');
+    const workshopEl = document.getElementById('stat-workshop');
     const pinnedEl = document.getElementById('stat-pinned');
     if (toolsEl) toolsEl.textContent = tools;
     if (gamesEl) gamesEl.textContent = games;
+    if (workshopEl) workshopEl.textContent = workshop;
     if (pinnedEl) pinnedEl.textContent = pinned;
   },
 
@@ -1114,7 +1117,7 @@ const GameGrid = {
 
   getGuideText(game) {
     if (!game.guide) {
-      return game.category === 'tool'
+      return (game.category === 'tool' || game.category === 'workshop')
         ? "<ul class='list-disc pl-5 space-y-2'><li>Adjust settings using the on-screen controls.</li><li>Use fullscreen mode for better visibility.</li></ul>"
         : "<ul class='list-disc pl-5 space-y-2'><li>Follow the on-screen prompts to start.</li><li>Customize words in setup if available.</li></ul>";
     }
