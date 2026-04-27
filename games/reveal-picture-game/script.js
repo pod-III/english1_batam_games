@@ -5,7 +5,7 @@
  */
 const DB = {
     dbName: 'KlassKitRevealDB',
-    dbVersion: 1,
+    dbVersion: 2, // Bumped to ensure store creation
     dataBase: null,
 
     init() {
@@ -171,6 +171,9 @@ const app = {
             this.loadPresetData(targetPreset);
 
             // Cloud Sync
+            if (!isSandbox()) {
+                await this.loadFromCloud();
+            }
             this.syncToCloud();
 
         } catch (e) {
@@ -210,10 +213,17 @@ const app = {
                     local.currentIndex = cp.currentIndex;
                     local.gridSize = cp.gridSize;
                     local.lastAccessed = cp.lastAccessed;
+                    local.revealedIndices = cp.revealedIndices || local.revealedIndices || [];
+                    
+                    // Only update images if the cloud version actually has images (URLs)
+                    if (cp.images && cp.images.length > 0) {
+                        local.images = cp.images;
+                    }
+                    
                     await DB.savePreset(local);
                     changed = true;
                 } else {
-                    // New preset from another device (will have cloud URLs in images)
+                    // New preset from another device
                     const newPreset = { ...cp, images: cp.images || [] };
                     this.presets.push(newPreset);
                     await DB.savePreset(newPreset);
@@ -257,6 +267,7 @@ const app = {
 
         Game.images = preset.images || [];
         Game.currentIndex = preset.currentIndex || 0;
+        Game.revealedIndices = preset.revealedIndices || [];
 
         if (Game.images.length > 0) {
             // Bounds check
@@ -284,6 +295,7 @@ const app = {
         preset.images = Game.images;
         preset.currentIndex = Game.currentIndex;
         preset.gridSize = Game.gridSize;
+        preset.revealedIndices = Game.revealedIndices || [];
         preset.lastAccessed = Date.now();
 
         await DB.savePreset(preset);
@@ -587,6 +599,7 @@ const Game = {
     currentIndex: 0,
     gridSize: 4,
     tilesRemaining: 0,
+    revealedIndices: [], // Track which tiles are revealed
 
     async init() {
         // Restore Theme
@@ -604,7 +617,6 @@ const Game = {
         AutoReveal.init();
 
         await requireAuth();
-        await app.loadFromCloud();
     },
 
     start(fileList, restoring = false) {
@@ -622,6 +634,7 @@ const Game = {
         // If not restoring, jump to the first new image (or stay if just appending)
         if (!restoring && this.images.length === fileList.length) {
             this.currentIndex = 0;
+            this.revealedIndices = [];
         }
 
         this.loadLevel();
@@ -638,9 +651,6 @@ const Game = {
         document.getElementById('target-image').src = await resolveMediaUrl(this.images[this.currentIndex]);
         document.getElementById('round-display').textContent = `${this.currentIndex + 1} / ${this.images.length}`;
 
-        // Save Persistence
-        app.saveCurrentState();
-
         // Reset State
         document.getElementById('next-round-btn').disabled = true;
         const prevBtn = document.getElementById('prev-round-btn');
@@ -654,28 +664,39 @@ const Game = {
         grid.innerHTML = '';
         grid.style.gridTemplateColumns = `repeat(${this.gridSize}, 1fr)`;
 
-        this.tilesRemaining = this.gridSize * this.gridSize;
+        const totalTiles = this.gridSize * this.gridSize;
+        this.tilesRemaining = totalTiles - this.revealedIndices.length;
         UI.updateCount(this.tilesRemaining);
 
-        for (let i = 0; i < this.tilesRemaining; i++) {
+        for (let i = 0; i < totalTiles; i++) {
             const tile = document.createElement('div');
-            tile.className = 'tile';
+            const isRevealed = this.revealedIndices.includes(i);
+            tile.className = 'tile' + (isRevealed ? ' revealed' : '');
+            
             const numColor = (i % 2 === 0) ? 'text-slate-200' : 'text-slate-300';
             tile.innerHTML = `<span class="text-3xl font-heading ${numColor} pointer-events-none select-none">${i + 1}</span>`;
 
-            tile.onmousedown = () => this.revealTile(tile);
+            tile.onmousedown = () => this.revealTile(tile, i);
             grid.appendChild(tile);
         }
+
+        if (this.tilesRemaining <= 0) this.win();
     },
 
-    revealTile(tile) {
+    revealTile(tile, index) {
         if (tile.classList.contains('revealed')) return;
         if (Tone.context.state !== 'running') Tone.start();
 
         tile.classList.add('revealed');
+        if (!this.revealedIndices.includes(index)) {
+            this.revealedIndices.push(index);
+        }
+        
         this.tilesRemaining--;
         UI.updateCount(this.tilesRemaining);
         Audio.playPop();
+
+        app.saveCurrentState();
 
         if (this.tilesRemaining <= 0) this.win();
     },
@@ -695,6 +716,7 @@ const Game = {
 
         setTimeout(() => {
             this.tilesRemaining = 0;
+            this.revealedIndices = Array.from({length: this.gridSize * this.gridSize}, (_, i) => i);
             UI.updateCount(0);
             this.win();
         }, tiles.length * 30 + 100);
@@ -716,27 +738,38 @@ const Game = {
             prevBtn.classList.add('animate-bounce');
             setTimeout(() => prevBtn.classList.remove('animate-bounce'), 1000);
         }
+        
+        // Save full revealed state
+        this.revealedIndices = Array.from({length: this.gridSize * this.gridSize}, (_, i) => i);
+        app.saveCurrentState();
     },
 
     resetLevel() {
+        this.revealedIndices = [];
         this.buildGrid();
         AutoReveal.stop();
+        app.saveCurrentState();
     },
 
     nextLevel() {
         this.currentIndex++;
         if (this.currentIndex >= this.images.length) this.currentIndex = 0;
+        this.revealedIndices = [];
         this.loadLevel();
+        app.saveCurrentState();
     },
 
     prevLevel() {
         this.currentIndex--;
         if (this.currentIndex < 0) this.currentIndex = this.images.length - 1;
+        this.revealedIndices = [];
         this.loadLevel();
+        app.saveCurrentState();
     },
 
     updateGridSize(val) {
         this.gridSize = parseInt(val);
+        this.revealedIndices = []; // Indices are invalid if grid size changes
         document.getElementById('grid-val').textContent = `${val} x ${val}`;
         if (this.images.length > 0) this.buildGrid();
         app.saveCurrentState();
@@ -891,8 +924,8 @@ window.addEventListener('resize', () => {
 
 // Init
 window.onload = async () => {
-    await Game.init();
     await app.init();
+    await Game.init();
     lucide.createIcons();
     if (window.innerWidth < 768) UI.togglePanel(true);
 };
