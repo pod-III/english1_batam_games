@@ -4,8 +4,10 @@
  * Migrates from V1 MysteryBoxDB to V2 KlassKitRevealDB
  */
 const DB = {
-    dbName: 'KlassKitRevealDB',
-    dbVersion: 2, // Bumped to ensure store creation
+    get dbName() {
+        return isSandbox() ? 'KlassKitRevealDB_Sandbox' : 'KlassKitRevealDB';
+    },
+    dbVersion: 2, 
     dataBase: null,
 
     init() {

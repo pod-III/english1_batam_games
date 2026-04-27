@@ -846,6 +846,45 @@ const Announcements = {
   }
 };
 
+// --- MAINTENANCE ---
+const Maintenance = {
+  init() {
+    const btn = document.getElementById('migrate-btn');
+    if (btn && isSandbox()) {
+      btn.classList.remove('hidden');
+      Utils.refreshIcons(btn.parentElement);
+    }
+  },
+  async migrate() {
+    if (!confirm("This will copy your existing 'shared' data into your Sandbox storage. This is a one-time move to isolate your Sandbox environment. Proceed?")) return;
+    
+    UI.showToast("Starting migration...", "info");
+    
+    // 1. LocalStorage Keys
+    const keys = ['e1_teampicker_state', 'e1_teampicker_names'];
+    // Add all prog_ keys
+    const allKeys = Object.keys(localStorage);
+    allKeys.forEach(k => {
+        if (k.startsWith('prog_') || k.startsWith('theme_') || k.startsWith('klasskit_')) {
+            keys.push(k);
+        }
+    });
+    
+    await migrateLocalStorageToSandbox(keys);
+    
+    // 2. IndexedDB
+    try {
+        await migrateIndexedDBToSandbox('KlassKitRevealDB', 'KlassKitRevealDB_Sandbox');
+        UI.showToast("Migration Complete! Please refresh the page.", "success");
+        setTimeout(() => location.reload(), 2000);
+    } catch (e) {
+        console.error("IDB Migration failed:", e);
+        UI.showToast("Migration finished (images skipped or not found).", "success");
+        setTimeout(() => location.reload(), 2000);
+    }
+  }
+};
+
 // --- RECENT GAMES ---
 const RecentGames = {
   get() { return Storage.get(CONFIG.storageKeys.recent, []); },
@@ -2077,6 +2116,7 @@ const App = {
       Search.setup();
       LandingPage.init();
       ViewMode.init();
+      Maintenance.init();
 
       document.body.addEventListener('click', () => AudioEngine.init(), { once: true });
 

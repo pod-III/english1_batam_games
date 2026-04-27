@@ -12,9 +12,12 @@ const SUPABASE_ANON_KEY = 'sb_publishable_5Fd483qrg6bEFa_T1oNyLg_gymEgi4P';
 const { createClient } = supabase
 const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
-/* ── MODE HELPERS ── */
 function isSandbox() {
   return localStorage.getItem('kk_mode') === 'sandbox';
+}
+
+function getModePrefix() {
+  return isSandbox() ? 'sb_' : '';
 }
 
 async function getUser() {
@@ -109,18 +112,19 @@ function switchMode() {
 
 function clearLocalCache() {
   console.log('[Auth] Clearing local cache...');
+  const prefix = getModePrefix();
   const keys = Object.keys(localStorage)
   keys.forEach(key => {
-    if (key.startsWith('prog_') ||
-      key.startsWith('theme_') ||
-      key.startsWith('klasskit_') ||
-      key === 'recentGameIds' ||
-      key === 'favoriteGames' ||
-      key === 'openTabs' ||
-      key === 'pinnedGameIds' ||
-      key === 'soundMuted' ||
-      key === 'migrated_to_cloud' ||
-      key === 'kk_current_user_id') {
+    if (key.startsWith(prefix + 'prog_') ||
+      key.startsWith(prefix + 'theme_') ||
+      key.startsWith(prefix + 'klasskit_') ||
+      key === prefix + 'recentGameIds' ||
+      key === prefix + 'favoriteGames' ||
+      key === prefix + 'openTabs' ||
+      key === prefix + 'pinnedGameIds' ||
+      key === prefix + 'soundMuted' ||
+      key === prefix + 'migrated_to_cloud' ||
+      key === prefix + 'kk_current_user_id') {
       localStorage.removeItem(key)
     }
   })
@@ -177,7 +181,8 @@ async function updatePassword(newPassword) {
 
 /* ── DATA HELPERS ── */
 async function saveProgress(toolKey, data) {
-  localStorage.setItem(`prog_${toolKey}`, JSON.stringify(data))
+  const prefix = getModePrefix();
+  localStorage.setItem(`${prefix}prog_${toolKey}`, JSON.stringify(data))
 
   if (isSandbox()) return;
 
@@ -198,8 +203,9 @@ async function saveProgress(toolKey, data) {
 }
 
 async function loadProgress(toolKey) {
+  const prefix = getModePrefix();
   if (isSandbox()) {
-    const local = localStorage.getItem(`prog_${toolKey}`);
+    const local = localStorage.getItem(`${prefix}prog_${toolKey}`);
     return local ? JSON.parse(local) : null;
   }
 
@@ -218,12 +224,12 @@ async function loadProgress(toolKey) {
     }
 
     if (data) {
-      localStorage.setItem(`prog_${toolKey}`, JSON.stringify(data.data))
+      localStorage.setItem(`${prefix}prog_${toolKey}`, JSON.stringify(data.data))
       return data.data
     }
   }
 
-  const local = localStorage.getItem(`prog_${toolKey}`)
+  const local = localStorage.getItem(`${prefix}prog_${toolKey}`)
   return local ? JSON.parse(local) : null
 }
 
@@ -582,3 +588,83 @@ async function replaceMedia(oldPath, newFile, activityId) {
   return await uploadMedia(newFile, activityId);
 }
 
+/**
+ * MIGRATION HELPERS (Temporary)
+ */
+async function migrateLocalStorageToSandbox(keys) {
+  console.log("[Migration] Moving LocalStorage keys to Sandbox...");
+  keys.forEach(key => {
+    const data = localStorage.getItem(key);
+    if (data) {
+      localStorage.setItem('sb_' + key, data);
+      console.log(`[Migration] Migrated ${key} -> sb_${key}`);
+    }
+  });
+}
+
+async function migrateIndexedDBToSandbox(oldDbName, newDbName) {
+  return new Promise((resolve, reject) => {
+    console.log(`[Migration] Cloning IDB: ${oldDbName} -> ${newDbName}...`);
+    const request = indexedDB.open(oldDbName);
+    
+    request.onerror = () => reject("Could not open source DB");
+    request.onsuccess = async (event) => {
+      const oldDb = event.target.result;
+      const stores = Array.from(oldDb.objectStoreNames);
+      
+      if (stores.length === 0) {
+        oldDb.close();
+        resolve();
+        return;
+      }
+
+      const openNewRequest = indexedDB.open(newDbName, oldDb.version);
+      
+      openNewRequest.onupgradeneeded = (e) => {
+        const newDb = e.target.result;
+        stores.forEach(storeName => {
+          if (!newDb.objectStoreNames.contains(storeName)) {
+            newDb.createObjectStore(storeName, { keyPath: oldDb.transaction(storeName).objectStore(storeName).keyPath });
+          }
+        });
+      };
+
+      openNewRequest.onsuccess = (e) => {
+        const newDb = e.target.result;
+        
+        let completedStores = 0;
+        stores.forEach(storeName => {
+          const oldTx = oldDb.transaction(storeName, 'readonly');
+          const oldStore = oldTx.objectStore(storeName);
+          const getAll = oldStore.getAll();
+          
+          getAll.onsuccess = () => {
+            const data = getAll.result;
+            if (data.length === 0) {
+              completedStores++;
+              if (completedStores === stores.length) {
+                oldDb.close();
+                newDb.close();
+                resolve();
+              }
+              return;
+            }
+
+            const newTx = newDb.transaction(storeName, 'readwrite');
+            const newStore = newTx.objectStore(storeName);
+            data.forEach(item => newStore.put(item));
+            
+            newTx.oncomplete = () => {
+              completedStores++;
+              if (completedStores === stores.length) {
+                oldDb.close();
+                newDb.close();
+                resolve();
+              }
+            };
+          };
+        });
+      };
+    };
+  });
+}
