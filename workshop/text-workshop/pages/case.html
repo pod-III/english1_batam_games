@@ -10,6 +10,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/supabase.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
 
@@ -147,18 +149,55 @@
     <script>
         lucide.createIcons();
 
+        // --- PERSISTENCE ---
+        const TOOL_ID = 'workshop_case';
+        let saveTimeout;
+
+        async function initPersistence() {
+            // Load Theme
+            const savedTheme = localStorage.getItem('theme_workshop_case') || 'light';
+            if (savedTheme === 'dark') document.documentElement.classList.add('dark');
+            updateThemeIcon();
+
+            // Load Progress
+            const progress = await loadProgress(TOOL_ID);
+            if (progress && progress.text) {
+                inputEl.value = progress.text;
+            }
+        }
+
+        function triggerSave() {
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                saveProgress(TOOL_ID, { text: inputEl.value });
+            }, 1000);
+        }
+
         // Theme Handling
         const themeToggle = document.getElementById('themeToggle');
-        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            document.documentElement.classList.add('dark');
+        
+        function updateThemeIcon() {
+            const isDark = document.documentElement.classList.contains('dark');
+            themeToggle.innerHTML = isDark 
+                ? '<i data-lucide="sun" class="w-6 h-6"></i>' 
+                : '<i data-lucide="moon" class="w-6 h-6"></i>';
+            lucide.createIcons();
         }
+
         themeToggle.addEventListener('click', () => {
-            document.documentElement.classList.toggle('dark');
-            localStorage.theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme_workshop_case', isDark ? 'dark' : 'light');
+            updateThemeIcon();
         });
 
         const inputEl = document.getElementById('inputText');
         const copyBtn = document.getElementById('copyBtn');
+
+        // Initialize
+        initPersistence();
+
+        // Auto-save on input
+        inputEl.addEventListener('input', triggerSave);
 
         function convert(type) {
             let text = inputEl.value;

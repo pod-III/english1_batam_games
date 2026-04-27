@@ -12,6 +12,8 @@
             rel="stylesheet"
         />
 
+        <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+        <script src="/supabase.js"></script>
         <script src="https://cdn.tailwindcss.com"></script>
         <script src="https://unpkg.com/lucide@latest"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -281,15 +283,57 @@
 
             const ctx = elements.mainCanvas.getContext("2d");
 
+            // --- PERSISTENCE ---
+            const TOOL_ID = 'workshop_splitter';
+            let saveTimeout;
+
+            async function initPersistence() {
+                // Load Theme
+                const savedTheme = localStorage.getItem('theme_workshop_splitter') || 'light';
+                if (savedTheme === 'dark') document.documentElement.classList.add('dark');
+                updateThemeIcon();
+
+                // Load Progress
+                const progress = await loadProgress(TOOL_ID);
+                if (progress) {
+                    if (progress.mode) setAppMode(progress.mode);
+                    if (progress.customCounts) {
+                        state.customCounts = progress.customCounts;
+                        elements.custRowCount.innerText = state.customCounts.row;
+                        elements.custColCount.innerText = state.customCounts.col;
+                    }
+                }
+            }
+
+            function triggerSave() {
+                clearTimeout(saveTimeout);
+                saveTimeout = setTimeout(() => {
+                    saveProgress(TOOL_ID, { 
+                        mode: state.mode, 
+                        customCounts: state.customCounts 
+                    });
+                }, 1000);
+            }
+
             // Theme Handling
             const themeToggle = document.getElementById('themeToggle');
-            if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                document.documentElement.classList.add('dark');
+            
+            function updateThemeIcon() {
+                const isDark = document.documentElement.classList.contains('dark');
+                themeToggle.innerHTML = isDark 
+                    ? '<i data-lucide="sun" class="w-6 h-6"></i>' 
+                    : '<i data-lucide="moon" class="w-6 h-6"></i>';
+                lucide.createIcons();
             }
+
             themeToggle.addEventListener('click', () => {
-                document.documentElement.classList.toggle('dark');
-                localStorage.theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+                const isDark = document.documentElement.classList.toggle('dark');
+                localStorage.setItem('theme_workshop_splitter', isDark ? 'dark' : 'light');
+                updateThemeIcon();
             });
+
+            // Initialize
+            initPersistence();
 
             elements.fileInput.addEventListener("change", handleUpload);
             elements.downloadBtn.addEventListener("click", generateZip);
@@ -335,6 +379,7 @@
                 elements.customControls.classList.toggle("hidden", mode !== "custom");
                 elements.gridOverlay.classList.toggle("interactive", mode === "custom");
                 renderPreview();
+                triggerSave();
             };
 
             window.adjustCustomCount = function (type, delta) {
@@ -343,6 +388,7 @@
                 if (type === 'row') { elements.custRowCount.innerText = state.customCounts.row; syncCuts(state.customCuts.rows, state.customCounts.row); } 
                 else { elements.custColCount.innerText = state.customCounts.col; syncCuts(state.customCuts.cols, state.customCounts.col); }
                 renderPreview();
+                triggerSave();
             };
 
             function syncCuts(arr, targetCount) {
