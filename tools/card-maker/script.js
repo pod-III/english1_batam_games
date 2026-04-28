@@ -73,11 +73,13 @@ function showConfirm(title, message) {
 
 function toggleTheme() {
     const isDark = document.documentElement.classList.toggle("dark");
-    localStorage.setItem("theme_card-maker", isDark ? "dark" : "light");
+    const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+    localStorage.setItem(prefix + "theme_card-maker", isDark ? "dark" : "light");
 }
 
 function initTheme() {
-    const saved = localStorage.getItem('theme_card-maker');
+    const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+    const saved = localStorage.getItem(prefix + 'theme_card-maker') || localStorage.getItem('theme_card-maker');
     if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
 }
@@ -90,7 +92,8 @@ const SETS_STORE = 'card_sets';
 
 async function initDB() {
     return new Promise((resolve, reject) => {
-        const req = indexedDB.open(DB_NAME, DB_VER);
+        const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+        const req = indexedDB.open(prefix + DB_NAME, DB_VER);
         req.onupgradeneeded = (e) => {
             const db = e.target.result;
             if (!db.objectStoreNames.contains(STATE_STORE)) db.createObjectStore(STATE_STORE);
@@ -219,7 +222,8 @@ async function syncStateToCloud() {
 }
 
 async function loadState() {
-    const saved = localStorage.getItem("flashcard_klasskit_state_v5");
+    const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+    const saved = localStorage.getItem(prefix + "flashcard_klasskit_state_v5") || localStorage.getItem("flashcard_klasskit_state_v5");
     if (saved) {
         try {
             const parsed = JSON.parse(saved);
@@ -312,8 +316,9 @@ function saveState() {
         return cards;
     });
 
+    const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
     localStorage.setItem(
-        "flashcard_klasskit_state_v5",
+        prefix + "flashcard_klasskit_state_v5",
         JSON.stringify(state),
     );
     // Also persist to IndexedDB

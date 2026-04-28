@@ -15,7 +15,8 @@ async function syncToCloud() {
 }
 
 // --- PERSISTENCE (IndexedDB) ---
-const DB_NAME = 'CrosswordDB';
+const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+const DB_NAME = prefix + 'CrosswordDB';
 const DB_VERSION = 2;
 const STORE_NAME = 'game_state';
 const SETS_STORE = 'word_sets';
@@ -190,7 +191,8 @@ async function renderWordSets() {
 // --- THEME ---
 const THEME_KEY = 'theme_crossword';
 function initTheme() {
-    const savedTheme = localStorage.getItem(THEME_KEY) || 'light';
+    const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+    const savedTheme = localStorage.getItem(prefix + THEME_KEY) || localStorage.getItem(THEME_KEY) || 'light';
     if (savedTheme === 'dark') {
         document.documentElement.classList.add('dark');
     } else {
@@ -200,7 +202,8 @@ function initTheme() {
 
 function toggleTheme() {
     const isDark = document.documentElement.classList.toggle('dark');
-    localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light');
+    const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+    localStorage.setItem(prefix + THEME_KEY, isDark ? 'dark' : 'light');
     Sound.click();
 }
 

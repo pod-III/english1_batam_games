@@ -377,17 +377,22 @@
             // --- INIT ---
             async function init() {
                 await requireAuth();
+                const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+                const savedTheme = localStorage.getItem(prefix + 'theme_stop_the_bus') || localStorage.getItem('theme_stop_the_bus');
+                if (savedTheme === 'dark') document.documentElement.classList.add('dark');
+
                 await load();
                 renderAll();
                 lucide.createIcons();
             }
 
             async function load() {
+                const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
                 // 1. Try Cloud
                 const cloudData = await loadProgress('stop_the_bus');
                 
                 // 2. Try Legacy Local if cloud is empty
-                const localData = localStorage.getItem('eng1_stopbus_v3');
+                const localData = localStorage.getItem(prefix + 'eng1_stopbus_v3') || localStorage.getItem('eng1_stopbus_v3');
                 const parsedLocal = localData ? JSON.parse(localData) : null;
                 
                 const data = cloudData || parsedLocal;
@@ -403,9 +408,10 @@
             }
 
             function save() {
+                const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
                 saveProgress('stop_the_bus', state);
                 // Also keep local for "seamless" offline start
-                localStorage.setItem('eng1_stopbus_v3', JSON.stringify(state));
+                localStorage.setItem(prefix + 'eng1_stopbus_v3', JSON.stringify(state));
             }
 
             // --- CORE MECHANICS ---
@@ -645,7 +651,8 @@
 
             function toggleTheme() {
                 const isDark = document.documentElement.classList.toggle('dark');
-                // Save theme to common state for sync
+                const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+                localStorage.setItem(prefix + 'theme_stop_the_bus', isDark ? 'dark' : 'light');
                 save();
             }
 

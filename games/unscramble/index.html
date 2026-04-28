@@ -315,6 +315,7 @@
     </main>
 
     <script>
+        const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
         // --- AUDIO ENGINE (Tone.js) ---
         let soundEnabled = true;
 
@@ -399,14 +400,13 @@
             // 1. Try Cloud
             const cloud = await loadProgress('unscramble');
             
-            // 2. Try Legacy Local
-            const localWords = localStorage.getItem('klasskit_scramble_words');
-            const localSentences = localStorage.getItem('klasskit_scramble_sentences');
+            // 2. Try Local (prefixed or legacy)
+            const localWords = localStorage.getItem(prefix + 'klasskit_scramble_words') || localStorage.getItem('klasskit_scramble_words');
+            const localSentences = localStorage.getItem(prefix + 'klasskit_scramble_sentences') || localStorage.getItem('klasskit_scramble_sentences');
 
             if (cloud) {
                 gameData = { ...gameData, ...cloud };
             } else if (localWords || localSentences) {
-                // Migrate
                 if (localWords) gameData.words = localWords;
                 if (localSentences) gameData.sentences = localSentences;
                 syncToCloud();
@@ -476,11 +476,11 @@
 
             if (currentMode === 'word') {
                 gameData.words = raw;
-                localStorage.setItem('klasskit_scramble_words', raw);
+                localStorage.setItem(prefix + 'klasskit_scramble_words', raw);
                 items = raw.split(',').map(w => w.trim()).filter(w => w.length >= 2);
             } else {
                 gameData.sentences = raw;
-                localStorage.setItem('klasskit_scramble_sentences', raw);
+                localStorage.setItem(prefix + 'klasskit_scramble_sentences', raw);
                 items = raw.split('\n').map(s => s.trim()).filter(s => s.length >= 3);
             }
 

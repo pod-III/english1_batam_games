@@ -5,7 +5,8 @@
  */
 const DB = {
     get dbName() {
-        return isSandbox() ? 'KlassKitRevealDB_Sandbox' : 'KlassKitRevealDB';
+        const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+        return prefix + 'KlassKitRevealDB';
     },
     dbVersion: 2, 
     dataBase: null,
@@ -162,7 +163,8 @@ const app = {
             this.presets = storedPresets.sort((a, b) => b.lastAccessed - a.lastAccessed);
 
             // Recover last active if exists
-            const savedActiveId = localStorage.getItem('mb_active_preset_id');
+            const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+            const savedActiveId = localStorage.getItem(prefix + 'mb_active_preset_id') || localStorage.getItem('mb_active_preset_id');
             let targetPreset = this.presets.find(p => p.id === savedActiveId);
 
             if (!targetPreset) targetPreset = this.presets[0];
@@ -234,7 +236,8 @@ const app = {
             }
             if (cloudData.activePresetId) {
                 this.activePresetId = cloudData.activePresetId;
-                localStorage.setItem('mb_active_preset_id', this.activePresetId);
+                const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+                localStorage.setItem(prefix + 'mb_active_preset_id', this.activePresetId);
             }
             if (changed) {
                 this.presets.sort((a, b) => b.lastAccessed - a.lastAccessed);
@@ -260,7 +263,8 @@ const app = {
         preset.lastAccessed = Date.now();
         DB.savePreset(preset);
 
-        localStorage.setItem('mb_active_preset_id', preset.id);
+        const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+        localStorage.setItem(prefix + 'mb_active_preset_id', preset.id);
 
         // Load Game State
         Game.gridSize = preset.gridSize || 4;
@@ -502,7 +506,8 @@ const Audio = {
         if (!Audio.enabled) btn.classList.add('text-pink');
         else btn.classList.remove('text-pink');
         lucide.createIcons();
-        localStorage.setItem('mb_audio', Audio.enabled);
+        const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+        localStorage.setItem(prefix + 'mb_audio', Audio.enabled);
     },
 
     playPop: () => {
@@ -605,14 +610,15 @@ const Game = {
 
     async init() {
         // Restore Theme
-        const savedTheme = localStorage.getItem('theme_reveal-picture');
+        const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+        const savedTheme = localStorage.getItem(prefix + 'theme_reveal-picture') || localStorage.getItem('theme_reveal-picture');
         if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
         } else {
             document.documentElement.classList.remove('dark');
         }
 
-        const savedAudio = localStorage.getItem('mb_audio');
+        const savedAudio = localStorage.getItem(prefix + 'mb_audio') || localStorage.getItem('mb_audio');
         if (savedAudio === 'false') Audio.toggle();
 
         // Init modules
@@ -784,7 +790,8 @@ const Game = {
 const UI = {
     toggleTheme() {
         const isDark = document.documentElement.classList.toggle('dark');
-        localStorage.setItem('theme_reveal-picture', isDark ? 'dark' : 'light');
+        const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+        localStorage.setItem(prefix + 'theme_reveal-picture', isDark ? 'dark' : 'light');
     },
 
     togglePanel(forceHide) {

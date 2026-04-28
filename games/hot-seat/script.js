@@ -22,7 +22,8 @@ let currentTheme = 'light';
 
 // Theme Management
 function initTheme() {
-    const savedTheme = localStorage.getItem('theme_hot-seat');
+    const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+    const savedTheme = localStorage.getItem(prefix + 'theme_hot-seat') || localStorage.getItem('theme_hot-seat');
     if (savedTheme) {
         currentTheme = savedTheme;
     } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
@@ -32,8 +33,9 @@ function initTheme() {
 }
 
 function toggleTheme() {
+    const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
     currentTheme = currentTheme === 'light' ? 'dark' : 'light';
-    localStorage.setItem('theme_hot-seat', currentTheme);
+    localStorage.setItem(prefix + 'theme_hot-seat', currentTheme);
     applyTheme();
 }
 
@@ -93,7 +95,8 @@ const Audio = {
 // --- WORD LIST MANAGEMENT ---
 function loadUserLists() {
     try {
-        const storedLists = localStorage.getItem(CUSTOM_LISTS_KEY);
+        const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+        const storedLists = localStorage.getItem(prefix + CUSTOM_LISTS_KEY) || localStorage.getItem(CUSTOM_LISTS_KEY);
         customLists = storedLists ? JSON.parse(storedLists) : [];
     } catch (e) {
         console.error("Error loading custom lists:", e);
@@ -155,13 +158,14 @@ function selectList(name, isCustom = false) {
     }
 
     if (content) {
+        const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
         wordInput.value = content;
         activeListName = name;
         document.getElementById('active-list-name').innerText = name;
         if (isCustom) document.getElementById('save-list-name').value = name;
         else document.getElementById('save-list-name').value = '';
         renderCustomListButtons();
-        localStorage.setItem('hotseat_draft', content);
+        localStorage.setItem(prefix + 'hotseat_draft', content);
     }
 }
 
@@ -181,7 +185,8 @@ function saveCurrentList() {
     if (existingIndex >= 0) customLists[existingIndex] = newList;
     else customLists.push(newList);
 
-    localStorage.setItem(CUSTOM_LISTS_KEY, JSON.stringify(customLists));
+    const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+    localStorage.setItem(prefix + CUSTOM_LISTS_KEY, JSON.stringify(customLists));
     activeListName = name;
     document.getElementById('active-list-name').innerText = name;
 
@@ -224,6 +229,8 @@ async function init() {
     await requireAuth();
 
     const cloudData = await loadProgress('hot_seat');
+    const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+
     if (cloudData) {
         customLists = cloudData.customLists || [];
         activeListName = cloudData.activeListName || 'Default (Easy)';
@@ -231,17 +238,17 @@ async function init() {
         if (cloudData.timer) document.getElementById('time-input').value = cloudData.timer;
 
         // Sync local storage
-        localStorage.setItem(CUSTOM_LISTS_KEY, JSON.stringify(customLists));
-        localStorage.setItem(ACTIVE_LIST_KEY, activeListName);
-        localStorage.setItem('hotseat_mode', gameMode);
-        localStorage.setItem('hotseat_timer', document.getElementById('time-input').value);
+        localStorage.setItem(prefix + CUSTOM_LISTS_KEY, JSON.stringify(customLists));
+        localStorage.setItem(prefix + ACTIVE_LIST_KEY, activeListName);
+        localStorage.setItem(prefix + 'hotseat_mode', gameMode);
+        localStorage.setItem(prefix + 'hotseat_timer', document.getElementById('time-input').value);
     } else {
         loadUserLists();
     }
-    const savedActiveName = localStorage.getItem(ACTIVE_LIST_KEY);
-    const savedMode = localStorage.getItem('hotseat_mode');
-    const savedTimer = localStorage.getItem('hotseat_timer');
-    const savedDraft = localStorage.getItem('hotseat_draft');
+    const savedActiveName = localStorage.getItem(prefix + ACTIVE_LIST_KEY) || localStorage.getItem(ACTIVE_LIST_KEY);
+    const savedMode = localStorage.getItem(prefix + 'hotseat_mode') || localStorage.getItem('hotseat_mode');
+    const savedTimer = localStorage.getItem(prefix + 'hotseat_timer') || localStorage.getItem('hotseat_timer');
+    const savedDraft = localStorage.getItem(prefix + 'hotseat_draft') || localStorage.getItem('hotseat_draft');
     let initialContent = '';
 
     if (savedActiveName && customLists.some(l => l.name === savedActiveName)) {
@@ -269,10 +276,14 @@ async function init() {
     lucide.createIcons();
 
     document.getElementById('time-input').addEventListener('input', (e) => {
-        localStorage.setItem('hotseat_timer', e.target.value);
+        const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+        localStorage.setItem(prefix + 'hotseat_timer', e.target.value);
         syncToCloud();
     });
-    document.getElementById('word-input').addEventListener('input', (e) => localStorage.setItem('hotseat_draft', e.target.value));
+    document.getElementById('word-input').addEventListener('input', (e) => {
+        const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+        localStorage.setItem(prefix + 'hotseat_draft', e.target.value);
+    });
 }
 
 function showWordTab(tab) {
@@ -314,7 +325,8 @@ function setMode(mode) {
 function parseWords(text) {
     words = text.split(/[\n,]+/).map(w => w.trim()).filter(w => w.length > 0);
     document.getElementById('word-count-display').innerText = words.length;
-    localStorage.setItem(ACTIVE_LIST_KEY, activeListName);
+    const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+    localStorage.setItem(prefix + ACTIVE_LIST_KEY, activeListName);
 }
 
 function saveWords() {

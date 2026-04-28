@@ -7,7 +7,8 @@
 // 1. CONFIGURATION & STATE
 // ==========================================
 
-const DB_NAME = "WordSortDB";
+const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+const DB_NAME = prefix + "WordSortDB";
 const DB_VERSION = 1;
 let dataBase = null;
 
@@ -226,18 +227,20 @@ async function init() {
 
 function toggleTheme() {
     const html = document.documentElement;
+    const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
     if (html.classList.contains("dark")) {
         html.classList.remove("dark");
-        localStorage.setItem("theme_word-sort", "light");
+        localStorage.setItem(prefix + "theme_word-sort", "light");
     } else {
         html.classList.add("dark");
-        localStorage.setItem("theme_word-sort", "dark");
+        localStorage.setItem(prefix + "theme_word-sort", "dark");
     }
     lucide.createIcons();
 }
 
 function loadTheme() {
-    const saved = localStorage.getItem("theme_word-sort") || "light";
+    const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+    const saved = localStorage.getItem(prefix + "theme_word-sort") || localStorage.getItem("theme_word-sort") || "light";
     if (saved === "dark") document.documentElement.classList.add("dark");
 }
 

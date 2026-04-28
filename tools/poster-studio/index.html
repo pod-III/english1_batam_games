@@ -649,6 +649,7 @@
 
     <script>
         // --- 1. CONFIGURATION & REGISTRY ---
+        const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
         const CONFIG = {
             colors: ['pink', 'orange', 'green', 'blue', 'purple', 'red', 'teal', 'indigo'],
             sizes: {
@@ -818,14 +819,14 @@
             async init() {
                 // IDB
                 Store.db = await new Promise((res, rej) => {
-                    const req = indexedDB.open('PosterStudioDB', 2);
+                    const req = indexedDB.open(prefix + 'PosterStudioDB', 2);
                     req.onupgradeneeded = e => { if (!e.target.result.objectStoreNames.contains('imgs')) e.target.result.createObjectStore('imgs'); };
                     req.onsuccess = e => res(e.target.result);
                     req.onerror = rej;
                 });
 
                 // LocalStorage
-                const local = localStorage.getItem('poster-studio-v2');
+                const local = localStorage.getItem(prefix + 'poster-studio-v2') || localStorage.getItem('poster-studio-v2');
                 if (local) Store.state = JSON.parse(local);
 
                 // Sync from Cloud
@@ -844,7 +845,7 @@
                 Store.current.lastModified = Date.now();
                 const idx = Store.state.posters.findIndex(p => p.id === Store.current.id);
                 Store.state.posters[idx] = Store.current;
-                localStorage.setItem('poster-studio-v2', JSON.stringify(Store.state));
+                localStorage.setItem(prefix + 'poster-studio-v2', JSON.stringify(Store.state));
                 
                 // Sync to Cloud
                 Store.syncToCloud();
@@ -1210,9 +1211,8 @@
             },
             toggleFullScreen() { document.body.classList.toggle('zen-mode'); setTimeout(App.fitToScreen, 300); },
             toggleTheme() {
-                document.documentElement.classList.toggle('dark');
-                const isDark = document.documentElement.classList.contains('dark');
-                localStorage.setItem('theme_poster-studio', isDark ? 'dark' : 'light');
+                const isDark = document.documentElement.classList.toggle('dark');
+                localStorage.setItem(prefix + 'theme_poster-studio', isDark ? 'dark' : 'light');
                 lucide.createIcons();
             },
             changeZoom(d) { Store.current.zoom = Math.max(0.1, Math.min(2, (Store.current.zoom || 0.5) + d)); Renderer.applyZoom(); },
@@ -1421,7 +1421,7 @@
 
         // Load saved theme preference
         (function () {
-            const savedTheme = localStorage.getItem('theme_poster-studio');
+            const savedTheme = localStorage.getItem(prefix + 'theme_poster-studio') || localStorage.getItem('theme_poster-studio');
             if (savedTheme === 'dark') {
                 document.documentElement.classList.add('dark');
             }

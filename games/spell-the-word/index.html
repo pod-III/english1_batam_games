@@ -236,6 +236,7 @@
 
         async function loadPreferences() {
             await requireAuth();
+            const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
 
             const savedState = await loadProgress('spell_word');
             if (savedState) {
@@ -259,18 +260,19 @@
                     wordList = ["ENGLISH", "KLASSKIT", "CODING"];
                 }
             } else {
-                // Fallback to legacy localStorage for migration
-                if (localStorage.getItem('theme_spell-the-word') === 'dark') {
+                // Check both prefixed and legacy localStorage
+                const themeVal = localStorage.getItem(prefix + 'theme_spell-the-word') || localStorage.getItem('theme_spell-the-word');
+                if (themeVal === 'dark') {
                     document.documentElement.classList.add('dark');
                     document.getElementById('theme-icon').setAttribute('data-lucide', 'sun');
                 }
                 
-                const savedReach = localStorage.getItem('spellingReachMode');
+                const savedReach = localStorage.getItem(prefix + 'spellingReachMode') || localStorage.getItem('spellingReachMode');
                 if (savedReach !== null) {
                     isReachMode = savedReach === 'true';
                 }
                 
-                const savedWords = localStorage.getItem('spellingWordList');
+                const savedWords = localStorage.getItem(prefix + 'spellingWordList') || localStorage.getItem('spellingWordList');
                 if (savedWords) {
                     wordList = JSON.parse(savedWords);
                 } else {
@@ -290,12 +292,52 @@
         function saveToCloud() {
             if (saveTimeout) clearTimeout(saveTimeout);
             saveTimeout = setTimeout(() => {
+                const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+                const theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+                
+                // Save to local for namespaced offline support
+                localStorage.setItem(prefix + 'theme_spell-the-word', theme);
+                localStorage.setItem(prefix + 'spellingReachMode', isReachMode.toString());
+                localStorage.setItem(prefix + 'spellingWordList', JSON.stringify(wordList));
+
                 saveProgress('spell_word', {
-                    theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
+                    theme: theme,
                     reachMode: isReachMode,
                     wordList: wordList
                 });
             }, 1000);
+        }
+
+        // --- UI HELPERS ---
+        function toggleDarkMode() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            const icon = document.getElementById('theme-icon');
+            if (icon) icon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+            lucide.createIcons();
+            saveToCloud();
+        }
+
+        function toggleReachMode() {
+            isReachMode = !isReachMode;
+            applyReachMode();
+            saveToCloud();
+        }
+
+        function applyReachMode() {
+            const wrapper = document.getElementById('main-wrapper');
+            const icon = document.getElementById('reach-icon');
+            if (!wrapper || !icon) return;
+            
+            if (isReachMode) {
+                wrapper.classList.add('justify-end');
+                wrapper.classList.remove('justify-center');
+                icon.setAttribute('data-lucide', 'arrow-up');
+            } else {
+                wrapper.classList.add('justify-center');
+                wrapper.classList.remove('justify-end');
+                icon.setAttribute('data-lucide', 'arrow-down');
+            }
+            lucide.createIcons();
         }
 
         // Initialize Game

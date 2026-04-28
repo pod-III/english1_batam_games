@@ -38,12 +38,13 @@ const Jeopardy = (function() {
         scores: [0, 0, 0, 0]
     };
 
-    let state = JSON.parse(localStorage.getItem('eng1_jeopardy_v3')) || JSON.parse(JSON.stringify(DEFAULT_STATE));
+    const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+    let state = JSON.parse(localStorage.getItem(prefix + 'eng1_jeopardy_v3')) || JSON.parse(localStorage.getItem('eng1_jeopardy_v3')) || JSON.parse(JSON.stringify(DEFAULT_STATE));
     let isEditMode = false;
     let currentEdit = { row: 0, col: 0 };
     
     let presetsData = [];
-    let customGamesData = JSON.parse(localStorage.getItem('quiz_block_custom_games')) || [];
+    let customGamesData = JSON.parse(localStorage.getItem(prefix + 'quiz_block_custom_games')) || JSON.parse(localStorage.getItem('quiz_block_custom_games')) || [];
     
     
     // --- DOM Elements ---
@@ -243,7 +244,8 @@ const Jeopardy = (function() {
                         state: JSON.parse(JSON.stringify(state))
                     };
                     customGamesData.push(newGame);
-                    localStorage.setItem('quiz_block_custom_games', JSON.stringify(customGamesData));
+                    const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+                    localStorage.setItem(prefix + 'quiz_block_custom_games', JSON.stringify(customGamesData));
                     showSystemModal({ type: 'alert', title: 'Success', message: 'Game saved successfully to My Saved Games!' });
                 }
             }
@@ -257,7 +259,8 @@ const Jeopardy = (function() {
             message: 'Are you sure you want to delete this game? This cannot be undone.',
             onConfirm: () => {
                 customGamesData = customGamesData.filter(g => g.id !== id);
-                localStorage.setItem('quiz_block_custom_games', JSON.stringify(customGamesData));
+                const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+                localStorage.setItem(prefix + 'quiz_block_custom_games', JSON.stringify(customGamesData));
                 renderLandingPage();
             }
         });
@@ -562,7 +565,8 @@ const Jeopardy = (function() {
     }
 
     function save() {
-        localStorage.setItem('eng1_jeopardy_v3', JSON.stringify(state));
+        const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+        localStorage.setItem(prefix + 'eng1_jeopardy_v3', JSON.stringify(state));
         syncToCloud();
     }
 

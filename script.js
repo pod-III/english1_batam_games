@@ -142,7 +142,8 @@ const State = {
 const Storage = {
   get(key, fallback = null) {
     try {
-      const item = localStorage.getItem(key);
+      const prefix = getModePrefix();
+      const item = localStorage.getItem(prefix + key) || localStorage.getItem(key);
       return item ? JSON.parse(item) : fallback;
     } catch (error) {
       console.warn(`Storage read error for "${key}":`, error);
@@ -152,7 +153,8 @@ const Storage = {
 
   set(key, value) {
     try {
-      localStorage.setItem(key, JSON.stringify(value));
+      const prefix = getModePrefix();
+      localStorage.setItem(prefix + key, JSON.stringify(value));
 
       // If this is a hub key, trigger a cloud save in background
       const hubKeys = Object.values(CONFIG.storageKeys);
@@ -168,7 +170,8 @@ const Storage = {
 
   remove(key) {
     try {
-      localStorage.removeItem(key);
+      const prefix = getModePrefix();
+      localStorage.removeItem(prefix + key);
       const hubKeys = Object.values(CONFIG.storageKeys);
       if (hubKeys.includes(key)) {
         this.triggerCloudSave();
@@ -861,27 +864,64 @@ const Maintenance = {
     UI.showToast("Starting migration...", "info");
     
     // 1. LocalStorage Keys
-    const keys = ['e1_teampicker_state', 'e1_teampicker_names'];
-    // Add all prog_ keys
     const allKeys = Object.keys(localStorage);
-    allKeys.forEach(k => {
-        if (k.startsWith('prog_') || k.startsWith('theme_') || k.startsWith('klasskit_')) {
-            keys.push(k);
-        }
-    });
+    const keysToMigrate = allKeys.filter(k => 
+        !k.startsWith('sb_') && (
+            k.startsWith('prog_') || 
+            k.startsWith('theme_') || 
+            k.startsWith('klasskit_') ||
+            k.startsWith('e1_') ||
+            k.startsWith('mb_') ||
+            k.startsWith('wordAnimator') ||
+            k.startsWith('emoji_') ||
+            k.startsWith('hotseat_') ||
+            k.startsWith('vocab_') ||
+            k.startsWith('eng1_stopbus_') ||
+            k.startsWith('sentenceBuilderSentences_') ||
+            k.startsWith('spelling') ||
+            k.startsWith('storyOrderSentences_') ||
+            k.startsWith('quiz_maker_') ||
+            k.startsWith('eng1_jeopardy_v3') ||
+            k.startsWith('quiz_block_custom_games') ||
+            k.startsWith('undercoverConfig') ||
+            k.startsWith('freezeDanceSettings') ||
+            k.startsWith('englishGame') ||
+            k.startsWith('flashcard_klasskit') ||
+            k.startsWith('mb_') ||
+            k.startsWith('theme_') ||
+            ['recentGameIds', 'favoriteGames', 'openTabs', 'pinnedGameIds', 'soundMuted'].includes(k)
+        )
+    );
     
-    await migrateLocalStorageToSandbox(keys);
+    await migrateLocalStorageToSandbox(keysToMigrate);
     
     // 2. IndexedDB
-    try {
-        await migrateIndexedDBToSandbox('KlassKitRevealDB', 'KlassKitRevealDB_Sandbox');
-        UI.showToast("Migration Complete! Please refresh the page.", "success");
-        setTimeout(() => location.reload(), 2000);
-    } catch (e) {
-        console.error("IDB Migration failed:", e);
-        UI.showToast("Migration finished (images skipped or not found).", "success");
-        setTimeout(() => location.reload(), 2000);
+    const dbs = [
+        { old: 'KlassKitRevealDB', new: 'KlassKitRevealDB_Sandbox' },
+        { old: 'WordAnimatorDB', new: 'WordAnimatorDB_Sandbox' },
+        { old: 'MysteryBoxDB', new: 'MysteryBoxDB_Sandbox' },
+        { old: 'FlashcardDB', new: 'FlashcardDB_Sandbox' },
+        { old: 'KlassKitBingoDB', new: 'KlassKitBingoDB_Sandbox' },
+        { old: 'CardMakerDB', new: 'CardMakerDB_Sandbox' },
+        { old: 'WordSearchDB', new: 'sb_WordSearchDB' },
+        { old: 'HangmanDB', new: 'sb_HangmanDB' },
+        { old: 'CrosswordDB', new: 'sb_CrosswordDB' },
+        { old: 'WordSortDB', new: 'sb_WordSortDB' },
+        { old: 'SecretCodeDB', new: 'sb_SecretCodeDB' },
+        { old: 'SimonGameKlassKitDB_V2', new: 'sb_SimonGameKlassKitDB_V2' },
+        { old: 'KlassKitMemoryDB_V3', new: 'sb_KlassKitMemoryDB_V3' }
+    ];
+    
+    for (const dbInfo of dbs) {
+        try {
+            await migrateIndexedDBToSandbox(dbInfo.old, dbInfo.new);
+        } catch (e) {
+            console.warn(`Migration skipped for ${dbInfo.old}:`, e);
+        }
     }
+    
+    UI.showToast("Migration Complete! Please refresh the page.", "success");
+    setTimeout(() => location.reload(), 2000);
   }
 };
 

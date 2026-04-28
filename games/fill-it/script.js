@@ -75,10 +75,11 @@ let alertCallback = null;
 async function initGame() {
     await requireAuth();
     
+    const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
     const cloudData = await loadProgress('fill_it');
     
     // Apply theme
-    let theme = localStorage.getItem('theme_fill-it');
+    let theme = localStorage.getItem(prefix + 'theme_fill-it') || localStorage.getItem('theme_fill-it');
     if (cloudData && cloudData.theme) theme = cloudData.theme;
     
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -95,12 +96,12 @@ async function initGame() {
         if (cloudData.score !== undefined) score = cloudData.score;
         
         // Sync back to local storage
-        localStorage.setItem('englishGameQuestions', JSON.stringify(questions));
-        localStorage.setItem('englishGameScore', score);
-        localStorage.setItem('theme_fill-it', theme);
+        localStorage.setItem(prefix + 'englishGameQuestions', JSON.stringify(questions));
+        localStorage.setItem(prefix + 'englishGameScore', score);
+        localStorage.setItem(prefix + 'theme_fill-it', theme);
     } else {
-        const savedQuestions = localStorage.getItem('englishGameQuestions');
-        const savedScore = localStorage.getItem('englishGameScore');
+        const savedQuestions = localStorage.getItem(prefix + 'englishGameQuestions') || localStorage.getItem('englishGameQuestions');
+        const savedScore = localStorage.getItem(prefix + 'englishGameScore') || localStorage.getItem('englishGameScore');
 
         if (savedQuestions) {
             questions = JSON.parse(savedQuestions).map(migrateOldQuestion);
@@ -108,11 +109,11 @@ async function initGame() {
             const isOldDefault = questions.length === 3 && questions.every(q => !q.clue) && questions[0].rawText === "The cat sat on the mat." && questions[1].rawText === "She likes to read a book every night.";
             if (isOldDefault) {
                 questions = JSON.parse(JSON.stringify(defaultQuestions));
-                localStorage.setItem('englishGameQuestions', JSON.stringify(questions));
+                localStorage.setItem(prefix + 'englishGameQuestions', JSON.stringify(questions));
             }
         } else {
             questions = JSON.parse(JSON.stringify(defaultQuestions));
-            localStorage.setItem('englishGameQuestions', JSON.stringify(questions));
+            localStorage.setItem(prefix + 'englishGameQuestions', JSON.stringify(questions));
         }
 
         if (savedScore) {
@@ -208,8 +209,9 @@ function checkAnswer() {
 // --- Data Reset ---
 function resetData() {
     if (confirm("Are you sure you want to reset to default questions and wipe your score? This cannot be undone.")) {
-        localStorage.removeItem('englishGameQuestions');
-        localStorage.removeItem('englishGameScore');
+        const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+        localStorage.removeItem(prefix + 'englishGameQuestions');
+        localStorage.removeItem(prefix + 'englishGameScore');
         questions = JSON.parse(JSON.stringify(defaultQuestions));
         score = 0;
         document.getElementById('score-display').innerText = score;
@@ -225,7 +227,8 @@ function skipQuestion() {
 }
 
 function updateScore() {
-    localStorage.setItem('englishGameScore', score);
+    const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+    localStorage.setItem(prefix + 'englishGameScore', score);
     document.getElementById('score-display').innerText = score;
     syncToCloud();
 }
@@ -350,7 +353,8 @@ function saveAllQuestions() {
     }
 
     questions = JSON.parse(JSON.stringify(editorQuestions));
-    localStorage.setItem('englishGameQuestions', JSON.stringify(questions));
+    const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+    localStorage.setItem(prefix + 'englishGameQuestions', JSON.stringify(questions));
     syncToCloud();
     closeManageModal();
     showAlert("Saved!", "Your questions have been successfully updated.", "text-blue", "save", loadQuestion);
@@ -401,7 +405,8 @@ function importJSON(event) {
 
                 if (isValid) {
                     questions = newQuestions;
-                    localStorage.setItem('englishGameQuestions', JSON.stringify(questions));
+                    const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+                    localStorage.setItem(prefix + 'englishGameQuestions', JSON.stringify(questions));
                     syncToCloud();
                     renderEditorList();
                     showAlert("Imported!", "Questions successfully loaded from the JSON file.", "text-green", "check-circle", loadQuestion);
@@ -451,7 +456,8 @@ function toggleDarkMode() {
     const html = document.documentElement;
     html.classList.toggle('dark');
     const isDark = html.classList.contains('dark');
-    localStorage.setItem('theme_fill-it', isDark ? 'dark' : 'light');
+    const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+    localStorage.setItem(prefix + 'theme_fill-it', isDark ? 'dark' : 'light');
     updateThemeIcon(isDark);
     syncToCloud();
 }

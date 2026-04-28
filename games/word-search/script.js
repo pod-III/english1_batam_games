@@ -95,7 +95,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // --- INDEXEDDB ---
-const DB_NAME = 'WordSearchDB';
+const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+const DB_NAME = prefix + 'WordSearchDB';
 const DB_VERSION = 2;
 const STORE_PRESETS = 'presets';
 const STORE_SETTINGS = 'settings';

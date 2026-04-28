@@ -80,7 +80,8 @@ const AudioEngine = {
 };
 
 // --- 3. DATABASE (Multi-Preset) ---
-const DB_NAME = 'KlassKitMemoryDB_V3'; // Bump version for multi-preset, V2 was a single array
+const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+const DB_NAME = prefix + 'KlassKitMemoryDB_V3'; // Bump version for multi-preset, V2 was a single array
 const STORE_NAME = 'Presets';
 
 const dbPromise = new Promise((resolve, reject) => {

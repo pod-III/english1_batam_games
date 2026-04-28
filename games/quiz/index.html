@@ -464,7 +464,8 @@
         let isSetupMode = false;
 
         function initTheme() {
-            const saved = localStorage.getItem('theme_hub');
+            const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+            const saved = localStorage.getItem(prefix + 'theme_quiz') || localStorage.getItem('theme_quiz');
             if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
                 document.documentElement.classList.add('dark');
             }
@@ -473,7 +474,8 @@
 
         function toggleTheme() {
             const isDark = document.documentElement.classList.toggle('dark');
-            localStorage.setItem('theme_hub', isDark ? 'dark' : 'light');
+            const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+            localStorage.setItem(prefix + 'theme_quiz', isDark ? 'dark' : 'light');
             updateThemeUI();
         }
 
@@ -617,15 +619,17 @@
         function updateOption(qIdx, oIdx, val) { currentQuestions[qIdx].o[oIdx] = val; saveData(); }
 
         async function saveData() {
-            localStorage.setItem('quiz_maker_collections', JSON.stringify(collections));
-            localStorage.setItem('quiz_maker_last_id', currentCollectionId);
+            const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+            localStorage.setItem(prefix + 'quiz_maker_collections', JSON.stringify(collections));
+            localStorage.setItem(prefix + 'quiz_maker_last_id', currentCollectionId);
             if (syncTimeout) clearTimeout(syncTimeout);
             syncTimeout = setTimeout(async () => { try { await saveProgress('quiz_maker', { collections, lastId: currentCollectionId }); } catch (e) { } }, 2000);
         }
 
         async function loadData() {
-            const local = localStorage.getItem('quiz_maker_collections');
-            const lastId = localStorage.getItem('quiz_maker_last_id');
+            const prefix = typeof getModePrefix === 'function' ? getModePrefix() : '';
+            const local = localStorage.getItem(prefix + 'quiz_maker_collections') || localStorage.getItem('quiz_maker_collections');
+            const lastId = localStorage.getItem(prefix + 'quiz_maker_last_id') || localStorage.getItem('quiz_maker_last_id');
             if (local) {
                 collections = JSON.parse(local);
                 currentCollectionId = lastId || (collections[0] ? collections[0].id : null);
@@ -637,7 +641,7 @@
                     collections = cloud.collections;
                     currentCollectionId = cloud.lastId || collections[0].id;
                     currentQuestions = collections.find(c => c.id === currentCollectionId).questions;
-                    localStorage.setItem('quiz_maker_collections', JSON.stringify(collections));
+                    localStorage.setItem(prefix + 'quiz_maker_collections', JSON.stringify(collections));
                     if (isSetupMode) { renderCollections(); renderEditor(); }
                 }
             } catch (e) { }
