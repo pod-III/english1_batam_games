@@ -43,6 +43,7 @@ const ClassTallyApp = (function () {
         isPicking: false,
         cardSize: 1,
         isAutoFit: false,
+        showRankings: false,
         editingStudentId: null,
 
         // NEW STATE PROPERTY FOR NON-REPEATING PICKER
@@ -401,6 +402,7 @@ const ClassTallyApp = (function () {
                     s.cardColor = State.currentCardColor;
                 }
                 State.editingStudentId = null;
+                State.showRankings = false;
                 document.getElementById('student-name-input').value = '';
                 UI.hideStudentModal();
                 CanvasDraw.clear();
@@ -420,6 +422,7 @@ const ClassTallyApp = (function () {
                 cardColor: State.currentCardColor
             };
             State.students.push(newStudent);
+            State.showRankings = false;
             document.getElementById('student-name-input').value = '';
             UI.hideStudentModal();
             CanvasDraw.clear();
@@ -432,6 +435,7 @@ const ClassTallyApp = (function () {
                 State.students = State.students.filter(s => s.id !== id);
                 // Remove from the pickedQueue as well
                 State.pickedQueue = State.pickedQueue.filter(queueId => queueId !== id);
+                State.showRankings = false;
                 Persistence.save();
                 UI.render();
             }
@@ -503,6 +507,7 @@ const ClassTallyApp = (function () {
              });
              
              document.getElementById('bulk-import-input').value = '';
+             State.showRankings = false;
              UI.hideManageClassesModal();
              Persistence.save();
              UI.render();
@@ -588,7 +593,39 @@ const ClassTallyApp = (function () {
         },
         addAllGood: () => UI.showConfirmationModal('Reward Class', `Give +1 ${State.currentGood} to everyone?`, 'Yes', (y) => { if (y) { State.students.forEach(s => s.goodLogs.push(State.currentGood)); Persistence.save(); UI.render(); Audio.playMassAction('good'); confetti(); } }),
         addAllBad: () => UI.showConfirmationModal('Warn Class', `Give +1 ${State.currentBad} to everyone?`, 'Yes', (y) => { if (y) { State.students.forEach(s => s.badLogs.push(State.currentBad)); Persistence.save(); UI.render(); Audio.playMassAction('bad'); } }),
-        clearAll: () => UI.showConfirmationModal('Reset All', 'Delete all students and their data?', 'Delete All', (y) => { if (y) { State.students = []; State.pickedQueue = []; Persistence.save(); UI.render(); } }),
+        clearAll: () => UI.showConfirmationModal('Reset All', 'Delete all students and their data?', 'Delete All', (y) => { if (y) { State.students = []; State.pickedQueue = []; State.showRankings = false; Persistence.save(); UI.render(); } }),
+        sortByRanking: () => {
+            if (State.students.length === 0) return;
+            
+            UI.showConfirmationModal(
+                'Ready for Rankings? 🏆',
+                'Prepare the class! We\'re about to see who\'s leading the tally.',
+                'Let\'s Go!',
+                (confirmed) => {
+                    if (!confirmed) return;
+                    
+                    State.students.sort((a, b) => {
+                        const aStars = a.goodLogs.length;
+                        const bStars = b.goodLogs.length;
+                        if (aStars !== bStars) return bStars - aStars; // Most to least
+                        return a.name.localeCompare(b.name); // Alphabetical fallback
+                    });
+                    
+                    State.showRankings = true;
+                    Persistence.save();
+                    UI.render({ animate: true });
+                    Audio.playMilestone();
+                    
+                    // Celebrate the top student
+                    if (State.students.length > 0) {
+                        setTimeout(() => {
+                            const topStudentId = State.students[0].id;
+                            UI.celebrate(topStudentId);
+                        }, State.students.length * 50 + 200);
+                    }
+                }
+            );
+        },
     };
 
     // --- UI ---
@@ -818,6 +855,7 @@ const ClassTallyApp = (function () {
             State.currentGood = data.good || '⭐️';
             State.currentBad = data.bad || '⚠️';
             State.pickedQueue = [];
+            State.showRankings = false;
             Persistence.save();
             UI.initEmojiPickers();
             UI.render();
@@ -961,7 +999,8 @@ const ClassTallyApp = (function () {
             if (badCounter) badCounter.textContent = s.badLogs.length;
         },
 
-        render: () => {
+        render: (options = {}) => {
+            const animate = options.animate || false;
             const container = document.getElementById('grid-container');
             if (State.students.length === 0) {
                 document.getElementById('empty-state').style.display = 'flex';
@@ -970,15 +1009,38 @@ const ClassTallyApp = (function () {
             }
             document.getElementById('empty-state').style.display = 'none';
 
-            container.innerHTML = State.students.map(s => {
+            container.innerHTML = State.students.map((s, index) => {
                 const goodCount = s.goodLogs.length;
                 const badCount = s.badLogs.length;
 
                 // Add a class if the student has been picked in the current cycle
                 const pickedClass = State.pickedQueue.includes(s.id) ? 'opacity-70 border-b-4 border-slate-300' : '';
+                const animationClass = animate ? 'animate-pop-in opacity-0' : '';
+                const animationStyle = animate ? `animation-delay: ${index * 0.05}s; animation-fill-mode: forwards;` : '';
+
+                const rankBadge = (State.showRankings && index < 3) ? `
+                    <div class="absolute -top-1 -left-1 z-30 w-12 h-12 flex items-center justify-center pointer-events-none drop-shadow-lg animate-pop-in" style="animation-delay: ${(index * 0.05) + 0.3}s; animation-fill-mode: both;">
+                        <div class="relative w-full h-full flex items-center justify-center">
+                            <svg class="absolute w-full h-full" viewBox="0 0 100 100">
+                                <defs>
+                                    <linearGradient id="grad-${index}" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        ${index === 0 ? '<stop offset="0%" style="stop-color:#fbbf24"/><stop offset="100%" style="stop-color:#d97706"/>' : 
+                                          index === 1 ? '<stop offset="0%" style="stop-color:#94a3b8"/><stop offset="100%" style="stop-color:#475569"/>' : 
+                                          '<stop offset="0%" style="stop-color:#b45309"/><stop offset="100%" style="stop-color:#78350f"/>'}
+                                    </linearGradient>
+                                </defs>
+                                <path d="M50 5 L63 35 L95 35 L70 55 L80 85 L50 65 L20 85 L30 55 L5 35 L37 35 Z" fill="url(#grad-${index})" stroke="white" stroke-width="2" />
+                            </svg>
+                            <span class="relative z-10 text-[10px] font-black text-white mt-1">
+                                ${index + 1}${index === 0 ? 'st' : index === 1 ? 'nd' : 'rd'}
+                            </span>
+                        </div>
+                    </div>
+                ` : '';
 
                 return `
-                <div id="card-${s.id}" class="app-panel rounded-[2rem] flex flex-row relative overflow-hidden bg-white hover:border-slate-200 group transition-all duration-300 ${pickedClass}">
+                <div id="card-${s.id}" class="app-panel rounded-[2rem] flex flex-row relative overflow-hidden bg-white hover:border-slate-200 group transition-all duration-300 ${pickedClass} ${animationClass}" style="${animationStyle}">
+                    ${rankBadge}
                     
                     <div class="w-32 sm:w-40 flex-none relative flex flex-col items-center justify-center p-2 transition-colors duration-300 border-r border-black/5" style="background-color: ${s.cardColor}; background-image: radial-gradient(circle, rgba(255,255,255,0.15) 2px, transparent 2.5px); background-size: 14px 14px;">
                         <div class="absolute inset-0 bg-gradient-to-b from-black/0 to-black/10"></div>
