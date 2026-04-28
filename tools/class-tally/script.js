@@ -594,6 +594,25 @@ const ClassTallyApp = (function () {
         addAllGood: () => UI.showConfirmationModal('Reward Class', `Give +1 ${State.currentGood} to everyone?`, 'Yes', (y) => { if (y) { State.students.forEach(s => s.goodLogs.push(State.currentGood)); Persistence.save(); UI.render(); Audio.playMassAction('good'); confetti(); } }),
         addAllBad: () => UI.showConfirmationModal('Warn Class', `Give +1 ${State.currentBad} to everyone?`, 'Yes', (y) => { if (y) { State.students.forEach(s => s.badLogs.push(State.currentBad)); Persistence.save(); UI.render(); Audio.playMassAction('bad'); } }),
         clearAll: () => UI.showConfirmationModal('Reset All', 'Delete all students and their data?', 'Delete All', (y) => { if (y) { State.students = []; State.pickedQueue = []; State.showRankings = false; Persistence.save(); UI.render(); } }),
+        clearAllScores: () => {
+            if (State.students.length === 0) return;
+            UI.showConfirmationModal(
+                'Reset All Scores?',
+                'This will clear all stars and warnings for every student in the class. This action cannot be undone.',
+                'Reset Scores',
+                (confirmed) => {
+                    if (!confirmed) return;
+                    State.students.forEach(s => {
+                        s.goodLogs = [];
+                        s.badLogs = [];
+                    });
+                    State.showRankings = false;
+                    Persistence.save();
+                    UI.render();
+                    Audio.playTick();
+                }
+            );
+        },
         sortByRanking: () => {
             if (State.students.length === 0) return;
             
