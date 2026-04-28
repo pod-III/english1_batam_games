@@ -147,7 +147,7 @@ const ClassTallyApp = (function () {
                 `).join('');
 
                 return `
-                    <div class="rounded-[2rem] border-t-[8px] ${colors[idx]} ${bgColors[idx]} p-6 shadow-sm animate-pop-in hover:shadow-lg transition-shadow bg-white" style="animation-delay: ${i * 0.1}s">
+                    <div class="rounded-[2rem] border-t-[8px] ${colors[idx]} ${bgColors[idx]} p-6 shadow-sm animate-pop-in hover:shadow-lg transition-shadow bg-white" style="animation-delay: ${i * 0.1}s; animation-fill-mode: both;">
                         <h4 class="font-black text-xl mb-5 ${textColors[idx]} flex justify-between items-center">
                             Team ${i + 1}
                             <span class="text-xs bg-white px-3 py-1 rounded-full font-bold shadow-sm text-slate-400 border border-slate-100 ring-1 ring-slate-50">${team.length}</span>
@@ -1034,8 +1034,8 @@ const ClassTallyApp = (function () {
 
                 // Add a class if the student has been picked in the current cycle
                 const pickedClass = State.pickedQueue.includes(s.id) ? 'opacity-70 border-b-4 border-slate-300' : '';
-                const animationClass = animate ? 'animate-pop-in opacity-0' : '';
-                const animationStyle = animate ? `animation-delay: ${index * 0.05}s; animation-fill-mode: forwards;` : '';
+                const animationClass = animate ? 'animate-pop-in' : '';
+                const animationStyle = animate ? `animation-delay: ${index * 0.05}s; animation-fill-mode: both;` : '';
 
                 const rankBadge = (State.showRankings && index < 3) ? `
                     <div class="absolute -top-1 -left-1 z-30 w-12 h-12 flex items-center justify-center pointer-events-none drop-shadow-lg animate-pop-in" style="animation-delay: ${(index * 0.05) + 0.3}s; animation-fill-mode: both;">
