@@ -14,6 +14,7 @@
     <script src="/supabase.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
     <script>
         tailwind.config = {
@@ -136,6 +137,20 @@
             background: #0f172a; color: #fff; font-size: 10px; font-weight: 800;
             padding: 2px 8px; border-radius: 6px; white-space: nowrap; z-index: 23;
         }
+
+        .thumb-list::-webkit-scrollbar { height: 6px; }
+        .thumb-list::-webkit-scrollbar-track { background: transparent; }
+        .thumb-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+        @keyframes progress-shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        .animate-progress {
+            background: linear-gradient(90deg, #ff7e33 25%, #ffb38a 50%, #ff7e33 75%);
+            background-size: 200% 100%;
+            animation: progress-shimmer 2s infinite linear;
+        }
     </style>
 </head>
 
@@ -154,10 +169,15 @@
                 </div>
             </div>
             
-            <button id="themeToggle" class="bg-white dark:bg-slate-800 border-4 border-dark dark:border-slate-500 p-3 rounded-2xl shadow-hard btn-chunky">
-                <i data-lucide="sun" class="w-6 h-6 hidden dark:block"></i>
-                <i data-lucide="moon" class="w-6 h-6 block dark:hidden"></i>
-            </button>
+            <div class="flex items-center gap-3">
+                <button id="resetBtn" class="bg-white dark:bg-slate-800 border-4 border-dark dark:border-slate-500 p-3 rounded-2xl shadow-hard btn-chunky text-pink" title="Reset Editor">
+                    <i data-lucide="refresh-ccw" class="w-6 h-6"></i>
+                </button>
+                <button id="themeToggle" class="bg-white dark:bg-slate-800 border-4 border-dark dark:border-slate-500 p-3 rounded-2xl shadow-hard btn-chunky">
+                    <i data-lucide="sun" class="w-6 h-6 hidden dark:block"></i>
+                    <i data-lucide="moon" class="w-6 h-6 block dark:hidden"></i>
+                </button>
+            </div>
         </header>
 
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -176,6 +196,14 @@
                             <p class="font-bold text-slate-500">Select multiple images</p>
                         </div>
                     </label>
+
+                    <!-- Thumbnail List -->
+                    <div id="fileListContainer" class="mt-4 hidden">
+                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Selected Assets</p>
+                        <div id="thumbList" class="flex gap-3 overflow-x-auto pb-2 thumb-list">
+                            <!-- Thumbs injected here -->
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Step 2: Controls -->
@@ -220,9 +248,14 @@
                         <input type="text" id="batchPrefix" placeholder="asset_name" class="w-full bg-white dark:bg-slate-800 border-4 border-dark p-4 rounded-2xl font-bold focus:outline-none focus:ring-4 focus:ring-orange/20">
                     </div>
 
-                    <button id="downloadBtn" disabled class="w-full bg-green text-dark font-heading font-bold text-xl py-5 rounded-2xl border-4 border-dark shadow-hard btn-chunky flex items-center justify-center gap-2 disabled:opacity-50">
-                        <i data-lucide="download"></i> DOWNLOAD ALL
-                    </button>
+                    <div class="flex flex-col gap-3">
+                        <button id="downloadSingleBtn" disabled class="w-full bg-blue text-white font-heading font-bold text-lg py-4 rounded-2xl border-4 border-dark shadow-hard btn-chunky flex items-center justify-center gap-2 disabled:opacity-50">
+                            <i data-lucide="download"></i> DOWNLOAD CURRENT
+                        </button>
+                        <button id="downloadBatchBtn" disabled class="w-full bg-green text-dark font-heading font-bold text-lg py-4 rounded-2xl border-4 border-dark shadow-hard btn-chunky flex items-center justify-center gap-2 disabled:opacity-50">
+                            <i data-lucide="package"></i> DOWNLOAD ALL (ZIP)
+                        </button>
+                    </div>
                     <p id="statusMsg" class="text-center text-xs font-black text-pink mt-3 uppercase tracking-widest h-4"></p>
                 </div>
             </aside>
@@ -261,6 +294,24 @@
         </div>
     </main>
 
+    <!-- Processing Overlay -->
+    <div id="processingOverlay" class="fixed inset-0 z-[100] bg-dark/60 backdrop-blur-md flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-300">
+        <div class="bg-white dark:bg-slate-900 border-4 border-dark rounded-[2.5rem] p-8 max-w-sm w-full mx-4 shadow-[0_20px_50px_rgba(0,0,0,0.3)] transform scale-90 transition-transform duration-300" id="processingModal">
+            <div class="text-center">
+                <div class="w-20 h-20 bg-orange/10 rounded-3xl border-4 border-orange flex items-center justify-center mx-auto mb-6 animate-bounce">
+                    <i data-lucide="package" class="w-10 h-10 text-orange"></i>
+                </div>
+                <h3 class="font-heading font-bold text-2xl mb-2 text-dark dark:text-white">PROCESSING BATCH</h3>
+                <p class="text-slate-500 dark:text-slate-400 font-bold text-sm mb-8">Creating your ZIP archive, please wait...</p>
+                
+                <div class="w-full bg-slate-100 dark:bg-slate-800 h-4 rounded-full border-2 border-dark overflow-hidden mb-4">
+                    <div id="progressBar" class="h-full w-0 animate-progress transition-all duration-300"></div>
+                </div>
+                <p id="progressText" class="text-xs font-black text-orange uppercase tracking-widest">0 / 0 Images</p>
+            </div>
+        </div>
+    </div>
+
     <script>
         (function () {
             lucide.createIcons();
@@ -282,7 +333,15 @@
                 qualityVal: document.getElementById('qualityVal'),
                 rotationSlider: document.getElementById('rotationSlider'),
                 cropToggle: document.getElementById('cropToggle'),
-                cropToggleLabel: document.getElementById('cropToggleLabel')
+                cropToggleLabel: document.getElementById('cropToggleLabel'),
+                thumbList: document.getElementById('thumbList'),
+                fileListContainer: document.getElementById('fileListContainer'),
+                processingOverlay: document.getElementById('processingOverlay'),
+                progressBar: document.getElementById('progressBar'),
+                progressText: document.getElementById('progressText'),
+                downloadSingleBtn: document.getElementById('downloadSingleBtn'),
+                downloadBatchBtn: document.getElementById('downloadBatchBtn'),
+                resetBtn: document.getElementById('resetBtn')
             };
 
             const ctx = elements.mainCanvas.getContext('2d');
@@ -291,6 +350,46 @@
             let rotation = 0, flipH = false, flipV = false, quality = 0.92;
             let cropEnabled = false, isCropped = false, cropRect = { x: 0, y: 0, w: 0, h: 0 };
             let dragging = false, dragType = null, dragStart = { x: 0, y: 0 }, rectStart = { ...cropRect };
+            let currentFileIndex = 0;
+
+            // --- INDEXEDDB HELPERS ---
+            const DB_NAME = 'KlassKit_Editor_Images';
+            const STORE_NAME = 'session_images';
+
+            function openDB() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open(DB_NAME, 1);
+                    request.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains(STORE_NAME)) db.createObjectStore(STORE_NAME);
+                    };
+                    request.onsuccess = (e) => resolve(e.target.result);
+                    request.onerror = (e) => reject(e.target.error);
+                });
+            }
+
+            async function saveImagesToIDB(files) {
+                const db = await openDB();
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                const store = tx.objectStore(STORE_NAME);
+                await store.put(files, 'current_batch');
+            }
+
+            async function loadImagesFromIDB() {
+                const db = await openDB();
+                return new Promise((resolve) => {
+                    const tx = db.transaction(STORE_NAME, 'readonly');
+                    const request = tx.objectStore(STORE_NAME).get('current_batch');
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => resolve(null);
+                });
+            }
+
+            async function clearIDB() {
+                const db = await openDB();
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                await tx.objectStore(STORE_NAME).clear();
+            }
 
             // --- PERSISTENCE ---
             const TOOL_ID = 'workshop_editor';
@@ -305,18 +404,49 @@
                 // Load Progress
                 const progress = await loadProgress(TOOL_ID);
                 if (progress) {
-                    if (progress.quality) {
-                        quality = progress.quality;
-                        elements.qualitySlider.value = Math.round(quality * 100);
-                        elements.qualityVal.textContent = Math.round(quality * 100);
-                    }
+                    quality = progress.quality || 0.92;
+                    rotation = progress.rotation || 0;
+                    flipH = progress.flipH || false;
+                    flipV = progress.flipV || false;
+                    cropEnabled = progress.cropEnabled || false;
+                    cropRect = progress.cropRect || { x: 0, y: 0, w: 0, h: 0 };
+                    isCropped = progress.isCropped || false;
+                    currentFileIndex = progress.currentFileIndex || 0;
+                    if (progress.batchPrefix) elements.batchPrefix.value = progress.batchPrefix;
+
+                    elements.qualitySlider.value = Math.round(quality * 100);
+                    elements.qualityVal.textContent = Math.round(quality * 100);
+                    elements.rotationSlider.value = rotation;
+                    updateUI();
+                }
+
+                // Load Images
+                const storedImages = await loadImagesFromIDB();
+                if (storedImages && storedImages.length > 0) {
+                    uploadedFiles = storedImages;
+                    elements.batchStatus.textContent = `${uploadedFiles.length} images`;
+                    elements.fileListContainer.classList.remove('hidden');
+                    renderThumbnails();
+                    
+                    await loadFile(uploadedFiles[currentFileIndex]);
+                    elements.configCard.classList.remove('opacity-50', 'pointer-events-none');
+                    elements.emptyState.classList.add('hidden');
+                    elements.canvasWrapper.classList.remove('hidden');
+                    elements.downloadSingleBtn.disabled = false;
+                    elements.downloadBatchBtn.disabled = false;
                 }
             }
 
             function triggerSave() {
                 clearTimeout(saveTimeout);
                 saveTimeout = setTimeout(() => {
-                    saveProgress(TOOL_ID, { quality });
+                    const state = {
+                        quality, rotation, flipH, flipV, 
+                        cropEnabled, cropRect, isCropped,
+                        currentFileIndex,
+                        batchPrefix: elements.batchPrefix.value
+                    };
+                    saveProgress(TOOL_ID, state);
                 }, 1000);
             }
 
@@ -340,28 +470,66 @@
             // Initialize
             initPersistence();
 
-            elements.fileInput.addEventListener('change', (e) => {
-                uploadedFiles = Array.from(e.target.files);
-                if (uploadedFiles.length === 0) return;
+            elements.fileInput.addEventListener('change', async (e) => {
+                const files = Array.from(e.target.files);
+                if (files.length === 0) return;
                 
-                const reader = new FileReader();
-                reader.onload = (evt) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        originalImage = img;
-                        originalWidth = img.width; originalHeight = img.height;
-                        elements.origDim.textContent = `${img.width}×${img.height}`;
-                        elements.batchStatus.textContent = `${uploadedFiles.length} images`;
-                        elements.configCard.classList.remove('opacity-50', 'pointer-events-none');
-                        elements.emptyState.classList.add('hidden');
-                        elements.canvasWrapper.classList.remove('hidden');
-                        elements.downloadBtn.disabled = false;
-                        resetAll(); renderPreview();
-                    };
-                    img.src = evt.target.result;
-                };
-                reader.readAsDataURL(uploadedFiles[0]);
+                uploadedFiles = files;
+                currentFileIndex = 0;
+                elements.batchStatus.textContent = `${uploadedFiles.length} images`;
+                elements.fileListContainer.classList.remove('hidden');
+                renderThumbnails();
+                
+                await loadFile(uploadedFiles[0]);
+                elements.configCard.classList.remove('opacity-50', 'pointer-events-none');
+                elements.emptyState.classList.add('hidden');
+                elements.canvasWrapper.classList.remove('hidden');
+                elements.downloadSingleBtn.disabled = false;
+                elements.downloadBatchBtn.disabled = false;
+
+                saveImagesToIDB(uploadedFiles);
+                triggerSave();
             });
+
+            async function loadFile(file) {
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (evt) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            originalImage = img;
+                            originalWidth = img.width; originalHeight = img.height;
+                            elements.origDim.textContent = `${img.width}×${img.height}`;
+                            if (!isCropped) cropRect = { x: 0, y: 0, w: img.width, h: img.height };
+                            renderPreview();
+                            resolve();
+                        };
+                        img.src = evt.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
+
+            function renderThumbnails() {
+                elements.thumbList.innerHTML = '';
+                uploadedFiles.forEach((file, index) => {
+                    const div = document.createElement('div');
+                    div.className = `flex-shrink-0 w-16 h-16 rounded-xl border-4 ${index === currentFileIndex ? 'border-orange' : 'border-dark'} overflow-hidden cursor-pointer hover:scale-105 transition-transform`;
+                    div.onclick = async () => {
+                        Array.from(elements.thumbList.children).forEach(child => child.classList.replace('border-orange', 'border-dark'));
+                        div.classList.replace('border-dark', 'border-orange');
+                        currentFileIndex = index;
+                        await loadFile(uploadedFiles[index]);
+                        triggerSave();
+                    };
+                    
+                    const img = document.createElement('img');
+                    img.src = URL.createObjectURL(file);
+                    img.className = 'w-full h-full object-cover';
+                    div.appendChild(img);
+                    elements.thumbList.appendChild(div);
+                });
+            }
 
             function resetAll() {
                 rotation = 0; flipH = false; flipV = false; isCropped = false; cropEnabled = false;
@@ -376,43 +544,46 @@
                 elements.qualityVal.textContent = Math.round(quality * 100);
             }
 
-            elements.rotationSlider.oninput = (e) => { rotation = parseInt(e.target.value); renderPreview(); };
+            elements.rotationSlider.oninput = (e) => { rotation = parseInt(e.target.value); renderPreview(); triggerSave(); };
             elements.qualitySlider.oninput = (e) => { 
                 quality = e.target.value / 100; 
                 elements.qualityVal.textContent = e.target.value; 
                 triggerSave();
             };
-            document.getElementById('rotateLeft').onclick = () => { rotation = (rotation - 90 + 360) % 360; elements.rotationSlider.value = rotation; renderPreview(); };
-            document.getElementById('rotateRight').onclick = () => { rotation = (rotation + 90) % 360; elements.rotationSlider.value = rotation; renderPreview(); };
-            document.getElementById('rotateReset').onclick = () => { rotation = 0; elements.rotationSlider.value = 0; renderPreview(); };
-            document.getElementById('flipH').onclick = () => { flipH = !flipH; renderPreview(); };
-            document.getElementById('flipV').onclick = () => { flipV = !flipV; renderPreview(); };
+            document.getElementById('rotateLeft').onclick = () => { rotation = (rotation - 90 + 360) % 360; elements.rotationSlider.value = rotation; renderPreview(); triggerSave(); };
+            document.getElementById('rotateRight').onclick = () => { rotation = (rotation + 90) % 360; elements.rotationSlider.value = rotation; renderPreview(); triggerSave(); };
+            document.getElementById('rotateReset').onclick = () => { rotation = 0; elements.rotationSlider.value = 0; renderPreview(); triggerSave(); };
+            document.getElementById('flipH').onclick = () => { flipH = !flipH; renderPreview(); triggerSave(); };
+            document.getElementById('flipV').onclick = () => { flipV = !flipV; renderPreview(); triggerSave(); };
+            elements.batchPrefix.oninput = () => triggerSave();
             
             elements.cropToggle.onclick = () => {
                 cropEnabled = !cropEnabled;
                 if (cropEnabled && !isCropped) cropRect = { x: 0, y: 0, w: originalWidth, h: originalHeight };
-                updateUI(); renderCropOverlay();
+                updateUI(); renderCropOverlay(); triggerSave();
             };
 
             function renderPreview() {
                 if (!originalImage) return;
-                const baseW = (rotation % 180 !== 0) ? originalHeight : originalWidth;
-                const baseH = (rotation % 180 !== 0) ? originalWidth : originalHeight;
+                
+                let sourceX = 0, sourceY = 0, sourceW = originalWidth, sourceH = originalHeight;
+                if (cropEnabled && isCropped) {
+                    sourceX = cropRect.x; sourceY = cropRect.y;
+                    sourceW = cropRect.w; sourceH = cropRect.h;
+                }
+
+                const baseW = (rotation % 180 !== 0) ? sourceH : sourceW;
+                const baseH = (rotation % 180 !== 0) ? sourceW : sourceH;
                 elements.mainCanvas.width = baseW; elements.mainCanvas.height = baseH;
 
                 ctx.save();
                 ctx.translate(baseW / 2, baseH / 2);
                 ctx.rotate(rotation * Math.PI / 180);
                 ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1);
-                ctx.drawImage(originalImage, -originalWidth / 2, -originalHeight / 2);
+                ctx.drawImage(originalImage, sourceX, sourceY, sourceW, sourceH, -sourceW / 2, -sourceH / 2, sourceW, sourceH);
                 ctx.restore();
 
-                let outW = baseW, outH = baseH;
-                if (cropEnabled && isCropped) {
-                    outW = (rotation % 180 !== 0) ? Math.round(cropRect.h) : Math.round(cropRect.w);
-                    outH = (rotation % 180 !== 0) ? Math.round(cropRect.w) : Math.round(cropRect.h);
-                }
-                elements.outDim.textContent = `${outW}×${outH}`;
+                elements.outDim.textContent = `${Math.round(baseW)}×${Math.round(baseH)}`;
                 renderCropOverlay();
             }
 
@@ -471,34 +642,125 @@
 
             window.onmousemove = (e) => {
                 if (!dragging) return;
-                const dx = (e.clientX - dragStart.x) * (originalWidth / elements.mainCanvas.getBoundingClientRect().width);
-                const dy = (e.clientY - dragStart.y) * (originalHeight / elements.mainCanvas.getBoundingClientRect().height);
+                const canvasBox = elements.mainCanvas.getBoundingClientRect();
+                const scaleX = originalWidth / canvasBox.width;
+                const scaleY = originalHeight / canvasBox.height;
+                
+                const dx = (e.clientX - dragStart.x) * scaleX;
+                const dy = (e.clientY - dragStart.y) * scaleY;
 
                 if (dragType === 'move') {
                     cropRect.x = Math.max(0, Math.min(rectStart.x + dx, originalWidth - rectStart.w));
                     cropRect.y = Math.max(0, Math.min(rectStart.y + dy, originalHeight - rectStart.h));
-                } else if (dragType === 'br' || dragType === 'new') {
+                } else if (dragType === 'br') {
                     cropRect.w = Math.max(10, Math.min(rectStart.w + dx, originalWidth - rectStart.x));
+                    cropRect.h = Math.max(10, Math.min(rectStart.h + dy, originalHeight - rectStart.y));
+                } else if (dragType === 'tl') {
+                    const newW = Math.max(10, rectStart.w - dx);
+                    const newH = Math.max(10, rectStart.h - dy);
+                    cropRect.x = rectStart.x + (rectStart.w - newW);
+                    cropRect.y = rectStart.y + (rectStart.h - newH);
+                    cropRect.w = newW; cropRect.h = newH;
+                } else if (dragType === 'tr') {
+                    cropRect.y = Math.max(0, Math.min(rectStart.y + dy, rectStart.y + rectStart.h - 10));
+                    cropRect.h = rectStart.h - (cropRect.y - rectStart.y);
+                    cropRect.w = Math.max(10, Math.min(rectStart.w + dx, originalWidth - rectStart.x));
+                } else if (dragType === 'bl') {
+                    cropRect.x = Math.max(0, Math.min(rectStart.x + dx, rectStart.x + rectStart.w - 10));
+                    cropRect.w = rectStart.w - (cropRect.x - rectStart.x);
                     cropRect.h = Math.max(10, Math.min(rectStart.h + dy, originalHeight - rectStart.y));
                 }
                 isCropped = true; renderPreview();
             };
 
-            window.onmouseup = () => { dragging = false; };
+            window.onmouseup = () => { 
+                if (dragging) triggerSave();
+                dragging = false; 
+            };
 
-            elements.downloadBtn.onclick = async () => {
-                elements.statusMsg.textContent = "PROCESSING...";
-                elements.downloadBtn.disabled = true;
+            async function processImage(img, config) {
+                const offCanvas = document.createElement('canvas');
+                const octx = offCanvas.getContext('2d');
                 
-                // For batch processing (simplified: in a real app, use a loop and ZIP)
-                // Here we just download the current preview as a demo
+                let sx = 0, sy = 0, sw = img.width, sh = img.height;
+                if (config.cropEnabled && config.isCropped) {
+                    sx = config.cropRect.x; sy = config.cropRect.y;
+                    sw = config.cropRect.w; sh = config.cropRect.h;
+                }
+
+                const bw = (config.rotation % 180 !== 0) ? sh : sw;
+                const bh = (config.rotation % 180 !== 0) ? sw : sh;
+                offCanvas.width = bw; offCanvas.height = bh;
+
+                octx.save();
+                octx.translate(bw / 2, bh / 2);
+                octx.rotate(config.rotation * Math.PI / 180);
+                octx.scale(config.flipH ? -1 : 1, config.flipV ? -1 : 1);
+                octx.drawImage(img, sx, sy, sw, sh, -sw / 2, -sh / 2, sw, sh);
+                octx.restore();
+
+                return new Promise(r => offCanvas.toBlob(r, 'image/webp', config.quality));
+            }
+
+            elements.downloadSingleBtn.onclick = async () => {
+                if (!originalImage) return;
+                const blob = await processImage(originalImage, {
+                    quality, rotation, flipH, flipV, cropEnabled, isCropped, cropRect
+                });
+                const prefix = elements.batchPrefix.value || 'asset';
                 const link = document.createElement('a');
-                link.download = (elements.batchPrefix.value || 'edited_asset') + '.webp';
-                link.href = elements.mainCanvas.toDataURL('image/webp', quality);
+                link.download = `${prefix}_${currentFileIndex + 1}.webp`;
+                link.href = URL.createObjectURL(blob);
                 link.click();
+            };
+
+            elements.downloadBatchBtn.onclick = async () => {
+                if (uploadedFiles.length === 0) return;
                 
-                elements.statusMsg.textContent = "DONE!";
-                setTimeout(() => { elements.statusMsg.textContent = ""; elements.downloadBtn.disabled = false; }, 2000);
+                elements.processingOverlay.classList.replace('opacity-0', 'opacity-100');
+                elements.processingOverlay.classList.remove('pointer-events-none');
+                
+                const zip = new JSZip();
+                const prefix = elements.batchPrefix.value || 'asset';
+                
+                for (let i = 0; i < uploadedFiles.length; i++) {
+                    const file = uploadedFiles[i];
+                    elements.progressText.textContent = `${i + 1} / ${uploadedFiles.length} Images`;
+                    elements.progressBar.style.width = `${((i + 1) / uploadedFiles.length) * 100}%`;
+                    
+                    const img = await new Promise((res) => {
+                        const r = new FileReader();
+                        r.onload = (e) => {
+                            const tempImg = new Image();
+                            tempImg.onload = () => res(tempImg);
+                            tempImg.src = e.target.result;
+                        };
+                        r.readAsDataURL(file);
+                    });
+
+                    const blob = await processImage(img, {
+                        quality, rotation, flipH, flipV, cropEnabled, isCropped, cropRect
+                    });
+                    zip.file(`${prefix}_${i + 1}.webp`, blob);
+                }
+
+                const content = await zip.generateAsync({ type: "blob" });
+                const link = document.createElement('a');
+                link.download = `${prefix}_batch.zip`;
+                link.href = URL.createObjectURL(content);
+                link.click();
+
+                setTimeout(() => {
+                    elements.processingOverlay.classList.replace('opacity-100', 'opacity-0');
+                    elements.processingOverlay.classList.add('pointer-events-none');
+                }, 1000);
+            };
+
+            elements.resetBtn.onclick = async () => {
+                if (!confirm("Are you sure you want to reset the editor? This will clear all images and settings.")) return;
+                await clearIDB();
+                localStorage.removeItem(`prog_${TOOL_ID}`);
+                location.reload();
             };
 
         })();
