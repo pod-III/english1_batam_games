@@ -105,7 +105,6 @@ const MediaManager = {
         this.grid.innerHTML = '';
         this.empty.classList.add('hidden');
         this.empty.classList.remove('flex');
-        this.clearAllBtn.classList.add('hidden');
         
         try {
             const usage = await getUserStorageUsage();
@@ -132,15 +131,105 @@ const MediaManager = {
         }
     },
 
+    async updateUsageIncrementally() {
+        try {
+            const usage = await getUserStorageUsage();
+            this.updateUsageText(usage);
+            if (typeof StorageManager !== 'undefined') StorageManager.update();
+        } catch (e) {
+            console.warn("Incremental usage update failed", e);
+        }
+    },
+
+    async downloadMedia(url, filename) {
+        try {
+            // For remote URLs, fetch to blob to force immediate download
+            if (url.startsWith('http')) {
+                const response = await fetch(url);
+                const blob = await response.blob();
+                const blobUrl = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = filename || 'download';
+                document.body.appendChild(a);
+                a.click();
+                
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(blobUrl);
+                }, 100);
+                return;
+            }
+
+            // For data URLs or Blobs
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename || 'download';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        } catch (error) {
+            console.error("Download failed, falling back to direct link", error);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename || 'download';
+            a.target = '_blank';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+    },
+
+    showToast(message, type = 'success') {
+        if (typeof UI !== 'undefined' && UI.showToast) {
+            UI.showToast(message, type);
+            return;
+        }
+
+        // --- STANDALONE TOAST FALLBACK (for tools without Hub UI) ---
+        let container = this.getToastContainer();
+
+        const toast = document.createElement('div');
+        const bg = {
+            success: 'bg-green',
+            warning: 'bg-orange',
+            info: 'bg-blue',
+            error: 'bg-red-500'
+        }[type] || 'bg-green';
+
+        toast.className = `${bg} text-white px-6 py-3 rounded-2xl border-[3px] border-dark shadow-[4px_4px_0px_0px_#0f172a] font-bold text-sm pointer-events-auto transition-all duration-300 translate-y-10 opacity-0 flex items-center gap-2`;
+        
+        const icons = { success: 'check', error: 'alert-circle', warning: 'alert-triangle', info: 'info' };
+        toast.innerHTML = `<i data-lucide="${icons[type] || 'info'}" class="w-4 h-4"></i> <span>${message}</span>`;
+        
+        container.appendChild(toast);
+        if (window.lucide) lucide.createIcons({ nodes: [toast] });
+        
+        setTimeout(() => toast.classList.remove('translate-y-10', 'opacity-0'), 10);
+        setTimeout(() => {
+            toast.classList.add('translate-y-10', 'opacity-0');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    },
+
+    getToastContainer() {
+        let container = document.getElementById('media-manager-toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'media-manager-toast-container';
+            container.className = 'fixed bottom-8 left-1/2 -translate-x-1/2 z-[10000] flex flex-col gap-2 pointer-events-none items-center';
+            document.body.appendChild(container);
+        }
+        return container;
+    },
+
     // ---------------------------------------------------------
     // CLOUD MODE
     // ---------------------------------------------------------
     async loadCloudData() {
         const user = await getUser();
         if (!user) return;
-
-        this.clearAllBtn.classList.remove('hidden');
-        this.clearAllBtn.onclick = () => this.handleClearCloudAll();
 
         this.grid.innerHTML = '';
         // Change grid to a flex container for sections
@@ -155,33 +244,37 @@ const MediaManager = {
             return;
         }
 
+        // --- Bulk fetch signed URLs for performance ---
+        const filePaths = allFiles.map(f => f.fullPath);
+        const { data: signedData } = await db.storage.from('klasskit-media').createSignedUrls(filePaths, 3600);
+        const urlMap = {};
+        if (signedData) {
+            signedData.forEach(item => {
+                urlMap[item.path] = item.signedUrl;
+            });
+        }
+
         // Group by relative path
         const groups = {};
         for (const file of allFiles) {
             const parts = file.fullPath.split('/');
             parts.shift(); // remove user_id
             parts.pop(); // remove filename
-            const groupName = parts.join('/') || 'Root';
+            const folderPath = parts.join('/');
+            const groupKey = folderPath || 'root'; 
             
-            if (!groups[groupName]) groups[groupName] = [];
-            groups[groupName].push(file);
+            if (!groups[groupKey]) groups[groupKey] = [];
+            groups[groupKey].push(file);
         }
 
-        for (const [groupName, files] of Object.entries(groups)) {
-            let label = groupName.split('/').map(p => p.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')).join(' > ');
+        for (const [groupKey, files] of Object.entries(groups)) {
+            let label = groupKey === 'root' ? 'Unsorted / Root' : groupKey.split('/').map(p => p.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')).join(' > ');
             
-            const section = this.createSection(label, async () => {
-                if(confirm(`Delete all media in ${label}?`)) {
-                    this.showLoader();
-                    await deleteFolder(`${user.id}/${groupName}`);
-                    this.loadData();
-                    if(typeof StorageManager !== 'undefined') StorageManager.update();
-                }
-            });
+            const section = this.createSection(label);
             const grid = section.querySelector('.media-grid');
 
             for (const file of files) {
-                grid.appendChild(this.createCloudCard(user.id, file));
+                grid.appendChild(this.createCloudCard(user.id, file, urlMap[file.fullPath]));
             }
             this.grid.appendChild(section);
         }
@@ -193,21 +286,24 @@ const MediaManager = {
         const { data, error } = await db.storage.from('klasskit-media').list(path, { limit: 1000 });
         if (error || !data) return files;
         
+        const subTasks = [];
         for (const item of data) {
             if (item.name === '.emptyFolderPlaceholder') continue;
             
             if (!item.metadata) {
-                // Folder
-                await this.fetchAllCloudFiles(`${path}/${item.name}`, files);
+                // Folder - fetch in parallel
+                subTasks.push(this.fetchAllCloudFiles(`${path}/${item.name}`, files));
             } else {
                 // File
                 files.push({ ...item, fullPath: `${path}/${item.name}` });
             }
         }
+        
+        if (subTasks.length > 0) await Promise.all(subTasks);
         return files;
     },
 
-    createCloudCard(userId, file) {
+    createCloudCard(userId, file, signedUrl) {
         const card = document.createElement('div');
         card.className = "bg-white dark:bg-slate-800 rounded-2xl border-[3px] border-dark dark:border-slate-600 p-3 flex flex-col gap-2 relative group shadow-hard hover:-translate-y-1 hover:shadow-hard-lg transition-all duration-200 cursor-pointer";
         
@@ -217,22 +313,29 @@ const MediaManager = {
                 <img class="w-full h-full object-cover relative z-10 opacity-0 transition-opacity duration-300" />
             </div>
             <div class="text-center font-bold text-xs text-slate-500 dark:text-slate-400 truncate w-full px-2" title="${file.name}">${file.name}</div>
-            <button class="delete-btn opacity-0 group-hover:opacity-100 absolute -top-3 -right-3 w-10 h-10 bg-red-500 text-white rounded-xl border-3 border-dark dark:border-slate-500 shadow-hard hover:bg-red-600 transition-all z-20 flex items-center justify-center hover:scale-110 btn-chunky" title="Delete File">
-                <i data-lucide="trash-2" class="w-4 h-4"></i>
-            </button>
+            
+            <div class="absolute -top-3 -right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all z-20">
+                <button class="download-btn w-10 h-10 bg-blue text-white rounded-xl border-3 border-dark dark:border-slate-500 shadow-hard hover:bg-blue-600 transition-all flex items-center justify-center hover:scale-110 btn-chunky" title="Download Image">
+                    <i data-lucide="download" class="w-4 h-4"></i>
+                </button>
+            </div>
         `;
         
-        this.loadCloudPreview(card.querySelector('img'), file.fullPath);
+        const img = card.querySelector('img');
+        if (signedUrl) {
+            img.src = signedUrl;
+            img.onload = () => img.classList.remove('opacity-0');
+        } else {
+            this.loadCloudPreview(img, file.fullPath);
+        }
         
-        const delBtn = card.querySelector('.delete-btn');
-        delBtn.onclick = async (e) => {
+        card.querySelector('.download-btn').onclick = (e) => {
             e.stopPropagation();
-            if(confirm(`Delete file "${file.name}"?`)) {
-                this.showLoader();
-                await db.storage.from('klasskit-media').remove([file.fullPath]);
-                this.loadData();
-                if(typeof StorageManager !== 'undefined') StorageManager.update();
-            }
+            this.downloadMedia(img.src, file.name);
+        };
+
+        card.onclick = () => {
+            this.downloadMedia(img.src, file.name);
         };
 
         return card;
@@ -247,73 +350,56 @@ const MediaManager = {
     },
     
     async handleClearCloudAll() {
-        if (!confirm("Are you sure you want to delete ALL your cloud media across all tools? This cannot be undone.")) return;
-        
-        const user = await getUser();
-        const { data } = await db.storage.from('klasskit-media').list(user.id);
-        if(data) {
-            this.showLoader();
-            for (const item of data) {
-                const pathStr = `${user.id}/${item.name}`;
-                if (!item.metadata) {
-                    await deleteFolder(pathStr);
-                } else {
-                    await db.storage.from('klasskit-media').remove([pathStr]);
-                }
-            }
-            this.loadData();
-            if(typeof StorageManager !== 'undefined') StorageManager.update();
-        }
+        // Functionality removed from Media Manager
     },
 
     // ---------------------------------------------------------
     // SANDBOX MODE (IndexedDB)
     // ---------------------------------------------------------
     async loadSandboxData() {
-        this.clearAllBtn.classList.remove('hidden');
-        this.clearAllBtn.onclick = () => this.handleClearSandboxAll();
-        
         this.grid.innerHTML = '';
         this.grid.className = 'h-full overflow-y-auto p-6 flex flex-col gap-8 custom-scrollbar';
         this.breadcrumbs.innerHTML = '<span class="text-dark dark:text-white font-bold">All Local Media (Grouped by Tool)</span>';
         
         let hasAnyMedia = false;
 
-        for (const dbInfo of this.KNOWN_DB_NAMES) {
+        const idbPromises = this.KNOWN_DB_NAMES.map(async (dbInfo) => {
             try {
                 const items = await this.getAllFromIDB(dbInfo.name, dbInfo.store);
-                if (!items || items.length === 0) continue;
+                if (!items || items.length === 0) return null;
                 
                 const validItems = [];
                 for (const item of items) {
                     if (this.isImageValue(item.value)) {
                         validItems.push(item);
                     } else if (typeof item.value === 'object' && item.value !== null) {
-                        // Scan for images inside the object
                         this.extractImagesFromObject(item.value, item.key, validItems);
                     }
                 }
                 
-                if (validItems.length === 0) continue;
+                if (validItems.length === 0) return null;
                 hasAnyMedia = true;
 
-                const section = this.createSection(dbInfo.label, async () => {
-                    if(confirm(`Delete all local media in ${dbInfo.label}?`)) {
-                        this.showLoader();
-                        await this.clearIDBStore(dbInfo.name, dbInfo.store);
-                        this.loadData();
-                        if(typeof StorageManager !== 'undefined') StorageManager.update();
-                    }
-                });
-                const grid = section.querySelector('.media-grid');
-
-                for (const item of validItems) {
-                    grid.appendChild(this.createSandboxCard(dbInfo, item));
-                }
-                this.grid.appendChild(section);
+                return { dbInfo, validItems };
             } catch (e) {
                 console.error("IDB Error parsing", dbInfo.name, e);
+                return null;
             }
+        });
+
+        const idbResults = await Promise.all(idbPromises);
+        
+        for (const res of idbResults) {
+            if (!res) continue;
+            const { dbInfo, validItems } = res;
+            
+            const section = this.createSection(dbInfo.label);
+            const grid = section.querySelector('.media-grid');
+
+            for (const item of validItems) {
+                grid.appendChild(this.createSandboxCard(dbInfo, item));
+            }
+            this.grid.appendChild(section);
         }
         
         // --- LocalStorage Scraper (Legacy/Small items) ---
@@ -328,12 +414,7 @@ const MediaManager = {
                 if (validItems.length === 0) continue;
                 hasAnyMedia = true;
 
-                const section = this.createSection(lsInfo.label, () => {
-                    if (confirm(`Clear all local data for ${lsInfo.label}?`)) {
-                        localStorage.removeItem(lsInfo.key);
-                        this.loadData();
-                    }
-                });
+                const section = this.createSection(lsInfo.label);
                 const grid = section.querySelector('.media-grid');
                 for (const item of validItems) {
                     grid.appendChild(this.createSandboxCard({ name: 'LocalStorage', label: lsInfo.label, store: lsInfo.key }, item));
@@ -396,37 +477,28 @@ const MediaManager = {
                 <img src="${srcUrl}" class="w-full h-full object-cover relative z-10" />
             </div>
             <div class="text-center font-bold text-[10px] text-slate-500 dark:text-slate-400 truncate w-full px-2" title="${item.key}">${item.key}</div>
-            <button class="delete-btn opacity-0 group-hover:opacity-100 absolute -top-3 -right-3 w-10 h-10 bg-red-500 text-white rounded-xl border-3 border-dark dark:border-slate-500 shadow-hard hover:bg-red-600 transition-all z-20 flex items-center justify-center hover:scale-110 btn-chunky" title="Delete File">
-                <i data-lucide="trash-2" class="w-4 h-4"></i>
-            </button>
+            
+            <div class="absolute -top-3 -right-3 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all z-20">
+                <button class="download-btn w-10 h-10 bg-blue text-white rounded-xl border-3 border-dark dark:border-slate-500 shadow-hard hover:bg-blue-600 transition-all flex items-center justify-center hover:scale-110 btn-chunky" title="Download Image">
+                    <i data-lucide="download" class="w-4 h-4"></i>
+                </button>
+            </div>
         `;
         
-        const delBtn = card.querySelector('.delete-btn');
-        if (dbInfo.name === 'LocalStorage') {
-            delBtn.remove();
-        } else {
-            delBtn.onclick = async (e) => {
-                e.stopPropagation();
-                if(confirm("Delete this local file?")) {
-                    this.showLoader();
-                    await this.deleteFromIDB(dbInfo.name, dbInfo.store, item.key);
-                    this.loadData();
-                    if(typeof StorageManager !== 'undefined') StorageManager.update();
-                }
-            };
-        }
+        card.querySelector('.download-btn').onclick = (e) => {
+            e.stopPropagation();
+            this.downloadMedia(srcUrl, `${item.key}.png`);
+        };
+
+        card.onclick = () => {
+            this.downloadMedia(srcUrl, `${item.key}.png`);
+        };
 
         return card;
     },
     
     async handleClearSandboxAll() {
-        if (!confirm("Are you sure you want to clear ALL local sandbox data?")) return;
-        
-        for (const dbInfo of this.KNOWN_DB_NAMES) {
-            await this.clearIDBStore(dbInfo.name, dbInfo.store);
-        }
-        this.loadData();
-        if(typeof StorageManager !== 'undefined') StorageManager.update();
+        // Functionality removed from Media Manager
     },
 
     // --- IDB Helpers ---
@@ -488,7 +560,7 @@ const MediaManager = {
     // ---------------------------------------------------------
     // COMMON UI HELPERS
     // ---------------------------------------------------------
-    createSection(title, onClearGroup) {
+    createSection(title) {
         const section = document.createElement('div');
         section.className = "flex flex-col gap-4";
         
@@ -501,13 +573,7 @@ const MediaManager = {
                 </div>
                 <h3 class="font-heading font-black text-2xl text-dark dark:text-white tracking-tight uppercase">${title}</h3>
             </div>
-            <button class="btn-chunky bg-red-500 text-white w-10 h-10 rounded-xl border-3 border-dark dark:border-slate-500 shadow-hard flex items-center justify-center hover:bg-red-600 transition-colors" title="Clear Group">
-                <i data-lucide="trash-2" class="w-4 h-4"></i>
-            </button>
         `;
-        
-        const clearBtn = header.querySelector('button');
-        clearBtn.onclick = onClearGroup;
 
         const grid = document.createElement('div');
         grid.className = "media-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4";
