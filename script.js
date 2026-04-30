@@ -373,7 +373,10 @@ const UI = {
     if (!modal) return;
     modal.classList.toggle('hidden', !show);
     modal.setAttribute('aria-hidden', String(!show));
-    if (modalId === 'game-modal') document.body.style.overflow = show ? 'hidden' : '';
+    if (modalId === 'game-modal') {
+      document.body.style.overflow = show ? 'hidden' : '';
+      document.body.classList.toggle('game-modal-open', show);
+    }
   },
 
   toggleFocus() {
@@ -460,6 +463,7 @@ const UI = {
     modal.style.opacity = '1';
 
     document.body.style.overflow = 'hidden';
+    if (modalId === 'game-modal') document.body.classList.add('game-modal-open');
 
     setTimeout(() => {
       modal.style.clipPath = '';
