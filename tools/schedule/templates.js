@@ -1,0 +1,239 @@
+/* ============================================
+   TEMPLATES.JS - Event Type Definitions & Presets
+   KlassKit Schedule Tool
+   ============================================ */
+
+const EVENT_TYPES = [
+  {
+    id: 'class',
+    label: 'Class',
+    icon: 'book-open',
+    defaultColor: '#2979FF',
+    checklist: [
+      'Lesson plan completed',
+      'Materials prepared',
+      'Attendance sheet ready',
+      'Classroom setup checked',
+      'Post-class reflection'
+    ]
+  },
+  {
+    id: 'meeting',
+    label: 'Meeting',
+    icon: 'users',
+    defaultColor: '#00E676',
+    checklist: [
+      'Agenda prepared',
+      'Meeting notes template ready',
+      'Required documents gathered',
+      'Follow-up actions listed'
+    ]
+  },
+  {
+    id: 'test',
+    label: 'Test / Exam',
+    icon: 'clipboard-check',
+    defaultColor: '#FF6B95',
+    checklist: [
+      'Test papers printed',
+      'Answer key prepared',
+      'Extra stationery available',
+      'Seating arrangement set',
+      'Grading rubric finalized'
+    ]
+  },
+  {
+    id: 'activity',
+    label: 'Activity',
+    icon: 'target',
+    defaultColor: '#FF8C42',
+    checklist: [
+      'Activity instructions ready',
+      'Materials / props gathered',
+      'Groups / teams assigned',
+      'Timer / scoring prepared'
+    ]
+  },
+  {
+    id: 'admin',
+    label: 'Admin',
+    icon: 'briefcase',
+    defaultColor: '#8B5CF6',
+    checklist: [
+      'Documents submitted',
+      'Reports updated',
+      'Emails responded to',
+      'Filing completed'
+    ]
+  },
+  {
+    id: 'break',
+    label: 'Break',
+    icon: 'coffee',
+    defaultColor: '#64748B',
+    checklist: []
+  },
+  {
+    id: 'other',
+    label: 'Other',
+    icon: 'bookmark',
+    defaultColor: '#0EA5E9',
+    checklist: []
+  }
+];
+
+const COLOR_PALETTE = [
+  { id: 'blue',   hex: '#2979FF', label: 'Blue' },
+  { id: 'green',  hex: '#00E676', label: 'Green' },
+  { id: 'pink',   hex: '#FF6B95', label: 'Pink' },
+  { id: 'orange', hex: '#FF8C42', label: 'Orange' },
+  { id: 'purple', hex: '#8B5CF6', label: 'Purple' },
+  { id: 'teal',   hex: '#14B8A6', label: 'Teal' },
+  { id: 'red',    hex: '#EF4444', label: 'Red' },
+  { id: 'yellow', hex: '#F59E0B', label: 'Amber' },
+  { id: 'slate',  hex: '#64748B', label: 'Slate' },
+  { id: 'cyan',   hex: '#0EA5E9', label: 'Cyan' },
+];
+
+const RECURRENCE_OPTIONS = [
+  { id: 'none',    label: 'Does not repeat' },
+  { id: 'daily',   label: 'Every day' },
+  { id: 'weekly',  label: 'Every week' },
+  { id: 'biweekly', label: 'Every 2 weeks' },
+  { id: 'monthly', label: 'Every month' },
+];
+
+const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const DAYS_FULL = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+/* ============================================
+   Helper: Get event type definition by ID
+   ============================================ */
+function getEventType(typeId) {
+  return EVENT_TYPES.find(t => t.id === typeId) || EVENT_TYPES[EVENT_TYPES.length - 1];
+}
+
+/* ============================================
+   Helper: Get color definition by ID
+   ============================================ */
+function getColor(colorId) {
+  return COLOR_PALETTE.find(c => c.id === colorId) || COLOR_PALETTE[0];
+}
+
+/* ============================================
+   Recurrence: Generate occurrences for a date range
+   ============================================ */
+function generateRecurrences(event, rangeStart, rangeEnd) {
+  if (!event.recurrence || event.recurrence === 'none') return [];
+  
+  const occurrences = [];
+  const originalDate = new Date(event.date);
+  let currentDate = new Date(originalDate);
+  
+  // Step based on recurrence type
+  const stepDays = {
+    'daily': 1,
+    'weekly': 7,
+    'biweekly': 14,
+    'monthly': 0 // handled separately
+  };
+
+  // Start from original date, step forward
+  const maxIterations = 365; // Safety cap: 1 year
+  let iterations = 0;
+  
+  while (iterations < maxIterations) {
+    iterations++;
+    
+    // Step forward
+    if (event.recurrence === 'monthly') {
+      currentDate = new Date(currentDate);
+      currentDate.setMonth(currentDate.getMonth() + 1);
+    } else {
+      const days = stepDays[event.recurrence];
+      currentDate = new Date(currentDate.getTime() + days * 86400000);
+    }
+    
+    // Stop if past range
+    if (currentDate > rangeEnd) break;
+    
+    // Include if within range and not the original date
+    if (currentDate >= rangeStart && currentDate.toDateString() !== originalDate.toDateString()) {
+      occurrences.push({
+        ...event,
+        id: `${event.id}_recur_${currentDate.toISOString().slice(0, 10)}`,
+        date: currentDate.toISOString().slice(0, 10),
+        isRecurrence: true,
+        originalEventId: event.id,
+        // Each recurrence gets its own checklist state (deep copy)
+        checklist: event.checklist.map(item => ({ ...item, done: false }))
+      });
+    }
+  }
+  
+  return occurrences;
+}
+
+/* ============================================
+   Helper: Create a new event object
+   ============================================ */
+function createEventObject({ name, typeId, colorHex, date, startTime, endTime, room, notes, recurrence, checklist }) {
+  const type = getEventType(typeId);
+  const defaultChecklist = checklist || type.checklist.map((text, i) => ({
+    id: `chk_${Date.now()}_${i}`,
+    text,
+    done: false
+  }));
+
+  return {
+    id: `evt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    name: name || type.label,
+    typeId: typeId || 'other',
+    color: colorHex || type.defaultColor,
+    date, // 'YYYY-MM-DD'
+    startTime, // 'HH:MM'
+    endTime,   // 'HH:MM'
+    room: room || '',
+    notes: notes || '',
+    recurrence: recurrence || 'none',
+    checklist: defaultChecklist,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+}
+
+/* ============================================
+   Time Utilities
+   ============================================ */
+const SCHEDULE_START_HOUR = 6;  // 06:00
+const SCHEDULE_END_HOUR = 22;   // 22:00
+const SLOT_MINUTES = 15;
+const TOTAL_SLOTS = ((SCHEDULE_END_HOUR - SCHEDULE_START_HOUR) * 60) / SLOT_MINUTES;
+
+function timeToMinutes(timeStr) {
+  const [h, m] = timeStr.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function minutesToTime(minutes) {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function timeToSlotIndex(timeStr) {
+  const totalMinutes = timeToMinutes(timeStr);
+  return (totalMinutes - SCHEDULE_START_HOUR * 60) / SLOT_MINUTES;
+}
+
+function slotIndexToTime(index) {
+  const totalMinutes = SCHEDULE_START_HOUR * 60 + index * SLOT_MINUTES;
+  return minutesToTime(totalMinutes);
+}
+
+function formatTimeDisplay(timeStr) {
+  const [h, m] = timeStr.split(':').map(Number);
+  const period = h >= 12 ? 'PM' : 'AM';
+  const displayH = h % 12 || 12;
+  return `${displayH}:${String(m).padStart(2, '0')} ${period}`;
+}

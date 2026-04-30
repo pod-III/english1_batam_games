@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Supabase Auth -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
+  <script src="/supabase.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Schedule — KlassKit</title>
+  <link rel="icon" type="image/x-icon" href="../../media/icon.ico" />
+  <link rel="icon" type="image/webp" href="../../media/icon.webp" />
+  <script>if(localStorage.getItem("theme_schedule")==="dark"||(!localStorage.getItem("theme_schedule")&&window.matchMedia("(prefers-color-scheme:dark)").matches)){document.documentElement.classList.add("dark")}</script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            pink: '#FF6B95', orange: '#FF8C42', green: '#00E676',
+            blue: '#2979FF', dark: '#0f172a', chalk: '#f8fafc',
+          },
+          fontFamily: {
+            heading: ['Fredoka', 'sans-serif'],
+            body: ['Nunito', 'sans-serif'],
+          },
+          boxShadow: {
+            'neo': '4px 4px 0px 0px rgba(51,65,85,0.15)',
+            'neo-sm': '2px 2px 0px 0px rgba(51,65,85,0.15)',
+          },
+        }
+      }
+    }
+  </script>
+
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="../../css/base.css" />
+  <link rel="stylesheet" href="../../css/components.css" />
+
+  <!-- Vercel Web Analytics -->
+  <script>window.va=window.va||function(){(window.vaq=window.vaq||[]).push(arguments)};</script>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+
+<body class="h-screen flex flex-col text-dark relative bg-chalk">
+
+  <!-- ====== HEADER ====== -->
+  <header class="schedule-header flex-none h-12 flex items-center justify-between px-4 md:px-6 relative z-40">
+    <div class="flex items-center gap-2 md:gap-3">
+      <!-- Mobile sidebar toggle -->
+      <button onclick="toggleMobileSidebar()" class="md:hidden p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+        <i data-lucide="panel-left" class="w-5 h-5 text-slate-500 dark:text-slate-400"></i>
+      </button>
+      <div class="w-7 h-7 bg-blue rounded-lg border-[1px] border-white/40 flex items-center justify-center text-white shadow-neo-sm">
+        <i data-lucide="calendar-days" class="w-4 h-4 stroke-[2.5px]"></i>
+      </div>
+      <div>
+        <h1 class="font-heading text-lg md:text-xl tracking-wide text-dark dark:text-white leading-none">Schedule</h1>
+        <p class="text-[7px] text-gray-400 font-extrabold tracking-widest uppercase leading-none">KlassKit</p>
+      </div>
+    </div>
+
+    <!-- Week Navigation -->
+    <div class="flex items-center gap-1 md:gap-2">
+      <button onclick="goToToday()" class="neo-btn-sm bg-blue text-white px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider">Today</button>
+      <button onclick="goToPrevWeek()" class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+        <i data-lucide="chevron-left" class="w-4 h-4 text-slate-500 dark:text-slate-400"></i>
+      </button>
+      <span id="week-label" class="font-heading font-bold text-xs md:text-sm text-dark dark:text-white min-w-[140px] md:min-w-[180px] text-center"></span>
+      <button onclick="goToNextWeek()" class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+        <i data-lucide="chevron-right" class="w-4 h-4 text-slate-500 dark:text-slate-400"></i>
+      </button>
+    </div>
+
+    <!-- Header Actions -->
+    <div class="flex items-center gap-1 md:gap-2">
+      <button onclick="showWeekendToggle()" id="weekend-toggle-btn" class="hidden md:flex neo-btn-sm bg-white dark:bg-slate-800 text-dark dark:text-slate-200 px-2 py-1 rounded-lg text-[10px] font-bold items-center gap-1" title="Toggle Weekends">
+        <i data-lucide="calendar-range" class="w-3.5 h-3.5"></i>
+        <span class="hidden lg:inline" id="weekend-label">5 days</span>
+      </button>
+      <button onclick="exportSchedule()" class="neo-btn-sm bg-white dark:bg-slate-800 text-dark dark:text-slate-200 p-1.5 rounded-lg" title="Backup">
+        <i data-lucide="save" class="w-3.5 h-3.5"></i>
+      </button>
+      <button onclick="triggerImport()" class="neo-btn-sm bg-white dark:bg-slate-800 text-dark dark:text-slate-200 p-1.5 rounded-lg" title="Restore">
+        <i data-lucide="upload-cloud" class="w-3.5 h-3.5"></i>
+      </button>
+      <button onclick="toggleDarkMode()" class="neo-btn-sm bg-white dark:bg-slate-800 text-dark dark:text-slate-200 p-1.5 rounded-lg" title="Toggle Dark Mode">
+        <i id="darkModeIcon" data-lucide="moon" class="w-3.5 h-3.5"></i>
+      </button>
+    </div>
+  </header>
+
+  <input type="file" id="importInput" accept=".json" class="hidden" onchange="processImport(this)">
+
+  <!-- ====== MAIN LAYOUT ====== -->
+  <div class="flex-1 flex overflow-hidden relative">
+
+    <!-- ====== LEFT SIDEBAR ====== -->
+    <aside class="schedule-sidebar flex-col p-4 gap-4 hidden md:flex custom-scrollbar" id="sidebar">
+      <!-- Mobile close -->
+      <button onclick="toggleMobileSidebar()" class="md:hidden self-end p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <!-- Event Templates -->
+      <div>
+        <h3 class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-2 px-1">Event Types</h3>
+        <div class="flex flex-col gap-1.5" id="template-list">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <div class="w-full h-px bg-slate-200 dark:bg-slate-700"></div>
+
+      <!-- Today's Events -->
+      <div>
+        <h3 class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-2 px-1">Today's Events</h3>
+        <div id="today-events-list" class="flex flex-col gap-1 text-xs">
+          <p class="text-slate-400 text-xs font-semibold px-1">No events today</p>
+        </div>
+      </div>
+
+      <div class="w-full h-px bg-slate-200 dark:bg-slate-700"></div>
+
+      <!-- Quick Stats -->
+      <div>
+        <h3 class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-2 px-1">This Week</h3>
+        <div class="grid grid-cols-2 gap-2">
+          <div class="stat-card">
+            <div class="stat-number text-blue" id="stat-events">0</div>
+            <div class="stat-label">Events</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number text-orange" id="stat-tasks">0</div>
+            <div class="stat-label">Tasks</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number text-green" id="stat-done">0</div>
+            <div class="stat-label">Done</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number text-pink" id="stat-pending">0</div>
+            <div class="stat-label">Pending</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ====== CALENDAR ====== -->
+    <div class="flex-1 flex flex-col overflow-hidden">
+      <!-- Day headers -->
+      <div class="day-headers flex-none flex" id="day-headers-row">
+        <div class="time-gutter"></div>
+        <!-- Day headers populated by JS -->
+      </div>
+
+      <!-- Scrollable calendar body -->
+      <div class="calendar-wrapper flex-1 custom-scrollbar" id="calendar-wrapper">
+        <div class="flex" style="min-height: 100%;">
+          <!-- Time gutter -->
+          <div class="time-gutter flex-none" id="time-gutter">
+            <!-- Populated by JS -->
+          </div>
+          <!-- Day columns -->
+          <div class="day-columns flex-1" id="day-columns">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== DETAIL PANEL ====== -->
+    <aside class="detail-panel" id="detail-panel">
+      <div class="panel-content flex flex-col">
+        <!-- Panel header -->
+        <div class="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700 flex-none">
+          <h3 class="font-heading font-bold text-sm text-dark dark:text-white flex items-center gap-2">
+            <i data-lucide="edit-3" class="w-4 h-4 text-blue"></i> Event Details
+          </h3>
+          <button onclick="closeDetailPanel()" class="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 transition-colors">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <!-- Panel body -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar" id="detail-body">
+          <!-- Populated by JS when an event is selected -->
+        </div>
+
+        <!-- Panel footer -->
+        <div class="flex-none p-4 border-t border-slate-200 dark:border-slate-700 flex gap-2" id="detail-footer">
+          <!-- Delete & duplicate buttons -->
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- ====== EVENT CREATION MODAL ====== -->
+  <div id="event-modal" class="hidden">
+    <!-- Populated by JS -->
+  </div>
+
+  <!-- ====== TOAST CONTAINER ====== -->
+  <div id="toastContainer" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] flex flex-col gap-3 items-center pointer-events-none"></div>
+
+  <script src="templates.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
