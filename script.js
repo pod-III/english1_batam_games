@@ -1260,13 +1260,31 @@ const Filters = {
 
   updateUI() {
     const homeBtn = document.getElementById('nav-home-btn');
-    if (homeBtn) {
-      homeBtn.classList.toggle('active', LandingPage.currentView === 'landing');
-    }
+    const bnavHome = document.getElementById('bnav-home');
+    const isLanding = LandingPage.currentView === 'landing';
+
+    if (homeBtn) homeBtn.classList.toggle('active', isLanding);
+    if (bnavHome) bnavHome.classList.toggle('active', isLanding);
+
     document.querySelectorAll('.filter-btn[data-category]').forEach(btn => {
       const isActive = btn.dataset.category === State.filters.category && LandingPage.currentView === 'library';
       btn.classList.toggle('active', isActive);
       btn.setAttribute('aria-pressed', String(isActive));
+    });
+
+    // Update Bottom Nav items
+    const bnavItems = {
+      all: 'bnav-library',
+      tool: 'bnav-tools',
+      workshop: 'bnav-workshop'
+    };
+
+    Object.keys(bnavItems).forEach(cat => {
+      const el = document.getElementById(bnavItems[cat]);
+      if (el) {
+        const isActive = State.filters.category === cat && LandingPage.currentView === 'library';
+        el.classList.toggle('active', isActive);
+      }
     });
   }
 };
@@ -1928,30 +1946,21 @@ const GameModal = {
 // --- SEARCH ---
 const Search = {
   setup() {
-    const inputDesktop = document.getElementById('search-input');
-    const inputMobile = document.getElementById('search-input-mobile');
-
-    // Sync both inputs and update filters
-    const handleInput = (e) => {
-      const val = e.target.value;
-      if (inputDesktop && e.target !== inputDesktop) inputDesktop.value = val;
-      if (inputMobile && e.target !== inputMobile) inputMobile.value = val;
-      Filters.setSearch(val);
-    };
-
-    if (inputDesktop) inputDesktop.addEventListener('input', handleInput);
-    if (inputMobile) inputMobile.addEventListener('input', handleInput);
+    const input = document.getElementById('search-input');
+    if (input) {
+      input.addEventListener('input', (e) => {
+        Filters.setSearch(e.target.value);
+      });
+    }
   },
 
   clear() {
-    const inputDesktop = document.getElementById('search-input');
-    const inputMobile = document.getElementById('search-input-mobile');
-
-    if (inputDesktop) inputDesktop.value = '';
-    if (inputMobile) inputMobile.value = '';
-
+    const input = document.getElementById('search-input');
+    if (input) {
+      input.value = '';
+      input.focus();
+    }
     Filters.setSearch('');
-    if (inputDesktop) inputDesktop.focus();
   }
 };
 
@@ -2345,3 +2354,24 @@ if (document.readyState === 'loading') {
   initAuthIndicator();
   initDisplayNameEditor();
 }
+// --- MOBILE UI HELPERS ---
+const MobileUI = {
+  openSidebar() {
+    const s = document.getElementById('sidebar-nav');
+    const b = document.getElementById('sidebar-backdrop');
+    if (s && b) {
+      s.classList.remove('hidden');
+      setTimeout(() => s.classList.remove('-translate-x-full'), 10);
+      b.classList.add('active');
+    }
+  },
+  closeSidebar() {
+    const s = document.getElementById('sidebar-nav');
+    const b = document.getElementById('sidebar-backdrop');
+    if (s && b) {
+      s.classList.add('-translate-x-full');
+      setTimeout(() => s.classList.add('hidden'), 300);
+      b.classList.remove('active');
+    }
+  }
+};
