@@ -170,6 +170,8 @@ function renderCalendar() {
   
   // Render Day Headers
   dayHeadersRow.innerHTML = '<div class="time-gutter flex-none"></div>';
+  dayHeadersRow.style.display = 'grid';
+  dayHeadersRow.style.gridTemplateColumns = `56px repeat(${numDays}, 1fr)`; // 56px matches time-gutter width
   const todayStr = getDayString(new Date());
   
   for (let i = 0; i < numDays; i++) {
