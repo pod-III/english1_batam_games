@@ -261,6 +261,7 @@ function renderCalendar() {
       
       evtBlock.draggable = true;
       evtBlock.addEventListener('dragstart', handleDragStartEvent);
+      evtBlock.addEventListener('dragend', (e) => e.currentTarget.classList.remove('opacity-50'));
       evtBlock.addEventListener('click', (e) => {
         e.stopPropagation(); // prevent dblclick trigger
         openDetailPanel(evt.id);
@@ -353,10 +354,11 @@ function handleDragStartTemplate(e) {
 }
 
 function handleDragStartEvent(e) {
-  draggedEventId = e.target.dataset.id;
+  draggedEventId = e.currentTarget.dataset.id;
   draggedType = null;
   // Delay adding class so the drag image looks right
-  setTimeout(() => e.target.classList.add('opacity-50'), 0);
+  const el = e.currentTarget;
+  setTimeout(() => el.classList.add('opacity-50'), 0);
   e.dataTransfer.setData('text/plain', '');
 }
 
@@ -770,6 +772,10 @@ function openEventModal(eventObj = null, dateStr = null, timeStr = null, typeId 
   const typeOptions = EVENT_TYPES.map(t => `
     <option value="${t.id}" ${t.id === tId ? 'selected' : ''}>${t.label}</option>
   `).join('');
+
+  const recurrenceOptions = RECURRENCE_OPTIONS.map(r => `
+    <option value="${r.id}" ${eventObj && eventObj.recurrence === r.id ? 'selected' : ''}>${r.label}</option>
+  `).join('');
   
   const colorOptions = COLOR_PALETTE.map(c => `
     <button type="button" class="color-swatch ${c.hex === color ? 'active' : ''}" 
@@ -846,6 +852,13 @@ function openEventModal(eventObj = null, dateStr = null, timeStr = null, typeId 
           </div>
           
           <div>
+            <label class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Recurrence</label>
+            <select id="modal-recurrence" class="panel-input">
+              ${recurrenceOptions}
+            </select>
+          </div>
+
+          <div>
             <label class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Notes</label>
             <textarea id="modal-notes" class="panel-input panel-textarea" placeholder="Add descriptions or notes here...">${notes}</textarea>
           </div>
@@ -876,6 +889,7 @@ function saveEventFromModal() {
   const start = document.getElementById('modal-start').value;
   const end = document.getElementById('modal-end').value;
   const room = document.getElementById('modal-room').value;
+  const recurrence = document.getElementById('modal-recurrence').value;
   const notes = document.getElementById('modal-notes').value;
   
   if (timeToMinutes(start) >= timeToMinutes(end)) {
@@ -894,13 +908,14 @@ function saveEventFromModal() {
       evt.startTime = start;
       evt.endTime = end;
       evt.room = room;
+      evt.recurrence = recurrence;
       evt.notes = notes;
       evt.updatedAt = new Date().toISOString();
     }
   } else {
     // Create new
     const newEvt = createEventObject({
-      name, typeId, colorHex: color, date, startTime: start, endTime: end, room, notes
+      name, typeId, colorHex: color, date, startTime: start, endTime: end, room, notes, recurrence
     });
     events.push(newEvt);
   }
