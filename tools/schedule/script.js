@@ -920,11 +920,14 @@ function openDetailPanel(eventId) {
   
   const footer = document.getElementById('detail-footer');
   footer.innerHTML = `
-    <button onclick="deleteEvent('${eventId}')" class="neo-btn-sm bg-white dark:bg-slate-800 text-pink hover:bg-pink hover:text-white flex-1 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors">
-      <i data-lucide="trash-2" class="w-4 h-4"></i> Delete
+    <button onclick="deleteEvent('${eventId}')" class="neo-btn-sm bg-white dark:bg-slate-800 text-pink hover:bg-pink hover:text-white px-3 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors" title="Delete">
+      <i data-lucide="trash-2" class="w-4 h-4"></i>
     </button>
-    <button onclick="duplicateEvent('${eventId}')" class="neo-btn-sm bg-white dark:bg-slate-800 text-dark dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex-1 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors">
-      <i data-lucide="copy" class="w-4 h-4"></i> Clone
+    <button onclick="duplicateEvent('${eventId}')" class="neo-btn-sm bg-white dark:bg-slate-800 text-dark dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 px-3 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors" title="Clone">
+      <i data-lucide="copy" class="w-4 h-4"></i>
+    </button>
+    <button onclick="closeDetailPanel()" class="neo-btn bg-blue text-white flex-1 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-blue/20">
+      <i data-lucide="check-circle" class="w-4 h-4"></i> Save & Close
     </button>
   `;
   
