@@ -500,20 +500,13 @@ function createEventBlock(evt) {
   }
 
   let notesHtml = '';
-  if (evt.notes && height >= 40) {
-    notesHtml = `
-      <div class="event-notes text-[10px] opacity-80 italic mt-1 leading-tight line-clamp-2 pointer-events-none text-dark dark:text-white">
-        ${evt.notes.replace(/"/g, '&quot;')}
-      </div>
-    `;
+  if (evt.notes && evt.notes.trim() && height >= 40) {
+    notesHtml = `<div class="event-notes text-[9px] opacity-80 italic leading-tight pointer-events-none text-dark dark:text-white whitespace-pre-wrap mt-1">${evt.notes.trim().replace(/"/g, '&quot;')}</div>`;
   }
 
   evtBlock.innerHTML = `
     <div class="event-title text-dark dark:text-white">${evt.name}</div>
-    <div class="event-time text-dark dark:text-white opacity-70">${formatTimeDisplay(evt.startTime)} - ${formatTimeDisplay(evt.endTime)}</div>
-    ${notesHtml}
-    ${progressHtml}
-    ${lessonStatusHtml}
+    <div class="event-time text-dark dark:text-white opacity-70">${formatTimeDisplay(evt.startTime)} - ${formatTimeDisplay(evt.endTime)}</div>${progressHtml}${notesHtml}${lessonStatusHtml}
     ${evt.recurrence !== 'none' ? '<i data-lucide="repeat" class="event-recurrence-badge w-3 h-3"></i>' : ''}
     <div class="resize-handle" draggable="false" data-id="${evt.id}"></div>
   `;
