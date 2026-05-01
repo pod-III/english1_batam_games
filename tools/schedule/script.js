@@ -469,6 +469,8 @@ function renderCalendar() {
     // Draw Events for this day
     const dayEvents = events.filter(e => e.date === dayStr);
     dayEvents.forEach(evt => {
+      // Skip recurrences on red days (holidays/leaves)
+      if (isDayRed && evt.isRecurrence) return;
       col.appendChild(createEventBlock(evt));
     });
     
