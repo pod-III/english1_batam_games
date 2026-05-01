@@ -62,6 +62,14 @@ function getClassEvents() {
   return allEvents.filter(e => e.typeId === 'class' && !e.isRecurrence);
 }
 
+function get3DaysRange() {
+  const now = new Date();
+  const later = new Date(now);
+  later.setDate(now.getDate() + 2);
+  const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  return { start: fmt(now), end: fmt(later) };
+}
+
 function getWeekRange() {
   const now = new Date();
   const day = now.getDay();
@@ -90,6 +98,9 @@ function getClassInstances(masterName) {
   if (currentFilter === 'today') {
     const today = getTodayStr();
     filtered = filtered.filter(e => e.date === today);
+  } else if (currentFilter === '3days') {
+    const { start, end } = get3DaysRange();
+    filtered = filtered.filter(e => e.date >= start && e.date <= end);
   } else if (currentFilter === 'week') {
     const { start, end } = getWeekRange();
     filtered = filtered.filter(e => e.date >= start && e.date <= end);
@@ -461,6 +472,10 @@ function updateFilterLabel(mode) {
   if (mode === 'today') {
     const today = new Date();
     el.textContent = today.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+  } else if (mode === '3days') {
+    const { start, end } = get3DaysRange();
+    const fmt = s => new Date(s + 'T00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    el.textContent = `${fmt(start)} – ${fmt(end)}`;
   } else if (mode === 'week') {
     const { start, end } = getWeekRange();
     const fmt = s => new Date(s + 'T00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
