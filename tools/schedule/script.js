@@ -7,8 +7,8 @@ let events = [];
 let currentWeekStart = getMonday(new Date());
 let selectedEventId = null;
 let showWeekends = false;
-let viewMode = 'week'; // 'week' or 'day'
-let currentDayOffset = 0; // for day view mode
+let viewMode = 'week'; // 'week', '3-day', 'day'
+let currentDayOffset = 0; // for day/3-day view modes
 
 // Initialize Lucide Icons
 lucide.createIcons();
@@ -27,6 +27,13 @@ const templateList = document.getElementById('template-list');
 
 function init() {
   loadData();
+  
+  // Update offset based on viewMode after loadData
+  if (viewMode === 'day' || viewMode === '3-day') {
+    const now = new Date();
+    currentDayOffset = (now.getDay() + 6) % 7;
+  }
+
   renderSidebar();
   renderCalendar();
   setupEventListeners();
@@ -1350,8 +1357,13 @@ function goToPrevWeek() {
 function goToToday() {
   const now = new Date();
   currentWeekStart = getMonday(now);
-  currentDayOffset = now.getDay() - 1;
-  if (currentDayOffset < 0) currentDayOffset = 6;
+  
+  if (viewMode === 'day' || viewMode === '3-day') {
+    currentDayOffset = (now.getDay() + 6) % 7;
+  } else {
+    currentDayOffset = 0;
+  }
+  
   renderCalendar();
   updateStats();
   setTimeout(scrollToCurrentTime, 100);
