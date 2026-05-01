@@ -322,14 +322,20 @@ function createClassCard(className, color, stats) {
           <span class="ml-auto">${adminPlanned}/${adminTotal}</span>
         </div>
         <div class="flex gap-1 w-full h-1.5 mb-1">
-          ${adminData.tasks.map(t => `
-            <div class="flex-1 h-full rounded-sm ${t.done ? 'bg-[var(--color-green)]' : 'bg-[var(--border-secondary)]'}" title="${t.text.replace(/"/g, '&quot;')}"></div>
-          `).join('')}
+          ${adminData.tasks.map(t => {
+            const isOverdue = !t.done && t.deadline && t.deadline < getTodayStr();
+            return `
+              <div class="flex-1 h-full rounded-sm ${t.done ? 'bg-[var(--color-green)]' : (isOverdue ? 'bg-pink' : 'bg-[var(--border-secondary)]')}" title="${t.text.replace(/"/g, '&quot;')}"></div>
+            `;
+          }).join('')}
         </div>
         <div class="flex justify-between w-full gap-1">
-          ${adminData.tasks.map(t => `
-            <span class="flex-1 text-[9px] leading-[11px] uppercase tracking-wider text-slate-400 font-extrabold truncate text-center" title="${t.text.replace(/"/g, '&quot;')}">${t.text}</span>
-          `).join('')}
+          ${adminData.tasks.map(t => {
+            const isOverdue = !t.done && t.deadline && t.deadline < getTodayStr();
+            return `
+              <span class="flex-1 text-[9px] leading-[11px] uppercase tracking-wider ${isOverdue ? 'text-pink' : 'text-slate-400'} font-extrabold truncate text-center" title="${t.text.replace(/"/g, '&quot;')}">${t.text}</span>
+            `;
+          }).join('')}
         </div>
       </div>
       ` : ''}
@@ -521,15 +527,43 @@ function openDrawer(className) {
 
   const classAdmin = loadClassAdmin()[className] || { tasks: [] };
   const adminHtml = classAdmin.tasks.map((task, i) => `
-    <div class="flex items-center justify-between group/task mb-1">
-      <label class="chunky-check" onclick="event.stopPropagation()">
-        <input type="checkbox" ${task.done ? 'checked' : ''} onchange="toggleClassAdminTask('${className}', ${i}, this.checked)">
-        <div class="box"></div>
-        <span class="text-[11px] font-semibold ${task.done ? 'line-through text-slate-400' : ''}">${task.text}</span>
-      </label>
-      <button onclick="deleteClassAdminTask('${className}', ${i})" class="delete-btn p-1 hover:bg-pink/10 rounded-lg transition-colors">
-        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-      </button>
+    <div class="flex flex-col mb-2 bg-[var(--surface-card)] rounded-xl border-2 border-[var(--border-secondary)] p-2">
+      <div class="flex items-center justify-between group/task">
+        <label class="chunky-check flex-1 min-w-0" onclick="event.stopPropagation()">
+          <input type="checkbox" ${task.done ? 'checked' : ''} onchange="toggleClassAdminTask('${className}', ${i}, this.checked)">
+          <div class="box"></div>
+          <span class="text-[11px] font-semibold truncate ${task.done ? 'line-through text-slate-400' : ''}">${task.text}</span>
+        </label>
+        <div class="flex gap-1 items-center flex-shrink-0">
+          <button onclick="document.getElementById('ca-deadline-panel-${className.replace(/[^a-z0-9]/gi, '_')}-${i}').classList.toggle('hidden')" class="p-1 text-slate-400 hover:text-blue rounded-lg transition-colors" title="Set Deadline">
+            <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+          </button>
+          <button onclick="deleteClassAdminTask('${className}', ${i})" class="delete-btn p-1 hover:bg-pink/10 rounded-lg transition-colors">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      </div>
+      
+      ${task.deadline && !task.done ? `
+        <div class="ml-7 mt-1 text-[10px] font-bold ${task.deadline < getTodayStr() ? 'text-pink' : 'text-slate-400'}">
+          <i data-lucide="clock" class="w-3 h-3 inline-block mr-0.5 align-text-bottom"></i>
+          ${task.deadline < getTodayStr() ? 'Overdue: ' : 'Due: '} ${formatDate(task.deadline)}
+        </div>
+      ` : ''}
+
+      <div id="ca-deadline-panel-${className.replace(/[^a-z0-9]/gi, '_')}-${i}" class="hidden mt-2 ml-7 bg-slate-50 dark:bg-slate-800 p-2 rounded-lg border-2 border-[var(--border-secondary)]">
+        <label class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Deadline</label>
+        <div class="flex items-center gap-2 mb-2">
+          <input type="date" class="edit-input flex-1 py-1 px-2 text-xs" value="${task.deadline || ''}" onchange="setTaskDeadline('${className}', ${i}, this.value)">
+          <button onclick="setTaskDeadline('${className}', ${i}, '')" class="text-[10px] font-bold text-slate-400 hover:text-pink uppercase tracking-wider px-2 py-1">Clear</button>
+        </div>
+        <div class="flex flex-wrap gap-1">
+          <button onclick="setTaskDeadlineDays('${className}', ${i}, 1)" class="px-2 py-1 bg-slate-200 dark:bg-slate-700 rounded text-[9px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 hover:bg-blue hover:text-white transition-colors">1 Day</button>
+          <button onclick="setTaskDeadlineDays('${className}', ${i}, 3)" class="px-2 py-1 bg-slate-200 dark:bg-slate-700 rounded text-[9px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 hover:bg-blue hover:text-white transition-colors">3 Days</button>
+          <button onclick="setTaskDeadlineDays('${className}', ${i}, 7)" class="px-2 py-1 bg-slate-200 dark:bg-slate-700 rounded text-[9px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 hover:bg-blue hover:text-white transition-colors">1 Week</button>
+          <button onclick="setTaskDeadlineDays('${className}', ${i}, 14)" class="px-2 py-1 bg-slate-200 dark:bg-slate-700 rounded text-[9px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 hover:bg-blue hover:text-white transition-colors">2 Weeks</button>
+        </div>
+      </div>
     </div>
   `).join('');
 
@@ -1078,4 +1112,25 @@ function toggleClassAdminTask(className, index, checked) {
   } else {
     openDrawer(className);
   }
+}
+
+function setTaskDeadline(className, index, dateStr) {
+  const data = loadClassAdmin();
+  if (!data[className] || !data[className].tasks[index]) return;
+  data[className].tasks[index].deadline = dateStr || null;
+  saveClassAdmin(data);
+  if (currentDrawerClass) {
+    const openId = document.querySelector('[id^="edit-"]:not(.hidden)')?.id.replace('edit-', '');
+    openDrawer(className);
+    if (openId) toggleEdit(openId);
+  } else {
+    openDrawer(className);
+  }
+}
+
+function setTaskDeadlineDays(className, index, days) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  setTaskDeadline(className, index, fmt(date));
 }
