@@ -132,8 +132,9 @@ function getClassStats(className) {
 
 function renderClassGrid() {
   const grid = document.getElementById('class-grid');
-  const emptyState = document.getElementById('empty-state');
   if (!grid) return;
+  if (currentMode === 'units') { renderUnitView(); return; }
+  const emptyState = document.getElementById('empty-state');
   grid.innerHTML = '';
 
   const allClasses = getUniqueClasses();
@@ -190,12 +191,14 @@ function renderClassGrid() {
           <span class="w-1 h-1 rounded-full flex-shrink-0" style="background:${cls.color}"></span>
           <span class="font-bold truncate text-[11px]">${l.lessonPlan?.lesson || l.name}</span>
         </div>
-        <span class="text-slate-400 font-bold flex-shrink-0 ml-2 text-[9px] uppercase tracking-tighter">${formatDate(l.date)}</span>
+        <span class="text-slate-400 font-bold flex-shrink-0 ml-2 text-[10px] uppercase tracking-tighter">${formatDate(l.date)}</span>
       </div>
     `).join('') : '<p class="text-[10px] text-slate-400 font-semibold py-1 italic">No upcoming lessons</p>';
 
     const card = document.createElement('div');
     card.className = 'tracker-card p-5';
+    card.setAttribute('data-class', cls.name);
+    card.setAttribute('data-color', cls.color);
     card.onclick = () => openDrawer(cls.name);
 
     card.innerHTML = `
@@ -205,8 +208,8 @@ function renderClassGrid() {
           <div>
             <h3 class="font-heading text-base font-bold leading-none mb-1">${cls.name}</h3>
             <div class="flex items-center gap-2">
-              <span class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">${stats.total} Lessons</span>
-              ${stats.skipped > 0 ? `<span class="badge-status badge-skipped py-0 px-1 text-[8px] font-black">${stats.skipped} Missing</span>` : ''}
+              <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">${stats.total} Lessons</span>
+              ${stats.skipped > 0 ? `<span class="badge-status badge-skipped py-0 px-1 text-[10px] font-black">${stats.skipped} Skipped</span>` : ''}
             </div>
           </div>
         </div>
@@ -218,11 +221,25 @@ function renderClassGrid() {
           <div class="flex items-center justify-between mb-1.5">
             <div class="flex items-center gap-1.5">
               <i data-lucide="book-open" class="w-3 h-3 text-slate-400"></i>
-              <span class="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">Lesson Planning</span>
+              <span class="text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Lesson Planning</span>
             </div>
             <span class="text-[10px] font-bold text-slate-600">${stats.planned}/${stats.total}</span>
           </div>
           <div class="seg-bar">${segHtml}</div>
+          <div class="flex items-center gap-3 mt-1.5">
+            <div class="flex items-center gap-1">
+              <div class="w-2 h-2 rounded-sm bg-[#00E676]"></div>
+              <span class="text-[10px] font-bold text-slate-400">Planned</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <div class="w-2 h-2 rounded-sm bg-[#FF8C42]"></div>
+              <span class="text-[10px] font-bold text-slate-400">Skipped</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <div class="w-2 h-2 rounded-sm bg-slate-200 dark:bg-slate-700"></div>
+              <span class="text-[10px] font-bold text-slate-400">Upcoming</span>
+            </div>
+          </div>
         </div>
 
         <!-- Class Admin Section -->
@@ -230,7 +247,7 @@ function renderClassGrid() {
           <div class="flex items-center justify-between mb-1.5">
             <div class="flex items-center gap-1.5">
               <i data-lucide="layout-dashboard" class="w-3 h-3 text-blue"></i>
-              <span class="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">Class Admin</span>
+              <span class="text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Class Admin</span>
             </div>
             <span class="text-[10px] font-bold text-blue">${adminPlanned}/${adminTotal}</span>
           </div>
@@ -241,7 +258,7 @@ function renderClassGrid() {
       </div>
 
       <div class="border-t border-[var(--bg-tertiary)] pt-3">
-        <span class="text-[9px] font-extrabold uppercase tracking-widest text-slate-400 mb-2 block">Next Schedule</span>
+        <span class="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 mb-2 block">Next Schedule</span>
         <div class="space-y-0.5">
           ${quickHtml}
         </div>
@@ -252,6 +269,166 @@ function renderClassGrid() {
 
   updateGlobalStats(filteredClasses.length, gPlanned, gSkipped, gUpcoming);
   if (window.lucide) lucide.createIcons();
+}
+
+function updateCardStats(className) {
+  const card = document.querySelector(`#class-grid .tracker-card[data-class="${className}"]`);
+  if (!card) return;
+
+  const stats = getClassStats(className);
+  const color = card.getAttribute('data-color');
+  
+  const adminData = loadClassAdmin()[className] || { tasks: [] };
+  const adminPlanned = adminData.tasks.filter(t => t.done).length;
+  const adminTotal = adminData.tasks.length;
+  const adminPercent = adminTotal > 0 ? Math.round((adminPlanned / adminTotal) * 100) : 0;
+
+  // Lesson Progress (Segmented Bar)
+  const unitMap = {};
+  stats.instances.forEach(e => {
+    const unitKey = e.lessonPlan?.unit || 'Unassigned';
+    if (!unitMap[unitKey]) unitMap[unitKey] = [];
+    unitMap[unitKey].push(e);
+  });
+  const unitNames = Object.keys(unitMap);
+  const segHtml = unitNames.length > 0 ? unitNames.map(uName => {
+    const unitLessons = unitMap[uName];
+    const allPlanned = unitLessons.every(l => isPlanned(l));
+    const hasMissing = unitLessons.some(l => isSkipped(l));
+    return `<div class="seg ${allPlanned ? 'done' : (hasMissing ? 'missing' : '')}" title="${uName}"></div>`;
+  }).join('') : '<div class="seg" title="No units"></div>';
+
+  // Next 3 upcoming
+  const next3 = stats.instances.filter(e => isUpcoming(e.date)).slice(0, 3);
+  const quickHtml = next3.length > 0 ? next3.map(l => `
+    <div class="flex items-center justify-between text-xs py-1">
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="w-1 h-1 rounded-full flex-shrink-0" style="background:${color}"></span>
+        <span class="font-bold truncate text-[11px]">${l.lessonPlan?.lesson || l.name}</span>
+      </div>
+      <span class="text-slate-400 font-bold flex-shrink-0 ml-2 text-[10px] uppercase tracking-tighter">${formatDate(l.date)}</span>
+    </div>
+  `).join('') : '<p class="text-[10px] text-slate-400 font-semibold py-1 italic">No upcoming lessons</p>';
+
+  card.innerHTML = `
+    <div class="flex items-start justify-between mb-4">
+      <div class="flex items-center gap-2.5">
+        <div class="w-2.5 h-10 rounded-full" style="background:${color}"></div>
+        <div>
+          <h3 class="font-heading text-base font-bold leading-none mb-1">${className}</h3>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">${stats.total} Lessons</span>
+            ${stats.skipped > 0 ? `<span class="badge-status badge-skipped py-0 px-1 text-[10px] font-black">${stats.skipped} Skipped</span>` : ''}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="space-y-4 mb-4">
+      <!-- Lessons Section -->
+      <div>
+        <div class="flex items-center justify-between mb-1.5">
+          <div class="flex items-center gap-1.5">
+            <i data-lucide="book-open" class="w-3 h-3 text-slate-400"></i>
+            <span class="text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Lesson Planning</span>
+          </div>
+          <span class="text-[10px] font-bold text-slate-600">${stats.planned}/${stats.total}</span>
+        </div>
+        <div class="seg-bar">${segHtml}</div>
+        <div class="flex items-center gap-3 mt-1.5">
+          <div class="flex items-center gap-1">
+            <div class="w-2 h-2 rounded-sm bg-[#00E676]"></div>
+            <span class="text-[10px] font-bold text-slate-400">Planned</span>
+          </div>
+          <div class="flex items-center gap-1">
+            <div class="w-2 h-2 rounded-sm bg-[#FF8C42]"></div>
+            <span class="text-[10px] font-bold text-slate-400">Skipped</span>
+          </div>
+          <div class="flex items-center gap-1">
+            <div class="w-2 h-2 rounded-sm bg-slate-200 dark:bg-slate-700"></div>
+            <span class="text-[10px] font-bold text-slate-400">Upcoming</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Class Admin Section -->
+      <div>
+        <div class="flex items-center justify-between mb-1.5">
+          <div class="flex items-center gap-1.5">
+            <i data-lucide="layout-dashboard" class="w-3 h-3 text-blue"></i>
+            <span class="text-[11px] font-extrabold uppercase tracking-widest text-slate-500">Class Admin</span>
+          </div>
+          <span class="text-[10px] font-bold text-blue">${adminPlanned}/${adminTotal}</span>
+        </div>
+        <div class="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden border border-[var(--border-primary)]">
+          <div class="h-full bg-blue transition-all duration-500" style="width: ${adminPercent}%"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="border-t border-[var(--bg-tertiary)] pt-3">
+      <span class="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 mb-2 block">Next Schedule</span>
+      <div class="space-y-0.5">
+        ${quickHtml}
+      </div>
+    </div>
+  `;
+  
+  if (window.lucide) lucide.createIcons();
+  recalculateGlobalStats();
+}
+
+function recalculateGlobalStats() {
+  const allClasses = getUniqueClasses();
+  let gClasses = 0, gPlanned = 0, gSkipped = 0, gUpcoming = 0;
+
+  allClasses.forEach(cls => {
+    const stats = getClassStats(cls.name);
+    if (stats.total > 0) {
+      gClasses++;
+      gPlanned += stats.planned;
+      gSkipped += stats.skipped;
+      gUpcoming += stats.upcoming;
+    }
+  });
+
+  updateGlobalStats(gClasses, gPlanned, gSkipped, gUpcoming);
+}
+
+function renderUnitView() {
+  const grid = document.getElementById('class-grid');
+  const emptyState = document.getElementById('empty-state');
+  grid.innerHTML = '';
+  // Build a unit-centric view: group all class events by unit name
+  const unitMap = {};
+  getClassInstances_all().forEach(evt => {
+    const u = evt.lessonPlan?.unit || 'Unassigned';
+    if (!unitMap[u]) unitMap[u] = [];
+    unitMap[u].push(evt);
+  });
+  if (Object.keys(unitMap).length === 0) {
+    if (emptyState) emptyState.classList.remove('hidden');
+    grid.classList.add('hidden');
+    return;
+  }
+  if (emptyState) emptyState.classList.add('hidden');
+  grid.classList.remove('hidden');
+  Object.entries(unitMap).forEach(([unit, lessons]) => {
+    const planned = lessons.filter(l => isPlanned(l)).length;
+    const card = document.createElement('div');
+    card.className = 'tracker-card p-5';
+    card.innerHTML = `<h3 class="font-heading text-base font-bold">${unit}</h3>
+      <p class="text-[11px] text-slate-400 font-semibold mt-1">${planned}/${lessons.length} lessons planned</p>`;
+    grid.appendChild(card);
+  });
+  if (window.lucide) lucide.createIcons();
+}
+
+// Helper: get all class instances regardless of time filter
+function getClassInstances_all() {
+  const allEvents = loadScheduleEvents();
+  return allEvents.filter(e => e.typeId === 'class')
+    .filter(e => !(e.isRecurrence && loadRedDays().includes(e.date)));
 }
 
 function updateGlobalStats(classes, planned, skipped, upcoming) {
@@ -269,7 +446,7 @@ function updateGlobalStats(classes, planned, skipped, upcoming) {
   const textEl = document.getElementById('alert-text');
   if (alertEl && textEl) {
     if (skipped > 0) {
-      textEl.textContent = `You have ${skipped} lesson${skipped > 1 ? 's' : ''} that passed without a plan being set.`;
+      textEl.textContent = `${skipped} skipped lesson${skipped > 1 ? 's' : ''} — past classes with no plan assigned.`;
       alertEl.classList.remove('hidden');
     } else {
       alertEl.classList.add('hidden');
@@ -298,6 +475,7 @@ function setFilter(mode) {
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
   const btn = document.getElementById(`filter-${mode}`);
   if (btn) btn.classList.add('active');
+  updateFilterLabel(mode);
   renderClassGrid();
   if (currentDrawerClass) openDrawer(currentDrawerClass);
 }
@@ -308,6 +486,21 @@ function setMode(mode) {
   const btn = document.getElementById(`mode-${mode}`);
   if (btn) btn.classList.add('active');
   renderClassGrid();
+}
+
+function updateFilterLabel(mode) {
+  const el = document.getElementById('filter-range-label');
+  if (!el) return;
+  if (mode === 'today') {
+    const today = new Date();
+    el.textContent = today.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+  } else if (mode === 'week') {
+    const { start, end } = getWeekRange();
+    const fmt = s => new Date(s + 'T00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    el.textContent = `${fmt(start)} – ${fmt(end)}`;
+  } else {
+    el.textContent = 'All scheduled lessons';
+  }
 }
 
 /* ============================================
@@ -323,6 +516,7 @@ function openDrawer(className) {
   const drawerBody = document.getElementById('drawer-body');
   const drawerOverlay = document.getElementById('drawer-overlay');
   const drawerPanel = document.getElementById('drawer-panel');
+  const prevScroll = drawerBody ? drawerBody.scrollTop : 0;
 
   if (drawerTitle) drawerTitle.textContent = className;
   if (drawerSubtitle) drawerSubtitle.textContent = `${instances.length} lessons • ${instances.filter(e => isPlanned(e)).length} planned`;
@@ -351,11 +545,15 @@ function openDrawer(className) {
 
   let html = `
     <div class="mb-8 p-4 bg-blue/5 border-2 border-blue/20 rounded-2xl">
-      <div class="flex items-center justify-between mb-3">
-        <h4 class="font-heading text-sm font-bold text-blue">Class Admin Tracker</h4>
+      <div class="flex flex-col mb-3">
+        <h4 class="font-heading text-sm font-bold text-blue">Class-Wide Tasks</h4>
+        <p class="text-[11px] text-slate-400 font-semibold mt-0.5">
+          Things to do once for the whole class (e.g. print materials, set up gradebook)
+        </p>
       </div>
-      <div class="mb-3">
-        <input type="text" class="edit-input" placeholder="+ Add class task (e.g. Unit 1 Planning)" onkeydown="if(event.key==='Enter') addClassAdminTask('${className}', this.value)">
+      <div class="mb-3 flex gap-2">
+        <input type="text" class="edit-input flex-1" id="ca-input-${className.replace(/[^a-z0-9]/gi, '_')}" placeholder="+ Add class task (e.g. Unit 1 Planning)" onkeydown="if(event.key==='Enter') { addClassAdminTask('${className}', this.value); this.value=''; }">
+        <button onclick="const i=document.getElementById('ca-input-${className.replace(/[^a-z0-9]/gi, '_')}'); addClassAdminTask('${className}', i.value); i.value='';" class="px-3 py-1.5 rounded-xl bg-blue text-white text-xs font-bold border-2 border-dark shadow-[2px_2px_0px_0px_rgba(30,41,59,1)] hover:translate-y-[-1px] active:translate-y-[1px]">Add</button>
       </div>
       <div class="space-y-1">
         ${adminHtml || '<p class="text-[10px] text-slate-400 italic">No class-wide tasks yet.</p>'}
@@ -417,16 +615,16 @@ function openDrawer(className) {
             <div class="edit-panel">
               <div class="grid grid-cols-2 gap-3 mb-3">
                 <div>
-                  <label class="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Unit / Module</label>
+                  <label class="block text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Unit / Module</label>
                   <input type="text" class="edit-input" value="${(lesson.lessonPlan?.unit || '').replace(/"/g, '&quot;')}" onchange="updateField('${lesson.id}', 'unit', this.value)" placeholder="e.g. Unit 1">
                 </div>
                 <div>
-                  <label class="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Lesson Topic</label>
+                  <label class="block text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Lesson Topic</label>
                   <input type="text" class="edit-input" value="${(lesson.lessonPlan?.lesson || '').replace(/"/g, '&quot;')}" onchange="updateField('${lesson.id}', 'lesson', this.value)" placeholder="e.g. Introduction">
                 </div>
               </div>
               <div class="mb-3">
-                <label class="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Status</label>
+                <label class="block text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Status</label>
                 <div class="flex gap-1.5 flex-wrap">
                   ${LESSON_STATUSES.map(s => `
                     <button onclick="updateField('${lesson.id}', 'status', '${s.id}')" class="status-btn ${status === s.id ? 'active' : ''}" style="background: ${status === s.id ? s.color : 'var(--surface-card)'}; color: ${status === s.id ? '#fff' : 'var(--text-secondary)'}">
@@ -436,15 +634,19 @@ function openDrawer(className) {
                 </div>
               </div>
               <div class="mb-3">
-                <label class="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Notes</label>
+                <label class="block text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Notes</label>
                 <textarea class="edit-input edit-textarea" onchange="updateNotes('${lesson.id}', this.value)" placeholder="Add notes...">${lesson.notes || ''}</textarea>
               </div>
               <div>
-                <div class="flex items-center justify-between mb-1">
-                  <label class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">Admin Checklist</label>
+                <div class="flex flex-col mb-2">
+                  <label class="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest">This Lesson's Checklist</label>
+                  <p class="text-[10px] text-slate-400 font-semibold mt-0.5">
+                    Prep tasks specific to this single lesson session
+                  </p>
                 </div>
-                <div class="mb-2">
-                  <input type="text" class="edit-input" placeholder="+ Add a new task..." onkeydown="if(event.key==='Enter') addTask('${lesson.id}', this.value)">
+                <div class="mb-2 flex gap-2">
+                  <input type="text" class="edit-input flex-1" id="task-input-${lesson.id}" placeholder="+ Add a new task..." onkeydown="if(event.key==='Enter') { addTask('${lesson.id}', this.value); this.value=''; }">
+                  <button onclick="const i=document.getElementById('task-input-${lesson.id}'); addTask('${lesson.id}', i.value); i.value='';" class="px-3 py-1.5 rounded-xl bg-blue text-white text-xs font-bold border-2 border-dark shadow-[2px_2px_0px_0px_rgba(30,41,59,1)] hover:translate-y-[-1px] active:translate-y-[1px]">Add</button>
                 </div>
                 ${checklistHtml || '<p class="text-[10px] text-slate-400">No checklist items</p>'}
               </div>
@@ -457,7 +659,10 @@ function openDrawer(className) {
     html += '</div></div>';
   });
 
-  if (drawerBody) drawerBody.innerHTML = html;
+  if (drawerBody) {
+    drawerBody.innerHTML = html;
+    drawerBody.scrollTop = prevScroll;
+  }
   if (drawerOverlay) drawerOverlay.classList.add('open');
   if (drawerPanel) drawerPanel.classList.add('open');
   if (window.lucide) lucide.createIcons();
@@ -497,7 +702,7 @@ function updateField(eventId, field, value) {
   evt.lessonPlan[field] = value;
   evt.updatedAt = new Date().toISOString();
   saveScheduleEvents(allEvents);
-  renderClassGrid();
+  updateCardStats(evt.name);
   if (currentDrawerClass) openDrawer(currentDrawerClass);
 }
 
@@ -517,7 +722,7 @@ function toggleChecklist(eventId, index, checked) {
   evt.checklist[index].done = checked;
   evt.updatedAt = new Date().toISOString();
   saveScheduleEvents(allEvents);
-  renderClassGrid();
+  updateCardStats(evt.name);
   if (currentDrawerClass) {
     const openId = document.querySelector('[id^="edit-"]:not(.hidden)')?.id.replace('edit-', '');
     openDrawer(currentDrawerClass);
@@ -538,7 +743,7 @@ function addTask(eventId, text) {
   });
   evt.updatedAt = new Date().toISOString();
   saveScheduleEvents(allEvents);
-  renderClassGrid();
+  updateCardStats(evt.name);
   if (currentDrawerClass) {
     const openId = document.querySelector('[id^="edit-"]:not(.hidden)')?.id.replace('edit-', '');
     openDrawer(currentDrawerClass);
@@ -553,7 +758,7 @@ function deleteTask(eventId, index) {
   evt.checklist.splice(index, 1);
   evt.updatedAt = new Date().toISOString();
   saveScheduleEvents(allEvents);
-  renderClassGrid();
+  updateCardStats(evt.name);
   if (currentDrawerClass) {
     const openId = document.querySelector('[id^="edit-"]:not(.hidden)')?.id.replace('edit-', '');
     openDrawer(currentDrawerClass);
@@ -580,6 +785,7 @@ function refreshData() {
 
 document.addEventListener('DOMContentLoaded', () => {
   renderClassGrid();
+  updateFilterLabel(currentFilter);
   if (window.lucide) lucide.createIcons();
 });
 
@@ -603,8 +809,14 @@ function addClassAdminTask(className, text) {
     done: false
   });
   saveClassAdmin(data);
-  renderClassGrid();
-  openDrawer(className);
+  updateCardStats(className);
+  if (currentDrawerClass) {
+    const openId = document.querySelector('[id^="edit-"]:not(.hidden)')?.id.replace('edit-', '');
+    openDrawer(className);
+    if (openId) toggleEdit(openId);
+  } else {
+    openDrawer(className);
+  }
 }
 
 function deleteClassAdminTask(className, index) {
@@ -612,8 +824,14 @@ function deleteClassAdminTask(className, index) {
   if (!data[className] || !data[className].tasks[index]) return;
   data[className].tasks.splice(index, 1);
   saveClassAdmin(data);
-  renderClassGrid();
-  openDrawer(className);
+  updateCardStats(className);
+  if (currentDrawerClass) {
+    const openId = document.querySelector('[id^="edit-"]:not(.hidden)')?.id.replace('edit-', '');
+    openDrawer(className);
+    if (openId) toggleEdit(openId);
+  } else {
+    openDrawer(className);
+  }
 }
 
 function toggleClassAdminTask(className, index, checked) {
@@ -621,6 +839,12 @@ function toggleClassAdminTask(className, index, checked) {
   if (!data[className] || !data[className].tasks[index]) return;
   data[className].tasks[index].done = checked;
   saveClassAdmin(data);
-  renderClassGrid();
-  openDrawer(className);
+  updateCardStats(className);
+  if (currentDrawerClass) {
+    const openId = document.querySelector('[id^="edit-"]:not(.hidden)')?.id.replace('edit-', '');
+    openDrawer(className);
+    if (openId) toggleEdit(openId);
+  } else {
+    openDrawer(className);
+  }
 }
