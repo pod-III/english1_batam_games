@@ -213,87 +213,12 @@ function renderClassGrid() {
   if (window.lucide) lucide.createIcons();
 }
 
-function createClassCard(className, color, stats) {
-  const adminData = loadClassAdmin()[className] || { tasks: [] };
-  const adminPlanned = adminData.tasks.filter(t => t.done).length;
-  const adminTotal = adminData.tasks.length;
-  
-  const pct = stats.total > 0 ? Math.round((stats.planned / stats.total) * 100) : 0;
-
-  // Next 3 upcoming (for Lessons mode)
-  const next3 = stats.instances.filter(e => isUpcoming(e.date)).slice(0, 3);
-  let quickHtml = '';
-  let headerStatusObj = LESSON_STATUSES[0]; // default not_ready
-
-  if (currentMode === 'lessons') {
-    const statuses = stats.instances.map(l => getLessonStatus(l));
-    const majority = getMajorityStatus(statuses);
-    headerStatusObj = LESSON_STATUSES.find(x => x.id === majority) || LESSON_STATUSES[0];
-
-    quickHtml = next3.length > 0 ? `<div class="space-y-1.5 mt-2">` + next3.map(l => {
-      const s = getLessonStatus(l);
-      const sObj = LESSON_STATUSES.find(x => x.id === s);
-      const color = sObj ? sObj.color : 'var(--text-tertiary)';
-      const label = sObj ? sObj.label : 'Unknown';
-      return `
-        <div class="flex items-center gap-2">
-          <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider text-white shadow-sm flex-shrink-0" style="background:${color}">${label}</span>
-          <span class="text-[12px] font-bold truncate flex-1" style="color: var(--text-primary)">${l.lessonPlan?.lesson || l.name}</span> 
-          <span class="text-[10px] text-slate-400 font-semibold whitespace-nowrap">${formatDate(l.date)}</span>
-        </div>
-      `;
-    }).join('') + `</div>` : '<p class="text-xs text-slate-400 font-semibold py-1 italic">No upcoming lessons</p>';
-  } else {
-    // For Units mode: get unique units and their progress
-    const unitMap = {};
-    const classUnits = loadClassUnits()[className] || {};
-    
-    // Initialize units from schedule_class_units first
-    Object.keys(classUnits).forEach(u => {
-      unitMap[u] = { total: 0, planned: 0, status: classUnits[u].status || 'not_ready' };
-    });
-
-    stats.instances.forEach(e => {
-      const u = e.lessonPlan?.unit || 'Default Unit';
-      if (!unitMap[u]) unitMap[u] = { total: 0, planned: 0, status: 'not_ready' };
-      unitMap[u].total++;
-      if (isPlanned(e)) unitMap[u].planned++;
-    });
-
-    const units = Object.keys(unitMap)
-      .filter(u => !(u === 'Default Unit' && unitMap[u].total === 0))
-      .slice(0, 3);
-    
-    const allUnitNames = Object.keys(unitMap);
-    const statuses = allUnitNames.map(uName => unitMap[uName].status);
-    const majority = getMajorityStatus(statuses);
-    headerStatusObj = LESSON_STATUSES.find(x => x.id === majority) || LESSON_STATUSES[0];
-
-    quickHtml = units.length > 0 ? `<div class="space-y-1.5 mt-2">` + units.map(u => {
-      const uStats = unitMap[u];
-      const sObj = LESSON_STATUSES.find(x => x.id === uStats.status);
-      const color = sObj ? sObj.color : 'var(--text-tertiary)';
-      const label = sObj ? sObj.label : 'Empty';
-
-      return `
-        <div class="flex items-center gap-2">
-          <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider text-white shadow-sm flex-shrink-0" style="background:${color}">${label}</span>
-          <span class="text-[12px] font-bold truncate flex-1" style="color: var(--text-primary)">${u}</span> 
-          <span class="text-[10px] text-slate-400 font-semibold whitespace-nowrap">${uStats.total > 0 ? `${uStats.planned}/${uStats.total}` : ''}</span>
-        </div>
-      `;
-    }).join('') + `</div>` : '<p class="text-xs text-slate-400 font-semibold py-1 italic">No active units</p>';
-  }
-
+/**
+ * Returns HTML string for the card header including class name, color strip and status badge
+ */
+function renderCardHeader(className, color, stats, headerStatusObj) {
   const hasSkipped = stats.skipped > 0;
-
-  const card = document.createElement('div');
-  card.className = `tracker-card ${hasSkipped ? 'has-skipped' : ''}`;
-  card.setAttribute('data-class', className);
-  card.setAttribute('data-color', color);
-  card.onclick = () => openDrawer(className);
-
-  card.innerHTML = `
+  return `
     <div class="card-header">
       <div class="card-color-strip" style="background:${color}"></div>
       <div class="card-title-area">
@@ -309,42 +234,147 @@ function createClassCard(className, color, stats) {
         </span>
       </div>
     </div>
-    
-    <div class="card-body">
-      ${adminTotal > 0 ? `
-      <div class="card-section">
-        <div class="card-section-label mb-1.5">
-          <i data-lucide="layout-dashboard" class="w-3 h-3"></i> Class Admin
-          <span class="ml-auto">${adminPlanned}/${adminTotal}</span>
-        </div>
-        <div class="flex gap-1 w-full h-1.5 mb-1">
-          ${adminData.tasks.map(t => {
-            const isOverdue = !t.done && t.deadline && t.deadline < getTodayStr();
-            return `
-              <div class="flex-1 h-full rounded-sm ${t.done ? 'bg-[var(--color-green)]' : (isOverdue ? 'bg-pink' : 'bg-[var(--border-secondary)]')}" title="${t.text.replace(/"/g, '&quot;')}"></div>
-            `;
-          }).join('')}
-        </div>
-        <div class="flex justify-between w-full gap-1">
-          ${adminData.tasks.map(t => {
-            const isOverdue = !t.done && t.deadline && t.deadline < getTodayStr();
-            return `
-              <span class="flex-1 text-[9px] leading-[11px] uppercase tracking-wider ${isOverdue ? 'text-pink' : 'text-slate-400'} font-extrabold truncate text-center" title="${t.text.replace(/"/g, '&quot;')}">${t.text}</span>
-            `;
-          }).join('')}
-        </div>
+  `;
+}
+
+/**
+ * Returns HTML string for the admin task progress strip (bar + labels)
+ */
+function renderAdminStrip(adminData) {
+  const adminTotal = adminData.tasks.length;
+  const adminPlanned = adminData.tasks.filter(t => t.done).length;
+  
+  if (adminTotal === 0) return '';
+
+  return `
+    <div class="card-section">
+      <div class="card-section-label mb-1.5">
+        <i data-lucide="layout-dashboard" class="w-3 h-3"></i> Class Admin
+        <span class="ml-auto">${adminPlanned}/${adminTotal}</span>
       </div>
-      ` : ''}
-      <div class="card-section pb-0 border-none">
-        <div class="card-section-label">
-          <i data-lucide="calendar" class="w-3 h-3"></i> Next Up
-        </div>
-        <div>
-          ${quickHtml}
-        </div>
+      <div class="flex gap-1 w-full h-1.5 mb-1">
+        ${adminData.tasks.map(t => {
+          const isOverdue = !t.done && t.deadline && t.deadline < getTodayStr();
+          return `
+            <div class="flex-1 h-full rounded-sm ${t.done ? 'bg-[var(--color-green)]' : (isOverdue ? 'bg-pink' : 'bg-[var(--border-secondary)]')}" title="${t.text.replace(/"/g, '&quot;')}"></div>
+          `;
+        }).join('')}
+      </div>
+      <div class="flex justify-between w-full gap-1">
+        ${adminData.tasks.map(t => {
+          const isOverdue = !t.done && t.deadline && t.deadline < getTodayStr();
+          return `
+            <span class="flex-1 text-[9px] leading-[11px] uppercase tracking-wider ${isOverdue ? 'text-pink' : 'text-slate-400'} font-extrabold truncate text-center" title="${t.text.replace(/"/g, '&quot;')}">${t.text}</span>
+          `;
+        }).join('')}
       </div>
     </div>
   `;
+}
+
+/**
+ * Returns HTML string for the upcoming lessons or units list preview
+ */
+function renderNextUpSection(instances, mode, classUnits, className) {
+  let quickHtml = '';
+
+  if (mode === 'lessons') {
+    const next3 = instances.filter(e => isUpcoming(e.date)).slice(0, 3);
+    quickHtml = next3.length > 0 ? `<div class="space-y-1.5 mt-2">` + next3.map(l => {
+      const s = getLessonStatus(l);
+      const sObj = LESSON_STATUSES.find(x => x.id === s);
+      const statusColor = sObj ? sObj.color : 'var(--text-tertiary)';
+      const label = sObj ? sObj.label : 'Unknown';
+      return `
+        <div class="flex items-center gap-2">
+          <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider text-white shadow-sm flex-shrink-0" style="background:${statusColor}">${label}</span>
+          <span class="text-[12px] font-bold truncate flex-1" style="color: var(--text-primary)">${l.lessonPlan?.lesson || l.name}</span> 
+          <span class="text-[10px] text-slate-400 font-semibold whitespace-nowrap">${formatDate(l.date)}</span>
+        </div>
+      `;
+    }).join('') + `</div>` : '<p class="text-xs text-slate-400 font-semibold py-1 italic">No upcoming lessons</p>';
+  } else {
+    const unitMap = {};
+    Object.keys(classUnits).forEach(u => {
+      unitMap[u] = { total: 0, planned: 0, status: classUnits[u].status || 'not_ready' };
+    });
+
+    instances.forEach(e => {
+      const u = e.lessonPlan?.unit || 'Default Unit';
+      if (!unitMap[u]) unitMap[u] = { total: 0, planned: 0, status: 'not_ready' };
+      unitMap[u].total++;
+      if (isPlanned(e)) unitMap[u].planned++;
+    });
+
+    const units = Object.keys(unitMap)
+      .filter(u => !(u === 'Default Unit' && unitMap[u].total === 0))
+      .slice(0, 3);
+
+    quickHtml = units.length > 0 ? `<div class="space-y-1.5 mt-2">` + units.map(u => {
+      const uStats = unitMap[u];
+      const sObj = LESSON_STATUSES.find(x => x.id === uStats.status);
+      const statusColor = sObj ? sObj.color : 'var(--text-tertiary)';
+      const label = sObj ? sObj.label : 'Empty';
+
+      return `
+        <div class="flex items-center gap-2">
+          <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider text-white shadow-sm flex-shrink-0" style="background:${statusColor}">${label}</span>
+          <span class="text-[12px] font-bold truncate flex-1" style="color: var(--text-primary)">${u}</span> 
+          <span class="text-[10px] text-slate-400 font-semibold whitespace-nowrap">${uStats.total > 0 ? `${uStats.planned}/${uStats.total}` : ''}</span>
+        </div>
+      `;
+    }).join('') + `</div>` : '<p class="text-xs text-slate-400 font-semibold py-1 italic">No active units</p>';
+  }
+
+  return `
+    <div class="card-section pb-0 border-none">
+      <div class="card-section-label">
+        <i data-lucide="calendar" class="w-3 h-3"></i> Next Up
+      </div>
+      <div>
+        ${quickHtml}
+      </div>
+    </div>
+  `;
+}
+
+function createClassCard(className, color, stats) {
+  const adminData = loadClassAdmin()[className] || { tasks: [] };
+  const classUnits = loadClassUnits()[className] || {};
+  
+  // Calculate Header Status
+  let headerStatusObj = LESSON_STATUSES[0];
+  if (currentMode === 'lessons') {
+    const statuses = stats.instances.map(l => getLessonStatus(l));
+    const majority = getMajorityStatus(statuses);
+    headerStatusObj = LESSON_STATUSES.find(x => x.id === majority) || LESSON_STATUSES[0];
+  } else {
+    const unitMap = {};
+    Object.keys(classUnits).forEach(u => { unitMap[u] = { status: classUnits[u].status || 'not_ready' }; });
+    stats.instances.forEach(e => {
+      const u = e.lessonPlan?.unit || 'Default Unit';
+      if (!unitMap[u]) unitMap[u] = { status: 'not_ready' };
+    });
+    const statuses = Object.keys(unitMap).map(u => unitMap[u].status);
+    const majority = getMajorityStatus(statuses);
+    headerStatusObj = LESSON_STATUSES.find(x => x.id === majority) || LESSON_STATUSES[0];
+  }
+
+  const card = document.createElement('div');
+  const hasSkipped = stats.skipped > 0;
+  card.className = `tracker-card ${hasSkipped ? 'has-skipped' : ''}`;
+  card.setAttribute('data-class', className);
+  card.setAttribute('data-color', color);
+  card.onclick = () => openDrawer(className);
+
+  card.innerHTML = `
+    ${renderCardHeader(className, color, stats, headerStatusObj)}
+    <div class="card-body">
+      ${renderAdminStrip(adminData)}
+      ${renderNextUpSection(stats.instances, currentMode, classUnits, className)}
+    </div>
+  `;
+  
   return card;
 }
 
