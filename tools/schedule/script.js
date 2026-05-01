@@ -41,6 +41,10 @@ function init() {
 
 let touchGhost = null;
 let lastDropTarget = null;
+let touchStartX = 0;
+let touchStartY = 0;
+let pendingDragTarget = null;
+let isTouchDragging = false;
 
 function setupTouchSupport() {
   document.addEventListener('touchstart', handleTouchStart, { passive: false });
@@ -53,6 +57,44 @@ function handleTouchStart(e) {
   const target = e.target.closest('.template-chip, .event-block');
   if (!target) return;
 
+  const touch = e.touches[0];
+  touchStartX = touch.clientX;
+  touchStartY = touch.clientY;
+  pendingDragTarget = target;
+  isTouchDragging = false;
+}
+
+function handleTouchMove(e) {
+  if (!pendingDragTarget) return;
+  
+  const touch = e.touches[0];
+  
+  if (!isTouchDragging) {
+    const dist = Math.hypot(touch.clientX - touchStartX, touch.clientY - touchStartY);
+    if (dist > 10) {
+      startTouchDrag(touch);
+    }
+  }
+  
+  if (isTouchDragging && touchGhost) {
+    e.preventDefault();
+    updateGhostPosition(touch);
+    
+    // Highlight target
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const dropTarget = el ? el.closest('.grid-cell') : null;
+    
+    if (dropTarget !== lastDropTarget) {
+      if (lastDropTarget) lastDropTarget.classList.remove('drop-target');
+      if (dropTarget) dropTarget.classList.add('drop-target');
+      lastDropTarget = dropTarget;
+    }
+  }
+}
+
+function startTouchDrag(touch) {
+  isTouchDragging = true;
+  const target = pendingDragTarget;
   draggedType = target.dataset.type || null;
   draggedEventId = target.dataset.id || null;
 
@@ -60,55 +102,38 @@ function handleTouchStart(e) {
   touchGhost = target.cloneNode(true);
   touchGhost.classList.add('drag-ghost');
   
-  // Constrain width if it's an event block (which can be wide)
   const rect = target.getBoundingClientRect();
   touchGhost.style.width = `${Math.min(rect.width, 160)}px`; 
   
   document.body.appendChild(touchGhost);
-  
-  updateGhostPosition(e.touches[0]);
+  updateGhostPosition(touch);
   
   // Prevent scrolling while dragging and disable interaction with existing events
   document.body.style.overflow = 'hidden';
   document.body.classList.add('dragging-active');
 }
 
-function handleTouchMove(e) {
-  if (!touchGhost) return;
-  e.preventDefault();
-  
-  const touch = e.touches[0];
-  updateGhostPosition(touch);
-  
-  // Highlight target
-  const el = document.elementFromPoint(touch.clientX, touch.clientY);
-  const dropTarget = el ? el.closest('.grid-cell') : null;
-  
-  if (dropTarget !== lastDropTarget) {
-    if (lastDropTarget) lastDropTarget.classList.remove('drop-target');
-    if (dropTarget) dropTarget.classList.add('drop-target');
-    lastDropTarget = dropTarget;
-  }
-}
-
 function handleTouchEnd(e) {
-  if (!touchGhost) return;
-  
-  if (lastDropTarget) {
-    const dateStr = lastDropTarget.dataset.date;
-    const timeStr = lastDropTarget.dataset.time;
-    processDropAction(dateStr, timeStr, draggedType, draggedEventId);
-    lastDropTarget.classList.remove('drop-target');
+  if (isTouchDragging && touchGhost) {
+    if (lastDropTarget) {
+      const dateStr = lastDropTarget.dataset.date;
+      const timeStr = lastDropTarget.dataset.time;
+      processDropAction(dateStr, timeStr, draggedType, draggedEventId);
+      lastDropTarget.classList.remove('drop-target');
+    }
+    
+    touchGhost.remove();
+    document.body.style.overflow = '';
+    document.body.classList.remove('dragging-active');
   }
   
   // Cleanup
-  touchGhost.remove();
   touchGhost = null;
   lastDropTarget = null;
   draggedType = null;
   draggedEventId = null;
-  document.body.style.overflow = '';
-  document.body.classList.remove('dragging-active');
+  pendingDragTarget = null;
+  isTouchDragging = false;
 }
 
 function updateGhostPosition(touch) {
