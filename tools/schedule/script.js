@@ -900,7 +900,7 @@ function openDetailPanel(eventId) {
            ${getDaySelectorHtml(event.recurrenceDays)}
          </div>
        ` : ''}
-       ${event.isRecurrence ? `<p class="text-[10px] text-orange mt-1 font-bold"><i data-lucide="info" class="w-3 h-3 inline"></i> This is a recurring instance.</p>` : ''}
+       ${event.isRecurrence ? `<p class="text-[10px] text-orange mt-1 font-bold"><i data-lucide="info" class="w-3 h-3 inline"></i> Recurring instance — changes to repeat settings apply to all.</p>` : ''}
     </div>
 
     <!-- Checklist -->
@@ -966,16 +966,32 @@ function closeDetailPanel() {
 }
 
 function updateEventField(id, field, value) {
-  const event = events.find(e => e.id === id);
+  let event = events.find(e => e.id === id);
+  if (!event) return;
+  
+  // For recurrence-related fields, redirect to the master event
+  const recurrenceFields = ['recurrence', 'recurrenceDays'];
+  if (recurrenceFields.includes(field) && event.isRecurrence && event.originalEventId) {
+    const masterId = event.originalEventId;
+    const master = events.find(e => e.id === masterId);
+    if (master) {
+      // Apply the change to the master instead
+      id = masterId;
+      event = master;
+    } else {
+      showToast('Original event not found', 'warning');
+      return;
+    }
+  }
+
   if (event) {
     if (field === 'startTime' || field === 'endTime') {
-       // Validate times
        let start = field === 'startTime' ? value : event.startTime;
        let end = field === 'endTime' ? value : event.endTime;
        
        if (timeToMinutes(start) >= timeToMinutes(end)) {
          showToast('End time must be after start time', 'warning');
-         openDetailPanel(id); // reset UI
+         openDetailPanel(id);
          return;
        }
     }
@@ -988,12 +1004,11 @@ function updateEventField(id, field, value) {
       const newType = getEventType(value);
       const oldType = EVENT_TYPES.find(t => event.name === t.label);
       if(oldType) event.name = newType.label;
-      event.color = newType.defaultColor; // auto switch color too
+      event.color = newType.defaultColor;
     }
 
     // Handle recurrence changes
     if (field === 'recurrence') {
-        // Remove old recurrences
         events = events.filter(e => !(e.isRecurrence && e.originalEventId === id));
         if (value !== 'none') {
             const endOfYear = new Date(event.date);
@@ -1017,7 +1032,6 @@ function updateEventField(id, field, value) {
     saveData();
     renderCalendar();
     
-    // Check if date changed to a different week, if so navigate
     if (field === 'date') {
       const evtDate = new Date(value);
       const weekStart = getMonday(evtDate);
@@ -1029,8 +1043,7 @@ function updateEventField(id, field, value) {
     
     // Re-render detail panel to reflect changes without toggling
     if (field === 'typeId' || field === 'recurrence' || field === 'recurrenceDays') {
-      // Force re-render without toggle
-      selectedEventId = null; // reset so openDetailPanel doesn't toggle-close
+      selectedEventId = null;
       openDetailPanel(id);
     }
   }
