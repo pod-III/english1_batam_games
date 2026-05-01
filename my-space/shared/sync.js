@@ -108,17 +108,25 @@
 
   // schedule_class_admin: JS → SQL
   // localStorage shape: { "ClassName": { tasks: [...] } }
-  // Supabase shape: one row per class_name
-  function classAdminToRow(className, adminObj, userId) {
+  // Supabase shape: one row per task
+  function classAdminToRow(className, task, userId) {
     return {
+      id: task.id,
       user_id: userId,
       class_name: className,
-      tasks: adminObj.tasks || [],
+      text: task.text,
+      done: !!task.done,
+      deadline: task.deadline || null,
     };
   }
 
-  function rowToClassAdmin(row) {
-    return { tasks: row.tasks || [] };
+  function rowToTask(row) {
+    return {
+      id: row.id,
+      text: row.text,
+      done: !!row.done,
+      deadline: row.deadline || null,
+    };
   }
 
   // schedule_class_units: JS → SQL
@@ -192,20 +200,34 @@
       .select('*').eq('user_id', userId);
     if (error) { console.error('[Sync] Load class admin error:', error); return null; }
     const result = {};
-    (data || []).forEach(row => { result[row.class_name] = rowToClassAdmin(row); });
+    (data || []).forEach(row => {
+      if (!result[row.class_name]) result[row.class_name] = { tasks: [] };
+      result[row.class_name].tasks.push(rowToTask(row));
+    });
     return result;
   }
 
   async function cloudSaveClassAdmin(userId, adminData) {
-    await db.from('schedule_class_admin').delete().eq('user_id', userId);
+    // Collect all tasks from all classes
     const rows = [];
     Object.entries(adminData).forEach(([className, obj]) => {
-      rows.push(classAdminToRow(className, obj, userId));
+      if (obj.tasks) {
+        obj.tasks.forEach(task => {
+          rows.push(classAdminToRow(className, task, userId));
+        });
+      }
     });
-    if (rows.length > 0) {
-      const { error } = await db.from('schedule_class_admin').insert(rows);
-      if (error) console.error('[Sync] Save class admin error:', error);
+
+    if (rows.length === 0) {
+      // If data is empty, clear the table for this user
+      await db.from('schedule_class_admin').delete().eq('user_id', userId);
+      return;
     }
+
+    // Full replace approach to handle deletions correctly
+    await db.from('schedule_class_admin').delete().eq('user_id', userId);
+    const { error } = await db.from('schedule_class_admin').upsert(rows, { onConflict: 'id,user_id' });
+    if (error) console.error('[Sync] Save class admin error:', error);
   }
 
   // Class Units

@@ -2034,6 +2034,7 @@ function addClassAdminTask(className, text) {
   const data = loadClassAdmin();
   if (!data[className]) data[className] = { tasks: [] };
   data[className].tasks.push({
+    id: `task_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,
     text: text.trim(),
     done: false
   });
