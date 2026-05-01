@@ -161,80 +161,90 @@ function renderClassGrid() {
     const adminData = loadClassAdmin()[cls.name] || { tasks: [] };
     const adminPlanned = adminData.tasks.filter(t => t.done).length;
     const adminTotal = adminData.tasks.length;
-
-    // Mode-specific progress
-    let progressHtml = '';
-    if (currentMode === 'lessons') {
-      // Group by unit for the segments
-      const unitMap = {};
-      stats.instances.forEach(e => {
-        const unitKey = e.lessonPlan?.unit || 'Unassigned';
-        if (!unitMap[unitKey]) unitMap[unitKey] = [];
-        unitMap[unitKey].push(e);
-      });
-      const unitNames = Object.keys(unitMap);
-      const segHtml = unitNames.length > 0 ? unitNames.map(uName => {
-        const unitLessons = unitMap[uName];
-        const allPlanned = unitLessons.every(l => isPlanned(l));
-        const hasMissing = unitLessons.some(l => isSkipped(l));
-        return `<div class="seg ${allPlanned ? 'done' : (hasMissing ? 'missing' : '')}" title="${uName}"></div>`;
-      }).join('') : '<div class="seg" title="No units"></div>';
-
-      progressHtml = `
-        <div class="flex items-center justify-between mb-1.5">
-          <span class="text-[9px] font-extrabold uppercase tracking-widest text-slate-400">Lesson Progress</span>
-          <span class="text-[9px] font-extrabold text-slate-500">${stats.planned}/${stats.total} planned</span>
-        </div>
-        <div class="seg-bar">${segHtml}</div>
-      `;
-    } else {
-      // Unit Mode focus on the class admin tasks
-      const percent = adminTotal > 0 ? Math.round((adminPlanned / adminTotal) * 100) : 0;
-      progressHtml = `
-        <div class="flex items-center justify-between mb-1.5">
-          <span class="text-[9px] font-extrabold uppercase tracking-widest text-slate-400">Class Admin / Units</span>
-          <span class="text-[9px] font-extrabold text-slate-500">${adminPlanned}/${adminTotal} items</span>
-        </div>
-        <div class="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden border border-[var(--border-primary)]">
-          <div class="h-full bg-blue transition-all duration-500" style="width: ${percent}%"></div>
-        </div>
-      `;
-    }
+    const adminPercent = adminTotal > 0 ? Math.round((adminPlanned / adminTotal) * 100) : 0;
 
     gPlanned += stats.planned;
     gSkipped += stats.skipped;
     gUpcoming += stats.upcoming;
 
+    // Lesson Progress (Segmented Bar)
+    const unitMap = {};
+    stats.instances.forEach(e => {
+      const unitKey = e.lessonPlan?.unit || 'Unassigned';
+      if (!unitMap[unitKey]) unitMap[unitKey] = [];
+      unitMap[unitKey].push(e);
+    });
+    const unitNames = Object.keys(unitMap);
+    const segHtml = unitNames.length > 0 ? unitNames.map(uName => {
+      const unitLessons = unitMap[uName];
+      const allPlanned = unitLessons.every(l => isPlanned(l));
+      const hasMissing = unitLessons.some(l => isSkipped(l));
+      return `<div class="seg ${allPlanned ? 'done' : (hasMissing ? 'missing' : '')}" title="${uName}"></div>`;
+    }).join('') : '<div class="seg" title="No units"></div>';
+
     // Next 3 upcoming
     const next3 = stats.instances.filter(e => isUpcoming(e.date)).slice(0, 3);
     const quickHtml = next3.length > 0 ? next3.map(l => `
-      <div class="flex items-center justify-between text-xs py-1.5">
+      <div class="flex items-center justify-between text-xs py-1">
         <div class="flex items-center gap-2 min-w-0">
-          <span class="w-1.5 h-1.5 rounded-full flex-shrink-0" style="background:${cls.color}"></span>
-          <span class="font-bold truncate">${l.lessonPlan?.lesson || l.name}</span>
+          <span class="w-1 h-1 rounded-full flex-shrink-0" style="background:${cls.color}"></span>
+          <span class="font-bold truncate text-[11px]">${l.lessonPlan?.lesson || l.name}</span>
         </div>
-        <span class="text-slate-400 font-semibold flex-shrink-0 ml-2 text-[10px]">${formatDate(l.date)}</span>
+        <span class="text-slate-400 font-bold flex-shrink-0 ml-2 text-[9px] uppercase tracking-tighter">${formatDate(l.date)}</span>
       </div>
-    `).join('') : '<p class="text-xs text-slate-400 font-semibold py-1">No upcoming lessons</p>';
+    `).join('') : '<p class="text-[10px] text-slate-400 font-semibold py-1 italic">No upcoming lessons</p>';
 
     const card = document.createElement('div');
     card.className = 'tracker-card p-5';
     card.onclick = () => openDrawer(cls.name);
 
     card.innerHTML = `
-      <div class="flex items-start justify-between mb-3">
+      <div class="flex items-start justify-between mb-4">
         <div class="flex items-center gap-2.5">
-          <div class="w-3 h-8 rounded-full" style="background:${cls.color}"></div>
-          <h3 class="font-heading text-base font-bold leading-tight">${cls.name}</h3>
+          <div class="w-2.5 h-10 rounded-full" style="background:${cls.color}"></div>
+          <div>
+            <h3 class="font-heading text-base font-bold leading-none mb-1">${cls.name}</h3>
+            <div class="flex items-center gap-2">
+              <span class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">${stats.total} Lessons</span>
+              ${stats.skipped > 0 ? `<span class="badge-status badge-skipped py-0 px-1 text-[8px] font-black">${stats.skipped} Missing</span>` : ''}
+            </div>
+          </div>
         </div>
-        ${stats.skipped > 0 ? `<span class="badge-status badge-skipped flex items-center gap-1"><i data-lucide="alert-circle" class="w-3 h-3"></i> ${stats.skipped}</span>` : ''}
       </div>
-      <div class="mb-3">
-        ${progressHtml}
+
+      <div class="space-y-4 mb-4">
+        <!-- Lessons Section -->
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <div class="flex items-center gap-1.5">
+              <i data-lucide="book-open" class="w-3 h-3 text-slate-400"></i>
+              <span class="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">Lesson Planning</span>
+            </div>
+            <span class="text-[10px] font-bold text-slate-600">${stats.planned}/${stats.total}</span>
+          </div>
+          <div class="seg-bar">${segHtml}</div>
+        </div>
+
+        <!-- Class Admin Section -->
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <div class="flex items-center gap-1.5">
+              <i data-lucide="layout-dashboard" class="w-3 h-3 text-blue"></i>
+              <span class="text-[9px] font-extrabold uppercase tracking-widest text-slate-500">Class Admin</span>
+            </div>
+            <span class="text-[10px] font-bold text-blue">${adminPlanned}/${adminTotal}</span>
+          </div>
+          <div class="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden border border-[var(--border-primary)]">
+            <div class="h-full bg-blue transition-all duration-500" style="width: ${adminPercent}%"></div>
+          </div>
+        </div>
       </div>
+
       <div class="border-t border-[var(--bg-tertiary)] pt-3">
-        <span class="text-[9px] font-extrabold uppercase tracking-widest text-slate-400 mb-1 block">Next Lessons</span>
-        ${quickHtml}
+        <span class="text-[9px] font-extrabold uppercase tracking-widest text-slate-400 mb-2 block">Next Schedule</span>
+        <div class="space-y-0.5">
+          ${quickHtml}
+        </div>
       </div>
     `;
     grid.appendChild(card);
