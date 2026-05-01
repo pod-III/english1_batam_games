@@ -508,12 +508,15 @@ function openDrawer(className) {
     </div>
   `;
   Object.entries(unitMap).forEach(([unitName, lessons]) => {
+    // Sort lessons chronologically to assign accurate numbers
+    lessons.sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
+    
     const allPlanned = lessons.every(l => isPlanned(l));
     const uData = classUnits[unitName] || { status: 'draft' };
     const uStatus = uData.status;
 
     html += `
-      <div class="mb-6">
+      <div class="mb-6 rounded-xl border-2 border-transparent transition-colors duration-200" ondragover="allowLessonDrop(event)" ondragleave="dragLessonLeave(event)" ondrop="dropLesson(event, '${className}', '${unitName.replace(/'/g, "\\'")}')">
         <div class="flex items-center gap-2 mb-3 pb-2 border-b-[3px] border-[var(--border-primary)] group flex-wrap">
           <i data-lucide="book-open" class="w-4 h-4 text-blue"></i>
           <input type="text" value="${unitName.replace(/"/g, '&quot;')}" class="edit-input flex-1 py-1 px-2 text-sm font-heading font-bold bg-transparent border-transparent hover:bg-[var(--surface-card)] hover:border-[var(--border-secondary)] focus:bg-[var(--surface-card)] focus:border-[var(--color-blue)] transition-all cursor-text outline-none min-w-[120px]" onchange="renameUnit('${className}', '${unitName.replace(/'/g, "\\'")}', this.value)" placeholder="Unit Name" title="Edit unit name">
@@ -526,13 +529,14 @@ function openDrawer(className) {
             `).join('')}
           </div>
         </div>
-        <div class="flex flex-col">
+        <div class="flex flex-col gap-1">
     `;
 
     if (lessons.length === 0) {
-      html += `<p class="text-[10px] text-slate-400 italic mb-2 px-2">No lessons assigned to this unit yet.</p>`;
+      html += `<p class="text-[10px] text-slate-400 italic mb-2 px-2">No lessons assigned to this unit yet. Drag a lesson here.</p>`;
     } else {
-      lessons.forEach(lesson => {
+      lessons.forEach((lesson, idx) => {
+        const lessonNumber = idx + 1;
         const skipped = isSkipped(lesson);
         const upcoming = isUpcoming(lesson.date) && !isPlanned(lesson);
         const status = getLessonStatus(lesson);
@@ -554,12 +558,13 @@ function openDrawer(className) {
         `).join('');
 
         html += `
-          <div class="${rowClass}" onclick="toggleEdit('${lesson.id}')">
-            <div class="flex items-center justify-between gap-3 px-2">
-              <div class="flex items-center gap-2.5 min-w-0 flex-1">
+          <div class="${rowClass} cursor-move bg-[var(--surface-card)]" draggable="true" ondragstart="dragLessonStart(event, '${lesson.id}')" onclick="toggleEdit('${lesson.id}')">
+            <div class="flex items-center justify-between gap-2 px-2">
+              <div class="flex items-center gap-2 min-w-0 flex-1">
+                <i data-lucide="grip-vertical" class="w-4 h-4 text-slate-300 hover:text-slate-500 transition-colors flex-shrink-0" onclick="event.stopPropagation()"></i>
                 <div class="status-dot" style="background:${statusObj ? statusObj.color : 'var(--text-tertiary)'}"></div>
                 <div class="flex flex-col min-w-0 flex-1">
-                  <span class="font-bold text-sm truncate">${lesson.lessonPlan?.lesson || lesson.name}</span>
+                  <span class="font-bold text-sm truncate"><span class="text-blue mr-1 opacity-80">L${lessonNumber}:</span> ${lesson.lessonPlan?.lesson || lesson.name}</span>
                   <span class="text-[10px] text-slate-400 font-semibold">
                     ${formatDate(lesson.date)} • ${formatTime(lesson.startTime)} • ${lesson.room || 'No Room'}
                   </span>
@@ -660,6 +665,54 @@ function toggleEdit(eventId) {
   if (!isOpen) {
     panel.classList.remove('hidden');
     if (chevron) chevron.style.transform = 'rotate(180deg)';
+  }
+}
+
+/* ============================================
+   DRAG AND DROP FOR LESSONS
+   ============================================ */
+
+function dragLessonStart(ev, lessonId) {
+  ev.dataTransfer.setData("lessonId", lessonId);
+  ev.dataTransfer.effectAllowed = "move";
+}
+
+function allowLessonDrop(ev) {
+  ev.preventDefault();
+  const dz = ev.currentTarget;
+  dz.classList.add('border-blue', 'bg-blue/5');
+}
+
+function dragLessonLeave(ev) {
+  const dz = ev.currentTarget;
+  dz.classList.remove('border-blue', 'bg-blue/5');
+}
+
+function dropLesson(ev, className, targetUnit) {
+  ev.preventDefault();
+  const dz = ev.currentTarget;
+  dz.classList.remove('border-blue', 'bg-blue/5');
+
+  const lessonId = ev.dataTransfer.getData("lessonId");
+  if (!lessonId) return;
+
+  const allEvents = loadScheduleEvents();
+  const evt = allEvents.find(e => e.id === lessonId);
+  
+  if (evt && evt.name === className) {
+    if (!evt.lessonPlan) evt.lessonPlan = { unit: '', lesson: '', status: 'draft' };
+    
+    // Only update if unit changed
+    if (evt.lessonPlan.unit !== targetUnit) {
+      evt.lessonPlan.unit = targetUnit;
+      evt.updatedAt = new Date().toISOString();
+      saveScheduleEvents(allEvents);
+      updateCardStats(className);
+      if (currentDrawerClass === className) {
+        // Re-open drawer so lessons recount and re-render
+        openDrawer(className);
+      }
+    }
   }
 }
 
