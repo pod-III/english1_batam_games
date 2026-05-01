@@ -351,29 +351,80 @@ function updateStats() {
   let weekEvents = 0;
   let totalTasks = 0;
   let doneTasks = 0;
+  
+  let countTaught = 0;
+  let countReady = 0;
+  let countDraft = 0;
+  
+  const uniqueClasses = new Set();
+  const classAdminData = loadClassAdmin();
 
   events.forEach(evt => {
     const evtDate = new Date(evt.date + 'T00:00:00');
     if (evtDate >= start && evtDate <= end) {
-      // Skip recurrences on red days
       if (evt.isRecurrence && redDays.includes(evt.date)) return;
+      
       weekEvents++;
+      
+      // Lesson statuses
+      const status = evt.lessonPlan?.status || 'draft';
+      if (status === 'taught' || status === 'reviewed') countTaught++;
+      else if (status === 'ready') countReady++;
+      else countDraft++;
+
+      // Admin tasks (local checklist)
       if (evt.checklist) {
         totalTasks += evt.checklist.length;
         doneTasks += evt.checklist.filter(i => i.done).length;
       }
+      
+      if (evt.typeId === 'class') {
+        uniqueClasses.add(evt.name);
+      }
     }
+  });
+
+  // Global Admin Progress
+  let globalAdminTotal = 0;
+  let globalAdminDone = 0;
+  uniqueClasses.forEach(className => {
+    const tasks = classAdminData[className]?.tasks || [];
+    globalAdminTotal += tasks.length;
+    globalAdminDone += tasks.filter(t => t.done).length;
   });
 
   const elEvents = document.getElementById('stat-events');
   const elTasks = document.getElementById('stat-tasks');
-  const elDone = document.getElementById('stat-done');
-  const elPending = document.getElementById('stat-pending');
-
+  
   if (elEvents) elEvents.textContent = weekEvents;
   if (elTasks) elTasks.textContent = totalTasks;
-  if (elDone) elDone.textContent = doneTasks;
-  if (elPending) elPending.textContent = totalTasks - doneTasks;
+
+  // Update Lesson Bar
+  const totalLessons = countTaught + countReady + countDraft;
+  const pctTaught = totalLessons > 0 ? (countTaught / totalLessons) * 100 : 0;
+  const pctReady = totalLessons > 0 ? (countReady / totalLessons) * 100 : 0;
+  const pctDraft = totalLessons > 0 ? (countDraft / totalLessons) * 100 : 0;
+  
+  const elLessonCount = document.getElementById('lesson-stats-count');
+  if (elLessonCount) elLessonCount.textContent = `${countTaught + countReady}/${totalLessons}`;
+  
+  const bTaught = document.getElementById('bar-taught');
+  const bReady = document.getElementById('bar-ready');
+  const bDraft = document.getElementById('bar-draft');
+  
+  if (bTaught) bTaught.style.width = `${pctTaught}%`;
+  if (bReady) bReady.style.width = `${pctReady}%`;
+  if (bDraft) bDraft.style.width = `${pctDraft}%`;
+
+  // Update Admin Bar
+  const adminPct = globalAdminTotal > 0 ? (globalAdminDone / globalAdminTotal) * 100 : 0;
+  const elAdminPct = document.getElementById('admin-stats-pct');
+  const elAdminCount = document.getElementById('admin-stats-count');
+  const bAdmin = document.getElementById('bar-admin');
+  
+  if (elAdminPct) elAdminPct.textContent = `${Math.round(adminPct)}%`;
+  if (elAdminCount) elAdminCount.textContent = `${globalAdminDone}/${globalAdminTotal} tasks`;
+  if (bAdmin) bAdmin.style.width = `${adminPct}%`;
 }
 
 function updateTodayList() {
@@ -1845,6 +1896,7 @@ function addClassAdminTask(className, text) {
     done: false
   });
   saveClassAdmin(data);
+  updateStats();
   if (selectedEventId) openDetailPanel(selectedEventId, true);
 }
 
@@ -1854,6 +1906,7 @@ function deleteClassAdminTask(className, index) {
   if (!data[className] || !data[className].tasks[index]) return;
   data[className].tasks.splice(index, 1);
   saveClassAdmin(data);
+  updateStats();
   if (selectedEventId) openDetailPanel(selectedEventId, true);
 }
 
@@ -1863,6 +1916,7 @@ function toggleClassAdminTask(className, index, checked) {
   if (!data[className] || !data[className].tasks[index]) return;
   data[className].tasks[index].done = checked;
   saveClassAdmin(data);
+  updateStats();
   if (selectedEventId) openDetailPanel(selectedEventId, true);
 }
 
