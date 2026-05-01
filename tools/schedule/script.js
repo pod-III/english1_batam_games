@@ -10,6 +10,8 @@ let weekDayCount = 5; // 5, 6, or 7
 let viewMode = 'week'; // 'week', '3-day', 'day'
 let currentDayOffset = 0; // for day/3-day view modes
 let redDays = []; // Dates marked as holidays (YYYY-MM-DD)
+let tempRedDays = []; // Draft holidays
+let isHolidayModalDirty = false; // Track if holiday modal has unsaved changes
 let isDetailPanelDirty = false; // Track if current event detail has unsaved changes
 
 // Initialize Lucide Icons
@@ -242,10 +244,11 @@ function saveData() {
 }
 
 function toggleRedDay(dateStr) {
-  if (redDays.includes(dateStr)) {
-    redDays = redDays.filter(d => d !== dateStr);
-  } else {
+  const index = redDays.indexOf(dateStr);
+  if (index === -1) {
     redDays.push(dateStr);
+  } else {
+    redDays.splice(index, 1);
   }
   saveData();
   renderCalendar();
@@ -1760,45 +1763,65 @@ function saveSettings() {
    12. Holiday / Day Off Manager
    ============================================ */
 
-function openHolidaysModal() {
+function openHolidaysModal(isInitial = true) {
   const modal = document.getElementById('holidays-modal');
+  const body = document.getElementById('holidays-body');
+  
+  if (isInitial) {
+    // Force hide settings modal
+    const settingsModal = document.getElementById('settings-modal');
+    if (settingsModal) settingsModal.classList.add('hidden');
+    
+    tempRedDays = [...redDays];
+    isHolidayModalDirty = false;
+  }
+  
   const now = new Date();
-  let html = `
-    <div class="modal-backdrop" onclick="if(event.target===this) closeHolidaysModal()">
-      <div class="modal-card !max-w-sm flex flex-col max-h-[85vh] animate-pop-in">
-        <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-          <h2 class="font-heading font-bold text-lg text-dark dark:text-white flex items-center gap-2">
-            <i data-lucide="calendar" class="w-4 h-4 text-pink"></i> 
-            Day Off Manager
-          </h2>
-          <button onclick="closeHolidaysModal()" class="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
-            <i data-lucide="x" class="w-4 h-4"></i>
-          </button>
-        </div>
-        <div class="p-5 overflow-y-auto custom-scrollbar flex flex-col gap-6">
-  `;
+  let html = '';
 
   for (let i = 0; i < 6; i++) { // Show next 6 months
     const monthDate = new Date(now.getFullYear(), now.getMonth() + i, 1);
     html += renderHolidayMonth(monthDate);
   }
 
-  html += `
-        </div>
-        <div class="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 rounded-b-2xl">
-           <p class="text-[9px] text-slate-500 text-center font-bold uppercase tracking-wider">Recurrences are automatically hidden on days marked pink.</p>
-        </div>
-      </div>
-    </div>
-  `;
-
-  modal.innerHTML = html;
+  body.innerHTML = html;
   lucide.createIcons({ root: modal });
   modal.classList.remove('hidden');
 }
 
-function closeHolidaysModal() {
+function saveHolidays() {
+  redDays = [...tempRedDays];
+  isHolidayModalDirty = false;
+  saveData();
+  renderCalendar();
+  closeHolidaysModal(true);
+  showToast('Holidays updated', 'success');
+}
+
+function closeHolidaysModal(force = false) {
+  if (!force && isHolidayModalDirty) {
+    const saveBtn = document.getElementById('holiday-save-btn');
+    if (saveBtn) {
+      saveBtn.classList.remove('animate-shake');
+      void saveBtn.offsetWidth;
+      saveBtn.classList.add('animate-shake');
+      if (window.navigator && window.navigator.vibrate) window.navigator.vibrate(100);
+    }
+    return;
+  }
   document.getElementById('holidays-modal').classList.add('hidden');
+  isHolidayModalDirty = false;
+}
+
+function toggleTempRedDay(dateStr) {
+  isHolidayModalDirty = true;
+  const index = tempRedDays.indexOf(dateStr);
+  if (index === -1) {
+    tempRedDays.push(dateStr);
+  } else {
+    tempRedDays.splice(index, 1);
+  }
+  openHolidaysModal(false);
 }
 
 function renderHolidayMonth(date) {
@@ -1816,8 +1839,8 @@ function renderHolidayMonth(date) {
   
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = `${year}-${String(month+1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-    const isOff = redDays.includes(dateStr);
-    gridHtml += `<div class="holiday-day ${isOff ? 'off shadow-neo-sm' : ''}" onclick="toggleRedDay('${dateStr}'); openHolidaysModal();">${d}</div>`;
+    const isOff = tempRedDays.includes(dateStr);
+    gridHtml += `<div class="holiday-day ${isOff ? 'off shadow-neo-sm' : ''}" onclick="toggleTempRedDay('${dateStr}')">${d}</div>`;
   }
   gridHtml += '</div>';
   
@@ -1923,9 +1946,15 @@ function setupEventListeners() {
   // Handle escape key
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
-      closeEventModal();
-      // Only close if user explicitly escapes, but otherwise stay open
-      closeDetailPanel();
+      if (!document.getElementById('holidays-modal').classList.contains('hidden')) {
+        closeHolidaysModal();
+      } else if (document.getElementById('settings-modal') && !document.getElementById('settings-modal').classList.contains('hidden')) {
+        closeSettingsModal();
+      } else if (!document.getElementById('event-modal').classList.contains('hidden')) {
+        closeEventModal();
+      } else {
+        closeDetailPanel();
+      }
     }
   });
 
