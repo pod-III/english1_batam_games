@@ -29,10 +29,89 @@ function init() {
   renderCalendar();
   setupEventListeners();
   updateTimeIndicator();
+  setupTouchSupport();
   setInterval(updateTimeIndicator, 60000); // Update every minute
   
   // Wait a bit for layout to settle before scrolling
   setTimeout(scrollToCurrentTime, 300);
+}
+
+let touchGhost = null;
+let lastDropTarget = null;
+
+function setupTouchSupport() {
+  document.addEventListener('touchstart', handleTouchStart, { passive: false });
+  document.addEventListener('touchmove', handleTouchMove, { passive: false });
+  document.addEventListener('touchend', handleTouchEnd);
+}
+
+function handleTouchStart(e) {
+  if (e.target.closest('.resize-handle')) return;
+  const target = e.target.closest('.template-chip, .event-block');
+  if (!target) return;
+
+  draggedType = target.dataset.type || null;
+  draggedEventId = target.dataset.id || null;
+
+  // Create ghost
+  touchGhost = target.cloneNode(true);
+  touchGhost.classList.add('drag-ghost');
+  
+  // Constrain width if it's an event block (which can be wide)
+  const rect = target.getBoundingClientRect();
+  touchGhost.style.width = `${Math.min(rect.width, 160)}px`; 
+  
+  document.body.appendChild(touchGhost);
+  
+  updateGhostPosition(e.touches[0]);
+  
+  // Prevent scrolling while dragging and disable interaction with existing events
+  document.body.style.overflow = 'hidden';
+  document.body.classList.add('dragging-active');
+}
+
+function handleTouchMove(e) {
+  if (!touchGhost) return;
+  e.preventDefault();
+  
+  const touch = e.touches[0];
+  updateGhostPosition(touch);
+  
+  // Highlight target
+  const el = document.elementFromPoint(touch.clientX, touch.clientY);
+  const dropTarget = el ? el.closest('.grid-cell') : null;
+  
+  if (dropTarget !== lastDropTarget) {
+    if (lastDropTarget) lastDropTarget.classList.remove('drop-target');
+    if (dropTarget) dropTarget.classList.add('drop-target');
+    lastDropTarget = dropTarget;
+  }
+}
+
+function handleTouchEnd(e) {
+  if (!touchGhost) return;
+  
+  if (lastDropTarget) {
+    const dateStr = lastDropTarget.dataset.date;
+    const timeStr = lastDropTarget.dataset.time;
+    processDropAction(dateStr, timeStr, draggedType, draggedEventId);
+    lastDropTarget.classList.remove('drop-target');
+  }
+  
+  // Cleanup
+  touchGhost.remove();
+  touchGhost = null;
+  lastDropTarget = null;
+  draggedType = null;
+  draggedEventId = null;
+  document.body.style.overflow = '';
+  document.body.classList.remove('dragging-active');
+}
+
+function updateGhostPosition(touch) {
+  if (!touchGhost) return;
+  touchGhost.style.left = `${touch.clientX - touchGhost.offsetWidth / 2}px`;
+  touchGhost.style.top = `${touch.clientY - touchGhost.offsetHeight / 2}px`;
 }
 
 function scrollToCurrentTime() {
@@ -477,14 +556,21 @@ function handleDrop(e) {
   const dateStr = e.target.dataset.date;
   const timeStr = e.target.dataset.time;
   
+  processDropAction(dateStr, timeStr, draggedType, draggedEventId);
+  
+  draggedType = null;
+  draggedEventId = null;
+}
+
+function processDropAction(dateStr, timeStr, typeId, eventId) {
   if (!dateStr || !timeStr) return;
   
-  if (draggedType) {
+  if (typeId) {
     // Dropped a template -> Open create modal
-    openEventModal(null, dateStr, timeStr, draggedType);
-  } else if (draggedEventId) {
+    openEventModal(null, dateStr, timeStr, typeId);
+  } else if (eventId) {
     // Dropped an existing event -> Update time/date
-    const event = events.find(ev => ev.id === draggedEventId);
+    const event = events.find(ev => ev.id === eventId);
     if (event) {
       const startIndex = timeToSlotIndex(event.startTime);
       const endIndex = timeToSlotIndex(event.endTime);
@@ -498,15 +584,12 @@ function handleDrop(e) {
       if (newEndIndex > TOTAL_SLOTS) newEndIndex = TOTAL_SLOTS;
       event.endTime = slotIndexToTime(newEndIndex);
       
-      refreshRecurrences(draggedEventId);
+      refreshRecurrences(eventId);
       saveData();
       renderCalendar();
       if (selectedEventId === event.id) openDetailPanel(event.id); // Refresh panel if open
     }
   }
-  
-  draggedType = null;
-  draggedEventId = null;
 }
 
 /* ============================================
