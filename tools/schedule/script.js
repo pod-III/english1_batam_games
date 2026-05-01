@@ -9,6 +9,7 @@ let selectedEventId = null;
 let showWeekends = false;
 let viewMode = 'week'; // 'week', '3-day', 'day'
 let currentDayOffset = 0; // for day/3-day view modes
+let redDays = []; // Dates marked as holidays (YYYY-MM-DD)
 
 // Initialize Lucide Icons
 lucide.createIcons();
@@ -192,12 +193,30 @@ function loadData() {
   if (savedStart && savedEnd) {
     updateScheduleRange(savedStart, savedEnd);
   }
+
+  const savedRedDays = localStorage.getItem('schedule_red_days');
+  if (savedRedDays) {
+    redDays = JSON.parse(savedRedDays);
+  }
 }
 
 function saveData() {
   localStorage.setItem('schedule_events', JSON.stringify(events));
+  localStorage.setItem('schedule_show_weekends', showWeekends);
+  localStorage.setItem('schedule_view_mode', viewMode);
+  localStorage.setItem('schedule_red_days', JSON.stringify(redDays));
   updateStats();
   updateTodayList();
+}
+
+function toggleRedDay(dateStr) {
+  if (redDays.includes(dateStr)) {
+    redDays = redDays.filter(d => d !== dateStr);
+  } else {
+    redDays.push(dateStr);
+  }
+  saveData();
+  renderCalendar();
 }
 
 function refreshRecurrences(masterId) {
@@ -374,14 +393,20 @@ function renderCalendar() {
       dayDate.setDate(dayDate.getDate() + i);
     }
     const isToday = getDayString(dayDate) === todayStr;
+    const dateStr = getDayString(dayDate);
+    const isRedDay = redDays.includes(dateStr);
     
-    const div = document.createElement('div');
-    div.className = `day-header flex-1 ${isToday ? 'today' : ''}`;
-    div.innerHTML = `
-      <div class="day-name">${DAYS_OF_WEEK[dayDate.getDay() === 0 ? 6 : dayDate.getDay() - 1]}<span class="day-name-full hidden md:inline">${DAYS_FULL[dayDate.getDay() === 0 ? 6 : dayDate.getDay() - 1].slice(3)}</span></div>
-      <div class="day-number mt-1">${dayDate.getDate()}</div>
+    const header = document.createElement('div');
+    header.className = `day-header flex flex-col items-center justify-center py-2 border-l border-slate-200 dark:border-slate-700 ${isToday ? 'today' : ''} ${isRedDay ? 'red-day' : ''}`;
+    header.style.cursor = 'pointer';
+    header.onclick = () => toggleRedDay(dateStr);
+    
+    header.innerHTML = `
+      <span class="text-[10px] font-bold opacity-60 uppercase">${dayDate.toLocaleDateString('en-US', { weekday: 'short' })}</span>
+      <span class="day-number">${dayDate.getDate()}</span>
+      ${isRedDay ? '<span class="text-[8px] font-bold text-red-500 uppercase mt-0.5">Off</span>' : ''}
     `;
-    dayHeadersRow.appendChild(div);
+    dayHeadersRow.appendChild(header);
   }
   
   // Render Time Gutter
@@ -413,10 +438,10 @@ function renderCalendar() {
       dayDate.setDate(dayDate.getDate() + d);
     }
     const dayStr = getDayString(dayDate);
-    const isToday = dayStr === todayStr;
+    const isDayRed = redDays.includes(dayStr);
     
     const col = document.createElement('div');
-    col.className = `day-column ${isToday ? 'today-col' : ''}`;
+    col.className = `day-column relative ${isDayRed ? 'red-day-bg' : ''}`;
     col.dataset.date = dayStr;
     
     // Draw background grid lines for this column
@@ -1454,6 +1479,19 @@ function toggleRecurrenceDay(btn) {
 function toggleModalDaySelector(value) {
   const container = document.getElementById('modal-day-selector-container');
   if (container) container.classList.toggle('hidden', value !== 'custom-days');
+}
+
+function toggleRedDay(dateStr) {
+  const index = redDays.indexOf(dateStr);
+  if (index === -1) {
+    redDays.push(dateStr);
+    showToast(`Marked ${dateStr} as a holiday`, 'info');
+  } else {
+    redDays.splice(index, 1);
+    showToast(`Removed holiday status for ${dateStr}`, 'info');
+  }
+  saveData();
+  renderCalendar();
 }
 
 function openSettingsModal() {
