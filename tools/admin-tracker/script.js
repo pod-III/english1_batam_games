@@ -145,7 +145,7 @@ function getClassStats(className) {
   const total = instances.length;
   const planned = instances.filter(e => isPlanned(e)).length;
   const skipped = instances.filter(e => isSkipped(e)).length;
-  const upcoming = instances.filter(e => isUpcoming(e.date) && !isPlanned(e)).length;
+  const upcoming = instances.filter(e => isUpcoming(e.date) && getLessonStatus(e) !== 'taught' && getLessonStatus(e) !== 'reviewed').length;
   return { total, planned, skipped, upcoming, instances };
 }
 
@@ -192,7 +192,7 @@ function renderClassGrid() {
   if (emptyState) emptyState.classList.add('hidden');
   grid.classList.remove('hidden');
 
-  let gPlanned = 0, gSkipped = 0, gUpcoming = 0;
+  let gPlanned = 0, gSkipped = 0, gUpcoming = 0, gTotal = 0;
 
   filteredClasses.forEach(cls => {
     const stats = getClassStats(cls.name);
@@ -200,12 +200,13 @@ function renderClassGrid() {
     gPlanned += stats.planned;
     gSkipped += stats.skipped;
     gUpcoming += stats.upcoming;
+    gTotal += stats.total;
 
     const card = createClassCard(cls.name, cls.color, stats);
     grid.appendChild(card);
   });
 
-  updateGlobalStats(filteredClasses.length, gPlanned, gSkipped, gUpcoming);
+  updateGlobalStats(filteredClasses.length, gPlanned, gSkipped, gUpcoming, gTotal);
   if (window.lucide) lucide.createIcons();
 }
 
@@ -339,7 +340,7 @@ function updateCardStats(className) {
 
 function recalculateGlobalStats() {
   const allClasses = getUniqueClasses();
-  let gClasses = 0, gPlanned = 0, gSkipped = 0, gUpcoming = 0;
+  let gClasses = 0, gPlanned = 0, gSkipped = 0, gUpcoming = 0, gTotal = 0;
 
   allClasses.forEach(cls => {
     const stats = getClassStats(cls.name);
@@ -348,10 +349,11 @@ function recalculateGlobalStats() {
       gPlanned += stats.planned;
       gSkipped += stats.skipped;
       gUpcoming += stats.upcoming;
+      gTotal += stats.total;
     }
   });
 
-  updateGlobalStats(gClasses, gPlanned, gSkipped, gUpcoming);
+  updateGlobalStats(gClasses, gPlanned, gSkipped, gUpcoming, gTotal);
 }
 
 // Helper: get all class instances regardless of time filter
@@ -361,7 +363,7 @@ function getClassInstances_all() {
     .filter(e => !(e.isRecurrence && loadRedDays().includes(e.date)));
 }
 
-function updateGlobalStats(classes, planned, skipped, upcoming) {
+function updateGlobalStats(classes, planned, skipped, upcoming, total = 0) {
   const statClasses = document.getElementById('stat-classes');
   const statPlanned = document.getElementById('stat-planned');
   const statSkipped = document.getElementById('stat-skipped');
@@ -372,10 +374,8 @@ function updateGlobalStats(classes, planned, skipped, upcoming) {
   if (statSkipped) statSkipped.textContent = skipped;
   if (statUpcoming) statUpcoming.textContent = upcoming;
 
-  const total = planned + skipped + upcoming;
   let pct = 0;
   if (total > 0) {
-    // Treat 'skipped' as unplanned, 'upcoming' as unplanned
     pct = Math.round((planned / total) * 100);
   }
 
@@ -538,9 +538,9 @@ function openDrawer(className) {
           <i data-lucide="book-open" class="w-4 h-4 text-blue"></i>
           <input type="text" value="${unitName.replace(/"/g, '&quot;')}" class="edit-input flex-1 py-1 px-2 text-sm font-heading font-bold bg-transparent border-transparent hover:bg-[var(--surface-card)] hover:border-[var(--border-secondary)] focus:bg-[var(--surface-card)] focus:border-[var(--color-blue)] transition-all cursor-text outline-none min-w-[120px]" onchange="renameUnit('${className}', '${unitName.replace(/'/g, "\\'")}', this.value)" placeholder="Unit Name" title="Edit unit name">
           
-          <div class="flex gap-1 ml-auto">
+          <div class="flex gap-1.5 w-full mt-2">
             ${LESSON_STATUSES.map(s => `
-              <button onclick="updateUnitStatus('${className}', '${unitName.replace(/'/g, "\\'")}', '${s.id}')" class="status-btn ${uStatus === s.id ? 'active' : ''}" style="background: ${uStatus === s.id ? s.color : 'var(--surface-card)'}; color: ${uStatus === s.id ? '#fff' : 'var(--text-secondary)'}; padding: 2px 6px; font-size: 9px;">
+              <button onclick="updateUnitStatus('${className}', '${unitName.replace(/'/g, "\\'")}', '${s.id}')" class="flex-1" style="padding: 4px 0; font-size: 10px; font-weight: 800; text-transform: uppercase; border-radius: 6px; background: ${uStatus === s.id ? s.color : 'var(--surface-card)'}; color: ${uStatus === s.id ? '#fff' : 'var(--text-tertiary)'}; border: 2px solid ${uStatus === s.id ? s.color : 'var(--border-secondary)'}; box-shadow: ${uStatus === s.id ? 'none' : '0 2px 0 var(--border-secondary)'}; transform: ${uStatus === s.id ? 'translateY(2px)' : 'none'}; transition: all 0.1s;">
                 ${s.label}
               </button>
             `).join('')}
@@ -562,9 +562,9 @@ function openDrawer(className) {
         const lessonNumberDisplay = currentL;
         currentL++;
 
-        const skipped = isSkipped(lesson);
-        const upcoming = isUpcoming(lesson.date) && !isPlanned(lesson);
         const status = getLessonStatus(lesson);
+        const skipped = isSkipped(lesson);
+        const upcoming = isUpcoming(lesson.date) && status !== 'taught' && status !== 'reviewed';
         const statusObj = LESSON_STATUSES.find(s => s.id === status);
         const rowClass = skipped ? 'lesson-row skipped' : 'lesson-row';
 
@@ -584,22 +584,30 @@ function openDrawer(className) {
 
         html += `
           <div class="${rowClass} cursor-move bg-[var(--surface-card)]" draggable="true" ondragstart="dragLessonStart(event, '${lesson.id}')" onclick="toggleEdit('${lesson.id}')">
-            <div class="flex items-center justify-between gap-2 px-2">
-              <div class="flex items-center gap-2 min-w-0 flex-1">
-                <i data-lucide="grip-vertical" class="w-4 h-4 text-slate-300 hover:text-slate-500 transition-colors flex-shrink-0" onclick="event.stopPropagation()"></i>
-                <div class="status-dot" style="background:${statusObj ? statusObj.color : 'var(--text-tertiary)'}"></div>
-                <div class="flex flex-col min-w-0 flex-1">
-                  <span class="font-bold text-sm truncate"><span class="text-blue mr-1 opacity-80">L${lessonNumberDisplay}:</span> ${lesson.lessonPlan?.lesson || lesson.name}</span>
-                  <span class="text-[10px] text-slate-400 font-semibold">
-                    ${formatDate(lesson.date)} • ${formatTime(lesson.startTime)} • ${lesson.room || 'No Room'}
-                  </span>
+            <div class="flex flex-col px-2 pb-1 gap-2">
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2 min-w-0 flex-1">
+                  <i data-lucide="grip-vertical" class="w-4 h-4 text-slate-300 hover:text-slate-500 transition-colors flex-shrink-0" onclick="event.stopPropagation()"></i>
+                  <div class="status-dot" style="background:${statusObj ? statusObj.color : 'var(--text-tertiary)'}"></div>
+                  <div class="flex flex-col min-w-0 flex-1">
+                    <span class="font-bold text-sm truncate"><span class="text-blue mr-1 opacity-80">L${lessonNumberDisplay}:</span> ${lesson.lessonPlan?.lesson || lesson.name}</span>
+                    <span class="text-[10px] text-slate-400 font-semibold">
+                      ${formatDate(lesson.date)} • ${formatTime(lesson.startTime)} • ${lesson.room || 'No Room'}
+                    </span>
+                  </div>
+                </div>
+                <div class="flex items-center gap-2 flex-shrink-0">
+                  ${skipped ? '<span class="badge-status badge-skipped">Skipped</span>' : ''}
+                  ${upcoming ? '<span class="badge-status badge-upcoming">Upcoming</span>' : ''}
+                  <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 edit-chevron-${lesson.id} transition-transform"></i>
                 </div>
               </div>
-              <div class="flex items-center gap-2 flex-shrink-0">
-                ${skipped ? '<span class="badge-status badge-skipped">Skipped</span>' : ''}
-                ${upcoming ? '<span class="badge-status badge-upcoming">Upcoming</span>' : ''}
-                ${!skipped && !upcoming && statusObj ? `<span class="badge-status badge-${status}">${statusObj.label}</span>` : ''}
-                <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 edit-chevron-${lesson.id} transition-transform"></i>
+              <div class="flex gap-1.5 w-full pl-6 mt-1" onclick="event.stopPropagation()">
+                ${LESSON_STATUSES.map(s => `
+                  <button onclick="updateField('${lesson.id}', 'status', '${s.id}')" class="flex-1" style="padding: 4px 0; font-size: 9px; font-weight: 800; text-transform: uppercase; border-radius: 6px; background: ${status === s.id ? s.color : 'var(--surface-card)'}; color: ${status === s.id ? '#fff' : 'var(--text-tertiary)'}; border: 2px solid ${status === s.id ? s.color : 'var(--border-secondary)'}; box-shadow: ${status === s.id ? 'none' : '0 2px 0 var(--border-secondary)'}; transform: ${status === s.id ? 'translateY(2px)' : 'none'}; transition: all 0.1s;">
+                    ${s.label}
+                  </button>
+                `).join('')}
               </div>
             </div>
             <!-- Edit Panel -->
@@ -619,16 +627,7 @@ function openDrawer(className) {
                     <input type="number" min="1" class="edit-input px-2 text-center" value="${lesson.lessonPlan?.lessonNumber || ''}" onchange="updateField('${lesson.id}', 'lessonNumber', this.value)" placeholder="Auto">
                   </div>
                 </div>
-                <div class="mb-3">
-                  <label class="block text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Status</label>
-                  <div class="flex gap-1.5 flex-wrap">
-                    ${LESSON_STATUSES.map(s => `
-                      <button onclick="updateField('${lesson.id}', 'status', '${s.id}')" class="status-btn ${status === s.id ? 'active' : ''}" style="background: ${status === s.id ? s.color : 'var(--surface-card)'}; color: ${status === s.id ? '#fff' : 'var(--text-secondary)'}">
-                        ${s.label}
-                      </button>
-                    `).join('')}
-                  </div>
-                </div>
+
                 <div class="mb-3">
                   <label class="block text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Notes</label>
                   <textarea class="edit-input edit-textarea" onchange="updateNotes('${lesson.id}', this.value)" placeholder="Add notes...">${lesson.notes || ''}</textarea>
