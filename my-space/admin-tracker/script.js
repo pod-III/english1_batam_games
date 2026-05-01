@@ -550,13 +550,25 @@ function updateFilterLabel(mode) {
 
 function openDrawer(className) {
   currentDrawerClass = className;
-  const instances = getClassInstances(className);
+  const drawerOverlay = document.getElementById('drawer-overlay');
+  const drawerPanel = document.getElementById('drawer-panel');
+  
+  if (currentMode === 'units') {
+    renderUnitsDrawer(className);
+  } else {
+    renderLessonsDrawer(className);
+  }
 
+  if (drawerOverlay) drawerOverlay.classList.add('open');
+  if (drawerPanel) drawerPanel.classList.add('open');
+  if (window.lucide) lucide.createIcons();
+}
+
+function renderLessonsDrawer(className) {
+  const instances = getClassInstances(className);
   const drawerTitle = document.getElementById('drawer-title');
   const drawerSubtitle = document.getElementById('drawer-subtitle');
   const drawerBody = document.getElementById('drawer-body');
-  const drawerOverlay = document.getElementById('drawer-overlay');
-  const drawerPanel = document.getElementById('drawer-panel');
   const prevScroll = drawerBody ? drawerBody.scrollTop : 0;
 
   if (drawerTitle) drawerTitle.textContent = className;
@@ -785,9 +797,125 @@ function openDrawer(className) {
     drawerBody.innerHTML = html;
     drawerBody.scrollTop = prevScroll;
   }
-  if (drawerOverlay) drawerOverlay.classList.add('open');
-  if (drawerPanel) drawerPanel.classList.add('open');
-  if (window.lucide) lucide.createIcons();
+}
+
+function renderUnitsDrawer(className) {
+  const instances = getClassInstances(className);
+  const drawerTitle = document.getElementById('drawer-title');
+  const drawerSubtitle = document.getElementById('drawer-subtitle');
+  const drawerBody = document.getElementById('drawer-body');
+  const prevScroll = drawerBody ? drawerBody.scrollTop : 0;
+
+  const unitMap = {};
+  instances.forEach(e => {
+    const unitKey = e.lessonPlan?.unit || 'Default Unit';
+    if (!unitMap[unitKey]) unitMap[unitKey] = { lessons: [] };
+    unitMap[unitKey].lessons.push(e);
+  });
+
+  const classUnits = loadClassUnits()[className] || {};
+  Object.keys(classUnits).forEach(uName => {
+    if (!unitMap[uName]) unitMap[uName] = { lessons: [] };
+    unitMap[uName].status = classUnits[uName].status || 'draft';
+  });
+
+  const units = Object.entries(unitMap).filter(([name, data]) => !(name === 'Default Unit' && data.lessons.length === 0));
+  
+  // Stats
+  const totalUnits = units.length;
+  const readyUnits = units.filter(([_, data]) => data.status === 'ready' || data.status === 'taught' || data.status === 'reviewed').length;
+  const readinessPct = totalUnits > 0 ? Math.round((readyUnits / totalUnits) * 100) : 0;
+
+  if (drawerTitle) drawerTitle.textContent = className;
+  if (drawerSubtitle) drawerSubtitle.textContent = `${totalUnits} units • ${readinessPct}% ready`;
+
+  if (units.length === 0) {
+    if (drawerBody) {
+      drawerBody.innerHTML = `
+        <div class="flex flex-col items-center justify-center py-20 text-center opacity-60">
+          <div class="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
+            <i data-lucide="layers" class="w-8 h-8 text-slate-400"></i>
+          </div>
+          <h3 class="font-heading text-xl font-bold mb-1">No units yet</h3>
+          <p class="text-sm font-semibold text-slate-400 max-w-[240px]">Assign lessons to units from the Lessons view</p>
+          <button onclick="const n=prompt('Unit Name:'); if(n) addNewUnit('${className}', n);" class="mt-6 px-4 py-2 rounded-xl bg-blue text-white font-bold text-sm border-2 border-dark shadow-neo-sm hover:translate-y-[-1px] active:translate-y-[1px]">
+            + Create First Unit
+          </button>
+        </div>
+      `;
+    }
+    return;
+  }
+
+  let html = `
+    <div class="grid grid-cols-2 gap-3 mb-8">
+      <div class="bg-blue/5 border-2 border-blue/20 rounded-2xl p-4 text-center">
+        <span class="block text-2xl font-heading text-blue">${totalUnits}</span>
+        <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Total Units</span>
+      </div>
+      <div class="bg-green/5 border-2 border-green/20 rounded-2xl p-4 text-center">
+        <span class="block text-2xl font-heading text-green">${readinessPct}%</span>
+        <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Overall Readiness</span>
+      </div>
+    </div>
+    
+    <div class="space-y-4">
+  `;
+
+  units.forEach(([unitName, data]) => {
+    const totalL = data.lessons.length;
+    const taughtL = data.lessons.filter(l => {
+      const s = getLessonStatus(l);
+      return s === 'taught' || s === 'reviewed';
+    }).length;
+    const progressPct = totalL > 0 ? Math.round((taughtL / totalL) * 100) : 0;
+    const uStatus = data.status || 'draft';
+
+    html += `
+      <div class="p-4 bg-[var(--surface-card)] rounded-2xl border-2 border-[var(--border-secondary)] shadow-sm">
+        <div class="flex items-start justify-between mb-3">
+          <div class="min-w-0 flex-1">
+            <h4 class="font-heading text-base font-bold truncate">${unitName}</h4>
+            <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mt-0.5">${totalL} Lessons</p>
+          </div>
+          <div class="flex gap-1 ml-4">
+             <button onclick="duplicateUnit('${className}', '${unitName.replace(/'/g, "\\'")}')" class="p-1.5 text-slate-400 hover:text-blue hover:bg-blue/10 rounded-lg transition-colors"><i data-lucide="copy" class="w-3.5 h-3.5"></i></button>
+             <button onclick="deleteUnit('${className}', '${unitName.replace(/'/g, "\\'")}')" class="p-1.5 text-slate-400 hover:text-pink hover:bg-pink/10 rounded-lg transition-colors"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+          </div>
+        </div>
+
+        <div class="flex gap-1 mb-4">
+          ${LESSON_STATUSES.map(s => `
+            <button onclick="updateUnitStatus('${className}', '${unitName.replace(/'/g, "\\'")}', '${s.id}')" class="flex-1" style="padding: 6px 0; font-size: 9px; font-weight: 800; text-transform: uppercase; border-radius: 8px; background: ${uStatus === s.id ? s.color : 'var(--bg-tertiary)'}; color: ${uStatus === s.id ? '#fff' : 'var(--text-tertiary)'}; border: 2px solid ${uStatus === s.id ? s.color : 'var(--border-secondary)'}; box-shadow: ${uStatus === s.id ? 'none' : '0 2px 0 var(--border-secondary)'}; transform: ${uStatus === s.id ? 'translateY(2px)' : 'none'}; transition: all 0.1s;">
+              ${s.label}
+            </button>
+          `).join('')}
+        </div>
+
+        <div class="flex flex-col gap-1.5">
+          <div class="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
+            <span class="text-slate-400">Taught Progress</span>
+            <span class="text-blue">${taughtL}/${totalL}</span>
+          </div>
+          <div class="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden border border-[var(--border-secondary)]">
+            <div class="h-full bg-blue transition-all duration-500" style="width: ${progressPct}%"></div>
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  html += `
+    </div>
+    <button onclick="const n=prompt('Unit Name:'); if(n) addNewUnit('${className}', n);" class="w-full mt-8 p-4 border-2 border-dashed border-[var(--border-secondary)] rounded-2xl text-slate-400 font-bold hover:border-blue hover:text-blue hover:bg-blue/5 transition-all text-sm flex items-center justify-center gap-2">
+      <i data-lucide="plus" class="w-4 h-4"></i> Add New Unit
+    </button>
+  `;
+
+  if (drawerBody) {
+    drawerBody.innerHTML = html;
+    drawerBody.scrollTop = prevScroll;
+  }
 }
 
 function closeDrawer() {
