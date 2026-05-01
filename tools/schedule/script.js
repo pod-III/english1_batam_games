@@ -42,7 +42,7 @@ function loadData() {
 function saveData() {
   localStorage.setItem('schedule_events', JSON.stringify(events));
   updateStats();
-  renderTodayEvents();
+  updateTodayList();
 }
 
 /* ============================================
@@ -95,7 +95,7 @@ function renderSidebar() {
   });
   lucide.createIcons({ root: templateList });
   updateStats();
-  renderTodayEvents();
+  updateTodayList();
 }
 
 function updateStats() {
@@ -124,8 +124,9 @@ function updateStats() {
   document.getElementById('stat-pending').textContent = totalTasks - doneTasks;
 }
 
-function renderTodayEvents() {
+function updateTodayList() {
   const container = document.getElementById('today-events-list');
+  if (!container) return;
   container.innerHTML = '';
   
   const todayStr = getDayString(new Date());
@@ -137,11 +138,11 @@ function renderTodayEvents() {
   }
   
   todayEvents.forEach(evt => {
-    const type = getEventType(evt.typeId);
     const div = document.createElement('div');
-    div.className = 'flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors';
+    div.className = 'p-2 rounded-lg bg-white dark:bg-slate-800 border-l-4 shadow-sm flex flex-col gap-0.5 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors mb-1.5';
+    div.style.borderColor = evt.color;
     div.onclick = () => {
-      // Navigate to event's week if necessary
+      // If event is on another week (shouldn't happen for today list but good for safety)
       const evtDate = new Date(evt.date);
       const weekStart = getMonday(evtDate);
       if (currentWeekStart.getTime() !== weekStart.getTime()) {
@@ -152,9 +153,10 @@ function renderTodayEvents() {
     };
     
     div.innerHTML = `
-      <div class="w-2 h-2 rounded-full" style="background-color: ${evt.color}"></div>
-      <div class="flex-1 truncate font-bold text-dark dark:text-slate-200">${evt.name}</div>
-      <div class="text-[10px] font-bold text-slate-400 whitespace-nowrap">${formatTimeDisplay(evt.startTime)}</div>
+      <div class="font-bold text-dark dark:text-white truncate text-[11px]">${evt.name}</div>
+      <div class="text-[9px] text-slate-500 dark:text-slate-400 font-bold uppercase tracking-tight">
+        ${formatTimeDisplay(evt.startTime)} • ${evt.room || 'No Room'}
+      </div>
     `;
     container.appendChild(div);
   });
@@ -246,59 +248,101 @@ function renderCalendar() {
     // Draw Events for this day
     const dayEvents = events.filter(e => e.date === dayStr);
     dayEvents.forEach(evt => {
-      const startIndex = timeToSlotIndex(evt.startTime);
-      const endIndex = timeToSlotIndex(evt.endTime);
-      const height = (endIndex - startIndex) * 20; // 20px per 15 min slot
-      
-      const evtBlock = document.createElement('div');
-      evtBlock.className = 'event-block shadow-sm';
-      evtBlock.style.top = `${startIndex * 20}px`;
-      evtBlock.style.height = `${height}px`;
-      evtBlock.style.backgroundColor = getRgba(evt.color, 0.15);
-      evtBlock.style.color = evt.color;
-      evtBlock.style.borderColor = evt.color;
-      evtBlock.dataset.id = evt.id;
-      
-      evtBlock.draggable = true;
-      evtBlock.addEventListener('dragstart', handleDragStartEvent);
-      evtBlock.addEventListener('dragend', (e) => e.currentTarget.classList.remove('opacity-50'));
-      evtBlock.addEventListener('click', (e) => {
-        e.stopPropagation(); // prevent dblclick trigger
-        openDetailPanel(evt.id);
-      });
-      
-      let progressHtml = '';
-      if (evt.checklist && evt.checklist.length > 0) {
-        const done = evt.checklist.filter(i => i.done).length;
-        const total = evt.checklist.length;
-        const pct = (done / total) * 100;
-        progressHtml = `
-          <div class="event-progress w-full">
-            <div class="event-progress-fill" style="width: ${pct}%; background-color: currentColor;"></div>
-          </div>
-        `;
-      }
-      
-      evtBlock.innerHTML = `
-        <div class="event-title text-dark dark:text-white">${evt.name}</div>
-        <div class="event-time text-dark dark:text-white opacity-70">${formatTimeDisplay(evt.startTime)} - ${formatTimeDisplay(evt.endTime)}</div>
-        ${progressHtml}
-        ${evt.recurrence !== 'none' ? '<i data-lucide="repeat" class="event-recurrence-badge w-3 h-3"></i>' : ''}
-        <div class="resize-handle" draggable="false" data-id="${evt.id}"></div>
-      `;
-      
-      // Setup resize
-      const handle = evtBlock.querySelector('.resize-handle');
-      handle.addEventListener('mousedown', initResize);
-      
-      col.appendChild(evtBlock);
+      col.appendChild(createEventBlock(evt));
     });
     
     dayColumns.appendChild(col);
   }
   
-  lucide.createIcons({ root: dayColumns });
+  updateStats();
+  updateTodayList();
   updateTimeIndicator();
+}
+
+/* ============================================
+   5. Partial UI Updates (Performance)
+   ============================================ */
+
+function createEventBlock(evt) {
+  const startIndex = timeToSlotIndex(evt.startTime);
+  const endIndex = timeToSlotIndex(evt.endTime);
+  const height = (endIndex - startIndex) * 20;
+
+  const evtBlock = document.createElement('div');
+  evtBlock.className = 'event-block shadow-sm';
+  evtBlock.style.top = `${startIndex * 20}px`;
+  evtBlock.style.height = `${height}px`;
+  evtBlock.style.backgroundColor = getRgba(evt.color, 0.15);
+  evtBlock.style.color = evt.color;
+  evtBlock.style.borderColor = evt.color;
+  evtBlock.dataset.id = evt.id;
+
+  evtBlock.draggable = true;
+  evtBlock.addEventListener('dragstart', handleDragStartEvent);
+  evtBlock.addEventListener('dragend', (e) => e.currentTarget.classList.remove('opacity-50'));
+  evtBlock.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openDetailPanel(evt.id);
+  });
+
+  let progressHtml = '';
+  if (evt.checklist && evt.checklist.length > 0) {
+    const done = evt.checklist.filter(i => i.done).length;
+    const total = evt.checklist.length;
+    const pct = (done / total) * 100;
+    progressHtml = `
+      <div class="event-progress w-full">
+        <div class="event-progress-fill" style="width: ${pct}%; background-color: currentColor;"></div>
+      </div>
+    `;
+  }
+
+  evtBlock.innerHTML = `
+    <div class="event-title text-dark dark:text-white">${evt.name}</div>
+    <div class="event-time text-dark dark:text-white opacity-70">${formatTimeDisplay(evt.startTime)} - ${formatTimeDisplay(evt.endTime)}</div>
+    ${progressHtml}
+    ${evt.recurrence !== 'none' ? '<i data-lucide="repeat" class="event-recurrence-badge w-3 h-3"></i>' : ''}
+    <div class="resize-handle" draggable="false" data-id="${evt.id}"></div>
+  `;
+
+  const handle = evtBlock.querySelector('.resize-handle');
+  handle.addEventListener('mousedown', initResize);
+  
+  lucide.createIcons({ root: evtBlock });
+  return evtBlock;
+}
+
+function updateEventUI(eventId) {
+  if (!eventId) return;
+  const evt = events.find(e => e.id === eventId);
+  const oldBlock = document.querySelector(`.event-block[data-id="${eventId}"]`);
+  
+  if (!evt) {
+    if (oldBlock) oldBlock.remove();
+    updateStats();
+    updateTodayList();
+    return;
+  }
+
+  const newBlock = createEventBlock(evt);
+  
+  if (oldBlock) {
+    // If date changed, move to correct column
+    if (oldBlock.parentElement.dataset.date !== evt.date) {
+      oldBlock.remove();
+      const newCol = document.querySelector(`.day-column[data-date="${evt.date}"]`);
+      if (newCol) newCol.appendChild(newBlock);
+    } else {
+      oldBlock.replaceWith(newBlock);
+    }
+  } else {
+    // Brand new event
+    const col = document.querySelector(`.day-column[data-date="${evt.date}"]`);
+    if (col) col.appendChild(newBlock);
+  }
+  
+  updateStats();
+  updateTodayList();
 }
 
 function getRgba(hex, alpha) {
@@ -460,7 +504,7 @@ function stopResize(e) {
       
       event.endTime = slotIndexToTime(newEndIndex);
       saveData();
-      renderCalendar();
+      updateEventUI(resizeEventId);
       if (selectedEventId === event.id) openDetailPanel(event.id);
     }
   }
@@ -693,7 +737,7 @@ function toggleChecklistItem(eventId, itemId) {
     if (item) {
       item.done = !item.done;
       saveData();
-      renderCalendar();
+      updateEventUI(eventId);
       openDetailPanel(eventId);
     }
   }
@@ -733,7 +777,7 @@ function deleteChecklistItem(eventId, itemId) {
   if (event) {
     event.checklist = event.checklist.filter(i => i.id !== itemId);
     saveData();
-    renderCalendar();
+    updateEventUI(eventId);
     openDetailPanel(eventId);
   }
 }
@@ -921,7 +965,11 @@ function saveEventFromModal() {
   }
   
   saveData();
-  renderCalendar();
+  if (id) {
+    updateEventUI(id);
+  } else {
+    renderCalendar(); // Full render for new events to ensure placement
+  }
   closeEventModal();
 }
 
