@@ -154,10 +154,12 @@ function isSkipped(evt) {
 function getClassStats(className) {
   const instances = getClassInstances(className);
   const total = instances.length;
+  const ready = instances.filter(e => getLessonStatus(e) === 'ready').length;
+  const taught = instances.filter(e => getLessonStatus(e) === 'taught' || getLessonStatus(e) === 'reviewed').length;
   const planned = instances.filter(e => isPlanned(e)).length;
   const skipped = instances.filter(e => isSkipped(e)).length;
   const upcoming = instances.filter(e => isUpcoming(e.date) && getLessonStatus(e) !== 'taught' && getLessonStatus(e) !== 'reviewed').length;
-  return { total, planned, skipped, upcoming, instances };
+  return { total, ready, taught, planned, skipped, upcoming, instances };
 }
 
 function getMajorityStatus(statuses) {
@@ -196,7 +198,7 @@ function renderClassGrid() {
   if (filteredClasses.length === 0) {
     if (emptyState) emptyState.classList.remove('hidden');
     grid.classList.add('hidden');
-    updateGlobalStats(0, 0, 0, 0);
+    recalculateGlobalStats();
     return;
   }
 
@@ -217,7 +219,7 @@ function renderClassGrid() {
     grid.appendChild(card);
   });
 
-  updateGlobalStats(filteredClasses.length, gPlanned, gSkipped, gUpcoming, gTotal);
+  recalculateGlobalStats();
   if (window.lucide) lucide.createIcons();
 }
 
@@ -372,20 +374,53 @@ function updateCardStats(className) {
 
 function recalculateGlobalStats() {
   const allClasses = getUniqueClasses();
-  let gClasses = 0, gPlanned = 0, gSkipped = 0, gUpcoming = 0, gTotal = 0;
+  const adminData = loadClassAdmin();
+  const unitData = loadClassUnits();
+  const todayStr = getTodayStr();
+
+  const stats = {
+    classes: 0,
+    lessons: { total: 0, upcoming: 0, ready: 0, finished: 0, skipped: 0 },
+    units: { total: 0, draft: 0, ready: 0, finished: 0 },
+    admin: { total: 0, pending: 0, done: 0, overdue: 0 }
+  };
 
   allClasses.forEach(cls => {
-    const stats = getClassStats(cls.name);
-    if (stats.total > 0) {
-      gClasses++;
-      gPlanned += stats.planned;
-      gSkipped += stats.skipped;
-      gUpcoming += stats.upcoming;
-      gTotal += stats.total;
+    const cStats = getClassStats(cls.name);
+    if (cStats.total > 0) {
+      stats.classes++;
+      stats.lessons.total += cStats.total;
+      stats.lessons.ready += cStats.ready;
+      stats.lessons.finished += cStats.taught;
+      stats.lessons.skipped += cStats.skipped;
+      stats.lessons.upcoming += cStats.upcoming;
     }
+    
+    // Admin stats
+    const classAdmin = adminData[cls.name];
+    if (classAdmin && classAdmin.tasks) {
+      classAdmin.tasks.forEach(t => {
+        stats.admin.total++;
+        if (t.done) stats.admin.done++;
+        else {
+          stats.admin.pending++;
+          if (t.deadline && t.deadline < todayStr) stats.admin.overdue++;
+        }
+      });
+    }
+
+    // Unit stats
+    const classUnits = unitData[cls.name] || {};
+    Object.keys(classUnits).forEach(uName => {
+      const u = classUnits[uName];
+      stats.units.total++;
+      if (u.status === 'ready') stats.units.ready++;
+      else if (u.status === 'taught' || u.status === 'reviewed') stats.units.finished++;
+      else if (u.status === 'draft') stats.units.draft++;
+    });
   });
 
-  updateGlobalStats(gClasses, gPlanned, gSkipped, gUpcoming, gTotal);
+  updateGlobalStats(stats);
 }
 
 // Helper: get all class instances regardless of time filter
@@ -395,46 +430,67 @@ function getClassInstances_all() {
     .filter(e => !(e.isRecurrence && loadRedDays().includes(e.date)));
 }
 
-function updateGlobalStats(classes, planned, skipped, upcoming, total = 0) {
-  const statClasses = document.getElementById('stat-classes');
-  const statPlanned = document.getElementById('stat-planned');
-  const statSkipped = document.getElementById('stat-skipped');
-  const statUpcoming = document.getElementById('stat-upcoming');
+function updateGlobalStats(data) {
+  const circ = 213.6;
 
-  if (statClasses) statClasses.textContent = classes;
-  if (statPlanned) statPlanned.textContent = planned;
-  if (statSkipped) statSkipped.textContent = skipped;
-  if (statUpcoming) statUpcoming.textContent = upcoming;
+  // 1. Lessons
+  const l = data.lessons;
+  const lpPct = l.total > 0 ? Math.round(((l.ready + l.finished) / l.total) * 100) : 0;
+  
+  const ringLessons = document.getElementById('ring-lessons');
+  if (ringLessons) {
+    ringLessons.style.strokeDashoffset = circ - (lpPct / 100) * circ;
+    ringLessons.style.stroke = l.skipped > 0 ? 'var(--color-orange)' : 'var(--color-blue)';
+  }
+  const elPctL = document.getElementById('pct-lessons');
+  if (elPctL) elPctL.textContent = `${lpPct}%`;
+  
+  const elStatL = document.getElementById('stat-progress');
+  if (elStatL) elStatL.textContent = `${l.ready + l.finished}/${l.total}`;
+  
+  const set = (id, val) => { const e = document.getElementById(id); if(e) e.textContent = val; };
+  set('stat-lessons-upcoming', l.upcoming);
+  set('stat-lessons-ready', l.ready);
+  set('stat-lessons-finished', l.finished);
+  set('stat-lessons-skipped', l.skipped);
 
-  let pct = 0;
-  if (total > 0) {
-    pct = Math.round((planned / total) * 100);
+  // 2. Units
+  const u = data.units;
+  const uPct = u.total > 0 ? Math.round(((u.ready + u.finished) / u.total) * 100) : 0;
+  const ringUnits = document.getElementById('ring-units');
+  if (ringUnits) ringUnits.style.strokeDashoffset = circ - (uPct / 100) * circ;
+  set('pct-units', `${uPct}%`);
+  set('stat-units', `${u.ready + u.finished}/${u.total}`);
+  set('stat-units-draft', u.draft);
+  set('stat-units-ready', u.ready);
+  set('stat-units-finished', u.finished);
+
+  // 3. Admin
+  const a = data.admin;
+  const aPct = a.total > 0 ? Math.round((a.done / a.total) * 100) : 0;
+  const ringAdmin = document.getElementById('ring-admin');
+  if (ringAdmin) {
+    ringAdmin.style.strokeDashoffset = circ - (aPct / 100) * circ;
+    ringAdmin.style.stroke = a.overdue > 0 ? 'var(--color-pink)' : 'var(--color-orange)';
+  }
+  set('pct-admin', `${aPct}%`);
+  set('stat-admin', `${a.done}/${a.total}`);
+  set('stat-admin-pending', a.pending);
+  set('stat-admin-done', a.done);
+  set('stat-admin-overdue', a.overdue);
+
+  const overdueBadge = document.getElementById('stat-overdue-badge');
+  if (overdueBadge) {
+    if (a.overdue > 0) overdueBadge.classList.remove('hidden');
+    else overdueBadge.classList.add('hidden');
   }
 
-  const ringFill = document.getElementById('summary-ring-fill');
-  const pctText = document.getElementById('summary-percent');
-  if (ringFill && pctText) {
-    pctText.textContent = `${pct}%`;
-    const circ = 213.6; // 2 * pi * 34
-    ringFill.style.strokeDashoffset = circ - (pct / 100) * circ;
-    
-    // Change color based on completion
-    if (pct === 100) {
-      ringFill.style.stroke = 'var(--color-green)';
-    } else if (skipped > 0) {
-      ringFill.style.stroke = 'var(--color-pink)';
-    } else {
-      ringFill.style.stroke = 'var(--color-blue)';
-    }
-  }
-
-  // Still use alert for skipped? The design says integrate skipped into cards.
-  // We left the banner just in case, let's keep it sync'd or hide it.
+  // Alert
   const alertEl = document.getElementById('global-alert');
   const textEl = document.getElementById('alert-text');
   if (alertEl && textEl) {
-    if (skipped > 0) {
-      textEl.textContent = `${skipped} skipped lesson${skipped > 1 ? 's' : ''} — past classes with no plan assigned.`;
+    if (l.skipped > 0) {
+      textEl.textContent = `${l.skipped} skipped lesson${l.skipped > 1 ? 's' : ''} — past classes with no plan assigned.`;
       alertEl.classList.remove('hidden');
     } else {
       alertEl.classList.add('hidden');
