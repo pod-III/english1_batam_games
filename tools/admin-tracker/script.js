@@ -238,17 +238,19 @@ function createClassCard(className, color, stats) {
     const majority = getMajorityStatus(statuses);
     headerStatusObj = LESSON_STATUSES.find(x => x.id === majority) || LESSON_STATUSES[0];
 
-    quickHtml = next3.length > 0 ? `<ul class="m-0 pl-4 list-disc marker:text-lg">` + next3.map(l => {
+    quickHtml = next3.length > 0 ? `<div class="space-y-1.5 mt-2">` + next3.map(l => {
       const s = getLessonStatus(l);
       const sObj = LESSON_STATUSES.find(x => x.id === s);
-      const dotColor = sObj ? sObj.color : 'var(--text-tertiary)';
+      const color = sObj ? sObj.color : 'var(--text-tertiary)';
+      const label = sObj ? sObj.label : 'Unknown';
       return `
-        <li style="color:${dotColor}; font-size: 13px; font-weight: bold; margin-bottom: 2px;">
-          <span style="color: var(--text-primary)">${l.lessonPlan?.lesson || l.name}</span> 
-          <span style="color: var(--text-tertiary); font-weight: normal; font-size: 12px;">(${formatDate(l.date)})</span>
-        </li>
+        <div class="flex items-center gap-2">
+          <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider text-white shadow-sm flex-shrink-0" style="background:${color}">${label}</span>
+          <span class="text-[12px] font-bold truncate flex-1" style="color: var(--text-primary)">${l.lessonPlan?.lesson || l.name}</span> 
+          <span class="text-[10px] text-slate-400 font-semibold whitespace-nowrap">${formatDate(l.date)}</span>
+        </div>
       `;
-    }).join('') + `</ul>` : '<p class="text-xs text-slate-400 font-semibold py-1 italic">No upcoming lessons</p>';
+    }).join('') + `</div>` : '<p class="text-xs text-slate-400 font-semibold py-1 italic">No upcoming lessons</p>';
   } else {
     // For Units mode: get unique units and their progress
     const unitMap = {};
@@ -275,18 +277,20 @@ function createClassCard(className, color, stats) {
     const majority = getMajorityStatus(statuses);
     headerStatusObj = LESSON_STATUSES.find(x => x.id === majority) || LESSON_STATUSES[0];
 
-    quickHtml = units.length > 0 ? `<ul class="m-0 pl-4 list-disc marker:text-lg">` + units.map(u => {
+    quickHtml = units.length > 0 ? `<div class="space-y-1.5 mt-2">` + units.map(u => {
       const uStats = unitMap[u];
       const sObj = LESSON_STATUSES.find(x => x.id === uStats.status);
-      const dotColor = sObj ? sObj.color : 'var(--text-tertiary)';
+      const color = sObj ? sObj.color : 'var(--text-tertiary)';
+      const label = sObj ? sObj.label : 'Empty';
 
       return `
-        <li style="color:${dotColor}; font-size: 13px; font-weight: bold; margin-bottom: 2px;">
-          <span style="color: var(--text-primary)">${u}</span> 
-          <span style="color: var(--text-tertiary); font-weight: normal; font-size: 12px;">(${uStats.total > 0 ? `${uStats.planned}/${uStats.total} Lessons` : sObj ? sObj.label : 'Empty'})</span>
-        </li>
+        <div class="flex items-center gap-2">
+          <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider text-white shadow-sm flex-shrink-0" style="background:${color}">${label}</span>
+          <span class="text-[12px] font-bold truncate flex-1" style="color: var(--text-primary)">${u}</span> 
+          <span class="text-[10px] text-slate-400 font-semibold whitespace-nowrap">${uStats.total > 0 ? `${uStats.planned}/${uStats.total}` : ''}</span>
+        </div>
       `;
-    }).join('') + `</ul>` : '<p class="text-xs text-slate-400 font-semibold py-1 italic">No active units</p>';
+    }).join('') + `</div>` : '<p class="text-xs text-slate-400 font-semibold py-1 italic">No active units</p>';
   }
 
   const hasSkipped = stats.skipped > 0;
