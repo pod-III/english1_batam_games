@@ -47,8 +47,26 @@
   }
 
   // ── Column-mapping helpers ───────────────────────────────────────
-  // schedule_events: JS → SQL  (only master events — clones are regenerated client-side)
-  function eventToRow(evt, userId) {
+  function isPromoted(evt) {
+    if (!evt.isRecurrence) return false;
+    // Check for custom notes
+    if (evt.notes && evt.notes.trim() !== '') return true;
+    // Check for completed checklist items
+    if (evt.checklist && evt.checklist.some(item => item.done)) return true;
+    // Check for lesson plan changes
+    if (evt.lessonPlan) {
+      if (evt.lessonPlan.status && evt.lessonPlan.status !== 'not_ready') return true;
+      if (evt.lessonPlan.unit && evt.lessonPlan.unit.trim() !== '') return true;
+      if (evt.lessonPlan.lesson && evt.lessonPlan.lesson.trim() !== '') return true;
+    }
+    return false;
+  }
+
+  // schedule_events: JS → SQL
+  function sanitiseForCloud(evt, userId) {
+    // Guard: Skip recurrence clones that haven't been modified (promoted)
+    if (evt.id.includes('_recur_') && !isPromoted(evt)) return null;
+
     return {
       id: evt.id,
       user_id: userId,
@@ -66,6 +84,9 @@
       lesson_plan: evt.lessonPlan || { unit: '', lesson: '', status: 'not_ready' },
       graduation_class: !!evt.graduationClass,
       graduation_date: evt.graduationDate || null,
+      is_master: !evt.isRecurrence,
+      master_event_id: evt.isRecurrence ? (evt.originalEventId || null) : null,
+      instance_date: evt.isRecurrence ? evt.date : null,
       created_at: evt.createdAt || new Date().toISOString(),
       updated_at: evt.updatedAt || new Date().toISOString(),
     };
@@ -89,8 +110,8 @@
       lessonPlan: row.lesson_plan || { unit: '', lesson: '', status: 'not_ready' },
       graduationClass: !!row.graduation_class,
       graduationDate: row.graduation_date || '',
-      isRecurrence: false,        // Cloud only stores masters
-      originalEventId: null,      // Cloud only stores masters
+      isRecurrence: !row.is_master,
+      originalEventId: row.master_event_id || null,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
     };
@@ -145,15 +166,23 @@
 
   // Events
   async function cloudLoadScheduleEvents(userId) {
-    const { data, error } = await db.from('schedule_events')
-      .select('*').eq('user_id', userId);
-    if (error) { console.error('[Sync] Load events error:', error); return null; }
-    return (data || []).map(rowToEvent);
+    const [mastersRes, promotedRes] = await Promise.all([
+      db.from('schedule_events').select('*').eq('user_id', userId).eq('is_master', true),
+      db.from('schedule_events').select('*').eq('user_id', userId).eq('is_master', false)
+    ]);
+
+    if (mastersRes.error) console.error('[Sync] Load masters error:', mastersRes.error);
+    if (promotedRes.error) console.error('[Sync] Load promoted error:', promotedRes.error);
+
+    return {
+      masters: (mastersRes.data || []).map(rowToEvent),
+      promoted: (promotedRes.data || []).map(rowToEvent)
+    };
   }
 
   async function cloudSaveScheduleEvents(userId, events) {
-    // Build rows, upsert all
-    const rows = events.map(e => eventToRow(e, userId));
+    // Build rows, filter nulls, upsert all
+    const rows = events.map(e => sanitiseForCloud(e, userId)).filter(r => r !== null);
     if (rows.length === 0) return;
     const { error } = await db.from('schedule_events')
       .upsert(rows, { onConflict: 'id,user_id' });
@@ -169,8 +198,8 @@
   async function cloudReplaceAllScheduleEvents(userId, events) {
     // Delete all then insert fresh (for full sync)
     await db.from('schedule_events').delete().eq('user_id', userId);
-    if (events.length > 0) {
-      const rows = events.map(e => eventToRow(e, userId));
+    const rows = events.map(e => sanitiseForCloud(e, userId)).filter(r => r !== null);
+    if (rows.length > 0) {
       const { error } = await db.from('schedule_events').insert(rows);
       if (error) console.error('[Sync] Replace events error:', error);
     }
@@ -265,17 +294,32 @@
     try {
       // Read from localStorage
       const eventsRaw = localStorage.getItem('schedule_events');
+      const promotedRaw = localStorage.getItem('schedule_promoted_instances');
       const redDaysRaw = localStorage.getItem('schedule_red_days');
       const adminRaw = localStorage.getItem('schedule_class_admin');
       const unitsRaw = localStorage.getItem('schedule_class_units');
 
       const evts = eventsRaw ? JSON.parse(eventsRaw) : [];
+      const prom = promotedRaw ? JSON.parse(promotedRaw) : [];
       const rds  = redDaysRaw ? JSON.parse(redDaysRaw) : [];
       const adm  = adminRaw ? JSON.parse(adminRaw) : {};
       const uns  = unitsRaw ? JSON.parse(unitsRaw) : {};
 
+      // Requirement: Split into two upserts
+      const mastersRows = evts.filter(e => !e.isRecurrence).map(e => sanitiseForCloud(e, userId)).filter(r => r !== null);
+      const promotedRows = prom.filter(e => e.isRecurrence && isPromoted(e)).map(e => {
+        const row = sanitiseForCloud(e, userId);
+        if (row) {
+          row.is_master = false;
+          row.master_event_id = e.originalEventId;
+          row.instance_date = e.date;
+        }
+        return row;
+      }).filter(r => r !== null);
+
       await Promise.all([
-        cloudReplaceAllScheduleEvents(userId, evts),
+        db.from('schedule_events').upsert(mastersRows, { onConflict: 'id' }),
+        db.from('schedule_events').upsert(promotedRows, { onConflict: 'id' }),
         cloudSaveRedDays(userId, rds),
         cloudSaveClassAdmin(userId, adm),
         cloudSaveClassUnits(userId, uns),
@@ -301,7 +345,10 @@
       ]);
 
       // Write to localStorage
-      if (evts !== null) localStorage.setItem('schedule_events', JSON.stringify(evts));
+      if (evts !== null) {
+        localStorage.setItem('schedule_events', JSON.stringify(evts.masters));
+        localStorage.setItem('schedule_promoted_instances', JSON.stringify(evts.promoted));
+      }
       if (rds  !== null) localStorage.setItem('schedule_red_days', JSON.stringify(rds));
       if (adm  !== null) localStorage.setItem('schedule_class_admin', JSON.stringify(adm));
       if (uns  !== null) localStorage.setItem('schedule_class_units', JSON.stringify(uns));
@@ -441,6 +488,7 @@
 
     fireCloudSave,
     getCachedUserId,
+    isPromoted,
   };
 
 })();

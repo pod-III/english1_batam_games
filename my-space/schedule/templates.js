@@ -217,6 +217,22 @@ function generateRecurrences(event, rangeStart, rangeEnd) {
     }
   }
   
+  // Merge in any promoted instances from localStorage
+  const promotedRaw = localStorage.getItem('schedule_promoted_instances');
+  if (promotedRaw) {
+    try {
+      const promoted = JSON.parse(promotedRaw);
+      occurrences.forEach((occ, idx) => {
+        const match = promoted.find(p => p.originalEventId === event.id && p.date === occ.date);
+        if (match) {
+          occurrences[idx] = match;
+        }
+      });
+    } catch (e) {
+      console.error('[Recurrence] Failed to parse promoted instances:', e);
+    }
+  }
+
   return occurrences;
 }
 

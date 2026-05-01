@@ -12,16 +12,47 @@ let currentDrawerClass = null;
    ============================================ */
 
 function loadScheduleEvents() {
-  const raw = localStorage.getItem('schedule_events');
-  if (!raw) return [];
-  try { return JSON.parse(raw); } catch { return []; }
+  const mastersRaw = localStorage.getItem('schedule_events');
+  const promotedRaw = localStorage.getItem('schedule_promoted_instances');
+  let masters = [];
+  if (mastersRaw) {
+    try {
+      const parsed = JSON.parse(mastersRaw);
+      if (Array.isArray(parsed)) masters = parsed;
+    } catch(e) {}
+  }
+  
+  let promoted = [];
+  if (promotedRaw) {
+    try {
+      const parsed = JSON.parse(promotedRaw);
+      if (Array.isArray(parsed)) promoted = parsed;
+    } catch(e) {}
+  }
+  
+  let allEvents = [...masters];
+  masters.forEach(m => {
+    if (m.recurrence && m.recurrence !== 'none') {
+      const rangeStart = new Date(m.date);
+      const rangeEnd = new Date(rangeStart);
+      rangeEnd.setMonth(rangeEnd.getMonth() + 6);
+      const clones = generateRecurrences(m, rangeStart, rangeEnd);
+      allEvents = [...allEvents, ...clones];
+    }
+  });
+  return allEvents;
 }
 
-function saveScheduleEvents(events) {
-  localStorage.setItem('schedule_events', JSON.stringify(events));
+function saveScheduleEvents(allEvents) {
+  const masters = allEvents.filter(e => !e.isRecurrence);
+  const promoted = allEvents.filter(e => e.isRecurrence && (window.Sync ? Sync.isPromoted(e) : false));
+
+  localStorage.setItem('schedule_events', JSON.stringify(masters));
+  localStorage.setItem('schedule_promoted_instances', JSON.stringify(promoted));
+  
   // Non-blocking cloud save
   if (window.Sync) Sync.fireCloudSave(userId =>
-    Sync.cloudReplaceAllScheduleEvents(userId, events)
+    Sync.cloudReplaceAllScheduleEvents(userId, [...masters, ...promoted])
   );
 }
 
@@ -1043,6 +1074,12 @@ function updateField(eventId, field, value) {
   evt.updatedAt = new Date().toISOString();
   saveScheduleEvents(allEvents);
   updateCardStats(evt.name);
+  
+  // Immediate cloud save if promoted
+  if (evt.isRecurrence && window.Sync && Sync.isPromoted(evt)) {
+    Sync.fireCloudSave(userId => Sync.cloudSaveScheduleEvents(userId, [evt]));
+  }
+
   if (currentDrawerClass) openDrawer(currentDrawerClass);
 }
 
@@ -1198,6 +1235,11 @@ function updateNotes(eventId, value) {
   evt.notes = value;
   evt.updatedAt = new Date().toISOString();
   saveScheduleEvents(allEvents);
+
+  // Immediate cloud save if promoted
+  if (evt.isRecurrence && window.Sync && Sync.isPromoted(evt)) {
+    Sync.fireCloudSave(userId => Sync.cloudSaveScheduleEvents(userId, [evt]));
+  }
 }
 
 function toggleChecklist(eventId, index, checked) {
@@ -1208,6 +1250,12 @@ function toggleChecklist(eventId, index, checked) {
   evt.updatedAt = new Date().toISOString();
   saveScheduleEvents(allEvents);
   updateCardStats(evt.name);
+
+  // Immediate cloud save if promoted
+  if (evt.isRecurrence && window.Sync && Sync.isPromoted(evt)) {
+    Sync.fireCloudSave(userId => Sync.cloudSaveScheduleEvents(userId, [evt]));
+  }
+
   if (currentDrawerClass) {
     const openId = document.querySelector('[id^="edit-"]:not(.hidden)')?.id.replace('edit-', '');
     openDrawer(currentDrawerClass);
@@ -1228,6 +1276,12 @@ function addTask(eventId, text) {
   });
   evt.updatedAt = new Date().toISOString();
   saveScheduleEvents(allEvents);
+  
+  // Immediate cloud save if promoted
+  if (evt.isRecurrence && window.Sync && Sync.isPromoted(evt)) {
+    Sync.fireCloudSave(userId => Sync.cloudSaveScheduleEvents(userId, [evt]));
+  }
+
   updateCardStats(evt.name);
   if (currentDrawerClass) {
     const openId = document.querySelector('[id^="edit-"]:not(.hidden)')?.id.replace('edit-', '');
@@ -1243,6 +1297,12 @@ function deleteTask(eventId, index) {
   evt.checklist.splice(index, 1);
   evt.updatedAt = new Date().toISOString();
   saveScheduleEvents(allEvents);
+
+  // Immediate cloud save if promoted
+  if (evt.isRecurrence && window.Sync && Sync.isPromoted(evt)) {
+    Sync.fireCloudSave(userId => Sync.cloudSaveScheduleEvents(userId, [evt]));
+  }
+
   updateCardStats(evt.name);
   if (currentDrawerClass) {
     const openId = document.querySelector('[id^="edit-"]:not(.hidden)')?.id.replace('edit-', '');

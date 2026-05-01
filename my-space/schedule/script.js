@@ -176,9 +176,27 @@ function scrollToCurrentTime() {
 
 function loadData() {
   const saved = localStorage.getItem('schedule_events');
+  let masters = [];
   if (saved) {
-    events = JSON.parse(saved);
+    try {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) masters = parsed;
+    } catch(e) {}
   }
+  
+  // Start with masters
+  events = [...masters];
+  
+  // Generate clones for each master
+  masters.forEach(m => {
+    if (m.recurrence && m.recurrence !== 'none') {
+      const rangeStart = new Date(m.date);
+      const rangeEnd = new Date(rangeStart);
+      rangeEnd.setMonth(rangeEnd.getMonth() + 6);
+      const clones = generateRecurrences(m, rangeStart, rangeEnd);
+      events = [...events, ...clones];
+    }
+  });
   
   const savedWeekDayCount = localStorage.getItem('schedule_week_day_count');
   if (savedWeekDayCount) {
@@ -239,19 +257,23 @@ function toggleClassAdminTask(className, index, done) {
 }
 
 function saveData() {
-  localStorage.setItem('schedule_events', JSON.stringify(events));
+  const masters = events.filter(e => !e.isRecurrence);
+  const promoted = events.filter(e => e.isRecurrence && (window.Sync ? Sync.isPromoted(e) : false));
+
+  localStorage.setItem('schedule_events', JSON.stringify(masters));
+  localStorage.setItem('schedule_promoted_instances', JSON.stringify(promoted));
   localStorage.setItem('schedule_week_day_count', weekDayCount);
   localStorage.setItem('schedule_view_mode', viewMode);
   localStorage.setItem('schedule_red_days', JSON.stringify(redDays));
   updateStats();
   updateTodayList();
-  // Non-blocking cloud save (events + red days)
+  
+  // Non-blocking cloud save
   if (window.Sync) {
-    const evtsCopy = JSON.parse(JSON.stringify(events));
     const rdsCopy = [...redDays];
     Sync.fireCloudSave(async userId => {
       await Promise.all([
-        Sync.cloudReplaceAllScheduleEvents(userId, evtsCopy),
+        Sync.cloudReplaceAllScheduleEvents(userId, [...masters, ...promoted]),
         Sync.cloudSaveRedDays(userId, rdsCopy),
       ]);
     });
@@ -1211,6 +1233,11 @@ function updateEventField(id, field, value) {
     
     saveData();
     renderCalendar();
+
+    // Immediate cloud save if a recurrence instance was promoted
+    if (event.isRecurrence && window.Sync && Sync.isPromoted(event)) {
+      Sync.fireCloudSave(userId => Sync.cloudSaveScheduleEvents(userId, [event]));
+    }
     
     if (field === 'date') {
       const evtDate = new Date(value);
@@ -1241,6 +1268,12 @@ function toggleChecklistItem(eventId, itemId) {
     if (item) {
       item.done = !item.done;
       saveData();
+
+      // Immediate cloud save if promoted
+      if (event.isRecurrence && window.Sync && Sync.isPromoted(event)) {
+        Sync.fireCloudSave(userId => Sync.cloudSaveScheduleEvents(userId, [event]));
+      }
+
       updateEventUI(eventId);
       openDetailPanel(eventId, true);
     }
@@ -1255,6 +1288,11 @@ function updateChecklistText(eventId, itemId, text) {
     if (item) {
       item.text = text;
       saveData();
+
+      // Immediate cloud save if promoted
+      if (event.isRecurrence && window.Sync && Sync.isPromoted(event)) {
+        Sync.fireCloudSave(userId => Sync.cloudSaveScheduleEvents(userId, [event]));
+      }
     }
   }
 }
@@ -1273,6 +1311,12 @@ function addChecklistItem(eventId) {
       done: false
     });
     saveData();
+
+    // Immediate cloud save if promoted
+    if (event.isRecurrence && window.Sync && Sync.isPromoted(event)) {
+      Sync.fireCloudSave(userId => Sync.cloudSaveScheduleEvents(userId, [event]));
+    }
+
     renderCalendar();
     openDetailPanel(eventId, true);
   }
@@ -1284,6 +1328,12 @@ function deleteChecklistItem(eventId, itemId) {
     isDetailPanelDirty = true;
     event.checklist = event.checklist.filter(i => i.id !== itemId);
     saveData();
+
+    // Immediate cloud save if promoted
+    if (event.isRecurrence && window.Sync && Sync.isPromoted(event)) {
+      Sync.fireCloudSave(userId => Sync.cloudSaveScheduleEvents(userId, [event]));
+    }
+
     updateEventUI(eventId);
     openDetailPanel(eventId, true);
   }
@@ -1298,6 +1348,12 @@ function setLessonStatus(eventId, statusId) {
     }
     event.lessonPlan.status = statusId;
     saveData();
+
+    // Immediate cloud save if promoted
+    if (event.isRecurrence && window.Sync && Sync.isPromoted(event)) {
+      Sync.fireCloudSave(userId => Sync.cloudSaveScheduleEvents(userId, [event]));
+    }
+
     updateEventUI(eventId);
     openDetailPanel(eventId, true);
   }
@@ -1312,6 +1368,11 @@ function updateLessonField(eventId, field, value) {
     }
     event.lessonPlan[field] = value;
     saveData();
+
+    // Immediate cloud save if promoted
+    if (event.isRecurrence && window.Sync && Sync.isPromoted(event)) {
+      Sync.fireCloudSave(userId => Sync.cloudSaveScheduleEvents(userId, [event]));
+    }
   }
 }
 
