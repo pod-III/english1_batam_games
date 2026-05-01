@@ -7,6 +7,8 @@ let events = [];
 let currentWeekStart = getMonday(new Date());
 let selectedEventId = null;
 let showWeekends = false;
+let viewMode = 'week'; // 'week' or 'day'
+let currentDayOffset = 0; // for day view mode
 
 // Initialize Lucide Icons
 lucide.createIcons();
@@ -30,6 +32,7 @@ function init() {
   setupEventListeners();
   updateTimeIndicator();
   setupTouchSupport();
+  updateViewModeUI();
   setInterval(updateTimeIndicator, 60000); // Update every minute
   
   // Wait a bit for layout to settle before scrolling
@@ -140,6 +143,17 @@ function loadData() {
   if (saved) {
     events = JSON.parse(saved);
   }
+  
+  const savedWeekends = localStorage.getItem('schedule_show_weekends');
+  if (savedWeekends !== null) {
+    showWeekends = savedWeekends === 'true';
+    document.getElementById('weekend-label').textContent = showWeekends ? '7 days' : '5 days';
+  }
+  
+  const savedViewMode = localStorage.getItem('schedule_view_mode');
+  if (savedViewMode) {
+    viewMode = savedViewMode;
+  }
 }
 
 function saveData() {
@@ -184,6 +198,11 @@ function getDayString(date) {
 }
 
 function getDisplayWeekRange() {
+  if (viewMode === 'day') {
+    const d = new Date(currentWeekStart);
+    d.setDate(d.getDate() + currentDayOffset);
+    return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  }
   const end = new Date(currentWeekStart);
   end.setDate(end.getDate() + (showWeekends ? 6 : 4));
   
@@ -289,23 +308,28 @@ function updateTodayList() {
 
 function renderCalendar() {
   document.getElementById('week-label').textContent = getDisplayWeekRange();
-  const numDays = showWeekends ? 7 : 5;
+  const isDayMode = viewMode === 'day';
+  const numDays = isDayMode ? 1 : (showWeekends ? 7 : 5);
   
   // Render Day Headers
   dayHeadersRow.innerHTML = '<div class="time-gutter flex-none"></div>';
   dayHeadersRow.style.display = 'grid';
-  dayHeadersRow.style.gridTemplateColumns = `56px repeat(${numDays}, 1fr)`; // 56px matches time-gutter width
+  dayHeadersRow.style.gridTemplateColumns = `56px repeat(${numDays}, 1fr)`; 
   const todayStr = getDayString(new Date());
   
   for (let i = 0; i < numDays; i++) {
     const dayDate = new Date(currentWeekStart);
-    dayDate.setDate(dayDate.getDate() + i);
+    if (isDayMode) {
+      dayDate.setDate(dayDate.getDate() + currentDayOffset);
+    } else {
+      dayDate.setDate(dayDate.getDate() + i);
+    }
     const isToday = getDayString(dayDate) === todayStr;
     
     const div = document.createElement('div');
     div.className = `day-header flex-1 ${isToday ? 'today' : ''}`;
     div.innerHTML = `
-      <div class="day-name">${DAYS_OF_WEEK[i]}<span class="day-name-full hidden md:inline">${DAYS_FULL[i].slice(3)}</span></div>
+      <div class="day-name">${DAYS_OF_WEEK[dayDate.getDay() === 0 ? 6 : dayDate.getDay() - 1]}<span class="day-name-full hidden md:inline">${DAYS_FULL[dayDate.getDay() === 0 ? 6 : dayDate.getDay() - 1].slice(3)}</span></div>
       <div class="day-number mt-1">${dayDate.getDate()}</div>
     `;
     dayHeadersRow.appendChild(div);
@@ -319,14 +343,13 @@ function renderCalendar() {
     if (isHour) {
       const div = document.createElement('div');
       div.className = 'time-label';
-      div.style.height = i === TOTAL_SLOTS ? '0' : '80px'; // 4 slots * 20px = 80px per hour
-      // Use standard height for consistent calculation, visual spacing can be handled via flex/grid
+      div.style.height = i === TOTAL_SLOTS ? '0' : '80px'; 
       div.innerHTML = `<span>${formatTimeDisplay(time).replace(' AM', '').replace(' PM', '')}</span>`;
       timeGutter.appendChild(div);
     }
   }
   // Setup grid CSS variables
-  calendarWrapper.style.setProperty('--slot-height', '20px'); // 15 mins = 20px -> 1 hour = 80px
+  calendarWrapper.style.setProperty('--slot-height', '20px'); 
   
   // Render Day Columns and Grid Slots
   dayColumns.innerHTML = '';
@@ -335,7 +358,11 @@ function renderCalendar() {
   
   for (let d = 0; d < numDays; d++) {
     const dayDate = new Date(currentWeekStart);
-    dayDate.setDate(dayDate.getDate() + d);
+    if (isDayMode) {
+      dayDate.setDate(dayDate.getDate() + currentDayOffset);
+    } else {
+      dayDate.setDate(dayDate.getDate() + d);
+    }
     const dayStr = getDayString(dayDate);
     const isToday = dayStr === todayStr;
     
@@ -347,7 +374,7 @@ function renderCalendar() {
     for (let i = 0; i < TOTAL_SLOTS; i++) {
       const line = document.createElement('div');
       line.className = `slot-line ${i % 4 === 0 ? 'hour-start' : ''}`;
-      line.style.top = `${i * 20}px`; // Match --slot-height
+      line.style.top = `${i * 20}px`; 
       col.appendChild(line);
       
       // Drop target logic
@@ -1228,19 +1255,30 @@ function duplicateEvent(id) {
    ============================================ */
 
 function goToNextWeek() {
-  currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+  if (viewMode === 'day') {
+    currentDayOffset++;
+  } else {
+    currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+  }
   renderCalendar();
   updateStats();
 }
 
 function goToPrevWeek() {
-  currentWeekStart.setDate(currentWeekStart.getDate() - 7);
+  if (viewMode === 'day') {
+    currentDayOffset--;
+  } else {
+    currentWeekStart.setDate(currentWeekStart.getDate() - 7);
+  }
   renderCalendar();
   updateStats();
 }
 
 function goToToday() {
-  currentWeekStart = getMonday(new Date());
+  const now = new Date();
+  currentWeekStart = getMonday(now);
+  currentDayOffset = now.getDay() - 1;
+  if (currentDayOffset < 0) currentDayOffset = 6;
   renderCalendar();
   updateStats();
   setTimeout(scrollToCurrentTime, 100);
@@ -1257,8 +1295,27 @@ function toggleMobileSidebar() {
 
 function showWeekendToggle() {
   showWeekends = !showWeekends;
+  localStorage.setItem('schedule_show_weekends', showWeekends);
   document.getElementById('weekend-label').textContent = showWeekends ? '7 days' : '5 days';
   renderCalendar();
+}
+
+function toggleViewMode() {
+  viewMode = viewMode === 'week' ? 'day' : 'week';
+  localStorage.setItem('schedule_view_mode', viewMode);
+  updateViewModeUI();
+  renderCalendar();
+}
+
+function updateViewModeUI() {
+  const btn = document.getElementById('view-mode-btn');
+  if (!btn) return;
+  const isDay = viewMode === 'day';
+  btn.innerHTML = `
+    <i data-lucide="${isDay ? 'calendar' : 'calendar-days'}" class="w-3.5 h-3.5"></i>
+    <span class="hidden lg:inline">${isDay ? 'Day View' : 'Week View'}</span>
+  `;
+  lucide.createIcons({ root: btn });
 }
 
 /* ============================================
