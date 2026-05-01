@@ -6,10 +6,11 @@
    LESSON_STATUSES — Mirrors schedule/templates.js
    ============================================ */
 const LESSON_STATUSES = [
-  { id: 'draft',    label: 'Draft',     icon: 'edit-3',       color: '#94a3b8' },
-  { id: 'ready',    label: 'Ready',     icon: 'check-circle', color: '#2979FF' },
-  { id: 'taught',   label: 'Taught',    icon: 'users',        color: '#00E676' },
-  { id: 'reviewed', label: 'Reflected', icon: 'star',         color: '#FF8C42' }
+  { id: 'not_ready', label: 'Not Ready', icon: 'x-circle',    color: '#ef4444' },
+  { id: 'draft',     label: 'Draft',     icon: 'edit-3',      color: '#f97316' },
+  { id: 'ready',     label: 'Ready',     icon: 'check-circle',color: '#eab308' },
+  { id: 'taught',    label: 'Taught',    icon: 'users',       color: '#22c55e' },
+  { id: 'reviewed',  label: 'Reflected', icon: 'star',        color: '#10b981' }
 ];
 
 let currentFilter = 'week'; // 'today', 'week', 'all'
@@ -126,7 +127,8 @@ function isInPast(dateStr) { return dateStr < getTodayStr(); }
 function isUpcoming(dateStr) { return dateStr >= getTodayStr(); }
 
 function getLessonStatus(evt) {
-  return evt.lessonPlan?.status || 'draft';
+  if (!evt.lessonPlan || (!evt.lessonPlan.unit && !evt.lessonPlan.lesson)) return 'not_ready';
+  return evt.lessonPlan.status || 'not_ready';
 }
 
 function isPlanned(evt) {
@@ -145,6 +147,21 @@ function getClassStats(className) {
   const skipped = instances.filter(e => isSkipped(e)).length;
   const upcoming = instances.filter(e => isUpcoming(e.date) && !isPlanned(e)).length;
   return { total, planned, skipped, upcoming, instances };
+}
+
+function getMajorityStatus(statuses) {
+  if (!statuses || statuses.length === 0) return 'not_ready';
+  const counts = {};
+  let maxCount = 0;
+  let majority = 'not_ready';
+  statuses.forEach(s => {
+    counts[s] = (counts[s] || 0) + 1;
+    if (counts[s] > maxCount) {
+      maxCount = counts[s];
+      majority = s;
+    }
+  });
+  return majority;
 }
 
 /* ============================================
@@ -198,26 +215,28 @@ function createClassCard(className, color, stats) {
   const adminTotal = adminData.tasks.length;
   
   const pct = stats.total > 0 ? Math.round((stats.planned / stats.total) * 100) : 0;
-  // Circle circumference is roughly 150.7 (r=24 -> 2 * pi * 24 = 150.796)
-  const dashoffset = 150.8 - (pct / 100) * 150.8;
 
   // Next 3 upcoming (for Lessons mode)
   const next3 = stats.instances.filter(e => isUpcoming(e.date)).slice(0, 3);
   let quickHtml = '';
+  let headerStatusObj = LESSON_STATUSES[0]; // default not_ready
 
   if (currentMode === 'lessons') {
-    quickHtml = next3.length > 0 ? next3.map(l => {
+    const statuses = stats.instances.map(l => getLessonStatus(l));
+    const majority = getMajorityStatus(statuses);
+    headerStatusObj = LESSON_STATUSES.find(x => x.id === majority) || LESSON_STATUSES[0];
+
+    quickHtml = next3.length > 0 ? `<ul class="m-0 pl-4 list-disc marker:text-lg">` + next3.map(l => {
       const s = getLessonStatus(l);
       const sObj = LESSON_STATUSES.find(x => x.id === s);
       const dotColor = sObj ? sObj.color : 'var(--text-tertiary)';
       return `
-        <div class="next-lesson-item">
-          <div class="next-lesson-dot" style="background:${dotColor}"></div>
-          <span class="next-lesson-name">${l.lessonPlan?.lesson || l.name}</span>
-          <span class="next-lesson-date">${formatDate(l.date)}</span>
-        </div>
+        <li style="color:${dotColor}; font-size: 11px; font-weight: bold; margin-bottom: 2px;">
+          <span style="color: var(--text-primary)">${l.lessonPlan?.lesson || l.name}</span> 
+          <span style="color: var(--text-tertiary); font-weight: normal; font-size: 10px;">(${formatDate(l.date)})</span>
+        </li>
       `;
-    }).join('') : '<p class="text-[10px] text-slate-400 font-semibold py-1 italic">No upcoming lessons</p>';
+    }).join('') + `</ul>` : '<p class="text-[10px] text-slate-400 font-semibold py-1 italic">No upcoming lessons</p>';
   } else {
     // For Units mode: get unique units and their progress
     const unitMap = {};
@@ -225,33 +244,35 @@ function createClassCard(className, color, stats) {
     
     // Initialize units from schedule_class_units first
     Object.keys(classUnits).forEach(u => {
-      unitMap[u] = { total: 0, planned: 0, status: classUnits[u].status || 'draft' };
+      unitMap[u] = { total: 0, planned: 0, status: classUnits[u].status || 'not_ready' };
     });
 
     stats.instances.forEach(e => {
       const u = e.lessonPlan?.unit || 'Unassigned';
-      if (!unitMap[u]) unitMap[u] = { total: 0, planned: 0, status: 'draft' };
+      if (!unitMap[u]) unitMap[u] = { total: 0, planned: 0, status: 'not_ready' };
       unitMap[u].total++;
       if (isPlanned(e)) unitMap[u].planned++;
     });
 
     const units = Object.keys(unitMap).slice(0, 3);
-    quickHtml = units.length > 0 ? units.map(u => {
+    
+    const allUnitNames = Object.keys(unitMap);
+    const statuses = allUnitNames.map(uName => unitMap[uName].status);
+    const majority = getMajorityStatus(statuses);
+    headerStatusObj = LESSON_STATUSES.find(x => x.id === majority) || LESSON_STATUSES[0];
+
+    quickHtml = units.length > 0 ? `<ul class="m-0 pl-4 list-disc marker:text-lg">` + units.map(u => {
       const uStats = unitMap[u];
-      // A unit is 'complete' if its manual status is taught/reviewed, OR if all its lessons are planned (and it has lessons)
-      const isComplete = uStats.status === 'taught' || uStats.status === 'reviewed' || (uStats.total > 0 && uStats.planned === uStats.total);
-      
       const sObj = LESSON_STATUSES.find(x => x.id === uStats.status);
-      const dotColor = isComplete ? 'var(--color-green)' : (sObj ? sObj.color : 'var(--color-blue)');
+      const dotColor = sObj ? sObj.color : 'var(--text-tertiary)';
 
       return `
-        <div class="next-lesson-item">
-          <div class="next-lesson-dot" style="background:${dotColor}"></div>
-          <span class="next-lesson-name">${u}</span>
-          <span class="next-lesson-date">${uStats.total > 0 ? `${uStats.planned}/${uStats.total} Lessons` : sObj ? sObj.label : 'Empty'}</span>
-        </div>
+        <li style="color:${dotColor}; font-size: 11px; font-weight: bold; margin-bottom: 2px;">
+          <span style="color: var(--text-primary)">${u}</span> 
+          <span style="color: var(--text-tertiary); font-weight: normal; font-size: 10px;">(${uStats.total > 0 ? `${uStats.planned}/${uStats.total} Lessons` : sObj ? sObj.label : 'Empty'})</span>
+        </li>
       `;
-    }).join('') : '<p class="text-[10px] text-slate-400 font-semibold py-1 italic">No active units</p>';
+    }).join('') + `</ul>` : '<p class="text-[10px] text-slate-400 font-semibold py-1 italic">No active units</p>';
   }
 
   const hasSkipped = stats.skipped > 0;
@@ -272,14 +293,10 @@ function createClassCard(className, color, stats) {
           ${hasSkipped ? `<span>•</span><span class="text-pink flex items-center gap-1"><span class="skipped-dot"></span> ${stats.skipped} Skipped</span>` : ''}
         </div>
       </div>
-      <div class="card-ring-wrap">
-        <svg class="summary-ring" viewBox="0 0 56 56">
-          <circle cx="28" cy="28" r="24" stroke="var(--bg-tertiary)" stroke-width="5" fill="none" />
-          <circle cx="28" cy="28" r="24" stroke="${pct === 100 ? 'var(--color-green)' : 'var(--color-blue)'}" stroke-width="5" fill="none"
-            stroke-linecap="round" stroke-dasharray="150.8" stroke-dashoffset="${dashoffset}"
-            transform="rotate(-90 28 28)" />
-        </svg>
-        <span class="card-ring-percent text-slate-600 dark:text-slate-300">${pct}%</span>
+      <div class="card-status-badge">
+        <span class="px-2 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-wider shadow-hard" style="background:${headerStatusObj.color}; color:#fff; border: 2px solid var(--border-primary); transform: translateY(-2px);">
+          ${headerStatusObj.label}
+        </span>
       </div>
     </div>
     
@@ -712,7 +729,7 @@ function dropLesson(ev, className, targetUnit) {
   const evt = allEvents.find(e => e.id === lessonId);
   
   if (evt && evt.name === className) {
-    if (!evt.lessonPlan) evt.lessonPlan = { unit: '', lesson: '', status: 'draft' };
+    if (!evt.lessonPlan) evt.lessonPlan = { unit: '', lesson: '', status: 'not_ready' };
     
     // Only update if unit changed
     if (evt.lessonPlan.unit !== targetUnit) {
@@ -736,7 +753,7 @@ function updateField(eventId, field, value) {
   const allEvents = loadScheduleEvents();
   const evt = allEvents.find(e => e.id === eventId);
   if (!evt) return;
-  if (!evt.lessonPlan) evt.lessonPlan = { unit: '', lesson: '', status: 'draft' };
+  if (!evt.lessonPlan) evt.lessonPlan = { unit: '', lesson: '', status: 'not_ready' };
   evt.lessonPlan[field] = value;
   evt.updatedAt = new Date().toISOString();
   saveScheduleEvents(allEvents);
@@ -752,7 +769,7 @@ function renameUnit(className, oldName, newName) {
     if (e.name === className && e.typeId === 'class') {
       const u = e.lessonPlan?.unit || 'Unassigned';
       if (u === oldName) {
-        if (!e.lessonPlan) e.lessonPlan = { unit: '', lesson: '', status: 'draft' };
+        if (!e.lessonPlan) e.lessonPlan = { unit: '', lesson: '', status: 'not_ready' };
         e.lessonPlan.unit = newName.trim();
         e.updatedAt = new Date().toISOString();
         changed = true;
@@ -780,7 +797,7 @@ function renameUnit(className, oldName, newName) {
 function updateUnitStatus(className, unitName, status) {
   const unitsData = loadClassUnits();
   if (!unitsData[className]) unitsData[className] = {};
-  if (!unitsData[className][unitName]) unitsData[className][unitName] = { status: 'draft' };
+  if (!unitsData[className][unitName]) unitsData[className][unitName] = { status: 'not_ready' };
   
   unitsData[className][unitName].status = status;
   saveClassUnits(unitsData);
@@ -796,7 +813,7 @@ function addNewUnit(className, unitName) {
   const unitsData = loadClassUnits();
   if (!unitsData[className]) unitsData[className] = {};
   if (!unitsData[className][unitName.trim()]) {
-    unitsData[className][unitName.trim()] = { status: 'draft' };
+    unitsData[className][unitName.trim()] = { status: 'not_ready' };
     saveClassUnits(unitsData);
     if (currentDrawerClass === className) {
       openDrawer(className);
