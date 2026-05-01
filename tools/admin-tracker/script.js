@@ -125,9 +125,15 @@ function renderClassGrid() {
   if (!grid) return;
   grid.innerHTML = '';
 
-  const classes = getUniqueClasses();
+  const allClasses = getUniqueClasses();
+  
+  // Filter classes to only those that have instances in the current time filter
+  const filteredClasses = allClasses.filter(cls => {
+    const stats = getClassStats(cls.name);
+    return stats.total > 0;
+  });
 
-  if (classes.length === 0) {
+  if (filteredClasses.length === 0) {
     if (emptyState) emptyState.classList.remove('hidden');
     grid.classList.add('hidden');
     updateGlobalStats(0, 0, 0, 0);
@@ -139,7 +145,7 @@ function renderClassGrid() {
 
   let gPlanned = 0, gSkipped = 0, gUpcoming = 0;
 
-  classes.forEach(cls => {
+  filteredClasses.forEach(cls => {
     const stats = getClassStats(cls.name);
     gPlanned += stats.planned;
     gSkipped += stats.skipped;
@@ -201,7 +207,7 @@ function renderClassGrid() {
     grid.appendChild(card);
   });
 
-  updateGlobalStats(classes.length, gPlanned, gSkipped, gUpcoming);
+  updateGlobalStats(filteredClasses.length, gPlanned, gSkipped, gUpcoming);
   if (window.lucide) lucide.createIcons();
 }
 
@@ -301,11 +307,16 @@ function openDrawer(className) {
 
       // Checklist HTML
       const checklistHtml = (lesson.checklist || []).map((item, i) => `
-        <label class="chunky-check mb-1" onclick="event.stopPropagation()">
-          <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleChecklist('${lesson.id}', ${i}, this.checked)">
-          <div class="box"></div>
-          <span class="text-[11px] font-semibold ${item.done ? 'line-through text-slate-400' : ''}">${item.text}</span>
-        </label>
+        <div class="flex items-center justify-between group/task mb-1">
+          <label class="chunky-check" onclick="event.stopPropagation()">
+            <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleChecklist('${lesson.id}', ${i}, this.checked)">
+            <div class="box"></div>
+            <span class="text-[11px] font-semibold ${item.done ? 'line-through text-slate-400' : ''}">${item.text}</span>
+          </label>
+          <button onclick="event.stopPropagation(); deleteTask('${lesson.id}', ${i})" class="delete-btn p-1 hover:bg-pink/10 rounded-lg transition-colors" title="Delete Task">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
       `).join('');
 
       html += `
@@ -352,7 +363,12 @@ function openDrawer(className) {
                 <textarea class="edit-input edit-textarea" onchange="updateNotes('${lesson.id}', this.value)" placeholder="Add notes...">${lesson.notes || ''}</textarea>
               </div>
               <div>
-                <label class="block text-[9px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Admin Checklist</label>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">Admin Checklist</label>
+                </div>
+                <div class="mb-2">
+                  <input type="text" class="edit-input" placeholder="+ Add a new task..." onkeydown="if(event.key==='Enter') addTask('${lesson.id}', this.value)">
+                </div>
                 ${checklistHtml || '<p class="text-[10px] text-slate-400">No checklist items</p>'}
               </div>
             </div>
@@ -425,7 +441,47 @@ function toggleChecklist(eventId, index, checked) {
   evt.updatedAt = new Date().toISOString();
   saveScheduleEvents(allEvents);
   renderClassGrid();
-  if (currentDrawerClass) openDrawer(currentDrawerClass);
+  if (currentDrawerClass) {
+    const openId = document.querySelector('[id^="edit-"]:not(.hidden)')?.id.replace('edit-', '');
+    openDrawer(currentDrawerClass);
+    if (openId) toggleEdit(openId);
+  }
+}
+
+function addTask(eventId, text) {
+  if (!text.trim()) return;
+  const allEvents = loadScheduleEvents();
+  const evt = allEvents.find(e => e.id === eventId);
+  if (!evt) return;
+  if (!evt.checklist) evt.checklist = [];
+  evt.checklist.push({
+    id: `chk_${Date.now()}`,
+    text: text.trim(),
+    done: false
+  });
+  evt.updatedAt = new Date().toISOString();
+  saveScheduleEvents(allEvents);
+  renderClassGrid();
+  if (currentDrawerClass) {
+    const openId = document.querySelector('[id^="edit-"]:not(.hidden)')?.id.replace('edit-', '');
+    openDrawer(currentDrawerClass);
+    if (openId) toggleEdit(openId);
+  }
+}
+
+function deleteTask(eventId, index) {
+  const allEvents = loadScheduleEvents();
+  const evt = allEvents.find(e => e.id === eventId);
+  if (!evt || !evt.checklist || !evt.checklist[index]) return;
+  evt.checklist.splice(index, 1);
+  evt.updatedAt = new Date().toISOString();
+  saveScheduleEvents(allEvents);
+  renderClassGrid();
+  if (currentDrawerClass) {
+    const openId = document.querySelector('[id^="edit-"]:not(.hidden)')?.id.replace('edit-', '');
+    openDrawer(currentDrawerClass);
+    if (openId) toggleEdit(openId);
+  }
 }
 
 /* ============================================
