@@ -154,6 +154,12 @@ function loadData() {
   if (savedViewMode) {
     viewMode = savedViewMode;
   }
+  
+  const savedStart = localStorage.getItem('schedule_start_hour');
+  const savedEnd = localStorage.getItem('schedule_end_hour');
+  if (savedStart && savedEnd) {
+    updateScheduleRange(savedStart, savedEnd);
+  }
 }
 
 function saveData() {
@@ -1412,6 +1418,43 @@ function toggleRecurrenceDay(btn) {
 function toggleModalDaySelector(value) {
   const container = document.getElementById('modal-day-selector-container');
   if (container) container.classList.toggle('hidden', value !== 'custom-days');
+}
+
+function openSettingsModal() {
+  const modal = document.getElementById('settings-modal');
+  document.getElementById('setting-start-hour').value = `${String(SCHEDULE_START_HOUR).padStart(2, '0')}:00`;
+  document.getElementById('setting-end-hour').value = `${String(SCHEDULE_END_HOUR).padStart(2, '0')}:00`;
+  modal.classList.remove('hidden');
+}
+
+function closeSettingsModal() {
+  document.getElementById('settings-modal').classList.add('hidden');
+}
+
+function saveSettings() {
+  const startVal = document.getElementById('setting-start-hour').value;
+  const endVal = document.getElementById('setting-end-hour').value;
+  
+  if (!startVal || !endVal) {
+    showToast('Please select both start and end times', 'warning');
+    return;
+  }
+
+  const start = parseInt(startVal.split(':')[0]);
+  const end = parseInt(endVal.split(':')[0]);
+  
+  if (start >= end) {
+    showToast('Start time must be before end time', 'warning');
+    return;
+  }
+  
+  updateScheduleRange(start, end);
+  localStorage.setItem('schedule_start_hour', start);
+  localStorage.setItem('schedule_end_hour', end);
+  
+  renderCalendar();
+  closeSettingsModal();
+  showToast('Settings saved successfully', 'success');
 }
 
 function showToast(message, type = 'info') {

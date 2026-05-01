@@ -245,10 +245,16 @@ function createEventObject({ name, typeId, colorHex, date, startTime, endTime, r
 /* ============================================
    Time Utilities
    ============================================ */
-const SCHEDULE_START_HOUR = 6;  // 06:00
-const SCHEDULE_END_HOUR = 22;   // 22:00
+let SCHEDULE_START_HOUR = 6;  // 06:00
+let SCHEDULE_END_HOUR = 22;   // 22:00
 const SLOT_MINUTES = 15;
-const TOTAL_SLOTS = ((SCHEDULE_END_HOUR - SCHEDULE_START_HOUR) * 60) / SLOT_MINUTES;
+let TOTAL_SLOTS = ((SCHEDULE_END_HOUR - SCHEDULE_START_HOUR) * 60) / SLOT_MINUTES;
+
+function updateScheduleRange(start, end) {
+  SCHEDULE_START_HOUR = parseInt(start);
+  SCHEDULE_END_HOUR = parseInt(end);
+  TOTAL_SLOTS = ((SCHEDULE_END_HOUR - SCHEDULE_START_HOUR) * 60) / SLOT_MINUTES;
+}
 
 function timeToMinutes(timeStr) {
   const [h, m] = timeStr.split(':').map(Number);
