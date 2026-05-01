@@ -249,13 +249,15 @@ function createClassCard(className, color, stats) {
     });
 
     stats.instances.forEach(e => {
-      const u = e.lessonPlan?.unit || 'Unassigned';
+      const u = e.lessonPlan?.unit || 'Default Unit';
       if (!unitMap[u]) unitMap[u] = { total: 0, planned: 0, status: 'not_ready' };
       unitMap[u].total++;
       if (isPlanned(e)) unitMap[u].planned++;
     });
 
-    const units = Object.keys(unitMap).slice(0, 3);
+    const units = Object.keys(unitMap)
+      .filter(u => !(u === 'Default Unit' && unitMap[u].total === 0))
+      .slice(0, 3);
     
     const allUnitNames = Object.keys(unitMap);
     const statuses = allUnitNames.map(uName => unitMap[uName].status);
@@ -483,7 +485,7 @@ function openDrawer(className) {
   // Group by unit
   const unitMap = {};
   instances.forEach(e => {
-    const unitKey = e.lessonPlan?.unit || 'Unassigned';
+    const unitKey = e.lessonPlan?.unit || 'Default Unit';
     if (!unitMap[unitKey]) unitMap[unitKey] = [];
     unitMap[unitKey].push(e);
   });
@@ -525,6 +527,7 @@ function openDrawer(className) {
     </div>
   `;
   Object.entries(unitMap).forEach(([unitName, lessons]) => {
+    if (unitName === 'Default Unit' && lessons.length === 0) return;
     // Sort lessons chronologically to assign accurate numbers
     lessons.sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
     
@@ -537,6 +540,11 @@ function openDrawer(className) {
         <div class="flex items-center gap-2 mb-3 pb-2 border-b-[3px] border-[var(--border-primary)] group flex-wrap">
           <i data-lucide="book-open" class="w-4 h-4 text-blue"></i>
           <input type="text" value="${unitName.replace(/"/g, '&quot;')}" class="edit-input flex-1 py-1 px-2 text-sm font-heading font-bold bg-transparent border-transparent hover:bg-[var(--surface-card)] hover:border-[var(--border-secondary)] focus:bg-[var(--surface-card)] focus:border-[var(--color-blue)] transition-all cursor-text outline-none min-w-[120px]" onchange="renameUnit('${className}', '${unitName.replace(/'/g, "\\'")}', this.value)" placeholder="Unit Name" title="Edit unit name">
+          
+          <div class="flex gap-1 items-center ml-auto">
+            <button onclick="duplicateUnit('${className}', '${unitName.replace(/'/g, "\\'")}')" class="p-1.5 text-slate-400 hover:text-blue hover:bg-blue/10 rounded-lg transition-colors" title="Duplicate Unit"><i data-lucide="copy" class="w-3.5 h-3.5"></i></button>
+            <button onclick="deleteUnit('${className}', '${unitName.replace(/'/g, "\\'")}')" class="p-1.5 text-slate-400 hover:text-pink hover:bg-pink/10 rounded-lg transition-colors" title="Delete Unit"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+          </div>
           
           <div class="flex gap-1.5 w-full mt-2">
             ${LESSON_STATUSES.map(s => `
@@ -766,7 +774,7 @@ function renameUnit(className, oldName, newName) {
   let changed = false;
   allEvents.forEach(e => {
     if (e.name === className && e.typeId === 'class') {
-      const u = e.lessonPlan?.unit || 'Unassigned';
+      const u = e.lessonPlan?.unit || 'Default Unit';
       if (u === oldName) {
         if (!e.lessonPlan) e.lessonPlan = { unit: '', lesson: '', status: 'not_ready' };
         e.lessonPlan.unit = newName.trim();
@@ -805,6 +813,91 @@ function updateUnitStatus(className, unitName, status) {
   if (currentDrawerClass === className) {
     openDrawer(className);
   }
+}
+
+/* ============================================
+   UNIT MANAGEMENT (DELETE / DUPLICATE)
+   ============================================ */
+
+function deleteUnit(className, unitName) {
+  if (unitName === 'Default Unit') {
+    alert("You cannot delete the Default Unit.");
+    return;
+  }
+  if (!confirm(`Are you sure you want to delete the unit "${unitName}"? All lessons inside will be moved to the Default Unit.`)) return;
+
+  const unitsData = loadClassUnits();
+  if (unitsData[className] && unitsData[className][unitName]) {
+    delete unitsData[className][unitName];
+    saveClassUnits(unitsData);
+  }
+
+  const allEvents = loadScheduleEvents();
+  let changed = false;
+  allEvents.forEach(e => {
+    if (e.name === className && e.typeId === 'class' && e.lessonPlan && e.lessonPlan.unit === unitName) {
+      e.lessonPlan.unit = 'Default Unit';
+      changed = true;
+    }
+  });
+
+  if (changed) saveScheduleEvents(allEvents);
+  updateCardStats(className);
+  if (currentDrawerClass === className) openDrawer(className);
+}
+
+function duplicateUnit(className, unitName) {
+  const newName = prompt(`Enter a name for the duplicated unit:`, `${unitName} (Copy)`);
+  if (!newName || newName.trim() === '' || newName === unitName) return;
+
+  // Duplicate the unit structure
+  const unitsData = loadClassUnits();
+  if (!unitsData[className]) unitsData[className] = {};
+  
+  const srcStatus = (unitsData[className][unitName] && unitsData[className][unitName].status) ? unitsData[className][unitName].status : 'not_ready';
+  unitsData[className][newName.trim()] = { status: srcStatus };
+  saveClassUnits(unitsData);
+
+  // Ask if they want to duplicate the lesson plans
+  const allEvents = loadScheduleEvents();
+  const unitLessons = allEvents.filter(e => e.name === className && e.typeId === 'class' && e.lessonPlan && e.lessonPlan.unit === unitName);
+  
+  // Ensure we sort source lessons chronologically to duplicate them in order
+  unitLessons.sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
+  
+  if (unitLessons.length > 0 && confirm(`Do you also want to copy the ${unitLessons.length} lesson topics into the new unit?\n\n(They will be automatically assigned to your upcoming empty/unassigned scheduled classes for this group)`)) {
+    // Find future classes for this classname that have NO unit and NO lesson
+    const upcomingEmpty = allEvents.filter(e => e.name === className && e.typeId === 'class' && isUpcoming(e.date) && (!e.lessonPlan || (!e.lessonPlan.unit && !e.lessonPlan.lesson) || (e.lessonPlan.unit === 'Default Unit' && !e.lessonPlan.lesson)));
+    
+    // Sort them chronologically
+    upcomingEmpty.sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
+    
+    let changed = false;
+    for (let i = 0; i < Math.min(unitLessons.length, upcomingEmpty.length); i++) {
+      const srcLesson = unitLessons[i];
+      const targetSlot = upcomingEmpty[i];
+      
+      if (!targetSlot.lessonPlan) targetSlot.lessonPlan = { unit: '', lesson: '', status: 'not_ready' };
+      targetSlot.lessonPlan.unit = newName.trim();
+      targetSlot.lessonPlan.lesson = srcLesson.lessonPlan.lesson;
+      targetSlot.lessonPlan.lessonNumber = srcLesson.lessonPlan.lessonNumber;
+      
+      // Copy checklist if exists
+      if (srcLesson.checklist) {
+        targetSlot.checklist = JSON.parse(JSON.stringify(srcLesson.checklist)).map(item => ({...item, done: false}));
+      }
+      targetSlot.updatedAt = new Date().toISOString();
+      changed = true;
+    }
+    
+    if (changed) saveScheduleEvents(allEvents);
+    if (unitLessons.length > upcomingEmpty.length) {
+      alert(`Note: Only ${upcomingEmpty.length} empty upcoming classes were available to copy into. The remaining ${unitLessons.length - upcomingEmpty.length} lessons were skipped. Please schedule more classes first!`);
+    }
+  }
+
+  updateCardStats(className);
+  if (currentDrawerClass === className) openDrawer(className);
 }
 
 function addNewUnit(className, unitName) {
