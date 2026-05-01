@@ -196,7 +196,7 @@ function renderCalendar() {
     if (isHour) {
       const div = document.createElement('div');
       div.className = 'time-label';
-      div.style.height = i === TOTAL_SLOTS ? '0' : '60px'; // 4 slots * 15m = 60px per hour visual base
+      div.style.height = i === TOTAL_SLOTS ? '0' : '80px'; // 4 slots * 20px = 80px per hour
       // Use standard height for consistent calculation, visual spacing can be handled via flex/grid
       div.innerHTML = `<span>${formatTimeDisplay(time).replace(' AM', '').replace(' PM', '')}</span>`;
       timeGutter.appendChild(div);
