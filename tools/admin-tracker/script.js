@@ -232,12 +232,12 @@ function createClassCard(className, color, stats) {
       const sObj = LESSON_STATUSES.find(x => x.id === s);
       const dotColor = sObj ? sObj.color : 'var(--text-tertiary)';
       return `
-        <li style="color:${dotColor}; font-size: 11px; font-weight: bold; margin-bottom: 2px;">
+        <li style="color:${dotColor}; font-size: 13px; font-weight: bold; margin-bottom: 2px;">
           <span style="color: var(--text-primary)">${l.lessonPlan?.lesson || l.name}</span> 
-          <span style="color: var(--text-tertiary); font-weight: normal; font-size: 10px;">(${formatDate(l.date)})</span>
+          <span style="color: var(--text-tertiary); font-weight: normal; font-size: 12px;">(${formatDate(l.date)})</span>
         </li>
       `;
-    }).join('') + `</ul>` : '<p class="text-[10px] text-slate-400 font-semibold py-1 italic">No upcoming lessons</p>';
+    }).join('') + `</ul>` : '<p class="text-xs text-slate-400 font-semibold py-1 italic">No upcoming lessons</p>';
   } else {
     // For Units mode: get unique units and their progress
     const unitMap = {};
@@ -270,12 +270,12 @@ function createClassCard(className, color, stats) {
       const dotColor = sObj ? sObj.color : 'var(--text-tertiary)';
 
       return `
-        <li style="color:${dotColor}; font-size: 11px; font-weight: bold; margin-bottom: 2px;">
+        <li style="color:${dotColor}; font-size: 13px; font-weight: bold; margin-bottom: 2px;">
           <span style="color: var(--text-primary)">${u}</span> 
-          <span style="color: var(--text-tertiary); font-weight: normal; font-size: 10px;">(${uStats.total > 0 ? `${uStats.planned}/${uStats.total} Lessons` : sObj ? sObj.label : 'Empty'})</span>
+          <span style="color: var(--text-tertiary); font-weight: normal; font-size: 12px;">(${uStats.total > 0 ? `${uStats.planned}/${uStats.total} Lessons` : sObj ? sObj.label : 'Empty'})</span>
         </li>
       `;
-    }).join('') + `</ul>` : '<p class="text-[10px] text-slate-400 font-semibold py-1 italic">No active units</p>';
+    }).join('') + `</ul>` : '<p class="text-xs text-slate-400 font-semibold py-1 italic">No active units</p>';
   }
 
   const hasSkipped = stats.skipped > 0;
@@ -297,7 +297,7 @@ function createClassCard(className, color, stats) {
         </div>
       </div>
       <div class="card-status-badge">
-        <span class="px-2 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-wider shadow-hard" style="background:${headerStatusObj.color}; color:#fff; border: 2px solid var(--border-primary); transform: translateY(-2px);">
+        <span class="px-2 py-1 rounded-lg text-xs font-extrabold uppercase tracking-wider shadow-hard" style="background:${headerStatusObj.color}; color:#fff; border: 2px solid var(--border-primary); transform: translateY(-2px);">
           ${headerStatusObj.label}
         </span>
       </div>
@@ -317,7 +317,7 @@ function createClassCard(className, color, stats) {
         </div>
         <div class="flex justify-between w-full gap-1">
           ${adminData.tasks.map(t => `
-            <span class="flex-1 text-[7px] leading-[9px] uppercase tracking-wider text-slate-400 font-extrabold truncate text-center" title="${t.text.replace(/"/g, '&quot;')}">${t.text}</span>
+            <span class="flex-1 text-[9px] leading-[11px] uppercase tracking-wider text-slate-400 font-extrabold truncate text-center" title="${t.text.replace(/"/g, '&quot;')}">${t.text}</span>
           `).join('')}
         </div>
       </div>
@@ -521,17 +521,17 @@ function openDrawer(className) {
   let html = `
     <div class="mb-8 p-4 bg-blue/5 border-2 border-blue/20 rounded-2xl">
       <div class="flex flex-col mb-3">
-        <h4 class="font-heading text-sm font-bold text-blue">Class-Wide Tasks</h4>
-        <p class="text-[11px] text-slate-400 font-semibold mt-0.5">
+        <h4 class="font-heading text-base font-bold text-blue">Class-Wide Tasks</h4>
+        <p class="text-sm text-slate-400 font-semibold mt-0.5">
           Things to do once for the whole class (e.g. print materials, set up gradebook)
         </p>
       </div>
       <div class="mb-3 flex gap-2">
         <input type="text" class="edit-input flex-1" id="ca-input-${className.replace(/[^a-z0-9]/gi, '_')}" placeholder="+ Add class task (e.g. Unit 1 Planning)" onkeydown="if(event.key==='Enter') { addClassAdminTask('${className}', this.value); this.value=''; }">
-        <button onclick="const i=document.getElementById('ca-input-${className.replace(/[^a-z0-9]/gi, '_')}'); addClassAdminTask('${className}', i.value); i.value='';" class="px-3 py-1.5 rounded-xl bg-blue text-white text-xs font-bold border-2 border-dark shadow-[2px_2px_0px_0px_rgba(30,41,59,1)] hover:translate-y-[-1px] active:translate-y-[1px]">Add</button>
+        <button onclick="const i=document.getElementById('ca-input-${className.replace(/[^a-z0-9]/gi, '_')}'); addClassAdminTask('${className}', i.value); i.value='';" class="px-3 py-1.5 rounded-xl bg-blue text-white text-sm font-bold border-2 border-dark shadow-[2px_2px_0px_0px_rgba(30,41,59,1)] hover:translate-y-[-1px] active:translate-y-[1px]">Add</button>
       </div>
       <div class="space-y-1">
-        ${adminHtml || '<p class="text-[10px] text-slate-400 italic">No class-wide tasks yet.</p>'}
+        ${adminHtml || '<p class="text-xs text-slate-400 italic">No class-wide tasks yet.</p>'}
       </div>
     </div>
   `;
@@ -548,7 +548,7 @@ function openDrawer(className) {
       <div class="mb-6 rounded-xl border-2 border-transparent transition-colors duration-200" ondragover="allowLessonDrop(event)" ondragleave="dragLessonLeave(event)" ondrop="dropLesson(event, '${className}', '${unitName.replace(/'/g, "\\'")}')">
         <div class="flex items-center gap-2 mb-3 pb-2 border-b-[3px] border-[var(--border-primary)] group flex-wrap">
           <i data-lucide="book-open" class="w-4 h-4 text-blue"></i>
-          <input type="text" value="${unitName.replace(/"/g, '&quot;')}" class="edit-input flex-1 py-1 px-2 text-sm font-heading font-bold bg-transparent border-transparent hover:bg-[var(--surface-card)] hover:border-[var(--border-secondary)] focus:bg-[var(--surface-card)] focus:border-[var(--color-blue)] transition-all cursor-text outline-none min-w-[120px]" onchange="renameUnit('${className}', '${unitName.replace(/'/g, "\\'")}', this.value)" placeholder="Unit Name" title="Edit unit name">
+          <input type="text" value="${unitName.replace(/"/g, '&quot;')}" class="edit-input flex-1 py-1 px-2 text-base font-heading font-bold bg-transparent border-transparent hover:bg-[var(--surface-card)] hover:border-[var(--border-secondary)] focus:bg-[var(--surface-card)] focus:border-[var(--color-blue)] transition-all cursor-text outline-none min-w-[120px]" onchange="renameUnit('${className}', '${unitName.replace(/'/g, "\\'")}', this.value)" placeholder="Unit Name" title="Edit unit name">
           
           <div class="flex gap-1 items-center ml-auto">
             <button onclick="duplicateUnit('${className}', '${unitName.replace(/'/g, "\\'")}')" class="p-1.5 text-slate-400 hover:text-blue hover:bg-blue/10 rounded-lg transition-colors" title="Duplicate Unit"><i data-lucide="copy" class="w-3.5 h-3.5"></i></button>
@@ -607,8 +607,8 @@ function openDrawer(className) {
                   <i data-lucide="grip-vertical" class="w-4 h-4 text-slate-300 hover:text-slate-500 transition-colors flex-shrink-0" onclick="event.stopPropagation()"></i>
                   <div class="status-dot" style="background:${statusObj ? statusObj.color : 'var(--text-tertiary)'}"></div>
                   <div class="flex flex-col min-w-0 flex-1">
-                    <span class="font-bold text-sm truncate"><span class="text-blue mr-1 opacity-80">L${lessonNumberDisplay}:</span> ${lesson.lessonPlan?.lesson || lesson.name}</span>
-                    <span class="text-[10px] text-slate-400 font-semibold">
+                    <span class="font-bold text-base truncate"><span class="text-blue mr-1 opacity-80">L${lessonNumberDisplay}:</span> ${lesson.lessonPlan?.lesson || lesson.name}</span>
+                    <span class="text-xs text-slate-400 font-semibold">
                       ${formatDate(lesson.date)} • ${formatTime(lesson.startTime)} • ${lesson.room || 'No Room'}
                     </span>
                   </div>
@@ -632,35 +632,35 @@ function openDrawer(className) {
               <div class="edit-panel mx-2">
                 <div class="grid grid-cols-[1.5fr_2fr_1fr] gap-3 mb-3">
                   <div>
-                    <label class="block text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Unit / Module</label>
+                    <label class="block text-sm font-extrabold text-slate-400 uppercase tracking-widest mb-1">Unit / Module</label>
                     <input type="text" class="edit-input" value="${(lesson.lessonPlan?.unit || '').replace(/"/g, '&quot;')}" onchange="updateField('${lesson.id}', 'unit', this.value)" placeholder="e.g. Unit 1">
                   </div>
                   <div>
-                    <label class="block text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Lesson Topic</label>
+                    <label class="block text-sm font-extrabold text-slate-400 uppercase tracking-widest mb-1">Lesson Topic</label>
                     <input type="text" class="edit-input" value="${(lesson.lessonPlan?.lesson || '').replace(/"/g, '&quot;')}" onchange="updateField('${lesson.id}', 'lesson', this.value)" placeholder="e.g. Introduction">
                   </div>
                   <div>
-                    <label class="block text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mb-1 truncate" title="Lesson Number">L# Override</label>
+                    <label class="block text-sm font-extrabold text-slate-400 uppercase tracking-widest mb-1 truncate" title="Lesson Number">L# Override</label>
                     <input type="number" min="1" class="edit-input px-2 text-center" value="${lesson.lessonPlan?.lessonNumber || ''}" onchange="updateField('${lesson.id}', 'lessonNumber', this.value)" placeholder="Auto">
                   </div>
                 </div>
 
                 <div class="mb-3">
-                  <label class="block text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Notes</label>
+                  <label class="block text-sm font-extrabold text-slate-400 uppercase tracking-widest mb-1">Notes</label>
                   <textarea class="edit-input edit-textarea" onchange="updateNotes('${lesson.id}', this.value)" placeholder="Add notes...">${lesson.notes || ''}</textarea>
                 </div>
                 <div>
                   <div class="flex flex-col mb-2">
-                    <label class="text-[11px] font-extrabold text-slate-400 uppercase tracking-widest">This Lesson's Checklist</label>
-                    <p class="text-[10px] text-slate-400 font-semibold mt-0.5">
+                    <label class="text-sm font-extrabold text-slate-400 uppercase tracking-widest">This Lesson's Checklist</label>
+                    <p class="text-xs text-slate-400 font-semibold mt-0.5">
                       Prep tasks specific to this single lesson session
                     </p>
                   </div>
                   <div class="mb-2 flex gap-2">
                     <input type="text" class="edit-input flex-1" id="task-input-${lesson.id}" placeholder="+ Add a new task..." onkeydown="if(event.key==='Enter') { addTask('${lesson.id}', this.value); this.value=''; }">
-                    <button onclick="const i=document.getElementById('task-input-${lesson.id}'); addTask('${lesson.id}', i.value); i.value='';" class="px-3 py-1.5 rounded-xl bg-blue text-white text-xs font-bold border-2 border-dark shadow-[2px_2px_0px_0px_rgba(30,41,59,1)] hover:translate-y-[-1px] active:translate-y-[1px]">Add</button>
+                    <button onclick="const i=document.getElementById('task-input-${lesson.id}'); addTask('${lesson.id}', i.value); i.value='';" class="px-3 py-1.5 rounded-xl bg-blue text-white text-sm font-bold border-2 border-dark shadow-[2px_2px_0px_0px_rgba(30,41,59,1)] hover:translate-y-[-1px] active:translate-y-[1px]">Add</button>
                   </div>
-                  ${checklistHtml || '<p class="text-[10px] text-slate-400">No checklist items</p>'}
+                  ${checklistHtml || '<p class="text-xs text-slate-400">No checklist items</p>'}
                 </div>
               </div>
             </div>
@@ -674,10 +674,10 @@ function openDrawer(className) {
 
   html += `
     <div class="mt-6 p-4 border-2 border-dashed border-[var(--border-secondary)] rounded-xl bg-[var(--surface-card)]">
-      <h4 class="font-heading text-sm font-bold mb-2">Create New Unit</h4>
+      <h4 class="font-heading text-base font-bold mb-2">Create New Unit</h4>
       <div class="flex gap-2">
         <input type="text" class="edit-input flex-1" id="add-unit-input-${className.replace(/[^a-z0-9]/gi, '_')}" placeholder="Unit name..." onkeydown="if(event.key==='Enter') { addNewUnit('${className}', this.value); }">
-        <button onclick="const i=document.getElementById('add-unit-input-${className.replace(/[^a-z0-9]/gi, '_')}'); addNewUnit('${className}', i.value);" class="px-3 py-1.5 rounded-xl bg-slate-800 dark:bg-slate-700 text-white text-xs font-bold shadow-neo-sm hover:translate-y-[-1px] active:translate-y-[1px]">Add Unit</button>
+        <button onclick="const i=document.getElementById('add-unit-input-${className.replace(/[^a-z0-9]/gi, '_')}'); addNewUnit('${className}', i.value);" class="px-3 py-1.5 rounded-xl bg-slate-800 dark:bg-slate-700 text-white text-sm font-bold shadow-neo-sm hover:translate-y-[-1px] active:translate-y-[1px]">Add Unit</button>
       </div>
     </div>
   `;
