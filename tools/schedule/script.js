@@ -30,6 +30,30 @@ function init() {
   setupEventListeners();
   updateTimeIndicator();
   setInterval(updateTimeIndicator, 60000); // Update every minute
+  
+  // Wait a bit for layout to settle before scrolling
+  setTimeout(scrollToCurrentTime, 300);
+}
+
+function scrollToCurrentTime() {
+  const now = new Date();
+  const h = now.getHours();
+  const m = now.getMinutes();
+  
+  // Only scroll if within schedule hours
+  if (h < SCHEDULE_START_HOUR || h >= SCHEDULE_END_HOUR) return;
+  
+  const totalMinutes = (h * 60 + m) - (SCHEDULE_START_HOUR * 60);
+  const topPx = (totalMinutes / 15) * 20; // 20px per 15 min slot
+  
+  // Center it slightly (1/3 from top)
+  const wrapperHeight = calendarWrapper.clientHeight;
+  const targetScroll = Math.max(0, topPx - (wrapperHeight / 3));
+  
+  calendarWrapper.scrollTo({
+    top: targetScroll,
+    behavior: 'smooth'
+  });
 }
 
 function loadData() {
@@ -315,10 +339,23 @@ function createEventBlock(evt) {
     `;
   }
 
+  let lessonStatusHtml = '';
+  if (evt.lessonPlan && evt.lessonPlan.status && evt.lessonPlan.status !== 'draft') {
+    const status = LESSON_STATUSES.find(s => s.id === evt.lessonPlan.status);
+    if (status) {
+      lessonStatusHtml = `
+        <div class="absolute top-1.5 right-7 opacity-80" title="Lesson: ${status.label}">
+          <i data-lucide="${status.icon}" class="w-2.5 h-2.5" style="color: ${status.color}"></i>
+        </div>
+      `;
+    }
+  }
+
   evtBlock.innerHTML = `
     <div class="event-title text-dark dark:text-white">${evt.name}</div>
     <div class="event-time text-dark dark:text-white opacity-70">${formatTimeDisplay(evt.startTime)} - ${formatTimeDisplay(evt.endTime)}</div>
     ${progressHtml}
+    ${lessonStatusHtml}
     ${evt.recurrence !== 'none' ? '<i data-lucide="repeat" class="event-recurrence-badge w-3 h-3"></i>' : ''}
     <div class="resize-handle" draggable="false" data-id="${evt.id}"></div>
   `;
@@ -619,6 +656,36 @@ function openDetailPanel(eventId) {
       </div>
     </div>
     
+    <!-- Lesson Tracker -->
+    <div class="bg-blue/5 dark:bg-blue/10 p-3 rounded-xl border border-blue/20 dark:border-blue/80/20 mb-4">
+      <div class="flex items-center gap-2 mb-3">
+        <i data-lucide="book-open" class="w-3.5 h-3.5 text-blue"></i>
+        <h4 class="text-[10px] font-extrabold text-blue uppercase tracking-widest">Lesson Tracker</h4>
+      </div>
+      
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        <div>
+          <label class="block text-[8px] font-extrabold text-slate-400 uppercase tracking-widest mb-1 px-1">Unit / Module</label>
+          <input type="text" class="panel-input text-[11px] py-1" value="${(event.lessonPlan?.unit || '').replace(/"/g, '&quot;')}" placeholder="e.g. Unit 1" onchange="updateLessonField('${eventId}', 'unit', this.value)">
+        </div>
+        <div>
+          <label class="block text-[8px] font-extrabold text-slate-400 uppercase tracking-widest mb-1 px-1">Lesson Topic</label>
+          <input type="text" class="panel-input text-[11px] py-1" value="${(event.lessonPlan?.lesson || '').replace(/"/g, '&quot;')}" placeholder="e.g. Introduction" onchange="updateLessonField('${eventId}', 'lesson', this.value)">
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between gap-1 p-1 bg-white/50 dark:bg-slate-900/50 rounded-lg border border-slate-200/50 dark:border-slate-700/50">
+        ${LESSON_STATUSES.map(s => `
+          <button onclick="setLessonStatus('${eventId}', '${s.id}')" 
+                  class="lesson-status-btn flex-1 flex flex-col items-center gap-1 p-1.5 rounded-md transition-all ${event.lessonPlan?.status === s.id ? 'active bg-white dark:bg-slate-800' : 'opacity-40 grayscale hover:opacity-100 hover:grayscale-0'}"
+                  title="${s.label}">
+            <i data-lucide="${s.icon}" class="w-3.5 h-3.5" style="color: ${s.color}"></i>
+            <span class="text-[7px] font-bold uppercase tracking-tighter" style="color: ${event.lessonPlan?.status === s.id ? s.color : 'inherit'}">${s.label}</span>
+          </button>
+        `).join('')}
+      </div>
+    </div>
+
     <!-- Recurrence -->
     <div class="mb-4">
        <label class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1 px-1">Repeat</label>
@@ -799,6 +866,30 @@ function deleteChecklistItem(eventId, itemId) {
     saveData();
     updateEventUI(eventId);
     openDetailPanel(eventId);
+  }
+}
+
+function setLessonStatus(eventId, statusId) {
+  const event = events.find(e => e.id === eventId);
+  if (event) {
+    if (!event.lessonPlan) {
+        event.lessonPlan = { unit: '', lesson: '', status: 'draft' };
+    }
+    event.lessonPlan.status = statusId;
+    saveData();
+    updateEventUI(eventId);
+    openDetailPanel(eventId);
+  }
+}
+
+function updateLessonField(eventId, field, value) {
+  const event = events.find(e => e.id === eventId);
+  if (event) {
+    if (!event.lessonPlan) {
+        event.lessonPlan = { unit: '', lesson: '', status: 'draft' };
+    }
+    event.lessonPlan[field] = value;
+    saveData();
   }
 }
 
@@ -1069,6 +1160,7 @@ function goToToday() {
   currentWeekStart = getMonday(new Date());
   renderCalendar();
   updateStats();
+  setTimeout(scrollToCurrentTime, 100);
 }
 
 function toggleMobileSidebar() {

@@ -103,6 +103,13 @@ const RECURRENCE_OPTIONS = [
   { id: 'monthly', label: 'Every month' },
 ];
 
+const LESSON_STATUSES = [
+  { id: 'draft',    label: 'Draft',     icon: 'edit-3',       color: '#94a3b8' },
+  { id: 'ready',    label: 'Ready',     icon: 'check-circle', color: '#2979FF' },
+  { id: 'taught',   label: 'Taught',    icon: 'users',        color: '#00E676' },
+  { id: 'reviewed', label: 'Reflected', icon: 'star',         color: '#FF8C42' }
+];
+
 const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const DAYS_FULL = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -197,6 +204,11 @@ function createEventObject({ name, typeId, colorHex, date, startTime, endTime, r
     notes: notes || '',
     recurrence: recurrence || 'none',
     checklist: defaultChecklist,
+    lessonPlan: {
+      unit: '',
+      lesson: '',
+      status: 'draft'
+    },
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
