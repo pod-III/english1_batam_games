@@ -45,6 +45,24 @@ function saveData() {
   updateTodayList();
 }
 
+function refreshRecurrences(masterId) {
+  if (!masterId) return;
+  
+  // 1. Remove all existing clones of this master
+  events = events.filter(e => e.originalEventId !== masterId);
+  
+  const master = events.find(e => e.id === masterId);
+  if (!master || master.recurrence === 'none') return;
+  
+  // 2. Generate new clones for the next 6 months
+  const rangeStart = new Date(master.date);
+  const rangeEnd = new Date(rangeStart);
+  rangeEnd.setMonth(rangeEnd.getMonth() + 6); // Safety limit
+  
+  const newOccurrences = generateRecurrences(master, rangeStart, rangeEnd);
+  events = [...events, ...newOccurrences];
+}
+
 /* ============================================
    2. Date Helpers
    ============================================ */
@@ -443,6 +461,7 @@ function handleDrop(e) {
       if (newEndIndex > TOTAL_SLOTS) newEndIndex = TOTAL_SLOTS;
       event.endTime = slotIndexToTime(newEndIndex);
       
+      refreshRecurrences(draggedEventId);
       saveData();
       renderCalendar();
       if (selectedEventId === event.id) openDetailPanel(event.id); // Refresh panel if open
@@ -503,6 +522,7 @@ function stopResize(e) {
       if (newEndIndex <= timeToSlotIndex(event.startTime)) newEndIndex = timeToSlotIndex(event.startTime) + 1;
       
       event.endTime = slotIndexToTime(newEndIndex);
+      refreshRecurrences(resizeEventId);
       saveData();
       updateEventUI(resizeEventId);
       if (selectedEventId === event.id) openDetailPanel(event.id);
@@ -941,6 +961,7 @@ function saveEventFromModal() {
     return;
   }
   
+  let targetId = id;
   if (id) {
     // Edit existing
     const evt = events.find(e => e.id === id);
@@ -962,9 +983,12 @@ function saveEventFromModal() {
       name, typeId, colorHex: color, date, startTime: start, endTime: end, room, notes, recurrence
     });
     events.push(newEvt);
+    targetId = newEvt.id;
   }
   
+  refreshRecurrences(targetId);
   saveData();
+  
   if (id) {
     updateEventUI(id);
   } else {
