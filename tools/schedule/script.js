@@ -737,6 +737,12 @@ function stopResize(e) {
    ============================================ */
 
 function openDetailPanel(eventId) {
+  const panel = document.getElementById('detail-panel');
+  if (selectedEventId === eventId && panel.classList.contains('open')) {
+    closeDetailPanel();
+    return;
+  }
+  
   selectedEventId = eventId;
   const event = events.find(e => e.id === eventId);
   if (!event) return;
@@ -1447,6 +1453,11 @@ function toggleModalDaySelector(value) {
 
 function openSettingsModal() {
   const modal = document.getElementById('settings-modal');
+  if (!modal.classList.contains('hidden')) {
+    closeSettingsModal();
+    return;
+  }
+  
   document.getElementById('setting-start-hour').value = `${String(SCHEDULE_START_HOUR).padStart(2, '0')}:00`;
   document.getElementById('setting-end-hour').value = `${String(SCHEDULE_END_HOUR).padStart(2, '0')}:00`;
   modal.classList.remove('hidden');
