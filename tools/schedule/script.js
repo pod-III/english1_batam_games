@@ -316,6 +316,8 @@ function updateStats() {
   events.forEach(evt => {
     const evtDate = new Date(evt.date);
     if (evtDate >= currentWeekStart && evtDate <= endOfWeek) {
+      // Skip recurrences on red days
+      if (evt.isRecurrence && redDays.includes(evt.date)) return;
       weekEvents++;
       if (evt.checklist) {
         totalTasks += evt.checklist.length;
@@ -336,7 +338,11 @@ function updateTodayList() {
   container.innerHTML = '';
   
   const todayStr = getDayString(new Date());
-  const todayEvents = events.filter(e => e.date === todayStr).sort((a, b) => a.startTime.localeCompare(b.startTime));
+  const isTodayRed = redDays.includes(todayStr);
+  const todayEvents = events
+    .filter(e => e.date === todayStr)
+    .filter(e => !(isTodayRed && e.isRecurrence))
+    .sort((a, b) => a.startTime.localeCompare(b.startTime));
   
   if (todayEvents.length === 0) {
     container.innerHTML = '<p class="text-slate-400 text-xs font-semibold px-1">No events today</p>';
