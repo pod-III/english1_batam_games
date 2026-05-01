@@ -979,9 +979,13 @@ function openDetailPanel(eventId, keepDirty = false) {
       </div>
       <div>
          <label class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1 px-1">Repeat</label>
-         <select class="panel-input" onchange="updateEventField('${eventId}', 'recurrence', this.value)">
+         <select class="panel-input" onchange="updateEventField('${eventId}', 'recurrence', this.value); toggleModalDaySelector(this.value, 'detail-day-selector-container');">
             ${recurrenceOptionsHtml}
          </select>
+         <div id="detail-day-selector-container" class="${event.recurrence === 'custom-days' ? '' : 'hidden'} mt-3">
+           <label class="block text-[9px] font-bold text-slate-500 mb-1 px-1">Select Days</label>
+           ${getDaySelectorHtml(event.recurrenceDays || [])}
+         </div>
          ${event.isRecurrence ? `<p class="text-[10px] text-orange mt-2 font-bold"><i data-lucide="info" class="w-3 h-3 inline"></i> Recurring instance — changes apply to all.</p>` : ''}
          
          <!-- Graduation Toggle (Class Only) -->
@@ -1711,15 +1715,15 @@ function toggleRecurrenceDay(btn) {
   }
   
   // If we are in the detail panel, update immediately
-  const detailPanel = document.getElementById('detail-panel');
-  if (detailPanel.classList.contains('open') && selectedEventId) {
+  const detailPanel = btn.closest('#detail-panel');
+  if (detailPanel && detailPanel.classList.contains('open') && selectedEventId) {
       const activeDays = Array.from(detailPanel.querySelectorAll('.day-btn.active')).map(b => parseInt(b.dataset.day));
       updateEventField(selectedEventId, 'recurrenceDays', activeDays);
   }
 }
 
-function toggleModalDaySelector(value) {
-  const container = document.getElementById('modal-day-selector-container');
+function toggleModalDaySelector(value, containerId = 'modal-day-selector-container') {
+  const container = document.getElementById(containerId);
   if (container) container.classList.toggle('hidden', value !== 'custom-days');
 }
 
