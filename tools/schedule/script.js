@@ -209,6 +209,28 @@ function saveClassAdmin(data) {
   localStorage.setItem('schedule_class_admin', JSON.stringify(data));
 }
 
+function loadClassUnits() {
+  const raw = localStorage.getItem('schedule_class_units');
+  if (!raw) return {};
+  try { return JSON.parse(raw); } catch { return {}; }
+}
+
+function toggleClassAdminTask(className, index, done) {
+  const adminData = loadClassAdmin();
+  if (adminData[className] && adminData[className].tasks[index]) {
+    adminData[className].tasks[index].done = done;
+    saveClassAdmin(adminData);
+    // Refresh the panel
+    if (selectedEventId) {
+      const evt = events.find(e => e.id === selectedEventId);
+      if (evt && evt.name === className) {
+        // Re-open current panel to refresh
+        openDetailPanel(selectedEventId);
+      }
+    }
+  }
+}
+
 function saveData() {
   localStorage.setItem('schedule_events', JSON.stringify(events));
   localStorage.setItem('schedule_week_day_count', weekDayCount);
@@ -261,6 +283,10 @@ function getMonday(d) {
 
 function getDayString(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function getTodayStr() {
+  return getDayString(new Date());
 }
 
 function getDisplayWeekRange() {
@@ -933,28 +959,57 @@ function openDetailPanel(eventId) {
 
     <!-- Class Admin Tracker (Global to Class) -->
     ${event.typeId === 'class' ? `
-    <div class="mb-4 p-4 bg-blue/5 dark:bg-blue/10 border-2 border-blue/20 rounded-2xl">
-      <div class="flex items-center gap-2 mb-3">
-        <i data-lucide="layout-dashboard" class="w-3.5 h-3.5 text-blue"></i>
-        <h4 class="text-[10px] font-extrabold text-blue uppercase tracking-widest">Class Admin (Global)</h4>
+    <div class="admin-section">
+      <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center gap-2">
+          <i data-lucide="layout-dashboard" class="w-3.5 h-3.5 text-pink"></i>
+          <h4 class="text-[10px] font-extrabold text-pink uppercase tracking-widest">Class Admin (Global)</h4>
+        </div>
+        <div class="flex items-center gap-2">
+          ${(() => {
+            const uData = loadClassUnits()[event.name] || {};
+            const units = Object.values(uData);
+            const ready = units.filter(u => ['ready', 'taught', 'reviewed'].includes(u.status)).length;
+            const total = units.length;
+            if (total === 0) return '';
+            const isReady = ready === total;
+            return `<span class="px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wider text-white shadow-sm" style="background:${isReady ? 'var(--color-green)' : 'var(--color-orange)'}">${isReady ? 'Units Ready' : `Units: ${ready}/${total}`}</span>`;
+          })()}
+        </div>
       </div>
-      <div class="mb-3">
-        <input type="text" class="panel-input text-sm py-1.5" placeholder="+ Add class task (e.g. Unit 1 Planning)" onkeydown="if(event.key==='Enter') addClassAdminTask('${event.name.replace(/'/g, "\\'")}', this.value)">
+
+      <div class="segmented-progress">
+        ${(() => {
+          const tasks = (loadClassAdmin()[event.name]?.tasks || []);
+          if (tasks.length === 0) return '<div class="segmented-step opacity-20"></div>';
+          return tasks.map(t => {
+            const isOverdue = !t.done && t.deadline && t.deadline < getTodayStr();
+            return `<div class="segmented-step ${t.done ? 'done' : (isOverdue ? 'overdue' : '')}" title="${t.text.replace(/"/g, '&quot;')}"></div>`;
+          }).join('');
+        })()}
       </div>
-      <div class="space-y-1">
-        ${(loadClassAdmin()[event.name]?.tasks || []).map((task, i) => `
-          <div class="flex items-center justify-between group/task mb-1">
-            <div class="flex items-center gap-2" onclick="toggleClassAdminTask('${event.name.replace(/'/g, "\\'")}', ${i}, ${!task.done})">
-              <div class="w-4 h-4 border-2 border-blue/30 rounded flex items-center justify-center cursor-pointer ${task.done ? 'bg-blue border-blue' : 'bg-white dark:bg-slate-800'}">
-                ${task.done ? '<i data-lucide="check" class="w-3 h-3 text-white"></i>' : ''}
-              </div>
-              <span class="text-[11px] font-semibold cursor-pointer ${task.done ? 'line-through text-slate-400' : ''}">${task.text}</span>
-            </div>
-            <button onclick="deleteClassAdminTask('${event.name.replace(/'/g, "\\'")}', ${i})" class="text-pink opacity-0 group-hover/task:opacity-100 transition-opacity p-1">
+
+      <div class="space-y-1.5 mb-3">
+        ${(loadClassAdmin()[event.name]?.tasks || []).map((task, i) => {
+          const isOverdue = !task.done && task.deadline && task.deadline < getTodayStr();
+          return `
+          <div class="admin-task-item group/task">
+            <label class="chunky-check flex-1 min-w-0" onclick="event.stopPropagation()">
+              <input type="checkbox" ${task.done ? 'checked' : ''} onchange="toggleClassAdminTask('${event.name.replace(/'/g, "\\'")}', ${i}, this.checked)">
+              <div class="box"></div>
+              <span class="admin-task-text truncate ${task.done ? 'done' : (isOverdue ? 'text-pink' : '')}">${task.text}</span>
+            </label>
+            ${task.deadline ? `<span class="text-[8px] font-bold ${isOverdue ? 'text-pink' : 'text-slate-400'} uppercase">${new Date(task.deadline + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>` : ''}
+            <button onclick="deleteClassAdminTask('${event.name.replace(/'/g, "\\'")}', ${i})" class="delete-btn opacity-0 group-hover/task:opacity-100 transition-opacity p-1">
               <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
             </button>
           </div>
-        `).join('') || '<p class="text-[10px] text-slate-400 italic">No class-wide tasks yet.</p>'}
+          `;
+        }).join('') || '<p class="text-[10px] text-slate-400 italic">No class-wide tasks yet.</p>'}
+      </div>
+
+      <div class="flex gap-2">
+        <input type="text" class="panel-input text-[11px] py-1.5" placeholder="+ New Class Task..." onkeydown="if(event.key==='Enter') { addClassAdminTask('${event.name.replace(/'/g, "\\'")}', this.value); this.value=''; }">
       </div>
     </div>
     ` : ''}
