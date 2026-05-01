@@ -6,7 +6,7 @@
 let events = [];
 let currentWeekStart = getMonday(new Date());
 let selectedEventId = null;
-let showWeekends = false;
+let weekDayCount = 5; // 5, 6, or 7
 let viewMode = 'week'; // 'week', '3-day', 'day'
 let currentDayOffset = 0; // for day/3-day view modes
 let redDays = []; // Dates marked as holidays (YYYY-MM-DD)
@@ -177,10 +177,9 @@ function loadData() {
     events = JSON.parse(saved);
   }
   
-  const savedWeekends = localStorage.getItem('schedule_show_weekends');
-  if (savedWeekends !== null) {
-    showWeekends = savedWeekends === 'true';
-    document.getElementById('weekend-label').textContent = showWeekends ? '7 days' : '5 days';
+  const savedWeekDayCount = localStorage.getItem('schedule_week_day_count');
+  if (savedWeekDayCount) {
+    weekDayCount = parseInt(savedWeekDayCount);
   }
   
   const savedViewMode = localStorage.getItem('schedule_view_mode');
@@ -202,7 +201,7 @@ function loadData() {
 
 function saveData() {
   localStorage.setItem('schedule_events', JSON.stringify(events));
-  localStorage.setItem('schedule_show_weekends', showWeekends);
+  localStorage.setItem('schedule_week_day_count', weekDayCount);
   localStorage.setItem('schedule_view_mode', viewMode);
   localStorage.setItem('schedule_red_days', JSON.stringify(redDays));
   updateStats();
@@ -271,7 +270,7 @@ function getDisplayWeekRange() {
     return `${startStr} – ${endStr}`;
   }
   const end = new Date(currentWeekStart);
-  end.setDate(end.getDate() + (showWeekends ? 6 : 4));
+  end.setDate(end.getDate() + (weekDayCount - 1));
   
   const startStr = currentWeekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -377,7 +376,7 @@ function renderCalendar() {
   document.getElementById('week-label').textContent = getDisplayWeekRange();
   const isDayMode = viewMode === 'day';
   const is3DayMode = viewMode === '3-day';
-  const numDays = isDayMode ? 1 : (is3DayMode ? 3 : (showWeekends ? 7 : 5));
+  const numDays = isDayMode ? 1 : (is3DayMode ? 3 : weekDayCount);
   
   // Render Day Headers
   dayHeadersRow.innerHTML = '<div class="time-gutter flex-none"></div>';
@@ -772,6 +771,9 @@ function openDetailPanel(eventId) {
   const event = events.find(e => e.id === eventId);
   if (!event) return;
   
+  const detailPanel = document.getElementById('detail-panel');
+  detailPanel.dataset.eventId = eventId;
+  
   const body = document.getElementById('detail-body');
   const type = getEventType(event.typeId);
   
@@ -983,16 +985,24 @@ function updateEventField(id, field, value) {
 
     // Handle recurrence changes
     if (field === 'recurrence') {
-        if (value === 'none') {
-            // Remove future recurrences
-            events = events.filter(e => !(e.isRecurrence && e.originalEventId === id));
-        } else {
-            // Re-generate recurrences (simplified: delete old, generate new)
-             events = events.filter(e => !(e.isRecurrence && e.originalEventId === id));
-             const endOfYear = new Date(event.date);
-             endOfYear.setFullYear(endOfYear.getFullYear() + 1); // generate 1 year out
-             const newRecurrences = generateRecurrences(event, new Date(event.date), endOfYear);
-             events.push(...newRecurrences);
+        // Remove old recurrences
+        events = events.filter(e => !(e.isRecurrence && e.originalEventId === id));
+        if (value !== 'none') {
+            const endOfYear = new Date(event.date);
+            endOfYear.setFullYear(endOfYear.getFullYear() + 1);
+            const newRecurrences = generateRecurrences(event, new Date(event.date), endOfYear);
+            events.push(...newRecurrences);
+        }
+    }
+    
+    // Handle recurrenceDays changes
+    if (field === 'recurrenceDays') {
+        events = events.filter(e => !(e.isRecurrence && e.originalEventId === id));
+        if (event.recurrence === 'custom-days' && value.length > 0) {
+            const endOfYear = new Date(event.date);
+            endOfYear.setFullYear(endOfYear.getFullYear() + 1);
+            const newRecurrences = generateRecurrences(event, new Date(event.date), endOfYear);
+            events.push(...newRecurrences);
         }
     }
     
@@ -1009,8 +1019,12 @@ function updateEventField(id, field, value) {
       }
     }
     
-    // Re-render detail panel completely to reflect changes (e.g. type change updates UI)
-    if(field === 'typeId' || field === 'recurrence' || field === 'checklist') openDetailPanel(id);
+    // Re-render detail panel to reflect changes without toggling
+    if (field === 'typeId' || field === 'recurrence' || field === 'recurrenceDays') {
+      // Force re-render without toggle
+      selectedEventId = null; // reset so openDetailPanel doesn't toggle-close
+      openDetailPanel(id);
+    }
   }
 }
 
@@ -1406,10 +1420,14 @@ function toggleMobileSidebar() {
   }
 }
 
-function showWeekendToggle() {
-  showWeekends = !showWeekends;
-  localStorage.setItem('schedule_show_weekends', showWeekends);
-  document.getElementById('weekend-label').textContent = showWeekends ? '7 days' : '5 days';
+
+function cycleDayCount() {
+  if (weekDayCount === 5) weekDayCount = 6;
+  else if (weekDayCount === 6) weekDayCount = 7;
+  else weekDayCount = 5;
+  
+  localStorage.setItem('schedule_week_day_count', weekDayCount);
+  document.getElementById('day-count-label').textContent = `${weekDayCount} days`;
   renderCalendar();
 }
 
@@ -1443,6 +1461,13 @@ function updateViewModeUI() {
     <span class="hidden lg:inline">${label}</span>
   `;
   lucide.createIcons({ root: btn });
+  
+  // Show/hide day count button based on view mode
+  const dayCountBtn = document.getElementById('day-count-btn');
+  if (dayCountBtn) {
+    dayCountBtn.style.display = viewMode === 'week' ? 'flex' : 'none';
+    document.getElementById('day-count-label').textContent = `${weekDayCount} days`;
+  }
 }
 
 function getDaySelectorHtml(selectedDays = []) {
@@ -1472,10 +1497,9 @@ function toggleRecurrenceDay(btn) {
   
   // If we are in the detail panel, update immediately
   const detailPanel = document.getElementById('detail-panel');
-  if (detailPanel.classList.contains('open')) {
-      const eventId = detailPanel.dataset.eventId;
+  if (detailPanel.classList.contains('open') && selectedEventId) {
       const activeDays = Array.from(detailPanel.querySelectorAll('.day-btn.active')).map(b => parseInt(b.dataset.day));
-      updateEventField(eventId, 'recurrenceDays', activeDays);
+      updateEventField(selectedEventId, 'recurrenceDays', activeDays);
   }
 }
 

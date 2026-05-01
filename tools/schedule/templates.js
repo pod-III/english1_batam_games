@@ -136,53 +136,15 @@ function generateRecurrences(event, rangeStart, rangeEnd) {
   
   const occurrences = [];
   const originalDate = new Date(event.date);
-  let currentDate = new Date(originalDate);
+  const maxIterations = 365;
   
-  // Step based on recurrence type
-  const stepDays = {
-    'daily': 1,
-    'weekly': 7,
-    'biweekly': 14,
-    'monthly': 0 // handled separately
-  };
-
-  // Start from original date, step forward
-  const maxIterations = 365; // Safety cap: 1 year
-  let iterations = 0;
-  
-  while (iterations < maxIterations) {
-    iterations++;
+  // Custom Days: completely separate logic
+  if (event.recurrence === 'custom-days') {
+    if (!event.recurrenceDays || event.recurrenceDays.length === 0) return [];
     
-    // Step forward
-    if (event.recurrence === 'monthly') {
-      currentDate = new Date(currentDate);
-      currentDate.setMonth(currentDate.getMonth() + 1);
-    } else {
-      const days = stepDays[event.recurrence];
-      currentDate = new Date(currentDate.getTime() + days * 86400000);
-    }
-    
-    // Stop if past range
-    if (currentDate > rangeEnd) break;
-    
-    // Include if within range and not the original date
-    if (currentDate >= rangeStart && currentDate.toDateString() !== originalDate.toDateString()) {
-      occurrences.push({
-        ...event,
-        id: `${event.id}_recur_${currentDate.toISOString().slice(0, 10)}`,
-        date: currentDate.toISOString().slice(0, 10),
-        isRecurrence: true,
-        originalEventId: event.id,
-        // Each recurrence gets its own checklist state (deep copy)
-        checklist: event.checklist.map(item => ({ ...item, done: false }))
-      });
-    }
-  }
-  
-  // Custom Days Handling (Mon-Sun)
-  if (event.recurrence === 'custom-days' && event.recurrenceDays && event.recurrenceDays.length > 0) {
     let checkDate = new Date(originalDate);
     checkDate.setHours(0,0,0,0);
+    let iterations = 0;
     
     while (iterations < maxIterations) {
       iterations++;
@@ -193,15 +155,54 @@ function generateRecurrences(event, rangeStart, rangeEnd) {
       const dayIndex = day === 0 ? 6 : day - 1; // Mon=0, Sun=6
       
       if (event.recurrenceDays.includes(dayIndex) && checkDate >= rangeStart) {
+        const dateStr = getDayString(checkDate);
         occurrences.push({
           ...event,
-          id: `${event.id}_recur_${checkDate.toISOString().slice(0, 10)}`,
-          date: checkDate.toISOString().slice(0, 10),
+          id: `${event.id}_recur_${dateStr}`,
+          date: dateStr,
           isRecurrence: true,
           originalEventId: event.id,
           checklist: event.checklist.map(item => ({ ...item, done: false }))
         });
       }
+    }
+    return occurrences;
+  }
+  
+  // Standard recurrence types
+  let currentDate = new Date(originalDate);
+  const stepDays = {
+    'daily': 1,
+    'weekly': 7,
+    'biweekly': 14,
+    'monthly': 0
+  };
+  let iterations = 0;
+  
+  while (iterations < maxIterations) {
+    iterations++;
+    
+    if (event.recurrence === 'monthly') {
+      currentDate = new Date(currentDate);
+      currentDate.setMonth(currentDate.getMonth() + 1);
+    } else {
+      const days = stepDays[event.recurrence];
+      if (!days) break;
+      currentDate = new Date(currentDate.getTime() + days * 86400000);
+    }
+    
+    if (currentDate > rangeEnd) break;
+    
+    if (currentDate >= rangeStart && currentDate.toDateString() !== originalDate.toDateString()) {
+      const dateStr = getDayString(currentDate);
+      occurrences.push({
+        ...event,
+        id: `${event.id}_recur_${dateStr}`,
+        date: dateStr,
+        isRecurrence: true,
+        originalEventId: event.id,
+        checklist: event.checklist.map(item => ({ ...item, done: false }))
+      });
     }
   }
   
@@ -211,7 +212,7 @@ function generateRecurrences(event, rangeStart, rangeEnd) {
 /* ============================================
    Helper: Create a new event object
    ============================================ */
-function createEventObject({ name, typeId, colorHex, date, startTime, endTime, room, notes, recurrence, checklist }) {
+function createEventObject({ name, typeId, colorHex, date, startTime, endTime, room, notes, recurrence, recurrenceDays, checklist }) {
   const type = getEventType(typeId);
   const defaultChecklist = checklist || type.checklist.map((text, i) => ({
     id: `chk_${Date.now()}_${i}`,
@@ -236,7 +237,7 @@ function createEventObject({ name, typeId, colorHex, date, startTime, endTime, r
       lesson: '',
       status: 'draft'
     },
-    recurrenceDays: event.recurrenceDays || [], // Array of day indices [0-6]
+    recurrenceDays: recurrenceDays || [], // Array of day indices [0-6]
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -282,4 +283,11 @@ function formatTimeDisplay(timeStr) {
   const period = h >= 12 ? 'PM' : 'AM';
   const displayH = h % 12 || 12;
   return `${displayH}:${String(m).padStart(2, '0')} ${period}`;
+}
+
+function getDayString(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${d}`;
 }
