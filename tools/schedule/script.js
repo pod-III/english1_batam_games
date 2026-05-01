@@ -960,12 +960,28 @@ function openDetailPanel(eventId, keepDirty = false) {
          <select class="panel-input" onchange="updateEventField('${eventId}', 'recurrence', this.value)">
             ${recurrenceOptionsHtml}
          </select>
-         ${event.recurrence === 'custom-days' ? `
-           <div class="mt-2">
-             ${getDaySelectorHtml(event.recurrenceDays)}
+         ${event.isRecurrence ? `<p class="text-[10px] text-orange mt-2 font-bold"><i data-lucide="info" class="w-3 h-3 inline"></i> Recurring instance — changes apply to all.</p>` : ''}
+         
+         <!-- Graduation Toggle (Class Only) -->
+         ${event.typeId === 'class' ? `
+           <div class="mt-4 pt-3 border-t border-slate-200 dark:border-slate-700/50">
+             <label class="flex items-center gap-2 cursor-pointer group/grad">
+               <div class="chunky-check">
+                 <input type="checkbox" ${event.graduationClass ? 'checked' : ''} 
+                        onchange="updateEventField('${eventId}', 'graduationClass', this.checked); openDetailPanel('${eventId}', true);">
+                 <div class="box"></div>
+               </div>
+               <span class="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest group-hover/grad:text-pink transition-colors">Graduation Class</span>
+             </label>
+             ${event.graduationClass ? `
+               <div class="mt-2 pl-6 animate-pop-in">
+                 <label class="block text-[8px] font-extrabold text-slate-400 uppercase tracking-widest mb-1 px-1">Ends repetition on:</label>
+                 <input type="date" class="panel-input py-1 text-[11px]" value="${event.graduationDate || ''}" 
+                        onchange="updateEventField('${eventId}', 'graduationDate', this.value)">
+               </div>
+             ` : ''}
            </div>
          ` : ''}
-         ${event.isRecurrence ? `<p class="text-[10px] text-orange mt-2 font-bold"><i data-lucide="info" class="w-3 h-3 inline"></i> Recurring instance — changes apply to all.</p>` : ''}
       </div>
     </div>
 
@@ -1125,7 +1141,7 @@ function updateEventField(id, field, value) {
   isDetailPanelDirty = true;
   
   // For recurrence-related fields, redirect to the master event
-  const recurrenceFields = ['recurrence', 'recurrenceDays'];
+  const recurrenceFields = ['recurrence', 'recurrenceDays', 'graduationClass', 'graduationDate'];
   if (recurrenceFields.includes(field) && event.isRecurrence && event.originalEventId) {
     const masterId = event.originalEventId;
     const master = events.find(e => e.id === masterId);
@@ -1163,25 +1179,8 @@ function updateEventField(id, field, value) {
     }
 
     // Handle recurrence changes
-    if (field === 'recurrence') {
-        events = events.filter(e => !(e.isRecurrence && e.originalEventId === id));
-        if (value !== 'none') {
-            const endOfYear = new Date(event.date);
-            endOfYear.setFullYear(endOfYear.getFullYear() + 1);
-            const newRecurrences = generateRecurrences(event, new Date(event.date), endOfYear);
-            events.push(...newRecurrences);
-        }
-    }
-    
-    // Handle recurrenceDays changes
-    if (field === 'recurrenceDays') {
-        events = events.filter(e => !(e.isRecurrence && e.originalEventId === id));
-        if (event.recurrence === 'custom-days' && value.length > 0) {
-            const endOfYear = new Date(event.date);
-            endOfYear.setFullYear(endOfYear.getFullYear() + 1);
-            const newRecurrences = generateRecurrences(event, new Date(event.date), endOfYear);
-            events.push(...newRecurrences);
-        }
+    if (field === 'recurrence' || field === 'recurrenceDays' || field === 'graduationClass' || field === 'graduationDate') {
+        refreshRecurrences(id);
     }
     
     saveData();
@@ -1197,7 +1196,7 @@ function updateEventField(id, field, value) {
     }
     
     // Re-render detail panel to reflect changes without toggling
-    if (field === 'typeId' || field === 'recurrence' || field === 'recurrenceDays') {
+    if (field === 'typeId' || field === 'recurrence' || field === 'recurrenceDays' || field === 'graduationClass' || field === 'graduationDate') {
       selectedEventId = null;
       openDetailPanel(id, true);
     }
@@ -1371,6 +1370,7 @@ function openEventModal(eventObj = null, dateStr = null, timeStr = null, typeId 
               <label class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Type</label>
               <select id="modal-type" class="panel-input" onchange="
                 const t = getEventType(this.value); 
+                document.getElementById('graduation-container').classList.toggle('hidden', this.value !== 'class');
                 document.getElementById('modal-color').value = t.defaultColor;
                 document.querySelectorAll('#modal-color-picker .color-swatch').forEach(el=>{
                   el.classList.remove('active');
@@ -1413,6 +1413,13 @@ function openEventModal(eventObj = null, dateStr = null, timeStr = null, typeId 
           
           <div class="grid grid-cols-2 gap-4">
             ${recurrenceOptions}
+            <div id="graduation-container" class="${tId === 'class' ? '' : 'hidden'} flex flex-col gap-2">
+              <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Graduation (Ends repetition)</label>
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="modal-grad-check" class="w-4 h-4 rounded" ${eventObj && eventObj.graduationClass ? 'checked' : ''} onchange="document.getElementById('modal-grad-date').disabled = !this.checked">
+                <input type="date" id="modal-grad-date" class="modal-input flex-1 py-1" value="${eventObj ? eventObj.graduationDate : ''}" ${eventObj && eventObj.graduationClass ? '' : 'disabled'}>
+              </div>
+            </div>
           </div>
 
           <div>
@@ -1448,6 +1455,8 @@ function saveEventFromModal() {
   const room = document.getElementById('modal-room').value;
   const recurrence = document.getElementById('modal-recurrence').value;
   const notes = document.getElementById('modal-notes').value;
+  const graduationClass = document.getElementById('modal-grad-check').checked;
+  const graduationDate = document.getElementById('modal-grad-date').value;
   
   const recurrenceDays = [];
   if (recurrence === 'custom-days') {
@@ -1476,12 +1485,14 @@ function saveEventFromModal() {
       evt.recurrence = recurrence;
       evt.recurrenceDays = recurrenceDays;
       evt.notes = notes;
+      evt.graduationClass = graduationClass;
+      evt.graduationDate = graduationDate;
       evt.updatedAt = new Date().toISOString();
     }
   } else {
     // Create new
     const newEvt = createEventObject({
-      name, typeId, colorHex: color, date, startTime: start, endTime: end, room, notes, recurrence, recurrenceDays
+      name, typeId, colorHex: color, date, startTime: start, endTime: end, room, notes, recurrence, recurrenceDays, graduationClass, graduationDate
     });
     events.push(newEvt);
     targetId = newEvt.id;
@@ -1743,6 +1754,82 @@ function saveSettings() {
   renderCalendar();
   closeSettingsModal();
   showToast('Settings saved successfully', 'success');
+}
+
+/* ============================================
+   12. Holiday / Day Off Manager
+   ============================================ */
+
+function openHolidaysModal() {
+  const modal = document.getElementById('holidays-modal');
+  const now = new Date();
+  let html = `
+    <div class="modal-backdrop" onclick="if(event.target===this) closeHolidaysModal()">
+      <div class="modal-card !max-w-sm flex flex-col max-h-[85vh] animate-pop-in">
+        <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+          <h2 class="font-heading font-bold text-lg text-dark dark:text-white flex items-center gap-2">
+            <i data-lucide="calendar" class="w-4 h-4 text-pink"></i> 
+            Day Off Manager
+          </h2>
+          <button onclick="closeHolidaysModal()" class="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+        <div class="p-5 overflow-y-auto custom-scrollbar flex flex-col gap-6">
+  `;
+
+  for (let i = 0; i < 6; i++) { // Show next 6 months
+    const monthDate = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    html += renderHolidayMonth(monthDate);
+  }
+
+  html += `
+        </div>
+        <div class="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 rounded-b-2xl">
+           <p class="text-[9px] text-slate-500 text-center font-bold uppercase tracking-wider">Recurrences are automatically hidden on days marked pink.</p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  modal.innerHTML = html;
+  lucide.createIcons({ root: modal });
+  modal.classList.remove('hidden');
+}
+
+function closeHolidaysModal() {
+  document.getElementById('holidays-modal').classList.add('hidden');
+}
+
+function renderHolidayMonth(date) {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const monthName = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  
+  const firstDay = new Date(year, month, 1);
+  const startDay = (firstDay.getDay() + 6) % 7; // Mon=0
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  
+  let gridHtml = '<div class="holiday-grid">';
+  // Padding
+  for (let i = 0; i < startDay; i++) gridHtml += '<div class="holiday-day muted"></div>';
+  
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${year}-${String(month+1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const isOff = redDays.includes(dateStr);
+    gridHtml += `<div class="holiday-day ${isOff ? 'off shadow-neo-sm' : ''}" onclick="toggleRedDay('${dateStr}'); openHolidaysModal();">${d}</div>`;
+  }
+  gridHtml += '</div>';
+  
+  return `
+    <div class="month-container">
+      <h3 class="holiday-month-title">${monthName}</h3>
+      <div class="flex justify-between text-[8px] font-extrabold text-slate-400 uppercase mb-2 px-1 tracking-tighter">
+        <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+      </div>
+      ${gridHtml}
+    </div>
+  `;
 }
 
 function showToast(message, type = 'info') {

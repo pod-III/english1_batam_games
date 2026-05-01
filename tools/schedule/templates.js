@@ -136,7 +136,17 @@ function generateRecurrences(event, rangeStart, rangeEnd) {
   
   const occurrences = [];
   const originalDate = new Date(event.date);
-  const maxIterations = 365;
+  
+  // Cap repetition at 6 months from the original date
+  const maxEndDate = new Date(originalDate);
+  maxEndDate.setMonth(maxEndDate.getMonth() + 6);
+  
+  // Also cap by graduation date if applicable
+  const rangeEndFinal = (event.graduationClass && event.graduationDate) 
+    ? new Date(Math.min(rangeEnd.getTime(), new Date(event.graduationDate + 'T23:59:59').getTime(), maxEndDate.getTime()))
+    : new Date(Math.min(rangeEnd.getTime(), maxEndDate.getTime()));
+
+  const maxIterations = 200; // safety limit
   
   // Custom Days: completely separate logic
   if (event.recurrence === 'custom-days') {
@@ -149,7 +159,7 @@ function generateRecurrences(event, rangeStart, rangeEnd) {
     while (iterations < maxIterations) {
       iterations++;
       checkDate.setDate(checkDate.getDate() + 1);
-      if (checkDate > rangeEnd) break;
+      if (checkDate > rangeEndFinal) break;
       
       const day = checkDate.getDay();
       const dayIndex = day === 0 ? 6 : day - 1; // Mon=0, Sun=6
@@ -191,7 +201,7 @@ function generateRecurrences(event, rangeStart, rangeEnd) {
       currentDate = new Date(currentDate.getTime() + days * 86400000);
     }
     
-    if (currentDate > rangeEnd) break;
+    if (currentDate > rangeEndFinal) break;
     
     if (currentDate >= rangeStart && currentDate.toDateString() !== originalDate.toDateString()) {
       const dateStr = getDayString(currentDate);
@@ -237,6 +247,8 @@ function createEventObject({ name, typeId, colorHex, date, startTime, endTime, r
       lesson: '',
       status: 'draft'
     },
+    graduationClass: false,
+    graduationDate: '',
     recurrenceDays: recurrenceDays || [], // Array of day indices [0-6]
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
