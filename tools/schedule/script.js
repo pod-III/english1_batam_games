@@ -199,6 +199,16 @@ function loadData() {
   }
 }
 
+function loadClassAdmin() {
+  const raw = localStorage.getItem('schedule_class_admin');
+  if (!raw) return {};
+  try { return JSON.parse(raw); } catch { return {}; }
+}
+
+function saveClassAdmin(data) {
+  localStorage.setItem('schedule_class_admin', JSON.stringify(data));
+}
+
 function saveData() {
   localStorage.setItem('schedule_events', JSON.stringify(events));
   localStorage.setItem('schedule_week_day_count', weekDayCount);
@@ -906,7 +916,7 @@ function openDetailPanel(eventId) {
     <!-- Checklist -->
     <div class="mb-4">
       <div class="flex items-center justify-between mb-2 px-1">
-        <label class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Admin Tasks</label>
+        <label class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Admin Tasks (Per Lesson)</label>
         <span class="text-[10px] font-bold text-blue">${Math.round(checklistProgress)}%</span>
       </div>
       <div class="checklist-progress mb-3">
@@ -920,6 +930,34 @@ function openDetailPanel(eventId) {
         <button onclick="addChecklistItem('${eventId}')" class="neo-btn-sm bg-blue text-white px-3 py-1.5 rounded-lg"><i data-lucide="plus" class="w-4 h-4"></i></button>
       </div>
     </div>
+
+    <!-- Class Admin Tracker (Global to Class) -->
+    ${event.typeId === 'class' ? `
+    <div class="mb-4 p-4 bg-blue/5 dark:bg-blue/10 border-2 border-blue/20 rounded-2xl">
+      <div class="flex items-center gap-2 mb-3">
+        <i data-lucide="layout-dashboard" class="w-3.5 h-3.5 text-blue"></i>
+        <h4 class="text-[10px] font-extrabold text-blue uppercase tracking-widest">Class Admin (Global)</h4>
+      </div>
+      <div class="mb-3">
+        <input type="text" class="panel-input text-sm py-1.5" placeholder="+ Add class task (e.g. Unit 1 Planning)" onkeydown="if(event.key==='Enter') addClassAdminTask('${event.name.replace(/'/g, "\\'")}', this.value)">
+      </div>
+      <div class="space-y-1">
+        ${(loadClassAdmin()[event.name]?.tasks || []).map((task, i) => `
+          <div class="flex items-center justify-between group/task mb-1">
+            <div class="flex items-center gap-2" onclick="toggleClassAdminTask('${event.name.replace(/'/g, "\\'")}', ${i}, ${!task.done})">
+              <div class="w-4 h-4 border-2 border-blue/30 rounded flex items-center justify-center cursor-pointer ${task.done ? 'bg-blue border-blue' : 'bg-white dark:bg-slate-800'}">
+                ${task.done ? '<i data-lucide="check" class="w-3 h-3 text-white"></i>' : ''}
+              </div>
+              <span class="text-[11px] font-semibold cursor-pointer ${task.done ? 'line-through text-slate-400' : ''}">${task.text}</span>
+            </div>
+            <button onclick="deleteClassAdminTask('${event.name.replace(/'/g, "\\'")}', ${i})" class="text-pink opacity-0 group-hover/task:opacity-100 transition-opacity p-1">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        `).join('') || '<p class="text-[10px] text-slate-400 italic">No class-wide tasks yet.</p>'}
+      </div>
+    </div>
+    ` : ''}
     
     <!-- Notes -->
     <div class="mb-4">
@@ -1689,6 +1727,38 @@ function setupEventListeners() {
   if (document.documentElement.classList.contains('dark')) {
       document.getElementById('darkModeIcon').setAttribute('data-lucide', 'sun');
   }
+}
+
+/* ============================================
+   CLASS ADMIN ACTIONS
+   ============================================ */
+
+function addClassAdminTask(className, text) {
+  if (!text.trim()) return;
+  const data = loadClassAdmin();
+  if (!data[className]) data[className] = { tasks: [] };
+  data[className].tasks.push({
+    text: text.trim(),
+    done: false
+  });
+  saveClassAdmin(data);
+  if (selectedEventId) openDetailPanel(selectedEventId);
+}
+
+function deleteClassAdminTask(className, index) {
+  const data = loadClassAdmin();
+  if (!data[className] || !data[className].tasks[index]) return;
+  data[className].tasks.splice(index, 1);
+  saveClassAdmin(data);
+  if (selectedEventId) openDetailPanel(selectedEventId);
+}
+
+function toggleClassAdminTask(className, index, checked) {
+  const data = loadClassAdmin();
+  if (!data[className] || !data[className].tasks[index]) return;
+  data[className].tasks[index].done = checked;
+  saveClassAdmin(data);
+  if (selectedEventId) openDetailPanel(selectedEventId);
 }
 
 // Start

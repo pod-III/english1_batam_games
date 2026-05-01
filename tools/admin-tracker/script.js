@@ -13,6 +13,7 @@ const LESSON_STATUSES = [
 ];
 
 let currentFilter = 'week'; // 'today', 'week', 'all'
+let currentMode = 'lessons'; // 'lessons', 'units'
 let currentDrawerClass = null;
 
 /* ============================================
@@ -33,6 +34,16 @@ function loadRedDays() {
   const raw = localStorage.getItem('schedule_red_days');
   if (!raw) return [];
   try { return JSON.parse(raw); } catch { return []; }
+}
+
+function loadClassAdmin() {
+  const raw = localStorage.getItem('schedule_class_admin');
+  if (!raw) return {};
+  try { return JSON.parse(raw); } catch { return {}; }
+}
+
+function saveClassAdmin(data) {
+  localStorage.setItem('schedule_class_admin', JSON.stringify(data));
 }
 
 function getClassEvents() {
@@ -147,26 +158,52 @@ function renderClassGrid() {
 
   filteredClasses.forEach(cls => {
     const stats = getClassStats(cls.name);
+    const adminData = loadClassAdmin()[cls.name] || { tasks: [] };
+    const adminPlanned = adminData.tasks.filter(t => t.done).length;
+    const adminTotal = adminData.tasks.length;
+
+    // Mode-specific progress
+    let progressHtml = '';
+    if (currentMode === 'lessons') {
+      // Group by unit for the segments
+      const unitMap = {};
+      stats.instances.forEach(e => {
+        const unitKey = e.lessonPlan?.unit || 'Unassigned';
+        if (!unitMap[unitKey]) unitMap[unitKey] = [];
+        unitMap[unitKey].push(e);
+      });
+      const unitNames = Object.keys(unitMap);
+      const segHtml = unitNames.length > 0 ? unitNames.map(uName => {
+        const unitLessons = unitMap[uName];
+        const allPlanned = unitLessons.every(l => isPlanned(l));
+        const hasMissing = unitLessons.some(l => isSkipped(l));
+        return `<div class="seg ${allPlanned ? 'done' : (hasMissing ? 'missing' : '')}" title="${uName}"></div>`;
+      }).join('') : '<div class="seg" title="No units"></div>';
+
+      progressHtml = `
+        <div class="flex items-center justify-between mb-1.5">
+          <span class="text-[9px] font-extrabold uppercase tracking-widest text-slate-400">Lesson Progress</span>
+          <span class="text-[9px] font-extrabold text-slate-500">${stats.planned}/${stats.total} planned</span>
+        </div>
+        <div class="seg-bar">${segHtml}</div>
+      `;
+    } else {
+      // Unit Mode focus on the class admin tasks
+      const percent = adminTotal > 0 ? Math.round((adminPlanned / adminTotal) * 100) : 0;
+      progressHtml = `
+        <div class="flex items-center justify-between mb-1.5">
+          <span class="text-[9px] font-extrabold uppercase tracking-widest text-slate-400">Class Admin / Units</span>
+          <span class="text-[9px] font-extrabold text-slate-500">${adminPlanned}/${adminTotal} items</span>
+        </div>
+        <div class="h-2 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden border border-[var(--border-primary)]">
+          <div class="h-full bg-blue transition-all duration-500" style="width: ${percent}%"></div>
+        </div>
+      `;
+    }
+
     gPlanned += stats.planned;
     gSkipped += stats.skipped;
     gUpcoming += stats.upcoming;
-
-    // Group by unit
-    const unitMap = {};
-    stats.instances.forEach(e => {
-      const unitKey = e.lessonPlan?.unit || 'Unassigned';
-      if (!unitMap[unitKey]) unitMap[unitKey] = [];
-      unitMap[unitKey].push(e);
-    });
-    const unitNames = Object.keys(unitMap);
-
-    // Unit progress segments
-    const segHtml = unitNames.length > 0 ? unitNames.map(uName => {
-      const unitLessons = unitMap[uName];
-      const allPlanned = unitLessons.every(l => isPlanned(l));
-      const hasMissing = unitLessons.some(l => isSkipped(l));
-      return `<div class="seg ${allPlanned ? 'done' : (hasMissing ? 'missing' : '')}" title="${uName}"></div>`;
-    }).join('') : '<div class="seg" title="No units"></div>';
 
     // Next 3 upcoming
     const next3 = stats.instances.filter(e => isUpcoming(e.date)).slice(0, 3);
@@ -193,11 +230,7 @@ function renderClassGrid() {
         ${stats.skipped > 0 ? `<span class="badge-status badge-skipped flex items-center gap-1"><i data-lucide="alert-circle" class="w-3 h-3"></i> ${stats.skipped}</span>` : ''}
       </div>
       <div class="mb-3">
-        <div class="flex items-center justify-between mb-1.5">
-          <span class="text-[9px] font-extrabold uppercase tracking-widest text-slate-400">Unit Progress</span>
-          <span class="text-[9px] font-extrabold text-slate-500">${stats.planned}/${stats.total} planned</span>
-        </div>
-        <div class="seg-bar">${segHtml}</div>
+        ${progressHtml}
       </div>
       <div class="border-t border-[var(--bg-tertiary)] pt-3">
         <span class="text-[9px] font-extrabold uppercase tracking-widest text-slate-400 mb-1 block">Next Lessons</span>
@@ -259,6 +292,14 @@ function setFilter(mode) {
   if (currentDrawerClass) openDrawer(currentDrawerClass);
 }
 
+function setMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById(`mode-${mode}`);
+  if (btn) btn.classList.add('active');
+  renderClassGrid();
+}
+
 /* ============================================
    DRAWER
    ============================================ */
@@ -284,7 +325,33 @@ function openDrawer(className) {
     unitMap[unitKey].push(e);
   });
 
-  let html = '';
+  const classAdmin = loadClassAdmin()[className] || { tasks: [] };
+  const adminHtml = classAdmin.tasks.map((task, i) => `
+    <div class="flex items-center justify-between group/task mb-1">
+      <label class="chunky-check" onclick="event.stopPropagation()">
+        <input type="checkbox" ${task.done ? 'checked' : ''} onchange="toggleClassAdminTask('${className}', ${i}, this.checked)">
+        <div class="box"></div>
+        <span class="text-[11px] font-semibold ${task.done ? 'line-through text-slate-400' : ''}">${task.text}</span>
+      </label>
+      <button onclick="deleteClassAdminTask('${className}', ${i})" class="delete-btn p-1 hover:bg-pink/10 rounded-lg transition-colors">
+        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+      </button>
+    </div>
+  `).join('');
+
+  let html = `
+    <div class="mb-8 p-4 bg-blue/5 border-2 border-blue/20 rounded-2xl">
+      <div class="flex items-center justify-between mb-3">
+        <h4 class="font-heading text-sm font-bold text-blue">Class Admin Tracker</h4>
+      </div>
+      <div class="mb-3">
+        <input type="text" class="edit-input" placeholder="+ Add class task (e.g. Unit 1 Planning)" onkeydown="if(event.key==='Enter') addClassAdminTask('${className}', this.value)">
+      </div>
+      <div class="space-y-1">
+        ${adminHtml || '<p class="text-[10px] text-slate-400 italic">No class-wide tasks yet.</p>'}
+      </div>
+    </div>
+  `;
   Object.entries(unitMap).forEach(([unitName, lessons]) => {
     const allPlanned = lessons.every(l => isPlanned(l));
 
@@ -508,7 +575,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Listen for storage changes (if schedule is updated in another tab)
 window.addEventListener('storage', (e) => {
-  if (e.key === 'schedule_events' || e.key === 'schedule_red_days') {
+  if (e.key === 'schedule_events' || e.key === 'schedule_red_days' || e.key === 'schedule_class_admin') {
     renderClassGrid();
   }
 });
+
+/* ============================================
+   CLASS ADMIN ACTIONS
+   ============================================ */
+
+function addClassAdminTask(className, text) {
+  if (!text.trim()) return;
+  const data = loadClassAdmin();
+  if (!data[className]) data[className] = { tasks: [] };
+  data[className].tasks.push({
+    text: text.trim(),
+    done: false
+  });
+  saveClassAdmin(data);
+  renderClassGrid();
+  openDrawer(className);
+}
+
+function deleteClassAdminTask(className, index) {
+  const data = loadClassAdmin();
+  if (!data[className] || !data[className].tasks[index]) return;
+  data[className].tasks.splice(index, 1);
+  saveClassAdmin(data);
+  renderClassGrid();
+  openDrawer(className);
+}
+
+function toggleClassAdminTask(className, index, checked) {
+  const data = loadClassAdmin();
+  if (!data[className] || !data[className].tasks[index]) return;
+  data[className].tasks[index].done = checked;
+  saveClassAdmin(data);
+  renderClassGrid();
+  openDrawer(className);
+}
