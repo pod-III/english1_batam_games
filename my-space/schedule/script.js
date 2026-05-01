@@ -210,6 +210,10 @@ function loadClassAdmin() {
 
 function saveClassAdmin(data) {
   localStorage.setItem('schedule_class_admin', JSON.stringify(data));
+  // Non-blocking cloud save
+  if (window.Sync) Sync.fireCloudSave(userId =>
+    Sync.cloudSaveClassAdmin(userId, data)
+  );
 }
 
 function loadClassUnits() {
@@ -241,6 +245,17 @@ function saveData() {
   localStorage.setItem('schedule_red_days', JSON.stringify(redDays));
   updateStats();
   updateTodayList();
+  // Non-blocking cloud save (events + red days)
+  if (window.Sync) {
+    const evtsCopy = JSON.parse(JSON.stringify(events));
+    const rdsCopy = [...redDays];
+    Sync.fireCloudSave(async userId => {
+      await Promise.all([
+        Sync.cloudReplaceAllScheduleEvents(userId, evtsCopy),
+        Sync.cloudSaveRedDays(userId, rdsCopy),
+      ]);
+    });
+  }
 }
 
 function toggleRedDay(dateStr) {
@@ -1907,6 +1922,9 @@ function showToast(message, type = 'info') {
   }, 3000);
 }
 
+// Expose for sync.js
+window.showToast = showToast;
+
 function toggleDarkMode() {
   document.documentElement.classList.toggle('dark');
   const isDark = document.documentElement.classList.contains('dark');
@@ -2044,5 +2062,32 @@ function toggleClassAdminTask(className, index, checked) {
   if (selectedEventId) openDetailPanel(selectedEventId, true);
 }
 
+// Re-render callback for sync.js loadFromCloud
+window._syncRerender = function () {
+  loadData();
+  renderSidebar();
+  renderCalendar();
+};
+
 // Start
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', async () => {
+  // 1. Render immediately from localStorage
+  init();
+
+  // 2. Cloud mode: handle first-login migration and sync
+  if (window.Sync && Sync.isCloudMode()) {
+    try {
+      const user = await getUser();
+      if (user && !user.is_sandbox) {
+        await Sync.handleFirstCloudLogin(user.id);
+      } else {
+        Sync.setSyncBadge('local');
+      }
+    } catch (err) {
+      console.error('[Schedule] Cloud init failed:', err);
+      Sync.setSyncBadge('error');
+    }
+  } else if (window.Sync) {
+    Sync.setSyncBadge('local');
+  }
+});

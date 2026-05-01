@@ -8,7 +8,7 @@ let currentMode = 'lessons'; // 'lessons', 'units'
 let currentDrawerClass = null;
 
 /* ============================================
-   DATA LAYER — Reads from schedule's localStorage
+   DATA LAYER — Dual-mode: localStorage + Cloud
    ============================================ */
 
 function loadScheduleEvents() {
@@ -19,6 +19,10 @@ function loadScheduleEvents() {
 
 function saveScheduleEvents(events) {
   localStorage.setItem('schedule_events', JSON.stringify(events));
+  // Non-blocking cloud save
+  if (window.Sync) Sync.fireCloudSave(userId =>
+    Sync.cloudReplaceAllScheduleEvents(userId, events)
+  );
 }
 
 function loadRedDays() {
@@ -35,6 +39,10 @@ function loadClassAdmin() {
 
 function saveClassAdmin(data) {
   localStorage.setItem('schedule_class_admin', JSON.stringify(data));
+  // Non-blocking cloud save
+  if (window.Sync) Sync.fireCloudSave(userId =>
+    Sync.cloudSaveClassAdmin(userId, data)
+  );
 }
 
 function loadClassUnits() {
@@ -45,6 +53,10 @@ function loadClassUnits() {
 
 function saveClassUnits(data) {
   localStorage.setItem('schedule_class_units', JSON.stringify(data));
+  // Non-blocking cloud save
+  if (window.Sync) Sync.fireCloudSave(userId =>
+    Sync.cloudSaveClassUnits(userId, data)
+  );
 }
 
 function getClassEvents() {
@@ -1253,13 +1265,77 @@ function refreshData() {
 }
 
 /* ============================================
+   TOAST (for sync notifications)
+   ============================================ */
+
+function showToast(message, type = 'info') {
+  let container = document.getElementById('toastContainer');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toastContainer';
+    container.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] flex flex-col gap-3 items-center pointer-events-none';
+    document.body.appendChild(container);
+  }
+
+  const types = {
+    info:    { icon: 'info',           color: 'bg-blue text-white' },
+    success: { icon: 'check-circle',   color: 'bg-green text-white' },
+    warning: { icon: 'alert-triangle', color: 'bg-orange text-white' },
+    error:   { icon: 'x-circle',       color: 'bg-pink text-white' },
+  };
+  const config = types[type] || types.info;
+
+  const toast = document.createElement('div');
+  toast.className = `px-4 py-3 rounded-xl shadow-neo font-bold text-sm flex items-center gap-3 transform transition-all duration-300 translate-y-10 opacity-0 ${config.color} border-2 border-[#1e293b]`;
+  toast.innerHTML = `<i data-lucide="${config.icon}" class="w-5 h-5"></i><span>${message}</span>`;
+  container.appendChild(toast);
+  if (window.lucide) lucide.createIcons({ root: toast });
+
+  setTimeout(() => {
+    toast.classList.remove('translate-y-10', 'opacity-0');
+    toast.classList.add('translate-y-0', 'opacity-100');
+  }, 10);
+  setTimeout(() => {
+    toast.classList.remove('translate-y-0', 'opacity-100');
+    toast.classList.add('translate-y-10', 'opacity-0');
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
+// Expose for sync.js
+window.showToast = showToast;
+
+/* ============================================
    INIT
    ============================================ */
 
-document.addEventListener('DOMContentLoaded', () => {
+// Re-render callback for sync.js loadFromCloud
+window._syncRerender = function () {
+  renderClassGrid();
+};
+
+document.addEventListener('DOMContentLoaded', async () => {
+  // 1. Render immediately from localStorage
   renderClassGrid();
   updateFilterLabel(currentFilter);
   if (window.lucide) lucide.createIcons();
+
+  // 2. Cloud mode: handle first-login migration and sync
+  if (window.Sync && Sync.isCloudMode()) {
+    try {
+      const user = await getUser();
+      if (user && !user.is_sandbox) {
+        await Sync.handleFirstCloudLogin(user.id);
+      } else {
+        Sync.setSyncBadge('local');
+      }
+    } catch (err) {
+      console.error('[Admin] Cloud init failed:', err);
+      Sync.setSyncBadge('error');
+    }
+  } else if (window.Sync) {
+    Sync.setSyncBadge('local');
+  }
 });
 
 // Listen for storage changes (if schedule is updated in another tab)
