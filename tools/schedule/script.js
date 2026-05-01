@@ -203,6 +203,16 @@ function getDisplayWeekRange() {
     d.setDate(d.getDate() + currentDayOffset);
     return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   }
+  if (viewMode === '3-day') {
+    const start = new Date(currentWeekStart);
+    start.setDate(start.getDate() + currentDayOffset);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 2);
+    
+    const startStr = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const endStr = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return `${startStr} – ${endStr}`;
+  }
   const end = new Date(currentWeekStart);
   end.setDate(end.getDate() + (showWeekends ? 6 : 4));
   
@@ -309,7 +319,8 @@ function updateTodayList() {
 function renderCalendar() {
   document.getElementById('week-label').textContent = getDisplayWeekRange();
   const isDayMode = viewMode === 'day';
-  const numDays = isDayMode ? 1 : (showWeekends ? 7 : 5);
+  const is3DayMode = viewMode === '3-day';
+  const numDays = isDayMode ? 1 : (is3DayMode ? 3 : (showWeekends ? 7 : 5));
   
   // Render Day Headers
   dayHeadersRow.innerHTML = '<div class="time-gutter flex-none"></div>';
@@ -319,8 +330,8 @@ function renderCalendar() {
   
   for (let i = 0; i < numDays; i++) {
     const dayDate = new Date(currentWeekStart);
-    if (isDayMode) {
-      dayDate.setDate(dayDate.getDate() + currentDayOffset);
+    if (isDayMode || is3DayMode) {
+      dayDate.setDate(dayDate.getDate() + currentDayOffset + i);
     } else {
       dayDate.setDate(dayDate.getDate() + i);
     }
@@ -358,8 +369,8 @@ function renderCalendar() {
   
   for (let d = 0; d < numDays; d++) {
     const dayDate = new Date(currentWeekStart);
-    if (isDayMode) {
-      dayDate.setDate(dayDate.getDate() + currentDayOffset);
+    if (isDayMode || is3DayMode) {
+      dayDate.setDate(dayDate.getDate() + currentDayOffset + d);
     } else {
       dayDate.setDate(dayDate.getDate() + d);
     }
@@ -457,9 +468,19 @@ function createEventBlock(evt) {
     }
   }
 
+  let notesHtml = '';
+  if (evt.notes && height >= 40) {
+    notesHtml = `
+      <div class="event-notes text-[10px] opacity-80 italic mt-1 leading-tight line-clamp-2 pointer-events-none text-dark dark:text-white">
+        ${evt.notes.replace(/"/g, '&quot;')}
+      </div>
+    `;
+  }
+
   evtBlock.innerHTML = `
     <div class="event-title text-dark dark:text-white">${evt.name}</div>
     <div class="event-time text-dark dark:text-white opacity-70">${formatTimeDisplay(evt.startTime)} - ${formatTimeDisplay(evt.endTime)}</div>
+    ${notesHtml}
     ${progressHtml}
     ${lessonStatusHtml}
     ${evt.recurrence !== 'none' ? '<i data-lucide="repeat" class="event-recurrence-badge w-3 h-3"></i>' : ''}
@@ -1257,6 +1278,8 @@ function duplicateEvent(id) {
 function goToNextWeek() {
   if (viewMode === 'day') {
     currentDayOffset++;
+  } else if (viewMode === '3-day') {
+    currentDayOffset += 3;
   } else {
     currentWeekStart.setDate(currentWeekStart.getDate() + 7);
   }
@@ -1267,6 +1290,8 @@ function goToNextWeek() {
 function goToPrevWeek() {
   if (viewMode === 'day') {
     currentDayOffset--;
+  } else if (viewMode === '3-day') {
+    currentDayOffset -= 3;
   } else {
     currentWeekStart.setDate(currentWeekStart.getDate() - 7);
   }
@@ -1301,7 +1326,10 @@ function showWeekendToggle() {
 }
 
 function toggleViewMode() {
-  viewMode = viewMode === 'week' ? 'day' : 'week';
+  if (viewMode === 'week') viewMode = '3-day';
+  else if (viewMode === '3-day') viewMode = 'day';
+  else viewMode = 'week';
+  
   localStorage.setItem('schedule_view_mode', viewMode);
   updateViewModeUI();
   renderCalendar();
@@ -1310,10 +1338,21 @@ function toggleViewMode() {
 function updateViewModeUI() {
   const btn = document.getElementById('view-mode-btn');
   if (!btn) return;
-  const isDay = viewMode === 'day';
+  
+  let icon = 'calendar-days';
+  let label = 'Week View';
+  
+  if (viewMode === 'day') {
+    icon = 'calendar';
+    label = 'Day View';
+  } else if (viewMode === '3-day') {
+    icon = 'calendar-range';
+    label = '3-Day View';
+  }
+  
   btn.innerHTML = `
-    <i data-lucide="${isDay ? 'calendar' : 'calendar-days'}" class="w-3.5 h-3.5"></i>
-    <span class="hidden lg:inline">${isDay ? 'Day View' : 'Week View'}</span>
+    <i data-lucide="${icon}" class="w-3.5 h-3.5"></i>
+    <span class="hidden lg:inline">${label}</span>
   `;
   lucide.createIcons({ root: btn });
 }
