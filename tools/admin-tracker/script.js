@@ -304,28 +304,24 @@ function createClassCard(className, color, stats) {
     </div>
     
     <div class="card-body">
+      ${adminTotal > 0 ? `
       <div class="card-section">
         <div class="card-section-label mb-1.5">
           <i data-lucide="layout-dashboard" class="w-3 h-3"></i> Class Admin
           <span class="ml-auto">${adminPlanned}/${adminTotal}</span>
         </div>
-        ${adminTotal > 0 ? `
-          <div class="flex gap-1 w-full h-1.5 mb-1">
-            ${adminData.tasks.map(t => `
-              <div class="flex-1 h-full rounded-sm ${t.done ? 'bg-[var(--color-green)]' : 'bg-[var(--border-secondary)]'}" title="${t.text.replace(/"/g, '&quot;')}"></div>
-            `).join('')}
-          </div>
-          <div class="flex justify-between w-full gap-1">
-            ${adminData.tasks.map(t => `
-              <span class="flex-1 text-[7px] leading-[9px] uppercase tracking-wider text-slate-400 font-extrabold truncate text-center" title="${t.text.replace(/"/g, '&quot;')}">${t.text}</span>
-            `).join('')}
-          </div>
-        ` : `
-          <div class="progress-track mt-1">
-            <div class="progress-fill bg-[var(--border-secondary)]" style="width: 100%"></div>
-          </div>
-        `}
+        <div class="flex gap-1 w-full h-1.5 mb-1">
+          ${adminData.tasks.map(t => `
+            <div class="flex-1 h-full rounded-sm ${t.done ? 'bg-[var(--color-green)]' : 'bg-[var(--border-secondary)]'}" title="${t.text.replace(/"/g, '&quot;')}"></div>
+          `).join('')}
+        </div>
+        <div class="flex justify-between w-full gap-1">
+          ${adminData.tasks.map(t => `
+            <span class="flex-1 text-[7px] leading-[9px] uppercase tracking-wider text-slate-400 font-extrabold truncate text-center" title="${t.text.replace(/"/g, '&quot;')}">${t.text}</span>
+          `).join('')}
+        </div>
       </div>
+      ` : ''}
       <div class="card-section pb-0 border-none">
         <div class="card-section-label">
           <i data-lucide="calendar" class="w-3 h-3"></i> Next Up
