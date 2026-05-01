@@ -2,16 +2,6 @@
    ADMIN TRACKER LOGIC
    ============================================ */
 
-/* ============================================
-   LESSON_STATUSES — Mirrors schedule/templates.js
-   ============================================ */
-const LESSON_STATUSES = [
-  { id: 'not_ready', label: 'Not Ready', icon: 'x-circle',    color: '#ef4444' },
-  { id: 'draft',     label: 'Draft',     icon: 'edit-3',      color: '#f97316' },
-  { id: 'ready',     label: 'Ready',     icon: 'check-circle',color: '#eab308' },
-  { id: 'taught',    label: 'Taught',    icon: 'users',       color: '#22c55e' },
-  { id: 'reviewed',  label: 'Reflected', icon: 'star',        color: '#10b981' }
-];
 
 let currentFilter = 'week'; // 'today', 'week', 'all'
 let currentMode = 'lessons'; // 'lessons', 'units'

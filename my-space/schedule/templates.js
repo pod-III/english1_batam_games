@@ -105,6 +105,7 @@ const RECURRENCE_OPTIONS = [
 ];
 
 const LESSON_STATUSES = [
+  { id: 'not_ready', label: 'Not Ready', icon: 'x-circle',    color: '#ef4444' },
   { id: 'draft',    label: 'Draft',     icon: 'edit-3',       color: '#94a3b8' },
   { id: 'ready',    label: 'Ready',     icon: 'check-circle', color: '#2979FF' },
   { id: 'taught',   label: 'Taught',    icon: 'users',        color: '#00E676' },
