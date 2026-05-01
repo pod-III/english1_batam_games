@@ -10,6 +10,7 @@ let weekDayCount = 5; // 5, 6, or 7
 let viewMode = 'week'; // 'week', '3-day', 'day'
 let currentDayOffset = 0; // for day/3-day view modes
 let redDays = []; // Dates marked as holidays (YYYY-MM-DD)
+let isDetailPanelDirty = false; // Track if current event detail has unsaved changes
 
 // Initialize Lucide Icons
 lucide.createIcons();
@@ -341,17 +342,19 @@ function renderSidebar() {
 }
 
 function updateStats() {
-  const endOfWeek = new Date(currentWeekStart);
-  endOfWeek.setDate(endOfWeek.getDate() + 6);
-  endOfWeek.setHours(23, 59, 59, 999);
+  const start = new Date(currentWeekStart);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(currentWeekStart);
+  end.setDate(end.getDate() + 6);
+  end.setHours(23, 59, 59, 999);
 
   let weekEvents = 0;
   let totalTasks = 0;
   let doneTasks = 0;
 
   events.forEach(evt => {
-    const evtDate = new Date(evt.date);
-    if (evtDate >= currentWeekStart && evtDate <= endOfWeek) {
+    const evtDate = new Date(evt.date + 'T00:00:00');
+    if (evtDate >= start && evtDate <= end) {
       // Skip recurrences on red days
       if (evt.isRecurrence && redDays.includes(evt.date)) return;
       weekEvents++;
@@ -362,10 +365,15 @@ function updateStats() {
     }
   });
 
-  document.getElementById('stat-events').textContent = weekEvents;
-  document.getElementById('stat-tasks').textContent = totalTasks;
-  document.getElementById('stat-done').textContent = doneTasks;
-  document.getElementById('stat-pending').textContent = totalTasks - doneTasks;
+  const elEvents = document.getElementById('stat-events');
+  const elTasks = document.getElementById('stat-tasks');
+  const elDone = document.getElementById('stat-done');
+  const elPending = document.getElementById('stat-pending');
+
+  if (elEvents) elEvents.textContent = weekEvents;
+  if (elTasks) elTasks.textContent = totalTasks;
+  if (elDone) elDone.textContent = doneTasks;
+  if (elPending) elPending.textContent = totalTasks - doneTasks;
 }
 
 function updateTodayList() {
@@ -804,13 +812,8 @@ function stopResize(e) {
    8. Detail Panel
    ============================================ */
 
-function openDetailPanel(eventId) {
-  const panel = document.getElementById('detail-panel');
-  if (selectedEventId === eventId && panel.classList.contains('open')) {
-    closeDetailPanel();
-    return;
-  }
-  
+function openDetailPanel(eventId, keepDirty = false) {
+  if (!keepDirty) isDetailPanelDirty = false;
   selectedEventId = eventId;
   const event = events.find(e => e.id === eventId);
   if (!event) return;
@@ -823,7 +826,7 @@ function openDetailPanel(eventId) {
   
   // Build color options
   const colorOptions = COLOR_PALETTE.map(c => `
-    <button class="color-swatch ${c.hex === event.color ? 'active' : ''}" 
+    <button class="color-swatch-compact ${c.hex === event.color ? 'active' : ''}" 
             style="background-color: ${c.hex}; color: ${c.hex}" 
             onclick="updateEventField('${eventId}', 'color', '${c.hex}'); renderDetailPanelOptions();" 
             title="${c.label}"></button>
@@ -852,38 +855,46 @@ function openDetailPanel(eventId) {
     (event.checklist.filter(i => i.done).length / event.checklist.length) * 100 : 0;
   
   body.innerHTML = `
+    <!-- SECTION 1: EVENT SCHEDULE -->
+    <div class="detail-section-title">
+      <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+      Event Schedule
+    </div>
+
     <!-- Name -->
     <div class="mb-4">
-      <input type="text" class="panel-input text-lg font-heading" value="${event.name.replace(/"/g, '&quot;')}" onchange="updateEventField('${eventId}', 'name', this.value)">
+      <input type="text" class="panel-input text-lg font-heading" value="${event.name.replace(/"/g, '&quot;')}" onchange="updateEventField('${eventId}', 'name', this.value)" placeholder="Event Name">
     </div>
     
     <!-- Type & Color -->
-    <div class="grid grid-cols-2 gap-4 mb-4">
-      <div>
+    <div class="flex items-start gap-4 mb-4">
+      <div class="flex-1">
         <label class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1 px-1">Type</label>
         <select class="panel-input" onchange="updateEventField('${eventId}', 'typeId', this.value)">
           ${typeOptions}
         </select>
       </div>
-      <div>
+      <div class="flex-shrink-0">
         <label class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1 px-1">Color</label>
-        <div class="color-picker-grid" id="detail-color-picker">${colorOptions}</div>
+        <div class="color-picker-compact" id="detail-color-picker">${colorOptions}</div>
       </div>
     </div>
     
-    <!-- Date & Time -->
-    <div class="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-200 dark:border-slate-700 mb-4">
-      <div class="grid grid-cols-2 gap-3 mb-3">
-        <div>
-          <label class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1 px-1">Date</label>
-          <input type="date" class="panel-input" value="${event.date}" onchange="updateEventField('${eventId}', 'date', this.value)">
-        </div>
-        <div>
-          <label class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1 px-1">Room/Loc</label>
-          <input type="text" class="panel-input" value="${event.room.replace(/"/g, '&quot;')}" onchange="updateEventField('${eventId}', 'room', this.value)" placeholder="e.g. Room 204">
-        </div>
+    <!-- Date & Room -->
+    <div class="grid grid-cols-2 gap-3 mb-3">
+      <div>
+        <label class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1 px-1">Date</label>
+        <input type="date" class="panel-input" value="${event.date}" onchange="updateEventField('${eventId}', 'date', this.value)">
       </div>
-      <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1 px-1">Room/Loc</label>
+        <input type="text" class="panel-input" value="${event.room.replace(/"/g, '&quot;')}" onchange="updateEventField('${eventId}', 'room', this.value)" placeholder="e.g. Room 204">
+      </div>
+    </div>
+
+    <!-- Time & Repeat -->
+    <div class="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-200 dark:border-slate-700 mb-6">
+      <div class="grid grid-cols-2 gap-3 mb-3">
         <div>
           <label class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1 px-1">Start</label>
           <input type="time" class="panel-input" value="${event.startTime}" onchange="updateEventField('${eventId}', 'startTime', this.value)" step="900">
@@ -893,24 +904,36 @@ function openDetailPanel(eventId) {
           <input type="time" class="panel-input" value="${event.endTime}" onchange="updateEventField('${eventId}', 'endTime', this.value)" step="900">
         </div>
       </div>
+      <div>
+         <label class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1 px-1">Repeat</label>
+         <select class="panel-input" onchange="updateEventField('${eventId}', 'recurrence', this.value)">
+            ${recurrenceOptionsHtml}
+         </select>
+         ${event.recurrence === 'custom-days' ? `
+           <div class="mt-2">
+             ${getDaySelectorHtml(event.recurrenceDays)}
+           </div>
+         ` : ''}
+         ${event.isRecurrence ? `<p class="text-[10px] text-orange mt-2 font-bold"><i data-lucide="info" class="w-3 h-3 inline"></i> Recurring instance — changes apply to all.</p>` : ''}
+      </div>
+    </div>
+
+    <!-- SECTION 2: ADMIN TRACKER -->
+    <div class="detail-section-title">
+      <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i>
+      Admin Tracker
     </div>
     
     <!-- Lesson Tracker -->
     <div class="bg-blue/5 dark:bg-blue/10 p-3 rounded-xl border border-blue/20 dark:border-blue/80/20 mb-4">
       <div class="flex items-center gap-2 mb-3">
         <i data-lucide="book-open" class="w-3.5 h-3.5 text-blue"></i>
-        <h4 class="text-[10px] font-extrabold text-blue uppercase tracking-widest">Lesson Tracker</h4>
+        <h4 class="text-[10px] font-extrabold text-blue uppercase tracking-widest">Lesson Status</h4>
       </div>
       
       <div class="grid grid-cols-2 gap-3 mb-3">
-        <div>
-          <label class="block text-[8px] font-extrabold text-slate-400 uppercase tracking-widest mb-1 px-1">Unit / Module</label>
-          <input type="text" class="panel-input text-[11px] py-1" value="${(event.lessonPlan?.unit || '').replace(/"/g, '&quot;')}" placeholder="e.g. Unit 1" onchange="updateLessonField('${eventId}', 'unit', this.value)">
-        </div>
-        <div>
-          <label class="block text-[8px] font-extrabold text-slate-400 uppercase tracking-widest mb-1 px-1">Lesson Topic</label>
-          <input type="text" class="panel-input text-[11px] py-1" value="${(event.lessonPlan?.lesson || '').replace(/"/g, '&quot;')}" placeholder="e.g. Introduction" onchange="updateLessonField('${eventId}', 'lesson', this.value)">
-        </div>
+        <input type="text" class="panel-input text-[11px] py-1" value="${(event.lessonPlan?.unit || '').replace(/"/g, '&quot;')}" placeholder="Unit/Module" onchange="updateLessonField('${eventId}', 'unit', this.value)">
+        <input type="text" class="panel-input text-[11px] py-1" value="${(event.lessonPlan?.lesson || '').replace(/"/g, '&quot;')}" placeholder="Lesson Topic" onchange="updateLessonField('${eventId}', 'lesson', this.value)">
       </div>
 
       <div class="flex items-center justify-between gap-1 p-1 bg-white/50 dark:bg-slate-900/50 rounded-lg border border-slate-200/50 dark:border-slate-700/50">
@@ -925,24 +948,10 @@ function openDetailPanel(eventId) {
       </div>
     </div>
 
-    <div class="mb-4">
-       <label class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1 px-1">Repeat</label>
-       <select class="panel-input" onchange="updateEventField('${eventId}', 'recurrence', this.value)">
-          ${recurrenceOptionsHtml}
-       </select>
-       ${event.recurrence === 'custom-days' ? `
-         <div class="mt-2">
-           <label class="block text-[8px] font-extrabold text-slate-400 uppercase tracking-widest mb-1 px-1">Days</label>
-           ${getDaySelectorHtml(event.recurrenceDays)}
-         </div>
-       ` : ''}
-       ${event.isRecurrence ? `<p class="text-[10px] text-orange mt-1 font-bold"><i data-lucide="info" class="w-3 h-3 inline"></i> Recurring instance — changes to repeat settings apply to all.</p>` : ''}
-    </div>
-
     <!-- Checklist -->
-    <div class="mb-4">
+    <div class="mb-6">
       <div class="flex items-center justify-between mb-2 px-1">
-        <label class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Admin Tasks (Per Lesson)</label>
+        <label class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Admin Tasks (Lesson)</label>
         <span class="text-[10px] font-bold text-blue">${Math.round(checklistProgress)}%</span>
       </div>
       <div class="checklist-progress mb-3">
@@ -952,7 +961,7 @@ function openDetailPanel(eventId) {
         ${checklistHtml}
       </div>
       <div class="flex gap-2 mt-2">
-        <input type="text" id="new-checklist-input" class="panel-input flex-1 text-sm py-1.5" placeholder="Add task..." onkeypress="if(event.key==='Enter') addChecklistItem('${eventId}')">
+        <input type="text" id="new-checklist-input" class="panel-input flex-1 text-[11px] py-1.5" placeholder="Add lesson task..." onkeypress="if(event.key==='Enter') addChecklistItem('${eventId}')">
         <button onclick="addChecklistItem('${eventId}')" class="neo-btn-sm bg-blue text-white px-3 py-1.5 rounded-lg"><i data-lucide="plus" class="w-4 h-4"></i></button>
       </div>
     </div>
@@ -962,7 +971,7 @@ function openDetailPanel(eventId) {
     <div class="admin-section">
       <div class="flex items-center justify-between mb-3">
         <div class="flex items-center gap-2">
-          <i data-lucide="layout-dashboard" class="w-3.5 h-3.5 text-pink"></i>
+          <i data-lucide="users" class="w-3.5 h-3.5 text-pink"></i>
           <h4 class="text-[10px] font-extrabold text-pink uppercase tracking-widest">Class Admin (Global)</h4>
         </div>
         <div class="flex items-center gap-2">
@@ -1017,7 +1026,7 @@ function openDetailPanel(eventId) {
     <!-- Notes -->
     <div class="mb-4">
       <label class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1 px-1">Notes</label>
-      <textarea class="panel-input panel-textarea" onchange="updateEventField('${eventId}', 'notes', this.value)">${event.notes}</textarea>
+      <textarea class="panel-input panel-textarea text-[12px]" onchange="updateEventField('${eventId}', 'notes', this.value)" placeholder="General event notes...">${event.notes}</textarea>
     </div>
   `;
   
@@ -1029,7 +1038,7 @@ function openDetailPanel(eventId) {
     <button onclick="duplicateEvent('${eventId}')" class="neo-btn-sm bg-white dark:bg-slate-800 text-dark dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 px-3 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors" title="Clone">
       <i data-lucide="copy" class="w-4 h-4"></i>
     </button>
-    <button onclick="closeDetailPanel()" class="neo-btn bg-blue text-white flex-1 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-blue/20">
+    <button id="save-close-btn" onclick="closeDetailPanel()" class="neo-btn bg-blue text-white flex-1 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-blue/20">
       <i data-lucide="check-circle" class="w-4 h-4"></i> Save & Close
     </button>
   `;
@@ -1045,7 +1054,7 @@ function renderDetailPanelOptions() {
   const picker = document.getElementById('detail-color-picker');
   if(picker) {
     picker.innerHTML = COLOR_PALETTE.map(c => `
-      <button class="color-swatch ${c.hex === event.color ? 'active' : ''}" 
+      <button class="color-swatch-compact ${c.hex === event.color ? 'active' : ''}" 
               style="background-color: ${c.hex}; color: ${c.hex}" 
               onclick="updateEventField('${event.id}', 'color', '${c.hex}'); renderDetailPanelOptions();" 
               title="${c.label}"></button>
@@ -1055,12 +1064,14 @@ function renderDetailPanelOptions() {
 
 function closeDetailPanel() {
   detailPanel.classList.remove('open');
-  selectedEventId = null;
+selectedEventId = null;
+  isDetailPanelDirty = false;
 }
 
 function updateEventField(id, field, value) {
   let event = events.find(e => e.id === id);
   if (!event) return;
+  isDetailPanelDirty = true;
   
   // For recurrence-related fields, redirect to the master event
   const recurrenceFields = ['recurrence', 'recurrenceDays'];
@@ -1137,7 +1148,7 @@ function updateEventField(id, field, value) {
     // Re-render detail panel to reflect changes without toggling
     if (field === 'typeId' || field === 'recurrence' || field === 'recurrenceDays') {
       selectedEventId = null;
-      openDetailPanel(id);
+      openDetailPanel(id, true);
     }
   }
 }
@@ -1149,12 +1160,13 @@ function updateEventField(id, field, value) {
 function toggleChecklistItem(eventId, itemId) {
   const event = events.find(e => e.id === eventId);
   if (event) {
+    isDetailPanelDirty = true;
     const item = event.checklist.find(i => i.id === itemId);
     if (item) {
       item.done = !item.done;
       saveData();
       updateEventUI(eventId);
-      openDetailPanel(eventId);
+      openDetailPanel(eventId, true);
     }
   }
 }
@@ -1162,6 +1174,7 @@ function toggleChecklistItem(eventId, itemId) {
 function updateChecklistText(eventId, itemId, text) {
   const event = events.find(e => e.id === eventId);
   if (event) {
+    isDetailPanelDirty = true;
     const item = event.checklist.find(i => i.id === itemId);
     if (item) {
       item.text = text;
@@ -1177,6 +1190,7 @@ function addChecklistItem(eventId) {
   
   const event = events.find(e => e.id === eventId);
   if (event) {
+    isDetailPanelDirty = true;
     event.checklist.push({
       id: `chk_${Date.now()}`,
       text: text,
@@ -1184,36 +1198,39 @@ function addChecklistItem(eventId) {
     });
     saveData();
     renderCalendar();
-    openDetailPanel(eventId);
+    openDetailPanel(eventId, true);
   }
 }
 
 function deleteChecklistItem(eventId, itemId) {
   const event = events.find(e => e.id === eventId);
   if (event) {
+    isDetailPanelDirty = true;
     event.checklist = event.checklist.filter(i => i.id !== itemId);
     saveData();
     updateEventUI(eventId);
-    openDetailPanel(eventId);
+    openDetailPanel(eventId, true);
   }
 }
 
 function setLessonStatus(eventId, statusId) {
   const event = events.find(e => e.id === eventId);
   if (event) {
+    isDetailPanelDirty = true;
     if (!event.lessonPlan) {
         event.lessonPlan = { unit: '', lesson: '', status: 'draft' };
     }
     event.lessonPlan.status = statusId;
     saveData();
     updateEventUI(eventId);
-    openDetailPanel(eventId);
+    openDetailPanel(eventId, true);
   }
 }
 
 function updateLessonField(eventId, field, value) {
   const event = events.find(e => e.id === eventId);
   if (event) {
+    isDetailPanelDirty = true;
     if (!event.lessonPlan) {
         event.lessonPlan = { unit: '', lesson: '', status: 'draft' };
     }
@@ -1769,7 +1786,37 @@ function setupEventListeners() {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       closeEventModal();
+      // Only close if user explicitly escapes, but otherwise stay open
       closeDetailPanel();
+    }
+  });
+
+  // Handle click away from detail panel
+  document.addEventListener('mousedown', (e) => {
+    if (selectedEventId) {
+      const panel = document.getElementById('detail-panel');
+      const modal = document.getElementById('event-modal');
+      const isInsidePanel = panel && panel.contains(e.target);
+      const isInsideModal = modal && !modal.classList.contains('hidden') && modal.contains(e.target);
+      
+      // If clicking away from the open panel
+      if (!isInsidePanel && !isInsideModal && !e.target.closest('.event-block')) {
+        if (!isDetailPanelDirty) {
+          // No changes? Allow clicking away to close
+          closeDetailPanel();
+        } else {
+          // Changes made? Vibrate/shake the save button
+          const saveBtn = document.getElementById('save-close-btn');
+          if (saveBtn) {
+            saveBtn.classList.remove('animate-shake');
+            void saveBtn.offsetWidth; // Trigger reflow
+            saveBtn.classList.add('animate-shake');
+            if (window.navigator && window.navigator.vibrate) {
+              window.navigator.vibrate(50);
+            }
+          }
+        }
+      }
     }
   });
   
@@ -1790,6 +1837,7 @@ function setupEventListeners() {
 
 function addClassAdminTask(className, text) {
   if (!text.trim()) return;
+  isDetailPanelDirty = true;
   const data = loadClassAdmin();
   if (!data[className]) data[className] = { tasks: [] };
   data[className].tasks.push({
@@ -1797,23 +1845,25 @@ function addClassAdminTask(className, text) {
     done: false
   });
   saveClassAdmin(data);
-  if (selectedEventId) openDetailPanel(selectedEventId);
+  if (selectedEventId) openDetailPanel(selectedEventId, true);
 }
 
 function deleteClassAdminTask(className, index) {
+  isDetailPanelDirty = true;
   const data = loadClassAdmin();
   if (!data[className] || !data[className].tasks[index]) return;
   data[className].tasks.splice(index, 1);
   saveClassAdmin(data);
-  if (selectedEventId) openDetailPanel(selectedEventId);
+  if (selectedEventId) openDetailPanel(selectedEventId, true);
 }
 
 function toggleClassAdminTask(className, index, checked) {
+  isDetailPanelDirty = true;
   const data = loadClassAdmin();
   if (!data[className] || !data[className].tasks[index]) return;
   data[className].tasks[index].done = checked;
   saveClassAdmin(data);
-  if (selectedEventId) openDetailPanel(selectedEventId);
+  if (selectedEventId) openDetailPanel(selectedEventId, true);
 }
 
 // Start
