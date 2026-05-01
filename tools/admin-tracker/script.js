@@ -594,12 +594,12 @@ function openDrawer(className) {
           <div class="box"></div>
           <span class="text-[11px] font-semibold truncate ${task.done ? 'line-through text-slate-400' : ''}">${task.text}</span>
         </label>
-        <div class="flex gap-1 items-center flex-shrink-0">
-          <button onclick="document.getElementById('ca-deadline-panel-${className.replace(/[^a-z0-9]/gi, '_')}-${i}').classList.toggle('hidden')" class="p-1 text-slate-400 hover:text-blue rounded-lg transition-colors" title="Set Deadline">
-            <i data-lucide="calendar" class="w-3.5 h-3.5"></i>
+        <div class="flex gap-1.5 items-center flex-shrink-0">
+          <button onclick="document.getElementById('ca-deadline-panel-${className.replace(/[^a-z0-9]/gi, '_')}-${i}').classList.toggle('hidden')" class="p-2 text-slate-400 hover:text-blue rounded-lg transition-colors" title="Set Deadline">
+            <i data-lucide="calendar" class="w-4 h-4"></i>
           </button>
-          <button onclick="deleteClassAdminTask('${className}', ${i})" class="delete-btn p-1 hover:bg-pink/10 rounded-lg transition-colors">
-            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+          <button onclick="deleteClassAdminTask('${className}', ${i})" class="delete-btn p-2 hover:bg-pink/10 rounded-lg transition-colors">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
           </button>
         </div>
       </div>
