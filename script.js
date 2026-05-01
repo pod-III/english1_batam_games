@@ -493,15 +493,18 @@ const Hero = {
 
   updateStats() {
     const active = State.games.filter(g => g.active !== false);
+    const myspace = active.filter(g => g.category === 'myspace').length;
     const tools = active.filter(g => g.category === 'tool').length;
     const games = active.filter(g => g.category === 'game').length;
     const workshop = active.filter(g => g.category === 'workshop').length;
     const pinned = PinnedGames.get().length;
 
+    const myspaceEl = document.getElementById('stat-myspace');
     const toolsEl = document.getElementById('stat-tools');
     const gamesEl = document.getElementById('stat-games');
     const workshopEl = document.getElementById('stat-workshop');
     const pinnedEl = document.getElementById('stat-pinned');
+    if (myspaceEl) myspaceEl.textContent = myspace;
     if (toolsEl) toolsEl.textContent = tools;
     if (gamesEl) gamesEl.textContent = games;
     if (workshopEl) workshopEl.textContent = workshop;
@@ -984,13 +987,17 @@ const GameGrid = {
     }
 
     // Group by category
+    const myspace = gamesToRender.filter(g => g.category === 'myspace');
     const tools = gamesToRender.filter(g => g.category === 'tool');
     const gamesList = gamesToRender.filter(g => g.category === 'game');
     const workshop = gamesToRender.filter(g => g.category === 'workshop');
-    const other = gamesToRender.filter(g => !['tool', 'game', 'workshop'].includes(g.category));
+    const other = gamesToRender.filter(g => !['myspace', 'tool', 'game', 'workshop'].includes(g.category));
 
     let html = '';
 
+    if (myspace.length > 0) {
+      html += this.renderCategorySection('myspace', 'user-round', 'var(--color-orange)', 'My Space', myspace);
+    }
     if (tools.length > 0) {
       html += this.renderCategorySection('tools', 'wrench', 'var(--color-blue)', 'Teaching Tools', tools);
     }
@@ -1279,6 +1286,7 @@ const Filters = {
     // Update Bottom Nav items
     const bnavItems = {
       all: 'bnav-library',
+      myspace: 'bnav-myspace',
       tool: 'bnav-tools',
       workshop: 'bnav-workshop'
     };
