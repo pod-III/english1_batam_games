@@ -535,8 +535,16 @@ function openDrawer(className) {
     if (lessons.length === 0) {
       html += `<p class="text-[10px] text-slate-400 italic mb-2 px-2">No lessons assigned to this unit yet. Drag a lesson here.</p>`;
     } else {
+      let currentL = 1;
       lessons.forEach((lesson, idx) => {
-        const lessonNumber = idx + 1;
+        if (lesson.lessonPlan && lesson.lessonPlan.lessonNumber) {
+          const parsed = parseInt(lesson.lessonPlan.lessonNumber, 10);
+          if (!isNaN(parsed)) currentL = parsed;
+        }
+        
+        const lessonNumberDisplay = currentL;
+        currentL++;
+
         const skipped = isSkipped(lesson);
         const upcoming = isUpcoming(lesson.date) && !isPlanned(lesson);
         const status = getLessonStatus(lesson);
@@ -564,7 +572,7 @@ function openDrawer(className) {
                 <i data-lucide="grip-vertical" class="w-4 h-4 text-slate-300 hover:text-slate-500 transition-colors flex-shrink-0" onclick="event.stopPropagation()"></i>
                 <div class="status-dot" style="background:${statusObj ? statusObj.color : 'var(--text-tertiary)'}"></div>
                 <div class="flex flex-col min-w-0 flex-1">
-                  <span class="font-bold text-sm truncate"><span class="text-blue mr-1 opacity-80">L${lessonNumber}:</span> ${lesson.lessonPlan?.lesson || lesson.name}</span>
+                  <span class="font-bold text-sm truncate"><span class="text-blue mr-1 opacity-80">L${lessonNumberDisplay}:</span> ${lesson.lessonPlan?.lesson || lesson.name}</span>
                   <span class="text-[10px] text-slate-400 font-semibold">
                     ${formatDate(lesson.date)} • ${formatTime(lesson.startTime)} • ${lesson.room || 'No Room'}
                   </span>
@@ -580,7 +588,7 @@ function openDrawer(className) {
             <!-- Edit Panel -->
             <div id="edit-${lesson.id}" class="hidden mt-2" onclick="event.stopPropagation()">
               <div class="edit-panel mx-2">
-                <div class="grid grid-cols-2 gap-3 mb-3">
+                <div class="grid grid-cols-[1.5fr_2fr_1fr] gap-3 mb-3">
                   <div>
                     <label class="block text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Unit / Module</label>
                     <input type="text" class="edit-input" value="${(lesson.lessonPlan?.unit || '').replace(/"/g, '&quot;')}" onchange="updateField('${lesson.id}', 'unit', this.value)" placeholder="e.g. Unit 1">
@@ -588,6 +596,10 @@ function openDrawer(className) {
                   <div>
                     <label class="block text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Lesson Topic</label>
                     <input type="text" class="edit-input" value="${(lesson.lessonPlan?.lesson || '').replace(/"/g, '&quot;')}" onchange="updateField('${lesson.id}', 'lesson', this.value)" placeholder="e.g. Introduction">
+                  </div>
+                  <div>
+                    <label class="block text-[11px] font-extrabold text-slate-400 uppercase tracking-widest mb-1 truncate" title="Lesson Number">L# Override</label>
+                    <input type="number" min="1" class="edit-input px-2 text-center" value="${lesson.lessonPlan?.lessonNumber || ''}" onchange="updateField('${lesson.id}', 'lessonNumber', this.value)" placeholder="Auto">
                   </div>
                 </div>
                 <div class="mb-3">
