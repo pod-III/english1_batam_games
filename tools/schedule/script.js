@@ -609,6 +609,10 @@ function createEventBlock(evt) {
   evtBlock.addEventListener('dragend', (e) => e.currentTarget.classList.remove('opacity-50'));
   evtBlock.addEventListener('click', (e) => {
     e.stopPropagation();
+    if (isDetailPanelDirty && selectedEventId !== evt.id) {
+       buzzSaveButton();
+       return;
+    }
     openDetailPanel(evt.id);
   });
 
@@ -1789,6 +1793,18 @@ function openHolidaysModal(isInitial = true) {
   modal.classList.remove('hidden');
 }
 
+function buzzSaveButton() {
+  const saveBtn = document.getElementById('save-close-btn');
+  if (saveBtn) {
+    saveBtn.classList.remove('animate-shake');
+    void saveBtn.offsetWidth; // Trigger reflow
+    saveBtn.classList.add('animate-shake');
+    if (window.navigator && window.navigator.vibrate) {
+      window.navigator.vibrate(50);
+    }
+  }
+}
+
 function saveHolidays() {
   redDays = [...tempRedDays];
   isHolidayModalDirty = false;
@@ -1973,15 +1989,7 @@ function setupEventListeners() {
           closeDetailPanel();
         } else {
           // Changes made? Vibrate/shake the save button
-          const saveBtn = document.getElementById('save-close-btn');
-          if (saveBtn) {
-            saveBtn.classList.remove('animate-shake');
-            void saveBtn.offsetWidth; // Trigger reflow
-            saveBtn.classList.add('animate-shake');
-            if (window.navigator && window.navigator.vibrate) {
-              window.navigator.vibrate(50);
-            }
-          }
+          buzzSaveButton();
         }
       }
     }
