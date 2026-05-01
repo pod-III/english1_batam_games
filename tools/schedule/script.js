@@ -817,12 +817,17 @@ function openDetailPanel(eventId) {
       </div>
     </div>
 
-    <!-- Recurrence -->
     <div class="mb-4">
        <label class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1 px-1">Repeat</label>
        <select class="panel-input" onchange="updateEventField('${eventId}', 'recurrence', this.value)">
           ${recurrenceOptionsHtml}
        </select>
+       ${event.recurrence === 'custom-days' ? `
+         <div class="mt-2">
+           <label class="block text-[8px] font-extrabold text-slate-400 uppercase tracking-widest mb-1 px-1">Days</label>
+           ${getDaySelectorHtml(event.recurrenceDays)}
+         </div>
+       ` : ''}
        ${event.isRecurrence ? `<p class="text-[10px] text-orange mt-1 font-bold"><i data-lucide="info" class="w-3 h-3 inline"></i> This is a recurring instance.</p>` : ''}
     </div>
 
@@ -1059,9 +1064,17 @@ function openEventModal(eventObj = null, dateStr = null, timeStr = null, typeId 
     <option value="${t.id}" ${t.id === tId ? 'selected' : ''}>${t.label}</option>
   `).join('');
 
-  const recurrenceOptions = RECURRENCE_OPTIONS.map(r => `
-    <option value="${r.id}" ${eventObj && eventObj.recurrence === r.id ? 'selected' : ''}>${r.label}</option>
-  `).join('');
+  const recurrenceOptions = `
+    <div class="space-y-1">
+      <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Repeat</label>
+      <select id="modal-recurrence" class="modal-input" onchange="toggleModalDaySelector(this.value)">
+        ${RECURRENCE_OPTIONS.map(opt => `<option value="${opt.id}" ${eventObj && eventObj.recurrence === opt.id ? 'selected' : ''}>${opt.label}</option>`).join('')}
+      </select>
+      <div id="modal-day-selector-container" class="${eventObj && eventObj.recurrence === 'custom-days' ? '' : 'hidden'} mt-2">
+        <label class="block text-[9px] font-bold text-slate-500 mb-1">Select Days</label>
+        ${getDaySelectorHtml(eventObj ? eventObj.recurrenceDays : [])}
+      </div>
+    </div>`;
   
   const colorOptions = COLOR_PALETTE.map(c => `
     <button type="button" class="color-swatch ${c.hex === color ? 'active' : ''}" 
@@ -1137,11 +1150,8 @@ function openEventModal(eventObj = null, dateStr = null, timeStr = null, typeId 
             </div>
           </div>
           
-          <div>
-            <label class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Recurrence</label>
-            <select id="modal-recurrence" class="panel-input">
-              ${recurrenceOptions}
-            </select>
+          <div class="grid grid-cols-2 gap-4">
+            ${recurrenceOptions}
           </div>
 
           <div>
@@ -1178,6 +1188,13 @@ function saveEventFromModal() {
   const recurrence = document.getElementById('modal-recurrence').value;
   const notes = document.getElementById('modal-notes').value;
   
+  const recurrenceDays = [];
+  if (recurrence === 'custom-days') {
+      document.querySelectorAll('#modal-day-selector-container .day-btn.active').forEach(btn => {
+          recurrenceDays.push(parseInt(btn.dataset.day));
+      });
+  }
+  
   if (timeToMinutes(start) >= timeToMinutes(end)) {
     showToast('End time must be after start time', 'warning');
     return;
@@ -1196,13 +1213,14 @@ function saveEventFromModal() {
       evt.endTime = end;
       evt.room = room;
       evt.recurrence = recurrence;
+      evt.recurrenceDays = recurrenceDays;
       evt.notes = notes;
       evt.updatedAt = new Date().toISOString();
     }
   } else {
     // Create new
     const newEvt = createEventObject({
-      name, typeId, colorHex: color, date, startTime: start, endTime: end, room, notes, recurrence
+      name, typeId, colorHex: color, date, startTime: start, endTime: end, room, notes, recurrence, recurrenceDays
     });
     events.push(newEvt);
     targetId = newEvt.id;
@@ -1357,9 +1375,44 @@ function updateViewModeUI() {
   lucide.createIcons({ root: btn });
 }
 
-/* ============================================
-   12. Utilities & Toast
-   ============================================ */
+function getDaySelectorHtml(selectedDays = []) {
+  const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  return `
+    <div class="day-selector flex gap-1.5">
+      ${days.map((d, i) => `
+        <button type="button" 
+          data-day="${i}"
+          onclick="toggleRecurrenceDay(this)"
+          class="day-btn w-7 h-7 rounded-full border-2 border-slate-200 dark:border-slate-700 text-[9px] font-bold transition-all ${selectedDays.includes(i) ? 'active bg-blue-500 text-white border-blue-500' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400'}"
+        >${d}</button>
+      `).join('')}
+    </div>
+  `;
+}
+
+function toggleRecurrenceDay(btn) {
+  btn.classList.toggle('active');
+  if (btn.classList.contains('active')) {
+    btn.classList.remove('bg-white', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-400', 'border-slate-200', 'dark:border-slate-700');
+    btn.classList.add('bg-blue-500', 'text-white', 'border-blue-500');
+  } else {
+    btn.classList.add('bg-white', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-400', 'border-slate-200', 'dark:border-slate-700');
+    btn.classList.remove('bg-blue-500', 'text-white', 'border-blue-500');
+  }
+  
+  // If we are in the detail panel, update immediately
+  const detailPanel = document.getElementById('detail-panel');
+  if (detailPanel.classList.contains('open')) {
+      const eventId = detailPanel.dataset.eventId;
+      const activeDays = Array.from(detailPanel.querySelectorAll('.day-btn.active')).map(b => parseInt(b.dataset.day));
+      updateEventField(eventId, 'recurrenceDays', activeDays);
+  }
+}
+
+function toggleModalDaySelector(value) {
+  const container = document.getElementById('modal-day-selector-container');
+  if (container) container.classList.toggle('hidden', value !== 'custom-days');
+}
 
 function showToast(message, type = 'info') {
   const container = document.getElementById('toastContainer');

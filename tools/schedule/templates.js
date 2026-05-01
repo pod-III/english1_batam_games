@@ -101,6 +101,7 @@ const RECURRENCE_OPTIONS = [
   { id: 'weekly',  label: 'Every week' },
   { id: 'biweekly', label: 'Every 2 weeks' },
   { id: 'monthly', label: 'Every month' },
+  { id: 'custom-days', label: 'Specific Days' },
 ];
 
 const LESSON_STATUSES = [
@@ -178,6 +179,32 @@ function generateRecurrences(event, rangeStart, rangeEnd) {
     }
   }
   
+  // Custom Days Handling (Mon-Sun)
+  if (event.recurrence === 'custom-days' && event.recurrenceDays && event.recurrenceDays.length > 0) {
+    let checkDate = new Date(originalDate);
+    checkDate.setHours(0,0,0,0);
+    
+    while (iterations < maxIterations) {
+      iterations++;
+      checkDate.setDate(checkDate.getDate() + 1);
+      if (checkDate > rangeEnd) break;
+      
+      const day = checkDate.getDay();
+      const dayIndex = day === 0 ? 6 : day - 1; // Mon=0, Sun=6
+      
+      if (event.recurrenceDays.includes(dayIndex) && checkDate >= rangeStart) {
+        occurrences.push({
+          ...event,
+          id: `${event.id}_recur_${checkDate.toISOString().slice(0, 10)}`,
+          date: checkDate.toISOString().slice(0, 10),
+          isRecurrence: true,
+          originalEventId: event.id,
+          checklist: event.checklist.map(item => ({ ...item, done: false }))
+        });
+      }
+    }
+  }
+  
   return occurrences;
 }
 
@@ -209,6 +236,7 @@ function createEventObject({ name, typeId, colorHex, date, startTime, endTime, r
       lesson: '',
       status: 'draft'
     },
+    recurrenceDays: event.recurrenceDays || [], // Array of day indices [0-6]
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
