@@ -92,7 +92,7 @@ function saveClassUnits(data) {
 
 function getClassEvents() {
   const allEvents = loadScheduleEvents();
-  return allEvents.filter(e => e.typeId === 'class' && !e.isRecurrence);
+  return allEvents.filter(e => e.typeId === 'class');
 }
 
 function get3DaysRange() {
@@ -1048,15 +1048,14 @@ function dropLesson(ev, className, targetUnit) {
     if (!evt.lessonPlan) evt.lessonPlan = { unit: '', lesson: '', status: 'not_ready' };
     
     // Only update if unit changed
-    if (evt.lessonPlan.unit !== targetUnit) {
-      evt.lessonPlan.unit = targetUnit;
+    const normalizedTarget = targetUnit === 'Default Unit' ? '' : targetUnit;
+    if (evt.lessonPlan.unit !== normalizedTarget) {
+      evt.lessonPlan.unit = normalizedTarget;
       evt.updatedAt = new Date().toISOString();
+      if (evt.isRecurrence) evt._modified = true;
       saveScheduleEvents(allEvents);
       updateCardStats(className);
       
-      // Sync promoted instance to cloud (fire-and-forget)
-      if (window.Sync) Sync.syncPromotedInstance(evt);
-
       if (currentDrawerClass === className) {
         // Re-open drawer so lessons recount and re-render
         openDrawer(className);
@@ -1076,12 +1075,10 @@ function updateField(eventId, field, value) {
   if (!evt.lessonPlan) evt.lessonPlan = { unit: '', lesson: '', status: 'not_ready' };
   evt.lessonPlan[field] = value;
   evt.updatedAt = new Date().toISOString();
+  if (evt.isRecurrence) evt._modified = true;
   saveScheduleEvents(allEvents);
   updateCardStats(evt.name);
   
-  // Sync promoted instance to cloud (fire-and-forget)
-  if (window.Sync) Sync.syncPromotedInstance(evt);
-
   if (currentDrawerClass) openDrawer(currentDrawerClass);
 }
 
@@ -1153,7 +1150,8 @@ function deleteUnit(className, unitName) {
   let changed = false;
   allEvents.forEach(e => {
     if (e.name === className && e.typeId === 'class' && e.lessonPlan && e.lessonPlan.unit === unitName) {
-      e.lessonPlan.unit = 'Default Unit';
+      e.lessonPlan.unit = '';
+      if (e.isRecurrence) e._modified = true;
       changed = true;
     }
   });
@@ -1236,10 +1234,8 @@ function updateNotes(eventId, value) {
   if (!evt) return;
   evt.notes = value;
   evt.updatedAt = new Date().toISOString();
+  if (evt.isRecurrence) evt._modified = true;
   saveScheduleEvents(allEvents);
-
-  // Sync promoted instance to cloud (fire-and-forget)
-  if (window.Sync) Sync.syncPromotedInstance(evt);
 }
 
 function toggleChecklist(eventId, index, checked) {
@@ -1250,9 +1246,6 @@ function toggleChecklist(eventId, index, checked) {
   evt.updatedAt = new Date().toISOString();
   saveScheduleEvents(allEvents);
   updateCardStats(evt.name);
-
-  // Sync promoted instance to cloud (fire-and-forget)
-  if (window.Sync) Sync.syncPromotedInstance(evt);
 
   if (currentDrawerClass) {
     const openId = document.querySelector('[id^="edit-"]:not(.hidden)')?.id.replace('edit-', '');
@@ -1275,9 +1268,6 @@ function addTask(eventId, text) {
   evt.updatedAt = new Date().toISOString();
   saveScheduleEvents(allEvents);
   
-  // Sync promoted instance to cloud (fire-and-forget)
-  if (window.Sync) Sync.syncPromotedInstance(evt);
-
   updateCardStats(evt.name);
   if (currentDrawerClass) {
     const openId = document.querySelector('[id^="edit-"]:not(.hidden)')?.id.replace('edit-', '');
@@ -1293,9 +1283,6 @@ function deleteTask(eventId, index) {
   evt.checklist.splice(index, 1);
   evt.updatedAt = new Date().toISOString();
   saveScheduleEvents(allEvents);
-
-  // Sync promoted instance to cloud (fire-and-forget)
-  if (window.Sync) Sync.syncPromotedInstance(evt);
 
   updateCardStats(evt.name);
   if (currentDrawerClass) {

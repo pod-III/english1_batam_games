@@ -1572,21 +1572,23 @@ function saveEventFromModal() {
 
 function deleteEvent(id) {
   const event = events.find(e => e.id === id);
-  // Check isRecurrence flag, not the recurrence field value
-  if (event && !event.isRecurrence && event.recurrence !== 'none') {
+  if (!event) return;
+
+  const isMaster = !event.isRecurrence && event.recurrence !== 'none';
+
+  if (isMaster) {
     // This IS the master — confirm deleting all
     if (confirm('Delete this event? It is a recurring event. This will delete the main event and all future occurrences.')) {
       events = events.filter(e => e.id !== id && e.originalEventId !== id);
     } else {
       return;
     }
-  } else if (event && event.isRecurrence) {
+  } else if (event.isRecurrence) {
     // This IS an instance — offer "delete just this" vs "delete all"
     const choice = confirm('Delete only this occurrence? Click "OK" for this date only, or "Cancel" to skip.');
     if (choice) {
       // Delete just this clone
       events = events.filter(e => e.id !== id);
-      // Note: permanent single-instance deletion would require a "skipped dates" list
     } else {
       return;
     }
@@ -1596,6 +1598,12 @@ function deleteEvent(id) {
   }
   
   saveData();
+
+  // Explicitly delete from cloud
+  if (window.Sync) {
+    Sync.fireCloudSave(userId => Sync.cloudDeleteScheduleEvent(userId, id, isMaster));
+  }
+
   renderCalendar();
   closeDetailPanel();
   showToast('Event deleted', 'info');

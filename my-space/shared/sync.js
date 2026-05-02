@@ -196,9 +196,15 @@
     if (error) console.error('[Sync] Save events error:', error);
   }
 
-  async function cloudDeleteScheduleEvent(userId, eventId) {
-    const { error } = await db.from('schedule_events')
-      .delete().eq('user_id', userId).eq('id', eventId);
+  async function cloudDeleteScheduleEvent(userId, eventId, isMaster = false) {
+    let query = db.from('schedule_events').delete().eq('user_id', userId);
+    if (isMaster) {
+      // Delete master and all its recurrence clones
+      query = query.or(`id.eq.${eventId},master_event_id.eq.${eventId}`);
+    } else {
+      query = query.eq('id', eventId);
+    }
+    const { error } = await query;
     if (error) console.error('[Sync] Delete event error:', error);
   }
 
