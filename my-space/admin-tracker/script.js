@@ -1407,7 +1407,7 @@ function addClassAdminTask(className, text) {
   const data = loadClassAdmin();
   if (!data[className]) data[className] = { tasks: [] };
   data[className].tasks.push({
-    id: `task_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,
+    id: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : '00000000-0000-4000-8000-' + Date.now().toString(16).padStart(12, '0'),
     text: text.trim(),
     done: false
   });

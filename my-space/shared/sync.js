@@ -142,7 +142,7 @@
   // Supabase shape: one row per task
   function classAdminToRow(className, task, userId) {
     return {
-      id: task.id,
+      id: task.id || ((window.crypto && crypto.randomUUID) ? crypto.randomUUID() : '00000000-0000-4000-8000-' + Date.now().toString(16).padStart(12, '0')),
       user_id: userId,
       class_name: className,
       text: task.text,
@@ -271,7 +271,7 @@
 
     // Full replace approach to handle deletions correctly
     await db.from('schedule_class_admin').delete().eq('user_id', userId);
-    const { error } = await db.from('schedule_class_admin').upsert(rows, { onConflict: 'id,user_id' });
+    const { error } = await db.from('schedule_class_admin').insert(rows);
     if (error) console.error('[Sync] Save class admin error:', error);
   }
 
