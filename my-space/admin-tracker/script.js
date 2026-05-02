@@ -63,9 +63,11 @@ function saveScheduleEvents(allEvents) {
   localStorage.setItem('schedule_promoted_instances', JSON.stringify(promoted));
   
   // Non-blocking cloud save
-  if (window.Sync) Sync.fireCloudSave(userId =>
-    Sync.cloudReplaceAllScheduleEvents(userId, [...masters, ...promoted])
-  );
+  if (window.Sync) {
+    Sync.fireCloudSave(async userId => {
+      await Sync.cloudSaveScheduleEvents(userId, [...masters, ...promoted]);
+    });
+  }
 }
 
 function loadRedDays() {

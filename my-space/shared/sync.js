@@ -141,8 +141,14 @@
   // localStorage shape: { "ClassName": { tasks: [...] } }
   // Supabase shape: one row per task
   function classAdminToRow(className, task, userId) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    let finalId = task.id;
+    if (!finalId || !uuidRegex.test(finalId)) {
+      finalId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : '00000000-0000-4000-8000-' + Date.now().toString(16).padStart(12, '0');
+    }
+    
     return {
-      id: task.id || ((window.crypto && crypto.randomUUID) ? crypto.randomUUID() : '00000000-0000-4000-8000-' + Date.now().toString(16).padStart(12, '0')),
+      id: finalId,
       user_id: userId,
       class_name: className,
       text: task.text,
