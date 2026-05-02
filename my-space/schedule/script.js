@@ -834,7 +834,12 @@ function processDropAction(dateStr, timeStr, typeId, eventId) {
       if (newEndIndex > TOTAL_SLOTS) newEndIndex = TOTAL_SLOTS;
       event.endTime = slotIndexToTime(newEndIndex);
       
-      refreshRecurrences(eventId);
+      if (!event.isRecurrence) {
+        refreshRecurrences(eventId);
+      } else {
+        // Sync the newly moved promoted instance
+        if (window.Sync) Sync.syncPromotedInstance(event);
+      }
       saveData();
       renderCalendar();
       if (selectedEventId === event.id) openDetailPanel(event.id); // Refresh panel if open
@@ -892,7 +897,11 @@ function stopResize(e) {
       if (newEndIndex <= timeToSlotIndex(event.startTime)) newEndIndex = timeToSlotIndex(event.startTime) + 1;
       
       event.endTime = slotIndexToTime(newEndIndex);
-      refreshRecurrences(resizeEventId);
+      if (!event.isRecurrence) {
+        refreshRecurrences(resizeEventId);
+      } else {
+        if (window.Sync) Sync.syncPromotedInstance(event);
+      }
       saveData();
       updateEventUI(resizeEventId);
       if (selectedEventId === event.id) openDetailPanel(event.id);
@@ -1228,16 +1237,16 @@ function updateEventField(id, field, value) {
 
     // Handle recurrence changes
     if (field === 'recurrence' || field === 'recurrenceDays' || field === 'graduationClass' || field === 'graduationDate') {
+      if (!event.isRecurrence) {
         refreshRecurrences(id);
+      }
     }
     
     saveData();
     renderCalendar();
 
-    // Immediate cloud save if a recurrence instance was promoted
-    if (event.isRecurrence && window.Sync && Sync.isPromoted(event)) {
-      Sync.fireCloudSave(userId => Sync.cloudSaveScheduleEvents(userId, [event]));
-    }
+    // Sync promoted instance to cloud (fire-and-forget)
+    if (window.Sync) Sync.syncPromotedInstance(event);
     
     if (field === 'date') {
       const evtDate = new Date(value);
@@ -1269,10 +1278,8 @@ function toggleChecklistItem(eventId, itemId) {
       item.done = !item.done;
       saveData();
 
-      // Immediate cloud save if promoted
-      if (event.isRecurrence && window.Sync && Sync.isPromoted(event)) {
-        Sync.fireCloudSave(userId => Sync.cloudSaveScheduleEvents(userId, [event]));
-      }
+      // Sync promoted instance to cloud (fire-and-forget)
+      if (window.Sync) Sync.syncPromotedInstance(event);
 
       updateEventUI(eventId);
       openDetailPanel(eventId, true);
@@ -1289,10 +1296,8 @@ function updateChecklistText(eventId, itemId, text) {
       item.text = text;
       saveData();
 
-      // Immediate cloud save if promoted
-      if (event.isRecurrence && window.Sync && Sync.isPromoted(event)) {
-        Sync.fireCloudSave(userId => Sync.cloudSaveScheduleEvents(userId, [event]));
-      }
+      // Sync promoted instance to cloud (fire-and-forget)
+      if (window.Sync) Sync.syncPromotedInstance(event);
     }
   }
 }
@@ -1312,10 +1317,8 @@ function addChecklistItem(eventId) {
     });
     saveData();
 
-    // Immediate cloud save if promoted
-    if (event.isRecurrence && window.Sync && Sync.isPromoted(event)) {
-      Sync.fireCloudSave(userId => Sync.cloudSaveScheduleEvents(userId, [event]));
-    }
+    // Sync promoted instance to cloud (fire-and-forget)
+    if (window.Sync) Sync.syncPromotedInstance(event);
 
     renderCalendar();
     openDetailPanel(eventId, true);
@@ -1329,10 +1332,8 @@ function deleteChecklistItem(eventId, itemId) {
     event.checklist = event.checklist.filter(i => i.id !== itemId);
     saveData();
 
-    // Immediate cloud save if promoted
-    if (event.isRecurrence && window.Sync && Sync.isPromoted(event)) {
-      Sync.fireCloudSave(userId => Sync.cloudSaveScheduleEvents(userId, [event]));
-    }
+    // Sync promoted instance to cloud (fire-and-forget)
+    if (window.Sync) Sync.syncPromotedInstance(event);
 
     updateEventUI(eventId);
     openDetailPanel(eventId, true);
@@ -1349,10 +1350,8 @@ function setLessonStatus(eventId, statusId) {
     event.lessonPlan.status = statusId;
     saveData();
 
-    // Immediate cloud save if promoted
-    if (event.isRecurrence && window.Sync && Sync.isPromoted(event)) {
-      Sync.fireCloudSave(userId => Sync.cloudSaveScheduleEvents(userId, [event]));
-    }
+    // Sync promoted instance to cloud (fire-and-forget)
+    if (window.Sync) Sync.syncPromotedInstance(event);
 
     updateEventUI(eventId);
     openDetailPanel(eventId, true);
@@ -1369,10 +1368,8 @@ function updateLessonField(eventId, field, value) {
     event.lessonPlan[field] = value;
     saveData();
 
-    // Immediate cloud save if promoted
-    if (event.isRecurrence && window.Sync && Sync.isPromoted(event)) {
-      Sync.fireCloudSave(userId => Sync.cloudSaveScheduleEvents(userId, [event]));
-    }
+    // Sync promoted instance to cloud (fire-and-forget)
+    if (window.Sync) Sync.syncPromotedInstance(event);
   }
 }
 

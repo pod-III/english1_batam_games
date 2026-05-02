@@ -1075,10 +1075,8 @@ function updateField(eventId, field, value) {
   saveScheduleEvents(allEvents);
   updateCardStats(evt.name);
   
-  // Immediate cloud save if promoted
-  if (evt.isRecurrence && window.Sync && Sync.isPromoted(evt)) {
-    Sync.fireCloudSave(userId => Sync.cloudSaveScheduleEvents(userId, [evt]));
-  }
+  // Sync promoted instance to cloud (fire-and-forget)
+  if (window.Sync) Sync.syncPromotedInstance(evt);
 
   if (currentDrawerClass) openDrawer(currentDrawerClass);
 }
@@ -1236,10 +1234,8 @@ function updateNotes(eventId, value) {
   evt.updatedAt = new Date().toISOString();
   saveScheduleEvents(allEvents);
 
-  // Immediate cloud save if promoted
-  if (evt.isRecurrence && window.Sync && Sync.isPromoted(evt)) {
-    Sync.fireCloudSave(userId => Sync.cloudSaveScheduleEvents(userId, [evt]));
-  }
+  // Sync promoted instance to cloud (fire-and-forget)
+  if (window.Sync) Sync.syncPromotedInstance(evt);
 }
 
 function toggleChecklist(eventId, index, checked) {
@@ -1251,10 +1247,8 @@ function toggleChecklist(eventId, index, checked) {
   saveScheduleEvents(allEvents);
   updateCardStats(evt.name);
 
-  // Immediate cloud save if promoted
-  if (evt.isRecurrence && window.Sync && Sync.isPromoted(evt)) {
-    Sync.fireCloudSave(userId => Sync.cloudSaveScheduleEvents(userId, [evt]));
-  }
+  // Sync promoted instance to cloud (fire-and-forget)
+  if (window.Sync) Sync.syncPromotedInstance(evt);
 
   if (currentDrawerClass) {
     const openId = document.querySelector('[id^="edit-"]:not(.hidden)')?.id.replace('edit-', '');
@@ -1277,10 +1271,8 @@ function addTask(eventId, text) {
   evt.updatedAt = new Date().toISOString();
   saveScheduleEvents(allEvents);
   
-  // Immediate cloud save if promoted
-  if (evt.isRecurrence && window.Sync && Sync.isPromoted(evt)) {
-    Sync.fireCloudSave(userId => Sync.cloudSaveScheduleEvents(userId, [evt]));
-  }
+  // Sync promoted instance to cloud (fire-and-forget)
+  if (window.Sync) Sync.syncPromotedInstance(evt);
 
   updateCardStats(evt.name);
   if (currentDrawerClass) {
@@ -1298,10 +1290,8 @@ function deleteTask(eventId, index) {
   evt.updatedAt = new Date().toISOString();
   saveScheduleEvents(allEvents);
 
-  // Immediate cloud save if promoted
-  if (evt.isRecurrence && window.Sync && Sync.isPromoted(evt)) {
-    Sync.fireCloudSave(userId => Sync.cloudSaveScheduleEvents(userId, [evt]));
-  }
+  // Sync promoted instance to cloud (fire-and-forget)
+  if (window.Sync) Sync.syncPromotedInstance(evt);
 
   updateCardStats(evt.name);
   if (currentDrawerClass) {

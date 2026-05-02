@@ -53,9 +53,15 @@
     if (evt.notes && evt.notes.trim() !== '') return true;
     // Check for completed checklist items
     if (evt.checklist && evt.checklist.some(item => item.done)) return true;
+    // Check for date/time changes
+    if (evt.originalDate && evt.date !== evt.originalDate) return true;
+    if (evt.originalStartTime && evt.startTime !== evt.originalStartTime) return true;
+    if (evt.originalEndTime && evt.endTime !== evt.originalEndTime) return true;
+
     // Check for lesson plan changes
     if (evt.lessonPlan) {
-      if (evt.lessonPlan.status && evt.lessonPlan.status !== 'not_ready') return true;
+      const status = evt.lessonPlan.status;
+      if (status && status !== 'not_ready' && status !== 'draft') return true;
       if (evt.lessonPlan.unit && evt.lessonPlan.unit.trim() !== '') return true;
       if (evt.lessonPlan.lesson && evt.lessonPlan.lesson.trim() !== '') return true;
     }
@@ -86,7 +92,6 @@
       graduation_date: evt.graduationDate || null,
       is_master: !evt.isRecurrence,
       master_event_id: evt.isRecurrence ? (evt.originalEventId || null) : null,
-      instance_date: evt.isRecurrence ? evt.date : null,
       created_at: evt.createdAt || new Date().toISOString(),
       updated_at: evt.updatedAt || new Date().toISOString(),
     };
@@ -185,7 +190,7 @@
     const rows = events.map(e => sanitiseForCloud(e, userId)).filter(r => r !== null);
     if (rows.length === 0) return;
     const { error } = await db.from('schedule_events')
-      .upsert(rows, { onConflict: 'id,user_id' });
+      .upsert(rows, { onConflict: 'id' });
     if (error) console.error('[Sync] Save events error:', error);
   }
 
@@ -307,15 +312,9 @@
 
       // Requirement: Split into two upserts
       const mastersRows = evts.filter(e => !e.isRecurrence).map(e => sanitiseForCloud(e, userId)).filter(r => r !== null);
-      const promotedRows = prom.filter(e => e.isRecurrence && isPromoted(e)).map(e => {
-        const row = sanitiseForCloud(e, userId);
-        if (row) {
-          row.is_master = false;
-          row.master_event_id = e.originalEventId;
-          row.instance_date = e.date;
-        }
-        return row;
-      }).filter(r => r !== null);
+      const promotedRows = prom.filter(e => e.isRecurrence && isPromoted(e))
+        .map(e => sanitiseForCloud(e, userId))
+        .filter(r => r !== null);
 
       await Promise.all([
         db.from('schedule_events').upsert(mastersRows, { onConflict: 'id' }),
@@ -466,6 +465,31 @@
     });
   }
 
+  // ── Promoted instance upsert (fire-and-forget) ──────────────────
+
+  function syncPromotedInstance(evt) {
+    if (!isCloudMode()) return;
+    if (!evt.isRecurrence) return;
+    if (!isPromoted(evt)) return;
+
+    getCachedUserId().then(userId => {
+      if (!userId) return;
+      const row = sanitiseForCloud(evt, userId);
+      if (!row) return;
+
+      db.from('schedule_events')
+        .upsert(row, { onConflict: 'id' })
+        .then(({ error }) => {
+          if (error) {
+            console.error('[Sync] Promoted upsert failed:', error);
+          } else {
+            console.log('[Sync] Promoted instance saved:', evt.id);
+          }
+        })
+        .catch(err => console.error('[Sync] Promoted upsert exception:', err));
+    });
+  }
+
   // ── Public API ───────────────────────────────────────────────────
 
   window.Sync = {
@@ -489,6 +513,7 @@
     fireCloudSave,
     getCachedUserId,
     isPromoted,
+    syncPromotedInstance,
   };
 
 })();

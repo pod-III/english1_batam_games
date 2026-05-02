@@ -212,6 +212,9 @@ function generateRecurrences(event, rangeStart, rangeEnd) {
         date: dateStr,
         isRecurrence: true,
         originalEventId: event.id,
+        originalDate: dateStr,
+        originalStartTime: event.startTime,
+        originalEndTime: event.endTime,
         checklist: event.checklist.map(item => ({ ...item, done: false }))
       });
     }
@@ -223,7 +226,7 @@ function generateRecurrences(event, rangeStart, rangeEnd) {
     try {
       const promoted = JSON.parse(promotedRaw);
       occurrences.forEach((occ, idx) => {
-        const match = promoted.find(p => p.originalEventId === event.id && p.date === occ.date);
+        const match = promoted.find(p => p.id === occ.id);
         if (match) {
           occurrences[idx] = match;
         }
