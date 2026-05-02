@@ -40,6 +40,18 @@ function loadScheduleEvents() {
       allEvents = [...allEvents, ...clones];
     }
   });
+
+  // Overwrite clones with promoted instances
+  promoted.forEach(p => {
+    const idx = allEvents.findIndex(e => e.id === p.id);
+    if (idx !== -1) {
+      allEvents[idx] = p;
+    } else if (p.isRecurrence) {
+      // If it's a promoted instance but not in the generated list (e.g. range changed), still keep it
+      allEvents.push(p);
+    }
+  });
+
   return allEvents;
 }
 

@@ -63,8 +63,11 @@
     // Check for lesson plan changes
     if (evt.lessonPlan) {
       const status = evt.lessonPlan.status;
-      if (status && status !== 'not_ready' && status !== 'draft') return true;
+      // Promote if status is anything other than 'not_ready'
+      if (status && status !== 'not_ready') return true;
+      // Promote if it has a unit (non-default)
       if (evt.lessonPlan.unit && evt.lessonPlan.unit.trim() !== '') return true;
+      // Promote if it has a lesson topic
       if (evt.lessonPlan.lesson && evt.lessonPlan.lesson.trim() !== '') return true;
     }
     return false;
