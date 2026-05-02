@@ -173,7 +173,12 @@ function generateRecurrences(event, rangeStart, rangeEnd) {
           date: dateStr,
           isRecurrence: true,
           originalEventId: event.id,
-          checklist: event.checklist.map(item => ({ ...item, done: false }))
+          originalDate: dateStr,           // ADDED
+          originalStartTime: event.startTime, // ADDED
+          originalEndTime: event.endTime,     // ADDED
+          _modified: false,                   // ADDED
+          checklist: event.checklist.map(item => ({ ...item, done: false })),
+          lessonPlan: { unit: '', lesson: '', status: 'not_ready' } // ADDED
         });
       }
     }
@@ -215,7 +220,9 @@ function generateRecurrences(event, rangeStart, rangeEnd) {
         originalDate: dateStr,
         originalStartTime: event.startTime,
         originalEndTime: event.endTime,
-        checklist: event.checklist.map(item => ({ ...item, done: false }))
+        _modified: false,                   // ADDED
+        checklist: event.checklist.map(item => ({ ...item, done: false })),
+        lessonPlan: { unit: '', lesson: '', status: 'not_ready' }
       });
     }
   }

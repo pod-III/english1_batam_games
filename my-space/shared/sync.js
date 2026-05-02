@@ -49,6 +49,8 @@
   // ── Column-mapping helpers ───────────────────────────────────────
   function isPromoted(evt) {
     if (!evt.isRecurrence) return false;
+    // Mark recurring instance as modified so it gets promoted
+    if (evt._modified) return true;
     // Check for custom notes
     if (evt.notes && evt.notes.trim() !== '') return true;
     // Check for completed checklist items

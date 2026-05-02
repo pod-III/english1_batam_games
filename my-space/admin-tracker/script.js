@@ -1053,6 +1053,10 @@ function dropLesson(ev, className, targetUnit) {
       evt.updatedAt = new Date().toISOString();
       saveScheduleEvents(allEvents);
       updateCardStats(className);
+      
+      // Sync promoted instance to cloud (fire-and-forget)
+      if (window.Sync) Sync.syncPromotedInstance(evt);
+
       if (currentDrawerClass === className) {
         // Re-open drawer so lessons recount and re-render
         openDrawer(className);

@@ -240,21 +240,6 @@ function loadClassUnits() {
   try { return JSON.parse(raw); } catch { return {}; }
 }
 
-function toggleClassAdminTask(className, index, done) {
-  const adminData = loadClassAdmin();
-  if (adminData[className] && adminData[className].tasks[index]) {
-    adminData[className].tasks[index].done = done;
-    saveClassAdmin(adminData);
-    // Refresh the panel
-    if (selectedEventId) {
-      const evt = events.find(e => e.id === selectedEventId);
-      if (evt && evt.name === className) {
-        // Re-open current panel to refresh
-        openDetailPanel(selectedEventId);
-      }
-    }
-  }
-}
 
 function saveData() {
   const masters = events.filter(e => !e.isRecurrence);
@@ -273,23 +258,13 @@ function saveData() {
     const rdsCopy = [...redDays];
     Sync.fireCloudSave(async userId => {
       await Promise.all([
-        Sync.cloudReplaceAllScheduleEvents(userId, [...masters, ...promoted]),
+        Sync.cloudSaveScheduleEvents(userId, [...masters, ...promoted]),
         Sync.cloudSaveRedDays(userId, rdsCopy),
       ]);
     });
   }
 }
 
-function toggleRedDay(dateStr) {
-  const index = redDays.indexOf(dateStr);
-  if (index === -1) {
-    redDays.push(dateStr);
-  } else {
-    redDays.splice(index, 1);
-  }
-  saveData();
-  renderCalendar();
-}
 
 function refreshRecurrences(masterId) {
   if (!masterId) return;
@@ -322,9 +297,6 @@ function getMonday(d) {
   return date;
 }
 
-function getDayString(date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
 
 function getTodayStr() {
   return getDayString(new Date());
@@ -1017,7 +989,7 @@ function openDetailPanel(eventId, keepDirty = false) {
            <label class="block text-[9px] font-bold text-slate-500 mb-1 px-1">Select Days</label>
            ${getDaySelectorHtml(event.recurrenceDays || [])}
          </div>
-         ${event.isRecurrence ? `<p class="text-[10px] text-orange mt-2 font-bold"><i data-lucide="info" class="w-3 h-3 inline"></i> Recurring instance — changes apply to all.</p>` : ''}
+         ${event.isRecurrence ? `<p class="text-[10px] text-orange mt-2 font-bold"><i data-lucide="info" class="w-3 h-3 inline"></i> Recurring instance — repeat settings affect all; other changes are for this date only.</p>` : ''}
          
          <!-- Graduation Toggle (Class Only) -->
          ${event.typeId === 'class' ? `
@@ -1210,6 +1182,11 @@ function updateEventField(id, field, value) {
       showToast('Original event not found', 'warning');
       return;
     }
+  }
+
+  // Mark recurring instance as modified so it gets promoted
+  if (event.isRecurrence && !recurrenceFields.includes(field)) {
+    event._modified = true;
   }
 
   if (event) {
@@ -1594,18 +1571,28 @@ function saveEventFromModal() {
 }
 
 function deleteEvent(id) {
-  // Check if it's a recurring instance or original
   const event = events.find(e => e.id === id);
-  if (event && event.recurrence !== 'none') {
-      if (confirm('Delete this event? It is a recurring event. This will delete the main event and all future occurrences.')) {
-           // Delete original and all instances
-           events = events.filter(e => e.id !== id && e.originalEventId !== id);
-      } else {
-          return;
-      }
-  } else {
-      if (!confirm('Are you sure you want to delete this event?')) return;
+  // Check isRecurrence flag, not the recurrence field value
+  if (event && !event.isRecurrence && event.recurrence !== 'none') {
+    // This IS the master — confirm deleting all
+    if (confirm('Delete this event? It is a recurring event. This will delete the main event and all future occurrences.')) {
+      events = events.filter(e => e.id !== id && e.originalEventId !== id);
+    } else {
+      return;
+    }
+  } else if (event && event.isRecurrence) {
+    // This IS an instance — offer "delete just this" vs "delete all"
+    const choice = confirm('Delete only this occurrence? Click "OK" for this date only, or "Cancel" to skip.');
+    if (choice) {
+      // Delete just this clone
       events = events.filter(e => e.id !== id);
+      // Note: permanent single-instance deletion would require a "skipped dates" list
+    } else {
+      return;
+    }
+  } else {
+    if (!confirm('Are you sure you want to delete this event?')) return;
+    events = events.filter(e => e.id !== id);
   }
   
   saveData();
@@ -1748,7 +1735,7 @@ function updateViewModeUI() {
 }
 
 function getDaySelectorHtml(selectedDays = []) {
-  const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+  const days = ['M', 'T', 'W', 'Th', 'F', 'Sa', 'Su'];
   return `
     <div class="day-selector flex gap-1.5">
       ${days.map((d, i) => `
@@ -1996,7 +1983,8 @@ function toggleDarkMode() {
 }
 
 function exportSchedule() {
-  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(events, null, 2));
+  const exportData = events.filter(e => !e.isRecurrence || (window.Sync && Sync.isPromoted(e)));
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData, null, 2));
   const downloadAnchorNode = document.createElement('a');
   downloadAnchorNode.setAttribute("href", dataStr);
   downloadAnchorNode.setAttribute("download", `schedule_backup_${new Date().toISOString().slice(0,10)}.json`);
