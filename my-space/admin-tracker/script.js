@@ -7,6 +7,8 @@ let currentFilter = 'week'; // 'today', 'week', 'all'
 let currentMode = 'lessons'; // 'lessons', 'units'
 let currentView = 'table'; // 'cards', 'table'
 let currentDrawerClass = null;
+let unitPlanningMode = localStorage.getItem('kk_unit_planning_mode') === 'true';
+
 
 /* ============================================
    DATA LAYER — Dual-mode: localStorage + Cloud
@@ -249,7 +251,32 @@ function getClassStats(className) {
     }
   });
 
-  return { total, taught, planned, ready: planned - taught, skipped, upcoming, instances };
+  // Dynamic calculation: only check units visible in the current time filter
+  const activeUnits = new Set();
+  instances.forEach(evt => {
+    const session = window.Sync.getSessionForDate(className, evt.date, allEvents, redDays, syllabusMap, evt.startTime);
+    if (session.lesson && session.lesson.unit) {
+      activeUnits.add(session.lesson.unit);
+    }
+  });
+
+  const unitData = loadClassUnits();
+  const syllabus = unitData[className] || [];
+  
+  let allPlanned = true;
+  if (activeUnits.size === 0) {
+    // If no lessons/units in view, we consider planning "OK" for this specific view
+    allPlanned = true; 
+  } else {
+    activeUnits.forEach(unitName => {
+      const firstLesson = syllabus.find(l => (l.unit || '(No Unit)') === unitName);
+      if (!firstLesson || firstLesson.unitStatus !== 'planned') {
+        allPlanned = false;
+      }
+    });
+  }
+
+  return { total, taught, planned, ready: planned - taught, skipped, upcoming, instances, allPlanned };
 }
 
 function getHeaderStatusObj(stats) {
@@ -312,8 +339,14 @@ function renderClassGrid() {
   }
 
   recalculateGlobalStats();
+  updatePlanningModeUI();
   if (window.lucide) lucide.createIcons();
 }
+
+// Ensure planning UI is correct on startup
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(updatePlanningModeUI, 100);
+});
 
 function scrollToToday() {
   const todayBadge = document.querySelector('th span.bg-blue');
@@ -383,10 +416,18 @@ function renderTableView(classes) {
 
   // Body
   let bodyHtml = '';
-  classes.forEach(cls => {
+    classes.forEach(cls => {
     const cdata = classDataMap[cls.name];
     const headerStatusObj = getHeaderStatusObj(cdata.stats);
     
+    // Build unit status map for this class
+    const syllabus = syllabusMap[cls.name] || [];
+    const unitStatusMap = {};
+    syllabus.forEach(item => {
+      const u = item.unit || '(No Unit)';
+      if (!unitStatusMap[u]) unitStatusMap[u] = item.unitStatus || 'unplanned';
+    });
+
     bodyHtml += `<tr class="border-b-2 border-slate-200 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 group">`;
     bodyHtml += `
       <td class="p-3 sticky left-0 z-10 bg-white/80 dark:bg-dark/80 backdrop-blur-md group-hover:bg-slate-50 dark:group-hover:bg-slate-800/50 border-r-2 border-[var(--border-secondary)] transition-colors" onclick="openDrawer('${cls.name.replace(/'/g, "\\'")}')" style="cursor: pointer;">
@@ -395,8 +436,13 @@ function renderTableView(classes) {
           <div class="flex-1 min-w-0">
             <div class="flex flex-col mb-1">
               <div class="font-heading font-bold text-[12px] leading-tight truncate max-w-[100px]">${cls.name}</div>
-              <div class="mt-1 flex">
+              <div class="mt-1 flex gap-1 items-center">
                 <span class="px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-wider text-white shadow-sm flex-shrink-0" style="background:${headerStatusObj.color}">${headerStatusObj.label}</span>
+                ${unitPlanningMode ? `
+                  <span class="px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-wider border-2 shadow-sm flex-shrink-0 ${cdata.stats.allPlanned ? 'bg-green/10 text-green border-green/20' : 'bg-pink/10 text-pink border-pink/20'}">
+                    ${cdata.stats.allPlanned ? 'Units OK' : 'Unplanned'}
+                  </span>
+                ` : ''}
               </div>
             </div>
             <div class="text-[8px] font-extrabold uppercase tracking-widest text-slate-400">${cdata.stats.total} Sess</div>
@@ -426,7 +472,21 @@ function renderTableView(classes) {
           const statusColor = session.override_type ? 'var(--color-purple)' : (isCompleted ? 'var(--color-green)' : (isReady ? 'var(--color-blue)' : 'var(--text-tertiary)'));
           const label = session.override_type ? 'Override' : (isCompleted ? 'Taught' : (isReady ? 'Ready' : 'Draft'));
           const title = session.override_type || session.lesson?.lesson || 'No Lesson Planned';
-          const unitLabel = session.lesson?.unit ? `<span class="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400 truncate mt-1"><i data-lucide="layers" class="w-3 h-3 inline pb-0.5"></i> ${session.lesson.unit}</span>` : '';
+          
+          const unitName = session.lesson?.unit;
+          const unitStatus = unitName ? unitStatusMap[unitName] : null;
+
+          const unitLabel = unitName ? `
+            <div class="flex items-center justify-between mt-1 gap-2">
+              <span class="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 truncate"><i data-lucide="layers" class="w-3 h-3 inline pb-0.5"></i> ${unitName}</span>
+              ${unitPlanningMode ? `
+                <span class="text-[8px] font-black uppercase tracking-widest ${unitStatus === 'planned' ? 'text-green' : 'text-pink'} flex items-center gap-0.5">
+                  <i data-lucide="${unitStatus === 'planned' ? 'check' : 'alert-circle'}" class="w-2 h-2"></i>
+                  ${unitStatus || 'unplanned'}
+                </span>
+              ` : ''}
+            </div>
+          ` : '';
 
           bodyHtml += `
             <div class="p-2.5 rounded-xl border-[3px] border-[var(--border-primary)] bg-[var(--surface-card)] shadow-[2px_2px_0px_0px_rgba(30,41,59,0.1)] hover:shadow-hard transition-all cursor-pointer hover:-translate-y-0.5" onclick="openDrawer('${cls.name.replace(/'/g, "\\'")}')">
@@ -482,10 +542,15 @@ function renderCardHeader(className, color, stats, headerStatusObj) {
           ${hasSkipped ? `<span>•</span><span class="text-pink flex items-center gap-1"><span class="skipped-dot"></span> ${stats.skipped} Skipped</span>` : ''}
         </div>
       </div>
-      <div class="card-status-badge">
+      <div class="card-status-badge flex flex-col items-end gap-1.5">
         <span class="px-2 py-1 rounded-lg text-xs font-extrabold uppercase tracking-wider shadow-hard" style="background:${headerStatusObj.color}; color:#fff; border: 2px solid var(--border-primary); transform: translateY(-2px);">
           ${headerStatusObj.label}
         </span>
+        ${unitPlanningMode ? `
+          <span class="px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border-2 ${stats.allPlanned ? 'bg-green/10 text-green border-green/20' : 'bg-pink/10 text-pink border-pink/20'}">
+            ${stats.allPlanned ? 'Units Planned' : 'Planning Needed'}
+          </span>
+        ` : ''}
       </div>
     </div>
   `;
@@ -635,11 +700,13 @@ function recalculateGlobalStats() {
   const adminData = loadClassAdmin();
   const unitData = loadClassUnits();
   const todayStr = getTodayStr();
+  const allEvents = loadScheduleEvents();
+  const redDays = loadRedDays();
 
   const stats = {
     classes: 0,
     lessons: { total: 0, upcoming: 0, ready: 0, finished: 0, skipped: 0 },
-    syllabus: { total: 0, finished: 0 },
+    syllabus: { total: 0, finished: 0, unitsTotal: 0, unitsPlanned: 0 },
     admin: { total: 0, pending: 0, done: 0, overdue: 0 }
   };
 
@@ -670,6 +737,24 @@ function recalculateGlobalStats() {
     // Syllabus stats
     const syllabus = unitData[cls.name] || [];
     stats.syllabus.total += syllabus.length;
+    
+    // Dynamic Unit Tracking: only count units that have lessons in the current view
+    const activeUnitsInView = new Set();
+    cStats.instances.forEach(evt => {
+      const session = window.Sync.getSessionForDate(cls.name, evt.date, allEvents, redDays, unitData, evt.startTime);
+      if (session.lesson && session.lesson.unit) {
+        activeUnitsInView.add(session.lesson.unit);
+      }
+    });
+
+    stats.syllabus.unitsTotal += activeUnitsInView.size;
+    activeUnitsInView.forEach(unitName => {
+      const firstLesson = syllabus.find(l => (l.unit || '(No Unit)') === unitName);
+      if (firstLesson && firstLesson.unitStatus === 'planned') {
+        stats.syllabus.unitsPlanned++;
+      }
+    });
+
     syllabus.forEach(item => {
       if (item.is_completed) stats.syllabus.finished++;
     });
@@ -713,6 +798,16 @@ function updateGlobalStats(data) {
   set('stat-units', `${s.finished}/${s.total}`);
   set('stat-units-draft', s.total);
   set('stat-units-finished', s.finished);
+  set('stat-units-planned', s.unitsPlanned);
+
+  const plannerWrapper = document.getElementById('stat-units-planned-wrapper');
+  if (plannerWrapper) {
+    if (unitPlanningMode && s.unitsTotal > 0) {
+      plannerWrapper.classList.remove('hidden');
+    } else {
+      plannerWrapper.classList.add('hidden');
+    }
+  }
 
   // 3. Admin
   const a = data.admin;
@@ -926,16 +1021,33 @@ function renderLessonsDrawer(className) {
   } else {
     Object.entries(groupedSyllabus).forEach(([unitName, lessons]) => {
       const unitBaseIndex = parseInt(lessons[0]?.unitStartIndex || 1);
+      const unitStatus = lessons[0]?.unitStatus || 'unplanned';
+      const isPlanned = unitStatus === 'planned';
+      
       html += `
         <div class="unit-group p-5 bg-[var(--surface-card)] rounded-2xl border-2 border-slate-200 dark:border-slate-800 mb-6 transition-all hover:border-slate-300 dark:hover:border-slate-600">
           <div class="flex items-center justify-between mb-4 gap-3">
-            <div class="flex-1 flex items-center gap-3 bg-slate-50 dark:bg-slate-900/50 px-3 py-1.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 focus-within:border-blue transition-all">
-              <input type="text" class="text-sm font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 bg-transparent border-none outline-none focus:text-blue w-full placeholder:text-slate-400" value="${unitName}" placeholder="Unit Name" onchange="updateSyllabusUnitName('${className}', '${unitName.replace(/'/g, "\\'")}', this.value)">
-              <div class="flex items-center gap-1.5 px-2 py-0.5 bg-white dark:bg-slate-800 rounded-lg border-2 border-slate-200 dark:border-slate-700 flex-shrink-0">
-                <span class="text-[8px] font-black uppercase text-slate-400">L#</span>
-                <input type="number" class="w-8 bg-transparent border-none text-[10px] font-black text-blue p-0 text-center focus:ring-0 outline-none" value="${unitBaseIndex}" onchange="updateSyllabusUnitStartIndex('${className}', '${unitName.replace(/'/g, "\\'")}', this.value)">
+            <div class="flex-1 flex flex-col gap-2">
+              <div class="flex items-center gap-3 bg-slate-50 dark:bg-slate-900/50 px-3 py-1.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 focus-within:border-blue transition-all">
+                <input type="text" class="text-sm font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 bg-transparent border-none outline-none focus:text-blue w-full placeholder:text-slate-400" value="${unitName}" placeholder="Unit Name" onchange="updateSyllabusUnitName('${className}', '${unitName.replace(/'/g, "\\'")}', this.value)">
+                <div class="flex items-center gap-1.5 px-2 py-0.5 bg-white dark:bg-slate-800 rounded-lg border-2 border-slate-200 dark:border-slate-700 flex-shrink-0">
+                  <span class="text-[8px] font-black uppercase text-slate-400">L#</span>
+                  <input type="number" class="w-8 bg-transparent border-none text-[10px] font-black text-blue p-0 text-center focus:ring-0 outline-none" value="${unitBaseIndex}" onchange="updateSyllabusUnitStartIndex('${className}', '${unitName.replace(/'/g, "\\'")}', this.value)">
+                </div>
               </div>
+              
+              ${unitPlanningMode ? `
+                <div class="flex items-center gap-2 pl-1">
+                  <span class="text-[9px] font-black uppercase tracking-widest text-slate-400">Unit Planning:</span>
+                  <button onclick="toggleSyllabusUnitStatus('${className}', '${unitName.replace(/'/g, "\\'")}')" 
+                          class="flex items-center gap-1.5 px-2.5 py-1 rounded-xl border-2 transition-all font-black uppercase text-[9px] tracking-widest ${isPlanned ? 'bg-green text-white border-dark' : 'bg-slate-100 text-slate-400 border-slate-200'}">
+                    <i data-lucide="${isPlanned ? 'check-circle' : 'circle'}" class="w-3 h-3"></i>
+                    ${unitStatus}
+                  </button>
+                </div>
+              ` : ''}
             </div>
+            
             <div class="flex items-center gap-2">
               <button onclick="addSyllabusLesson('${className}', '${unitName.replace(/'/g, "\\'")}')" class="px-3 py-1.5 rounded-lg bg-[var(--surface-card)] text-[10px] font-extrabold uppercase tracking-widest border-[var(--border-width-medium)] border-[var(--border-primary)] shadow-[2px_2px_0px_0px_rgba(30,41,59,1)] hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none transition-all whitespace-nowrap">+ Lesson</button>
               <button onclick="deleteSyllabusUnit('${className}', '${unitName.replace(/'/g, "\\'")}')" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[var(--color-pink)] border-[var(--border-width-medium)] border-transparent hover:border-[var(--border-primary)] hover:shadow-[2px_2px_0px_0px_rgba(30,41,59,1)] transition-all" title="Delete Unit"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
@@ -1134,6 +1246,39 @@ function updateSyllabusUnitStartIndex(className, unitName, newStart) {
       renderLessonsDrawer(className);
       renderClassGrid();
     }
+  }
+}
+
+function toggleSyllabusUnitStatus(className, unitName) {
+  const data = loadClassUnits();
+  if (data[className]) {
+    const firstLesson = data[className].find(item => item.unit === unitName);
+    if (firstLesson) {
+      const current = firstLesson.unitStatus || 'unplanned';
+      firstLesson.unitStatus = current === 'planned' ? 'unplanned' : 'planned';
+      saveClassUnits(data);
+      renderLessonsDrawer(className);
+      renderClassGrid();
+    }
+  }
+}
+
+function toggleUnitPlanningMode() {
+  unitPlanningMode = !unitPlanningMode;
+  localStorage.setItem('kk_unit_planning_mode', unitPlanningMode);
+  updatePlanningModeUI();
+  renderClassGrid();
+}
+
+function updatePlanningModeUI() {
+  const btn = document.getElementById('unit-planning-toggle');
+  if (btn) {
+    btn.classList.toggle('bg-blue', unitPlanningMode);
+    btn.classList.toggle('text-white', unitPlanningMode);
+    btn.classList.toggle('border-blue', unitPlanningMode);
+    btn.classList.toggle('shadow-none', !unitPlanningMode);
+    btn.innerHTML = `<i data-lucide="layers" class="w-3.5 h-3.5"></i> <span class="hidden md:inline">Unit Planning:</span> ${unitPlanningMode ? 'ON' : 'OFF'}`;
+    if (window.lucide) lucide.createIcons({ root: btn });
   }
 }
 
