@@ -1496,22 +1496,46 @@ function saveEventFromModal() {
   closeEventModal();
 }
 
-async function deleteEvent(id, dateStr) {
+async function deleteEvent(id) {
   const event = events.find(e => e.id === id);
   if (!event) return;
 
   if (event.isRecurrence) {
-    if (await window.showConfirm('Delete this event? It is a recurring event. This will delete the main event and all future occurrences.')) {
-      events = events.filter(e => e.id !== id);
-      saveEvents();
+    const isSeriesDelete = await window.showConfirm('Delete this event? It is a recurring event. This will delete the main event and all future occurrences.');
+    if (isSeriesDelete) {
+      const masterId = event.originalEventId;
+      if (!masterId) {
+        window.showToast('Error: Master event ID not found', 'error');
+        return;
+      }
+      // Remove master and all its clones from local array
+      events = events.filter(e => e.id !== masterId && e.originalEventId !== masterId);
+      saveData();
+      
+      // Sync deletion of the series
+      if (window.Sync) {
+        Sync.fireCloudSave(userId => Sync.cloudDeleteScheduleEvent(userId, masterId, true));
+      }
+
       renderCalendar();
       closeDetailPanel();
       window.showToast('Recurring series deleted', 'info');
       return;
     }
+    
     const choice = await window.showConfirm('Delete only this occurrence? Click "Confirm" for this date only, or "Cancel" to skip.');
     if (choice) {
-      addRedDay(dateStr);
+      // If it's a promoted instance (one occurrence that was modified), remove it from cloud
+      if (window.Sync && Sync.isPromoted(event)) {
+        Sync.fireCloudSave(userId => Sync.cloudDeleteScheduleEvent(userId, id, false));
+      }
+      
+      // Add date to red days to hide it
+      if (!redDays.includes(event.date)) {
+        redDays.push(event.date);
+        saveData();
+      }
+      
       renderCalendar();
       closeDetailPanel();
       window.showToast('Occurrence deleted', 'info');
@@ -1519,19 +1543,19 @@ async function deleteEvent(id, dateStr) {
     return;
   }
 
+  // Non-recurring event deletion
   if (!(await window.showConfirm('Are you sure you want to delete this event?'))) return;
-  events = events.filter(e => e.id !== id);
-  
+  events = events.filter(e => e.id !== id && e.originalEventId !== id);
   saveData();
 
-  // Explicitly delete from cloud
+  // Explicitly delete from cloud (it's a master event since isRecurrence is false)
   if (window.Sync) {
-    Sync.fireCloudSave(userId => Sync.cloudDeleteScheduleEvent(userId, id, isMaster));
+    Sync.fireCloudSave(userId => Sync.cloudDeleteScheduleEvent(userId, id, true));
   }
 
   renderCalendar();
   closeDetailPanel();
-  showToast('Event deleted', 'info');
+  window.showToast('Event deleted', 'info');
 }
 
 function duplicateEvent(id) {
