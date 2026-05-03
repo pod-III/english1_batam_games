@@ -364,10 +364,6 @@ function updateStats() {
   let totalTasks = 0;
   let doneTasks = 0;
   
-  let countTaught = 0;
-  let countReady = 0;
-  let countDraft = 0;
-  
   const uniqueClasses = new Set();
   const classAdminData = loadClassAdmin();
   const classSyllabusMap = loadClassUnits();
@@ -380,15 +376,6 @@ function updateStats() {
       weekEvents++;
       
       if (evt.typeId === 'class') {
-        const session = window.Sync.getSessionForDate(evt.name, evt.date, events, redDays, classSyllabusMap);
-        if (session.override_type) {
-           countReady++;
-        } else if (session.lesson) {
-           if (session.lesson.is_completed) countTaught++;
-           else countReady++;
-        } else {
-           countDraft++;
-        }
         uniqueClasses.add(evt.name);
       }
 
@@ -401,10 +388,16 @@ function updateStats() {
 
   let globalAdminTotal = 0;
   let globalAdminDone = 0;
+  const allWeekTasks = [];
+
   uniqueClasses.forEach(className => {
     const tasks = window.Sync.getAdminDataForClass(className, classAdminData);
     globalAdminTotal += tasks.length;
     globalAdminDone += tasks.filter(t => t.done).length;
+    
+    tasks.forEach(t => {
+      allWeekTasks.push({ ...t, className });
+    });
   });
 
   const elEvents = document.getElementById('stat-events');
@@ -413,31 +406,39 @@ function updateStats() {
   if (elEvents) elEvents.textContent = weekEvents;
   if (elTasks) elTasks.textContent = totalTasks;
 
-  const totalLessons = countTaught + countReady + countDraft;
-  const pctTaught = totalLessons > 0 ? (countTaught / totalLessons) * 100 : 0;
-  const pctReady = totalLessons > 0 ? (countReady / totalLessons) * 100 : 0;
-  const pctDraft = totalLessons > 0 ? (countDraft / totalLessons) * 100 : 0;
-  
-  const elLessonCount = document.getElementById('lesson-stats-count');
-  if (elLessonCount) elLessonCount.textContent = `${countTaught + countReady}/${totalLessons}`;
-  
-  const bTaught = document.getElementById('bar-taught');
-  const bReady = document.getElementById('bar-ready');
-  const bDraft = document.getElementById('bar-draft');
-  
-  if (bTaught) bTaught.style.width = `${pctTaught}%`;
-  if (bReady) bReady.style.width = `${pctReady}%`;
-  if (bDraft) bDraft.style.width = `${pctDraft}%`;
-
-  const adminPct = globalAdminTotal > 0 ? (globalAdminDone / globalAdminTotal) * 100 : 0;
-  const elAdminPct = document.getElementById('admin-stats-pct');
   const elAdminCount = document.getElementById('admin-stats-count');
-  const bAdmin = document.getElementById('bar-admin');
-  
-  if (elAdminPct) elAdminPct.textContent = `${Math.round(adminPct)}%`;
-  if (elAdminCount) elAdminCount.textContent = `${globalAdminDone}/${globalAdminTotal} tasks`;
-  if (bAdmin) bAdmin.style.width = `${adminPct}%`;
+  if (elAdminCount) elAdminCount.textContent = `${globalAdminDone}/${globalAdminTotal}`;
+
+  const sidebarTasksContainer = document.getElementById('sidebar-admin-tasks');
+  if (sidebarTasksContainer) {
+    if (allWeekTasks.length === 0) {
+      sidebarTasksContainer.innerHTML = '<p class="text-[10px] text-slate-400 italic px-1">No tasks for this week\'s classes.</p>';
+    } else {
+      sidebarTasksContainer.innerHTML = allWeekTasks.map(task => {
+        const isOverdue = !task.done && task.deadline && task.deadline < getTodayStr();
+        return `
+          <div class="sidebar-task-card flex items-start gap-3 p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/40 hover:border-pink/30 hover:bg-pink/5 transition-all group/task mb-2 last:mb-0">
+            <label class="chunky-check flex-shrink-0 mt-0.5">
+              <input type="checkbox" ${task.done ? 'checked' : ''} onchange="toggleClassAdminTask('${task.className.replace(/'/g, "\\'")}', '${task.id}', this.checked)">
+              <div class="box"></div>
+            </label>
+            <div class="min-w-0 flex-1">
+              <p class="text-[11px] font-bold leading-snug break-words ${task.done ? 'line-through opacity-40 text-slate-400' : (isOverdue ? 'text-pink font-extrabold' : 'text-slate-700 dark:text-slate-200')}" title="${task.text}">
+                ${task.text}
+              </p>
+              <div class="flex items-center gap-1.5 mt-1 opacity-70">
+                <span class="text-[7px] font-extrabold uppercase tracking-widest px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-500">${task.className}</span>
+                ${task.deadline ? `<span class="text-[7px] font-bold ${isOverdue ? 'text-pink' : 'text-slate-400'} flex items-center gap-0.5"><i data-lucide="clock" class="w-2 h-2"></i> ${new Date(task.deadline + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      if (window.lucide) lucide.createIcons({ root: sidebarTasksContainer });
+    }
+  }
 }
+
 
 
 function updateTodayList() {
@@ -1058,6 +1059,14 @@ function openDetailPanel(eventId, keepDirty = false) {
       </div>
     </div>
 
+    
+    
+    <!-- Notes -->
+    <div class="mb-4">
+      <label class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1 px-1">Notes</label>
+      <textarea class="panel-input panel-textarea text-[12px]" onchange="updateEventField('${eventId}', 'notes', this.value)" placeholder="General event notes...">${event.notes}</textarea>
+    </div>
+
     <!-- Class Admin Link -->
     ${event.typeId === 'class' ? `
     <div class="admin-section bg-pink/5 p-4 rounded-xl border border-pink/20 mb-4">
@@ -1071,12 +1080,6 @@ function openDetailPanel(eventId, keepDirty = false) {
       </div>
     </div>
     ` : ''}
-    
-    <!-- Notes -->
-    <div class="mb-4">
-      <label class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1 px-1">Notes</label>
-      <textarea class="panel-input panel-textarea text-[12px]" onchange="updateEventField('${eventId}', 'notes', this.value)" placeholder="General event notes...">${event.notes}</textarea>
-    </div>
   `;
   
   const footer = document.getElementById('detail-footer');
@@ -2023,6 +2026,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 2. Cloud mode: handle first-login migration and sync
   if (window.Sync && Sync.isCloudMode()) {
+    document.querySelectorAll('.cloud-hide').forEach(el => el.classList.add('hidden'));
     try {
       const user = await getUser();
       if (user && !user.is_sandbox) {
@@ -2038,3 +2042,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     Sync.setSyncBadge('local');
   }
 });
+
+function toggleClassAdminTask(className, taskId, isDone) {
+  const data = loadClassAdmin();
+  const tasks = data[className] || [];
+  const task = tasks.find(t => t.id === taskId);
+  if (task) task.done = isDone;
+  saveClassAdmin(data);
+  updateStats();
+}
