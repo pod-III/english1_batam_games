@@ -324,17 +324,22 @@
 
   // ── Core Read Logic ──────────────────────────────────────────────
 
-  function getSessionForDate(className, targetDate, allEvents, redDays, syllabusMap) {
+  function getSessionForDate(className, targetDate, allEvents, redDays, syllabusMap, targetStartTime = null) {
     // 1. FETCH master row & 3. GENERATE valid dates
     // allEvents already contains all generated dates.
     // Filter to occurrences of the class, excluding red days.
     const instances = allEvents
       .filter(e => e.name === className && e.typeId === 'class')
       .filter(e => !(e.isRecurrence && redDays.includes(e.date)))
+      // Exclude recurring master events — they're always represented by their clones,
+      // so keeping both causes the first date to appear twice in the sequence.
+      .filter(e => !(!e.isRecurrence && e.recurrence && e.recurrence !== 'none'))
       .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
 
     // 4. ASSIGN sequence index
-    const sequenceIndex = instances.findIndex(e => e.date === targetDate);
+    const sequenceIndex = instances.findIndex(e => 
+      e.date === targetDate && (!targetStartTime || e.startTime === targetStartTime)
+    );
     const targetInstance = instances[sequenceIndex];
 
     if (!targetInstance) {

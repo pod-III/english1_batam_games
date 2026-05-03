@@ -642,7 +642,7 @@ function createEventBlock(evt) {
   let lessonStatusHtml = '';
   if (evt.typeId === 'class') {
     const classSyllabusMap = loadClassUnits();
-    const session = window.Sync.getSessionForDate(evt.name, evt.date, events, redDays, classSyllabusMap);
+    const session = window.Sync.getSessionForDate(evt.name, evt.date, events, redDays, classSyllabusMap, evt.startTime);
     let statusObj;
     if (session.override_type) statusObj = { icon: 'star', color: '#8B5CF6' }; 
     else if (session.lesson) {

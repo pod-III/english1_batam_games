@@ -20,17 +20,17 @@ function loadScheduleEvents() {
     try {
       const parsed = JSON.parse(mastersRaw);
       if (Array.isArray(parsed)) masters = parsed;
-    } catch(e) {}
+    } catch (e) { }
   }
-  
+
   let promoted = [];
   if (promotedRaw) {
     try {
       const parsed = JSON.parse(promotedRaw);
       if (Array.isArray(parsed)) promoted = parsed;
-    } catch(e) {}
+    } catch (e) { }
   }
-  
+
   let allEvents = [...masters];
   masters.forEach(m => {
     if (m.recurrence && m.recurrence !== 'none') {
@@ -62,7 +62,7 @@ function saveScheduleEvents(allEvents) {
 
   localStorage.setItem('schedule_events', JSON.stringify(masters));
   localStorage.setItem('schedule_promoted_instances', JSON.stringify(promoted));
-  
+
   // Non-blocking cloud save
   if (window.Sync) {
     Sync.fireCloudSave(async userId => {
@@ -114,7 +114,7 @@ function get3DaysRange() {
   const now = new Date();
   const later = new Date(now);
   later.setDate(now.getDate() + 2);
-  const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const fmt = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   return { start: fmt(now), end: fmt(later) };
 }
 
@@ -123,7 +123,7 @@ function getWeekRange() {
   const day = now.getDay();
   const mon = new Date(now); mon.setDate(now.getDate() - ((day + 6) % 7));
   const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
-  const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const fmt = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   return { start: fmt(mon), end: fmt(sun) };
 }
 
@@ -131,7 +131,7 @@ function getMonthRange() {
   const now = new Date();
   const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
   const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const fmt = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   return { start: fmt(firstDay), end: fmt(lastDay) };
 }
 
@@ -140,7 +140,10 @@ function getClassInstances(masterName) {
   const redDays = loadRedDays();
   let filtered = allEvents
     .filter(e => e.name === masterName && e.typeId === 'class')
-    .filter(e => !(e.isRecurrence && redDays.includes(e.date)));
+    .filter(e => !(e.isRecurrence && redDays.includes(e.date)))
+    // Exclude recurring master events — they're always represented by their clones,
+    // so keeping both causes the first date to appear twice in the sequence.
+    .filter(e => !(!e.isRecurrence && e.recurrence && e.recurrence !== 'none'));
 
   // Apply time filter
   if (currentFilter === 'today') {
@@ -166,6 +169,9 @@ function getClassInstances_all(masterName) {
   return allEvents
     .filter(e => e.name === masterName && e.typeId === 'class')
     .filter(e => !(e.isRecurrence && redDays.includes(e.date)))
+    // Exclude recurring master events — they're always represented by their clones,
+    // so keeping both causes the first date to appear twice in the sequence.
+    .filter(e => !(!e.isRecurrence && e.recurrence && e.recurrence !== 'none'))
     .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
 }
 
@@ -188,7 +194,7 @@ function getUniqueClasses() {
 
 function getTodayStr() {
   const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function isInPast(dateStr) { return dateStr < getTodayStr(); }
@@ -215,14 +221,14 @@ function getClassStats(className) {
   const allEvents = loadScheduleEvents();
   const redDays = loadRedDays();
   const syllabusMap = loadClassUnits();
-  
+
   const instances = getClassInstances(className);
   const total = instances.length;
   let taught = 0, planned = 0, skipped = 0, upcoming = 0;
-  
+
   instances.forEach(evt => {
-    const session = window.Sync.getSessionForDate(className, evt.date, allEvents, redDays, syllabusMap);
-    
+    const session = window.Sync.getSessionForDate(className, evt.date, allEvents, redDays, syllabusMap, evt.startTime);
+
     let status = 'not_ready';
     if (session.override_type) {
       status = 'ready';
@@ -242,7 +248,7 @@ function getClassStats(className) {
       else upcoming++;
     }
   });
-  
+
   return { total, taught, planned, ready: planned - taught, skipped, upcoming, instances };
 }
 
@@ -265,7 +271,7 @@ function renderClassGrid() {
   grid.innerHTML = '';
 
   const allClasses = getUniqueClasses();
-  
+
   // Filter classes to only those that have instances in the current time filter
   const filteredClasses = allClasses.filter(cls => {
     const stats = getClassStats(cls.name);
@@ -290,7 +296,7 @@ function renderClassGrid() {
 
     filteredClasses.forEach(cls => {
       const stats = getClassStats(cls.name);
-      
+
       gPlanned += stats.planned;
       gSkipped += stats.skipped;
       gUpcoming += stats.upcoming;
@@ -309,6 +315,14 @@ function renderClassGrid() {
   if (window.lucide) lucide.createIcons();
 }
 
+function scrollToToday() {
+  const todayBadge = document.querySelector('th span.bg-blue');
+  if (todayBadge) {
+    const th = todayBadge.closest('th');
+    th.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  }
+}
+
 function renderTableView(classes) {
   const dateSet = new Set();
   const allEvents = loadScheduleEvents();
@@ -320,7 +334,7 @@ function renderTableView(classes) {
   classes.forEach(cls => {
     const stats = getClassStats(cls.name);
     const adminTasks = window.Sync.getAdminDataForClass(cls.name, adminData) || [];
-    
+
     classDataMap[cls.name] = {
       color: cls.color,
       stats: stats,
@@ -350,10 +364,10 @@ function renderTableView(classes) {
   });
 
   const sortedDates = Array.from(dateSet).sort();
-  
+
   const thead = document.getElementById('table-header-row');
   const tbody = document.getElementById('table-body');
-  
+
   // Header
   let headerHtml = `<th class="p-4 font-heading text-slate-400 bg-chalk dark:bg-dark sticky left-0 z-20 w-48 border-r-2 border-[var(--border-secondary)]">Class</th>`;
   sortedDates.forEach(dateStr => {
@@ -371,43 +385,47 @@ function renderTableView(classes) {
   let bodyHtml = '';
   classes.forEach(cls => {
     const cdata = classDataMap[cls.name];
+    const headerStatusObj = getHeaderStatusObj(cdata.stats);
     
     bodyHtml += `<tr class="border-b-2 border-slate-200 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 group">`;
     bodyHtml += `
-      <td class="p-4 sticky left-0 z-10 bg-chalk dark:bg-dark group-hover:bg-slate-50 dark:group-hover:bg-slate-800/50 border-r-2 border-[var(--border-secondary)] transition-colors" onclick="openDrawer('${cls.name.replace(/'/g, "\\'")}')" style="cursor: pointer;">
+      <td class="p-4 sticky left-0 z-10 bg-white/80 dark:bg-dark/80 backdrop-blur-md group-hover:bg-slate-50 dark:group-hover:bg-slate-800/50 border-r-2 border-[var(--border-secondary)] transition-colors" onclick="openDrawer('${cls.name.replace(/'/g, "\\'")}')" style="cursor: pointer;">
         <div class="flex items-center gap-3">
-          <div class="w-3 h-10 rounded-full flex-shrink-0 shadow-sm" style="background:${cdata.color}"></div>
-          <div>
-            <div class="font-heading font-bold text-base truncate max-w-[140px]">${cls.name}</div>
-            <div class="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mt-0.5">${cdata.stats.total} Lessons</div>
+          <div class="w-1 h-10 rounded-full flex-shrink-0 shadow-sm" style="background:${cdata.color}"></div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <div class="font-heading font-bold text-sm truncate max-w-[120px]">${cls.name}</div>
+              <span class="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider text-white shadow-sm flex-shrink-0" style="background:${headerStatusObj.color}">${headerStatusObj.label}</span>
+            </div>
+            <div class="text-[9px] font-extrabold uppercase tracking-widest text-slate-400">${cdata.stats.total} Lessons</div>
           </div>
         </div>
       </td>
     `;
-    
+
     sortedDates.forEach(dateStr => {
       bodyHtml += `<td class="p-4 align-top min-w-[220px]">`;
-      
+
       const instances = cdata.instancesByDate[dateStr] || [];
       const tasks = cdata.tasksByDate[dateStr] || [];
-      
+
       if (instances.length === 0 && tasks.length === 0) {
         bodyHtml += `<div class="h-full flex items-center pt-5"><div class="w-full h-1 bg-slate-100 dark:bg-slate-800/50 rounded-full mx-4"></div></div>`;
       } else {
         bodyHtml += `<div class="space-y-3">`;
-        
+
         // Render instances
         instances.forEach(inst => {
-          const session = window.Sync.getSessionForDate(cls.name, inst.date, allEvents, redDays, syllabusMap);
+          const session = window.Sync.getSessionForDate(cls.name, inst.date, allEvents, redDays, syllabusMap, inst.startTime);
           const ls = session.lesson?.status || (session.lesson?.is_completed ? 'completed' : 'not_ready');
           const isCompleted = ls === 'completed';
           const isReady = ls === 'ready' || session.override_type;
-          
+
           const statusColor = session.override_type ? 'var(--color-purple)' : (isCompleted ? 'var(--color-green)' : (isReady ? 'var(--color-blue)' : 'var(--text-tertiary)'));
           const label = session.override_type ? 'Override' : (isCompleted ? 'Taught' : (isReady ? 'Ready' : 'Draft'));
           const title = session.override_type || session.lesson?.lesson || 'No Lesson Planned';
           const unitLabel = session.lesson?.unit ? `<span class="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400 truncate mt-1"><i data-lucide="layers" class="w-3 h-3 inline pb-0.5"></i> ${session.lesson.unit}</span>` : '';
-          
+
           bodyHtml += `
             <div class="p-3 rounded-2xl border-[3px] border-[var(--border-primary)] bg-[var(--surface-card)] shadow-[2px_2px_0px_0px_rgba(30,41,59,0.1)] hover:shadow-hard transition-all cursor-pointer hover:-translate-y-0.5" onclick="openDrawer('${cls.name.replace(/'/g, "\\'")}')">
               <div class="flex items-center gap-2 mb-1.5">
@@ -419,7 +437,7 @@ function renderTableView(classes) {
             </div>
           `;
         });
-        
+
         // Render tasks
         tasks.forEach(task => {
           const isOverdue = task.deadline < getTodayStr();
@@ -434,16 +452,16 @@ function renderTableView(classes) {
             </div>
           `;
         });
-        
+
         bodyHtml += `</div>`;
       }
-      
+
       bodyHtml += `</td>`;
     });
-    
+
     bodyHtml += `</tr>`;
   });
-  
+
   tbody.innerHTML = bodyHtml;
 }
 
@@ -477,7 +495,7 @@ function renderCardHeader(className, color, stats, headerStatusObj) {
 function renderAdminStrip(tasks) {
   const adminTotal = tasks.length;
   const adminPlanned = tasks.filter(t => t.done).length;
-  
+
   if (adminTotal === 0) return '';
 
   return `
@@ -488,19 +506,19 @@ function renderAdminStrip(tasks) {
       </div>
       <div class="flex gap-1 w-full h-1.5 mb-1">
         ${tasks.map(t => {
-          const isOverdue = !t.done && t.deadline && t.deadline < getTodayStr();
-          return `
+    const isOverdue = !t.done && t.deadline && t.deadline < getTodayStr();
+    return `
             <div class="flex-1 h-full rounded-sm ${t.done ? 'bg-[var(--color-green)]' : (isOverdue ? 'bg-pink' : 'bg-[var(--border-secondary)]')}" title="${t.text.replace(/"/g, '&quot;')}"></div>
           `;
-        }).join('')}
+  }).join('')}
       </div>
       <div class="flex justify-between w-full gap-1">
         ${tasks.map(t => {
-          const isOverdue = !t.done && t.deadline && t.deadline < getTodayStr();
-          return `
+    const isOverdue = !t.done && t.deadline && t.deadline < getTodayStr();
+    return `
             <span class="flex-1 text-[9px] leading-[11px] uppercase tracking-wider ${isOverdue ? 'text-pink' : 'text-slate-400'} font-extrabold truncate text-center" title="${t.text.replace(/"/g, '&quot;')}">${t.text}</span>
           `;
-        }).join('')}
+  }).join('')}
       </div>
     </div>
   `;
@@ -518,15 +536,15 @@ function renderNextUpSection(instances, mode, classSyllabus, className) {
   if (mode === 'lessons') {
     const next3 = instances.filter(e => isUpcoming(e.date)).slice(0, 3);
     quickHtml = next3.length > 0 ? `<div class="space-y-1.5 mt-2">` + next3.map(l => {
-      const session = window.Sync.getSessionForDate(className, l.date, allEvents, redDays, syllabusMap);
+      const session = window.Sync.getSessionForDate(className, l.date, allEvents, redDays, syllabusMap, l.startTime);
       const ls = session.lesson?.status || (session.lesson?.is_completed ? 'completed' : 'not_ready');
       const isCompleted = ls === 'completed';
       const isReady = ls === 'ready' || session.override_type;
-      
+
       const statusColor = session.override_type ? 'var(--color-purple)' : (isCompleted ? 'var(--color-green)' : (isReady ? 'var(--color-blue)' : 'var(--text-tertiary)'));
       const label = session.override_type ? 'Override' : (isCompleted ? 'Taught' : (isReady ? 'Ready' : 'Draft'));
       const title = session.override_type || session.lesson?.lesson || 'No Lesson Planned';
-      
+
       return `
         <div class="flex items-center gap-2">
           <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider text-white shadow-sm flex-shrink-0" style="background:${statusColor}">${label}</span>
@@ -575,7 +593,7 @@ function renderNextUpSection(instances, mode, classSyllabus, className) {
 function createClassCard(className, color, stats) {
   const adminTasks = window.Sync.getAdminDataForClass(className, loadClassAdmin());
   const classSyllabus = loadClassUnits()[className] || [];
-  
+
   let headerStatusObj = getHeaderStatusObj(stats);
 
   const card = document.createElement('div');
@@ -592,7 +610,7 @@ function createClassCard(className, color, stats) {
       ${renderNextUpSection(stats.instances, currentMode, classSyllabus, className)}
     </div>
   `;
-  
+
   return card;
 }
 
@@ -602,10 +620,10 @@ function updateCardStats(className) {
 
   const stats = getClassStats(className);
   const color = card.getAttribute('data-color');
-  
+
   const newCard = createClassCard(className, color, stats);
   card.parentNode.replaceChild(newCard, card);
-  
+
   if (window.lucide) lucide.createIcons();
   recalculateGlobalStats();
 }
@@ -633,7 +651,7 @@ function recalculateGlobalStats() {
       stats.lessons.skipped += cStats.skipped;
       stats.lessons.upcoming += cStats.upcoming;
     }
-    
+
     // Admin stats
     const tasks = window.Sync.getAdminDataForClass(cls.name, adminData);
     if (tasks) {
@@ -671,7 +689,7 @@ function updateGlobalStats(data) {
   // 1. Lessons
   const l = data.lessons;
   const lpPct = l.total > 0 ? Math.round(((l.ready + l.finished) / l.total) * 100) : 0;
-  
+
   const ringLessons = document.getElementById('ring-lessons');
   if (ringLessons) {
     ringLessons.style.strokeDashoffset = circ - (lpPct / 100) * circ;
@@ -679,11 +697,11 @@ function updateGlobalStats(data) {
   }
   const elPctL = document.getElementById('pct-lessons');
   if (elPctL) elPctL.textContent = `${lpPct}%`;
-  
+
   const elStatL = document.getElementById('stat-progress');
   if (elStatL) elStatL.textContent = `${l.ready + l.finished}/${l.total}`;
-  
-  const set = (id, val) => { const e = document.getElementById(id); if(e) e.textContent = val; };
+
+  const set = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
   set('stat-lessons-upcoming', l.upcoming);
   set('stat-lessons-ready', l.ready);
   set('stat-lessons-finished', l.finished);
@@ -815,16 +833,16 @@ function renderLessonsDrawer(className) {
   const allEvents = loadScheduleEvents();
   const redDays = loadRedDays();
   const syllabusMap = loadClassUnits();
-  
+
   const classSyllabus = syllabusMap[className] || [];
   const adminTasks = window.Sync.getAdminDataForClass(className, loadClassAdmin()) || [];
   const instances = getClassInstances(className);
   const allInstances = getClassInstances_all(className);
-  
+
   const drawerTitle = document.getElementById('drawer-title');
   const drawerSubtitle = document.getElementById('drawer-subtitle');
   const drawerBody = document.getElementById('drawer-body');
-  
+
   if (drawerTitle) drawerTitle.textContent = className;
   if (drawerSubtitle) drawerSubtitle.textContent = `${instances.length} lessons • ${classSyllabus.length} planned`;
 
@@ -888,7 +906,7 @@ function renderLessonsDrawer(className) {
       </div>
     </div>
   `;
-  
+
   // Render Syllabus Editor
   const groupedSyllabus = {};
   classSyllabus.forEach((item, index) => {
@@ -933,7 +951,7 @@ function renderLessonsDrawer(className) {
         const index = item.originalIndex;
         const inst = allInstances[index];
         const dateHtml = inst ? `<span class="text-[10px] font-bold text-slate-400 ml-2 whitespace-nowrap"><i data-lucide="calendar" class="w-3 h-3 inline"></i> ${formatDate(inst.date)}</span>` : '';
-        
+
         const resolvedStatus = item.status || (item.is_completed ? 'completed' : 'not_ready');
         const statusMap = {
           'not_ready': { label: 'Draft', cls: 'bg-slate-200 text-slate-500 dark:bg-slate-700' },
@@ -966,7 +984,7 @@ function renderLessonsDrawer(className) {
   }
 
   html += `</div></div>`;
-  
+
   if (drawerBody) {
     drawerBody.innerHTML = html;
     if (window.lucide) lucide.createIcons();
@@ -1010,8 +1028,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // Listen for storage changes (if schedule is updated in another tab)
 window.addEventListener('storage', (e) => {
-  if (e.key === 'schedule_events' || e.key === 'schedule_red_days' || e.key === 'schedule_class_admin') {
+  if (e.key === 'schedule_events' || e.key === 'schedule_red_days' || e.key === 'schedule_class_admin' || e.key === 'schedule_class_units') {
     renderClassGrid();
+    if (currentDrawerClass) renderLessonsDrawer(currentDrawerClass);
   }
 });
 
@@ -1089,6 +1108,7 @@ function updateSyllabusUnitName(className, oldUnitName, newUnitName) {
     });
     saveClassUnits(data);
     renderLessonsDrawer(className);
+    renderClassGrid();
   }
 }
 
@@ -1103,6 +1123,7 @@ function updateSyllabusUnitStartIndex(className, unitName, newStart) {
       firstLesson.unitStartIndex = val;
       saveClassUnits(data);
       renderLessonsDrawer(className);
+      renderClassGrid();
     }
   }
 }
@@ -1139,6 +1160,7 @@ function updateSyllabusLesson(className, index, field, value) {
   if (data[className] && data[className][index]) {
     data[className][index][field] = value;
     saveClassUnits(data);
+    renderLessonsDrawer(className);
     renderClassGrid();
   }
 }
@@ -1150,15 +1172,15 @@ async function deleteSyllabusLesson(className, index) {
     const deletedLesson = data[className][index];
     const unitOfDeleted = deletedLesson?.unit;
     const oldUnitStart = deletedLesson?.unitStartIndex;
-    
+
     data[className].splice(index, 1);
-    
+
     // If we deleted the lesson that held the unitStartIndex, move it to the new first lesson of that unit
     if (oldUnitStart !== undefined) {
       const nextFirst = data[className].find(item => item.unit === unitOfDeleted);
       if (nextFirst) nextFirst.unitStartIndex = oldUnitStart;
     }
-    
+
     // Re-index
     data[className].forEach((item, i) => item.index = i);
     saveClassUnits(data);
