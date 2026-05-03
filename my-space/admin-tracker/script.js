@@ -204,14 +204,20 @@ function getClassStats(className) {
   
   instances.forEach(evt => {
     const session = window.Sync.getSessionForDate(className, evt.date, allEvents, redDays, syllabusMap);
+    
+    let status = 'not_ready';
     if (session.override_type) {
-      planned++;
-      if (isInPast(evt.date)) taught++;
-      else upcoming++;
+      status = 'ready';
     } else if (session.lesson) {
+      status = session.lesson.status || (session.lesson.is_completed ? 'completed' : 'not_ready');
+    }
+
+    if (status === 'completed') {
+      taught++;
+      planned++; // completed implies it was planned/ready
+    } else if (status === 'ready') {
       planned++;
-      if (session.lesson.is_completed) taught++;
-      else if (isUpcoming(evt.date)) upcoming++;
+      if (isUpcoming(evt.date)) upcoming++;
       else skipped++;
     } else {
       if (isInPast(evt.date)) skipped++;
@@ -219,7 +225,7 @@ function getClassStats(className) {
     }
   });
   
-  return { total, taught, planned, skipped, upcoming, instances };
+  return { total, taught, planned, ready: planned - taught, skipped, upcoming, instances };
 }
 
 function getHeaderStatusObj(stats) {
@@ -347,9 +353,12 @@ function renderNextUpSection(instances, mode, classSyllabus, className) {
     const next3 = instances.filter(e => isUpcoming(e.date)).slice(0, 3);
     quickHtml = next3.length > 0 ? `<div class="space-y-1.5 mt-2">` + next3.map(l => {
       const session = window.Sync.getSessionForDate(className, l.date, allEvents, redDays, syllabusMap);
-      const isCompleted = session.lesson?.is_completed || false;
-      const statusColor = session.override_type ? 'var(--color-purple)' : (isCompleted ? 'var(--color-green)' : (session.lesson ? 'var(--color-blue)' : 'var(--text-tertiary)'));
-      const label = session.override_type ? 'Override' : (isCompleted ? 'Taught' : (session.lesson ? 'Ready' : 'Not Ready'));
+      const ls = session.lesson?.status || (session.lesson?.is_completed ? 'completed' : 'not_ready');
+      const isCompleted = ls === 'completed';
+      const isReady = ls === 'ready' || session.override_type;
+      
+      const statusColor = session.override_type ? 'var(--color-purple)' : (isCompleted ? 'var(--color-green)' : (isReady ? 'var(--color-blue)' : 'var(--text-tertiary)'));
+      const label = session.override_type ? 'Override' : (isCompleted ? 'Taught' : (isReady ? 'Ready' : 'Draft'));
       const title = session.override_type || session.lesson?.lesson || 'No Lesson Planned';
       
       return `
@@ -366,7 +375,7 @@ function renderNextUpSection(instances, mode, classSyllabus, className) {
     classSyllabus.forEach(item => {
       if (!unitMap[item.unit]) unitMap[item.unit] = { total: 0, completed: 0 };
       unitMap[item.unit].total++;
-      if (item.is_completed) unitMap[item.unit].completed++;
+      if (item.status === 'completed' || item.is_completed) unitMap[item.unit].completed++;
     });
 
     const units = Object.keys(unitMap).slice(0, 3);
@@ -724,13 +733,21 @@ function renderLessonsDrawer(className) {
       const inst = allInstances[index];
       const dateHtml = inst ? `<span class="text-[10px] font-bold text-slate-400 ml-2 whitespace-nowrap"><i data-lucide="calendar" class="w-3 h-3 inline"></i> ${formatDate(inst.date)}</span>` : '';
       
+      const resolvedStatus = item.status || (item.is_completed ? 'completed' : 'not_ready');
+      const statusColorCls = resolvedStatus === 'completed' 
+        ? 'bg-green/10 text-green border-green/30 hover:border-green'
+        : (resolvedStatus === 'ready' 
+            ? 'bg-blue/10 text-blue border-blue/30 hover:border-blue' 
+            : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700 hover:border-pink/50');
+      
       html += `
         <div class="flex flex-col gap-2 p-3 bg-[var(--surface-card)] border-2 border-[var(--border-secondary)] rounded-xl relative group">
           <div class="flex items-center gap-3">
-            <label class="chunky-check flex-shrink-0">
-              <input type="checkbox" ${item.is_completed ? 'checked' : ''} onchange="toggleSyllabusLessonCompleted('${className}', ${index}, this.checked)">
-              <div class="box"></div>
-            </label>
+            <select class="appearance-none cursor-pointer outline-none text-[8px] font-extrabold uppercase tracking-widest px-2 py-1.5 rounded-lg border-2 text-center w-[72px] flex-shrink-0 transition-colors ${statusColorCls}" onchange="updateSyllabusLesson('${className}', ${index}, 'status', this.value)">
+              <option value="not_ready" ${resolvedStatus === 'not_ready' ? 'selected' : ''}>Draft</option>
+              <option value="ready" ${resolvedStatus === 'ready' ? 'selected' : ''}>Ready</option>
+              <option value="completed" ${resolvedStatus === 'completed' ? 'selected' : ''}>Done</option>
+            </select>
             <div class="flex-1 flex flex-col gap-1 min-w-0">
               <div class="flex items-center w-full">
                 <span class="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 w-12 flex-shrink-0">L${index + 1}</span>
@@ -853,7 +870,7 @@ function addSyllabusLesson(className) {
   const nextIndex = data[className].length;
   // Try to inherit unit from previous lesson
   const prevUnit = nextIndex > 0 ? data[className][nextIndex - 1].unit : 'Unit 1';
-  data[className].push({ index: nextIndex, unit: prevUnit, lesson: 'New Lesson', is_completed: false });
+  data[className].push({ index: nextIndex, unit: prevUnit, lesson: 'New Lesson', status: 'not_ready' });
   saveClassUnits(data);
   renderLessonsDrawer(className);
   updateCardStats(className);

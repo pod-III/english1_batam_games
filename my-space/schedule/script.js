@@ -646,8 +646,10 @@ function createEventBlock(evt) {
     let statusObj;
     if (session.override_type) statusObj = { icon: 'star', color: '#8B5CF6' }; 
     else if (session.lesson) {
-      if (session.lesson.is_completed) statusObj = { icon: 'check-circle', color: '#00E676' };
-      else statusObj = { icon: 'edit-3', color: '#2979FF' };
+      const ls = session.lesson.status || (session.lesson.is_completed ? 'completed' : 'not_ready');
+      if (ls === 'completed') statusObj = { icon: 'check-circle', color: '#00E676' };
+      else if (ls === 'ready') statusObj = { icon: 'edit-3', color: '#2979FF' };
+      else statusObj = { icon: 'circle-dashed', color: '#94a3b8' }; // not_ready
     }
     
     if (statusObj) {
