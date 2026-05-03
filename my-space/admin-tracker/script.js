@@ -736,11 +736,16 @@ function renderLessonsDrawer(className) {
     html += `<p class="text-xs text-slate-400 italic mb-2 text-center py-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700">No syllabus created yet. Add your first unit.</p>`;
   } else {
     Object.entries(groupedSyllabus).forEach(([unitName, lessons]) => {
+      const unitBaseIndex = parseInt(lessons[0]?.unitStartIndex || 1);
       html += `
         <div class="unit-group p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-200 dark:border-slate-800">
           <div class="flex items-center justify-between mb-3 gap-2">
-            <div class="flex-1 flex items-center">
+            <div class="flex-1 flex items-center gap-3">
               <input type="text" class="text-xs font-extrabold uppercase tracking-widest text-slate-400 bg-transparent border-none outline-none focus:text-blue w-full" value="${unitName}" onchange="updateSyllabusUnitName('${className}', '${unitName.replace(/'/g, "\\'")}', this.value)">
+              <div class="flex items-center gap-1.5 px-1.5 py-0.5 bg-white dark:bg-slate-800 rounded-md border-2 border-slate-200 dark:border-slate-700 flex-shrink-0">
+                <span class="text-[8px] font-black uppercase text-slate-300">L#</span>
+                <input type="number" class="w-6 bg-transparent border-none text-[10px] font-bold text-blue p-0 text-center focus:ring-0 outline-none" value="${unitBaseIndex}" onchange="updateSyllabusUnitStartIndex('${className}', '${unitName.replace(/'/g, "\\'")}', this.value)">
+              </div>
             </div>
             <div class="flex items-center gap-3">
               <button onclick="addSyllabusLesson('${className}', '${unitName.replace(/'/g, "\\'")}')" class="text-[10px] font-bold text-blue hover:underline whitespace-nowrap">+ Add Lesson</button>
@@ -750,7 +755,7 @@ function renderLessonsDrawer(className) {
           <div class="space-y-2">
       `;
 
-      lessons.forEach((item) => {
+      lessons.forEach((item, i) => {
         const index = item.originalIndex;
         const inst = allInstances[index];
         const dateHtml = inst ? `<span class="text-[10px] font-bold text-slate-400 ml-2 whitespace-nowrap"><i data-lucide="calendar" class="w-3 h-3 inline"></i> ${formatDate(inst.date)}</span>` : '';
@@ -770,7 +775,9 @@ function renderLessonsDrawer(className) {
             </button>
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2">
-                <span class="text-[10px] font-black text-slate-300 w-6 flex-shrink-0">L${index + 1}</span>
+                <span class="text-[10px] font-black text-slate-300 w-8 flex-shrink-0 flex items-center">
+                  L${unitBaseIndex + i}
+                </span>
                 <input type="text" class="edit-input flex-1 py-1 px-2 text-sm font-bold bg-transparent border-transparent hover:bg-slate-50 dark:hover:bg-slate-800 transition-all outline-none" value="${(item.lesson || '').replace(/"/g, '&quot;')}" placeholder="Lesson Name" onchange="updateSyllabusLesson('${className}', ${index}, 'lesson', this.value)">
                 ${dateHtml}
               </div>
@@ -911,6 +918,21 @@ function updateSyllabusUnitName(className, oldUnitName, newUnitName) {
   }
 }
 
+function updateSyllabusUnitStartIndex(className, unitName, newStart) {
+  const val = parseInt(newStart);
+  if (isNaN(val)) return;
+  const data = loadClassUnits();
+  if (data[className]) {
+    // Find the first lesson of this unit and store the start index there
+    const firstLesson = data[className].find(item => item.unit === unitName);
+    if (firstLesson) {
+      firstLesson.unitStartIndex = val;
+      saveClassUnits(data);
+      renderLessonsDrawer(className);
+    }
+  }
+}
+
 function deleteSyllabusUnit(className, unitName) {
   if (!confirm(`Are you sure you want to delete "${unitName}" and all its lessons?`)) return;
   const data = loadClassUnits();
@@ -949,7 +971,18 @@ function updateSyllabusLesson(className, index, field, value) {
 function deleteSyllabusLesson(className, index) {
   const data = loadClassUnits();
   if (data[className]) {
+    const deletedLesson = data[className][index];
+    const unitOfDeleted = deletedLesson?.unit;
+    const oldUnitStart = deletedLesson?.unitStartIndex;
+    
     data[className].splice(index, 1);
+    
+    // If we deleted the lesson that held the unitStartIndex, move it to the new first lesson of that unit
+    if (oldUnitStart !== undefined) {
+      const nextFirst = data[className].find(item => item.unit === unitOfDeleted);
+      if (nextFirst) nextFirst.unitStartIndex = oldUnitStart;
+    }
+    
     // Re-index
     data[className].forEach((item, i) => item.index = i);
     saveClassUnits(data);
