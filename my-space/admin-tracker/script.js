@@ -1082,8 +1082,20 @@ function setTaskDeadlineDays(className, taskId, days) {
 function addSyllabusLesson(className, unitName = '(No Unit)') {
   const data = loadClassUnits();
   if (!data[className]) data[className] = [];
+  
+  const unitLessons = data[className].filter(l => l.unit === unitName);
+  const firstLesson = unitLessons[0];
+  const unitBaseIndex = parseInt(firstLesson?.unitStartIndex || 1);
+  const lessonNumber = unitBaseIndex + unitLessons.length;
+  
   const nextIndex = data[className].length;
-  data[className].push({ index: nextIndex, unit: unitName, lesson: 'New Lesson', status: 'not_ready' });
+  data[className].push({ 
+    index: nextIndex, 
+    unit: unitName, 
+    lesson: `Lesson ${lessonNumber}`, 
+    status: 'not_ready' 
+  });
+  
   saveClassUnits(data);
   renderLessonsDrawer(className);
   renderClassGrid();
