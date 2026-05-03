@@ -406,7 +406,7 @@ function renderTableView(classes) {
   sortedDates.forEach(dateStr => {
     const isToday = dateStr === getTodayStr();
     headerHtml += `
-      <th class="p-4 font-heading text-sm whitespace-nowrap ${isToday ? 'text-blue' : ''} bg-slate-50 dark:bg-slate-900/50">
+      <th class="p-4 font-heading text-sm whitespace-nowrap ${isToday ? 'text-blue' : ''} bg-white dark:bg-slate-900 border-b-2 border-[var(--border-primary)]">
         ${isToday ? '<span class="px-2 py-0.5 rounded-md bg-blue text-white text-[10px] mr-1 shadow-sm">TODAY</span>' : ''}
         ${formatDate(dateStr)}
       </th>
@@ -430,7 +430,7 @@ function renderTableView(classes) {
 
     bodyHtml += `<tr class="border-b-2 border-slate-200 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 group">`;
     bodyHtml += `
-      <td class="p-3 sticky left-0 z-10 bg-white/80 dark:bg-dark/80 backdrop-blur-md group-hover:bg-slate-50 dark:group-hover:bg-slate-800/50 border-r-2 border-[var(--border-secondary)] transition-colors" onclick="openDrawer('${cls.name.replace(/'/g, "\\'")}')" style="cursor: pointer;">
+      <td class="p-3 sticky left-0 z-10 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800/50 border-r-2 border-[var(--border-secondary)] transition-colors" onclick="openDrawer('${cls.name.replace(/'/g, "\\'")}')" style="cursor: pointer;">
         <div class="flex items-center gap-2">
           <div class="w-1 h-8 rounded-full flex-shrink-0 shadow-sm" style="background:${cdata.color}"></div>
           <div class="flex-1 min-w-0">
@@ -844,7 +844,7 @@ function updateGlobalStats(data) {
 
 function formatDate(dateStr) {
   const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
 function formatTime(timeStr) {
