@@ -698,19 +698,20 @@ function renderLessonsDrawer(className) {
   `).join('');
 
   let html = `
-    <div class="mb-8 p-4 bg-blue/5 border-2 border-blue/20 rounded-2xl">
-      <div class="flex flex-col mb-3">
-        <h4 class="font-heading text-base font-bold text-blue">Class-Wide Tasks</h4>
-        <p class="text-sm text-slate-400 font-semibold mt-0.5">
+    <div class="mb-10 p-5 bg-slate-50 dark:bg-slate-900/50 border-2 border-slate-200 dark:border-slate-800 rounded-2xl relative overflow-hidden">
+      <div class="absolute top-0 left-0 w-1 h-full bg-blue"></div>
+      <div class="flex flex-col mb-4">
+        <h4 class="font-heading text-base font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2"><i data-lucide="check-square" class="w-4 h-4 text-blue"></i> Class-Wide Tasks</h4>
+        <p class="text-xs text-slate-400 font-semibold mt-1">
           Things to do once for the whole class (e.g. print materials, set up gradebook)
         </p>
       </div>
-      <div class="mb-3 flex gap-2">
-        <input type="text" class="edit-input flex-1" id="ca-input-${className.replace(/[^a-z0-9]/gi, '_')}" placeholder="+ Add class task (e.g. Unit 1 Planning)" onkeydown="if(event.key==='Enter') { addClassAdminTask('${className}', this.value); this.value=''; }">
-        <button onclick="const i=document.getElementById('ca-input-${className.replace(/[^a-z0-9]/gi, '_')}'); addClassAdminTask('${className}', i.value); i.value='';" class="px-3 py-1.5 rounded-xl bg-blue text-white text-sm font-bold border-2 border-dark shadow-[2px_2px_0px_0px_rgba(30,41,59,1)] hover:translate-y-[-1px] active:translate-y-[1px]">Add</button>
+      <div class="mb-4 flex gap-2">
+        <input type="text" class="edit-input flex-1 py-1.5 px-3 text-sm font-bold bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-xl focus:border-blue transition-all" id="ca-input-${className.replace(/[^a-z0-9]/gi, '_')}" placeholder="+ Add new task..." onkeydown="if(event.key==='Enter') { addClassAdminTask('${className}', this.value); this.value=''; }">
+        <button onclick="const i=document.getElementById('ca-input-${className.replace(/[^a-z0-9]/gi, '_')}'); addClassAdminTask('${className}', i.value); i.value='';" class="px-4 py-1.5 rounded-xl bg-blue text-white text-xs font-black uppercase tracking-widest border-2 border-dark shadow-[2px_2px_0px_0px_rgba(30,41,59,1)] hover:translate-y-[-1px] active:translate-y-[1px] active:shadow-none transition-all">Add</button>
       </div>
-      <div class="space-y-1">
-        ${adminHtml || '<p class="text-xs text-slate-400 italic">No class-wide tasks yet.</p>'}
+      <div class="space-y-2">
+        ${adminHtml || '<p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center py-2 opacity-50">No tasks yet</p>'}
       </div>
     </div>
   `;
@@ -738,18 +739,18 @@ function renderLessonsDrawer(className) {
     Object.entries(groupedSyllabus).forEach(([unitName, lessons]) => {
       const unitBaseIndex = parseInt(lessons[0]?.unitStartIndex || 1);
       html += `
-        <div class="unit-group p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-200 dark:border-slate-800">
-          <div class="flex items-center justify-between mb-3 gap-2">
-            <div class="flex-1 flex items-center gap-3">
-              <input type="text" class="text-xs font-extrabold uppercase tracking-widest text-slate-400 bg-transparent border-none outline-none focus:text-blue w-full" value="${unitName}" onchange="updateSyllabusUnitName('${className}', '${unitName.replace(/'/g, "\\'")}', this.value)">
-              <div class="flex items-center gap-1.5 px-1.5 py-0.5 bg-white dark:bg-slate-800 rounded-md border-2 border-slate-200 dark:border-slate-700 flex-shrink-0">
-                <span class="text-[8px] font-black uppercase text-slate-300">L#</span>
-                <input type="number" class="w-6 bg-transparent border-none text-[10px] font-bold text-blue p-0 text-center focus:ring-0 outline-none" value="${unitBaseIndex}" onchange="updateSyllabusUnitStartIndex('${className}', '${unitName.replace(/'/g, "\\'")}', this.value)">
+        <div class="unit-group p-5 bg-[var(--surface-card)] rounded-2xl border-2 border-slate-200 dark:border-slate-800 mb-6 transition-all hover:border-slate-300 dark:hover:border-slate-600">
+          <div class="flex items-center justify-between mb-4 gap-3">
+            <div class="flex-1 flex items-center gap-3 bg-slate-50 dark:bg-slate-900/50 px-3 py-1.5 rounded-xl border-2 border-slate-200 dark:border-slate-700 focus-within:border-blue transition-all">
+              <input type="text" class="text-sm font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 bg-transparent border-none outline-none focus:text-blue w-full placeholder:text-slate-400" value="${unitName}" placeholder="Unit Name" onchange="updateSyllabusUnitName('${className}', '${unitName.replace(/'/g, "\\'")}', this.value)">
+              <div class="flex items-center gap-1.5 px-2 py-0.5 bg-white dark:bg-slate-800 rounded-lg border-2 border-slate-200 dark:border-slate-700 flex-shrink-0">
+                <span class="text-[8px] font-black uppercase text-slate-400">L#</span>
+                <input type="number" class="w-8 bg-transparent border-none text-[10px] font-black text-blue p-0 text-center focus:ring-0 outline-none" value="${unitBaseIndex}" onchange="updateSyllabusUnitStartIndex('${className}', '${unitName.replace(/'/g, "\\'")}', this.value)">
               </div>
             </div>
-            <div class="flex items-center gap-3">
-              <button onclick="addSyllabusLesson('${className}', '${unitName.replace(/'/g, "\\'")}')" class="text-[10px] font-bold text-blue hover:underline whitespace-nowrap">+ Add Lesson</button>
-              <button onclick="deleteSyllabusUnit('${className}', '${unitName.replace(/'/g, "\\'")}')" class="p-1.5 text-slate-300 hover:text-pink transition-colors" title="Delete Unit"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+            <div class="flex items-center gap-2">
+              <button onclick="addSyllabusLesson('${className}', '${unitName.replace(/'/g, "\\'")}')" class="px-3 py-1.5 rounded-lg bg-[var(--surface-card)] text-[10px] font-extrabold uppercase tracking-widest border-[var(--border-width-medium)] border-[var(--border-primary)] shadow-[2px_2px_0px_0px_rgba(30,41,59,1)] hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-none transition-all whitespace-nowrap">+ Lesson</button>
+              <button onclick="deleteSyllabusUnit('${className}', '${unitName.replace(/'/g, "\\'")}')" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[var(--color-pink)] border-[var(--border-width-medium)] border-transparent hover:border-[var(--border-primary)] hover:shadow-[2px_2px_0px_0px_rgba(30,41,59,1)] transition-all" title="Delete Unit"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
             </div>
           </div>
           <div class="space-y-2">
@@ -769,16 +770,16 @@ function renderLessonsDrawer(className) {
         const s = statusMap[resolvedStatus];
 
         html += `
-          <div class="flex items-center gap-3 p-3 bg-[var(--surface-card)] border-2 border-[var(--border-secondary)] rounded-xl relative group/lesson">
-            <button onclick="cycleSyllabusLessonStatus('${className}', ${index})" class="flex-shrink-0 w-16 py-2 rounded-lg text-[9px] font-black uppercase tracking-tighter transition-all border-2 border-dark shadow-[2px_2px_0px_0px_rgba(30,41,59,1)] active:translate-y-[1px] active:shadow-none ${s.cls}">
+          <div class="flex items-center gap-3 p-3 bg-white dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 rounded-xl relative group/lesson hover:border-slate-200 dark:hover:border-slate-700 transition-colors">
+            <button onclick="cycleSyllabusLessonStatus('${className}', ${index})" class="flex-shrink-0 w-16 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border-2 border-dark shadow-[2px_2px_0px_0px_rgba(30,41,59,1)] active:translate-y-[1px] active:shadow-none hover:brightness-110 ${s.cls}">
               ${s.label}
             </button>
             <div class="flex-1 min-w-0">
-              <div class="flex items-center gap-2">
-                <span class="text-[10px] font-black text-slate-300 w-8 flex-shrink-0 flex items-center">
-                  L${unitBaseIndex + i}
+              <div class="flex items-center gap-3">
+                <span class="text-xs font-black text-slate-300 w-8 flex-shrink-0 flex items-center justify-center bg-slate-50 dark:bg-slate-900 py-1 rounded-md">
+                  ${unitBaseIndex + i}
                 </span>
-                <input type="text" class="edit-input flex-1 py-1 px-2 text-sm font-bold bg-transparent border-transparent hover:bg-slate-50 dark:hover:bg-slate-800 transition-all outline-none" value="${(item.lesson || '').replace(/"/g, '&quot;')}" placeholder="Lesson Name" onchange="updateSyllabusLesson('${className}', ${index}, 'lesson', this.value)">
+                <input type="text" class="edit-input flex-1 py-1.5 px-2 text-sm font-bold bg-transparent border-transparent hover:bg-slate-50 dark:hover:bg-slate-800 transition-all outline-none" value="${(item.lesson || '').replace(/"/g, '&quot;')}" placeholder="Lesson Name" onchange="updateSyllabusLesson('${className}', ${index}, 'lesson', this.value)">
                 ${dateHtml}
               </div>
             </div>
