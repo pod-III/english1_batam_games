@@ -20,6 +20,7 @@
         href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;700;800&display=swap"
         rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -398,11 +399,11 @@
             </button>
             <button onclick="setView('schedule-events')" id="nav-schedule-events"
                 class="sidebar-link w-full text-slate-400">
-                <i data-lucide="calendar" class="w-4 h-4 flex-shrink-0"></i> Schedule Events
+                <i data-lucide="calendar" class="w-4 h-4 flex-shrink-0"></i> My Schedule
             </button>
             <button onclick="setView('schedule-classes')" id="nav-schedule-classes"
                 class="sidebar-link w-full text-slate-400">
-                <i data-lucide="layers" class="w-4 h-4 flex-shrink-0"></i> Class Schedules
+                <i data-lucide="clipboard-check" class="w-4 h-4 flex-shrink-0"></i> Admin Tracker
             </button>
             <button onclick="setView('cloud')" id="nav-cloud" class="sidebar-link w-full text-slate-400">
                 <i data-lucide="hard-drive" class="w-4 h-4 flex-shrink-0"></i> Cloud Usage
@@ -556,44 +557,67 @@
                     <div class="stat-card neo bg-slate-800">
                         <div class="flex items-start justify-between mb-3">
                             <div
-                                class="w-9 h-9 rounded-xl bg-purple-500/20 border-2 border-purple-500/40 flex items-center justify-center">
-                                <i data-lucide="calendar" class="w-4 h-4 text-purple-400"></i>
+                                class="w-9 h-9 rounded-xl bg-orange/20 border-2 border-orange/40 flex items-center justify-center">
+                                <i data-lucide="calendar" class="w-4 h-4 text-orange"></i>
                             </div>
-                            <span class="chip bg-purple-500/10 text-purple-400 border-purple-500/40">Events</span>
+                            <span class="chip bg-orange/10 text-orange border-orange/40">Events</span>
                         </div>
                         <div class="font-heading text-4xl text-white mb-1" id="statEvents">—</div>
-                        <div class="text-xs text-slate-400 font-bold uppercase tracking-widest">Schedule events</div>
+                        <div class="text-xs text-slate-400 font-bold uppercase tracking-widest">Master schedule</div>
                     </div>
 
                     <div class="stat-card neo bg-slate-800">
                         <div class="flex items-start justify-between mb-3">
                             <div
-                                class="w-9 h-9 rounded-xl bg-cyan-500/20 border-2 border-cyan-500/40 flex items-center justify-center">
-                                <i data-lucide="layers" class="w-4 h-4 text-cyan-400"></i>
+                                class="w-9 h-9 rounded-xl bg-orange/20 border-2 border-orange/40 flex items-center justify-center">
+                                <i data-lucide="clipboard-check" class="w-4 h-4 text-orange"></i>
                             </div>
-                            <span class="chip bg-cyan-500/10 text-cyan-400 border-cyan-500/40">Classes</span>
+                            <span class="chip bg-orange/10 text-orange border-orange/40">Classes</span>
                         </div>
                         <div class="font-heading text-4xl text-white mb-1" id="statClasses">—</div>
                         <div class="text-xs text-slate-400 font-bold uppercase tracking-widest">Admin classes</div>
                     </div>
                 </div>
 
-                <!-- Activity Graph -->
-                <div class="neo bg-slate-800 rounded-[20px] p-6 mb-6">
-                    <div class="flex items-center justify-between mb-6">
-                        <h2 class="font-heading text-lg text-white">Activity (Last 14 Days)</h2>
-                        <div class="chip bg-blue/10 text-blue border-blue/40">Saves / Updates</div>
+                <!-- Charts Section -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <!-- Activity Graph -->
+                    <div class="neo bg-slate-800 rounded-[20px] p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="font-heading text-lg text-white">System Activity</h2>
+                            <div class="chip bg-blue/10 text-blue border-blue/40">Saves / Updates</div>
+                        </div>
+                        <div class="h-64">
+                            <canvas id="activityChart"></canvas>
+                        </div>
                     </div>
-                    <div class="relative h-40 flex items-end gap-1.5 pb-6 border-b-2 border-slate-700 mt-10"
-                        id="activityGraph">
-                        <!-- Bars injected by JS -->
+
+                    <!-- Category Distribution -->
+                    <div class="neo bg-slate-800 rounded-[20px] p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="font-heading text-lg text-white">Usage by Category</h2>
+                            <div class="chip bg-orange/10 text-orange border-orange/40">Live Data</div>
+                        </div>
+                        <div class="h-64 flex justify-center">
+                            <canvas id="categoryChart"></canvas>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Tool breakdown -->
-                <div class="neo bg-slate-800 rounded-[20px] p-6">
-                    <h2 class="font-heading text-lg text-white mb-4">Tool usage breakdown</h2>
-                    <div id="toolBreakdown" class="space-y-3"></div>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Top Tools -->
+                    <div class="lg:col-span-2 neo bg-slate-800 rounded-[20px] p-6">
+                        <h2 class="font-heading text-lg text-white mb-6">Top Performing Tools</h2>
+                        <div class="h-80">
+                            <canvas id="toolsChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Tool breakdown list -->
+                    <div class="neo bg-slate-800 rounded-[20px] p-6 overflow-hidden flex flex-col">
+                        <h2 class="font-heading text-lg text-white mb-4">Quick Breakdown</h2>
+                        <div id="toolBreakdown" class="space-y-3 overflow-y-auto scrollbar pr-2 flex-1"></div>
+                    </div>
                 </div>
             </div>
 
@@ -762,9 +786,9 @@
             <div id="view-schedule-events" class="hidden">
                 <div class="neo bg-slate-800 rounded-[20px] overflow-hidden">
                     <div class="p-5 border-b-[3px] border-slate-700 flex items-center justify-between flex-wrap gap-3">
-                        <h2 class="font-heading text-lg text-white">Schedule Events <span
-                                class="text-slate-500 text-sm font-body font-normal">(master events only)</span></h2>
-                        <div id="scheduleCount" class="chip bg-purple-500/10 text-purple-400 border-purple-500/40">0
+                        <h2 class="font-heading text-lg text-white">Master Schedule Events <span
+                                class="text-slate-500 text-sm font-body font-normal">(Template Events)</span></h2>
+                        <div id="scheduleCount" class="chip bg-orange/10 text-orange border-orange/40">0
                             events</div>
                     </div>
                     <div class="overflow-x-auto">
@@ -786,15 +810,12 @@
                                         Type</th>
                                     <th onclick="toggleSort('schedule', 'date')"
                                         class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:text-blue transition-colors">
-                                        <div class="flex items-center gap-1">Date <span id="sort-schedule-date"></span>
+                                        <div class="flex items-center gap-1">Start Date <span id="sort-schedule-date"></span>
                                         </div>
                                     </th>
                                     <th
                                         class="hidden md:table-cell text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
                                         Recurrence</th>
-                                    <th
-                                        class="hidden lg:table-cell text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                                        Grad Class</th>
                                 </tr>
                             </thead>
                             <tbody id="scheduleTableBody" class="divide-y divide-slate-700/50"></tbody>
@@ -819,20 +840,20 @@
                 <!-- Tabs -->
                 <div class="flex gap-2 mb-4">
                     <button onclick="setClassTab('admin')" id="classtab-admin"
-                        class="neo-btn px-4 py-2 bg-cyan-500 text-slate-900 rounded-xl text-sm font-bold">
-                        <i data-lucide="layout-list" class="w-4 h-4"></i> Admin Classes
+                        class="neo-btn px-4 py-2 bg-orange text-white rounded-xl text-sm font-bold">
+                        <i data-lucide="layout-list" class="w-4 h-4"></i> Admin Tasks
                     </button>
                     <button onclick="setClassTab('units')" id="classtab-units"
                         class="neo-btn px-4 py-2 bg-slate-700 text-slate-300 rounded-xl text-sm">
-                        <i data-lucide="book" class="w-4 h-4"></i> Class Units
+                        <i data-lucide="book" class="w-4 h-4"></i> Unit Planning
                     </button>
                 </div>
 
                 <!-- Admin Classes Table -->
                 <div id="classview-admin" class="neo bg-slate-800 rounded-[20px] overflow-hidden">
                     <div class="p-5 border-b-[3px] border-slate-700 flex items-center justify-between flex-wrap gap-3">
-                        <h2 class="font-heading text-lg text-white">Admin Classes</h2>
-                        <div id="classAdminCount" class="chip bg-cyan-500/10 text-cyan-400 border-cyan-500/40">0 classes
+                        <h2 class="font-heading text-lg text-white">Admin Tracker Classes</h2>
+                        <div id="classAdminCount" class="chip bg-orange/10 text-orange border-orange/40">0 classes
                         </div>
                     </div>
                     <div class="overflow-x-auto">
@@ -881,8 +902,8 @@
                 <!-- Class Units Table -->
                 <div id="classview-units" class="neo bg-slate-800 rounded-[20px] overflow-hidden hidden">
                     <div class="p-5 border-b-[3px] border-slate-700 flex items-center justify-between flex-wrap gap-3">
-                        <h2 class="font-heading text-lg text-white">Class Units / Syllabi</h2>
-                        <div id="classUnitsCount" class="chip bg-cyan-500/10 text-cyan-400 border-cyan-500/40">0 classes
+                        <h2 class="font-heading text-lg text-white">Unit Planning / Syllabi</h2>
+                        <div id="classUnitsCount" class="chip bg-orange/10 text-orange border-orange/40">0 classes
                         </div>
                     </div>
                     <div class="overflow-x-auto">
@@ -1186,6 +1207,7 @@
         let allRedDays = {}
         let allNoteFolders = {}
         let scheduleClassTab = 'admin'
+        let charts = {}
         let pendingDelete = null
         let currentView = 'dashboard'
         let sortConfig = {
@@ -1342,69 +1364,145 @@
             const statStorage = document.getElementById('statStorage')
             if (statStorage) statStorage.textContent = `${totalUsedMB} MB`
 
-            // Tool breakdown chart
-            const toolCounts = {}
-            allProgress.forEach(r => { toolCounts[r.tool_key] = (toolCounts[r.tool_key] || 0) + 1 })
-            if (allNotes.length > 0) toolCounts['lesson-note'] = (toolCounts['lesson-note'] || 0) + allNotes.length
-            const sorted = Object.entries(toolCounts).sort((a, b) => b[1] - a[1])
-            const max = sorted[0]?.[1] || 1
-            const colors = ['#FF6B95', '#2979FF', '#FF8C42', '#00E676', '#a855f7', '#06b6d4']
-            document.getElementById('toolBreakdown').innerHTML = sorted.map(([key, count], i) => `
-        <div>
-          <div class="flex items-center justify-between mb-1">
-            <span class="text-sm font-bold text-slate-300">${key}</span>
-            <span class="text-xs text-slate-500 font-mono">${count} row${count !== 1 ? 's' : ''}</span>
-          </div>
-          <div class="h-2 bg-slate-700 rounded-full overflow-hidden">
-            <div class="h-full rounded-full transition-all duration-500" style="width:${Math.round(count / max * 100)}%;background:${colors[i % colors.length]}"></div>
-          </div>
-        </div>`).join('')
-
-            updateGraph()
+            updateCharts()
         }
 
-        function updateGraph() {
-            const days = 14;
-            const today = new Date();
-            const counts = [];
+        function updateCharts() {
+            const ctxActivity = document.getElementById('activityChart')?.getContext('2d')
+            const ctxCategory = document.getElementById('categoryChart')?.getContext('2d')
+            const ctxTools = document.getElementById('toolsChart')?.getContext('2d')
 
+            if (!ctxActivity || !ctxCategory || !ctxTools) return
+
+            // 1. Activity Line Chart
+            const days = 14
+            const today = new Date()
+            const activityLabels = []
+            const activityData = []
             for (let i = days - 1; i >= 0; i--) {
-                const d = new Date(today);
-                d.setDate(d.getDate() - i);
-                const dateStr = d.toISOString().split('T')[0];
-                counts.push({ dateStr, count: 0, dateObj: d });
+                const d = new Date(today)
+                d.setDate(d.getDate() - i)
+                const dateStr = d.toISOString().split('T')[0]
+                activityLabels.push(d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }))
+                const count = allProgress.filter(r => (r.updated_at ? new Date(r.updated_at) : new Date()).toISOString().split('T')[0] === dateStr).length
+                activityData.push(count)
             }
 
-            allProgress.forEach(r => {
-                const dateStr = (r.updated_at ? new Date(r.updated_at) : new Date()).toISOString().split('T')[0];
-                const bucket = counts.find(c => c.dateStr === dateStr);
-                if (bucket) bucket.count++;
-            });
+            if (charts.activity) charts.activity.destroy()
+            charts.activity = new Chart(ctxActivity, {
+                type: 'line',
+                data: {
+                    labels: activityLabels,
+                    datasets: [{
+                        label: 'Interactions',
+                        data: activityData,
+                        borderColor: '#2979FF',
+                        backgroundColor: 'rgba(41, 121, 255, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 3,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#2979FF'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } },
+                        x: { grid: { display: false }, ticks: { color: '#64748b' } }
+                    }
+                }
+            })
 
-            const maxCount = Math.max(...counts.map(c => c.count), 1);
+            // 2. Tool Counts & Category Mapping
+            const toolCounts = {}
+            allProgress.forEach(r => toolCounts[r.tool_key] = (toolCounts[r.tool_key] || 0) + 1)
+            
+            // Simplified Category Logic (Matching KlassKit Hub)
+            const categories = {
+                'Workspace': { count: allScheduleEvents.length + allClassAdmin.length + allNotes.length, color: '#FF8C42' },
+                'Tools': { count: 0, color: '#2979FF' },
+                'Workshop': { count: 0, color: '#FF6B95' },
+                'Games': { count: 0, color: '#00E676' }
+            }
 
-            const graphEl = document.getElementById('activityGraph');
-            if (!graphEl) return;
-            graphEl.innerHTML = counts.map(c => {
-                const heightPercent = Math.max((c.count / maxCount) * 100, 2);
-                const label = c.dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-                const isToday = c.dateStr === today.toISOString().split('T')[0];
+            // Map progress to categories
+            Object.entries(toolCounts).forEach(([key, count]) => {
+                if (key.includes('game') || key.includes('quiz')) categories['Games'].count += count
+                else if (key.includes('note') || key.includes('schedule') || key.includes('admin')) categories['Workspace'].count += count
+                else if (key.includes('factory') || key.includes('generator')) categories['Workshop'].count += count
+                else categories['Tools'].count += count
+            })
 
-                return `
-                 <div class="flex-1 h-full flex flex-col justify-end group relative">
-                    <div class="w-full relative flex flex-col justify-end h-[120px]">
-                       <div class="w-full ${isToday ? 'bg-orange' : 'bg-blue'} border-2 border-slate-700 rounded-t-md transition-all duration-500 opacity-80 group-hover:opacity-100 shadow-[2px_0_0_rgba(0,0,0,0.3)]" style="height: ${heightPercent}%;"></div>
-                       
-                       <div class="absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 border-2 border-slate-700 text-white text-[10px] font-bold py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10 shadow-lg">
-                           ${c.count} saves
-                       </div>
-                    </div>
-                    <div class="absolute -bottom-6 left-1/2 -translate-x-1/2 text-[9px] ${isToday ? 'text-white font-black' : 'text-slate-500 font-bold'} uppercase whitespace-nowrap hidden md:block">
-                       ${label}
-                    </div>
-                 </div>
-               `
-            }).join('');
+            if (charts.category) charts.category.destroy()
+            charts.category = new Chart(ctxCategory, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(categories),
+                    datasets: [{
+                        data: Object.values(categories).map(c => c.count),
+                        backgroundColor: Object.values(categories).map(c => c.color),
+                        borderWidth: 0,
+                        hoverOffset: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { position: 'bottom', labels: { color: '#94a3b8', font: { weight: 'bold' }, padding: 20 } }
+                    },
+                    cutout: '70%'
+                }
+            })
+
+            // 3. Top Tools Bar Chart
+            const sortedTools = Object.entries(toolCounts).sort((a, b) => b[1] - a[1]).slice(0, 10)
+            if (charts.tools) charts.tools.destroy()
+            charts.tools = new Chart(ctxTools, {
+                type: 'bar',
+                data: {
+                    labels: sortedTools.map(t => t[0]),
+                    datasets: [{
+                        label: 'Saves',
+                        data: sortedTools.map(t => t[1]),
+                        backgroundColor: '#FF8C42',
+                        borderRadius: 8,
+                        barThickness: 20
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } },
+                        y: { grid: { display: false }, ticks: { color: '#fff', font: { weight: 'bold' } } }
+                    }
+                }
+            })
+
+            // Breakdown List
+            const breakdownEl = document.getElementById('toolBreakdown')
+            if (breakdownEl) {
+                const total = allProgress.length || 1
+                breakdownEl.innerHTML = sortedTools.map(([key, count]) => {
+                    const percent = Math.round((count / total) * 100)
+                    return `
+                        <div class="group">
+                            <div class="flex items-center justify-between text-xs mb-1">
+                                <span class="font-bold text-slate-300 uppercase tracking-wider">${key}</span>
+                                <span class="text-slate-500 font-mono">${count} saves</span>
+                            </div>
+                            <div class="h-2 bg-slate-900 border border-slate-700 rounded-full overflow-hidden">
+                                <div class="h-full bg-blue transition-all duration-1000" style="width: ${percent}%"></div>
+                            </div>
+                        </div>`
+                }).join('')
+            }
         }
 
         // ── FILTERS ──
@@ -1773,7 +1871,7 @@
                 return `<tr class="group transition-colors">
           <td class="px-5 py-3">
             <div class="flex items-center gap-2">
-              <div class="w-7 h-7 rounded-lg bg-blue/20 border-2 border-blue/30 flex items-center justify-center text-blue text-xs font-heading flex-shrink-0">${initial}</div>
+              <div class="w-7 h-7 rounded-lg bg-orange/20 border-2 border-orange/30 flex items-center justify-center text-orange text-xs font-heading flex-shrink-0">${initial}</div>
               <div>
                 <div class="font-bold text-white text-sm">${name}</div>
                 <div class="font-mono text-[10px] text-slate-600">${note.user_id.slice(0, 8)}...</div>
@@ -1784,7 +1882,7 @@
             <span class="font-bold text-slate-200">${note.title || 'Untitled'}</span>
           </td>
           <td class="hidden md:table-cell px-5 py-3">
-            ${note.folder_id ? `<span class="chip bg-blue/10 text-blue border-blue/30">${folderName}</span>` : '<span class="text-xs text-slate-600 italic">Root</span>'}
+            ${note.folder_id ? `<span class="chip bg-orange/10 text-orange border-orange/30">${folderName}</span>` : '<span class="text-xs text-slate-600 italic">Root</span>'}
           </td>
           <td class="hidden sm:table-cell px-5 py-3 text-xs text-slate-500 whitespace-nowrap">${date}</td>
           <td class="px-5 py-3">
@@ -1819,11 +1917,10 @@
                 const initial = name[0]?.toUpperCase() || '?'
                 const recLabel = recurrenceLabels[ev.recurrence] || ev.recurrence || 'One-time'
                 const isRecurring = ev.recurrence && ev.recurrence !== 'none'
-                const isGrad = ev.graduation_class
                 return `<tr class="group transition-colors">
           <td class="px-5 py-3">
             <div class="flex items-center gap-2">
-              <div class="w-7 h-7 rounded-lg bg-purple-500/20 border-2 border-purple-500/30 flex items-center justify-center text-purple-400 text-xs font-heading flex-shrink-0">${initial}</div>
+              <div class="w-7 h-7 rounded-lg bg-orange/20 border-2 border-orange/30 flex items-center justify-center text-orange text-xs font-heading flex-shrink-0">${initial}</div>
               <div>
                 <div class="font-bold text-white text-sm">${name}</div>
                 <div class="font-mono text-[10px] text-slate-600">${ev.user_id.slice(0, 8)}...</div>
@@ -1832,7 +1929,7 @@
           </td>
           <td class="px-5 py-3">
             <div class="flex items-center gap-2">
-              <div class="w-3 h-3 rounded-full flex-shrink-0" style="background:${ev.color || '#2979FF'}"></div>
+              <div class="w-3 h-3 rounded-full flex-shrink-0" style="background:${ev.color || '#FF8C42'}"></div>
               <span class="font-bold text-slate-200">${ev.name}</span>
             </div>
           </td>
@@ -1842,9 +1939,6 @@
           <td class="px-5 py-3 text-xs text-slate-300 whitespace-nowrap font-mono">${ev.date || '—'}</td>
           <td class="hidden md:table-cell px-5 py-3">
             <span class="chip ${isRecurring ? 'bg-orange/10 text-orange border-orange/30' : 'bg-slate-700 text-slate-400 border-slate-600'}">${recLabel}</span>
-          </td>
-          <td class="hidden lg:table-cell px-5 py-3">
-            ${isGrad ? '<span class="chip bg-green/10 text-green border-green/30">🎓 Yes</span>' : '<span class="text-slate-600 text-xs">—</span>'}
           </td>
         </tr>`
             }).join('')
@@ -1863,12 +1957,18 @@
                         const profile = allProfiles[cls.user_id]
                         const name = profile?.display_name || '—'
                         const initial = name[0]?.toUpperCase() || '?'
-                        const taskCount = Array.isArray(cls.tasks) ? cls.tasks.length : (cls.tasks ? JSON.parse(cls.tasks || '[]').length : 0)
+                        
+                        let tasks = cls.tasks;
+                        if (typeof tasks === 'string') {
+                            try { tasks = JSON.parse(tasks); } catch(e) { tasks = []; }
+                        }
+                        const taskCount = Array.isArray(tasks) ? tasks.length : 0;
+                        
                         const created = new Date(cls.created_at).toLocaleDateString()
                         return `<tr class="group transition-colors">
               <td class="px-5 py-3">
                 <div class="flex items-center gap-2">
-                  <div class="w-7 h-7 rounded-lg bg-cyan-500/20 border-2 border-cyan-500/30 flex items-center justify-center text-cyan-400 text-xs font-heading flex-shrink-0">${initial}</div>
+                  <div class="w-7 h-7 rounded-lg bg-orange/20 border-2 border-orange/30 flex items-center justify-center text-orange text-xs font-heading flex-shrink-0">${initial}</div>
                   <span class="font-bold text-white text-sm">${name}</span>
                 </div>
               </td>
@@ -1897,17 +1997,23 @@
                         const profile = allProfiles[cls.user_id]
                         const name = profile?.display_name || '—'
                         const initial = name[0]?.toUpperCase() || '?'
-                        const unitCount = Array.isArray(cls.syllabus) ? cls.syllabus.length : 0
+                        
+                        let syllabus = cls.syllabus;
+                        if (typeof syllabus === 'string') {
+                            try { syllabus = JSON.parse(syllabus); } catch(e) { syllabus = []; }
+                        }
+                        const unitCount = Array.isArray(syllabus) ? syllabus.length : 0;
+                        
                         const created = new Date(cls.created_at).toLocaleDateString()
                         return `<tr class="group transition-colors">
               <td class="px-5 py-3">
                 <div class="flex items-center gap-2">
-                  <div class="w-7 h-7 rounded-lg bg-cyan-500/20 border-2 border-cyan-500/30 flex items-center justify-center text-cyan-400 text-xs font-heading flex-shrink-0">${initial}</div>
+                  <div class="w-7 h-7 rounded-lg bg-orange/20 border-2 border-orange/30 flex items-center justify-center text-orange text-xs font-heading flex-shrink-0">${initial}</div>
                   <span class="font-bold text-white text-sm">${name}</span>
                 </div>
               </td>
               <td class="px-5 py-3"><span class="font-bold text-slate-200">${cls.class_name}</span></td>
-              <td class="px-5 py-3"><span class="chip bg-purple-500/10 text-purple-400 border-purple-500/30">${unitCount} unit${unitCount !== 1 ? 's' : ''}</span></td>
+              <td class="px-5 py-3"><span class="chip bg-orange/10 text-orange border-orange/30">${unitCount} unit${unitCount !== 1 ? 's' : ''}</span></td>
               <td class="hidden sm:table-cell px-5 py-3 text-xs text-slate-500">${created}</td>
               <td class="px-5 py-3">
                 <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1929,8 +2035,8 @@
             document.getElementById('classview-units').classList.toggle('hidden', tab !== 'units')
             const adminBtn = document.getElementById('classtab-admin')
             const unitsBtn = document.getElementById('classtab-units')
-            adminBtn.className = `neo-btn px-4 py-2 ${tab === 'admin' ? 'bg-cyan-500 text-slate-900' : 'bg-slate-700 text-slate-300'} rounded-xl text-sm font-bold`
-            unitsBtn.className = `neo-btn px-4 py-2 ${tab === 'units' ? 'bg-cyan-500 text-slate-900' : 'bg-slate-700 text-slate-300'} rounded-xl text-sm`
+            adminBtn.className = `neo-btn px-4 py-2 ${tab === 'admin' ? 'bg-orange text-white' : 'bg-slate-700 text-slate-300'} rounded-xl text-sm font-bold`
+            unitsBtn.className = `neo-btn px-4 py-2 ${tab === 'units' ? 'bg-orange text-white' : 'bg-slate-700 text-slate-300'} rounded-xl text-sm`
         }
 
         function openClassModal(id, type) {
