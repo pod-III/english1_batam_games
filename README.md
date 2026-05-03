@@ -55,7 +55,8 @@ Built using the **KlassKit Signature Palette**, the UI ensures branding consiste
 | App | Purpose |
 |------|--------------|
 | **My Schedule** | Weekly drag-and-drop lesson planner with automatic tracking |
-| **My Admin** | Track unit planning status and deadlines across classes |
+| **Admin Tracker** | Track unit planning status and administrative deadlines |
+| **My Task** | Personal teacher task manager with priority tracking |
 
 ### Classroom Tools
 | Tool | What It Does |
@@ -151,4 +152,4 @@ Each activity is a self-contained module. To add a new one:
 Built with ❤️ by **Fahrul Ahyan** for the global community of English teachers.
 KlassKit is a **Passion Project** and will remain **100% Free** forever.
 
-*Current Version: 1.2.7 — Early Development. Changes occur frequently.*
+*Current Version: 1.3.1 — Early Development. Changes occur frequently.*
