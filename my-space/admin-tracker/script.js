@@ -143,9 +143,18 @@ function getClassInstances(masterName) {
   let filtered = allEvents
     .filter(e => e.name === masterName && e.typeId === 'class')
     .filter(e => !(e.isRecurrence && redDays.includes(e.date)))
-    // Exclude recurring master events — they're always represented by their clones,
-    // so keeping both causes the first date to appear twice in the sequence.
-    .filter(e => !(!e.isRecurrence && e.recurrence && e.recurrence !== 'none'));
+    // Ensure master events are included unless they have an explicit clone for the same date
+    .filter(e => {
+      if (!e.isRecurrence && e.recurrence && e.recurrence !== 'none') {
+        const hasClone = allEvents.some(other => 
+          other.isRecurrence && 
+          (other.master_event_id === e.id || other.recurrence_id === e.id) && 
+          other.date === e.date
+        );
+        return !hasClone;
+      }
+      return true;
+    });
 
   // Apply time filter
   if (currentFilter === 'today') {
@@ -171,9 +180,18 @@ function getClassInstances_all(masterName) {
   return allEvents
     .filter(e => e.name === masterName && e.typeId === 'class')
     .filter(e => !(e.isRecurrence && redDays.includes(e.date)))
-    // Exclude recurring master events — they're always represented by their clones,
-    // so keeping both causes the first date to appear twice in the sequence.
-    .filter(e => !(!e.isRecurrence && e.recurrence && e.recurrence !== 'none'))
+    // Ensure master events are included unless they have an explicit clone for the same date
+    .filter(e => {
+      if (!e.isRecurrence && e.recurrence && e.recurrence !== 'none') {
+        const hasClone = allEvents.some(other => 
+          other.isRecurrence && 
+          (other.master_event_id === e.id || other.recurrence_id === e.id) && 
+          other.date === e.date
+        );
+        return !hasClone;
+      }
+      return true;
+    })
     .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
 }
 
