@@ -173,12 +173,15 @@ function generateRecurrences(event, rangeStart, rangeEnd) {
           date: dateStr,
           isRecurrence: true,
           originalEventId: event.id,
-          originalDate: dateStr,           // ADDED
-          originalStartTime: event.startTime, // ADDED
-          originalEndTime: event.endTime,     // ADDED
-          _modified: false,                   // ADDED
+          originalDate: dateStr,
+          originalStartTime: event.startTime,
+          originalEndTime: event.endTime,
+          originalRoom: event.room || '',
+          originalName: event.name,
+          originalColor: event.color,
+          _modified: false,
           checklist: event.checklist.map(item => ({ ...item, done: false })),
-          overrideType: '' // ADDED
+          overrideType: ''
         });
       }
     }
@@ -220,7 +223,10 @@ function generateRecurrences(event, rangeStart, rangeEnd) {
         originalDate: dateStr,
         originalStartTime: event.startTime,
         originalEndTime: event.endTime,
-        _modified: false,                   // ADDED
+        originalRoom: event.room || '',
+        originalName: event.name,
+        originalColor: event.color,
+        _modified: false,
         checklist: event.checklist.map(item => ({ ...item, done: false })),
         overrideType: ''
       });

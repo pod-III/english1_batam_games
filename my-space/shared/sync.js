@@ -49,18 +49,25 @@
   // ── Column-mapping helpers ───────────────────────────────────────
   function isPromoted(evt) {
     if (!evt.isRecurrence) return false;
-    // Mark recurring instance as modified so it gets promoted
-    if (evt._modified) return true;
-    // Check for custom notes
-    if (evt.notes && evt.notes.trim() !== '') return true;
-    // Check for completed checklist items
-    if (evt.checklist && evt.checklist.some(item => item.done)) return true;
-    // Check for date/time changes
+    
+    // 1. Date/Time changes
     if (evt.originalDate && evt.date !== evt.originalDate) return true;
     if (evt.originalStartTime && evt.startTime !== evt.originalStartTime) return true;
     if (evt.originalEndTime && evt.endTime !== evt.originalEndTime) return true;
 
+    // 2. Content changes
+    if (evt.notes && evt.notes.trim() !== '') return true;
     if (evt.overrideType && evt.overrideType.trim() !== '') return true;
+    
+    // 3. Room change (if we have originalRoom)
+    if (evt.originalRoom !== undefined && evt.room !== evt.originalRoom) return true;
+
+    // 4. Name/Color change (if we have originalName/originalColor)
+    if (evt.originalName !== undefined && evt.name !== evt.originalName) return true;
+    if (evt.originalColor !== undefined && evt.color !== evt.originalColor) return true;
+
+    // 5. Checklist activity
+    if (evt.checklist && evt.checklist.some(item => item.done)) return true;
 
     return false;
   }
@@ -713,23 +720,39 @@
   function syncPromotedInstance(evt) {
     if (!isCloudMode()) return;
     if (!evt.isRecurrence) return;
-    if (!isPromoted(evt)) return;
+
+    const promoted = isPromoted(evt);
 
     getCachedUserId().then(userId => {
       if (!userId) return;
-      const row = sanitiseForCloud(evt, userId);
-      if (!row) return;
 
-      db.from('schedule_events')
-        .upsert(row, { onConflict: 'id' })
-        .then(({ error }) => {
-          if (error) {
-            console.error('[Sync] Promoted upsert failed:', error);
-          } else {
-            console.log('[Sync] Promoted instance saved:', evt.id);
-          }
-        })
-        .catch(err => console.error('[Sync] Promoted upsert exception:', err));
+      if (promoted) {
+        const row = sanitiseForCloud(evt, userId);
+        if (!row) return;
+
+        db.from('schedule_events')
+          .upsert(row, { onConflict: 'id' })
+          .then(({ error }) => {
+            if (error) {
+              console.error('[Sync] Promoted upsert failed:', error);
+            } else {
+              console.log('[Sync] Promoted instance saved:', evt.id);
+            }
+          })
+          .catch(err => console.error('[Sync] Promoted upsert exception:', err));
+      } else {
+        // DELETE if NO LONGER promoted (Demotion)
+        db.from('schedule_events')
+          .delete()
+          .eq('user_id', userId)
+          .eq('id', evt.id)
+          .then(({ error }) => {
+            if (!error) {
+              console.log('[Sync] Instance demoted (removed from cloud):', evt.id);
+            }
+          })
+          .catch(err => console.error('[Sync] Demotion failed:', err));
+      }
     });
   }
 
