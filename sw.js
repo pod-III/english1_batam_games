@@ -1,8 +1,5 @@
 // Be sure to bump this version number whenever you change this file
-<<<<<<< HEAD
 // so the browser knows to run the 'install' and 'activate' steps again.
-=======
->>>>>>> ff97f47 (chore: bump version and update service worker to pre-cache assets and implement stale-while-revalidate strategy)
 const CACHE_NAME = 'klasskit-v1.3.1';
 
 // 1. Pre-cache Core Assets (Static)
