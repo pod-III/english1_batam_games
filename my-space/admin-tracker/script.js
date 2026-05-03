@@ -435,7 +435,7 @@ function recalculateGlobalStats() {
   const stats = {
     classes: 0,
     lessons: { total: 0, upcoming: 0, ready: 0, finished: 0, skipped: 0 },
-    units: { total: 0, draft: 0, ready: 0, finished: 0 },
+    syllabus: { total: 0, finished: 0 },
     admin: { total: 0, pending: 0, done: 0, overdue: 0 }
   };
 
@@ -463,14 +463,12 @@ function recalculateGlobalStats() {
       });
     }
 
-    // Unit stats
+    // Syllabus stats
     const syllabus = unitData[cls.name] || [];
-    const unitsSet = new Set();
+    stats.syllabus.total += syllabus.length;
     syllabus.forEach(item => {
-      unitsSet.add(item.unit);
-      if (item.is_completed) stats.lessons.finished++; // Wait, this overlaps with taught. Handled above.
+      if (item.is_completed) stats.syllabus.finished++;
     });
-    stats.units.total += unitsSet.size;
   });
 
   updateGlobalStats(stats);
@@ -507,16 +505,15 @@ function updateGlobalStats(data) {
   set('stat-lessons-finished', l.finished);
   set('stat-lessons-skipped', l.skipped);
 
-  // 2. Units
-  const u = data.units;
-  const uPct = u.total > 0 ? Math.round(((u.ready + u.finished) / u.total) * 100) : 0;
+  // 2. Syllabus
+  const s = data.syllabus;
+  const sPct = s.total > 0 ? Math.round((s.finished / s.total) * 100) : 0;
   const ringUnits = document.getElementById('ring-units');
-  if (ringUnits) ringUnits.style.strokeDashoffset = circ - (uPct / 100) * circ;
-  set('pct-units', `${uPct}%`);
-  set('stat-units', `${u.ready + u.finished}/${u.total}`);
-  set('stat-units-draft', u.draft);
-  set('stat-units-ready', u.ready);
-  set('stat-units-finished', u.finished);
+  if (ringUnits) ringUnits.style.strokeDashoffset = circ - (sPct / 100) * circ;
+  set('pct-units', `${sPct}%`);
+  set('stat-units', `${s.finished}/${s.total}`);
+  set('stat-units-draft', s.total);
+  set('stat-units-finished', s.finished);
 
   // 3. Admin
   const a = data.admin;
@@ -615,12 +612,7 @@ function openDrawer(className) {
   currentDrawerClass = className;
   const drawerOverlay = document.getElementById('drawer-overlay');
   const drawerPanel = document.getElementById('drawer-panel');
-  
-  if (currentMode === 'units') {
-    renderUnitsDrawer(className);
-  } else {
-    renderLessonsDrawer(className);
-  }
+  renderLessonsDrawer(className);
 
   if (drawerOverlay) drawerOverlay.classList.add('open');
   if (drawerPanel) drawerPanel.classList.add('open');
@@ -754,79 +746,7 @@ function renderLessonsDrawer(className) {
     if (window.lucide) lucide.createIcons();
   }
 }
-    return;
-  }
 
-  let html = `
-    <div class="grid grid-cols-2 gap-3 mb-8">
-      <div class="bg-blue/5 border-2 border-blue/20 rounded-2xl p-4 text-center">
-        <span class="block text-2xl font-heading text-blue">${totalUnits}</span>
-        <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Total Units</span>
-      </div>
-      <div class="bg-green/5 border-2 border-green/20 rounded-2xl p-4 text-center">
-        <span class="block text-2xl font-heading text-green">${readinessPct}%</span>
-        <span class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Overall Readiness</span>
-      </div>
-    </div>
-    
-    <div class="space-y-4">
-  `;
-
-  units.forEach(([unitName, data]) => {
-    const totalL = data.lessons.length;
-    const taughtL = data.lessons.filter(l => {
-      const s = getLessonStatus(l);
-      return s === 'taught' || s === 'reviewed';
-    }).length;
-    const progressPct = totalL > 0 ? Math.round((taughtL / totalL) * 100) : 0;
-    const uStatus = data.status || 'draft';
-
-    html += `
-      <div class="p-4 bg-[var(--surface-card)] rounded-2xl border-2 border-[var(--border-secondary)] shadow-sm">
-        <div class="flex items-start justify-between mb-3">
-          <div class="min-w-0 flex-1">
-            <h4 class="font-heading text-base font-bold truncate">${unitName}</h4>
-            <p class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mt-0.5">${totalL} Lessons</p>
-          </div>
-          <div class="flex gap-1 ml-4">
-             <button onclick="duplicateUnit('${className}', '${unitName.replace(/'/g, "\\'")}')" class="p-1.5 text-slate-400 hover:text-blue hover:bg-blue/10 rounded-lg transition-colors"><i data-lucide="copy" class="w-3.5 h-3.5"></i></button>
-             <button onclick="deleteUnit('${className}', '${unitName.replace(/'/g, "\\'")}')" class="p-1.5 text-slate-400 hover:text-pink hover:bg-pink/10 rounded-lg transition-colors"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-          </div>
-        </div>
-
-        <div class="flex gap-1 mb-4">
-          ${LESSON_STATUSES.map(s => `
-            <button onclick="updateUnitStatus('${className}', '${unitName.replace(/'/g, "\\'")}', '${s.id}')" class="flex-1" style="padding: 6px 0; font-size: 9px; font-weight: 800; text-transform: uppercase; border-radius: 8px; background: ${uStatus === s.id ? s.color : 'var(--bg-tertiary)'}; color: ${uStatus === s.id ? '#fff' : 'var(--text-tertiary)'}; border: 2px solid ${uStatus === s.id ? s.color : 'var(--border-secondary)'}; box-shadow: ${uStatus === s.id ? 'none' : '0 2px 0 var(--border-secondary)'}; transform: ${uStatus === s.id ? 'translateY(2px)' : 'none'}; transition: all 0.1s;">
-              ${s.label}
-            </button>
-          `).join('')}
-        </div>
-
-        <div class="flex flex-col gap-1.5">
-          <div class="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
-            <span class="text-slate-400">Taught Progress</span>
-            <span class="text-blue">${taughtL}/${totalL}</span>
-          </div>
-          <div class="h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden border border-[var(--border-secondary)]">
-            <div class="h-full bg-blue transition-all duration-500" style="width: ${progressPct}%"></div>
-          </div>
-        </div>
-      </div>
-    `;
-  });
-
-  html += `
-    </div>
-    <button onclick="const n=prompt('Unit Name:'); if(n) addNewUnit('${className}', n);" class="w-full mt-8 p-4 border-2 border-dashed border-[var(--border-secondary)] rounded-2xl text-slate-400 font-bold hover:border-blue hover:text-blue hover:bg-blue/5 transition-all text-sm flex items-center justify-center gap-2">
-      <i data-lucide="plus" class="w-4 h-4"></i> Add New Unit
-    </button>
-  `;
-
-  if (drawerBody) {
-    drawerBody.innerHTML = html;
-    drawerBody.scrollTop = prevScroll;
-  }
-}
 
 function closeDrawer() {
   currentDrawerClass = null;
@@ -836,28 +756,7 @@ function closeDrawer() {
   if (drawerPanel) drawerPanel.classList.remove('open');
 }
 
-function toggleEdit(eventId) {
-  const panel = document.getElementById(`edit-${eventId}`);
-  const chevron = document.querySelector(`.edit-chevron-${eventId}`);
-  if (!panel) return;
-  const isOpen = !panel.classList.contains('hidden');
-  // Close all others first
-  document.querySelectorAll('[id^="edit-"]').forEach(el => el.classList.add('hidden'));
-  document.querySelectorAll('[class*="edit-chevron-"]').forEach(el => el.style.transform = '');
-  if (!isOpen) {
-    panel.classList.remove('hidden');
-    if (chevron) chevron.style.transform = 'rotate(180deg)';
-  }
-}
 
-/* ============================================
-   DRAG AND DROP FOR LESSONS
-   ============================================ */
-
-function dragLessonStart(ev, lessonId) {
-  ev.dataTransfer.setData("lessonId", lessonId);
-  ev.dataTransfer.effectAllowed = "move";
-}
 
 document.addEventListener('DOMContentLoaded', async () => {
   // 1. Render immediately from localStorage

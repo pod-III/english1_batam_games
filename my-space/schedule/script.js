@@ -438,55 +438,7 @@ function updateStats() {
   if (elAdminCount) elAdminCount.textContent = `${globalAdminDone}/${globalAdminTotal} tasks`;
   if (bAdmin) bAdmin.style.width = `${adminPct}%`;
 }
-      
-      if (evt.typeId === 'class') {
-        uniqueClasses.add(evt.name);
-      }
-    }
-  });
 
-  // Global Admin Progress
-  let globalAdminTotal = 0;
-  let globalAdminDone = 0;
-  uniqueClasses.forEach(className => {
-    const tasks = classAdminData[className]?.tasks || [];
-    globalAdminTotal += tasks.length;
-    globalAdminDone += tasks.filter(t => t.done).length;
-  });
-
-  const elEvents = document.getElementById('stat-events');
-  const elTasks = document.getElementById('stat-tasks');
-  
-  if (elEvents) elEvents.textContent = weekEvents;
-  if (elTasks) elTasks.textContent = totalTasks;
-
-  // Update Lesson Bar
-  const totalLessons = countTaught + countReady + countDraft;
-  const pctTaught = totalLessons > 0 ? (countTaught / totalLessons) * 100 : 0;
-  const pctReady = totalLessons > 0 ? (countReady / totalLessons) * 100 : 0;
-  const pctDraft = totalLessons > 0 ? (countDraft / totalLessons) * 100 : 0;
-  
-  const elLessonCount = document.getElementById('lesson-stats-count');
-  if (elLessonCount) elLessonCount.textContent = `${countTaught + countReady}/${totalLessons}`;
-  
-  const bTaught = document.getElementById('bar-taught');
-  const bReady = document.getElementById('bar-ready');
-  const bDraft = document.getElementById('bar-draft');
-  
-  if (bTaught) bTaught.style.width = `${pctTaught}%`;
-  if (bReady) bReady.style.width = `${pctReady}%`;
-  if (bDraft) bDraft.style.width = `${pctDraft}%`;
-
-  // Update Admin Bar
-  const adminPct = globalAdminTotal > 0 ? (globalAdminDone / globalAdminTotal) * 100 : 0;
-  const elAdminPct = document.getElementById('admin-stats-pct');
-  const elAdminCount = document.getElementById('admin-stats-count');
-  const bAdmin = document.getElementById('bar-admin');
-  
-  if (elAdminPct) elAdminPct.textContent = `${Math.round(adminPct)}%`;
-  if (elAdminCount) elAdminCount.textContent = `${globalAdminDone}/${globalAdminTotal} tasks`;
-  if (bAdmin) bAdmin.style.width = `${adminPct}%`;
-}
 
 function updateTodayList() {
   const container = document.getElementById('today-events-list');
@@ -1071,10 +1023,10 @@ function openDetailPanel(eventId, keepDirty = false) {
       </div>
     </div>
 
-    <!-- SECTION 2: ADMIN TRACKER -->
+    <!-- SECTION 2: TASKS & OVERRIDES -->
     <div class="detail-section-title">
-      <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i>
-      Admin Tracker
+      <i data-lucide="check-square" class="w-3.5 h-3.5"></i>
+      Event Details
     </div>
     
     <!-- Lesson Override -->
@@ -1091,7 +1043,7 @@ function openDetailPanel(eventId, keepDirty = false) {
     <!-- Checklist -->
     <div class="mb-6">
       <div class="flex items-center justify-between mb-2 px-1">
-        <label class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Admin Tasks (Lesson)</label>
+        <label class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Event Tasks</label>
         <span class="text-[10px] font-bold text-blue">${Math.round(checklistProgress)}%</span>
       </div>
       <div class="checklist-progress mb-3">
@@ -1101,64 +1053,21 @@ function openDetailPanel(eventId, keepDirty = false) {
         ${checklistHtml}
       </div>
       <div class="flex gap-2 mt-2">
-        <input type="text" id="new-checklist-input" class="panel-input flex-1 text-[11px] py-1.5" placeholder="Add lesson task..." onkeypress="if(event.key==='Enter') addChecklistItem('${eventId}')">
+        <input type="text" id="new-checklist-input" class="panel-input flex-1 text-[11px] py-1.5" placeholder="Add task..." onkeypress="if(event.key==='Enter') addChecklistItem('${eventId}')">
         <button onclick="addChecklistItem('${eventId}')" class="neo-btn-sm bg-blue text-white px-3 py-1.5 rounded-lg"><i data-lucide="plus" class="w-4 h-4"></i></button>
       </div>
     </div>
 
-    <!-- Class Admin Tracker (Global to Class) -->
+    <!-- Class Admin Link -->
     ${event.typeId === 'class' ? `
-    <div class="admin-section">
-      <div class="flex items-center justify-between mb-3">
-        <div class="flex items-center gap-2">
-          <i data-lucide="users" class="w-3.5 h-3.5 text-pink"></i>
-          <h4 class="text-[10px] font-extrabold text-pink uppercase tracking-widest">Class Admin (Global)</h4>
-        </div>
-        <div class="flex items-center gap-2">
-          ${(() => {
-            const uData = loadClassUnits()[event.name] || [];
-            const units = uData;
-            const ready = units.filter(u => u.is_completed).length;
-            const total = units.length;
-            if (total === 0) return '';
-            const isReady = ready === total;
-            return `<span class="px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wider text-white shadow-sm" style="background:${isReady ? 'var(--color-green)' : 'var(--color-orange)'}">${isReady ? 'Units Ready' : `Units: ${ready}/${total}`}</span>`;
-          })()}
-        </div>
-      </div>
-
-      <div class="segmented-progress">
-        ${(() => {
-          const tasks = (window.Sync.getAdminDataForClass(event.name, loadClassAdmin()));
-          if (tasks.length === 0) return '<div class="segmented-step opacity-20"></div>';
-          return tasks.map(t => {
-            const isOverdue = !t.done && t.deadline && t.deadline < getTodayStr();
-            return `<div class="segmented-step ${t.done ? 'done' : (isOverdue ? 'overdue' : '')}" title="${t.text.replace(/"/g, '&quot;')}"></div>`;
-          }).join('');
-        })()}
-      </div>
-
-      <div class="space-y-1.5 mb-3">
-        ${(window.Sync.getAdminDataForClass(event.name, loadClassAdmin())).map((task, i) => {
-          const isOverdue = !task.done && task.deadline && task.deadline < getTodayStr();
-          return `
-          <div class="admin-task-item group/task">
-            <label class="chunky-check flex-1 min-w-0" onclick="event.stopPropagation()">
-              <input type="checkbox" ${task.done ? 'checked' : ''} onchange="toggleClassAdminTask('${event.name.replace(/'/g, "\\'")}', ${i}, this.checked)">
-              <div class="box"></div>
-              <span class="admin-task-text truncate ${task.done ? 'done' : (isOverdue ? 'text-pink' : '')}">${task.text}</span>
-            </label>
-            ${task.deadline ? `<span class="text-[8px] font-bold ${isOverdue ? 'text-pink' : 'text-slate-400'} uppercase">${new Date(task.deadline + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>` : ''}
-            <button onclick="deleteClassAdminTask('${event.name.replace(/'/g, "\\'")}', ${i})" class="delete-btn opacity-0 group-hover/task:opacity-100 transition-opacity p-1">
-              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-            </button>
-          </div>
-          `;
-        }).join('') || '<p class="text-[10px] text-slate-400 italic">No class-wide tasks yet.</p>'}
-      </div>
-
-      <div class="flex gap-2">
-        <input type="text" class="panel-input text-[11px] py-1.5" placeholder="+ New Class Task..." onkeydown="if(event.key==='Enter') { addClassAdminTask('${event.name.replace(/'/g, "\\'")}', this.value); this.value=''; }">
+    <div class="admin-section bg-pink/5 p-4 rounded-xl border border-pink/20 mb-4">
+      <div class="flex flex-col items-center justify-center text-center gap-2">
+        <i data-lucide="layout-dashboard" class="w-6 h-6 text-pink"></i>
+        <h4 class="text-sm font-bold text-pink">Class Admin & Syllabus</h4>
+        <p class="text-xs text-slate-500 mb-2">Manage syllabus units, lessons, and class-wide tasks in the Admin Tracker.</p>
+        <a href="../admin-tracker/index.html" class="neo-btn-sm bg-pink text-white px-4 py-2 rounded-lg text-xs font-bold inline-flex items-center gap-2 transition-all shadow-pink/20">
+          Open Admin Tracker <i data-lucide="external-link" class="w-3 h-3"></i>
+        </a>
       </div>
     </div>
     ` : ''}
@@ -2098,70 +2007,7 @@ function setupEventListeners() {
    CLASS ADMIN ACTIONS
    ============================================ */
 
-function addClassAdminTask(className, text) {
-  if (!text.trim()) return;
-  const data = loadClassAdmin();
-  if (!data[className]) data[className] = [];
-  data[className].push({ id: Date.now().toString(), text: text.trim(), done: false, deadline: null });
-  saveClassAdmin(data);
-  const detailPanel = document.getElementById('detail-panel');
-  if (detailPanel.classList.contains('open') && selectedEventId) {
-    openDetailPanel(selectedEventId);
-  }
-}
 
-function deleteClassAdminTask(className, index) {
-  const data = loadClassAdmin();
-  if (data[className]) {
-    data[className].splice(index, 1);
-    saveClassAdmin(data);
-    const detailPanel = document.getElementById('detail-panel');
-    if (detailPanel.classList.contains('open') && selectedEventId) {
-      openDetailPanel(selectedEventId);
-    }
-  }
-}
-
-function toggleClassAdminTask(className, index, checked) {
-  const data = loadClassAdmin();
-  if (data[className] && data[className][index]) {
-    data[className][index].done = checked;
-    saveClassAdmin(data);
-    const detailPanel = document.getElementById('detail-panel');
-    if (detailPanel.classList.contains('open') && selectedEventId) {
-      openDetailPanel(selectedEventId);
-    }
-  }
-};
-  data[className].tasks.push({
-    id: `task_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,
-    text: text.trim(),
-    done: false
-  });
-  saveClassAdmin(data);
-  updateStats();
-  if (selectedEventId) openDetailPanel(selectedEventId, true);
-}
-
-function deleteClassAdminTask(className, index) {
-  isDetailPanelDirty = true;
-  const data = loadClassAdmin();
-  if (!data[className] || !data[className].tasks[index]) return;
-  data[className].tasks.splice(index, 1);
-  saveClassAdmin(data);
-  updateStats();
-  if (selectedEventId) openDetailPanel(selectedEventId, true);
-}
-
-function toggleClassAdminTask(className, index, checked) {
-  isDetailPanelDirty = true;
-  const data = loadClassAdmin();
-  if (!data[className] || !data[className].tasks[index]) return;
-  data[className].tasks[index].done = checked;
-  saveClassAdmin(data);
-  updateStats();
-  if (selectedEventId) openDetailPanel(selectedEventId, true);
-}
 
 // Re-render callback for sync.js loadFromCloud
 window._syncRerender = function () {
