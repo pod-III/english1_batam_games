@@ -159,6 +159,15 @@ function getClassInstances(masterName) {
   return filtered.sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
 }
 
+function getClassInstances_all(masterName) {
+  const allEvents = loadScheduleEvents();
+  const redDays = loadRedDays();
+  return allEvents
+    .filter(e => e.name === masterName && e.typeId === 'class')
+    .filter(e => !(e.isRecurrence && redDays.includes(e.date)))
+    .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
+}
+
 function getUniqueClasses() {
   const masters = getClassEvents();
   // Group by name to find unique classes
@@ -628,6 +637,7 @@ function renderLessonsDrawer(className) {
   const classSyllabus = syllabusMap[className] || [];
   const adminTasks = window.Sync.getAdminDataForClass(className, loadClassAdmin()) || [];
   const instances = getClassInstances(className);
+  const allInstances = getClassInstances_all(className);
   
   const drawerTitle = document.getElementById('drawer-title');
   const drawerSubtitle = document.getElementById('drawer-subtitle');
@@ -711,7 +721,7 @@ function renderLessonsDrawer(className) {
   } else {
     classSyllabus.forEach((item, index) => {
       // Find matching instance to show date if available
-      const inst = instances[index];
+      const inst = allInstances[index];
       const dateHtml = inst ? `<span class="text-[10px] font-bold text-slate-400 ml-2 whitespace-nowrap"><i data-lucide="calendar" class="w-3 h-3 inline"></i> ${formatDate(inst.date)}</span>` : '';
       
       html += `
