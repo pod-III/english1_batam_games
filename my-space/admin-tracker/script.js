@@ -5,7 +5,7 @@
 
 let currentFilter = 'week'; // 'today', 'week', 'all'
 let currentMode = 'lessons'; // 'lessons', 'units'
-let currentView = 'cards'; // 'cards', 'table'
+let currentView = 'table'; // 'cards', 'table'
 let currentDrawerClass = null;
 
 /* ============================================
@@ -411,7 +411,7 @@ function renderTableView(classes) {
           bodyHtml += `
             <div class="p-3 rounded-2xl border-[3px] border-[var(--border-primary)] bg-[var(--surface-card)] shadow-[2px_2px_0px_0px_rgba(30,41,59,0.1)] hover:shadow-hard transition-all cursor-pointer hover:-translate-y-0.5" onclick="openDrawer('${cls.name.replace(/'/g, "\\'")}')">
               <div class="flex items-center gap-2 mb-1.5">
-                <span class="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider text-white shadow-sm" style="background:${statusColor}">${label}</span>
+                <button onclick="event.stopPropagation(); cycleSyllabusLessonStatus('${cls.name.replace(/'/g, "\\'")}', ${session.sequenceIndex})" class="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider text-white shadow-sm hover:brightness-110 active:translate-y-0.5 transition-all" style="background:${statusColor}">${label}</button>
                 <span class="text-[11px] font-extrabold text-slate-400 ml-auto whitespace-nowrap"><i data-lucide="clock" class="w-3 h-3 inline pb-0.5"></i> ${formatTime(inst.startTime)}</span>
               </div>
               <div class="text-[13px] font-bold leading-snug text-dark dark:text-white">${title}</div>
@@ -1028,7 +1028,7 @@ function addClassAdminTask(className, text) {
   data[className].push({ id: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(), text: text.trim(), done: false, deadline: null });
   saveClassAdmin(data);
   renderLessonsDrawer(className);
-  updateCardStats(className);
+  renderClassGrid();
 }
 function toggleClassAdminTask(className, taskId, isDone) {
   const data = loadClassAdmin();
@@ -1037,7 +1037,7 @@ function toggleClassAdminTask(className, taskId, isDone) {
   if (task) task.done = isDone;
   saveClassAdmin(data);
   renderLessonsDrawer(className);
-  updateCardStats(className);
+  renderClassGrid();
 }
 function deleteClassAdminTask(className, taskId) {
   const data = loadClassAdmin();
@@ -1045,7 +1045,7 @@ function deleteClassAdminTask(className, taskId) {
   data[className] = tasks.filter(t => t.id !== taskId);
   saveClassAdmin(data);
   renderLessonsDrawer(className);
-  updateCardStats(className);
+  renderClassGrid();
 }
 function setTaskDeadline(className, taskId, dateStr) {
   const data = loadClassAdmin();
@@ -1054,7 +1054,7 @@ function setTaskDeadline(className, taskId, dateStr) {
   if (task) task.deadline = dateStr || null;
   saveClassAdmin(data);
   renderLessonsDrawer(className);
-  updateCardStats(className);
+  renderClassGrid();
 }
 function setTaskDeadlineDays(className, taskId, days) {
   const d = new Date();
@@ -1070,7 +1070,7 @@ function addSyllabusLesson(className, unitName = '(No Unit)') {
   data[className].push({ index: nextIndex, unit: unitName, lesson: 'New Lesson', status: 'not_ready' });
   saveClassUnits(data);
   renderLessonsDrawer(className);
-  updateCardStats(className);
+  renderClassGrid();
 }
 
 async function addSyllabusUnit(className) {
@@ -1116,7 +1116,7 @@ async function deleteSyllabusUnit(className, unitName) {
     data[className].forEach((item, i) => item.index = i);
     saveClassUnits(data);
     renderLessonsDrawer(className);
-    updateCardStats(className);
+    renderClassGrid();
   }
 }
 
@@ -1130,7 +1130,7 @@ function cycleSyllabusLessonStatus(className, index) {
     data[className][index].is_completed = (nextStatus === 'completed');
     saveClassUnits(data);
     renderLessonsDrawer(className);
-    updateCardStats(className);
+    renderClassGrid();
   }
 }
 
@@ -1139,7 +1139,7 @@ function updateSyllabusLesson(className, index, field, value) {
   if (data[className] && data[className][index]) {
     data[className][index][field] = value;
     saveClassUnits(data);
-    updateCardStats(className);
+    renderClassGrid();
   }
 }
 async function deleteSyllabusLesson(className, index) {
@@ -1163,6 +1163,6 @@ async function deleteSyllabusLesson(className, index) {
     data[className].forEach((item, i) => item.index = i);
     saveClassUnits(data);
     renderLessonsDrawer(className);
-    updateCardStats(className);
+    renderClassGrid();
   }
 }
