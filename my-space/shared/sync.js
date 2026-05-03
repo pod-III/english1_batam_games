@@ -259,9 +259,12 @@
     Object.entries(adminData).forEach(([className, tasks]) => {
       if (Array.isArray(tasks)) {
         const row = classAdminToRow(className, tasks, userId);
-        if (existingMap[className]) {
-          row.id = existingMap[className];
-        }
+        // Always ensure id is set — use existing DB id or generate a new UUID
+        row.id = existingMap[className] || (
+          (window.crypto && crypto.randomUUID)
+            ? crypto.randomUUID()
+            : '00000000-0000-4000-8000-' + Date.now().toString(16).padStart(12, '0')
+        );
         rowsToUpsert.push(row);
       }
     });
@@ -301,9 +304,12 @@
     Object.entries(syllabusData).forEach(([className, syllabus]) => {
       if (Array.isArray(syllabus)) {
         const row = classSyllabusToRow(className, syllabus, userId);
-        if (existingMap[className]) {
-          row.id = existingMap[className];
-        }
+        // Always ensure id is set — use existing DB id or generate a new UUID
+        row.id = existingMap[className] || (
+          (window.crypto && crypto.randomUUID)
+            ? crypto.randomUUID()
+            : '00000000-0000-4000-8000-' + Date.now().toString(16).padStart(12, '0')
+        );
         rowsToUpsert.push(row);
       }
     });
