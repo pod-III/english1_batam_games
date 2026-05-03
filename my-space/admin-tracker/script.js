@@ -676,12 +676,7 @@ function recalculateGlobalStats() {
   updateGlobalStats(stats);
 }
 
-// Helper: get all class instances regardless of time filter
-function getClassInstances_all() {
-  const allEvents = loadScheduleEvents();
-  return allEvents.filter(e => e.typeId === 'class')
-    .filter(e => !(e.isRecurrence && loadRedDays().includes(e.date)));
-}
+
 
 function updateGlobalStats(data) {
   const circ = 213.6;
