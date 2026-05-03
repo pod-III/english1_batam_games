@@ -716,53 +716,71 @@ function renderLessonsDrawer(className) {
   `;
   
   // Render Syllabus Editor
+  const groupedSyllabus = {};
+  classSyllabus.forEach((item, index) => {
+    const u = item.unit || '(No Unit)';
+    if (!groupedSyllabus[u]) groupedSyllabus[u] = [];
+    groupedSyllabus[u].push({ ...item, originalIndex: index });
+  });
+
   html += `
     <div class="mb-8">
       <div class="flex items-center justify-between mb-4">
         <h4 class="font-heading text-base font-bold">Syllabus</h4>
-        <button onclick="addSyllabusLesson('${className}')" class="px-3 py-1.5 rounded-xl bg-[var(--surface-card)] text-sm font-bold border-2 border-[var(--border-secondary)] hover:border-[var(--color-blue)] hover:text-[var(--color-blue)] transition-colors">+ Add Lesson</button>
+        <button onclick="addSyllabusUnit('${className}')" class="px-3 py-1.5 rounded-xl bg-blue text-white text-sm font-bold border-2 border-dark shadow-[2px_2px_0px_0px_rgba(30,41,59,1)] hover:translate-y-[-1px] active:translate-y-[1px]">+ Add Unit</button>
       </div>
-      <div class="space-y-2" id="syllabus-list-${className.replace(/[^a-z0-9]/gi, '_')}">
+      <div class="space-y-6" id="syllabus-list-${className.replace(/[^a-z0-9]/gi, '_')}">
   `;
 
-  if (classSyllabus.length === 0) {
-    html += `<p class="text-xs text-slate-400 italic mb-2">No syllabus created yet. Add your first lesson.</p>`;
+  if (Object.keys(groupedSyllabus).length === 0) {
+    html += `<p class="text-xs text-slate-400 italic mb-2 text-center py-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700">No syllabus created yet. Add your first unit.</p>`;
   } else {
-    classSyllabus.forEach((item, index) => {
-      // Find matching instance to show date if available
-      const inst = allInstances[index];
-      const dateHtml = inst ? `<span class="text-[10px] font-bold text-slate-400 ml-2 whitespace-nowrap"><i data-lucide="calendar" class="w-3 h-3 inline"></i> ${formatDate(inst.date)}</span>` : '';
-      
-      const resolvedStatus = item.status || (item.is_completed ? 'completed' : 'not_ready');
-      const statusColorCls = resolvedStatus === 'completed' 
-        ? 'bg-green/10 text-green border-green/30 hover:border-green'
-        : (resolvedStatus === 'ready' 
-            ? 'bg-blue/10 text-blue border-blue/30 hover:border-blue' 
-            : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700 hover:border-pink/50');
-      
+    Object.entries(groupedSyllabus).forEach(([unitName, lessons]) => {
       html += `
-        <div class="flex flex-col gap-2 p-3 bg-[var(--surface-card)] border-2 border-[var(--border-secondary)] rounded-xl relative group">
-          <div class="flex items-center gap-3">
-            <select class="appearance-none cursor-pointer outline-none text-[8px] font-extrabold uppercase tracking-widest px-2 py-1.5 rounded-lg border-2 text-center w-[72px] flex-shrink-0 transition-colors ${statusColorCls}" onchange="updateSyllabusLesson('${className}', ${index}, 'status', this.value)">
-              <option value="not_ready" ${resolvedStatus === 'not_ready' ? 'selected' : ''}>Draft</option>
-              <option value="ready" ${resolvedStatus === 'ready' ? 'selected' : ''}>Ready</option>
-              <option value="completed" ${resolvedStatus === 'completed' ? 'selected' : ''}>Done</option>
-            </select>
-            <div class="flex-1 flex flex-col gap-1 min-w-0">
-              <div class="flex items-center w-full">
-                <span class="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 w-12 flex-shrink-0">L${index + 1}</span>
-                <input type="text" class="edit-input flex-1 py-1 px-2 text-sm font-bold bg-transparent border-transparent hover:bg-[var(--surface-card)] hover:border-[var(--border-secondary)] focus:bg-[var(--surface-card)] focus:border-[var(--color-blue)] transition-all cursor-text outline-none" value="${(item.lesson || '').replace(/"/g, '&quot;')}" placeholder="Lesson Name" onchange="updateSyllabusLesson('${className}', ${index}, 'lesson', this.value)">
+        <div class="unit-group p-4 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-slate-200 dark:border-slate-800">
+          <div class="flex items-center justify-between mb-3 gap-2">
+            <div class="flex-1 flex items-center">
+              <input type="text" class="text-xs font-extrabold uppercase tracking-widest text-slate-400 bg-transparent border-none outline-none focus:text-blue w-full" value="${unitName}" onchange="updateSyllabusUnitName('${className}', '${unitName.replace(/'/g, "\\'")}', this.value)">
+            </div>
+            <div class="flex items-center gap-3">
+              <button onclick="addSyllabusLesson('${className}', '${unitName.replace(/'/g, "\\'")}')" class="text-[10px] font-bold text-blue hover:underline whitespace-nowrap">+ Add Lesson</button>
+              <button onclick="deleteSyllabusUnit('${className}', '${unitName.replace(/'/g, "\\'")}')" class="p-1.5 text-slate-300 hover:text-pink transition-colors" title="Delete Unit"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+            </div>
+          </div>
+          <div class="space-y-2">
+      `;
+
+      lessons.forEach((item) => {
+        const index = item.originalIndex;
+        const inst = allInstances[index];
+        const dateHtml = inst ? `<span class="text-[10px] font-bold text-slate-400 ml-2 whitespace-nowrap"><i data-lucide="calendar" class="w-3 h-3 inline"></i> ${formatDate(inst.date)}</span>` : '';
+        
+        const resolvedStatus = item.status || (item.is_completed ? 'completed' : 'not_ready');
+        const statusMap = {
+          'not_ready': { label: 'Draft', cls: 'bg-slate-200 text-slate-500 dark:bg-slate-700' },
+          'ready': { label: 'Ready', cls: 'bg-blue text-white' },
+          'completed': { label: 'Done', cls: 'bg-green text-white' }
+        };
+        const s = statusMap[resolvedStatus];
+
+        html += `
+          <div class="flex items-center gap-3 p-3 bg-[var(--surface-card)] border-2 border-[var(--border-secondary)] rounded-xl relative group/lesson">
+            <button onclick="cycleSyllabusLessonStatus('${className}', ${index})" class="flex-shrink-0 w-16 py-2 rounded-lg text-[9px] font-black uppercase tracking-tighter transition-all border-2 border-dark shadow-[2px_2px_0px_0px_rgba(30,41,59,1)] active:translate-y-[1px] active:shadow-none ${s.cls}">
+              ${s.label}
+            </button>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] font-black text-slate-300 w-6 flex-shrink-0">L${index + 1}</span>
+                <input type="text" class="edit-input flex-1 py-1 px-2 text-sm font-bold bg-transparent border-transparent hover:bg-slate-50 dark:hover:bg-slate-800 transition-all outline-none" value="${(item.lesson || '').replace(/"/g, '&quot;')}" placeholder="Lesson Name" onchange="updateSyllabusLesson('${className}', ${index}, 'lesson', this.value)">
                 ${dateHtml}
               </div>
-              <div class="flex items-center w-full">
-                <span class="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 w-12 flex-shrink-0">Unit</span>
-                <input type="text" class="edit-input flex-1 py-1 px-2 text-xs font-semibold bg-transparent border-transparent hover:bg-[var(--surface-card)] hover:border-[var(--border-secondary)] focus:bg-[var(--surface-card)] focus:border-[var(--color-blue)] transition-all cursor-text outline-none" value="${(item.unit || '').replace(/"/g, '&quot;')}" placeholder="Unit Name" onchange="updateSyllabusLesson('${className}', ${index}, 'unit', this.value)">
-              </div>
             </div>
-            <button onclick="deleteSyllabusLesson('${className}', ${index})" class="p-2 text-slate-400 hover:text-pink hover:bg-pink/10 rounded-lg transition-colors flex-shrink-0" title="Delete Lesson"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+            <button onclick="deleteSyllabusLesson('${className}', ${index})" class="p-2 text-slate-300 hover:text-pink hover:bg-pink/10 rounded-lg transition-colors flex-shrink-0 opacity-0 group-hover/lesson:opacity-100" title="Delete Lesson"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
           </div>
-        </div>
-      `;
+        `;
+      });
+
+      html += `</div></div>`;
     });
   }
 
@@ -864,31 +882,67 @@ function setTaskDeadlineDays(className, taskId, days) {
 }
 
 // --- SYLLABUS CRUD ---
-function addSyllabusLesson(className) {
+function addSyllabusLesson(className, unitName = '(No Unit)') {
   const data = loadClassUnits();
   if (!data[className]) data[className] = [];
   const nextIndex = data[className].length;
-  // Try to inherit unit from previous lesson
-  const prevUnit = nextIndex > 0 ? data[className][nextIndex - 1].unit : 'Unit 1';
-  data[className].push({ index: nextIndex, unit: prevUnit, lesson: 'New Lesson', status: 'not_ready' });
+  data[className].push({ index: nextIndex, unit: unitName, lesson: 'New Lesson', status: 'not_ready' });
   saveClassUnits(data);
   renderLessonsDrawer(className);
   updateCardStats(className);
 }
+
+function addSyllabusUnit(className) {
+  const unitName = prompt('Enter unit name:');
+  if (unitName && unitName.trim()) {
+    addSyllabusLesson(className, unitName.trim());
+  }
+}
+
+function updateSyllabusUnitName(className, oldUnitName, newUnitName) {
+  if (!newUnitName.trim()) return;
+  const data = loadClassUnits();
+  if (data[className]) {
+    data[className].forEach(item => {
+      if (item.unit === oldUnitName) item.unit = newUnitName.trim();
+    });
+    saveClassUnits(data);
+    renderLessonsDrawer(className);
+  }
+}
+
+function deleteSyllabusUnit(className, unitName) {
+  if (!confirm(`Are you sure you want to delete "${unitName}" and all its lessons?`)) return;
+  const data = loadClassUnits();
+  if (data[className]) {
+    data[className] = data[className].filter(item => item.unit !== unitName);
+    // Re-index
+    data[className].forEach((item, i) => item.index = i);
+    saveClassUnits(data);
+    renderLessonsDrawer(className);
+    updateCardStats(className);
+  }
+}
+
+function cycleSyllabusLessonStatus(className, index) {
+  const data = loadClassUnits();
+  if (data[className] && data[className][index]) {
+    const currentStatus = data[className][index].status || (data[className][index].is_completed ? 'completed' : 'not_ready');
+    const statuses = ['not_ready', 'ready', 'completed'];
+    const nextStatus = statuses[(statuses.indexOf(currentStatus) + 1) % statuses.length];
+    data[className][index].status = nextStatus;
+    data[className][index].is_completed = (nextStatus === 'completed');
+    saveClassUnits(data);
+    renderLessonsDrawer(className);
+    updateCardStats(className);
+  }
+}
+
 function updateSyllabusLesson(className, index, field, value) {
   const data = loadClassUnits();
   if (data[className] && data[className][index]) {
     data[className][index][field] = value;
     saveClassUnits(data);
-    updateCardStats(className);
-  }
-}
-function toggleSyllabusLessonCompleted(className, index, isCompleted) {
-  const data = loadClassUnits();
-  if (data[className] && data[className][index]) {
-    data[className][index].is_completed = isCompleted;
-    saveClassUnits(data);
-    renderLessonsDrawer(className);
     updateCardStats(className);
   }
 }
