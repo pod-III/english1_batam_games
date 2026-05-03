@@ -369,7 +369,7 @@ function renderTableView(classes) {
   const tbody = document.getElementById('table-body');
 
   // Header
-  let headerHtml = `<th class="p-4 font-heading text-slate-400 bg-chalk dark:bg-dark sticky left-0 z-20 w-48 border-r-2 border-[var(--border-secondary)]">Class</th>`;
+  let headerHtml = `<th class="p-3 font-heading text-[10px] uppercase tracking-widest text-slate-400 bg-chalk dark:bg-dark sticky left-0 z-20 w-40 border-r-2 border-[var(--border-secondary)]">Class</th>`;
   sortedDates.forEach(dateStr => {
     const isToday = dateStr === getTodayStr();
     headerHtml += `
@@ -389,22 +389,24 @@ function renderTableView(classes) {
     
     bodyHtml += `<tr class="border-b-2 border-slate-200 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 group">`;
     bodyHtml += `
-      <td class="p-4 sticky left-0 z-10 bg-white/80 dark:bg-dark/80 backdrop-blur-md group-hover:bg-slate-50 dark:group-hover:bg-slate-800/50 border-r-2 border-[var(--border-secondary)] transition-colors" onclick="openDrawer('${cls.name.replace(/'/g, "\\'")}')" style="cursor: pointer;">
-        <div class="flex items-center gap-3">
-          <div class="w-1 h-10 rounded-full flex-shrink-0 shadow-sm" style="background:${cdata.color}"></div>
+      <td class="p-3 sticky left-0 z-10 bg-white/80 dark:bg-dark/80 backdrop-blur-md group-hover:bg-slate-50 dark:group-hover:bg-slate-800/50 border-r-2 border-[var(--border-secondary)] transition-colors" onclick="openDrawer('${cls.name.replace(/'/g, "\\'")}')" style="cursor: pointer;">
+        <div class="flex items-center gap-2">
+          <div class="w-1 h-8 rounded-full flex-shrink-0 shadow-sm" style="background:${cdata.color}"></div>
           <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2 mb-1">
-              <div class="font-heading font-bold text-sm truncate max-w-[120px]">${cls.name}</div>
-              <span class="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider text-white shadow-sm flex-shrink-0" style="background:${headerStatusObj.color}">${headerStatusObj.label}</span>
+            <div class="flex flex-col mb-1">
+              <div class="font-heading font-bold text-[12px] leading-tight truncate max-w-[100px]">${cls.name}</div>
+              <div class="mt-1 flex">
+                <span class="px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-wider text-white shadow-sm flex-shrink-0" style="background:${headerStatusObj.color}">${headerStatusObj.label}</span>
+              </div>
             </div>
-            <div class="text-[9px] font-extrabold uppercase tracking-widest text-slate-400">${cdata.stats.total} Lessons</div>
+            <div class="text-[8px] font-extrabold uppercase tracking-widest text-slate-400">${cdata.stats.total} Sess</div>
           </div>
         </div>
       </td>
     `;
 
     sortedDates.forEach(dateStr => {
-      bodyHtml += `<td class="p-4 align-top min-w-[220px]">`;
+      bodyHtml += `<td class="p-3 align-top min-w-[190px]">`;
 
       const instances = cdata.instancesByDate[dateStr] || [];
       const tasks = cdata.tasksByDate[dateStr] || [];
@@ -427,12 +429,12 @@ function renderTableView(classes) {
           const unitLabel = session.lesson?.unit ? `<span class="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400 truncate mt-1"><i data-lucide="layers" class="w-3 h-3 inline pb-0.5"></i> ${session.lesson.unit}</span>` : '';
 
           bodyHtml += `
-            <div class="p-3 rounded-2xl border-[3px] border-[var(--border-primary)] bg-[var(--surface-card)] shadow-[2px_2px_0px_0px_rgba(30,41,59,0.1)] hover:shadow-hard transition-all cursor-pointer hover:-translate-y-0.5" onclick="openDrawer('${cls.name.replace(/'/g, "\\'")}')">
-              <div class="flex items-center gap-2 mb-1.5">
-                <button onclick="event.stopPropagation(); cycleSyllabusLessonStatus('${cls.name.replace(/'/g, "\\'")}', ${session.sequenceIndex})" class="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider text-white shadow-sm hover:brightness-110 active:translate-y-0.5 transition-all" style="background:${statusColor}">${label}</button>
-                <span class="text-[11px] font-extrabold text-slate-400 ml-auto whitespace-nowrap"><i data-lucide="clock" class="w-3 h-3 inline pb-0.5"></i> ${formatTime(inst.startTime)}</span>
+            <div class="p-2.5 rounded-xl border-[3px] border-[var(--border-primary)] bg-[var(--surface-card)] shadow-[2px_2px_0px_0px_rgba(30,41,59,0.1)] hover:shadow-hard transition-all cursor-pointer hover:-translate-y-0.5" onclick="openDrawer('${cls.name.replace(/'/g, "\\'")}')">
+              <div class="flex items-center gap-2 mb-1">
+                <button onclick="event.stopPropagation(); cycleSyllabusLessonStatus('${cls.name.replace(/'/g, "\\'")}', ${session.sequenceIndex})" class="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider text-white shadow-sm hover:brightness-110 active:translate-y-0.5 transition-all" style="background:${statusColor}">${label}</button>
+                <span class="text-[10px] font-extrabold text-slate-400 ml-auto whitespace-nowrap"><i data-lucide="clock" class="w-3 h-3 inline pb-0.5"></i> ${formatTime(inst.startTime)}</span>
               </div>
-              <div class="text-[13px] font-bold leading-snug text-dark dark:text-white">${title}</div>
+              <div class="text-[12px] font-bold leading-snug text-dark dark:text-white line-clamp-2">${title}</div>
               ${unitLabel}
             </div>
           `;
@@ -1182,4 +1184,9 @@ async function deleteSyllabusLesson(className, index) {
     renderLessonsDrawer(className);
     renderClassGrid();
   }
+}
+
+function toggleTheme() {
+  const isDark = document.documentElement.classList.toggle('dark');
+  localStorage.setItem('theme_admin-tracker', isDark ? 'dark' : 'light');
 }
