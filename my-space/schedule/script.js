@@ -1496,32 +1496,31 @@ function saveEventFromModal() {
   closeEventModal();
 }
 
-function deleteEvent(id) {
+async function deleteEvent(id, dateStr) {
   const event = events.find(e => e.id === id);
   if (!event) return;
 
-  const isMaster = !event.isRecurrence && event.recurrence !== 'none';
-
-  if (isMaster) {
-    // This IS the master — confirm deleting all
-    if (confirm('Delete this event? It is a recurring event. This will delete the main event and all future occurrences.')) {
-      events = events.filter(e => e.id !== id && e.originalEventId !== id);
-    } else {
-      return;
-    }
-  } else if (event.isRecurrence) {
-    // This IS an instance — offer "delete just this" vs "delete all"
-    const choice = confirm('Delete only this occurrence? Click "OK" for this date only, or "Cancel" to skip.');
-    if (choice) {
-      // Delete just this clone
+  if (event.isRecurrence) {
+    if (await window.showConfirm('Delete this event? It is a recurring event. This will delete the main event and all future occurrences.')) {
       events = events.filter(e => e.id !== id);
-    } else {
+      saveEvents();
+      renderCalendar();
+      closeDetailPanel();
+      window.showToast('Recurring series deleted', 'info');
       return;
     }
-  } else {
-    if (!confirm('Are you sure you want to delete this event?')) return;
-    events = events.filter(e => e.id !== id);
+    const choice = await window.showConfirm('Delete only this occurrence? Click "Confirm" for this date only, or "Cancel" to skip.');
+    if (choice) {
+      addRedDay(dateStr);
+      renderCalendar();
+      closeDetailPanel();
+      window.showToast('Occurrence deleted', 'info');
+    }
+    return;
   }
+
+  if (!(await window.showConfirm('Are you sure you want to delete this event?'))) return;
+  events = events.filter(e => e.id !== id);
   
   saveData();
 
@@ -1869,44 +1868,7 @@ function renderHolidayMonth(date) {
   `;
 }
 
-function showToast(message, type = 'info') {
-  const container = document.getElementById('toastContainer');
-  const toast = document.createElement('div');
-  
-  const types = {
-    info: { icon: 'info', color: 'bg-blue text-white' },
-    success: { icon: 'check-circle', color: 'bg-green text-white' },
-    warning: { icon: 'alert-triangle', color: 'bg-orange text-white' },
-    error: { icon: 'x-circle', color: 'bg-pink text-white' }
-  };
-  
-  const config = types[type] || types.info;
-  
-  toast.className = `px-4 py-3 rounded-xl shadow-neo font-bold text-sm flex items-center gap-3 transform transition-all duration-300 translate-y-10 opacity-0 ${config.color} border-2 border-[#1e293b]`;
-  toast.innerHTML = `
-    <i data-lucide="${config.icon}" class="w-5 h-5"></i>
-    <span>${message}</span>
-  `;
-  
-  container.appendChild(toast);
-  lucide.createIcons({ root: toast });
-  
-  // Animate in
-  setTimeout(() => {
-    toast.classList.remove('translate-y-10', 'opacity-0');
-    toast.classList.add('translate-y-0', 'opacity-100');
-  }, 10);
-  
-  // Auto remove
-  setTimeout(() => {
-    toast.classList.remove('translate-y-0', 'opacity-100');
-    toast.classList.add('translate-y-10', 'opacity-0');
-    setTimeout(() => toast.remove(), 300);
-  }, 3000);
-}
-
-// Expose for sync.js
-window.showToast = showToast;
+// Global showToast is now provided by shared/sync.js
 
 function toggleDarkMode() {
   document.documentElement.classList.toggle('dark');

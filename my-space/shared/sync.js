@@ -26,10 +26,10 @@
 
   // ── Sync badge state ─────────────────────────────────────────────
   const BADGE_STATES = {
-    synced:  { icon: 'cloud',     text: 'Synced',     cls: 'bg-green/10 text-green  border-green/30' },
-    syncing: { icon: 'loader',    text: 'Syncing…',   cls: 'bg-orange/10 text-orange border-orange/30 animate-pulse' },
-    local:   { icon: 'hard-drive', text: 'Local',      cls: 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-[var(--border-primary)]' },
-    error:   { icon: 'alert-triangle', text: 'Sync Error', cls: 'bg-pink/10 text-pink border-pink/30' },
+    synced: { icon: 'cloud', text: 'Synced', cls: 'bg-green/10 text-green  border-green/30' },
+    syncing: { icon: 'loader', text: 'Syncing…', cls: 'bg-orange/10 text-orange border-orange/30 animate-pulse' },
+    local: { icon: 'hard-drive', text: 'Local', cls: 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-[var(--border-primary)]' },
+    error: { icon: 'alert-triangle', text: 'Sync Error', cls: 'bg-pink/10 text-pink border-pink/30' },
   };
 
   function setSyncBadge(state) {
@@ -249,7 +249,7 @@
       console.error('[Sync] Fetch class admin error:', fetchErr);
       return;
     }
-    
+
     const existingMap = {};
     (existing || []).forEach(row => {
       existingMap[row.class_name] = row.id;
@@ -284,14 +284,14 @@
     return result;
   }
 
-    async function cloudSaveClassUnits(userId, syllabusData) {
+  async function cloudSaveClassUnits(userId, syllabusData) {
     // Fetch existing rows to get their IDs
     const { data: existing, error: fetchErr } = await db.from('schedule_class_units').select('id, class_name').eq('user_id', userId);
     if (fetchErr) {
       console.error('[Sync] Fetch class syllabus error:', fetchErr);
       return;
     }
-    
+
     const existingMap = {};
     (existing || []).forEach(row => {
       existingMap[row.class_name] = row.id;
@@ -312,7 +312,7 @@
       const { error } = await db.from('schedule_class_units').upsert(rowsToUpsert, { onConflict: 'id' });
       if (error) console.error('[Sync] Upsert class syllabus error:', error);
     }
-    
+
     // Optionally clean up duplicates or removed classes, but we'll leave them to prevent RLS delete issues
   }
 
@@ -330,7 +330,7 @@
     // 4. ASSIGN sequence index
     const sequenceIndex = instances.findIndex(e => e.date === targetDate);
     const targetInstance = instances[sequenceIndex];
-    
+
     if (!targetInstance) {
       return { date: targetDate, sequenceIndex: -1, lesson: null, override_type: null };
     }
@@ -374,9 +374,9 @@
 
       const evts = eventsRaw ? JSON.parse(eventsRaw) : [];
       const prom = promotedRaw ? JSON.parse(promotedRaw) : [];
-      const rds  = redDaysRaw ? JSON.parse(redDaysRaw) : [];
-      const adm  = adminRaw ? JSON.parse(adminRaw) : {};
-      const uns  = unitsRaw ? JSON.parse(unitsRaw) : {};
+      const rds = redDaysRaw ? JSON.parse(redDaysRaw) : [];
+      const adm = adminRaw ? JSON.parse(adminRaw) : {};
+      const uns = unitsRaw ? JSON.parse(unitsRaw) : {};
 
       // Requirement: Split into two upserts
       const mastersRows = evts.filter(e => !e.isRecurrence).map(e => sanitiseForCloud(e, userId)).filter(r => r !== null);
@@ -416,9 +416,9 @@
         localStorage.setItem('schedule_events', JSON.stringify(evts.masters));
         localStorage.setItem('schedule_promoted_instances', JSON.stringify(evts.promoted));
       }
-      if (rds  !== null) localStorage.setItem('schedule_red_days', JSON.stringify(rds));
-      if (adm  !== null) localStorage.setItem('schedule_class_admin', JSON.stringify(adm));
-      if (uns  !== null) localStorage.setItem('schedule_class_units', JSON.stringify(uns));
+      if (rds !== null) localStorage.setItem('schedule_red_days', JSON.stringify(rds));
+      if (adm !== null) localStorage.setItem('schedule_class_admin', JSON.stringify(adm));
+      if (uns !== null) localStorage.setItem('schedule_class_units', JSON.stringify(uns));
 
       setSyncBadge('synced');
       console.log('[Sync] Download complete. Triggering re-render…');
@@ -474,37 +474,197 @@
 
   // ── Toast helper (works in both tools) ───────────────────────────
 
+  // ── Global Toast Helper ──────────────────────────────────────────
+  console.log('[Sync] Defining window.showToast');
+  window.showToast = function (message, type = 'info') {
+    console.log(`[Toast] Calling toast: "${message}" (${type})`);
+    try {
+      let container = document.getElementById('toastContainer');
+      if (!container) {
+        console.log('[Toast] Creating container');
+        container = document.createElement('div');
+        container.id = 'toastContainer';
+        container.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] flex flex-col gap-3 items-center pointer-events-none';
+        document.body.appendChild(container);
+      }
+
+      const types = {
+        info: { icon: 'info', color: 'bg-blue text-white' },
+        success: { icon: 'check-circle', color: 'bg-green text-white' },
+        warning: { icon: 'alert-triangle', color: 'bg-orange text-white' },
+        error: { icon: 'x-circle', color: 'bg-pink text-white' }
+      };
+      const config = types[type] || types.info;
+
+      // Enhanced prominent styling for warnings/errors
+      const isCritical = type === 'error' || type === 'warning';
+      const shadowStyle = isCritical
+        ? 'shadow-[0_20px_50px_rgba(0,0,0,0.3)] border-dark'
+        : 'shadow-[4px_4px_0px_0px_rgba(0,0,0,0.1)]';
+      const sizeClasses = isCritical ? 'px-6 py-4 text-base scale-110' : 'px-4 py-3 text-sm';
+
+      const toast = document.createElement('div');
+      toast.className = `${sizeClasses} rounded-[var(--radius-2xl)] font-bold flex items-center gap-4 transform transition-all duration-500 translate-y-10 opacity-0 ${config.color} border-[3px] ${shadowStyle} pointer-events-auto cursor-pointer`;
+
+      // If critical, we might want to put it in its own centered container or just make it fixed
+      if (isCritical) {
+        toast.style.position = 'fixed';
+        toast.style.top = '50%';
+        toast.style.left = '50%';
+        toast.style.transform = 'translate(-50%, -50%) scale(0.5)';
+        toast.style.zIndex = '1000';
+      }
+
+      toast.innerHTML = `
+        <i data-lucide="${config.icon}" class="${isCritical ? 'w-6 h-6' : 'w-5 h-5'}"></i>
+        <div class="flex flex-col">
+          <span>${message}</span>
+          ${isCritical ? '<span class="text-[10px] opacity-70 uppercase tracking-widest mt-1">Click to dismiss</span>' : ''}
+        </div>
+      `;
+
+      if (isCritical) {
+        document.body.appendChild(toast);
+        toast.onclick = () => { toast.remove(); };
+      } else {
+        container.appendChild(toast);
+      }
+      if (window.lucide) {
+        lucide.createIcons({ root: toast });
+      } else {
+        console.warn('[Toast] Lucide not found, icons skipped');
+      }
+
+      setTimeout(() => {
+        if (isCritical) {
+          toast.style.transform = 'translate(-50%, -50%) scale(1)';
+          toast.style.opacity = '1';
+        } else {
+          toast.classList.remove('translate-y-10', 'opacity-0');
+          toast.classList.add('translate-y-0', 'opacity-100');
+        }
+      }, 10);
+
+      const duration = isCritical ? 6000 : 4000;
+      setTimeout(() => {
+        if (toast.parentElement) {
+          if (isCritical) {
+            toast.style.transform = 'translate(-50%, -50%) scale(0.5)';
+            toast.style.opacity = '0';
+          } else {
+            toast.classList.remove('translate-y-0', 'opacity-100');
+            toast.classList.add('translate-y-10', 'opacity-0');
+          }
+          setTimeout(() => toast.remove(), 500);
+        }
+      }, duration);
+    } catch (err) {
+      console.error('[Toast] Failed to show toast:', err);
+      // Fallback to alert if it's a critical warning/error
+      if (type === 'error' || type === 'warning') {
+        alert(`${type.toUpperCase()}: ${message}`);
+      }
+    }
+  };
+
+  // ── Global Confirm Helper ──────────────────────────────────────────
+  window.showConfirm = function (message) {
+    return new Promise((resolve) => {
+      const modalId = 'global-confirm-modal';
+      let modal = document.getElementById(modalId);
+      if (modal) modal.remove();
+
+      modal = document.createElement('div');
+      modal.id = modalId;
+      modal.className = 'fixed inset-0 z-[1000] flex items-center justify-center p-4 animate-fade-in';
+      modal.innerHTML = `
+        <div class="absolute inset-0 bg-dark/40 backdrop-blur-md"></div>
+        <div class="relative bg-white dark:bg-slate-900 border-[3px] border-dark dark:border-slate-700 rounded-[2rem] shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-8 max-w-sm w-full animate-pop-in">
+          <div class="mb-6">
+            <div class="flex items-center gap-3 mb-2">
+              <i data-lucide="check-circle" class="w-6 h-6 text-blue"></i>
+              <h3 class="font-heading text-2xl font-bold text-dark dark:text-white uppercase tracking-tight">Confirm</h3>
+            </div>
+            <p class="font-body font-semibold text-slate-600 dark:text-slate-400 leading-relaxed">${message}</p>
+          </div>
+          <div class="flex gap-3">
+            <button id="confirm-cancel" class="btn-chunky flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-600">Cancel</button>
+            <button id="confirm-ok" class="btn-chunky flex-1 py-3 rounded-xl bg-blue text-white border-dark">Confirm</button>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(modal);
+      if (window.lucide) lucide.createIcons({ root: modal });
+
+      modal.querySelector('#confirm-ok').onclick = () => {
+        modal.remove();
+        resolve(true);
+      };
+      modal.querySelector('#confirm-cancel').onclick = () => {
+        modal.remove();
+        resolve(false);
+      };
+    });
+  };
+
+  // ── Global Prompt Helper ──────────────────────────────────────────
+  window.showPrompt = function (message, defaultValue = '') {
+    return new Promise((resolve) => {
+      const modalId = 'global-prompt-modal';
+      let modal = document.getElementById(modalId);
+      if (modal) modal.remove();
+
+      modal = document.createElement('div');
+      modal.id = modalId;
+      modal.className = 'fixed inset-0 z-[1000] flex items-center justify-center p-4 animate-fade-in';
+      modal.innerHTML = `
+        <div class="absolute inset-0 bg-dark/40 backdrop-blur-md"></div>
+        <div class="relative bg-white dark:bg-slate-900 border-[3px] border-dark dark:border-slate-700 rounded-[2rem] shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-8 max-w-sm w-full animate-pop-in">
+          <div class="mb-6">
+            <div class="flex items-center gap-3 mb-2">
+              <i data-lucide="help-circle" class="w-6 h-6 text-orange"></i>
+              <h3 class="font-heading text-2xl font-bold text-dark dark:text-white uppercase tracking-tight">Input Needed</h3>
+            </div>
+            <p class="font-body font-semibold text-slate-600 dark:text-slate-400 mb-4">${message}</p>
+            <input type="text" id="prompt-input" value="${defaultValue}" class="w-full px-4 py-3 rounded-xl border-[3px] border-dark dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-dark dark:text-white font-bold focus:outline-none focus:border-blue transition-colors" autofocus>
+          </div>
+          <div class="flex gap-3">
+            <button id="prompt-cancel" class="btn-chunky flex-1 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-600">Cancel</button>
+            <button id="prompt-ok" class="btn-chunky flex-1 py-3 rounded-xl bg-blue text-white border-dark">Done</button>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(modal);
+      if (window.lucide) lucide.createIcons({ root: modal });
+
+      const input = modal.querySelector('#prompt-input');
+      setTimeout(() => {
+        input.focus();
+        input.select();
+      }, 100);
+
+      input.onkeydown = (e) => {
+        if (e.key === 'Enter') modal.querySelector('#prompt-ok').click();
+        if (e.key === 'Escape') modal.querySelector('#prompt-cancel').click();
+      };
+
+      modal.querySelector('#prompt-ok').onclick = () => {
+        const val = input.value;
+        modal.remove();
+        resolve(val);
+      };
+      modal.querySelector('#prompt-cancel').onclick = () => {
+        modal.remove();
+        resolve(null);
+      };
+    });
+  };
+
+
   function showSyncToast(message) {
-    // Reuse the tool's own showToast if available
-    if (typeof window.showToast === 'function') {
-      window.showToast(message, 'success');
-      return;
-    }
-
-    // Fallback: create a simple toast
-    let container = document.getElementById('toastContainer');
-    if (!container) {
-      container = document.createElement('div');
-      container.id = 'toastContainer';
-      container.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] flex flex-col gap-3 items-center pointer-events-none';
-      document.body.appendChild(container);
-    }
-
-    const toast = document.createElement('div');
-    toast.className = 'px-4 py-3 rounded-xl shadow-neo font-bold text-sm flex items-center gap-3 transform transition-all duration-300 translate-y-10 opacity-0 bg-green text-white border-2 border-[#1e293b]';
-    toast.innerHTML = `<i data-lucide="cloud" class="w-5 h-5"></i><span>${message}</span>`;
-    container.appendChild(toast);
-    if (window.lucide) lucide.createIcons({ root: toast });
-
-    setTimeout(() => {
-      toast.classList.remove('translate-y-10', 'opacity-0');
-      toast.classList.add('translate-y-0', 'opacity-100');
-    }, 10);
-    setTimeout(() => {
-      toast.classList.remove('translate-y-0', 'opacity-100');
-      toast.classList.add('translate-y-10', 'opacity-0');
-      setTimeout(() => toast.remove(), 300);
-    }, 4000);
+    window.showToast(message, 'success');
   }
 
   // ── Non-blocking fire-and-forget upsert wrapper ──────────────────
@@ -526,7 +686,7 @@
     getCachedUserId().then(userId => {
       if (!userId) return;
       setSyncBadge('syncing');
-      
+
       _saveQueue = _saveQueue
         .then(() => saveFn(userId))
         .then(() => setSyncBadge('synced'))
@@ -586,7 +746,7 @@
     getCachedUserId,
     isPromoted,
     syncPromotedInstance,
-    
+
     getSessionForDate,
     getAdminDataForClass,
   };

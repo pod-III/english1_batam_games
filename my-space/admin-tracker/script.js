@@ -553,15 +553,15 @@ function updateGlobalStats(data) {
     else overdueBadge.classList.add('hidden');
   }
 
-  // Alert
-  const alertEl = document.getElementById('global-alert');
-  const textEl = document.getElementById('alert-text');
-  if (alertEl && textEl) {
-    if (l.skipped > 0) {
-      textEl.textContent = `${l.skipped} skipped lesson${l.skipped > 1 ? 's' : ''} — past classes with no plan assigned.`;
-      alertEl.classList.remove('hidden');
-    } else {
-      alertEl.classList.add('hidden');
+  // Show Toast for skipped lessons if any
+  console.log(`[Stats] Lessons: upcoming=${l.upcoming}, ready=${l.ready}, finished=${l.finished}, skipped=${l.skipped}`);
+  if (l.skipped > 0) {
+    const msg = `${l.skipped} skipped lesson${l.skipped > 1 ? 's' : ''} — past classes with no plan assigned.`;
+    // Only toast if it hasn't been toasted this session to avoid spamming
+    if (!window._skippedToasted) {
+      console.log('[Stats] Triggering skipped lessons toast');
+      window.showToast(msg, 'warning');
+      window._skippedToasted = true;
     }
   }
 }
@@ -900,8 +900,8 @@ function addSyllabusLesson(className, unitName = '(No Unit)') {
   updateCardStats(className);
 }
 
-function addSyllabusUnit(className) {
-  const unitName = prompt('Enter unit name:');
+async function addSyllabusUnit(className) {
+  const unitName = await window.showPrompt('Enter unit name:');
   if (unitName && unitName.trim()) {
     addSyllabusLesson(className, unitName.trim());
   }
@@ -934,8 +934,8 @@ function updateSyllabusUnitStartIndex(className, unitName, newStart) {
   }
 }
 
-function deleteSyllabusUnit(className, unitName) {
-  if (!confirm(`Are you sure you want to delete "${unitName}" and all its lessons?`)) return;
+async function deleteSyllabusUnit(className, unitName) {
+  if (!(await window.showConfirm(`Are you sure you want to delete "${unitName}" and all its lessons?`))) return;
   const data = loadClassUnits();
   if (data[className]) {
     data[className] = data[className].filter(item => item.unit !== unitName);
@@ -969,9 +969,11 @@ function updateSyllabusLesson(className, index, field, value) {
     updateCardStats(className);
   }
 }
-function deleteSyllabusLesson(className, index) {
+async function deleteSyllabusLesson(className, index) {
   const data = loadClassUnits();
-  if (data[className]) {
+  if (data[className] && data[className][index]) {
+    const lessonName = data[className][index].lesson || 'this lesson';
+    if (!(await window.showConfirm(`Are you sure you want to delete "${lessonName}"?`))) return;
     const deletedLesson = data[className][index];
     const unitOfDeleted = deletedLesson?.unit;
     const oldUnitStart = deletedLesson?.unitStartIndex;
