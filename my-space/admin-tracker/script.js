@@ -5,6 +5,7 @@
 
 let currentFilter = 'week'; // 'today', 'week', 'all'
 let currentMode = 'lessons'; // 'lessons', 'units'
+let currentView = 'cards'; // 'cards', 'table'
 let currentDrawerClass = null;
 
 /* ============================================
@@ -193,6 +194,23 @@ function getTodayStr() {
 function isInPast(dateStr) { return dateStr < getTodayStr(); }
 function isUpcoming(dateStr) { return dateStr >= getTodayStr(); }
 
+function isDateInFilter(dateStr) {
+  if (currentFilter === 'today') return dateStr === getTodayStr();
+  if (currentFilter === '3days') {
+    const { start, end } = get3DaysRange();
+    return dateStr >= start && dateStr <= end;
+  }
+  if (currentFilter === 'week') {
+    const { start, end } = getWeekRange();
+    return dateStr >= start && dateStr <= end;
+  }
+  if (currentFilter === 'month') {
+    const { start, end } = getMonthRange();
+    return dateStr >= start && dateStr <= end;
+  }
+  return true; // 'all'
+}
+
 function getClassStats(className) {
   const allEvents = loadScheduleEvents();
   const redDays = loadRedDays();
@@ -241,7 +259,8 @@ function getHeaderStatusObj(stats) {
 
 function renderClassGrid() {
   const grid = document.getElementById('class-grid');
-  if (!grid) return;
+  const tableContainer = document.getElementById('class-table-view');
+  if (!grid || !tableContainer) return;
   const emptyState = document.getElementById('empty-state');
   grid.innerHTML = '';
 
@@ -256,29 +275,176 @@ function renderClassGrid() {
   if (filteredClasses.length === 0) {
     if (emptyState) emptyState.classList.remove('hidden');
     grid.classList.add('hidden');
+    tableContainer.classList.add('hidden');
     recalculateGlobalStats();
     return;
   }
 
   if (emptyState) emptyState.classList.add('hidden');
-  grid.classList.remove('hidden');
 
-  let gPlanned = 0, gSkipped = 0, gUpcoming = 0, gTotal = 0;
+  if (currentView === 'cards') {
+    grid.classList.remove('hidden');
+    tableContainer.classList.add('hidden');
 
-  filteredClasses.forEach(cls => {
-    const stats = getClassStats(cls.name);
-    
-    gPlanned += stats.planned;
-    gSkipped += stats.skipped;
-    gUpcoming += stats.upcoming;
-    gTotal += stats.total;
+    let gPlanned = 0, gSkipped = 0, gUpcoming = 0, gTotal = 0;
 
-    const card = createClassCard(cls.name, cls.color, stats);
-    grid.appendChild(card);
-  });
+    filteredClasses.forEach(cls => {
+      const stats = getClassStats(cls.name);
+      
+      gPlanned += stats.planned;
+      gSkipped += stats.skipped;
+      gUpcoming += stats.upcoming;
+      gTotal += stats.total;
+
+      const card = createClassCard(cls.name, cls.color, stats);
+      grid.appendChild(card);
+    });
+  } else {
+    grid.classList.add('hidden');
+    tableContainer.classList.remove('hidden');
+    renderTableView(filteredClasses);
+  }
 
   recalculateGlobalStats();
   if (window.lucide) lucide.createIcons();
+}
+
+function renderTableView(classes) {
+  const dateSet = new Set();
+  const allEvents = loadScheduleEvents();
+  const redDays = loadRedDays();
+  const syllabusMap = loadClassUnits();
+  const adminData = loadClassAdmin();
+  const classDataMap = {};
+
+  classes.forEach(cls => {
+    const stats = getClassStats(cls.name);
+    const adminTasks = window.Sync.getAdminDataForClass(cls.name, adminData) || [];
+    
+    classDataMap[cls.name] = {
+      color: cls.color,
+      stats: stats,
+      instancesByDate: {},
+      tasksByDate: {}
+    };
+
+    // Add dates for instances
+    stats.instances.forEach(evt => {
+      dateSet.add(evt.date);
+      if (!classDataMap[cls.name].instancesByDate[evt.date]) {
+        classDataMap[cls.name].instancesByDate[evt.date] = [];
+      }
+      classDataMap[cls.name].instancesByDate[evt.date].push(evt);
+    });
+
+    // Add dates for admin tasks (only if they fall within the current filter)
+    adminTasks.forEach(task => {
+      if (task.deadline && !task.done && isDateInFilter(task.deadline)) {
+        dateSet.add(task.deadline);
+        if (!classDataMap[cls.name].tasksByDate[task.deadline]) {
+          classDataMap[cls.name].tasksByDate[task.deadline] = [];
+        }
+        classDataMap[cls.name].tasksByDate[task.deadline].push(task);
+      }
+    });
+  });
+
+  const sortedDates = Array.from(dateSet).sort();
+  
+  const thead = document.getElementById('table-header-row');
+  const tbody = document.getElementById('table-body');
+  
+  // Header
+  let headerHtml = `<th class="p-4 font-heading text-slate-400 bg-chalk dark:bg-dark sticky left-0 z-20 w-48 border-r-2 border-[var(--border-secondary)]">Class</th>`;
+  sortedDates.forEach(dateStr => {
+    const isToday = dateStr === getTodayStr();
+    headerHtml += `
+      <th class="p-4 font-heading text-sm whitespace-nowrap ${isToday ? 'text-blue' : ''} bg-slate-50 dark:bg-slate-900/50">
+        ${isToday ? '<span class="px-2 py-0.5 rounded-md bg-blue text-white text-[10px] mr-1 shadow-sm">TODAY</span>' : ''}
+        ${formatDate(dateStr)}
+      </th>
+    `;
+  });
+  thead.innerHTML = headerHtml;
+
+  // Body
+  let bodyHtml = '';
+  classes.forEach(cls => {
+    const cdata = classDataMap[cls.name];
+    
+    bodyHtml += `<tr class="border-b-2 border-slate-200 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/20 group">`;
+    bodyHtml += `
+      <td class="p-4 sticky left-0 z-10 bg-chalk dark:bg-dark group-hover:bg-slate-50 dark:group-hover:bg-slate-800/50 border-r-2 border-[var(--border-secondary)] transition-colors" onclick="openDrawer('${cls.name.replace(/'/g, "\\'")}')" style="cursor: pointer;">
+        <div class="flex items-center gap-3">
+          <div class="w-3 h-10 rounded-full flex-shrink-0 shadow-sm" style="background:${cdata.color}"></div>
+          <div>
+            <div class="font-heading font-bold text-base truncate max-w-[140px]">${cls.name}</div>
+            <div class="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 mt-0.5">${cdata.stats.total} Lessons</div>
+          </div>
+        </div>
+      </td>
+    `;
+    
+    sortedDates.forEach(dateStr => {
+      bodyHtml += `<td class="p-4 align-top min-w-[220px]">`;
+      
+      const instances = cdata.instancesByDate[dateStr] || [];
+      const tasks = cdata.tasksByDate[dateStr] || [];
+      
+      if (instances.length === 0 && tasks.length === 0) {
+        bodyHtml += `<div class="h-full flex items-center pt-5"><div class="w-full h-1 bg-slate-100 dark:bg-slate-800/50 rounded-full mx-4"></div></div>`;
+      } else {
+        bodyHtml += `<div class="space-y-3">`;
+        
+        // Render instances
+        instances.forEach(inst => {
+          const session = window.Sync.getSessionForDate(cls.name, inst.date, allEvents, redDays, syllabusMap);
+          const ls = session.lesson?.status || (session.lesson?.is_completed ? 'completed' : 'not_ready');
+          const isCompleted = ls === 'completed';
+          const isReady = ls === 'ready' || session.override_type;
+          
+          const statusColor = session.override_type ? 'var(--color-purple)' : (isCompleted ? 'var(--color-green)' : (isReady ? 'var(--color-blue)' : 'var(--text-tertiary)'));
+          const label = session.override_type ? 'Override' : (isCompleted ? 'Taught' : (isReady ? 'Ready' : 'Draft'));
+          const title = session.override_type || session.lesson?.lesson || 'No Lesson Planned';
+          const unitLabel = session.lesson?.unit ? `<span class="block text-[10px] font-extrabold uppercase tracking-widest text-slate-400 truncate mt-1"><i data-lucide="layers" class="w-3 h-3 inline pb-0.5"></i> ${session.lesson.unit}</span>` : '';
+          
+          bodyHtml += `
+            <div class="p-3 rounded-2xl border-[3px] border-[var(--border-primary)] bg-[var(--surface-card)] shadow-[2px_2px_0px_0px_rgba(30,41,59,0.1)] hover:shadow-hard transition-all cursor-pointer hover:-translate-y-0.5" onclick="openDrawer('${cls.name.replace(/'/g, "\\'")}')">
+              <div class="flex items-center gap-2 mb-1.5">
+                <span class="px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider text-white shadow-sm" style="background:${statusColor}">${label}</span>
+                <span class="text-[11px] font-extrabold text-slate-400 ml-auto whitespace-nowrap"><i data-lucide="clock" class="w-3 h-3 inline pb-0.5"></i> ${formatTime(inst.startTime)}</span>
+              </div>
+              <div class="text-[13px] font-bold leading-snug text-dark dark:text-white">${title}</div>
+              ${unitLabel}
+            </div>
+          `;
+        });
+        
+        // Render tasks
+        tasks.forEach(task => {
+          const isOverdue = task.deadline < getTodayStr();
+          const dueToday = task.deadline === getTodayStr();
+          bodyHtml += `
+            <div class="p-2.5 rounded-xl border-2 ${isOverdue ? 'border-pink bg-pink/5' : 'border-orange bg-orange/5'} flex items-start gap-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" onclick="openDrawer('${cls.name.replace(/'/g, "\\'")}')">
+              <i data-lucide="${isOverdue ? 'alert-octagon' : 'alert-circle'}" class="w-4 h-4 mt-0.5 ${isOverdue ? 'text-pink' : 'text-orange'} flex-shrink-0"></i>
+              <div>
+                <div class="text-[12px] font-bold leading-tight ${isOverdue ? 'text-pink' : 'text-orange'}">${task.text}</div>
+                <div class="text-[9px] font-black uppercase tracking-widest mt-1 ${isOverdue ? 'text-pink' : 'text-orange'}">${isOverdue ? 'OVERDUE TASK' : 'DUE TODAY'}</div>
+              </div>
+            </div>
+          `;
+        });
+        
+        bodyHtml += `</div>`;
+      }
+      
+      bodyHtml += `</td>`;
+    });
+    
+    bodyHtml += `</tr>`;
+  });
+  
+  tbody.innerHTML = bodyHtml;
 }
 
 /**
@@ -590,6 +756,13 @@ function setFilter(mode) {
   updateFilterLabel(mode);
   renderClassGrid();
   if (currentDrawerClass) openDrawer(currentDrawerClass);
+}
+
+function setView(view) {
+  currentView = view;
+  document.getElementById('view-cards').classList.toggle('active', view === 'cards');
+  document.getElementById('view-table').classList.toggle('active', view === 'table');
+  renderClassGrid();
 }
 
 function setMode(mode) {
