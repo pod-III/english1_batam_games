@@ -1305,6 +1305,21 @@
                 }
             })
 
+            // Fetch Games Registry for categories
+            const gamesRes = await fetch('./games.json')
+            const gamesData = await gamesRes.json()
+            const toolCategoryMap = {}
+            const catDisplayNames = {
+                'myspace': 'My Space',
+                'tool': 'Tools',
+                'workshop': 'Workshop',
+                'game': 'Games'
+            }
+            gamesData.games.forEach(g => {
+                toolCategoryMap[g.id] = catDisplayNames[g.category] || 'Tools'
+            })
+            window.toolCategoryMap = toolCategoryMap
+
             // Fetch Announcements
             const annRes = await db.from('announcements').select('*').order('created_at', { ascending: false })
             allAnnouncements = annRes.data || []
@@ -1420,20 +1435,35 @@
             const toolCounts = {}
             allProgress.forEach(r => toolCounts[r.tool_key] = (toolCounts[r.tool_key] || 0) + 1)
             
-            // Simplified Category Logic (Matching KlassKit Hub)
             const categories = {
-                'Workspace': { count: allScheduleEvents.length + allClassAdmin.length + allNotes.length, color: '#FF8C42' },
+                'My Space': { count: 0, color: '#FF8C42' },
                 'Tools': { count: 0, color: '#2979FF' },
                 'Workshop': { count: 0, color: '#FF6B95' },
                 'Games': { count: 0, color: '#00E676' }
             }
 
-            // Map progress to categories
+            // 1. Add direct data from specialized tables (My Space)
+            categories['My Space'].count += allNotes.length
+            categories['My Space'].count += allScheduleEvents.length
+            categories['My Space'].count += allClassAdmin.length
+
+            // 2. Map progress records using the official registry
+            const toolMap = window.toolCategoryMap || {}
             Object.entries(toolCounts).forEach(([key, count]) => {
-                if (key.includes('game') || key.includes('quiz')) categories['Games'].count += count
-                else if (key.includes('note') || key.includes('schedule') || key.includes('admin')) categories['Workspace'].count += count
-                else if (key.includes('factory') || key.includes('generator')) categories['Workshop'].count += count
-                else categories['Tools'].count += count
+                // Determine category from registry or fallback to tool-key analysis
+                let cat = toolMap[key]
+                if (!cat) {
+                    if (key.includes('game') || key.includes('quiz')) cat = 'Games'
+                    else if (key.includes('note') || key.includes('schedule') || key.includes('admin')) cat = 'My Space'
+                    else if (key.includes('factory') || key.includes('generator')) cat = 'Workshop'
+                    else cat = 'Tools'
+                }
+                
+                if (categories[cat]) {
+                    categories[cat].count += count
+                } else {
+                    categories['Tools'].count += count
+                }
             })
 
             if (charts.category) charts.category.destroy()
