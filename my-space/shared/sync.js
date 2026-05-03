@@ -125,8 +125,11 @@
   }
 
   // schedule_red_days: JS → SQL
-  function redDayToRow(dateStr, userId) {
-    return { user_id: userId, date: dateStr };
+  function redDaysToRow(redDaysArray, userId) {
+    return { 
+      user_id: userId, 
+      dates: redDaysArray 
+    };
   }
 
   // schedule_class_admin: JS → SQL
@@ -216,19 +219,16 @@
   // Red Days
   async function cloudLoadRedDays(userId) {
     const { data, error } = await db.from('schedule_red_days')
-      .select('date').eq('user_id', userId);
+      .select('dates').eq('user_id', userId).maybeSingle();
     if (error) { console.error('[Sync] Load red days error:', error); return null; }
-    return (data || []).map(r => r.date);
+    return data ? (data.dates || []) : [];
   }
 
   async function cloudSaveRedDays(userId, redDays) {
-    // Replace all
-    await db.from('schedule_red_days').delete().eq('user_id', userId);
-    if (redDays.length > 0) {
-      const rows = redDays.map(d => redDayToRow(d, userId));
-      const { error } = await db.from('schedule_red_days').insert(rows);
-      if (error) console.error('[Sync] Save red days error:', error);
-    }
+    const row = redDaysToRow(redDays, userId);
+    const { error } = await db.from('schedule_red_days')
+      .upsert(row, { onConflict: 'user_id' });
+    if (error) console.error('[Sync] Save red days error:', error);
   }
 
   // Class Admin
