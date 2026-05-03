@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <!-- Supabase Auth -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/supabase.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Tracker — KlassKit</title>
+  <meta name="description" content="Track unit and lesson planning status across all scheduled classes.">
+  <link rel="icon" type="image/x-icon" href="../../media/icon.ico" />
+  <link rel="icon" type="image/webp" href="../../media/icon.webp" />
+  <script>
+    if (localStorage.getItem("theme_admin-tracker") === "dark" || (!localStorage.getItem("theme_admin-tracker") && window.matchMedia("(prefers-color-scheme:dark)").matches)) {
+      document.documentElement.classList.add("dark")
+    }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap"
+    rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            pink: '#FF6B95',
+            orange: '#FF8C42',
+            green: '#00E676',
+            blue: '#2979FF',
+            dark: '#0f172a',
+            chalk: '#f8fafc',
+          },
+          fontFamily: {
+            heading: ['Fredoka', 'sans-serif'],
+            body: ['Nunito', 'sans-serif'],
+          },
+          boxShadow: {
+            'neo': '4px 4px 0px 0px rgba(51,65,85,0.15)',
+            'neo-sm': '2px 2px 0px 0px rgba(51,65,85,0.15)',
+          },
+        }
+      }
+    }
+  </script>
+
+  <link rel="stylesheet" href="../../css/base.css" />
+  <link rel="stylesheet" href="../../css/components.css" />
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Vercel Web Analytics -->
+  <script>
+    window.va = window.va || function () {
+      (window.vaq = window.vaq || []).push(arguments)
+    };
+  </script>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+
+<body class="min-h-screen text-dark dark:text-white relative bg-chalk dark:bg-dark font-body">
+
+  <!-- ====== HEADER ====== -->
+  <header
+    class="glass-panel sticky top-0 z-30 h-14 flex items-center justify-between px-4 md:px-6 border-b-[3px] border-[var(--border-primary)]"
+    style="border-radius: 0;">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 bg-orange rounded-xl border-[2px] border-white/40 flex items-center justify-center text-white shadow-neo-sm">
+        <i data-lucide="clipboard-list" class="w-5 h-5 stroke-[2.5px]"></i>
+      </div>
+      <div>
+        <h1 class="font-heading font-bold text-lg md:text-xl tracking-tight leading-none text-dark dark:text-white">Admin Tracker</h1>
+        <p class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none mt-1">KlassKit Workspace</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <div id="sync-badge"
+        class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-[2px] border-[var(--border-primary)] bg-slate-100 dark:bg-slate-800 text-[10px] font-extrabold uppercase tracking-widest text-slate-500">
+        <i data-lucide="hard-drive" class="w-3.5 h-3.5"></i> Local Storage
+      </div>
+      <button id="unit-planning-toggle" onclick="toggleUnitPlanningMode()"
+        class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-[2px] border-[var(--border-primary)] text-[10px] font-extrabold uppercase tracking-widest transition-all hover:bg-slate-100 dark:hover:bg-slate-800" title="Toggle Unit Planning Mode">
+        <i data-lucide="layers" class="w-3.5 h-3.5 text-orange"></i> <span class="hidden sm:inline">Unit Planning:</span> OFF
+      </button>
+      <button onclick="toggleTheme()"
+        class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title="Toggle Theme">
+        <i data-lucide="sun" class="w-4 h-4 dark:hidden text-slate-500"></i>
+        <i data-lucide="moon" class="w-4 h-4 hidden dark:block text-slate-400"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- ====== MAIN ====== -->
+  <main class="max-w-7xl mx-auto p-4 md:p-6">
+
+    <!-- ===== SUMMARY BAR ===== -->
+    <div id="summary-bar" class="flex flex-wrap gap-4 mb-6">
+      <!-- Lesson Progress -->
+      <div class="summary-card flex-1 min-w-[200px]">
+        <div class="flex items-center gap-4">
+          <div class="summary-ring-wrap">
+            <svg class="summary-ring" viewBox="0 0 80 80">
+              <circle cx="40" cy="40" r="34" stroke="var(--bg-tertiary)" stroke-width="7" fill="none" />
+              <circle id="ring-lessons" cx="40" cy="40" r="34" stroke="var(--color-blue)" stroke-width="7" fill="none"
+                stroke-linecap="round" stroke-dasharray="213.6" stroke-dashoffset="213.6"
+                transform="rotate(-90 40 40)" />
+            </svg>
+            <span id="pct-lessons" class="summary-percent font-heading font-bold text-base">0%</span>
+          </div>
+          <div>
+            <span class="block text-2xl font-heading text-blue" id="stat-progress">0/0</span>
+            <div class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5">Lesson Progress
+            </div>
+            <div class="flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-bold uppercase tracking-tight">
+              <span class="text-blue"><span id="stat-lessons-upcoming">0</span> Upcoming</span>
+              <span class="text-green"><span id="stat-lessons-ready">0</span> Ready</span>
+              <span class="text-slate-500"><span id="stat-lessons-finished">0</span> Finished</span>
+              <span class="text-pink"><span id="stat-lessons-skipped">0</span> Skipped</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Unit Progress -->
+      <div class="summary-card flex-1 min-w-[200px]">
+        <div class="flex items-center gap-4">
+          <div class="summary-ring-wrap">
+            <svg class="summary-ring" viewBox="0 0 80 80">
+              <circle cx="40" cy="40" r="34" stroke="var(--bg-tertiary)" stroke-width="7" fill="none" />
+              <circle id="ring-units" cx="40" cy="40" r="34" stroke="var(--color-green)" stroke-width="7" fill="none"
+                stroke-linecap="round" stroke-dasharray="213.6" stroke-dashoffset="213.6"
+                transform="rotate(-90 40 40)" />
+            </svg>
+            <span id="pct-units" class="summary-percent font-heading font-bold text-base">0%</span>
+          </div>
+          <div>
+            <span class="block text-2xl font-heading text-green" id="stat-units">0/0</span>
+            <div class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5">Syllabus Complete</div>
+            <div class="flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-bold uppercase tracking-tight">
+              <span class="text-slate-400"><span id="stat-units-draft">0</span> Total</span>
+              <span class="text-blue"><span id="stat-units-finished">0</span> Taught</span>
+              <span class="text-green hidden" id="stat-units-planned-wrapper"><span id="stat-units-planned">0</span> Planned</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin Progress -->
+      <div class="summary-card flex-1 min-w-[200px]">
+        <div class="flex items-center gap-4">
+          <div class="summary-ring-wrap">
+            <svg class="summary-ring" viewBox="0 0 80 80">
+              <circle cx="40" cy="40" r="34" stroke="var(--bg-tertiary)" stroke-width="7" fill="none" />
+              <circle id="ring-admin" cx="40" cy="40" r="34" stroke="var(--color-orange)" stroke-width="7" fill="none"
+                stroke-linecap="round" stroke-dasharray="213.6" stroke-dashoffset="213.6"
+                transform="rotate(-90 40 40)" />
+            </svg>
+            <span id="pct-admin" class="summary-percent font-heading font-bold text-base">0%</span>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-2xl font-heading text-orange" id="stat-admin">0/0</span>
+              <span id="stat-overdue-badge"
+                class="hidden px-2 py-1 rounded-lg bg-pink text-white text-[10px] font-bold shadow-hard animate-pulse">OVERDUE</span>
+            </div>
+            <div class="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5">Admin Tasks</div>
+            <div class="flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-bold uppercase tracking-tight">
+              <span class="text-orange"><span id="stat-admin-pending">0</span> Pending</span>
+              <span class="text-green"><span id="stat-admin-done">0</span> Done</span>
+              <span class="text-pink"><span id="stat-admin-overdue">0</span> Overdue</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== TOOLBAR ===== -->
+    <div class="toolbar mb-5">
+      <div class="toolbar-group">
+        <button onclick="setMode('lessons')" class="toolbar-btn active" id="mode-lessons">
+          <i data-lucide="book-open" class="w-3.5 h-3.5"></i> Syllabus & Tasks
+        </button>
+        <div class="w-[2px] h-4 bg-slate-200 dark:bg-slate-700 mx-1 hidden md:block"></div>
+        <button onclick="setView('cards')" class="toolbar-btn" id="view-cards">
+          <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i> <span class="hidden md:inline">Cards</span>
+        </button>
+        <button onclick="setView('table')" class="toolbar-btn active" id="view-table">
+          <i data-lucide="table" class="w-3.5 h-3.5"></i> <span class="hidden md:inline">Table</span>
+        </button>
+        <div class="w-[2px] h-4 bg-slate-200 dark:bg-slate-700 mx-1"></div>
+        <button onclick="scrollToToday()" class="toolbar-btn text-blue hover:bg-blue/5" title="Scroll to Today">
+          <i data-lucide="crosshair" class="w-3.5 h-3.5"></i> <span class="hidden lg:inline">Today</span>
+        </button>
+      </div>
+      <div class="toolbar-right">
+        <div class="toolbar-group">
+          <button onclick="setFilter('today')" class="toolbar-btn" id="filter-today">Today</button>
+          <button onclick="setFilter('3days')" class="toolbar-btn" id="filter-3days">3 Days</button>
+          <button onclick="setFilter('week')" class="toolbar-btn active" id="filter-week">This Week</button>
+          <button onclick="setFilter('month')" class="toolbar-btn" id="filter-month">This Month</button>
+          <button onclick="setFilter('all')" class="toolbar-btn" id="filter-all">All</button>
+        </div>
+        <p id="filter-range-label" class="text-xs font-bold text-slate-400 whitespace-nowrap"></p>
+      </div>
+    </div>
+
+
+
+    <!-- ===== CLASS GRID ===== -->
+    <div id="class-grid" class="hidden grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5"></div>
+
+    <!-- ===== CLASS TABLE ===== -->
+    <div id="class-table-view" class="overflow-x-auto pb-4">
+      <table class="w-full text-left border-collapse min-w-[800px]">
+        <thead>
+          <tr id="table-header-row" class="border-b-[3px] border-[var(--border-primary)]">
+            <!-- Headers injected here -->
+          </tr>
+        </thead>
+        <tbody id="table-body">
+          <!-- Rows injected here -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Empty state -->
+    <div id="empty-state" class="hidden text-center py-16">
+      <div class="text-6xl mb-4">📭</div>
+      <h3 class="font-heading text-2xl font-bold mb-2">No Classes Found</h3>
+      <p class="text-base text-slate-400 font-semibold max-w-sm mx-auto">Add events with the type "Class" in the
+        Schedule tool to see them here.</p>
+      <a href="../schedule/"
+        class="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-xl border-[var(--border-width-thick)] border-[var(--border-primary)] bg-blue text-white text-base font-bold shadow-neo-sm hover:shadow-neo transition-all">
+        <i data-lucide="calendar-plus" class="w-4 h-4"></i> Open Schedule
+      </a>
+    </div>
+  </main>
+
+  <!-- ===== DRAWER ===== -->
+  <div id="drawer-overlay" class="drawer-overlay" onclick="closeDrawer()"></div>
+  <div id="drawer-panel" class="drawer-panel">
+    <div
+      class="sticky top-0 bg-[var(--surface-card)] border-b-[3px] border-[var(--border-primary)] p-4 flex items-center justify-between z-10"
+      style="border-radius: var(--radius-xl) 0 0 0;">
+      <div>
+        <h3 id="drawer-title" class="font-heading text-xl font-bold"></h3>
+        <p id="drawer-subtitle" class="text-xs font-bold text-slate-400 uppercase tracking-widest"></p>
+      </div>
+      <button onclick="closeDrawer()"
+        class="w-9 h-9 flex items-center justify-center rounded-xl border-[var(--border-width-thick)] border-[var(--border-primary)] bg-[var(--surface-card)] hover:bg-pink hover:text-white transition-colors font-bold text-base">
+        <i data-lucide="x" class="w-4 h-4"></i>
+      </button>
+    </div>
+    <div id="drawer-body" class="p-5"></div>
+  </div>
+
+  <script src="../../my-space/schedule/templates.js"></script>
+  <script src="../../my-space/shared/sync.js"></script>
+  <script src="script.js"></script>
+</body>
+
+</html>

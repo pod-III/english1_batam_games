@@ -2,8 +2,8 @@
 
 A curated collection of **50+ interactive classroom tools and games** for English Language Teaching. Built for teachers, by teachers — designed to run in any modern browser with zero installation.
 
-![Version](https://img.shields.io/badge/version-1.2.7-blue)
-![Activities](https://img.shields.io/badge/activities-50+-green)
+![Version](https://img.shields.io/badge/version-1.3.1-blue)
+![Activities](https://img.shields.io/badge/activities-54-green)
 ![Status](https://img.shields.io/badge/status-Early%20Development-orange)
 ![Price](https://img.shields.io/badge/price-100%25%20Free-pink)
 
@@ -51,6 +51,13 @@ Built using the **KlassKit Signature Palette**, the UI ensures branding consiste
 
 ## 🧩 Activity Highlights
 
+### 🏡 My Space (Personal Dashboard)
+| App | Purpose |
+|------|--------------|
+| **My Schedule** | Weekly drag-and-drop lesson planner with automatic tracking |
+| **Admin Tracker** | Track unit planning status and administrative deadlines |
+| **My Task** | Personal teacher task manager with priority tracking |
+
 ### Classroom Tools
 | Tool | What It Does |
 |------|--------------|
@@ -60,6 +67,12 @@ Built using the **KlassKit Signature Palette**, the UI ensures branding consiste
 | **Flashcard Maker** | Design & print A4 flashcards with cut guides |
 | **Bingo Maker** | Generate cards + digital caller mode |
 | **Lesson Notes** | Auto-saving notepad for quick plans |
+
+### 🛠 Workshop Tools
+| Tool | What It Does |
+|------|--------------|
+| **Text Workshop** | General purpose text processing tools |
+| **Image Workshop** | General purpose image processing tools |
 
 ### Learning Games
 | Game | Skill Focus |
@@ -116,6 +129,8 @@ klasskit/
 │   ├── base.css        # Design tokens & dark mode
 │   ├── components.css  # Buttons, cards, inputs
 │   └── home.css        # Landing & Hub views
+├── my-space/           # Personal Planning & Admin Tools
+├── workshop/           # General Text & Image Utilities
 ├── games/              # Interactive Game Modules
 └── tools/              # Classroom Utility Tools
 ```
@@ -126,7 +141,7 @@ klasskit/
 
 Each activity is a self-contained module. To add a new one:
 
-1. Create your activity folder in `games/` or `tools/`.
+1. Create your activity folder in `my-space/`, `workshop/`, `games/`, or `tools/`.
 2. Add an entry to `games.json` using the standard schema.
 3. Refresh the web app — your activity appears instantly and supports all system features (Tabs, Pins, Dark Mode).
 
@@ -137,4 +152,4 @@ Each activity is a self-contained module. To add a new one:
 Built with ❤️ by **Fahrul Ahyan** for the global community of English teachers.
 KlassKit is a **Passion Project** and will remain **100% Free** forever.
 
-*Current Version: 1.1.20 — Early Development. Changes occur frequently.*
+*Current Version: 1.3.1 — Early Development. Changes occur frequently.*

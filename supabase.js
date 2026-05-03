@@ -114,12 +114,14 @@ function clearLocalCache() {
     if (key.startsWith('prog_') ||
       key.startsWith('theme_') ||
       key.startsWith('klasskit_') ||
+      key.startsWith('schedule_') ||
       key === 'recentGameIds' ||
       key === 'favoriteGames' ||
       key === 'openTabs' ||
       key === 'pinnedGameIds' ||
       key === 'soundMuted' ||
       key === 'migrated_to_cloud' ||
+      key === 'kk_schedule_migrated_to_cloud' ||
       key === 'kk_current_user_id') {
       localStorage.removeItem(key)
     }
