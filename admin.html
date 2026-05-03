@@ -399,7 +399,7 @@
             </button>
             <button onclick="setView('schedule-events')" id="nav-schedule-events"
                 class="sidebar-link w-full text-slate-400">
-                <i data-lucide="calendar" class="w-4 h-4 flex-shrink-0"></i> My Schedule
+                <i data-lucide="calendar" class="w-4 h-4 flex-shrink-0"></i> Schedules
             </button>
             <button onclick="setView('schedule-classes')" id="nav-schedule-classes"
                 class="sidebar-link w-full text-slate-400">
@@ -810,7 +810,8 @@
                                         Type</th>
                                     <th onclick="toggleSort('schedule', 'date')"
                                         class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:text-blue transition-colors">
-                                        <div class="flex items-center gap-1">Start Date <span id="sort-schedule-date"></span>
+                                        <div class="flex items-center gap-1">Start Date <span
+                                                id="sort-schedule-date"></span>
                                         </div>
                                     </th>
                                     <th
@@ -1389,6 +1390,9 @@
 
             if (!ctxActivity || !ctxCategory || !ctxTools) return
 
+            // Filter out system keys like the Hub landing page
+            const filteredProgress = allProgress.filter(r => r.tool_key !== 'klasskit_hub' && r.tool_key !== 'hub')
+
             // 1. Activity Line Chart
             const days = 14
             const today = new Date()
@@ -1399,7 +1403,7 @@
                 d.setDate(d.getDate() - i)
                 const dateStr = d.toISOString().split('T')[0]
                 activityLabels.push(d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }))
-                const count = allProgress.filter(r => (r.updated_at ? new Date(r.updated_at) : new Date()).toISOString().split('T')[0] === dateStr).length
+                const count = filteredProgress.filter(r => (r.updated_at ? new Date(r.updated_at) : new Date()).toISOString().split('T')[0] === dateStr).length
                 activityData.push(count)
             }
 
@@ -1433,8 +1437,8 @@
 
             // 2. Tool Counts & Category Mapping
             const toolCounts = {}
-            allProgress.forEach(r => toolCounts[r.tool_key] = (toolCounts[r.tool_key] || 0) + 1)
-            
+            filteredProgress.forEach(r => toolCounts[r.tool_key] = (toolCounts[r.tool_key] || 0) + 1)
+
             const categories = {
                 'My Space': { count: 0, color: '#FF8C42' },
                 'Tools': { count: 0, color: '#2979FF' },
@@ -1458,7 +1462,7 @@
                     else if (key.includes('factory') || key.includes('generator')) cat = 'Workshop'
                     else cat = 'Tools'
                 }
-                
+
                 if (categories[cat]) {
                     categories[cat].count += count
                 } else {
@@ -1481,7 +1485,7 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { 
+                    plugins: {
                         legend: { position: 'bottom', labels: { color: '#94a3b8', font: { weight: 'bold' }, padding: 20 } }
                     },
                     cutout: '70%'
@@ -1987,13 +1991,13 @@
                         const profile = allProfiles[cls.user_id]
                         const name = profile?.display_name || '—'
                         const initial = name[0]?.toUpperCase() || '?'
-                        
+
                         let tasks = cls.tasks;
                         if (typeof tasks === 'string') {
-                            try { tasks = JSON.parse(tasks); } catch(e) { tasks = []; }
+                            try { tasks = JSON.parse(tasks); } catch (e) { tasks = []; }
                         }
                         const taskCount = Array.isArray(tasks) ? tasks.length : 0;
-                        
+
                         const created = new Date(cls.created_at).toLocaleDateString()
                         return `<tr class="group transition-colors">
               <td class="px-5 py-3">
@@ -2027,13 +2031,13 @@
                         const profile = allProfiles[cls.user_id]
                         const name = profile?.display_name || '—'
                         const initial = name[0]?.toUpperCase() || '?'
-                        
+
                         let syllabus = cls.syllabus;
                         if (typeof syllabus === 'string') {
-                            try { syllabus = JSON.parse(syllabus); } catch(e) { syllabus = []; }
+                            try { syllabus = JSON.parse(syllabus); } catch (e) { syllabus = []; }
                         }
                         const unitCount = Array.isArray(syllabus) ? syllabus.length : 0;
-                        
+
                         const created = new Date(cls.created_at).toLocaleDateString()
                         return `<tr class="group transition-colors">
               <td class="px-5 py-3">
