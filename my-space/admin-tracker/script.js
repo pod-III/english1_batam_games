@@ -184,44 +184,40 @@ function getTodayStr() {
 function isInPast(dateStr) { return dateStr < getTodayStr(); }
 function isUpcoming(dateStr) { return dateStr >= getTodayStr(); }
 
-function getLessonStatus(evt) {
-  if (!evt.lessonPlan || (!evt.lessonPlan.unit && !evt.lessonPlan.lesson)) return 'not_ready';
-  return evt.lessonPlan.status || 'not_ready';
-}
-
-function isPlanned(evt) {
-  const s = getLessonStatus(evt);
-  return s === 'ready' || s === 'taught' || s === 'reviewed';
-}
-
-function isSkipped(evt) {
-  return isInPast(evt.date) && !isPlanned(evt);
-}
-
 function getClassStats(className) {
+  const allEvents = loadScheduleEvents();
+  const redDays = loadRedDays();
+  const syllabusMap = loadClassUnits();
+  
   const instances = getClassInstances(className);
   const total = instances.length;
-  const ready = instances.filter(e => getLessonStatus(e) === 'ready').length;
-  const taught = instances.filter(e => getLessonStatus(e) === 'taught' || getLessonStatus(e) === 'reviewed').length;
-  const planned = instances.filter(e => isPlanned(e)).length;
-  const skipped = instances.filter(e => isSkipped(e)).length;
-  const upcoming = instances.filter(e => isUpcoming(e.date) && getLessonStatus(e) !== 'taught' && getLessonStatus(e) !== 'reviewed').length;
-  return { total, ready, taught, planned, skipped, upcoming, instances };
-}
-
-function getMajorityStatus(statuses) {
-  if (!statuses || statuses.length === 0) return 'not_ready';
-  const counts = {};
-  let maxCount = 0;
-  let majority = 'not_ready';
-  statuses.forEach(s => {
-    counts[s] = (counts[s] || 0) + 1;
-    if (counts[s] > maxCount) {
-      maxCount = counts[s];
-      majority = s;
+  let taught = 0, planned = 0, skipped = 0, upcoming = 0;
+  
+  instances.forEach(evt => {
+    const session = window.Sync.getSessionForDate(className, evt.date, allEvents, redDays, syllabusMap);
+    if (session.override_type) {
+      planned++;
+      if (isInPast(evt.date)) taught++;
+      else upcoming++;
+    } else if (session.lesson) {
+      planned++;
+      if (session.lesson.is_completed) taught++;
+      else if (isUpcoming(evt.date)) upcoming++;
+      else skipped++;
+    } else {
+      if (isInPast(evt.date)) skipped++;
+      else upcoming++;
     }
   });
-  return majority;
+  
+  return { total, taught, planned, skipped, upcoming, instances };
+}
+
+function getHeaderStatusObj(stats) {
+  if (stats.total === 0) return LESSON_STATUSES[0];
+  if (stats.taught === stats.total) return LESSON_STATUSES.find(x => x.id === 'taught');
+  if (stats.skipped > 0) return LESSON_STATUSES[0]; // not_ready
+  return LESSON_STATUSES.find(x => x.id === 'ready') || LESSON_STATUSES[2];
 }
 
 /* ============================================
@@ -297,9 +293,9 @@ function renderCardHeader(className, color, stats, headerStatusObj) {
 /**
  * Returns HTML string for the admin task progress strip (bar + labels)
  */
-function renderAdminStrip(adminData) {
-  const adminTotal = adminData.tasks.length;
-  const adminPlanned = adminData.tasks.filter(t => t.done).length;
+function renderAdminStrip(tasks) {
+  const adminTotal = tasks.length;
+  const adminPlanned = tasks.filter(t => t.done).length;
   
   if (adminTotal === 0) return '';
 
@@ -310,7 +306,7 @@ function renderAdminStrip(adminData) {
         <span class="ml-auto">${adminPlanned}/${adminTotal}</span>
       </div>
       <div class="flex gap-1 w-full h-1.5 mb-1">
-        ${adminData.tasks.map(t => {
+        ${tasks.map(t => {
           const isOverdue = !t.done && t.deadline && t.deadline < getTodayStr();
           return `
             <div class="flex-1 h-full rounded-sm ${t.done ? 'bg-[var(--color-green)]' : (isOverdue ? 'bg-pink' : 'bg-[var(--border-secondary)]')}" title="${t.text.replace(/"/g, '&quot;')}"></div>
@@ -318,7 +314,7 @@ function renderAdminStrip(adminData) {
         }).join('')}
       </div>
       <div class="flex justify-between w-full gap-1">
-        ${adminData.tasks.map(t => {
+        ${tasks.map(t => {
           const isOverdue = !t.done && t.deadline && t.deadline < getTodayStr();
           return `
             <span class="flex-1 text-[9px] leading-[11px] uppercase tracking-wider ${isOverdue ? 'text-pink' : 'text-slate-400'} font-extrabold truncate text-center" title="${t.text.replace(/"/g, '&quot;')}">${t.text}</span>
@@ -332,52 +328,49 @@ function renderAdminStrip(adminData) {
 /**
  * Returns HTML string for the upcoming lessons or units list preview
  */
-function renderNextUpSection(instances, mode, classUnits, className) {
+function renderNextUpSection(instances, mode, classSyllabus, className) {
   let quickHtml = '';
+  const allEvents = loadScheduleEvents();
+  const redDays = loadRedDays();
+  const syllabusMap = loadClassUnits();
 
   if (mode === 'lessons') {
     const next3 = instances.filter(e => isUpcoming(e.date)).slice(0, 3);
     quickHtml = next3.length > 0 ? `<div class="space-y-1.5 mt-2">` + next3.map(l => {
-      const s = getLessonStatus(l);
-      const sObj = LESSON_STATUSES.find(x => x.id === s);
-      const statusColor = sObj ? sObj.color : 'var(--text-tertiary)';
-      const label = sObj ? sObj.label : 'Unknown';
+      const session = window.Sync.getSessionForDate(className, l.date, allEvents, redDays, syllabusMap);
+      const isCompleted = session.lesson?.is_completed || false;
+      const statusColor = session.override_type ? 'var(--color-purple)' : (isCompleted ? 'var(--color-green)' : (session.lesson ? 'var(--color-blue)' : 'var(--text-tertiary)'));
+      const label = session.override_type ? 'Override' : (isCompleted ? 'Taught' : (session.lesson ? 'Ready' : 'Not Ready'));
+      const title = session.override_type || session.lesson?.lesson || 'No Lesson Planned';
+      
       return `
         <div class="flex items-center gap-2">
           <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider text-white shadow-sm flex-shrink-0" style="background:${statusColor}">${label}</span>
-          <span class="text-[12px] font-bold truncate flex-1" style="color: var(--text-primary)">${l.lessonPlan?.lesson || l.name}</span> 
+          <span class="text-[12px] font-bold truncate flex-1" style="color: var(--text-primary)">${title}</span> 
           <span class="text-[10px] text-slate-400 font-semibold whitespace-nowrap">${formatDate(l.date)}</span>
         </div>
       `;
     }).join('') + `</div>` : '<p class="text-xs text-slate-400 font-semibold py-1 italic">No upcoming lessons</p>';
   } else {
+    // Group syllabus by unit
     const unitMap = {};
-    Object.keys(classUnits).forEach(u => {
-      unitMap[u] = { total: 0, planned: 0, status: classUnits[u].status || 'not_ready' };
+    classSyllabus.forEach(item => {
+      if (!unitMap[item.unit]) unitMap[item.unit] = { total: 0, completed: 0 };
+      unitMap[item.unit].total++;
+      if (item.is_completed) unitMap[item.unit].completed++;
     });
 
-    instances.forEach(e => {
-      const u = e.lessonPlan?.unit || 'Default Unit';
-      if (!unitMap[u]) unitMap[u] = { total: 0, planned: 0, status: 'not_ready' };
-      unitMap[u].total++;
-      if (isPlanned(e)) unitMap[u].planned++;
-    });
-
-    const units = Object.keys(unitMap)
-      .filter(u => !(u === 'Default Unit' && unitMap[u].total === 0))
-      .slice(0, 3);
-
+    const units = Object.keys(unitMap).slice(0, 3);
     quickHtml = units.length > 0 ? `<div class="space-y-1.5 mt-2">` + units.map(u => {
       const uStats = unitMap[u];
-      const sObj = LESSON_STATUSES.find(x => x.id === uStats.status);
-      const statusColor = sObj ? sObj.color : 'var(--text-tertiary)';
-      const label = sObj ? sObj.label : 'Empty';
+      const statusColor = uStats.completed === uStats.total ? 'var(--color-green)' : 'var(--color-blue)';
+      const label = uStats.completed === uStats.total ? 'Taught' : 'Active';
 
       return `
         <div class="flex items-center gap-2">
           <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider text-white shadow-sm flex-shrink-0" style="background:${statusColor}">${label}</span>
           <span class="text-[12px] font-bold truncate flex-1" style="color: var(--text-primary)">${u}</span> 
-          <span class="text-[10px] text-slate-400 font-semibold whitespace-nowrap">${uStats.total > 0 ? `${uStats.planned}/${uStats.total}` : ''}</span>
+          <span class="text-[10px] text-slate-400 font-semibold whitespace-nowrap">${uStats.total > 0 ? `${uStats.completed}/${uStats.total}` : ''}</span>
         </div>
       `;
     }).join('') + `</div>` : '<p class="text-xs text-slate-400 font-semibold py-1 italic">No active units</p>';
@@ -396,26 +389,10 @@ function renderNextUpSection(instances, mode, classUnits, className) {
 }
 
 function createClassCard(className, color, stats) {
-  const adminData = loadClassAdmin()[className] || { tasks: [] };
-  const classUnits = loadClassUnits()[className] || {};
+  const adminTasks = window.Sync.getAdminDataForClass(className, loadClassAdmin());
+  const classSyllabus = loadClassUnits()[className] || [];
   
-  // Calculate Header Status
-  let headerStatusObj = LESSON_STATUSES[0];
-  if (currentMode === 'lessons') {
-    const statuses = stats.instances.map(l => getLessonStatus(l));
-    const majority = getMajorityStatus(statuses);
-    headerStatusObj = LESSON_STATUSES.find(x => x.id === majority) || LESSON_STATUSES[0];
-  } else {
-    const unitMap = {};
-    Object.keys(classUnits).forEach(u => { unitMap[u] = { status: classUnits[u].status || 'not_ready' }; });
-    stats.instances.forEach(e => {
-      const u = e.lessonPlan?.unit || 'Default Unit';
-      if (!unitMap[u]) unitMap[u] = { status: 'not_ready' };
-    });
-    const statuses = Object.keys(unitMap).map(u => unitMap[u].status);
-    const majority = getMajorityStatus(statuses);
-    headerStatusObj = LESSON_STATUSES.find(x => x.id === majority) || LESSON_STATUSES[0];
-  }
+  let headerStatusObj = getHeaderStatusObj(stats);
 
   const card = document.createElement('div');
   const hasSkipped = stats.skipped > 0;
@@ -427,8 +404,8 @@ function createClassCard(className, color, stats) {
   card.innerHTML = `
     ${renderCardHeader(className, color, stats, headerStatusObj)}
     <div class="card-body">
-      ${renderAdminStrip(adminData)}
-      ${renderNextUpSection(stats.instances, currentMode, classUnits, className)}
+      ${renderAdminStrip(adminTasks)}
+      ${renderNextUpSection(stats.instances, currentMode, classSyllabus, className)}
     </div>
   `;
   
@@ -474,9 +451,9 @@ function recalculateGlobalStats() {
     }
     
     // Admin stats
-    const classAdmin = adminData[cls.name];
-    if (classAdmin && classAdmin.tasks) {
-      classAdmin.tasks.forEach(t => {
+    const tasks = window.Sync.getAdminDataForClass(cls.name, adminData);
+    if (tasks) {
+      tasks.forEach(t => {
         stats.admin.total++;
         if (t.done) stats.admin.done++;
         else {
@@ -487,14 +464,13 @@ function recalculateGlobalStats() {
     }
 
     // Unit stats
-    const classUnits = unitData[cls.name] || {};
-    Object.keys(classUnits).forEach(uName => {
-      const u = classUnits[uName];
-      stats.units.total++;
-      if (u.status === 'ready') stats.units.ready++;
-      else if (u.status === 'taught' || u.status === 'reviewed') stats.units.finished++;
-      else if (u.status === 'draft') stats.units.draft++;
+    const syllabus = unitData[cls.name] || [];
+    const unitsSet = new Set();
+    syllabus.forEach(item => {
+      unitsSet.add(item.unit);
+      if (item.is_completed) stats.lessons.finished++; // Wait, this overlaps with taught. Handled above.
     });
+    stats.units.total += unitsSet.size;
   });
 
   updateGlobalStats(stats);
@@ -651,43 +627,37 @@ function openDrawer(className) {
   if (window.lucide) lucide.createIcons();
 }
 
+
 function renderLessonsDrawer(className) {
+  const allEvents = loadScheduleEvents();
+  const redDays = loadRedDays();
+  const syllabusMap = loadClassUnits();
+  
+  const classSyllabus = syllabusMap[className] || [];
+  const adminTasks = window.Sync.getAdminDataForClass(className, loadClassAdmin()) || [];
   const instances = getClassInstances(className);
+  
   const drawerTitle = document.getElementById('drawer-title');
   const drawerSubtitle = document.getElementById('drawer-subtitle');
   const drawerBody = document.getElementById('drawer-body');
-  const prevScroll = drawerBody ? drawerBody.scrollTop : 0;
-
+  
   if (drawerTitle) drawerTitle.textContent = className;
-  if (drawerSubtitle) drawerSubtitle.textContent = `${instances.length} lessons • ${instances.filter(e => isPlanned(e)).length} planned`;
+  if (drawerSubtitle) drawerSubtitle.textContent = `${instances.length} lessons • ${classSyllabus.length} planned`;
 
-  // Group by unit
-  const unitMap = {};
-  instances.forEach(e => {
-    const unitKey = e.lessonPlan?.unit || 'Default Unit';
-    if (!unitMap[unitKey]) unitMap[unitKey] = [];
-    unitMap[unitKey].push(e);
-  });
-
-  const classUnits = loadClassUnits()[className] || {};
-  Object.keys(classUnits).forEach(uName => {
-    if (!unitMap[uName]) unitMap[uName] = [];
-  });
-
-  const classAdmin = loadClassAdmin()[className] || { tasks: [] };
-  const adminHtml = classAdmin.tasks.map((task, i) => `
+  // Render Admin Tasks
+  const adminHtml = adminTasks.map((task, i) => `
     <div class="flex flex-col mb-2 bg-[var(--surface-card)] rounded-xl border-2 border-[var(--border-secondary)] p-2">
       <div class="flex items-center justify-between group/task">
         <label class="chunky-check flex-1 min-w-0" onclick="event.stopPropagation()">
-          <input type="checkbox" ${task.done ? 'checked' : ''} onchange="toggleClassAdminTask('${className}', ${i}, this.checked)">
+          <input type="checkbox" ${task.done ? 'checked' : ''} onchange="toggleClassAdminTask('${className}', '${task.id}', this.checked)">
           <div class="box"></div>
           <span class="text-[11px] font-semibold truncate ${task.done ? 'line-through text-slate-400' : ''}">${task.text}</span>
         </label>
         <div class="flex gap-1.5 items-center flex-shrink-0">
-          <button onclick="document.getElementById('ca-deadline-panel-${className.replace(/[^a-z0-9]/gi, '_')}-${i}').classList.toggle('hidden')" class="p-2 text-slate-400 hover:text-blue rounded-lg transition-colors" title="Set Deadline">
+          <button onclick="document.getElementById('ca-deadline-panel-${className.replace(/[^a-z0-9]/gi, '_')}-${task.id}').classList.toggle('hidden')" class="p-2 text-slate-400 hover:text-blue rounded-lg transition-colors" title="Set Deadline">
             <i data-lucide="calendar" class="w-4 h-4"></i>
           </button>
-          <button onclick="deleteClassAdminTask('${className}', ${i})" class="delete-btn p-2 hover:bg-pink/10 rounded-lg transition-colors">
+          <button onclick="deleteClassAdminTask('${className}', '${task.id}')" class="delete-btn p-2 hover:bg-pink/10 rounded-lg transition-colors">
             <i data-lucide="trash-2" class="w-4 h-4"></i>
           </button>
         </div>
@@ -700,17 +670,17 @@ function renderLessonsDrawer(className) {
         </div>
       ` : ''}
 
-      <div id="ca-deadline-panel-${className.replace(/[^a-z0-9]/gi, '_')}-${i}" class="hidden mt-2 ml-7 bg-slate-50 dark:bg-slate-800 p-2 rounded-lg border-2 border-[var(--border-secondary)]">
+      <div id="ca-deadline-panel-${className.replace(/[^a-z0-9]/gi, '_')}-${task.id}" class="hidden mt-2 ml-7 bg-slate-50 dark:bg-slate-800 p-2 rounded-lg border-2 border-[var(--border-secondary)]">
         <label class="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1">Deadline</label>
         <div class="flex items-center gap-2 mb-2">
-          <input type="date" class="edit-input flex-1 py-1 px-2 text-xs" value="${task.deadline || ''}" onchange="setTaskDeadline('${className}', ${i}, this.value)">
-          <button onclick="setTaskDeadline('${className}', ${i}, '')" class="text-[10px] font-bold text-slate-400 hover:text-pink uppercase tracking-wider px-2 py-1">Clear</button>
+          <input type="date" class="edit-input flex-1 py-1 px-2 text-xs" value="${task.deadline || ''}" onchange="setTaskDeadline('${className}', '${task.id}', this.value)">
+          <button onclick="setTaskDeadline('${className}', '${task.id}', '')" class="text-[10px] font-bold text-slate-400 hover:text-pink uppercase tracking-wider px-2 py-1">Clear</button>
         </div>
         <div class="flex flex-wrap gap-1">
-          <button onclick="setTaskDeadlineDays('${className}', ${i}, 1)" class="px-2 py-1 bg-slate-200 dark:bg-slate-700 rounded text-[9px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 hover:bg-blue hover:text-white transition-colors">1 Day</button>
-          <button onclick="setTaskDeadlineDays('${className}', ${i}, 3)" class="px-2 py-1 bg-slate-200 dark:bg-slate-700 rounded text-[9px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 hover:bg-blue hover:text-white transition-colors">3 Days</button>
-          <button onclick="setTaskDeadlineDays('${className}', ${i}, 7)" class="px-2 py-1 bg-slate-200 dark:bg-slate-700 rounded text-[9px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 hover:bg-blue hover:text-white transition-colors">1 Week</button>
-          <button onclick="setTaskDeadlineDays('${className}', ${i}, 14)" class="px-2 py-1 bg-slate-200 dark:bg-slate-700 rounded text-[9px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 hover:bg-blue hover:text-white transition-colors">2 Weeks</button>
+          <button onclick="setTaskDeadlineDays('${className}', '${task.id}', 1)" class="px-2 py-1 bg-slate-200 dark:bg-slate-700 rounded text-[9px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 hover:bg-blue hover:text-white transition-colors">1 Day</button>
+          <button onclick="setTaskDeadlineDays('${className}', '${task.id}', 3)" class="px-2 py-1 bg-slate-200 dark:bg-slate-700 rounded text-[9px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 hover:bg-blue hover:text-white transition-colors">3 Days</button>
+          <button onclick="setTaskDeadlineDays('${className}', '${task.id}', 7)" class="px-2 py-1 bg-slate-200 dark:bg-slate-700 rounded text-[9px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 hover:bg-blue hover:text-white transition-colors">1 Week</button>
+          <button onclick="setTaskDeadlineDays('${className}', '${task.id}', 14)" class="px-2 py-1 bg-slate-200 dark:bg-slate-700 rounded text-[9px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 hover:bg-blue hover:text-white transition-colors">2 Weeks</button>
         </div>
       </div>
     </div>
@@ -733,204 +703,57 @@ function renderLessonsDrawer(className) {
       </div>
     </div>
   `;
-  Object.entries(unitMap).forEach(([unitName, lessons]) => {
-    if (unitName === 'Default Unit' && lessons.length === 0) return;
-    // Sort lessons chronologically to assign accurate numbers
-    lessons.sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
-    
-    const allPlanned = lessons.every(l => isPlanned(l));
-    const uData = classUnits[unitName] || { status: 'draft' };
-    const uStatus = uData.status;
-
-    html += `
-      <div class="mb-6 rounded-xl border-2 border-transparent transition-colors duration-200" ondragover="allowLessonDrop(event)" ondragleave="dragLessonLeave(event)" ondrop="dropLesson(event, '${className}', '${unitName.replace(/'/g, "\\'")}')">
-        <div class="flex items-center gap-2 mb-3 pb-2 border-b-[3px] border-[var(--border-primary)] group flex-wrap">
-          <i data-lucide="book-open" class="w-4 h-4 text-blue"></i>
-          <input type="text" value="${unitName.replace(/"/g, '&quot;')}" class="edit-input flex-1 py-1 px-2 text-base font-heading font-bold bg-transparent border-transparent hover:bg-[var(--surface-card)] hover:border-[var(--border-secondary)] focus:bg-[var(--surface-card)] focus:border-[var(--color-blue)] transition-all cursor-text outline-none min-w-[120px]" onchange="renameUnit('${className}', '${unitName.replace(/'/g, "\\'")}', this.value)" placeholder="Unit Name" title="Edit unit name">
-          
-          <div class="flex gap-1 items-center ml-auto">
-            <button onclick="duplicateUnit('${className}', '${unitName.replace(/'/g, "\\'")}')" class="p-1.5 text-slate-400 hover:text-blue hover:bg-blue/10 rounded-lg transition-colors" title="Duplicate Unit"><i data-lucide="copy" class="w-3.5 h-3.5"></i></button>
-            <button onclick="deleteUnit('${className}', '${unitName.replace(/'/g, "\\'")}')" class="p-1.5 text-slate-400 hover:text-pink hover:bg-pink/10 rounded-lg transition-colors" title="Delete Unit"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
-          </div>
-          
-          <div class="flex gap-1.5 w-full mt-2">
-            ${LESSON_STATUSES.map(s => `
-              <button onclick="updateUnitStatus('${className}', '${unitName.replace(/'/g, "\\'")}', '${s.id}')" class="flex-1" style="padding: 4px 0; font-size: 10px; font-weight: 800; text-transform: uppercase; border-radius: 6px; background: ${uStatus === s.id ? s.color : 'var(--surface-card)'}; color: ${uStatus === s.id ? '#fff' : 'var(--text-tertiary)'}; border: 2px solid ${uStatus === s.id ? s.color : 'var(--border-secondary)'}; box-shadow: ${uStatus === s.id ? 'none' : '0 2px 0 var(--border-secondary)'}; transform: ${uStatus === s.id ? 'translateY(2px)' : 'none'}; transition: all 0.1s;">
-                ${s.label}
-              </button>
-            `).join('')}
-          </div>
-        </div>
-        <div class="flex flex-col gap-1">
-    `;
-
-    if (lessons.length === 0) {
-      html += `<p class="text-[10px] text-slate-400 italic mb-2 px-2">No lessons assigned to this unit yet. Drag a lesson here.</p>`;
-    } else {
-      let currentL = 1;
-      lessons.forEach((lesson, idx) => {
-        if (lesson.lessonPlan && lesson.lessonPlan.lessonNumber) {
-          const parsed = parseInt(lesson.lessonPlan.lessonNumber, 10);
-          if (!isNaN(parsed)) currentL = parsed;
-        }
-        
-        const lessonNumberDisplay = currentL;
-        currentL++;
-
-        const status = getLessonStatus(lesson);
-        const skipped = isSkipped(lesson);
-        const upcoming = isUpcoming(lesson.date) && status !== 'taught' && status !== 'reviewed';
-        const statusObj = LESSON_STATUSES.find(s => s.id === status);
-        const rowClass = skipped ? 'lesson-row skipped' : 'lesson-row';
-
-        // Checklist HTML
-        const checklistHtml = (lesson.checklist || []).map((item, i) => `
-          <div class="flex items-center justify-between group/task mb-1">
-            <label class="chunky-check" onclick="event.stopPropagation()">
-              <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleChecklist('${lesson.id}', ${i}, this.checked)">
-              <div class="box"></div>
-              <span class="text-[11px] font-semibold ${item.done ? 'line-through text-slate-400' : ''}">${item.text}</span>
-            </label>
-            <button onclick="event.stopPropagation(); deleteTask('${lesson.id}', ${i})" class="delete-btn p-1 hover:bg-pink/10 rounded-lg transition-colors" title="Delete Task">
-              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-            </button>
-          </div>
-        `).join('');
-
-        html += `
-          <div class="${rowClass} cursor-move bg-[var(--surface-card)]" draggable="true" ondragstart="dragLessonStart(event, '${lesson.id}')" onclick="toggleEdit('${lesson.id}')">
-            <div class="flex flex-col px-2 pb-1 gap-2">
-              <div class="flex items-center justify-between gap-2">
-                <div class="flex items-center gap-2 min-w-0 flex-1">
-                  <i data-lucide="grip-vertical" class="w-4 h-4 text-slate-300 hover:text-slate-500 transition-colors flex-shrink-0" onclick="event.stopPropagation()"></i>
-                  <div class="status-dot" style="background:${statusObj ? statusObj.color : 'var(--text-tertiary)'}"></div>
-                  <div class="flex flex-col min-w-0 flex-1">
-                    <span class="font-bold text-base truncate"><span class="text-blue mr-1 opacity-80">L${lessonNumberDisplay}:</span> ${lesson.lessonPlan?.lesson || lesson.name}</span>
-                    <span class="text-xs text-slate-400 font-semibold">
-                      ${formatDate(lesson.date)} • ${formatTime(lesson.startTime)} • ${lesson.room || 'No Room'}
-                    </span>
-                  </div>
-                </div>
-                <div class="flex items-center gap-2 flex-shrink-0">
-                  ${skipped ? '<span class="badge-status badge-skipped">Skipped</span>' : ''}
-                  ${upcoming ? '<span class="badge-status badge-upcoming">Upcoming</span>' : ''}
-                  <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-slate-400 edit-chevron-${lesson.id} transition-transform"></i>
-                </div>
-              </div>
-              <div class="flex gap-1.5 w-full pl-6 mt-1" onclick="event.stopPropagation()">
-                ${LESSON_STATUSES.map(s => `
-                  <button onclick="updateField('${lesson.id}', 'status', '${s.id}')" class="flex-1" style="padding: 4px 0; font-size: 9px; font-weight: 800; text-transform: uppercase; border-radius: 6px; background: ${status === s.id ? s.color : 'var(--surface-card)'}; color: ${status === s.id ? '#fff' : 'var(--text-tertiary)'}; border: 2px solid ${status === s.id ? s.color : 'var(--border-secondary)'}; box-shadow: ${status === s.id ? 'none' : '0 2px 0 var(--border-secondary)'}; transform: ${status === s.id ? 'translateY(2px)' : 'none'}; transition: all 0.1s;">
-                    ${s.label}
-                  </button>
-                `).join('')}
-              </div>
-            </div>
-            <!-- Edit Panel -->
-            <div id="edit-${lesson.id}" class="hidden mt-2" onclick="event.stopPropagation()">
-              <div class="edit-panel mx-2">
-                <div class="grid grid-cols-[1.5fr_2fr_1fr] gap-3 mb-3">
-                  <div>
-                    <label class="block text-sm font-extrabold text-slate-400 uppercase tracking-widest mb-1">Unit / Module</label>
-                    <input type="text" class="edit-input" value="${(lesson.lessonPlan?.unit || '').replace(/"/g, '&quot;')}" onchange="updateField('${lesson.id}', 'unit', this.value)" placeholder="e.g. Unit 1">
-                  </div>
-                  <div>
-                    <label class="block text-sm font-extrabold text-slate-400 uppercase tracking-widest mb-1">Lesson Topic</label>
-                    <input type="text" class="edit-input" value="${(lesson.lessonPlan?.lesson || '').replace(/"/g, '&quot;')}" onchange="updateField('${lesson.id}', 'lesson', this.value)" placeholder="e.g. Introduction">
-                  </div>
-                  <div>
-                    <label class="block text-sm font-extrabold text-slate-400 uppercase tracking-widest mb-1 truncate" title="Lesson Number">L# Override</label>
-                    <input type="number" min="1" class="edit-input px-2 text-center" value="${lesson.lessonPlan?.lessonNumber || ''}" onchange="updateField('${lesson.id}', 'lessonNumber', this.value)" placeholder="Auto">
-                  </div>
-                </div>
-
-                <div class="mb-3">
-                  <label class="block text-sm font-extrabold text-slate-400 uppercase tracking-widest mb-1">Notes</label>
-                  <textarea class="edit-input edit-textarea" onchange="updateNotes('${lesson.id}', this.value)" placeholder="Add notes...">${lesson.notes || ''}</textarea>
-                </div>
-                <div>
-                  <div class="flex flex-col mb-2">
-                    <label class="text-sm font-extrabold text-slate-400 uppercase tracking-widest">This Lesson's Checklist</label>
-                    <p class="text-xs text-slate-400 font-semibold mt-0.5">
-                      Prep tasks specific to this single lesson session
-                    </p>
-                  </div>
-                  <div class="mb-2 flex gap-2">
-                    <input type="text" class="edit-input flex-1" id="task-input-${lesson.id}" placeholder="+ Add a new task..." onkeydown="if(event.key==='Enter') { addTask('${lesson.id}', this.value); this.value=''; }">
-                    <button onclick="const i=document.getElementById('task-input-${lesson.id}'); addTask('${lesson.id}', i.value); i.value='';" class="px-3 py-1.5 rounded-xl bg-blue text-white text-sm font-bold border-2 border-dark shadow-[2px_2px_0px_0px_rgba(30,41,59,1)] hover:translate-y-[-1px] active:translate-y-[1px]">Add</button>
-                  </div>
-                  ${checklistHtml || '<p class="text-xs text-slate-400">No checklist items</p>'}
-                </div>
-              </div>
-            </div>
-          </div>
-        `;
-      });
-    }
-
-    html += '</div></div>';
-  });
-
+  
+  // Render Syllabus Editor
   html += `
-    <div class="mt-6 p-4 border-2 border-dashed border-[var(--border-secondary)] rounded-xl bg-[var(--surface-card)]">
-      <h4 class="font-heading text-base font-bold mb-2">Create New Unit</h4>
-      <div class="flex gap-2">
-        <input type="text" class="edit-input flex-1" id="add-unit-input-${className.replace(/[^a-z0-9]/gi, '_')}" placeholder="Unit name..." onkeydown="if(event.key==='Enter') { addNewUnit('${className}', this.value); }">
-        <button onclick="const i=document.getElementById('add-unit-input-${className.replace(/[^a-z0-9]/gi, '_')}'); addNewUnit('${className}', i.value);" class="px-3 py-1.5 rounded-xl bg-slate-800 dark:bg-slate-700 text-white text-sm font-bold shadow-neo-sm hover:translate-y-[-1px] active:translate-y-[1px]">Add Unit</button>
+    <div class="mb-8">
+      <div class="flex items-center justify-between mb-4">
+        <h4 class="font-heading text-base font-bold">Syllabus</h4>
+        <button onclick="addSyllabusLesson('${className}')" class="px-3 py-1.5 rounded-xl bg-[var(--surface-card)] text-sm font-bold border-2 border-[var(--border-secondary)] hover:border-[var(--color-blue)] hover:text-[var(--color-blue)] transition-colors">+ Add Lesson</button>
       </div>
-    </div>
+      <div class="space-y-2" id="syllabus-list-${className.replace(/[^a-z0-9]/gi, '_')}">
   `;
 
-  if (drawerBody) {
-    drawerBody.innerHTML = html;
-    drawerBody.scrollTop = prevScroll;
-  }
-}
-
-function renderUnitsDrawer(className) {
-  const instances = getClassInstances(className);
-  const drawerTitle = document.getElementById('drawer-title');
-  const drawerSubtitle = document.getElementById('drawer-subtitle');
-  const drawerBody = document.getElementById('drawer-body');
-  const prevScroll = drawerBody ? drawerBody.scrollTop : 0;
-
-  const unitMap = {};
-  instances.forEach(e => {
-    const unitKey = e.lessonPlan?.unit || 'Default Unit';
-    if (!unitMap[unitKey]) unitMap[unitKey] = { lessons: [] };
-    unitMap[unitKey].lessons.push(e);
-  });
-
-  const classUnits = loadClassUnits()[className] || {};
-  Object.keys(classUnits).forEach(uName => {
-    if (!unitMap[uName]) unitMap[uName] = { lessons: [] };
-    unitMap[uName].status = classUnits[uName].status || 'draft';
-  });
-
-  const units = Object.entries(unitMap).filter(([name, data]) => !(name === 'Default Unit' && data.lessons.length === 0));
-  
-  // Stats
-  const totalUnits = units.length;
-  const readyUnits = units.filter(([_, data]) => data.status === 'ready' || data.status === 'taught' || data.status === 'reviewed').length;
-  const readinessPct = totalUnits > 0 ? Math.round((readyUnits / totalUnits) * 100) : 0;
-
-  if (drawerTitle) drawerTitle.textContent = className;
-  if (drawerSubtitle) drawerSubtitle.textContent = `${totalUnits} units • ${readinessPct}% ready`;
-
-  if (units.length === 0) {
-    if (drawerBody) {
-      drawerBody.innerHTML = `
-        <div class="flex flex-col items-center justify-center py-20 text-center opacity-60">
-          <div class="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
-            <i data-lucide="layers" class="w-8 h-8 text-slate-400"></i>
+  if (classSyllabus.length === 0) {
+    html += `<p class="text-xs text-slate-400 italic mb-2">No syllabus created yet. Add your first lesson.</p>`;
+  } else {
+    classSyllabus.forEach((item, index) => {
+      // Find matching instance to show date if available
+      const inst = instances[index];
+      const dateHtml = inst ? `<span class="text-[10px] font-bold text-slate-400 ml-2 whitespace-nowrap"><i data-lucide="calendar" class="w-3 h-3 inline"></i> ${formatDate(inst.date)}</span>` : '';
+      
+      html += `
+        <div class="flex flex-col gap-2 p-3 bg-[var(--surface-card)] border-2 border-[var(--border-secondary)] rounded-xl relative group">
+          <div class="flex items-center gap-3">
+            <label class="chunky-check flex-shrink-0">
+              <input type="checkbox" ${item.is_completed ? 'checked' : ''} onchange="toggleSyllabusLessonCompleted('${className}', ${index}, this.checked)">
+              <div class="box"></div>
+            </label>
+            <div class="flex-1 flex flex-col gap-1 min-w-0">
+              <div class="flex items-center w-full">
+                <span class="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 w-12 flex-shrink-0">L${index + 1}</span>
+                <input type="text" class="edit-input flex-1 py-1 px-2 text-sm font-bold bg-transparent border-transparent hover:bg-[var(--surface-card)] hover:border-[var(--border-secondary)] focus:bg-[var(--surface-card)] focus:border-[var(--color-blue)] transition-all cursor-text outline-none" value="${(item.lesson || '').replace(/"/g, '&quot;')}" placeholder="Lesson Name" onchange="updateSyllabusLesson('${className}', ${index}, 'lesson', this.value)">
+                ${dateHtml}
+              </div>
+              <div class="flex items-center w-full">
+                <span class="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 w-12 flex-shrink-0">Unit</span>
+                <input type="text" class="edit-input flex-1 py-1 px-2 text-xs font-semibold bg-transparent border-transparent hover:bg-[var(--surface-card)] hover:border-[var(--border-secondary)] focus:bg-[var(--surface-card)] focus:border-[var(--color-blue)] transition-all cursor-text outline-none" value="${(item.unit || '').replace(/"/g, '&quot;')}" placeholder="Unit Name" onchange="updateSyllabusLesson('${className}', ${index}, 'unit', this.value)">
+              </div>
+            </div>
+            <button onclick="deleteSyllabusLesson('${className}', ${index})" class="p-2 text-slate-400 hover:text-pink hover:bg-pink/10 rounded-lg transition-colors flex-shrink-0" title="Delete Lesson"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
           </div>
-          <h3 class="font-heading text-xl font-bold mb-1">No units yet</h3>
-          <p class="text-sm font-semibold text-slate-400 max-w-[240px]">Assign lessons to units from the Lessons view</p>
-          <button onclick="const n=prompt('Unit Name:'); if(n) addNewUnit('${className}', n);" class="mt-6 px-4 py-2 rounded-xl bg-blue text-white font-bold text-sm border-2 border-dark shadow-neo-sm hover:translate-y-[-1px] active:translate-y-[1px]">
-            + Create First Unit
-          </button>
         </div>
       `;
-    }
+    });
+  }
+
+  html += `</div></div>`;
+  
+  if (drawerBody) {
+    drawerBody.innerHTML = html;
+    if (window.lucide) lucide.createIcons();
+  }
+}
     return;
   }
 
@@ -1036,339 +859,6 @@ function dragLessonStart(ev, lessonId) {
   ev.dataTransfer.effectAllowed = "move";
 }
 
-function allowLessonDrop(ev) {
-  ev.preventDefault();
-  const dz = ev.currentTarget;
-  dz.classList.add('border-blue', 'bg-blue/5');
-}
-
-function dragLessonLeave(ev) {
-  const dz = ev.currentTarget;
-  dz.classList.remove('border-blue', 'bg-blue/5');
-}
-
-function dropLesson(ev, className, targetUnit) {
-  ev.preventDefault();
-  const dz = ev.currentTarget;
-  dz.classList.remove('border-blue', 'bg-blue/5');
-
-  const lessonId = ev.dataTransfer.getData("lessonId");
-  if (!lessonId) return;
-
-  const allEvents = loadScheduleEvents();
-  const evt = allEvents.find(e => e.id === lessonId);
-  
-  if (evt && evt.name === className) {
-    if (!evt.lessonPlan) evt.lessonPlan = { unit: '', lesson: '', status: 'not_ready' };
-    
-    // Only update if unit changed
-    const normalizedTarget = targetUnit === 'Default Unit' ? '' : targetUnit;
-    if (evt.lessonPlan.unit !== normalizedTarget) {
-      evt.lessonPlan.unit = normalizedTarget;
-      evt.updatedAt = new Date().toISOString();
-      if (evt.isRecurrence) evt._modified = true;
-      saveScheduleEvents(allEvents);
-      updateCardStats(className);
-      
-      if (currentDrawerClass === className) {
-        // Re-open drawer so lessons recount and re-render
-        openDrawer(className);
-      }
-    }
-  }
-}
-
-/* ============================================
-   WRITE BACK TO SCHEDULE DATA
-   ============================================ */
-
-function updateField(eventId, field, value) {
-  const allEvents = loadScheduleEvents();
-  const evt = allEvents.find(e => e.id === eventId);
-  if (!evt) return;
-  if (!evt.lessonPlan) evt.lessonPlan = { unit: '', lesson: '', status: 'not_ready' };
-  evt.lessonPlan[field] = value;
-  evt.updatedAt = new Date().toISOString();
-  if (evt.isRecurrence) evt._modified = true;
-  saveScheduleEvents(allEvents);
-  updateCardStats(evt.name);
-  
-  if (currentDrawerClass) openDrawer(currentDrawerClass);
-}
-
-function renameUnit(className, oldName, newName) {
-  if (!newName.trim() || oldName === newName) return;
-  const allEvents = loadScheduleEvents();
-  let changed = false;
-  allEvents.forEach(e => {
-    if (e.name === className && e.typeId === 'class') {
-      const u = e.lessonPlan?.unit || 'Default Unit';
-      if (u === oldName) {
-        if (!e.lessonPlan) e.lessonPlan = { unit: '', lesson: '', status: 'not_ready' };
-        e.lessonPlan.unit = newName.trim();
-        e.updatedAt = new Date().toISOString();
-        changed = true;
-      }
-    }
-  });
-
-  const unitsData = loadClassUnits();
-  if (unitsData[className] && unitsData[className][oldName]) {
-    unitsData[className][newName.trim()] = unitsData[className][oldName];
-    delete unitsData[className][oldName];
-    saveClassUnits(unitsData);
-    changed = true;
-  }
-
-  if (changed) {
-    saveScheduleEvents(allEvents);
-    updateCardStats(className);
-    if (currentDrawerClass === className) {
-      openDrawer(className);
-    }
-  }
-}
-
-function updateUnitStatus(className, unitName, status) {
-  const unitsData = loadClassUnits();
-  if (!unitsData[className]) unitsData[className] = {};
-  if (!unitsData[className][unitName]) unitsData[className][unitName] = { status: 'not_ready' };
-  
-  unitsData[className][unitName].status = status;
-  saveClassUnits(unitsData);
-  
-  updateCardStats(className);
-  if (currentDrawerClass === className) {
-    openDrawer(className);
-  }
-}
-
-/* ============================================
-   UNIT MANAGEMENT (DELETE / DUPLICATE)
-   ============================================ */
-
-function deleteUnit(className, unitName) {
-  if (unitName === 'Default Unit') {
-    alert("You cannot delete the Default Unit.");
-    return;
-  }
-  if (!confirm(`Are you sure you want to delete the unit "${unitName}"? All lessons inside will be moved to the Default Unit.`)) return;
-
-  const unitsData = loadClassUnits();
-  if (unitsData[className] && unitsData[className][unitName]) {
-    delete unitsData[className][unitName];
-    saveClassUnits(unitsData);
-  }
-
-  const allEvents = loadScheduleEvents();
-  let changed = false;
-  allEvents.forEach(e => {
-    if (e.name === className && e.typeId === 'class' && e.lessonPlan && e.lessonPlan.unit === unitName) {
-      e.lessonPlan.unit = '';
-      if (e.isRecurrence) e._modified = true;
-      changed = true;
-    }
-  });
-
-  if (changed) saveScheduleEvents(allEvents);
-  updateCardStats(className);
-  if (currentDrawerClass === className) openDrawer(className);
-}
-
-function duplicateUnit(className, unitName) {
-  const newName = prompt(`Enter a name for the duplicated unit:`, `${unitName} (Copy)`);
-  if (!newName || newName.trim() === '' || newName === unitName) return;
-
-  // Duplicate the unit structure
-  const unitsData = loadClassUnits();
-  if (!unitsData[className]) unitsData[className] = {};
-  
-  const srcStatus = (unitsData[className][unitName] && unitsData[className][unitName].status) ? unitsData[className][unitName].status : 'not_ready';
-  unitsData[className][newName.trim()] = { status: srcStatus };
-  saveClassUnits(unitsData);
-
-  // Ask if they want to duplicate the lesson plans
-  const allEvents = loadScheduleEvents();
-  const unitLessons = allEvents.filter(e => e.name === className && e.typeId === 'class' && e.lessonPlan && e.lessonPlan.unit === unitName);
-  
-  // Ensure we sort source lessons chronologically to duplicate them in order
-  unitLessons.sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
-  
-  if (unitLessons.length > 0 && confirm(`Do you also want to copy the ${unitLessons.length} lesson topics into the new unit?\n\n(They will be automatically assigned to your upcoming empty/unassigned scheduled classes for this group)`)) {
-    // Find future classes for this classname that have NO unit and NO lesson
-    const upcomingEmpty = allEvents.filter(e => e.name === className && e.typeId === 'class' && isUpcoming(e.date) && (!e.lessonPlan || (!e.lessonPlan.unit && !e.lessonPlan.lesson) || (e.lessonPlan.unit === 'Default Unit' && !e.lessonPlan.lesson)));
-    
-    // Sort them chronologically
-    upcomingEmpty.sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
-    
-    let changed = false;
-    for (let i = 0; i < Math.min(unitLessons.length, upcomingEmpty.length); i++) {
-      const srcLesson = unitLessons[i];
-      const targetSlot = upcomingEmpty[i];
-      
-      if (!targetSlot.lessonPlan) targetSlot.lessonPlan = { unit: '', lesson: '', status: 'not_ready' };
-      targetSlot.lessonPlan.unit = newName.trim();
-      targetSlot.lessonPlan.lesson = srcLesson.lessonPlan.lesson;
-      targetSlot.lessonPlan.lessonNumber = srcLesson.lessonPlan.lessonNumber;
-      
-      // Copy checklist if exists
-      if (srcLesson.checklist) {
-        targetSlot.checklist = JSON.parse(JSON.stringify(srcLesson.checklist)).map(item => ({...item, done: false}));
-      }
-      targetSlot.updatedAt = new Date().toISOString();
-      changed = true;
-    }
-    
-    if (changed) saveScheduleEvents(allEvents);
-    if (unitLessons.length > upcomingEmpty.length) {
-      alert(`Note: Only ${upcomingEmpty.length} empty upcoming classes were available to copy into. The remaining ${unitLessons.length - upcomingEmpty.length} lessons were skipped. Please schedule more classes first!`);
-    }
-  }
-
-  updateCardStats(className);
-  if (currentDrawerClass === className) openDrawer(className);
-}
-
-function addNewUnit(className, unitName) {
-  if (!unitName.trim()) return;
-  const unitsData = loadClassUnits();
-  if (!unitsData[className]) unitsData[className] = {};
-  if (!unitsData[className][unitName.trim()]) {
-    unitsData[className][unitName.trim()] = { status: 'not_ready' };
-    saveClassUnits(unitsData);
-    if (currentDrawerClass === className) {
-      openDrawer(className);
-    }
-  }
-}
-
-function updateNotes(eventId, value) {
-  const allEvents = loadScheduleEvents();
-  const evt = allEvents.find(e => e.id === eventId);
-  if (!evt) return;
-  evt.notes = value;
-  evt.updatedAt = new Date().toISOString();
-  if (evt.isRecurrence) evt._modified = true;
-  saveScheduleEvents(allEvents);
-}
-
-function toggleChecklist(eventId, index, checked) {
-  const allEvents = loadScheduleEvents();
-  const evt = allEvents.find(e => e.id === eventId);
-  if (!evt || !evt.checklist || !evt.checklist[index]) return;
-  evt.checklist[index].done = checked;
-  evt.updatedAt = new Date().toISOString();
-  saveScheduleEvents(allEvents);
-  updateCardStats(evt.name);
-
-  if (currentDrawerClass) {
-    const openId = document.querySelector('[id^="edit-"]:not(.hidden)')?.id.replace('edit-', '');
-    openDrawer(currentDrawerClass);
-    if (openId) toggleEdit(openId);
-  }
-}
-
-function addTask(eventId, text) {
-  if (!text.trim()) return;
-  const allEvents = loadScheduleEvents();
-  const evt = allEvents.find(e => e.id === eventId);
-  if (!evt) return;
-  if (!evt.checklist) evt.checklist = [];
-  evt.checklist.push({
-    id: `chk_${Date.now()}`,
-    text: text.trim(),
-    done: false
-  });
-  evt.updatedAt = new Date().toISOString();
-  saveScheduleEvents(allEvents);
-  
-  updateCardStats(evt.name);
-  if (currentDrawerClass) {
-    const openId = document.querySelector('[id^="edit-"]:not(.hidden)')?.id.replace('edit-', '');
-    openDrawer(currentDrawerClass);
-    if (openId) toggleEdit(openId);
-  }
-}
-
-function deleteTask(eventId, index) {
-  const allEvents = loadScheduleEvents();
-  const evt = allEvents.find(e => e.id === eventId);
-  if (!evt || !evt.checklist || !evt.checklist[index]) return;
-  evt.checklist.splice(index, 1);
-  evt.updatedAt = new Date().toISOString();
-  saveScheduleEvents(allEvents);
-
-  updateCardStats(evt.name);
-  if (currentDrawerClass) {
-    const openId = document.querySelector('[id^="edit-"]:not(.hidden)')?.id.replace('edit-', '');
-    openDrawer(currentDrawerClass);
-    if (openId) toggleEdit(openId);
-  }
-}
-
-/* ============================================
-   THEME
-   ============================================ */
-
-function toggleTheme() {
-  document.documentElement.classList.toggle('dark');
-  localStorage.setItem('theme_admin-tracker', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
-}
-
-function refreshData() {
-  renderClassGrid();
-}
-
-/* ============================================
-   TOAST (for sync notifications)
-   ============================================ */
-
-function showToast(message, type = 'info') {
-  let container = document.getElementById('toastContainer');
-  if (!container) {
-    container = document.createElement('div');
-    container.id = 'toastContainer';
-    container.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] flex flex-col gap-3 items-center pointer-events-none';
-    document.body.appendChild(container);
-  }
-
-  const types = {
-    info:    { icon: 'info',           color: 'bg-blue text-white' },
-    success: { icon: 'check-circle',   color: 'bg-green text-white' },
-    warning: { icon: 'alert-triangle', color: 'bg-orange text-white' },
-    error:   { icon: 'x-circle',       color: 'bg-pink text-white' },
-  };
-  const config = types[type] || types.info;
-
-  const toast = document.createElement('div');
-  toast.className = `px-4 py-3 rounded-xl shadow-neo font-bold text-sm flex items-center gap-3 transform transition-all duration-300 translate-y-10 opacity-0 ${config.color} border-2 border-[#1e293b]`;
-  toast.innerHTML = `<i data-lucide="${config.icon}" class="w-5 h-5"></i><span>${message}</span>`;
-  container.appendChild(toast);
-  if (window.lucide) lucide.createIcons({ root: toast });
-
-  setTimeout(() => {
-    toast.classList.remove('translate-y-10', 'opacity-0');
-    toast.classList.add('translate-y-0', 'opacity-100');
-  }, 10);
-  setTimeout(() => {
-    toast.classList.remove('translate-y-0', 'opacity-100');
-    toast.classList.add('translate-y-10', 'opacity-0');
-    setTimeout(() => toast.remove(), 300);
-  }, 3000);
-}
-
-// Expose for sync.js
-window.showToast = showToast;
-
-/* ============================================
-   INIT
-   ============================================ */
-
-// Re-render callback for sync.js loadFromCloud
-window._syncRerender = function () {
-  renderClassGrid();
-};
-
 document.addEventListener('DOMContentLoaded', async () => {
   // 1. Render immediately from localStorage
   renderClassGrid();
@@ -1404,73 +894,86 @@ window.addEventListener('storage', (e) => {
    CLASS ADMIN ACTIONS
    ============================================ */
 
+
+// --- TASK CRUD ---
 function addClassAdminTask(className, text) {
   if (!text.trim()) return;
   const data = loadClassAdmin();
-  if (!data[className]) data[className] = { tasks: [] };
-  data[className].tasks.push({
-    id: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : '00000000-0000-4000-8000-' + Date.now().toString(16).padStart(12, '0'),
-    text: text.trim(),
-    done: false
-  });
+  if (!data[className]) data[className] = [];
+  data[className].push({ id: (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(), text: text.trim(), done: false, deadline: null });
   saveClassAdmin(data);
+  renderLessonsDrawer(className);
   updateCardStats(className);
-  if (currentDrawerClass) {
-    const openId = document.querySelector('[id^="edit-"]:not(.hidden)')?.id.replace('edit-', '');
-    openDrawer(className);
-    if (openId) toggleEdit(openId);
-  } else {
-    openDrawer(className);
-  }
 }
-
-function deleteClassAdminTask(className, index) {
+function toggleClassAdminTask(className, taskId, isDone) {
   const data = loadClassAdmin();
-  if (!data[className] || !data[className].tasks[index]) return;
-  data[className].tasks.splice(index, 1);
+  const tasks = data[className] || [];
+  const task = tasks.find(t => t.id === taskId);
+  if (task) task.done = isDone;
   saveClassAdmin(data);
+  renderLessonsDrawer(className);
   updateCardStats(className);
-  if (currentDrawerClass) {
-    const openId = document.querySelector('[id^="edit-"]:not(.hidden)')?.id.replace('edit-', '');
-    openDrawer(className);
-    if (openId) toggleEdit(openId);
-  } else {
-    openDrawer(className);
-  }
 }
-
-function toggleClassAdminTask(className, index, checked) {
+function deleteClassAdminTask(className, taskId) {
   const data = loadClassAdmin();
-  if (!data[className] || !data[className].tasks[index]) return;
-  data[className].tasks[index].done = checked;
+  const tasks = data[className] || [];
+  data[className] = tasks.filter(t => t.id !== taskId);
   saveClassAdmin(data);
+  renderLessonsDrawer(className);
   updateCardStats(className);
-  if (currentDrawerClass) {
-    const openId = document.querySelector('[id^="edit-"]:not(.hidden)')?.id.replace('edit-', '');
-    openDrawer(className);
-    if (openId) toggleEdit(openId);
-  } else {
-    openDrawer(className);
-  }
 }
-
-function setTaskDeadline(className, index, dateStr) {
+function setTaskDeadline(className, taskId, dateStr) {
   const data = loadClassAdmin();
-  if (!data[className] || !data[className].tasks[index]) return;
-  data[className].tasks[index].deadline = dateStr || null;
+  const tasks = data[className] || [];
+  const task = tasks.find(t => t.id === taskId);
+  if (task) task.deadline = dateStr || null;
   saveClassAdmin(data);
-  if (currentDrawerClass) {
-    const openId = document.querySelector('[id^="edit-"]:not(.hidden)')?.id.replace('edit-', '');
-    openDrawer(className);
-    if (openId) toggleEdit(openId);
-  } else {
-    openDrawer(className);
-  }
+  renderLessonsDrawer(className);
+  updateCardStats(className);
+}
+function setTaskDeadlineDays(className, taskId, days) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  setTaskDeadline(className, taskId, getDayString(d));
 }
 
-function setTaskDeadlineDays(className, index, days) {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-  const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  setTaskDeadline(className, index, fmt(date));
+// --- SYLLABUS CRUD ---
+function addSyllabusLesson(className) {
+  const data = loadClassUnits();
+  if (!data[className]) data[className] = [];
+  const nextIndex = data[className].length;
+  // Try to inherit unit from previous lesson
+  const prevUnit = nextIndex > 0 ? data[className][nextIndex - 1].unit : 'Unit 1';
+  data[className].push({ index: nextIndex, unit: prevUnit, lesson: 'New Lesson', is_completed: false });
+  saveClassUnits(data);
+  renderLessonsDrawer(className);
+  updateCardStats(className);
+}
+function updateSyllabusLesson(className, index, field, value) {
+  const data = loadClassUnits();
+  if (data[className] && data[className][index]) {
+    data[className][index][field] = value;
+    saveClassUnits(data);
+    updateCardStats(className);
+  }
+}
+function toggleSyllabusLessonCompleted(className, index, isCompleted) {
+  const data = loadClassUnits();
+  if (data[className] && data[className][index]) {
+    data[className][index].is_completed = isCompleted;
+    saveClassUnits(data);
+    renderLessonsDrawer(className);
+    updateCardStats(className);
+  }
+}
+function deleteSyllabusLesson(className, index) {
+  const data = loadClassUnits();
+  if (data[className]) {
+    data[className].splice(index, 1);
+    // Re-index
+    data[className].forEach((item, i) => item.index = i);
+    saveClassUnits(data);
+    renderLessonsDrawer(className);
+    updateCardStats(className);
+  }
 }

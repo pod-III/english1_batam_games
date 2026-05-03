@@ -178,7 +178,7 @@ function generateRecurrences(event, rangeStart, rangeEnd) {
           originalEndTime: event.endTime,     // ADDED
           _modified: false,                   // ADDED
           checklist: event.checklist.map(item => ({ ...item, done: false })),
-          lessonPlan: { unit: '', lesson: '', status: 'not_ready' } // ADDED
+          overrideType: '' // ADDED
         });
       }
     }
@@ -222,7 +222,7 @@ function generateRecurrences(event, rangeStart, rangeEnd) {
         originalEndTime: event.endTime,
         _modified: false,                   // ADDED
         checklist: event.checklist.map(item => ({ ...item, done: false })),
-        lessonPlan: { unit: '', lesson: '', status: 'not_ready' }
+        overrideType: ''
       });
     }
   }
@@ -269,11 +269,7 @@ function createEventObject({ name, typeId, colorHex, date, startTime, endTime, r
     notes: notes || '',
     recurrence: recurrence || 'none',
     checklist: defaultChecklist,
-    lessonPlan: {
-      unit: '',
-      lesson: '',
-      status: 'draft'
-    },
+    overrideType: '',
     graduationClass: false,
     graduationDate: '',
     recurrenceDays: recurrenceDays || [], // Array of day indices [0-6]

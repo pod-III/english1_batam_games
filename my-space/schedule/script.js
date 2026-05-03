@@ -370,6 +370,7 @@ function updateStats() {
   
   const uniqueClasses = new Set();
   const classAdminData = loadClassAdmin();
+  const classSyllabusMap = loadClassUnits();
 
   events.forEach(evt => {
     const evtDate = new Date(evt.date + 'T00:00:00');
@@ -378,17 +379,65 @@ function updateStats() {
       
       weekEvents++;
       
-      // Lesson statuses
-      const status = evt.lessonPlan?.status || 'draft';
-      if (status === 'taught' || status === 'reviewed') countTaught++;
-      else if (status === 'ready') countReady++;
-      else countDraft++;
+      if (evt.typeId === 'class') {
+        const session = window.Sync.getSessionForDate(evt.name, evt.date, events, redDays, classSyllabusMap);
+        if (session.override_type) {
+           countReady++;
+        } else if (session.lesson) {
+           if (session.lesson.is_completed) countTaught++;
+           else countReady++;
+        } else {
+           countDraft++;
+        }
+        uniqueClasses.add(evt.name);
+      }
 
-      // Admin tasks (local checklist)
       if (evt.checklist) {
         totalTasks += evt.checklist.length;
         doneTasks += evt.checklist.filter(i => i.done).length;
       }
+    }
+  });
+
+  let globalAdminTotal = 0;
+  let globalAdminDone = 0;
+  uniqueClasses.forEach(className => {
+    const tasks = window.Sync.getAdminDataForClass(className, classAdminData);
+    globalAdminTotal += tasks.length;
+    globalAdminDone += tasks.filter(t => t.done).length;
+  });
+
+  const elEvents = document.getElementById('stat-events');
+  const elTasks = document.getElementById('stat-tasks');
+  
+  if (elEvents) elEvents.textContent = weekEvents;
+  if (elTasks) elTasks.textContent = totalTasks;
+
+  const totalLessons = countTaught + countReady + countDraft;
+  const pctTaught = totalLessons > 0 ? (countTaught / totalLessons) * 100 : 0;
+  const pctReady = totalLessons > 0 ? (countReady / totalLessons) * 100 : 0;
+  const pctDraft = totalLessons > 0 ? (countDraft / totalLessons) * 100 : 0;
+  
+  const elLessonCount = document.getElementById('lesson-stats-count');
+  if (elLessonCount) elLessonCount.textContent = `${countTaught + countReady}/${totalLessons}`;
+  
+  const bTaught = document.getElementById('bar-taught');
+  const bReady = document.getElementById('bar-ready');
+  const bDraft = document.getElementById('bar-draft');
+  
+  if (bTaught) bTaught.style.width = `${pctTaught}%`;
+  if (bReady) bReady.style.width = `${pctReady}%`;
+  if (bDraft) bDraft.style.width = `${pctDraft}%`;
+
+  const adminPct = globalAdminTotal > 0 ? (globalAdminDone / globalAdminTotal) * 100 : 0;
+  const elAdminPct = document.getElementById('admin-stats-pct');
+  const elAdminCount = document.getElementById('admin-stats-count');
+  const bAdmin = document.getElementById('bar-admin');
+  
+  if (elAdminPct) elAdminPct.textContent = `${Math.round(adminPct)}%`;
+  if (elAdminCount) elAdminCount.textContent = `${globalAdminDone}/${globalAdminTotal} tasks`;
+  if (bAdmin) bAdmin.style.width = `${adminPct}%`;
+}
       
       if (evt.typeId === 'class') {
         uniqueClasses.add(evt.name);
@@ -638,12 +687,20 @@ function createEventBlock(evt) {
   }
 
   let lessonStatusHtml = '';
-  if (evt.lessonPlan && evt.lessonPlan.status && evt.lessonPlan.status !== 'draft') {
-    const status = LESSON_STATUSES.find(s => s.id === evt.lessonPlan.status);
-    if (status) {
+  if (evt.typeId === 'class') {
+    const classSyllabusMap = loadClassUnits();
+    const session = window.Sync.getSessionForDate(evt.name, evt.date, events, redDays, classSyllabusMap);
+    let statusObj;
+    if (session.override_type) statusObj = { icon: 'star', color: '#8B5CF6' }; 
+    else if (session.lesson) {
+      if (session.lesson.is_completed) statusObj = { icon: 'check-circle', color: '#00E676' };
+      else statusObj = { icon: 'edit-3', color: '#2979FF' };
+    }
+    
+    if (statusObj) {
       lessonStatusHtml = `
-        <div class="absolute top-1.5 right-7 opacity-80" title="Lesson: ${status.label}">
-          <i data-lucide="${status.icon}" class="w-2.5 h-2.5" style="color: ${status.color}"></i>
+        <div class="absolute top-1.5 right-7 opacity-80" title="Lesson: ${session.override_type || session.lesson?.lesson || 'Planned'}">
+          <i data-lucide="${statusObj.icon}" class="w-2.5 h-2.5" style="color: ${statusObj.color}"></i>
         </div>
       `;
     }
@@ -664,7 +721,7 @@ function createEventBlock(evt) {
   const handle = evtBlock.querySelector('.resize-handle');
   handle.addEventListener('mousedown', initResize);
   
-  lucide.createIcons({ root: evtBlock });
+  if (window.lucide) lucide.createIcons({ root: evtBlock });
   return evtBlock;
 }
 
@@ -1020,30 +1077,17 @@ function openDetailPanel(eventId, keepDirty = false) {
       Admin Tracker
     </div>
     
-    <!-- Lesson Tracker -->
-    <div class="bg-blue/5 dark:bg-blue/10 p-3 rounded-xl border border-blue/20 dark:border-blue/80/20 mb-4">
+    <!-- Lesson Override -->
+    ${event.typeId === 'class' && event.isRecurrence ? `
+    <div class="bg-[var(--color-purple)]/5 dark:bg-[var(--color-purple)]/10 p-3 rounded-xl border border-[var(--color-purple)]/20 dark:border-[var(--color-purple)]/20 mb-4">
       <div class="flex items-center gap-2 mb-3">
-        <i data-lucide="book-open" class="w-3.5 h-3.5 text-blue"></i>
-        <h4 class="text-[10px] font-extrabold text-blue uppercase tracking-widest">Lesson Status</h4>
+        <i data-lucide="star" class="w-3.5 h-3.5" style="color: var(--color-purple)"></i>
+        <h4 class="text-[10px] font-extrabold uppercase tracking-widest" style="color: var(--color-purple)">Lesson Override</h4>
       </div>
-      
-      <div class="grid grid-cols-2 gap-3 mb-3">
-        <input type="text" class="panel-input text-[11px] py-1" value="${(event.lessonPlan?.unit || '').replace(/"/g, '&quot;')}" placeholder="Unit/Module" onchange="updateLessonField('${eventId}', 'unit', this.value)">
-        <input type="text" class="panel-input text-[11px] py-1" value="${(event.lessonPlan?.lesson || '').replace(/"/g, '&quot;')}" placeholder="Lesson Topic" onchange="updateLessonField('${eventId}', 'lesson', this.value)">
-      </div>
-
-      <div class="flex items-center justify-between gap-1 p-1 bg-white/50 dark:bg-slate-900/50 rounded-lg border border-slate-200/50 dark:border-slate-700/50">
-        ${LESSON_STATUSES.map(s => `
-          <button onclick="setLessonStatus('${eventId}', '${s.id}')" 
-                  class="lesson-status-btn flex-1 flex flex-col items-center gap-1 p-1.5 rounded-md transition-all ${event.lessonPlan?.status === s.id ? 'active bg-white dark:bg-slate-800' : 'opacity-40 grayscale hover:opacity-100 hover:grayscale-0'}"
-                  title="${s.label}">
-            <i data-lucide="${s.icon}" class="w-3.5 h-3.5" style="color: ${s.color}"></i>
-            <span class="text-[7px] font-bold uppercase tracking-tighter" style="color: ${event.lessonPlan?.status === s.id ? s.color : 'inherit'}">${s.label}</span>
-          </button>
-        `).join('')}
-      </div>
+      <input type="text" class="panel-input text-[11px] py-1 w-full" value="${(event.overrideType || '').replace(/"/g, '&quot;')}" placeholder="e.g., Review Day" onchange="updateEventField('${eventId}', 'overrideType', this.value)">
     </div>
-
+    ` : ''}
+    
     <!-- Checklist -->
     <div class="mb-6">
       <div class="flex items-center justify-between mb-2 px-1">
@@ -1072,9 +1116,9 @@ function openDetailPanel(eventId, keepDirty = false) {
         </div>
         <div class="flex items-center gap-2">
           ${(() => {
-            const uData = loadClassUnits()[event.name] || {};
-            const units = Object.values(uData);
-            const ready = units.filter(u => ['ready', 'taught', 'reviewed'].includes(u.status)).length;
+            const uData = loadClassUnits()[event.name] || [];
+            const units = uData;
+            const ready = units.filter(u => u.is_completed).length;
             const total = units.length;
             if (total === 0) return '';
             const isReady = ready === total;
@@ -1085,7 +1129,7 @@ function openDetailPanel(eventId, keepDirty = false) {
 
       <div class="segmented-progress">
         ${(() => {
-          const tasks = (loadClassAdmin()[event.name]?.tasks || []);
+          const tasks = (window.Sync.getAdminDataForClass(event.name, loadClassAdmin()));
           if (tasks.length === 0) return '<div class="segmented-step opacity-20"></div>';
           return tasks.map(t => {
             const isOverdue = !t.done && t.deadline && t.deadline < getTodayStr();
@@ -1095,7 +1139,7 @@ function openDetailPanel(eventId, keepDirty = false) {
       </div>
 
       <div class="space-y-1.5 mb-3">
-        ${(loadClassAdmin()[event.name]?.tasks || []).map((task, i) => {
+        ${(window.Sync.getAdminDataForClass(event.name, loadClassAdmin())).map((task, i) => {
           const isOverdue = !task.done && task.deadline && task.deadline < getTodayStr();
           return `
           <div class="admin-task-item group/task">
@@ -1317,38 +1361,6 @@ function deleteChecklistItem(eventId, itemId) {
   }
 }
 
-function setLessonStatus(eventId, statusId) {
-  const event = events.find(e => e.id === eventId);
-  if (event) {
-    isDetailPanelDirty = true;
-    if (!event.lessonPlan) {
-        event.lessonPlan = { unit: '', lesson: '', status: 'draft' };
-    }
-    event.lessonPlan.status = statusId;
-    saveData();
-
-    // Sync promoted instance to cloud (fire-and-forget)
-    if (window.Sync) Sync.syncPromotedInstance(event);
-
-    updateEventUI(eventId);
-    openDetailPanel(eventId, true);
-  }
-}
-
-function updateLessonField(eventId, field, value) {
-  const event = events.find(e => e.id === eventId);
-  if (event) {
-    isDetailPanelDirty = true;
-    if (!event.lessonPlan) {
-        event.lessonPlan = { unit: '', lesson: '', status: 'draft' };
-    }
-    event.lessonPlan[field] = value;
-    saveData();
-
-    // Sync promoted instance to cloud (fire-and-forget)
-    if (window.Sync) Sync.syncPromotedInstance(event);
-  }
-}
 
 /* ============================================
    10. Event CRUD & Modals
@@ -2088,9 +2100,39 @@ function setupEventListeners() {
 
 function addClassAdminTask(className, text) {
   if (!text.trim()) return;
-  isDetailPanelDirty = true;
   const data = loadClassAdmin();
-  if (!data[className]) data[className] = { tasks: [] };
+  if (!data[className]) data[className] = [];
+  data[className].push({ id: Date.now().toString(), text: text.trim(), done: false, deadline: null });
+  saveClassAdmin(data);
+  const detailPanel = document.getElementById('detail-panel');
+  if (detailPanel.classList.contains('open') && selectedEventId) {
+    openDetailPanel(selectedEventId);
+  }
+}
+
+function deleteClassAdminTask(className, index) {
+  const data = loadClassAdmin();
+  if (data[className]) {
+    data[className].splice(index, 1);
+    saveClassAdmin(data);
+    const detailPanel = document.getElementById('detail-panel');
+    if (detailPanel.classList.contains('open') && selectedEventId) {
+      openDetailPanel(selectedEventId);
+    }
+  }
+}
+
+function toggleClassAdminTask(className, index, checked) {
+  const data = loadClassAdmin();
+  if (data[className] && data[className][index]) {
+    data[className][index].done = checked;
+    saveClassAdmin(data);
+    const detailPanel = document.getElementById('detail-panel');
+    if (detailPanel.classList.contains('open') && selectedEventId) {
+      openDetailPanel(selectedEventId);
+    }
+  }
+};
   data[className].tasks.push({
     id: `task_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,
     text: text.trim(),

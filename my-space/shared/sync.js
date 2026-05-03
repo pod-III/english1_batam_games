@@ -60,16 +60,8 @@
     if (evt.originalStartTime && evt.startTime !== evt.originalStartTime) return true;
     if (evt.originalEndTime && evt.endTime !== evt.originalEndTime) return true;
 
-    // Check for lesson plan changes
-    if (evt.lessonPlan) {
-      const status = evt.lessonPlan.status;
-      // Promote if status is anything other than 'not_ready'
-      if (status && status !== 'not_ready') return true;
-      // Promote if it has a unit (non-default)
-      if (evt.lessonPlan.unit && evt.lessonPlan.unit.trim() !== '') return true;
-      // Promote if it has a lesson topic
-      if (evt.lessonPlan.lesson && evt.lessonPlan.lesson.trim() !== '') return true;
-    }
+    if (evt.overrideType && evt.overrideType.trim() !== '') return true;
+
     return false;
   }
 
@@ -92,7 +84,7 @@
       recurrence: evt.recurrence || 'none',
       recurrence_days: evt.recurrenceDays || [],
       checklist: evt.checklist || [],
-      lesson_plan: evt.lessonPlan || { unit: '', lesson: '', status: 'not_ready' },
+      override_type: evt.overrideType || null,
       graduation_class: !!evt.graduationClass,
       graduation_date: evt.graduationDate || null,
       is_master: !evt.isRecurrence,
@@ -117,7 +109,7 @@
       recurrence: row.recurrence || 'none',
       recurrenceDays: row.recurrence_days || [],
       checklist: row.checklist || [],
-      lessonPlan: row.lesson_plan || { unit: '', lesson: '', status: 'not_ready' },
+      overrideType: row.override_type || null,
       graduationClass: !!row.graduation_class,
       graduationDate: row.graduation_date || '',
       isRecurrence: !row.is_master,
@@ -138,43 +130,37 @@
   }
 
   // schedule_class_admin: JS → SQL
-  // localStorage shape: { "ClassName": { tasks: [...] } }
-  // Supabase shape: one row per task
-  function classAdminToRow(className, task, userId) {
+  // localStorage shape: { "ClassName": [ {id, text, done, deadline}, ... ] }
+  // Supabase shape: one row per class with tasks JSON array
+  function classAdminToRow(className, tasks, userId) {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[4][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    let finalId = task.id;
-    if (!finalId || !uuidRegex.test(finalId)) {
-      finalId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : '00000000-0000-4000-8000-' + Date.now().toString(16).padStart(12, '0');
-    }
-    
+    const cleanTasks = tasks.map(task => {
+      let finalId = task.id;
+      if (!finalId || !uuidRegex.test(finalId)) {
+        finalId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : '00000000-0000-4000-8000-' + Date.now().toString(16).padStart(12, '0');
+      }
+      return {
+        id: finalId,
+        text: task.text,
+        done: !!task.done,
+        deadline: task.deadline || null
+      };
+    });
     return {
-      id: finalId,
       user_id: userId,
       class_name: className,
-      text: task.text,
-      done: !!task.done,
-      deadline: task.deadline || null,
-    };
-  }
-
-  function rowToTask(row) {
-    return {
-      id: row.id,
-      text: row.text,
-      done: !!row.done,
-      deadline: row.deadline || null,
+      tasks: cleanTasks,
     };
   }
 
   // schedule_class_units: JS → SQL
-  // localStorage shape: { "ClassName": { "UnitName": { status: "draft" } } }
-  // Supabase shape: one row per (class_name, unit_name)
-  function classUnitToRow(className, unitName, unitObj, userId) {
+  // localStorage shape: { "ClassName": [ {index, unit, lesson, is_completed}, ... ] }
+  // Supabase shape: one row per class with syllabus JSON array
+  function classSyllabusToRow(className, syllabus, userId) {
     return {
       user_id: userId,
       class_name: className,
-      unit_name: unitName,
-      status: unitObj.status || 'draft',
+      syllabus: syllabus || [],
     };
   }
 
@@ -248,64 +234,97 @@
   // Class Admin
   async function cloudLoadClassAdmin(userId) {
     const { data, error } = await db.from('schedule_class_admin')
-      .select('*').eq('user_id', userId);
+      .select('class_name, tasks').eq('user_id', userId);
     if (error) { console.error('[Sync] Load class admin error:', error); return null; }
     const result = {};
     (data || []).forEach(row => {
-      if (!result[row.class_name]) result[row.class_name] = { tasks: [] };
-      result[row.class_name].tasks.push(rowToTask(row));
+      result[row.class_name] = row.tasks || [];
     });
     return result;
   }
 
   async function cloudSaveClassAdmin(userId, adminData) {
-    // Collect all tasks from all classes
     const rows = [];
-    Object.entries(adminData).forEach(([className, obj]) => {
-      if (obj.tasks) {
-        obj.tasks.forEach(task => {
-          rows.push(classAdminToRow(className, task, userId));
-        });
+    Object.entries(adminData).forEach(([className, tasks]) => {
+      if (Array.isArray(tasks)) {
+        rows.push(classAdminToRow(className, tasks, userId));
       }
     });
 
-    if (rows.length === 0) {
-      // If data is empty, clear the table for this user
-      await db.from('schedule_class_admin').delete().eq('user_id', userId);
-      return;
-    }
-
-    // Full replace approach to handle deletions correctly
     await db.from('schedule_class_admin').delete().eq('user_id', userId);
-    const { error } = await db.from('schedule_class_admin').insert(rows);
-    if (error) console.error('[Sync] Save class admin error:', error);
+    if (rows.length > 0) {
+      const { error } = await db.from('schedule_class_admin').insert(rows);
+      if (error) console.error('[Sync] Save class admin error:', error);
+    }
   }
 
-  // Class Units
+  // Class Syllabus (formerly Class Units)
   async function cloudLoadClassUnits(userId) {
     const { data, error } = await db.from('schedule_class_units')
-      .select('*').eq('user_id', userId);
-    if (error) { console.error('[Sync] Load class units error:', error); return null; }
+      .select('class_name, syllabus').eq('user_id', userId);
+    if (error) { console.error('[Sync] Load class syllabus error:', error); return null; }
     const result = {};
     (data || []).forEach(row => {
-      if (!result[row.class_name]) result[row.class_name] = {};
-      result[row.class_name][row.unit_name] = { status: row.status || 'draft' };
+      result[row.class_name] = row.syllabus || [];
     });
     return result;
   }
 
-  async function cloudSaveClassUnits(userId, unitsData) {
+  async function cloudSaveClassUnits(userId, syllabusData) {
     await db.from('schedule_class_units').delete().eq('user_id', userId);
     const rows = [];
-    Object.entries(unitsData).forEach(([className, units]) => {
-      Object.entries(units).forEach(([unitName, unitObj]) => {
-        rows.push(classUnitToRow(className, unitName, unitObj, userId));
-      });
+    Object.entries(syllabusData).forEach(([className, syllabus]) => {
+      if (Array.isArray(syllabus)) {
+        rows.push(classSyllabusToRow(className, syllabus, userId));
+      }
     });
     if (rows.length > 0) {
       const { error } = await db.from('schedule_class_units').insert(rows);
-      if (error) console.error('[Sync] Save class units error:', error);
+      if (error) console.error('[Sync] Save class syllabus error:', error);
     }
+  }
+
+  // ── Core Read Logic ──────────────────────────────────────────────
+
+  function getSessionForDate(className, targetDate, allEvents, redDays, syllabusMap) {
+    // 1. FETCH master row & 3. GENERATE valid dates
+    // allEvents already contains all generated dates.
+    // Filter to occurrences of the class, excluding red days.
+    const instances = allEvents
+      .filter(e => e.name === className && e.typeId === 'class')
+      .filter(e => !(e.isRecurrence && redDays.includes(e.date)))
+      .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
+
+    // 4. ASSIGN sequence index
+    const sequenceIndex = instances.findIndex(e => e.date === targetDate);
+    const targetInstance = instances[sequenceIndex];
+    
+    if (!targetInstance) {
+      return { date: targetDate, sequenceIndex: -1, lesson: null, override_type: null };
+    }
+
+    // 5. CHECK for override
+    const override_type = targetInstance.overrideType || null;
+    let lesson = null;
+
+    // 6. RESOLVE session content
+    if (!override_type && sequenceIndex >= 0) {
+      const syllabus = syllabusMap[className] || [];
+      lesson = syllabus[sequenceIndex] || null;
+    }
+
+    // 7. RETURN
+    return { date: targetDate, sequenceIndex, lesson, override_type };
+  }
+
+  function getAdminDataForClass(className, adminDataMap) {
+    // 1. FETCH one row (from memory map)
+    const tasks = adminDataMap[className];
+    // 2. If row does not exist, return empty array
+    if (!tasks || !Array.isArray(tasks)) {
+      return [];
+    }
+    return tasks;
   }
 
   // ── Bulk sync helpers ────────────────────────────────────────────
@@ -531,6 +550,9 @@
     getCachedUserId,
     isPromoted,
     syncPromotedInstance,
+    
+    getSessionForDate,
+    getAdminDataForClass,
   };
 
 })();
