@@ -244,17 +244,31 @@
   }
 
   async function cloudSaveClassAdmin(userId, adminData) {
-    const rows = [];
+    const { data: existing, error: fetchErr } = await db.from('schedule_class_admin').select('id, class_name').eq('user_id', userId);
+    if (fetchErr) {
+      console.error('[Sync] Fetch class admin error:', fetchErr);
+      return;
+    }
+    
+    const existingMap = {};
+    (existing || []).forEach(row => {
+      existingMap[row.class_name] = row.id;
+    });
+
+    const rowsToUpsert = [];
     Object.entries(adminData).forEach(([className, tasks]) => {
       if (Array.isArray(tasks)) {
-        rows.push(classAdminToRow(className, tasks, userId));
+        const row = classAdminToRow(className, tasks, userId);
+        if (existingMap[className]) {
+          row.id = existingMap[className];
+        }
+        rowsToUpsert.push(row);
       }
     });
 
-    await db.from('schedule_class_admin').delete().eq('user_id', userId);
-    if (rows.length > 0) {
-      const { error } = await db.from('schedule_class_admin').insert(rows);
-      if (error) console.error('[Sync] Save class admin error:', error);
+    if (rowsToUpsert.length > 0) {
+      const { error } = await db.from('schedule_class_admin').upsert(rowsToUpsert, { onConflict: 'id' });
+      if (error) console.error('[Sync] Upsert class admin error:', error);
     }
   }
 
@@ -270,18 +284,36 @@
     return result;
   }
 
-  async function cloudSaveClassUnits(userId, syllabusData) {
-    await db.from('schedule_class_units').delete().eq('user_id', userId);
-    const rows = [];
+    async function cloudSaveClassUnits(userId, syllabusData) {
+    // Fetch existing rows to get their IDs
+    const { data: existing, error: fetchErr } = await db.from('schedule_class_units').select('id, class_name').eq('user_id', userId);
+    if (fetchErr) {
+      console.error('[Sync] Fetch class syllabus error:', fetchErr);
+      return;
+    }
+    
+    const existingMap = {};
+    (existing || []).forEach(row => {
+      existingMap[row.class_name] = row.id;
+    });
+
+    const rowsToUpsert = [];
     Object.entries(syllabusData).forEach(([className, syllabus]) => {
       if (Array.isArray(syllabus)) {
-        rows.push(classSyllabusToRow(className, syllabus, userId));
+        const row = classSyllabusToRow(className, syllabus, userId);
+        if (existingMap[className]) {
+          row.id = existingMap[className];
+        }
+        rowsToUpsert.push(row);
       }
     });
-    if (rows.length > 0) {
-      const { error } = await db.from('schedule_class_units').insert(rows);
-      if (error) console.error('[Sync] Save class syllabus error:', error);
+
+    if (rowsToUpsert.length > 0) {
+      const { error } = await db.from('schedule_class_units').upsert(rowsToUpsert, { onConflict: 'id' });
+      if (error) console.error('[Sync] Upsert class syllabus error:', error);
     }
+    
+    // Optionally clean up duplicates or removed classes, but we'll leave them to prevent RLS delete issues
   }
 
   // ── Core Read Logic ──────────────────────────────────────────────
@@ -486,13 +518,17 @@
     return _cachedUserId;
   }
 
+  let _saveQueue = Promise.resolve();
+
   // Fire a cloud write without blocking UI. Sets badge to syncing/synced.
   function fireCloudSave(saveFn) {
     if (!isCloudMode()) return;
     getCachedUserId().then(userId => {
       if (!userId) return;
       setSyncBadge('syncing');
-      saveFn(userId)
+      
+      _saveQueue = _saveQueue
+        .then(() => saveFn(userId))
         .then(() => setSyncBadge('synced'))
         .catch(err => {
           console.error('[Sync] Background save failed:', err);
