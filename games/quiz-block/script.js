@@ -9,6 +9,10 @@ tailwind.config = {
                     orange: '#FF8C42',
                     green: '#00E676',
                     blue: '#2979FF',
+                    purple: '#A855F7',
+                    yellow: '#FACC15',
+                    red: '#EF4444',
+                    slate: '#64748B',
                     dark: '#1e293b',
                     chalk: '#f8fafc',
                 }
@@ -207,7 +211,7 @@ const Jeopardy = (function() {
     function startNewBlankGame() {
         showSystemModal({
             type: 'prompt',
-            title: 'New Game Setup',
+            title: 'New Game Setup (1/2)',
             message: 'How many categories (columns) do you want? (2-6):',
             defaultValue: '5',
             onConfirm: (val) => {
@@ -217,17 +221,32 @@ const Jeopardy = (function() {
                     return;
                 }
 
-                // Initialize state with custom columns
-                state = {
-                    categories: Array(cols).fill().map((_, i) => `Category ${i + 1}`),
-                    teams: ["Team 1", "Team 2", "Team 3", "Team 4"],
-                    questions: Array(5).fill().map(() => Array(cols).fill({ q: "Edit Me", a: "Answer" })),
-                    visited: Array(5).fill().map(() => Array(cols).fill(false)),
-                    scores: [0, 0, 0, 0]
-                };
+                // Next Step: Ask for Teams
+                showSystemModal({
+                    type: 'prompt',
+                    title: 'New Game Setup (2/2)',
+                    message: 'How many teams do you want? (1-8):',
+                    defaultValue: '4',
+                    onConfirm: (teamVal) => {
+                        const teamCount = parseInt(teamVal);
+                        if (isNaN(teamCount) || teamCount < 1 || teamCount > 8) {
+                            showSystemModal({ type: 'alert', title: 'Invalid Input', message: 'Please enter a number between 1 and 8.' });
+                            return;
+                        }
 
-                save();
-                hideLandingPage();
+                        // Initialize state with custom columns and teams
+                        state = {
+                            categories: Array(cols).fill().map((_, i) => `Category ${i + 1}`),
+                            teams: Array(teamCount).fill().map((_, i) => `Team ${i + 1}`),
+                            questions: Array(5).fill().map(() => Array(cols).fill({ q: "Edit Me", a: "Answer" })),
+                            visited: Array(5).fill().map(() => Array(cols).fill(false)),
+                            scores: Array(teamCount).fill(0)
+                        };
+
+                        save();
+                        hideLandingPage();
+                    }
+                });
             }
         });
     }
@@ -342,7 +361,7 @@ const Jeopardy = (function() {
         els.grid.style = gridStyle + ` grid-template-rows: repeat(${rows}, minmax(0, 1fr));`;
 
         // Categories
-        const catColors = ['bg-brand-pink', 'bg-brand-orange', 'bg-brand-green', 'bg-brand-blue'];
+        const catColors = ['bg-brand-pink', 'bg-brand-orange', 'bg-brand-green', 'bg-brand-blue', 'bg-brand-purple', 'bg-brand-yellow', 'bg-brand-red', 'bg-brand-slate'];
         state.categories.forEach((cat, idx) => {
             const div = document.createElement('div');
             div.className = `${catColors[idx % catColors.length]} text-white border-4 border-brand-dark rounded-xl min-h-[50px] sm:min-h-[60px] p-2 flex items-center justify-center shadow-neo relative cursor-pointer select-none transition-transform hover:scale-[1.02] active:scale-95`;
@@ -403,10 +422,10 @@ const Jeopardy = (function() {
 
     function renderScoreboard() {
         els.scores.innerHTML = '';
-        const colors = ['pink', 'orange', 'blue', 'green'];
+        const colors = ['pink', 'orange', 'blue', 'green', 'purple', 'yellow', 'red', 'slate'];
 
         state.scores.forEach((score, idx) => {
-            const color = colors[idx % 4];
+            const color = colors[idx % colors.length];
             const teamName = state.teams[idx];
             
             const div = document.createElement('div');
