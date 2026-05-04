@@ -56,6 +56,8 @@ let touchStartX = 0;
 let touchStartY = 0;
 let pendingDragTarget = null;
 let isTouchDragging = false;
+let touchTimer = null;
+let touchLastPos = null;
 
 function setupTouchSupport() {
   document.addEventListener('touchstart', handleTouchStart, { passive: false });
@@ -71,19 +73,40 @@ function handleTouchStart(e) {
   const touch = e.touches[0];
   touchStartX = touch.clientX;
   touchStartY = touch.clientY;
+  touchLastPos = touch;
   pendingDragTarget = target;
   isTouchDragging = false;
+
+  // Clear any existing timer
+  if (touchTimer) clearTimeout(touchTimer);
+
+  // Set a timer for long press (400ms)
+  touchTimer = setTimeout(() => {
+    if (pendingDragTarget && !isTouchDragging) {
+      // Haptic feedback if supported
+      if (window.navigator && window.navigator.vibrate) {
+        window.navigator.vibrate(50);
+      }
+      startTouchDrag(touchLastPos);
+    }
+  }, 400);
 }
 
 function handleTouchMove(e) {
   if (!pendingDragTarget) return;
   
   const touch = e.touches[0];
+  touchLastPos = touch;
   
   if (!isTouchDragging) {
     const dist = Math.hypot(touch.clientX - touchStartX, touch.clientY - touchStartY);
+    // If they move significantly before the long press timer fires, it's a scroll
     if (dist > 10) {
-      startTouchDrag(touch);
+      if (touchTimer) {
+        clearTimeout(touchTimer);
+        touchTimer = null;
+      }
+      pendingDragTarget = null;
     }
   }
   
@@ -125,6 +148,11 @@ function startTouchDrag(touch) {
 }
 
 function handleTouchEnd(e) {
+  if (touchTimer) {
+    clearTimeout(touchTimer);
+    touchTimer = null;
+  }
+
   if (isTouchDragging && touchGhost) {
     if (lastDropTarget) {
       const dateStr = lastDropTarget.dataset.date;
