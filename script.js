@@ -20,7 +20,8 @@ const CONFIG = {
     pinned: "pinnedGameIds",
     homeView: "klasskit_homeView",
     viewMode: "klasskit_viewMode",
-    lastReadAnn: "klasskit_lastReadAnn"
+    lastReadAnn: "klasskit_lastReadAnn",
+    recentCollapsed: "klasskit_recentCollapsed"
   }
 };
 
@@ -389,6 +390,11 @@ const UI = {
     if (tipEl) tipEl.innerHTML = `<i data-lucide="sparkles" class="w-4 h-4 text-yellow-300"></i> Tip: ${tips[tipIndex]}`;
   },
 
+  updateTitle(title) {
+    const el = document.getElementById('hub-view-title');
+    if (el) el.textContent = title;
+  },
+
   updateCount(count) {
     const badge = document.getElementById('count-badge');
     if (badge) badge.textContent = count;
@@ -565,25 +571,26 @@ const Hero = {
   },
 
   updateContinueBtn() {
-    const btn = document.getElementById('continue-btn');
-    const label = document.getElementById('continue-btn-label');
-    if (!btn || !label) return;
-
+    const btns = document.querySelectorAll('.continue-btn');
     const recentIds = RecentGames.get();
+
     if (recentIds.length === 0) {
-      btn.classList.add('hidden');
+      btns.forEach(btn => btn.classList.add('hidden'));
       return;
     }
 
     const lastGame = State.getGameById(recentIds[0]);
     if (!lastGame) {
-      btn.classList.add('hidden');
+      btns.forEach(btn => btn.classList.add('hidden'));
       return;
     }
 
-    label.textContent = `Continue: ${lastGame.title}`;
-    btn.dataset.param = lastGame.id;
-    btn.classList.remove('hidden');
+    btns.forEach(btn => {
+      btn.classList.remove('hidden');
+      btn.dataset.param = lastGame.id;
+      const label = btn.querySelector('.continue-label');
+      if (label) label.textContent = `Continue: ${lastGame.title}`;
+    });
   },
 
   surpriseMe() {
@@ -909,6 +916,14 @@ const Announcements = {
 // --- RECENT GAMES ---
 const RecentGames = {
   get() { return Storage.get(CONFIG.storageKeys.recent, []); },
+  isCollapsed() { return Storage.get(CONFIG.storageKeys.recentCollapsed, false); },
+
+  toggleCollapse() {
+    const collapsed = !this.isCollapsed();
+    Storage.set(CONFIG.storageKeys.recentCollapsed, collapsed);
+    this.render();
+    AudioEngine.click();
+  },
 
   add(gameId) {
     let recent = this.get().filter(id => id !== gameId);
@@ -928,17 +943,31 @@ const RecentGames = {
     const recentIds = this.get();
     const container = document.getElementById("recent-list");
     const section = document.getElementById("recent-section");
+    const toggleBtn = document.getElementById("recent-toggle-btn");
     if (!container || !section) return;
 
+    const collapsed = this.isCollapsed();
     section.classList.toggle('hidden', recentIds.length === 0);
+
+    if (toggleBtn) {
+      const icon = toggleBtn.querySelector('i');
+      if (icon) {
+        icon.setAttribute('data-lucide', collapsed ? 'chevron-down' : 'chevron-up');
+        Utils.refreshIcons(toggleBtn);
+      }
+    }
+
     if (recentIds.length === 0) return;
+
+    container.classList.toggle('hidden', collapsed);
+    if (collapsed) return;
 
     container.innerHTML = recentIds.map(id => {
       const game = State.getGameById(id);
       if (!game) return '';
       return `
         <button data-action="openGame" data-param="${game.id}"
-          class="recent-pill bg-white dark:bg-slate-800 flex items-center gap-2 px-2 py-1.5 rounded-xl shrink-0 min-w-[120px] group hover:bg-slate-50 dark:hover:bg-slate-700 border-2 border-dark dark:border-slate-500 shadow-hard-sm"
+          class="recent-pill bg-white dark:bg-slate-800 flex items-center gap-2 px-2 py-1.5 rounded-xl shrink-0 min-w-[120px] group hover:bg-slate-50 dark:hover:bg-slate-700 border-2 border-dark dark:border-slate-500 shadow-hard-sm animate-pop-in"
           aria-label="Resume ${game.title}">
           <div class="w-8 h-8 rounded-lg ${Utils.getColorClass(game.color)} flex items-center justify-center text-white border-2 border-dark dark:border-slate-300 shadow-sm">
             <i data-lucide="${game.icon}" class="w-4 h-4"></i>
@@ -996,17 +1025,17 @@ const PinnedGames = {
       const game = State.getGameById(id);
       if (!game) return '';
       return `
-        <article class="recent-pill bg-white dark:bg-slate-800 flex items-center gap-2 px-2.5 py-1.5 rounded-xl shrink-0 min-w-[150px] group hover:bg-slate-50 dark:hover:bg-slate-700 border-2 border-dark dark:border-slate-500 shadow-hard-sm cursor-pointer"
+        <article class="pinned-pill bg-white dark:bg-slate-800 flex items-center gap-2 px-2 py-1 rounded-xl shrink-0 min-w-[130px] group hover:bg-slate-50 dark:hover:bg-slate-700 border-2 border-dark dark:border-slate-500 shadow-hard-sm cursor-pointer animate-pop-in"
           data-action="openGame" data-param="${game.id}">
-          <div class="w-8 h-8 rounded-lg ${Utils.getColorClass(game.color)} flex items-center justify-center text-white border-2 border-dark dark:border-slate-300 shadow-sm relative">
-             <i data-lucide="${game.icon}" class="w-4 h-4"></i>
+          <div class="w-7 h-7 rounded-lg ${Utils.getColorClass(game.color)} flex items-center justify-center text-white border-2 border-dark dark:border-slate-300 shadow-sm relative shrink-0">
+             <i data-lucide="${game.icon}" class="w-3.5 h-3.5"></i>
           </div>
-          <div class="text-left flex-1">
-            <div class="text-xs font-black text-dark dark:text-white truncate w-24 leading-tight">${game.title}</div>
-            <div class="text-[9px] text-slate-400 font-black uppercase tracking-tight">${game.category}</div>
+          <div class="text-left flex-1 min-w-0">
+            <div class="text-[11px] font-black text-dark dark:text-white truncate leading-tight">${game.title}</div>
+            <div class="text-[8px] text-slate-400 font-black uppercase tracking-tighter truncate">${game.category}</div>
           </div>
-          <button data-action="togglePin" data-param="${game.id}" class="p-1 hover:text-red-500 text-slate-400 transition-colors" title="Unpin">
-            <i data-lucide="pin-off" class="w-3.5 h-3.5"></i>
+          <button data-action="togglePin" data-param="${game.id}" class="p-1 hover:text-red-500 text-slate-400 transition-colors shrink-0" title="Unpin">
+            <i data-lucide="pin-off" class="w-3 h-3"></i>
           </button>
         </article>
       `;
@@ -1260,10 +1289,7 @@ const LandingPage = {
     landingView.style.animation = '';
 
     // Update sidebar active states
-    if (homeBtn) homeBtn.classList.add('active');
-    document.querySelectorAll('.filter-btn[data-category]').forEach(btn => {
-      btn.classList.remove('active');
-    });
+    Filters.updateUI();
 
     Storage.set(CONFIG.storageKeys.homeView, 'landing');
     if (!silent) AudioEngine.click();
@@ -1342,6 +1368,20 @@ const Filters = {
       btn.classList.toggle('active', isActive);
       btn.setAttribute('aria-pressed', String(isActive));
     });
+
+    // Update Header Title
+    if (isLanding) {
+      UI.updateTitle('Dashboard');
+    } else {
+      const titles = {
+        all: 'Library',
+        myspace: 'My Space',
+        tool: 'Teaching Tools',
+        game: 'Classroom Games',
+        workshop: 'Workshop'
+      };
+      UI.updateTitle(titles[State.filters.category] || 'Library');
+    }
 
     // Update Bottom Nav items
     const bnavItems = {
