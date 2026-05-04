@@ -1286,6 +1286,17 @@ function toggleUnitPlanningMode() {
   localStorage.setItem('kk_unit_planning_mode', unitPlanningMode);
   updatePlanningModeUI();
   renderClassGrid();
+
+  if (window.Sync) {
+    Sync.fireCloudSave(async userId => {
+      await Sync.cloudSaveSettings(userId, {
+        admin_tracker: {
+          unitPlanningMode: unitPlanningMode,
+          theme: localStorage.getItem('theme_admin-tracker')
+        }
+      });
+    });
+  }
 }
 
 function updatePlanningModeUI() {
@@ -1363,5 +1374,17 @@ async function deleteSyllabusLesson(className, index) {
 
 function toggleTheme() {
   const isDark = document.documentElement.classList.toggle('dark');
-  localStorage.setItem('theme_admin-tracker', isDark ? 'dark' : 'light');
+  const theme = isDark ? 'dark' : 'light';
+  localStorage.setItem('theme_admin-tracker', theme);
+
+  if (window.Sync) {
+    Sync.fireCloudSave(async userId => {
+      await Sync.cloudSaveSettings(userId, {
+        admin_tracker: {
+          unitPlanningMode: unitPlanningMode,
+          theme: theme
+        }
+      });
+    });
+  }
 }

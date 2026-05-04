@@ -5,6 +5,7 @@
   <!-- Supabase Auth -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/supabase.js"></script>
+  <script src="../shared/sync.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>My Task — KlassKit</title>
@@ -232,26 +233,44 @@
     }
 
     async function saveToCloud() {
-      try {
-        if (window.saveProgress) {
-          await saveProgress('todo_list_data', { todos, updatedAt: Date.now() });
-        }
-      } catch (e) {
-        console.error("Cloud save failed", e);
+      if (window.Sync && Sync.isCloudMode()) {
+        Sync.fireCloudSave(async userId => {
+          await Sync.cloudSaveSettings(userId, {
+            task: {
+              theme: localStorage.getItem('theme_tasks'),
+              todos: todos
+            }
+          });
+        });
+      } else if (window.saveProgress) {
+        // Fallback for sandbox or legacy
+        await saveProgress('todo_list_data', { todos, updatedAt: Date.now() });
       }
     }
 
     async function loadFromCloud() {
-      try {
-        if (window.loadProgress) {
-          const data = await loadProgress('todo_list_data');
-          if (data && data.todos) {
-            todos = data.todos;
-            save();
+      if (window.Sync && Sync.isCloudMode()) {
+        const userId = await Sync.getCachedUserId();
+        if (userId) {
+          const settings = await Sync.cloudLoadSettings(userId);
+          if (settings && settings.task && settings.task.todos) {
+            todos = settings.task.todos;
+            localStorage.setItem('klasskit_todos', JSON.stringify(todos));
+            if (settings.task.theme) {
+              localStorage.setItem('theme_tasks', settings.task.theme);
+              if (settings.task.theme === 'dark') document.documentElement.classList.add('dark');
+              else document.documentElement.classList.remove('dark');
+            }
+            render();
           }
         }
-      } catch (e) {
-        console.error("Cloud load failed", e);
+      } else if (window.loadProgress) {
+        const data = await loadProgress('todo_list_data');
+        if (data && data.todos) {
+          todos = data.todos;
+          localStorage.setItem('klasskit_todos', JSON.stringify(todos));
+          render();
+        }
       }
     }
 

@@ -287,7 +287,16 @@ function saveData() {
     Sync.fireCloudSave(async userId => {
       await Promise.all([
         Sync.cloudSaveScheduleEvents(userId, [...masters, ...promoted]),
-        Sync.cloudSaveRedDays(userId, rdsCopy),
+        Sync.cloudSaveSettings(userId, {
+          dates: rdsCopy,
+          schedule: {
+            weekDayCount,
+            viewMode,
+            startHour: typeof startHour !== 'undefined' ? startHour : 8,
+            endHour: typeof endHour !== 'undefined' ? endHour : 17,
+            theme: localStorage.getItem('theme_schedule')
+          }
+        }),
       ]);
     });
   }
@@ -1928,6 +1937,7 @@ function toggleDarkMode() {
   localStorage.setItem('theme_schedule', isDark ? 'dark' : 'light');
   document.getElementById('darkModeIcon').setAttribute('data-lucide', isDark ? 'sun' : 'moon');
   lucide.createIcons();
+  saveData(); // Sync theme change to cloud
 }
 
 function exportSchedule() {

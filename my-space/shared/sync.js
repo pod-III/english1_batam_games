@@ -132,11 +132,14 @@
   }
 
   // myspace_settings: JS → SQL
-  function redDaysToRow(redDaysArray, userId) {
-    return { 
-      user_id: userId, 
-      dates: redDaysArray 
-    };
+  function settingsToRow(userId, settings) {
+    const row = { user_id: userId };
+    if (settings.dates !== undefined) row.dates = settings.dates;
+    if (settings.schedule !== undefined) row.schedule = settings.schedule;
+    if (settings.admin_tracker !== undefined) row.admin_tracker = settings.admin_tracker;
+    if (settings.task !== undefined) row.task = settings.task;
+    if (settings.class !== undefined) row.class = settings.class;
+    return row;
   }
 
   // myspace_class_admin: JS → SQL
@@ -223,19 +226,34 @@
     }
   }
 
-  // Red Days
-  async function cloudLoadRedDays(userId) {
+  // Settings (Red Days, UI Preferences)
+  async function cloudLoadSettings(userId) {
     const { data, error } = await db.from('myspace_settings')
-      .select('dates').eq('user_id', userId).maybeSingle();
-    if (error) { console.error('[Sync] Load red days error:', error); return null; }
-    return data ? (data.dates || []) : [];
+      .select('dates, schedule, admin_tracker, task, class')
+      .eq('user_id', userId).maybeSingle();
+    if (error) { console.error('[Sync] Load settings error:', error); return null; }
+    return data || { dates: [], schedule: {}, admin_tracker: {}, task: {}, class: {} };
   }
 
-  async function cloudSaveRedDays(userId, redDays) {
-    const row = redDaysToRow(redDays, userId);
+  async function cloudSaveSettings(userId, newSettings) {
+    // 1. Fetch current to avoid overwriting other tool settings
+    const current = await cloudLoadSettings(userId);
+    const merged = {
+      dates: newSettings.dates !== undefined ? newSettings.dates : (current?.dates || []),
+      schedule: { ...(current?.schedule || {}), ...(newSettings.schedule || {}) },
+      admin_tracker: { ...(current?.admin_tracker || {}), ...(newSettings.admin_tracker || {}) },
+      task: { ...(current?.task || {}), ...(newSettings.task || {}) },
+      class: { ...(current?.class || {}), ...(newSettings.class || {}) },
+    };
+
+    const row = settingsToRow(userId, merged);
+    console.log('[Sync] Saving settings to cloud:', row);
     const { error } = await db.from('myspace_settings')
       .upsert(row, { onConflict: 'user_id' });
-    if (error) console.error('[Sync] Save red days error:', error);
+    if (error) {
+      console.error('[Sync] Save settings error:', error);
+      throw error; 
+    }
   }
 
   // Class Admin
@@ -411,10 +429,30 @@
         .map(e => sanitiseForCloud(e, userId))
         .filter(r => r !== null);
 
+      // Settings aggregation
+      const settings = {
+        dates: rds,
+        schedule: {
+          weekDayCount: localStorage.getItem('schedule_week_day_count'),
+          viewMode: localStorage.getItem('schedule_view_mode'),
+          startHour: localStorage.getItem('schedule_start_hour'),
+          endHour: localStorage.getItem('schedule_end_hour'),
+          theme: localStorage.getItem('theme_schedule')
+        },
+        admin_tracker: {
+          unitPlanningMode: localStorage.getItem('kk_unit_planning_mode') === 'true',
+          theme: localStorage.getItem('theme_admin-tracker')
+        },
+        task: {
+          theme: localStorage.getItem('theme_tasks'),
+          todos: JSON.parse(localStorage.getItem('klasskit_todos') || '[]')
+        }
+      };
+
       await Promise.all([
         db.from('myspace_events').upsert(mastersRows, { onConflict: 'id' }),
         db.from('myspace_events').upsert(promotedRows, { onConflict: 'id' }),
-        cloudSaveRedDays(userId, rds),
+        cloudSaveSettings(userId, settings),
         cloudSaveClassAdmin(userId, adm),
         cloudSaveClassUnits(userId, uns),
       ]);
@@ -431,9 +469,9 @@
     console.log('[Sync] Loading Cloud → localStorage for', userId);
     setSyncBadge('syncing');
     try {
-      const [evts, rds, adm, uns] = await Promise.all([
+      const [evts, settings, adm, uns] = await Promise.all([
         cloudLoadScheduleEvents(userId),
-        cloudLoadRedDays(userId),
+        cloudLoadSettings(userId),
         cloudLoadClassAdmin(userId),
         cloudLoadClassUnits(userId),
       ]);
@@ -443,7 +481,27 @@
         localStorage.setItem('schedule_events', JSON.stringify(evts.masters));
         localStorage.setItem('schedule_promoted_instances', JSON.stringify(evts.promoted));
       }
-      if (rds !== null) localStorage.setItem('schedule_red_days', JSON.stringify(rds));
+      if (settings !== null) {
+        localStorage.setItem('schedule_red_days', JSON.stringify(settings.dates || []));
+        
+        // Schedule settings
+        const s = settings.schedule || {};
+        if (s.weekDayCount) localStorage.setItem('schedule_week_day_count', s.weekDayCount);
+        if (s.viewMode) localStorage.setItem('schedule_view_mode', s.viewMode);
+        if (s.startHour) localStorage.setItem('schedule_start_hour', s.startHour);
+        if (s.endHour) localStorage.setItem('schedule_end_hour', s.endHour);
+        if (s.theme) localStorage.setItem('theme_schedule', s.theme);
+
+        // Admin Tracker settings
+        const a = settings.admin_tracker || {};
+        if (a.unitPlanningMode !== undefined) localStorage.setItem('kk_unit_planning_mode', a.unitPlanningMode);
+        if (a.theme) localStorage.setItem('theme_admin-tracker', a.theme);
+
+        // Task settings
+        const t = settings.task || {};
+        if (t.theme) localStorage.setItem('theme_tasks', t.theme);
+        if (t.todos) localStorage.setItem('klasskit_todos', JSON.stringify(t.todos));
+      }
       if (adm !== null) localStorage.setItem('schedule_class_admin', JSON.stringify(adm));
       if (uns !== null) localStorage.setItem('schedule_class_units', JSON.stringify(uns));
 
@@ -778,8 +836,8 @@
     cloudSaveScheduleEvents,
     cloudReplaceAllScheduleEvents,
     cloudDeleteScheduleEvent,
-    cloudLoadRedDays,
-    cloudSaveRedDays,
+    cloudLoadSettings,
+    cloudSaveSettings,
     cloudLoadClassAdmin,
     cloudSaveClassAdmin,
     cloudLoadClassUnits,
