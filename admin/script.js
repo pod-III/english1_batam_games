@@ -64,10 +64,10 @@ async function fetchData() {
         db.from('notes').select('*').order('updated_at', { ascending: false }),
         db.from('profiles').select('*'),
         db.from('storage_quotas').select('*'),
-        db.from('schedule_events').select('id,user_id,name,type_id,color,date,recurrence,recurrence_days,graduation_class,is_master,created_at').eq('is_master', true).order('date', { ascending: false }),
-        db.from('schedule_class_admin').select('*').order('created_at', { ascending: false }),
-        db.from('schedule_class_units').select('*').order('created_at', { ascending: false }),
-        db.from('schedule_red_days').select('*'),
+        db.from('myspace_events').select('id,user_id,name,type_id,color,date,recurrence,recurrence_days,graduation_class,is_master,created_at').eq('is_master', true).order('date', { ascending: false }),
+        db.from('myspace_class_admin').select('*').order('created_at', { ascending: false }),
+        db.from('myspace_class_units').select('*').order('created_at', { ascending: false }),
+        db.from('myspace_settings').select('*'),
         db.from('note_folders').select('*')
     ])
 
