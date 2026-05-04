@@ -25,6 +25,25 @@ async function getUser() {
   return session?.user ?? null
 }
 
+async function getUserProfile() {
+  const user = await getUser();
+  if (!user) return null;
+  if (user.is_sandbox) return { role: 'teacher', display_name: 'Guest Teacher' };
+
+  const { data: profile, error } = await db
+    .from('profiles')
+    .select('role, display_name')
+    .eq('id', user.id)
+    .single();
+  
+  if (error) {
+    console.error('[Profile] Fetch error:', error);
+    return null;
+  }
+  
+  return profile;
+}
+
 async function requireAuth() {
   if (isSandbox()) {
     console.log("[Auth] Sandbox Mode Active. Bypassing Auth.");

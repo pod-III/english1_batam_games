@@ -69,7 +69,12 @@ const State = {
   gameMap: new Map(), // O(1) lookup by ID
   activeGame: null,
   metadata: null,
+  userProfile: null,
   filters: { category: 'all', searchTerm: '', difficulty: 'all', tags: [] },
+
+  isPro() {
+    return this.userProfile?.role === 'pro' || this.userProfile?.role === 'admin';
+  },
 
   setGames(data) {
     const gamesList = data.games || data;
@@ -89,6 +94,9 @@ const State = {
     return this.games
       .filter(game => {
         if (game.active === false) return false;
+        
+        // Privilege Check: Hide pro games if user is not pro
+        if (game.pro && !this.isPro()) return false;
 
         const matchesCategory = category === 'all' ||
           (category === 'featured' ? game.featured === true : game.category === category);
@@ -320,6 +328,51 @@ const UI = {
     this.updateDailyTip();
   },
 
+  updateUserUI() {
+    const profile = State.userProfile;
+    if (!profile) return;
+
+    const nameEl = document.getElementById('auth-username');
+    const adminLink = document.getElementById('auth-admin-link');
+    const loggedIn = document.getElementById('auth-logged-in');
+    const signinLink = document.getElementById('auth-signin-link');
+
+    if (nameEl) nameEl.textContent = profile.display_name || 'Teacher';
+    if (loggedIn) loggedIn.classList.remove('hidden');
+    if (signinLink) signinLink.classList.add('hidden');
+
+    // Show Admin Link
+    if (adminLink && profile.role === 'admin') {
+      adminLink.classList.remove('hidden');
+    }
+
+    // Add Pro Badge to Name if Pro/Admin
+    if (State.isPro()) {
+      const editBtn = document.getElementById('auth-edit-name-btn');
+      if (editBtn && !document.getElementById('pro-badge')) {
+        const badge = document.createElement('span');
+        badge.id = 'pro-badge';
+        badge.className = 'ml-1.5 px-1.5 py-0.5 bg-gradient-to-r from-orange to-pink text-[9px] font-black text-white rounded-md shadow-sm animate-pop-in';
+        badge.textContent = 'PRO';
+        nameEl.after(badge);
+      }
+
+      // Show pro-only cards on landing page
+      document.querySelectorAll('.pro-only-card').forEach(card => {
+        card.classList.remove('hidden');
+      });
+
+      // Update Workshop Section Badge count on landing page
+      document.querySelectorAll('.section-header').forEach(header => {
+        const h3 = header.querySelector('h3');
+        const badge = header.querySelector('.section-header-badge');
+        if (h3 && h3.textContent.includes('Workshop Tools') && badge) {
+          badge.textContent = '4 Tools';
+        }
+      });
+    }
+  },
+
   updateDailyTip() {
     const tips = [
       'Use shortcut "/" to quickly search the library!',
@@ -492,7 +545,7 @@ const Hero = {
   },
 
   updateStats() {
-    const active = State.games.filter(g => g.active !== false);
+    const active = State.games.filter(g => g.active !== false && (!g.pro || State.isPro()));
     const myspace = active.filter(g => g.category === 'myspace').length;
     const tools = active.filter(g => g.category === 'tool').length;
     const games = active.filter(g => g.category === 'game').length;
@@ -1054,6 +1107,10 @@ const GameGrid = {
       displayTitle = displayTitle.replace(regex, '<mark class="bg-yellow-200 text-slate-800 rounded px-1">$1</mark>');
       displayDesc = displayDesc.replace(regex, '<mark class="bg-yellow-200 text-slate-800 rounded px-1">$1</mark>');
     }
+    
+    const proBadge = game.pro
+      ? `<span class="pro-badge px-1.5 py-0.5 bg-gradient-to-r from-orange to-pink text-[9px] font-black text-white rounded shadow-sm">PRO</span>`
+      : '';
 
     return `
       <article class="hub-card group cursor-pointer dark:bg-slate-800 dark:border-slate-500" 
@@ -1063,7 +1120,7 @@ const GameGrid = {
           <button data-action="togglePin" data-param="${game.id}" 
             class="pin-btn absolute top-3 right-3 z-30 w-8 h-8 rounded-lg bg-white/20 backdrop-blur-md border border-white/30 flex items-center justify-center text-dark opacity-0 group-hover:opacity-100 transition-all hover:bg-white/40 hover:scale-110"
             title="${pinTitle}">
-            <i data-lucide="${pinIcon}" class="w-4 h-4 ${isPinned ? 'text-red-500' : ''}"></i>
+            <i data-lucide="${pinIcon}" class="w-4 h-4"></i>
           </button>
           <div class="absolute inset-0 opacity-10" style="background-image:radial-gradient(#000 2px,transparent 2px);background-size:12px 12px"></div>
           <i data-lucide="${game.icon}" class="absolute -right-6 -bottom-6 w-36 h-36 ${game.color} opacity-20 rotate-12 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300"></i>
@@ -1073,7 +1130,10 @@ const GameGrid = {
         </div>
         <div class="p-6 flex-1 flex flex-col bg-white dark:bg-slate-800">
           <div class="flex justify-between items-start mb-3">
-            <h2 class="text-2xl font-heading text-dark dark:text-white leading-none tracking-tight">${displayTitle}</h2>
+            <div class="flex flex-col gap-1">
+              <h2 class="text-2xl font-heading text-dark dark:text-white leading-none tracking-tight">${displayTitle}</h2>
+              ${proBadge}
+            </div>
             <div class="flex flex-col gap-1 items-end">
               <span class="sticker ${btnClass} text-white text-[10px] font-bold px-2 py-1 rounded-md transform ${Math.random() > 0.5 ? 'rotate-2' : '-rotate-2'}">${game.category.toUpperCase()}</span>
               ${difficultyBadge}
@@ -1889,6 +1949,13 @@ const GameModal = {
     AudioEngine.click();
     const game = State.getGameById(gameId);
     if (!game) return console.error(`Game not found: ${gameId}`);
+
+    // Privilege Check: Unauthorized Pro Tool Access
+    if (game.pro && !State.isPro()) {
+      UI.showToast("This tool is exclusive to PRO users", "warning");
+      return;
+    }
+
     RecentGames.add(gameId);
 
     if (element) {
@@ -2068,8 +2135,10 @@ const App = {
   async init() {
     await requireAuth();
     try {
+      State.userProfile = await getUserProfile();
       Theme.load();
       UI.updateGreeting();
+      UI.updateUserUI();
       UI.showLoading();
 
       // Cloud Persistence: Sync with cloud BEFORE loading games or initialization
