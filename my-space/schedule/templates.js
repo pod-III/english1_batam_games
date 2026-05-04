@@ -8,7 +8,7 @@ const EVENT_TYPES = [
     id: 'class',
     label: 'Class',
     icon: 'book-open',
-    defaultColor: '#2979FF',
+    defaultColor: '#1ea7fd',
     checklist: [
       'Lesson plan completed',
       'Materials prepared',
@@ -21,7 +21,7 @@ const EVENT_TYPES = [
     id: 'meeting',
     label: 'Meeting',
     icon: 'users',
-    defaultColor: '#00E676',
+    defaultColor: '#00d063',
     checklist: [
       'Agenda prepared',
       'Meeting notes template ready',
@@ -33,7 +33,7 @@ const EVENT_TYPES = [
     id: 'test',
     label: 'Test / Exam',
     icon: 'clipboard-check',
-    defaultColor: '#FF6B95',
+    defaultColor: '#ff4785',
     checklist: [
       'Test papers printed',
       'Answer key prepared',
@@ -46,7 +46,7 @@ const EVENT_TYPES = [
     id: 'activity',
     label: 'Activity',
     icon: 'target',
-    defaultColor: '#FF8C42',
+    defaultColor: '#ff7e33',
     checklist: [
       'Activity instructions ready',
       'Materials / props gathered',
@@ -58,7 +58,7 @@ const EVENT_TYPES = [
     id: 'admin',
     label: 'Admin',
     icon: 'briefcase',
-    defaultColor: '#8B5CF6',
+    defaultColor: '#ff7e33',
     checklist: [
       'Documents submitted',
       'Reports updated',
@@ -83,11 +83,11 @@ const EVENT_TYPES = [
 ];
 
 const COLOR_PALETTE = [
-  { id: 'blue',   hex: '#2979FF', label: 'Blue' },
-  { id: 'green',  hex: '#00E676', label: 'Green' },
-  { id: 'pink',   hex: '#FF6B95', label: 'Pink' },
-  { id: 'orange', hex: '#FF8C42', label: 'Orange' },
-  { id: 'purple', hex: '#8B5CF6', label: 'Purple' },
+  { id: 'blue',   hex: '#1ea7fd', label: 'Blue' },
+  { id: 'green',  hex: '#00d063', label: 'Green' },
+  { id: 'pink',   hex: '#ff4785', label: 'Pink' },
+  { id: 'orange', hex: '#ff7e33', label: 'Orange' },
+  { id: 'purple', hex: '#ff4785', label: 'Purple' },
   { id: 'teal',   hex: '#14B8A6', label: 'Teal' },
   { id: 'red',    hex: '#EF4444', label: 'Red' },
   { id: 'yellow', hex: '#F59E0B', label: 'Amber' },
@@ -105,11 +105,11 @@ const RECURRENCE_OPTIONS = [
 ];
 
 const LESSON_STATUSES = [
-  { id: 'not_ready', label: 'Not Ready', icon: 'x-circle',    color: '#ef4444' },
+  { id: 'not_ready', label: 'Not Ready', icon: 'x-circle',    color: '#ff4785' },
   { id: 'draft',    label: 'Draft',     icon: 'edit-3',       color: '#94a3b8' },
-  { id: 'ready',    label: 'Ready',     icon: 'check-circle', color: '#2979FF' },
-  { id: 'taught',   label: 'Taught',    icon: 'users',        color: '#00E676' },
-  { id: 'reviewed', label: 'Reflected', icon: 'star',         color: '#FF8C42' }
+  { id: 'ready',    label: 'Ready',     icon: 'check-circle', color: '#1ea7fd' },
+  { id: 'taught',   label: 'Taught',    icon: 'users',        color: '#00d063' },
+  { id: 'reviewed', label: 'Reflected', icon: 'star',         color: '#ff7e33' }
 ];
 
 const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
