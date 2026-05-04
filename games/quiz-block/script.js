@@ -45,6 +45,7 @@ const Jeopardy = (function() {
     let state = JSON.parse(localStorage.getItem('eng1_jeopardy_v3')) || JSON.parse(JSON.stringify(DEFAULT_STATE));
     let isEditMode = false;
     let currentEdit = { row: 0, col: 0 };
+    let setupConfig = { cols: 5, teams: 4 };
     
     let presetsData = [];
     let customGamesData = JSON.parse(localStorage.getItem('quiz_block_custom_games')) || [];
@@ -70,7 +71,8 @@ const Jeopardy = (function() {
             play: document.getElementById('modal-play'),
             edit: document.getElementById('modal-edit'),
             data: document.getElementById('modal-data'),
-            system: document.getElementById('modal-system')
+            system: document.getElementById('modal-system'),
+            setup: document.getElementById('modal-setup')
         },
         play: {
             q: document.getElementById('view-question'),
@@ -209,46 +211,62 @@ const Jeopardy = (function() {
     }
 
     function startNewBlankGame() {
-        showSystemModal({
-            type: 'prompt',
-            title: 'New Game Setup (1/2)',
-            message: 'How many categories (columns) do you want? (2-6):',
-            defaultValue: '5',
-            onConfirm: (val) => {
-                const cols = parseInt(val);
-                if (isNaN(cols) || cols < 2 || cols > 6) {
-                    showSystemModal({ type: 'alert', title: 'Invalid Input', message: 'Please enter a number between 2 and 6.' });
-                    return;
-                }
+        setupConfig = { cols: 5, teams: 4 }; // Reset to defaults
+        updateSetupUI();
+        els.modals.setup.classList.remove('hidden');
+    }
 
-                // Next Step: Ask for Teams
-                showSystemModal({
-                    type: 'prompt',
-                    title: 'New Game Setup (2/2)',
-                    message: 'How many teams do you want? (1-8):',
-                    defaultValue: '4',
-                    onConfirm: (teamVal) => {
-                        const teamCount = parseInt(teamVal);
-                        if (isNaN(teamCount) || teamCount < 1 || teamCount > 8) {
-                            showSystemModal({ type: 'alert', title: 'Invalid Input', message: 'Please enter a number between 1 and 8.' });
-                            return;
-                        }
+    function setSetupVal(type, val) {
+        setupConfig[type] = val;
+        updateSetupUI();
+    }
 
-                        // Initialize state with custom columns and teams
-                        state = {
-                            categories: Array(cols).fill().map((_, i) => `Category ${i + 1}`),
-                            teams: Array(teamCount).fill().map((_, i) => `Team ${i + 1}`),
-                            questions: Array(5).fill().map(() => Array(cols).fill({ q: "Edit Me", a: "Answer" })),
-                            visited: Array(5).fill().map(() => Array(cols).fill(false)),
-                            scores: Array(teamCount).fill(0)
-                        };
-
-                        save();
-                        hideLandingPage();
-                    }
-                });
+    function updateSetupUI() {
+        // Categories
+        document.querySelectorAll('.setup-btn-cols').forEach(btn => {
+            const val = parseInt(btn.dataset.val);
+            btn.classList.toggle('active', val === setupConfig.cols);
+            if (val === setupConfig.cols) {
+                btn.classList.add('bg-brand-orange', 'text-white');
+                btn.classList.remove('bg-white', 'dark:bg-slate-700', 'dark:text-white');
+            } else {
+                btn.classList.remove('bg-brand-orange', 'text-white');
+                btn.classList.add('bg-white', 'dark:bg-slate-700', 'dark:text-white');
             }
         });
+
+        // Teams
+        document.querySelectorAll('.setup-btn-teams').forEach(btn => {
+            const val = parseInt(btn.dataset.val);
+            btn.classList.toggle('active', val === setupConfig.teams);
+            if (val === setupConfig.teams) {
+                btn.classList.add('bg-brand-blue', 'text-white');
+                btn.classList.remove('bg-white', 'dark:bg-slate-700', 'dark:text-white');
+            } else {
+                btn.classList.remove('bg-brand-blue', 'text-white');
+                btn.classList.add('bg-white', 'dark:bg-slate-700', 'dark:text-white');
+            }
+        });
+    }
+
+    function closeSetupModal() {
+        els.modals.setup.classList.add('hidden');
+    }
+
+    function confirmSetup() {
+        const { cols, teams } = setupConfig;
+        
+        state = {
+            categories: Array(cols).fill().map((_, i) => `Category ${i + 1}`),
+            teams: Array(teams).fill().map((_, i) => `Team ${i + 1}`),
+            questions: Array(5).fill().map(() => Array(cols).fill({ q: "Edit Me", a: "Answer" })),
+            visited: Array(5).fill().map(() => Array(cols).fill(false)),
+            scores: Array(teams).fill(0)
+        };
+
+        save();
+        closeSetupModal();
+        hideLandingPage();
     }
 
     function loadPreset(id) {
@@ -663,7 +681,8 @@ const Jeopardy = (function() {
         openPlayModal, closePlayModal, revealAnswer, startTimer,
         exportData, importData, closeDataModal,
         resetBoardState, toggleTheme,
-        showLandingPage, startNewBlankGame, saveToCustomGames
+        showLandingPage, startNewBlankGame, saveToCustomGames,
+        setSetupVal, confirmSetup, closeSetupModal
     };
 })();
 
