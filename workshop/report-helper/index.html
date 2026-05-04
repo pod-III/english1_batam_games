@@ -329,7 +329,7 @@
         };
 
         // --- IndexedDB Logic ---
-        let db;
+        let dataBase;
         const dbName = "KlassKitReportsDB";
         const dbVersion = 1;
 
@@ -337,14 +337,14 @@
             const request = indexedDB.open(dbName, dbVersion);
             request.onerror = (event) => console.error("IndexedDB Error:", event);
             request.onsuccess = (event) => { 
-                db = event.target.result; 
+                dataBase = event.target.result; 
                 // Initial cloud pull for archive
                 loadArchiveFromCloud();
             };
             request.onupgradeneeded = (event) => {
-                const db = event.target.result;
-                if (!db.objectStoreNames.contains("reports")) {
-                    const store = db.createObjectStore("reports", { keyPath: "id", autoIncrement: true });
+                const dataBase = event.target.result;
+                if (!dataBase.objectStoreNames.contains("reports")) {
+                    const store = dataBase.createObjectStore("reports", { keyPath: "id", autoIncrement: true });
                     store.createIndex("className", "className", { unique: false });
                     store.createIndex("studentName", "studentName", { unique: false });
                 }
@@ -360,7 +360,7 @@
         }
 
         function saveReportToDB() {
-            if (!db) return alert("Database not initialized yet.");
+            if (!dataBase) return alert("Database not initialized yet.");
             
             const studentName = document.getElementById('studentName').value.trim();
             const className = document.getElementById('className').value.trim() || 'Uncategorized';
@@ -380,7 +380,7 @@
                 timestamp: new Date().getTime()
             };
 
-            const tx = db.transaction("reports", "readwrite");
+            const tx = dataBase.transaction("reports", "readwrite");
             const store = tx.objectStore("reports");
 
             const request = store.index("className").getAll(className);
@@ -402,7 +402,7 @@
         function deleteReport(id, e) {
             if (e) e.stopPropagation();
             if (!confirm("Are you sure you want to delete this report?")) return;
-            const tx = db.transaction("reports", "readwrite");
+            const tx = dataBase.transaction("reports", "readwrite");
             tx.objectStore("reports").delete(id);
             tx.oncomplete = () => { 
                 showToast("Report deleted"); 
@@ -416,7 +416,7 @@
             delete copy.id;
             copy.studentName = copy.studentName + " (Copy)";
             copy.timestamp = new Date().getTime();
-            const tx = db.transaction("reports", "readwrite");
+            const tx = dataBase.transaction("reports", "readwrite");
             tx.objectStore("reports").add(copy);
             tx.oncomplete = () => { 
                 showToast("Report duplicated"); 
@@ -426,7 +426,7 @@
 
         function deleteClass(className) {
             if (!confirm(`Are you sure you want to delete ALL reports for class ${className}?`)) return;
-            const tx = db.transaction("reports", "readwrite");
+            const tx = dataBase.transaction("reports", "readwrite");
             const store = tx.objectStore("reports");
             const request = store.index("className").getAllKeys(className);
             request.onsuccess = () => {
@@ -439,7 +439,7 @@
         }
 
         function exportClass(className) {
-            const tx = db.transaction("reports", "readonly");
+            const tx = dataBase.transaction("reports", "readonly");
             const store = tx.objectStore("reports");
             const request = store.index("className").getAll(className);
             request.onsuccess = () => {
@@ -468,7 +468,7 @@
                     const data = JSON.parse(e.target.result);
                     if (!Array.isArray(data)) throw new Error("Invalid format: Expected an array.");
                     
-                    const tx = db.transaction("reports", "readwrite");
+                    const tx = dataBase.transaction("reports", "readwrite");
                     const store = tx.objectStore("reports");
                     let count = 0;
                     
@@ -494,14 +494,14 @@
         }
 
         function openDatabaseModal() {
-            if (!db) return;
+            if (!dataBase) return;
             const modal = document.getElementById('dbModal');
             const content = document.getElementById('dbModalContent');
             content.innerHTML = '<div class="text-center py-10 text-slate-500"><i data-lucide="loader-2" class="w-8 h-8 animate-spin mx-auto mb-2"></i> Loading...</div>';
             lucide.createIcons();
             modal.classList.remove('hidden');
 
-            const tx = db.transaction("reports", "readonly");
+            const tx = dataBase.transaction("reports", "readonly");
             const store = tx.objectStore("reports");
             const request = store.getAll();
 
@@ -639,9 +639,9 @@
         }
 
         async function syncArchiveWithCloud() {
-            if (!db || typeof saveProgress !== 'function' || isSandbox()) return;
+            if (!dataBase || typeof saveProgress !== 'function' || isSandbox()) return;
             
-            const tx = db.transaction("reports", "readonly");
+            const tx = dataBase.transaction("reports", "readonly");
             const store = tx.objectStore("reports");
             const request = store.getAll();
             
@@ -657,12 +657,12 @@
         }
 
         async function loadArchiveFromCloud() {
-            if (!db || typeof loadProgress !== 'function' || isSandbox()) return;
+            if (!dataBase || typeof loadProgress !== 'function' || isSandbox()) return;
             
             try {
                 const cloudData = await loadProgress('report-helper-archive');
                 if (cloudData && cloudData.reports) {
-                    const tx = db.transaction("reports", "readwrite");
+                    const tx = dataBase.transaction("reports", "readwrite");
                     const store = tx.objectStore("reports");
                     
                     // Simple merge: add if not exists
