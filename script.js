@@ -327,22 +327,33 @@ const FloatingTooltip = {
         const title = target.getAttribute('data-title');
         if (title) {
           this.show(title, e.clientX, e.clientY);
+          return;
         }
+      }
+      
+      // If we move over anything else, hide the tooltip
+      if (this.el && this.el.classList.contains('opacity-100')) {
+        this.hide();
       }
     });
 
     document.addEventListener('mousemove', (e) => {
-      if (this.el.classList.contains('opacity-100')) {
+      if (this.el && this.el.classList.contains('opacity-100')) {
         this.move(e.clientX, e.clientY);
       }
     });
 
     document.addEventListener('mouseout', (e) => {
-      const target = e.target.closest('[data-title]');
-      if (target) {
+      // Hide if mouse leaves the window entirely
+      if (!e.relatedTarget) {
         this.hide();
       }
     });
+
+    // Hide on any interaction that might change the DOM or focus
+    document.addEventListener('mousedown', () => this.hide());
+    window.addEventListener('blur', () => this.hide());
+    window.addEventListener('scroll', () => this.hide(), true);
   },
 
   show(text, x, y) {
