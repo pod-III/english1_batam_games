@@ -131,7 +131,7 @@
     return events.filter(e => !e.isRecurrence);
   }
 
-  // schedule_red_days: JS → SQL
+  // myspace_settings: JS → SQL
   function redDaysToRow(redDaysArray, userId) {
     return { 
       user_id: userId, 
@@ -139,7 +139,7 @@
     };
   }
 
-  // schedule_class_admin: JS → SQL
+  // myspace_class_admin: JS → SQL
   // localStorage shape: { "ClassName": [ {id, text, done, deadline}, ... ] }
   // Supabase shape: one row per class with tasks JSON array
   function classAdminToRow(className, tasks, userId) {
@@ -163,7 +163,7 @@
     };
   }
 
-  // schedule_class_units: JS → SQL
+  // myspace_class_units: JS → SQL
   // localStorage shape: { "ClassName": [ {index, unit, lesson, is_completed}, ... ] }
   // Supabase shape: one row per class with syllabus JSON array
   function classSyllabusToRow(className, syllabus, userId) {
@@ -179,8 +179,8 @@
   // Events
   async function cloudLoadScheduleEvents(userId) {
     const [mastersRes, promotedRes] = await Promise.all([
-      db.from('schedule_events').select('*').eq('user_id', userId).eq('is_master', true),
-      db.from('schedule_events').select('*').eq('user_id', userId).eq('is_master', false)
+      db.from('myspace_events').select('*').eq('user_id', userId).eq('is_master', true),
+      db.from('myspace_events').select('*').eq('user_id', userId).eq('is_master', false)
     ]);
 
     if (mastersRes.error) console.error('[Sync] Load masters error:', mastersRes.error);
@@ -196,13 +196,13 @@
     // Build rows, filter nulls, upsert all
     const rows = events.map(e => sanitiseForCloud(e, userId)).filter(r => r !== null);
     if (rows.length === 0) return;
-    const { error } = await db.from('schedule_events')
+    const { error } = await db.from('myspace_events')
       .upsert(rows, { onConflict: 'id' });
     if (error) console.error('[Sync] Save events error:', error);
   }
 
   async function cloudDeleteScheduleEvent(userId, eventId, isMaster = false) {
-    let query = db.from('schedule_events').delete().eq('user_id', userId);
+    let query = db.from('myspace_events').delete().eq('user_id', userId);
     if (isMaster) {
       // Delete master and all its recurrence clones
       query = query.or(`id.eq.${eventId},master_event_id.eq.${eventId}`);
@@ -215,17 +215,17 @@
 
   async function cloudReplaceAllScheduleEvents(userId, events) {
     // Delete all then insert fresh (for full sync)
-    await db.from('schedule_events').delete().eq('user_id', userId);
+    await db.from('myspace_events').delete().eq('user_id', userId);
     const rows = events.map(e => sanitiseForCloud(e, userId)).filter(r => r !== null);
     if (rows.length > 0) {
-      const { error } = await db.from('schedule_events').insert(rows);
+      const { error } = await db.from('myspace_events').insert(rows);
       if (error) console.error('[Sync] Replace events error:', error);
     }
   }
 
   // Red Days
   async function cloudLoadRedDays(userId) {
-    const { data, error } = await db.from('schedule_red_days')
+    const { data, error } = await db.from('myspace_settings')
       .select('dates').eq('user_id', userId).maybeSingle();
     if (error) { console.error('[Sync] Load red days error:', error); return null; }
     return data ? (data.dates || []) : [];
@@ -233,14 +233,14 @@
 
   async function cloudSaveRedDays(userId, redDays) {
     const row = redDaysToRow(redDays, userId);
-    const { error } = await db.from('schedule_red_days')
+    const { error } = await db.from('myspace_settings')
       .upsert(row, { onConflict: 'user_id' });
     if (error) console.error('[Sync] Save red days error:', error);
   }
 
   // Class Admin
   async function cloudLoadClassAdmin(userId) {
-    const { data, error } = await db.from('schedule_class_admin')
+    const { data, error } = await db.from('myspace_class_admin')
       .select('class_name, tasks').eq('user_id', userId);
     if (error) { console.error('[Sync] Load class admin error:', error); return null; }
     const result = {};
@@ -251,7 +251,7 @@
   }
 
   async function cloudSaveClassAdmin(userId, adminData) {
-    const { data: existing, error: fetchErr } = await db.from('schedule_class_admin').select('id, class_name').eq('user_id', userId);
+    const { data: existing, error: fetchErr } = await db.from('myspace_class_admin').select('id, class_name').eq('user_id', userId);
     if (fetchErr) {
       console.error('[Sync] Fetch class admin error:', fetchErr);
       return;
@@ -277,14 +277,14 @@
     });
 
     if (rowsToUpsert.length > 0) {
-      const { error } = await db.from('schedule_class_admin').upsert(rowsToUpsert, { onConflict: 'id' });
+      const { error } = await db.from('myspace_class_admin').upsert(rowsToUpsert, { onConflict: 'id' });
       if (error) console.error('[Sync] Upsert class admin error:', error);
     }
   }
 
-  // Class Syllabus (formerly Class Units)
+  // Class Syllabus (formerly myspace_class_units)
   async function cloudLoadClassUnits(userId) {
-    const { data, error } = await db.from('schedule_class_units')
+    const { data, error } = await db.from('myspace_class_units')
       .select('class_name, syllabus').eq('user_id', userId);
     if (error) { console.error('[Sync] Load class syllabus error:', error); return null; }
     const result = {};
@@ -296,7 +296,7 @@
 
   async function cloudSaveClassUnits(userId, syllabusData) {
     // Fetch existing rows to get their IDs
-    const { data: existing, error: fetchErr } = await db.from('schedule_class_units').select('id, class_name').eq('user_id', userId);
+    const { data: existing, error: fetchErr } = await db.from('myspace_class_units').select('id, class_name').eq('user_id', userId);
     if (fetchErr) {
       console.error('[Sync] Fetch class syllabus error:', fetchErr);
       return;
@@ -322,7 +322,7 @@
     });
 
     if (rowsToUpsert.length > 0) {
-      const { error } = await db.from('schedule_class_units').upsert(rowsToUpsert, { onConflict: 'id' });
+      const { error } = await db.from('myspace_class_units').upsert(rowsToUpsert, { onConflict: 'id' });
       if (error) console.error('[Sync] Upsert class syllabus error:', error);
     }
 
@@ -412,8 +412,8 @@
         .filter(r => r !== null);
 
       await Promise.all([
-        db.from('schedule_events').upsert(mastersRows, { onConflict: 'id' }),
-        db.from('schedule_events').upsert(promotedRows, { onConflict: 'id' }),
+        db.from('myspace_events').upsert(mastersRows, { onConflict: 'id' }),
+        db.from('myspace_events').upsert(promotedRows, { onConflict: 'id' }),
         cloudSaveRedDays(userId, rds),
         cloudSaveClassAdmin(userId, adm),
         cloudSaveClassUnits(userId, uns),
@@ -478,7 +478,7 @@
     );
 
     // Check if cloud has data
-    const { data: cloudCheck, error } = await db.from('schedule_events')
+    const { data: cloudCheck, error } = await db.from('myspace_events')
       .select('id').eq('user_id', userId).limit(1);
 
     const hasCloud = !error && cloudCheck && cloudCheck.length > 0;
@@ -739,7 +739,7 @@
         const row = sanitiseForCloud(evt, userId);
         if (!row) return;
 
-        db.from('schedule_events')
+        db.from('myspace_events')
           .upsert(row, { onConflict: 'id' })
           .then(({ error }) => {
             if (error) {
@@ -751,7 +751,7 @@
           .catch(err => console.error('[Sync] Promoted upsert exception:', err));
       } else {
         // DELETE if NO LONGER promoted (Demotion)
-        db.from('schedule_events')
+        db.from('myspace_events')
           .delete()
           .eq('user_id', userId)
           .eq('id', evt.id)
