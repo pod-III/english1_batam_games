@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>English 1 – Comment Maker</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            pink:   { DEFAULT: '#FF6B95' },
+            orange: { DEFAULT: '#FF8C42' },
+            green:  { DEFAULT: '#00E676' },
+            blue:   { DEFAULT: '#2979FF' },
+            dark:   { DEFAULT: '#1e293b' },
+            chalk:  { DEFAULT: '#f8fafc' },
+          },
+          fontFamily: {
+            fredoka: ['Fredoka', 'sans-serif'],
+            nunito:  ['Nunito', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    body { font-family: 'Nunito', sans-serif; }
+    h1, h2, h3, .fredoka { font-family: 'Fredoka', sans-serif; }
+    .btn { transition: transform 0.1s ease, box-shadow 0.1s ease; }
+    .btn:hover  { transform: translate(-2px,-2px); box-shadow: 6px 6px 0px 0px rgba(30,41,59,1); }
+    .btn:active { transform: translate(2px,2px);   box-shadow: 2px 2px 0px 0px rgba(30,41,59,1); }
+    .score-input { -moz-appearance: textfield; }
+    .score-input::-webkit-outer-spin-button,
+    .score-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .comment-card { animation: popIn 0.3s cubic-bezier(.18,.89,.32,1.28) both; }
+    .comment-card:nth-child(2) { animation-delay: 0.08s; }
+    .comment-card:nth-child(3) { animation-delay: 0.16s; }
+    @keyframes popIn {
+      from { opacity:0; transform: scale(0.88) translateY(10px); }
+      to   { opacity:1; transform: scale(1) translateY(0); }
+    }
+    .student-pill { cursor: pointer; transition: transform 0.1s, box-shadow 0.1s; }
+    .student-pill:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0px 0px rgba(30,41,59,1); }
+    .hard  { box-shadow: 4px 4px 0px 0px rgba(30,41,59,1); }
+    .hard-sm { box-shadow: 2px 2px 0px 0px rgba(30,41,59,1); }
+  </style>
+</head>
+<body class="bg-[#f8fafc] dark:bg-slate-900 min-h-screen transition-colors duration-300">
+
+  <!-- Header -->
+  <header class="bg-[#2979FF] border-b-4 border-[#1e293b] px-6 py-4 flex items-center justify-between hard">
+    <div class="flex items-center gap-3">
+      <div class="bg-[#f8fafc] border-2 border-[#1e293b] rounded-xl p-2 hard-sm">
+        <i data-lucide="message-square-text" class="text-[#1e293b]" style="width:26px;height:26px;stroke-width:2.5"></i>
+      </div>
+      <div>
+        <h1 class="text-white fredoka text-2xl font-bold leading-tight">Comment Maker</h1>
+        <p class="text-blue-100 text-xs font-semibold tracking-wide">English 1 Batam · Progress Update</p>
+      </div>
+    </div>
+    <button id="darkToggle" class="bg-[#f8fafc] border-2 border-[#1e293b] rounded-xl p-2 hard-sm btn" title="Toggle dark mode">
+      <i data-lucide="moon" id="darkIcon" style="width:20px;height:20px;stroke-width:2.5"></i>
+    </button>
+  </header>
+
+  <div class="max-w-3xl mx-auto px-4 py-6 space-y-5">
+
+    <!-- Student Roster -->
+    <section class="bg-white dark:bg-slate-800 border-4 border-[#1e293b] rounded-2xl p-5 hard">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="fredoka text-xl font-bold text-[#1e293b] dark:text-[#f8fafc] flex items-center gap-2">
+          <i data-lucide="users" style="width:20px;height:20px;stroke-width:2.5;color:#FF8C42"></i>
+          Students
+          <span id="rosterCount" class="text-sm bg-[#FF8C42]/20 border-2 border-[#1e293b] rounded-lg px-2 py-0.5 font-nunito">0</span>
+        </h2>
+        <button onclick="addNewStudent()" class="btn bg-[#FF6B95] border-[3px] border-[#1e293b] rounded-xl px-3 py-1.5 fredoka font-bold text-white text-sm hard-sm flex items-center gap-1">
+          <i data-lucide="plus" style="width:16px;height:16px;stroke-width:3"></i> Add Student
+        </button>
+      </div>
+      <div id="rosterList" class="flex flex-wrap gap-2 min-h-[38px] items-center">
+        <p class="text-slate-400 font-semibold text-sm italic" id="rosterEmpty">No students yet. Click "Add Student" to begin.</p>
+      </div>
+    </section>
+
+    <!-- Score Input Card -->
+    <section class="bg-white dark:bg-slate-800 border-4 border-[#1e293b] rounded-2xl p-6 hard">
+      <h2 class="fredoka text-2xl font-bold text-[#1e293b] dark:text-[#f8fafc] mb-4 flex items-center gap-2">
+        <i data-lucide="clipboard-list" style="width:24px;height:24px;stroke-width:2.5;color:#2979FF"></i>
+        <span id="formTitle">Select or Add a Student</span>
+      </h2>
+
+      <!-- Student Name -->
+      <div class="mb-4">
+        <label class="block fredoka font-semibold text-[#1e293b] dark:text-[#f8fafc] mb-1 text-sm">Student Name</label>
+        <input id="studentName" type="text" placeholder="e.g. Aisyah" readonly
+          class="w-full border-4 border-[#1e293b] rounded-xl px-4 py-2 fredoka text-lg font-bold bg-[#f8fafc] dark:bg-slate-700 dark:text-[#f8fafc] focus:outline-none cursor-default opacity-70" />
+      </div>
+
+      <!-- Pronoun Selector -->
+      <div class="mb-4">
+        <label class="block fredoka font-semibold text-[#1e293b] dark:text-[#f8fafc] mb-1 text-sm">
+          <i data-lucide="user" style="width:13px;height:13px;stroke-width:2.5;color:#2979FF;display:inline"></i>
+          Pronoun
+        </label>
+        <div id="pronounBtns" class="flex gap-2">
+          <button type="button" data-pronoun="they" onclick="setPronoun('they')"
+            class="btn pronoun-btn flex-1 border-3 border-[#1e293b] rounded-xl py-2 fredoka font-bold text-sm hard-sm transition-colors">They / Them</button>
+          <button type="button" data-pronoun="he" onclick="setPronoun('he')"
+            class="btn pronoun-btn flex-1 border-3 border-[#1e293b] rounded-xl py-2 fredoka font-bold text-sm hard-sm transition-colors">He / Him</button>
+          <button type="button" data-pronoun="she" onclick="setPronoun('she')"
+            class="btn pronoun-btn flex-1 border-3 border-[#1e293b] rounded-xl py-2 fredoka font-bold text-sm hard-sm transition-colors">She / Her</button>
+        </div>
+      </div>
+
+      <!-- Score Grid -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div class="bg-[#FF6B95]/10 border-2 border-[#1e293b] rounded-xl p-3 hard-sm">
+          <label class="fredoka font-semibold text-[#1e293b] dark:text-[#f8fafc] text-sm block mb-1">
+            <i data-lucide="hand" style="width:13px;height:13px;stroke-width:2.5;color:#FF6B95;display:inline"></i> Participation
+          </label>
+          <input id="s_participation" type="number" min="0" max="10" placeholder="–"
+            class="score-input w-full border-2 border-[#1e293b] rounded-lg px-2 py-1.5 text-center fredoka text-2xl font-bold bg-white dark:bg-slate-700 dark:text-[#f8fafc] focus:outline-none focus:ring-2 focus:ring-[#FF6B95]" />
+        </div>
+        <div class="bg-[#FF8C42]/10 border-2 border-[#1e293b] rounded-xl p-3 hard-sm">
+          <label class="fredoka font-semibold text-[#1e293b] dark:text-[#f8fafc] text-sm block mb-1">
+            <i data-lucide="users" style="width:13px;height:13px;stroke-width:2.5;color:#FF8C42;display:inline"></i> Social
+          </label>
+          <input id="s_social" type="number" min="0" max="10" placeholder="–"
+            class="score-input w-full border-2 border-[#1e293b] rounded-lg px-2 py-1.5 text-center fredoka text-2xl font-bold bg-white dark:bg-slate-700 dark:text-[#f8fafc] focus:outline-none focus:ring-2 focus:ring-[#FF8C42]" />
+        </div>
+        <div class="bg-[#2979FF]/10 border-2 border-[#1e293b] rounded-xl p-3 hard-sm">
+          <label class="fredoka font-semibold text-[#1e293b] dark:text-[#f8fafc] text-sm block mb-1">
+            <i data-lucide="ear" style="width:13px;height:13px;stroke-width:2.5;color:#2979FF;display:inline"></i> Listening
+          </label>
+          <input id="s_listening" type="number" min="0" max="10" placeholder="–"
+            class="score-input w-full border-2 border-[#1e293b] rounded-lg px-2 py-1.5 text-center fredoka text-2xl font-bold bg-white dark:bg-slate-700 dark:text-[#f8fafc] focus:outline-none focus:ring-2 focus:ring-[#2979FF]" />
+        </div>
+        <div class="bg-[#00E676]/10 border-2 border-[#1e293b] rounded-xl p-3 hard-sm">
+          <label class="fredoka font-semibold text-[#1e293b] dark:text-[#f8fafc] text-sm block mb-1">
+            <i data-lucide="shield-check" style="width:13px;height:13px;stroke-width:2.5;color:#00E676;display:inline"></i> Confidence
+          </label>
+          <input id="s_confidence" type="number" min="0" max="10" placeholder="–"
+            class="score-input w-full border-2 border-[#1e293b] rounded-lg px-2 py-1.5 text-center fredoka text-2xl font-bold bg-white dark:bg-slate-700 dark:text-[#f8fafc] focus:outline-none focus:ring-2 focus:ring-[#00E676]" />
+        </div>
+        <div class="bg-[#FF6B95]/10 border-2 border-[#1e293b] rounded-xl p-3 hard-sm">
+          <label class="fredoka font-semibold text-[#1e293b] dark:text-[#f8fafc] text-sm block mb-1">
+            <i data-lucide="mic" style="width:13px;height:13px;stroke-width:2.5;color:#FF6B95;display:inline"></i> Speaking
+          </label>
+          <input id="s_spoken" type="number" min="0" max="10" placeholder="–"
+            class="score-input w-full border-2 border-[#1e293b] rounded-lg px-2 py-1.5 text-center fredoka text-2xl font-bold bg-white dark:bg-slate-700 dark:text-[#f8fafc] focus:outline-none focus:ring-2 focus:ring-[#FF6B95]" />
+        </div>
+        <div class="bg-[#FF8C42]/10 border-2 border-[#1e293b] rounded-xl p-3 hard-sm">
+          <label class="fredoka font-semibold text-[#1e293b] dark:text-[#f8fafc] text-sm block mb-1">
+            <i data-lucide="calendar-check" style="width:13px;height:13px;stroke-width:2.5;color:#FF8C42;display:inline"></i> Attendance
+          </label>
+          <input id="s_attendance" type="number" min="0" max="10" placeholder="–"
+            class="score-input w-full border-2 border-[#1e293b] rounded-lg px-2 py-1.5 text-center fredoka text-2xl font-bold bg-white dark:bg-slate-700 dark:text-[#f8fafc] focus:outline-none focus:ring-2 focus:ring-[#FF8C42]" />
+        </div>
+        <div class="col-span-2 sm:col-span-3 bg-[#2979FF]/10 border-2 border-[#1e293b] rounded-xl p-3 hard-sm">
+          <label class="fredoka font-semibold text-[#1e293b] dark:text-[#f8fafc] text-sm block mb-1">
+            <i data-lucide="alert-triangle" style="width:13px;height:13px;stroke-width:2.5;color:#2979FF;display:inline"></i>
+            Accuracy (Errors)
+            <span class="text-xs font-nunito font-normal text-slate-400 ml-1">(10 = very few errors)</span>
+          </label>
+          <input id="s_errors" type="number" min="0" max="10" placeholder="–"
+            class="score-input w-full border-2 border-[#1e293b] rounded-lg px-2 py-1.5 text-center fredoka text-2xl font-bold bg-white dark:bg-slate-700 dark:text-[#f8fafc] focus:outline-none focus:ring-2 focus:ring-[#2979FF]" />
+        </div>
+      </div>
+
+      <div id="errorBox" class="hidden mt-3 bg-red-100 border-2 border-red-500 rounded-xl p-3 text-red-700 font-semibold text-sm"></div>
+
+      <!-- Buttons -->
+      <div class="flex gap-3 mt-5">
+        <button id="generateBtn" onclick="saveAndGenerate()"
+          class="btn flex-1 bg-[#FF6B95] border-4 border-[#1e293b] rounded-xl py-3 fredoka text-white text-xl font-bold hard flex items-center justify-center gap-2">
+          <i data-lucide="sparkles" style="width:20px;height:20px;stroke-width:2.5"></i>
+          Save & Generate
+        </button>
+        <button onclick="deleteCurrentStudent()"
+          class="btn bg-slate-200 dark:bg-slate-700 border-4 border-[#1e293b] rounded-xl px-4 py-3 fredoka font-bold text-[#1e293b] dark:text-[#f8fafc] hard">
+          <i data-lucide="trash-2" style="width:20px;height:20px;stroke-width:2.5"></i>
+        </button>
+      </div>
+    </section>
+
+    <!-- Output -->
+    <section id="outputSection" class="hidden space-y-4">
+      <h2 class="fredoka text-2xl font-bold text-[#1e293b] dark:text-[#f8fafc] flex items-center gap-2">
+        <i data-lucide="star" style="width:24px;height:24px;stroke-width:2.5;color:#FF8C42"></i>
+        <span id="outputName">Comments</span>
+      </h2>
+      <div id="commentCards" class="space-y-3"></div>
+      <button onclick="copyAll()"
+        class="btn w-full bg-[#00E676] border-4 border-[#1e293b] rounded-xl py-3 fredoka text-[#1e293b] text-lg font-bold hard flex items-center justify-center gap-2">
+        <i data-lucide="copy" style="width:20px;height:20px;stroke-width:2.5"></i>
+        Copy Full Comment
+      </button>
+    </section>
+
+  </div>
+
+  <!-- Add Student Modal -->
+  <div id="modal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 hidden px-4">
+    <div class="bg-white dark:bg-slate-800 border-4 border-[#1e293b] rounded-2xl p-6 w-full max-w-sm hard">
+      <h3 class="fredoka text-xl font-bold text-[#1e293b] dark:text-[#f8fafc] mb-3">New Student</h3>
+      <input id="modalName" type="text" placeholder="Student name…"
+        class="w-full border-4 border-[#1e293b] rounded-xl px-4 py-2 fredoka text-lg font-bold bg-[#f8fafc] dark:bg-slate-700 dark:text-[#f8fafc] focus:outline-none mb-4"
+        onkeydown="if(event.key==='Enter') confirmAddStudent()" />
+      <div class="flex gap-2">
+        <button onclick="confirmAddStudent()"
+          class="btn flex-1 bg-[#2979FF] border-4 border-[#1e293b] rounded-xl py-2 fredoka font-bold text-white hard-sm">Add</button>
+        <button onclick="closeModal()"
+          class="btn flex-1 bg-slate-200 dark:bg-slate-600 border-4 border-[#1e293b] rounded-xl py-2 fredoka font-bold text-[#1e293b] dark:text-[#f8fafc] hard-sm">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  lucide.createIcons();
+
+  // ── Dark Mode ─────────────────────────────────────────────────────────────
+  const darkToggle = document.getElementById('darkToggle');
+  if (localStorage.getItem('e1_dark') === '1') {
+    document.documentElement.classList.add('dark');
+    document.getElementById('darkIcon').setAttribute('data-lucide', 'sun');
+    lucide.createIcons();
+  }
+  darkToggle.addEventListener('click', () => {
+    document.documentElement.classList.toggle('dark');
+    const isDark = document.documentElement.classList.contains('dark');
+    document.getElementById('darkIcon').setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+    lucide.createIcons();
+    localStorage.setItem('e1_dark', isDark ? '1' : '0');
+  });
+
+  // ── State ──────────────────────────────────────────────────────────────────
+  let students  = JSON.parse(localStorage.getItem('e1_students') || '[]');
+  let currentId = localStorage.getItem('e1_currentId') || null;
+
+  function save() { localStorage.setItem('e1_students', JSON.stringify(students)); }
+  function getStudent(id) { return students.find(s => s.id === id) || null; }
+
+  // ── Roster ─────────────────────────────────────────────────────────────────
+  function renderRoster() {
+    const list  = document.getElementById('rosterList');
+    document.getElementById('rosterCount').textContent = students.length;
+    list.innerHTML = '';
+
+    if (students.length === 0) {
+      list.innerHTML = '<p class="text-slate-400 font-semibold text-sm italic">No students yet. Click "Add Student" to begin.</p>';
+      return;
+    }
+
+    students.forEach(s => {
+      const done = s.scores && Object.values(s.scores).every(v => v !== '' && v !== undefined);
+      const isActive = s.id === currentId;
+      const pill = document.createElement('button');
+      pill.className = 'student-pill border-2 border-[#1e293b] rounded-xl px-3 py-1.5 fredoka font-bold text-sm hard-sm flex items-center gap-1';
+      pill.style.background = isActive ? '#2979FF' : (document.documentElement.classList.contains('dark') ? '#334155' : '#f8fafc');
+      pill.style.color = isActive ? '#fff' : (document.documentElement.classList.contains('dark') ? '#f8fafc' : '#1e293b');
+      pill.innerHTML = `${done ? '<span style="color:#00E676">✓</span>' : ''} ${s.name}`;
+      pill.onclick = () => loadStudent(s.id);
+      list.appendChild(pill);
+    });
+  }
+
+  let currentPronoun = 'they';
+
+  function setPronoun(p) {
+    currentPronoun = p;
+    renderPronounButtons();
+    // Persist to current student
+    if (currentId) {
+      const s = getStudent(currentId);
+      if (s) { s.pronoun = p; save(); }
+    }
+  }
+
+  function renderPronounButtons() {
+    document.querySelectorAll('.pronoun-btn').forEach(btn => {
+      const p = btn.getAttribute('data-pronoun');
+      const active = p === currentPronoun;
+      btn.style.background = active ? '#2979FF' : (document.documentElement.classList.contains('dark') ? '#334155' : '#f8fafc');
+      btn.style.color = active ? '#fff' : (document.documentElement.classList.contains('dark') ? '#f8fafc' : '#1e293b');
+    });
+  }
+
+  function loadStudent(id) {
+    currentId = id;
+    localStorage.setItem('e1_currentId', id);
+    const s = getStudent(id);
+    if (!s) return;
+
+    document.getElementById('studentName').value = s.name;
+    document.getElementById('formTitle').textContent = `Scores for ${s.name}`;
+
+    const sc = s.scores || {};
+    document.getElementById('s_participation').value = sc.participation ?? '';
+    document.getElementById('s_social').value        = sc.social        ?? '';
+    document.getElementById('s_listening').value     = sc.listening     ?? '';
+    document.getElementById('s_confidence').value    = sc.confidence    ?? '';
+    document.getElementById('s_spoken').value        = sc.spoken        ?? '';
+    document.getElementById('s_attendance').value    = sc.attendance    ?? '';
+    document.getElementById('s_errors').value        = sc.errors        ?? '';
+
+    currentPronoun = s.pronoun || 'they';
+    renderPronounButtons();
+
+    renderRoster();
+    hideError();
+
+    if (s.comments) {
+      renderComments(s.name, s.comments);
+    } else {
+      document.getElementById('outputSection').classList.add('hidden');
+    }
+  }
+
+  // ── Modal ──────────────────────────────────────────────────────────────────
+  function addNewStudent() {
+    document.getElementById('modalName').value = '';
+    document.getElementById('modal').classList.remove('hidden');
+    setTimeout(() => document.getElementById('modalName').focus(), 60);
+  }
+  function closeModal() {
+    document.getElementById('modal').classList.add('hidden');
+  }
+  function confirmAddStudent() {
+    const name = document.getElementById('modalName').value.trim();
+    if (!name) return;
+    const s = { id: Date.now().toString(), name, scores: {}, comments: null, pronoun: 'they' };
+    students.push(s);
+    save();
+    closeModal();
+    renderRoster();
+    loadStudent(s.id);
+  }
+  document.getElementById('modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal')) closeModal();
+  });
+
+  // ── Save & Generate ────────────────────────────────────────────────────────
+  function saveAndGenerate() {
+    if (!currentId) { showError('Please select or add a student first.'); return; }
+    const name = document.getElementById('studentName').value.trim();
+
+    const fields = {
+      participation: document.getElementById('s_participation').value,
+      social:        document.getElementById('s_social').value,
+      listening:     document.getElementById('s_listening').value,
+      confidence:    document.getElementById('s_confidence').value,
+      spoken:        document.getElementById('s_spoken').value,
+      attendance:    document.getElementById('s_attendance').value,
+      errors:        document.getElementById('s_errors').value,
+    };
+
+    const labels = { participation:'Participation', social:'Social', listening:'Listening',
+                     confidence:'Confidence', spoken:'Speaking', attendance:'Attendance', errors:'Accuracy (Errors)' };
+
+    for (const [k, v] of Object.entries(fields)) {
+      if (v === '' || isNaN(+v)) { showError(`Please enter a score for "${labels[k]}".`); return; }
+      if (+v < 0 || +v > 10)    { showError(`"${labels[k]}" must be between 0 and 10.`);  return; }
+    }
+    hideError();
+
+    const s = getStudent(currentId);
+    s.name   = name;
+    s.scores = fields;
+    s.pronoun = currentPronoun;
+    s.comments = buildComments(name, fields, currentPronoun);
+    save();
+    renderRoster();
+    renderComments(name, s.comments);
+  }
+
+  function deleteCurrentStudent() {
+    if (!currentId) return;
+    if (!confirm('Delete this student and their scores?')) return;
+    students = students.filter(s => s.id !== currentId);
+    currentId = null;
+    localStorage.removeItem('e1_currentId');
+    save();
+    renderRoster();
+    clearForm();
+    document.getElementById('outputSection').classList.add('hidden');
+  }
+
+  function clearForm() {
+    document.getElementById('studentName').value = '';
+    document.getElementById('formTitle').textContent = 'Select or Add a Student';
+    ['s_participation','s_social','s_listening','s_confidence','s_spoken','s_attendance','s_errors']
+      .forEach(id => { document.getElementById(id).value = ''; });
+    currentPronoun = 'they';
+    renderPronounButtons();
+  }
+
+  // ── Comment Engine ─────────────────────────────────────────────────────────
+  let hopefulPhrases = {};
+
+  async function loadComments() {
+    try {
+      const resp = await fetch('comments.json');
+      if (!resp.ok) throw new Error('Network response was not ok');
+      hopefulPhrases = await resp.json();
+    } catch (e) {
+      console.error('Failed to load comments:', e);
+      showError('Failed to load comment phrases. Please refresh.');
+    }
+  }
+
+  function level(v) {
+    v = +v;
+    if (v >= 9) return 'excellent';
+    if (v >= 7) return 'good';
+    if (v >= 5) return 'developing';
+    return 'needs_work';
+  }
+
+  function pick(arr) { 
+    if (!arr || arr.length === 0) return '...';
+    return arr[Math.floor(Math.random() * arr.length)]; 
+  }
+
+  // ── Pronoun Replacement Engine ──────────────────────────────────────────
+  const PRONOUN_MAP = {
+    he:  { subject: 'He',  object: 'him', poss: 'his',  refl: 'himself',  are: 'is',  were: 'was', have: 'have' },
+    she: { subject: 'She', object: 'her', poss: 'her',  refl: 'herself',  are: 'is',  were: 'was', have: 'have' },
+    they:{ subject: 'They',object: 'them',poss: 'their', refl: 'themselves',are: 'are', were: 'were', have: 'have' },
+  };
+
+  /** Add third-person singular -s/-es/-ies to a base verb */
+  function conjugate3rd(verb) {
+    const low = verb.toLowerCase();
+    if (['can','will','would','could','should','may','might','must','shall'].includes(low)) return verb;
+    if (low === 'are') return 'is';
+    if (low === 'have') return 'has';
+    if (low === 'do') return 'does';
+    if (low === 'go') return 'goes';
+    if (/(?:s|sh|ch|x|z)$/.test(low)) return verb + 'es';
+    if (/[^aeiou]y$/.test(low)) return verb.slice(0, -1) + 'ies';
+    return verb + 's';
+  }
+
+  function applyPronoun(text, pronoun) {
+    if (pronoun === 'they') return text;            // JSON already uses they
+    const m = PRONOUN_MAP[pronoun];
+
+    // Order matters: longest / most specific first
+    // 1. Reflexive
+    text = text.replace(/\bthemselves\b/g, m.refl);
+    text = text.replace(/\bThemselves\b/g, m.refl.charAt(0).toUpperCase() + m.refl.slice(1));
+
+    // 2. Possessive  (before object, since "their" contains "the")
+    text = text.replace(/\bTheir\b/g, m.poss.charAt(0).toUpperCase() + m.poss.slice(1));
+    text = text.replace(/\btheir\b/g, m.poss);
+
+    // 3. Object  (use word boundary to avoid partial matches)
+    text = text.replace(/\bthem\b/g, m.object);
+    text = text.replace(/\bThem\b/g, m.object.charAt(0).toUpperCase() + m.object.slice(1));
+
+    // 4. "They are" / "they are"  →  "He is" / "he is"
+    text = text.replace(/\bThey are\b/g, m.subject + ' ' + m.are);
+    text = text.replace(/\bthey are\b/g, m.subject.toLowerCase() + ' ' + m.are);
+
+    // 5. "They were" / "they were"
+    text = text.replace(/\bThey were\b/g, m.subject + ' ' + m.were);
+    text = text.replace(/\bthey were\b/g, m.subject.toLowerCase() + ' ' + m.were);
+
+    // 6. "They have" / "they have"
+    text = text.replace(/\bThey have\b/g, m.subject + ' has');
+    text = text.replace(/\bthey have\b/g, m.subject.toLowerCase() + ' has');
+
+    // 7. "They + verb" → "He/She + verb+s" for remaining verbs
+    text = text.replace(/\bThey (\w+)/g, (_, verb) => m.subject + ' ' + conjugate3rd(verb));
+    text = text.replace(/\bthey (\w+)/g, (_, verb) => m.subject.toLowerCase() + ' ' + conjugate3rd(verb));
+
+    return text;
+  }
+
+  function buildComments(name, sc, pronoun) {
+    pronoun = pronoun || 'they';
+    const labels = { participation:'Participation', social:'Social', listening:'Listening', confidence:'Confidence', spoken:'Speaking', attendance:'Attendance', errors:'Accuracy' };
+    let skillBreakdown = `Here is ${name}'s progress across all skills:\n\n`;
+    for (const [k, v] of Object.entries(sc)) {
+      const raw = pick(hopefulPhrases[k][level(v)]);
+      skillBreakdown += `• ${labels[k]}:\n  ${applyPronoun(raw, pronoun)}\n\n`;
+    }
+    skillBreakdown += `Keep up the great work!`;
+
+    return [skillBreakdown.trim()];
+  }
+
+  // ── Render Comments ────────────────────────────────────────────────────────
+  let lastComments = [];
+
+  const styleConfig = [
+    { label:'Skill Breakdown (Hopeful)', icon:'list-checks', color:'#00E676' }
+  ];
+
+  function renderComments(name, comments) {
+    lastComments = comments;
+    document.getElementById('outputName').textContent = `Comments for ${name}`;
+    const container = document.getElementById('commentCards');
+    container.innerHTML = '';
+
+    comments.forEach((text, i) => {
+      const cfg = styleConfig[i];
+      const card = document.createElement('div');
+      card.className = 'comment-card border-4 border-[#1e293b] rounded-2xl p-4 hard';
+      card.style.background = cfg.color + '18';
+      // Added whitespace-pre-wrap to the paragraph so \n line breaks render properly
+      card.innerHTML = `
+        <div class="flex items-center justify-between mb-2">
+          <span class="fredoka font-bold text-sm px-3 py-1 rounded-lg border-2 border-[#1e293b] text-white flex items-center gap-1 hard-sm"
+                style="background:${cfg.color}">
+            <i data-lucide="${cfg.icon}" style="width:13px;height:13px;stroke-width:2.5"></i>
+            ${cfg.label}
+          </span>
+          <button onclick="copyOne(${i})" title="Copy this comment"
+            class="btn bg-white dark:bg-slate-700 border-2 border-[#1e293b] rounded-lg p-1.5 hard-sm">
+            <i data-lucide="copy" style="width:16px;height:16px;stroke-width:2.5"></i>
+          </button>
+        </div>
+        <p class="text-[#1e293b] dark:text-[#f8fafc] font-semibold leading-relaxed whitespace-pre-wrap">${text}</p>
+      `;
+      container.appendChild(card);
+    });
+
+    lucide.createIcons();
+    document.getElementById('outputSection').classList.remove('hidden');
+    document.getElementById('outputSection').scrollIntoView({ behavior:'smooth', block:'start' });
+  }
+
+  function copyOne(i) {
+    navigator.clipboard.writeText(lastComments[i]).then(() => showToast('Copied!'));
+  }
+  function copyAll() {
+    navigator.clipboard.writeText(lastComments[0]).then(() => showToast('Comment copied!'));
+  }
+
+  function showToast(msg) {
+    const t = document.createElement('div');
+    t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#00E676;border:4px solid #1e293b;border-radius:12px;padding:10px 24px;font-family:Fredoka,sans-serif;font-weight:700;font-size:18px;color:#1e293b;box-shadow:4px 4px 0px 0px rgba(30,41,59,1);z-index:9999';
+    t.textContent = '✓ ' + msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2000);
+  }
+
+  function showError(msg) {
+    const box = document.getElementById('errorBox');
+    box.textContent = '⚠ ' + msg;
+    box.classList.remove('hidden');
+  }
+  function hideError() {
+    document.getElementById('errorBox').classList.add('hidden');
+  }
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+  (async () => {
+    await loadComments();
+    renderPronounButtons();
+    renderRoster();
+    if (currentId && getStudent(currentId)) {
+      loadStudent(currentId);
+    } else if (students.length > 0) {
+      loadStudent(students[0].id);
+    }
+  })();
+</script>
+</body>
+</html>
