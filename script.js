@@ -305,6 +305,78 @@ const Theme = {
 };
 
 // --- UI ---
+const FloatingTooltip = {
+  el: null,
+
+  init() {
+    if (this.el) return;
+    this.el = document.createElement('div');
+    this.el.id = 'floating-tooltip';
+    // Use tailwind classes for the Soft Brutalist look
+    this.el.className = 'fixed pointer-events-none z-[9999] opacity-0 transition-opacity duration-200 px-3 py-2 bg-slate-900 text-white text-xs font-black rounded-xl border-2 border-slate-700 shadow-hard-sm uppercase tracking-widest whitespace-nowrap';
+    document.body.appendChild(this.el);
+
+    this.setupListeners();
+  },
+
+  setupListeners() {
+    document.addEventListener('mouseover', (e) => {
+      const target = e.target.closest('[data-title]');
+      // Only for side-panel elements as requested
+      if (target && (target.closest('#side-panel') || target.classList.contains('side-panel-tab'))) {
+        const title = target.getAttribute('data-title');
+        if (title) {
+          this.show(title, e.clientX, e.clientY);
+        }
+      }
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (this.el.classList.contains('opacity-100')) {
+        this.move(e.clientX, e.clientY);
+      }
+    });
+
+    document.addEventListener('mouseout', (e) => {
+      const target = e.target.closest('[data-title]');
+      if (target) {
+        this.hide();
+      }
+    });
+  },
+
+  show(text, x, y) {
+    this.el.textContent = text;
+    this.move(x, y);
+    this.el.classList.add('opacity-100');
+  },
+
+  move(x, y) {
+    // Offset to avoid cursor overlap
+    const offsetX = 20;
+    const offsetY = -10;
+    
+    // Boundary check to keep it on screen
+    const rect = this.el.getBoundingClientRect();
+    let finalX = x + offsetX;
+    let finalY = y + offsetY;
+
+    if (finalX + rect.width > window.innerWidth) {
+      finalX = x - rect.width - offsetX;
+    }
+    if (finalY + rect.height > window.innerHeight) {
+      finalY = window.innerHeight - rect.height - 10;
+    }
+
+    this.el.style.left = `${finalX}px`;
+    this.el.style.top = `${finalY}px`;
+  },
+
+  hide() {
+    this.el.classList.remove('opacity-100');
+  }
+};
+
 const UI = {
   updateGreeting() {
     const hour = new Date().getHours();
@@ -1456,7 +1528,7 @@ const TabManager = {
     tabIcon.draggable = true;
     tabIcon.innerHTML = `
       <i data-lucide="${tab.icon}" class="side-panel-tab-icon"></i>
-      <button class="side-panel-tab-close" data-tab-id="${tab.id}" aria-label="Close ${tab.title}" type="button">
+      <button class="side-panel-tab-close" data-tab-id="${tab.id}" data-title="Close Tab" aria-label="Close ${tab.title}" type="button">
         <i data-lucide="x"></i>
       </button>
     `;
@@ -2152,6 +2224,7 @@ const App = {
   async init() {
     await requireAuth();
     try {
+      FloatingTooltip.init();
       State.userProfile = await getUserProfile();
       Theme.load();
       UI.updateGreeting();
