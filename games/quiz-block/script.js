@@ -205,9 +205,31 @@ const Jeopardy = (function() {
     }
 
     function startNewBlankGame() {
-        state = JSON.parse(JSON.stringify(DEFAULT_STATE));
-        save();
-        hideLandingPage();
+        showSystemModal({
+            type: 'prompt',
+            title: 'New Game Setup',
+            message: 'How many categories (columns) do you want? (2-6):',
+            defaultValue: '5',
+            onConfirm: (val) => {
+                const cols = parseInt(val);
+                if (isNaN(cols) || cols < 2 || cols > 6) {
+                    showSystemModal({ type: 'alert', title: 'Invalid Input', message: 'Please enter a number between 2 and 6.' });
+                    return;
+                }
+
+                // Initialize state with custom columns
+                state = {
+                    categories: Array(cols).fill().map((_, i) => `Category ${i + 1}`),
+                    teams: ["Team 1", "Team 2", "Team 3", "Team 4"],
+                    questions: Array(5).fill().map(() => Array(cols).fill({ q: "Edit Me", a: "Answer" })),
+                    visited: Array(5).fill().map(() => Array(cols).fill(false)),
+                    scores: [0, 0, 0, 0]
+                };
+
+                save();
+                hideLandingPage();
+            }
+        });
     }
 
     function loadPreset(id) {
@@ -311,11 +333,19 @@ const Jeopardy = (function() {
         els.cats.innerHTML = '';
         els.grid.innerHTML = '';
 
+        const cols = state.categories.length;
+        const rows = state.questions.length;
+
+        // Apply dynamic grid columns
+        const gridStyle = `grid-template-columns: repeat(${cols}, minmax(0, 1fr));`;
+        els.cats.style = gridStyle;
+        els.grid.style = gridStyle + ` grid-template-rows: repeat(${rows}, minmax(0, 1fr));`;
+
         // Categories
-        const catColors = ['bg-brand-pink', 'bg-brand-orange', 'bg-brand-green', 'bg-brand-blue', 'bg-brand-pink'];
+        const catColors = ['bg-brand-pink', 'bg-brand-orange', 'bg-brand-green', 'bg-brand-blue'];
         state.categories.forEach((cat, idx) => {
             const div = document.createElement('div');
-            div.className = `${catColors[idx%4]} text-white border-4 border-brand-dark rounded-xl min-h-[50px] sm:min-h-[60px] p-2 flex items-center justify-center shadow-neo relative cursor-pointer select-none transition-transform hover:scale-[1.02] active:scale-95`;
+            div.className = `${catColors[idx % catColors.length]} text-white border-4 border-brand-dark rounded-xl min-h-[50px] sm:min-h-[60px] p-2 flex items-center justify-center shadow-neo relative cursor-pointer select-none transition-transform hover:scale-[1.02] active:scale-95`;
             div.innerHTML = `<span class="font-heading font-bold uppercase text-center leading-[1.1] drop-shadow-md tracking-wide line-clamp-2" style="font-size: clamp(0.875rem, 2vw, 1.25rem);">${cat}</span>`;
             
             if(isEditMode) {
@@ -336,8 +366,8 @@ const Jeopardy = (function() {
         });
 
         // Grid
-        for(let r=0; r<5; r++) {
-            for(let c=0; c<5; c++) {
+        for(let r=0; r<rows; r++) {
+            for(let c=0; c<cols; c++) {
                 const cell = state.questions[r][c];
                 const visited = state.visited[r][c];
                 const points = (r+1)*100;
@@ -357,7 +387,7 @@ const Jeopardy = (function() {
                 }
 
                 btn.className = cls;
-                btn.innerHTML = `<span class="relative z-10" style="font-size: clamp(2rem, 5vw, 4rem);">$${points}</span>`;
+                btn.innerHTML = `<span class="relative z-10" style="font-size: clamp(1.5rem, 4vw, 3.5rem);">$${points}</span>`;
                 
                 // Decorative pattern on tiles
                 if(!visited) {
