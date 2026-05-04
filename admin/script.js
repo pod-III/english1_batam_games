@@ -902,6 +902,21 @@ function setClassTab(tab) {
     unitsBtn.className = `neo-btn px-4 py-2 ${tab === 'units' ? 'bg-orange text-white' : 'bg-slate-700 text-slate-300'} rounded-xl text-sm`
 }
 
+function setDataTab(tab) {
+    const tabs = ['progress', 'notes', 'schedule', 'classes']
+    tabs.forEach(t => {
+        const btn = document.getElementById('datatab-' + t)
+        const view = document.getElementById('dataview-' + t)
+        if (btn) {
+            btn.className = `neo-btn px-4 py-2 ${t === tab ? 'bg-blue text-white font-bold' : 'bg-slate-800 text-slate-300'} rounded-xl text-sm`
+        }
+        if (view) {
+            view.classList.toggle('hidden', t !== tab)
+        }
+    })
+    lucide.createIcons()
+}
+
 function openClassModal(id, type) {
     const item = type === 'admin'
         ? allClassAdmin.find(c => c.id === id)
@@ -1130,7 +1145,7 @@ function setView(view) {
         toggleSidebar();
     }
 
-    ['dashboard', 'users', 'progress', 'notes', 'logs', 'announcements', 'cloud', 'settings', 'schedule-events', 'schedule-classes'].forEach(v => {
+    ['dashboard', 'users', 'data-details', 'logs', 'announcements', 'cloud', 'settings'].forEach(v => {
         const viewEl = document.getElementById('view-' + v)
         if (viewEl) viewEl.classList.toggle('hidden', v !== view)
 
@@ -1138,14 +1153,11 @@ function setView(view) {
             const titles = {
                 dashboard: 'Dashboard',
                 users: 'User Management',
-                progress: 'Progress Data',
-                notes: 'Lesson Notes',
+                'data-details': 'Data Details',
                 logs: 'Audit Logs',
                 announcements: 'Announcements',
                 cloud: 'Cloud Storage',
-                settings: 'Settings',
-                'schedule-events': 'Schedule Events',
-                'schedule-classes': 'Class Schedules'
+                settings: 'Settings'
             }
             const viewTitle = document.getElementById('view-title')
             if (viewTitle) viewTitle.textContent = titles[v] || v
@@ -1163,8 +1175,7 @@ function setView(view) {
     if (view === 'settings') loadSettings()
     if (view === 'announcements') renderAnnouncements()
     if (view === 'cloud') renderCloudTable()
-    if (view === 'schedule-events') applyFilters()
-    if (view === 'schedule-classes') applyFilters()
+    if (view === 'data-details') applyFilters()
 }
 
 // ── CLOUD USAGE LOGIC ──
