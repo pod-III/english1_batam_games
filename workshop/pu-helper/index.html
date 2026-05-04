@@ -7,6 +7,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../../supabase.js"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -70,20 +72,50 @@
 
   <div class="max-w-3xl mx-auto px-4 py-6 space-y-5">
 
-    <!-- Student Roster -->
-    <section class="bg-white dark:bg-slate-800 border-4 border-[#1e293b] rounded-2xl p-5 hard">
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="fredoka text-xl font-bold text-[#1e293b] dark:text-[#f8fafc] flex items-center gap-2">
-          <i data-lucide="users" style="width:20px;height:20px;stroke-width:2.5;color:#FF8C42"></i>
-          Students
-          <span id="rosterCount" class="text-sm bg-[#FF8C42]/20 border-2 border-[#1e293b] rounded-lg px-2 py-0.5 font-nunito">0</span>
-        </h2>
-        <button onclick="addNewStudent()" class="btn bg-[#FF6B95] border-[3px] border-[#1e293b] rounded-xl px-3 py-1.5 fredoka font-bold text-white text-sm hard-sm flex items-center gap-1">
-          <i data-lucide="plus" style="width:16px;height:16px;stroke-width:3"></i> Add Student
+    <!-- Class Selector & Student Roster -->
+    <section class="bg-white dark:bg-slate-800 border-4 border-[#1e293b] rounded-2xl p-5 hard space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <div class="bg-[#FF8C42]/20 border-2 border-[#1e293b] rounded-xl p-1.5 hard-sm">
+            <i data-lucide="school" class="text-[#FF8C42]" style="width:20px;height:20px;stroke-width:2.5"></i>
+          </div>
+          <select id="classSelector" onchange="switchClass(this.value)" class="bg-[#f8fafc] dark:bg-slate-700 border-3 border-[#1e293b] rounded-xl px-3 py-1.5 fredoka font-bold text-[#1e293b] dark:text-white focus:outline-none min-w-[140px]"></select>
+          <button onclick="addNewClass()" class="btn bg-[#2979FF] border-[3px] border-[#1e293b] rounded-xl p-1.5 text-white hard-sm" title="Add Class">
+            <i data-lucide="plus" style="width:18px;height:18px;stroke-width:3"></i>
+          </button>
+          <button onclick="deleteCurrentClass()" class="btn bg-red-400 border-[3px] border-[#1e293b] rounded-xl p-1.5 text-white hard-sm" title="Delete Class">
+            <i data-lucide="trash" style="width:18px;height:18px;stroke-width:3"></i>
+          </button>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="exportClassToJSON()" class="btn bg-white dark:bg-slate-700 border-2 border-[#1e293b] p-2 rounded-xl hard-sm" title="Export Class">
+            <i data-lucide="download" style="width:16px;height:16px;stroke-width:2.5"></i>
+          </button>
+          <button onclick="triggerImport()" class="btn bg-white dark:bg-slate-700 border-2 border-[#1e293b] p-2 rounded-xl hard-sm" title="Import Class">
+            <i data-lucide="upload" style="width:16px;height:16px;stroke-width:2.5"></i>
+          </button>
+          <input type="file" id="importFile" accept=".json" class="hidden" onchange="importClassFromJSON(event)" />
+        </div>
+        <button onclick="addNewStudent()" class="btn bg-[#FF6B95] border-[3px] border-[#1e293b] rounded-xl px-4 py-2 fredoka font-bold text-white text-sm hard-sm flex items-center gap-2">
+          <i data-lucide="user-plus" style="width:16px;height:16px;stroke-width:3"></i> Add Student
         </button>
       </div>
-      <div id="rosterList" class="flex flex-wrap gap-2 min-h-[38px] items-center">
-        <p class="text-slate-400 font-semibold text-sm italic" id="rosterEmpty">No students yet. Click "Add Student" to begin.</p>
+
+      <div class="border-t-2 border-slate-100 dark:border-slate-700 pt-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+          <h2 class="fredoka text-lg font-bold text-[#1e293b] dark:text-[#f8fafc] flex items-center gap-2">
+            <i data-lucide="users" style="width:18px;height:18px;stroke-width:2.5;color:#FF8C42"></i>
+            Students
+            <span id="rosterCount" class="text-xs bg-[#FF8C42]/20 border-2 border-[#1e293b] rounded-lg px-2 py-0.5 font-nunito">0</span>
+          </h2>
+          <div class="relative flex-1 max-w-xs">
+            <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" style="width:14px;height:14px"></i>
+            <input type="text" id="rosterSearch" oninput="renderRoster()" placeholder="Search students…" class="w-full pl-9 pr-3 py-1.5 border-2 border-[#1e293b] rounded-xl bg-[#f8fafc] dark:bg-slate-700 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-[#FF8C42]/50" />
+          </div>
+        </div>
+        <div id="rosterList" class="flex flex-wrap gap-2 min-h-[38px] items-center">
+          <p class="text-slate-400 font-semibold text-sm italic" id="rosterEmpty">No students yet.</p>
+        </div>
       </div>
     </section>
 
@@ -223,6 +255,15 @@
 <script>
   lucide.createIcons();
 
+  // ── Auth Guard (Pro Only) ──────────────────────────────────────────────────
+  (async () => {
+    const profile = await getUserProfile();
+    if (!profile || (profile.role !== 'pro' && profile.role !== 'admin')) {
+      window.location.href = '../../hub.html';
+      return;
+    }
+  })();
+
   // ── Dark Mode ─────────────────────────────────────────────────────────────
   const darkToggle = document.getElementById('darkToggle');
   if (localStorage.getItem('e1_dark') === '1') {
@@ -238,25 +279,171 @@
     localStorage.setItem('e1_dark', isDark ? '1' : '0');
   });
 
-  // ── State ──────────────────────────────────────────────────────────────────
-  let students  = JSON.parse(localStorage.getItem('e1_students') || '[]');
-  let currentId = localStorage.getItem('e1_currentId') || null;
+  // ── State Management ────────────────────────────────────────────────────────
+  let state = {
+    classes: [
+      { id: 'default', name: 'Class 1', students: [] }
+    ],
+    activeClassId: 'default',
+    currentStudentId: null
+  };
 
-  function save() { localStorage.setItem('e1_students', JSON.stringify(students)); }
-  function getStudent(id) { return students.find(s => s.id === id) || null; }
+  // Migration from old flat students
+  const oldStudents = JSON.parse(localStorage.getItem('e1_students'));
+  if (oldStudents && Array.isArray(oldStudents)) {
+    state.classes[0].students = oldStudents;
+    localStorage.removeItem('e1_students');
+    saveLocal();
+  }
+
+  async function save() {
+    saveLocal();
+    if (typeof saveProgress === 'function' && !isSandbox()) {
+      try {
+        await saveProgress('pu-helper', state);
+      } catch (e) {
+        console.warn('Cloud save failed', e);
+      }
+    }
+  }
+
+  function saveLocal() {
+    localStorage.setItem('pu_helper_v2', JSON.stringify(state));
+  }
+
+  function loadLocal() {
+    const saved = localStorage.getItem('pu_helper_v2');
+    if (saved) state = JSON.parse(saved);
+  }
+
+  async function syncWithCloud() {
+    if (typeof loadProgress === 'function' && !isSandbox()) {
+      try {
+        const cloudState = await loadProgress('pu-helper');
+        if (cloudState) {
+          state = cloudState;
+          saveLocal();
+        }
+      } catch (e) {
+        console.warn('Cloud load failed', e);
+      }
+    }
+  }
+
+  function getActiveClass() {
+    return state.classes.find(c => c.id === state.activeClassId) || state.classes[0];
+  }
+
+  function getStudent(id) {
+    const cls = getActiveClass();
+    return cls.students.find(s => s.id === id) || null;
+  }
+
+  // ── Class Management ───────────────────────────────────────────────────────
+  function switchClass(id) {
+    state.activeClassId = id;
+    state.currentStudentId = null;
+    save();
+    renderClassSelector();
+    renderRoster();
+    clearForm();
+    document.getElementById('outputSection').classList.add('hidden');
+  }
+
+  function addNewClass() {
+    const name = prompt('Enter new class name:');
+    if (!name) return;
+    const newCls = { id: Date.now().toString(), name, students: [] };
+    state.classes.push(newCls);
+    switchClass(newCls.id);
+  }
+
+  function deleteCurrentClass() {
+    if (state.classes.length <= 1) {
+      alert('You must have at least one class.');
+      return;
+    }
+    const cls = getActiveClass();
+    if (!confirm(`Delete class "${cls.name}" and all its students?`)) return;
+    state.classes = state.classes.filter(c => c.id !== state.activeClassId);
+    state.activeClassId = state.classes[0].id;
+    switchClass(state.activeClassId);
+  }
+
+  function renderClassSelector() {
+    const sel = document.getElementById('classSelector');
+    sel.innerHTML = '';
+    state.classes.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name;
+      opt.selected = c.id === state.activeClassId;
+      sel.appendChild(opt);
+    });
+  }
+
+  function exportClassToJSON() {
+    const cls = getActiveClass();
+    const dataStr = JSON.stringify(cls, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `KlassKit_PU_${cls.name.replace(/\s+/g, '_')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Class exported!');
+  }
+
+  function triggerImport() {
+    document.getElementById('importFile').click();
+  }
+
+  function importClassFromJSON(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        if (data.name && Array.isArray(data.students)) {
+          data.id = Date.now().toString(); // New ID to avoid collision
+          state.classes.push(data);
+          switchClass(data.id);
+          showToast('Class imported!');
+        } else {
+          throw new Error('Invalid format');
+        }
+      } catch (err) {
+        alert('Error importing file. Please ensure it is a valid PU Helper class export.');
+      }
+      event.target.value = '';
+    };
+    reader.readAsText(file);
+  }
 
   // ── Roster ─────────────────────────────────────────────────────────────────
   function renderRoster() {
     const list  = document.getElementById('rosterList');
-    document.getElementById('rosterCount').textContent = students.length;
+    const search = document.getElementById('rosterSearch').value.toLowerCase();
+    const activeCls = getActiveClass();
+    
+    const filteredStudents = activeCls.students.filter(s => s.name.toLowerCase().includes(search));
+    
+    document.getElementById('rosterCount').textContent = activeCls.students.length;
     list.innerHTML = '';
 
-    if (students.length === 0) {
-      list.innerHTML = '<p class="text-slate-400 font-semibold text-sm italic">No students yet. Click "Add Student" to begin.</p>';
+    if (activeCls.students.length === 0) {
+      list.innerHTML = '<p class="text-slate-400 font-semibold text-sm italic">No students in this class. Click "Add Student" to begin.</p>';
       return;
     }
 
-    students.forEach(s => {
+    if (filteredStudents.length === 0 && search) {
+      list.innerHTML = '<p class="text-slate-400 font-semibold text-sm italic">No students matching search.</p>';
+      return;
+    }
+
+    filteredStudents.forEach(s => {
       const done = s.scores && Object.values(s.scores).every(v => v !== '' && v !== undefined);
       const isActive = s.id === currentId;
       const pill = document.createElement('button');
@@ -291,8 +478,8 @@
   }
 
   function loadStudent(id) {
-    currentId = id;
-    localStorage.setItem('e1_currentId', id);
+    state.currentStudentId = id;
+    saveLocal(); // Quick save current student selection
     const s = getStudent(id);
     if (!s) return;
 
@@ -334,7 +521,8 @@
     const name = document.getElementById('modalName').value.trim();
     if (!name) return;
     const s = { id: Date.now().toString(), name, scores: {}, comments: null, pronoun: 'they' };
-    students.push(s);
+    const cls = getActiveClass();
+    cls.students.push(s);
     save();
     closeModal();
     renderRoster();
@@ -346,7 +534,7 @@
 
   // ── Save & Generate ────────────────────────────────────────────────────────
   function saveAndGenerate() {
-    if (!currentId) { showError('Please select or add a student first.'); return; }
+    if (!state.currentStudentId) { showError('Please select or add a student first.'); return; }
     const name = document.getElementById('studentName').value.trim();
 
     const fields = {
@@ -368,7 +556,7 @@
     }
     hideError();
 
-    const s = getStudent(currentId);
+    const s = getStudent(state.currentStudentId);
     s.name   = name;
     s.scores = fields;
     s.pronoun = currentPronoun;
@@ -379,11 +567,11 @@
   }
 
   function deleteCurrentStudent() {
-    if (!currentId) return;
+    if (!state.currentStudentId) return;
     if (!confirm('Delete this student and their scores?')) return;
-    students = students.filter(s => s.id !== currentId);
-    currentId = null;
-    localStorage.removeItem('e1_currentId');
+    const cls = getActiveClass();
+    cls.students = cls.students.filter(s => s.id !== state.currentStudentId);
+    state.currentStudentId = null;
     save();
     renderRoster();
     clearForm();
@@ -562,13 +750,20 @@
 
   // ── Init ───────────────────────────────────────────────────────────────────
   (async () => {
+    loadLocal();
+    await syncWithCloud();
     await loadComments();
+    renderClassSelector();
     renderPronounButtons();
     renderRoster();
-    if (currentId && getStudent(currentId)) {
-      loadStudent(currentId);
-    } else if (students.length > 0) {
-      loadStudent(students[0].id);
+    
+    if (state.currentStudentId && getStudent(state.currentStudentId)) {
+      loadStudent(state.currentStudentId);
+    } else {
+      const cls = getActiveClass();
+      if (cls.students.length > 0) {
+        loadStudent(cls.students[0].id);
+      }
     }
   })();
 </script>

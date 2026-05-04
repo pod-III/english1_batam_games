@@ -11,6 +11,8 @@
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../../supabase.js"></script>
 
     <script>
         tailwind.config = {
@@ -257,6 +259,12 @@
                 </h2>
                 <div class="flex items-center gap-2">
                     <input type="file" id="importFile" accept=".json" class="hidden" onchange="importData(event)">
+                    <button onclick="syncArchiveWithCloud()" class="btn-neo bg-e1-blue border-3 border-e1-dark rounded-lg px-3 py-1.5 text-sm font-bold text-white shadow-neo-sm flex items-center gap-2" title="Sync Archive to Cloud">
+                        <i data-lucide="cloud-upload" class="w-4 h-4"></i> <span class="hidden sm:inline">Sync</span>
+                    </button>
+                    <button onclick="loadArchiveFromCloud()" class="btn-neo bg-e1-green border-3 border-e1-dark rounded-lg px-3 py-1.5 text-sm font-bold text-e1-dark shadow-neo-sm flex items-center gap-2" title="Pull Archive from Cloud">
+                        <i data-lucide="cloud-download" class="w-4 h-4"></i> <span class="hidden sm:inline">Pull</span>
+                    </button>
                     <button onclick="triggerImport()" class="btn-neo bg-white border-3 border-e1-dark rounded-lg px-3 py-1.5 text-sm font-bold text-e1-dark shadow-neo-sm flex items-center gap-2" title="Import Class JSON">
                         <i data-lucide="download-cloud" class="w-4 h-4"></i> <span class="hidden sm:inline">Import</span>
                     </button>
@@ -275,6 +283,15 @@
     </div>
 
     <script>
+        // ── Auth Guard (Pro Only) ──────────────────────────────────────────────────
+        (async () => {
+            const profile = await getUserProfile();
+            if (!profile || (profile.role !== 'pro' && profile.role !== 'admin')) {
+                window.location.href = '../../hub.html';
+                return;
+            }
+        })();
+
         let commentBank = [];
         let state = {};
         let activeAccordion = 'general';
@@ -319,7 +336,11 @@
         function initDB() {
             const request = indexedDB.open(dbName, dbVersion);
             request.onerror = (event) => console.error("IndexedDB Error:", event);
-            request.onsuccess = (event) => { db = event.target.result; };
+            request.onsuccess = (event) => { 
+                db = event.target.result; 
+                // Initial cloud pull for archive
+                loadArchiveFromCloud();
+            };
             request.onupgradeneeded = (event) => {
                 const db = event.target.result;
                 if (!db.objectStoreNames.contains("reports")) {
@@ -372,6 +393,8 @@
                     store.add(reportData);
                 }
                 showToast("Saved to Archive!");
+                // Auto-sync archive to cloud
+                syncArchiveWithCloud();
             };
         }
 
@@ -608,6 +631,54 @@
                 activeAccordion: activeAccordion
             };
             localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            
+            // Cloud Sync Current State
+            if (typeof saveProgress === 'function' && !isSandbox()) {
+                saveProgress('report-helper-state', data).catch(console.error);
+            }
+        }
+
+        async function syncArchiveWithCloud() {
+            if (!db || typeof saveProgress !== 'function' || isSandbox()) return;
+            
+            const tx = db.transaction("reports", "readonly");
+            const store = tx.objectStore("reports");
+            const request = store.getAll();
+            
+            request.onsuccess = async () => {
+                const reports = request.result;
+                try {
+                    await saveProgress('report-helper-archive', { reports });
+                    showToast("Archive synced to cloud!");
+                } catch (e) {
+                    console.error("Archive cloud sync failed", e);
+                }
+            };
+        }
+
+        async function loadArchiveFromCloud() {
+            if (!db || typeof loadProgress !== 'function' || isSandbox()) return;
+            
+            try {
+                const cloudData = await loadProgress('report-helper-archive');
+                if (cloudData && cloudData.reports) {
+                    const tx = db.transaction("reports", "readwrite");
+                    const store = tx.objectStore("reports");
+                    
+                    // Simple merge: add if not exists
+                    for (const report of cloudData.reports) {
+                        const checkReq = store.get(report.id);
+                        checkReq.onsuccess = () => {
+                            if (!checkReq.result) {
+                                store.add(report);
+                            }
+                        };
+                    }
+                    showToast("Archive pulled from cloud!");
+                }
+            } catch (e) {
+                console.error("Archive cloud load failed", e);
+            }
         }
 
         function loadState() {
@@ -645,6 +716,15 @@
                     if (saved.studentName) document.getElementById('studentName').value = saved.studentName;
                     if (saved.pronoun) document.getElementById('pronoun').value = saved.pronoun;
                     if (saved.activeAccordion !== undefined) activeAccordion = saved.activeAccordion;
+                }
+
+                // Cloud Sync Load
+                if (typeof loadProgress === 'function' && !isSandbox()) {
+                    const cloudState = await loadProgress('report-helper-state');
+                    if (cloudState) {
+                        // Merge cloud state if needed or just use it
+                        Object.assign(state, cloudState.state || {});
+                    }
                 }
 
                 document.getElementById('loadingMsg').style.display = 'none';
