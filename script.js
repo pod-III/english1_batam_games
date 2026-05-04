@@ -390,15 +390,7 @@ const UI = {
     if (tipEl) tipEl.innerHTML = `<i data-lucide="sparkles" class="w-4 h-4 text-yellow-300"></i> Tip: ${tips[tipIndex]}`;
   },
 
-  updateTitle(title) {
-    const el = document.getElementById('hub-view-title');
-    if (el) el.textContent = title;
-  },
 
-  updateCount(count) {
-    const badge = document.getElementById('count-badge');
-    if (badge) badge.textContent = count;
-  },
 
   showError(message) {
     const grid = document.getElementById('games-grid');
@@ -1054,7 +1046,6 @@ const GameGrid = {
     const grid = document.getElementById('games-grid');
     if (!grid) return;
 
-    UI.updateCount(gamesToRender.length);
 
     if (gamesToRender.length === 0) {
       grid.innerHTML = `
@@ -1368,20 +1359,6 @@ const Filters = {
       btn.classList.toggle('active', isActive);
       btn.setAttribute('aria-pressed', String(isActive));
     });
-
-    // Update Header Title
-    if (isLanding) {
-      UI.updateTitle('Dashboard');
-    } else {
-      const titles = {
-        all: 'Library',
-        myspace: 'My Space',
-        tool: 'Teaching Tools',
-        game: 'Classroom Games',
-        workshop: 'Workshop'
-      };
-      UI.updateTitle(titles[State.filters.category] || 'Library');
-    }
 
     // Update Bottom Nav items
     const bnavItems = {
