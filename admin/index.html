@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link rel="icon" type="image/x-icon" href="../media/icon.ico" />
+    <link rel="icon" type="image/webp" href="../media/icon.webp" />
+    <link rel="apple-touch-icon" href="../media/icon-180.png" />
+    <link rel="manifest" href="../manifest.json">
+    <meta name="theme-color" content="#1ea7fd">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
+    <script src="../supabase.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;700;800&display=swap"
+        rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        pink: '#FF6B95',
+                        orange: '#FF8C42',
+                        green: '#00E676',
+                        blue: '#2979FF',
+                        dark: '#1e293b',
+                        chalk: '#f8fafc',
+                    },
+                    fontFamily: {
+                        heading: ['Fredoka', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body class="dark text-slate-100 overflow-hidden h-screen flex">
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 z-[300] bg-slate-950 flex flex-col items-center justify-center">
+        <div class="w-14 h-14 border-4 border-blue border-t-transparent rounded-full animate-spin mb-5"></div>
+        <p class="font-heading text-lg text-slate-300 tracking-widest pulse">Verifying admin access...</p>
+    </div>
+
+    <!-- View Modal -->
+    <div id="viewModalBg" class="view-modal-bg hidden" onclick="if(event.target===this)closeViewModal()">
+        <div class="bg-slate-900 border-[3px] border-slate-600 rounded-[24px] w-full max-w-2xl max-h-[85vh] flex flex-col"
+            style="box-shadow:6px 6px 0 #334155">
+            <div class="flex items-center justify-between p-4 md:p-6 border-b-[3px] border-slate-700">
+                <div>
+                    <div id="viewModalTitle" class="font-heading text-xl text-white"></div>
+                    <div id="viewModalSub" class="text-xs text-slate-400 mt-1 font-mono"></div>
+                </div>
+                <button onclick="closeViewModal()"
+                    class="neo-btn px-3 py-1.5 bg-slate-800 text-slate-300 rounded-xl text-sm">✕ Close</button>
+            </div>
+            <pre id="viewModalContent"
+                class="p-4 md:p-6 text-xs text-green overflow-auto scrollbar flex-1 leading-relaxed"></pre>
+        </div>
+    </div>
+
+    <!-- Confirm Delete Modal -->
+    <div id="deleteModalBg" class="view-modal-bg hidden" onclick="if(event.target===this)closeDeleteModal()">
+        <div class="bg-white dark:bg-slate-900 border-[3px] border-dark dark:border-slate-600 rounded-[24px] w-full max-w-md p-6 md:p-8"
+            style="box-shadow:6px 6px 0 #1e293b">
+            <div class="w-14 h-14 rounded-2xl bg-red-500 border-[3px] border-dark flex items-center justify-center mx-auto mb-5"
+                style="box-shadow:3px 3px 0 #1e293b">
+                <i data-lucide="trash-2" class="w-7 h-7 text-white"></i>
+            </div>
+            <h3 class="font-heading text-2xl text-center text-dark dark:text-white mb-2" id="deleteModalTitle">Confirm
+                Delete</h3>
+            <p class="text-slate-500 text-sm text-center mb-6" id="deleteModalMsg"></p>
+            <div class="flex gap-3">
+                <button onclick="closeDeleteModal()"
+                    class="neo-btn flex-1 justify-center px-4 py-2.5 bg-slate-100 dark:bg-slate-800 text-dark dark:text-white rounded-xl">Cancel</button>
+                <button onclick="executeDelete()"
+                    class="neo-btn flex-1 justify-center px-4 py-2.5 bg-red-500 text-white rounded-xl">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none"></div>
+
+    <!-- Mobile overlay -->
+    <div id="mobileOverlay" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-40 hidden lg:hidden"
+        onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar"
+        class="fixed inset-y-0 left-0 z-50 w-64 bg-slate-950 flex flex-col flex-shrink-0 border-r-[3px] border-slate-800 transform -translate-x-full transition-transform duration-300 lg:relative lg:translate-x-0">
+        <!-- Branding -->
+        <div class="p-5 border-b-[3px] border-slate-800">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-white dark:bg-slate-800 rounded-xl border-[3px] border-slate-600 flex items-center justify-center flex-shrink-0 transition-colors"
+                    style="box-shadow:2px 2px 0 #475569">
+                    <img src="../media/icon.webp" alt="KlassKit Logo" class="w-6 h-6 object-contain">
+                </div>
+                <div>
+                    <div class="font-heading text-xl text-white leading-none">KlassKit</div>
+                    <div class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Admin Panel</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin info -->
+        <div class="p-5 border-b-[3px] border-slate-800">
+            <div class="flex items-center gap-3">
+                <div id="adminAvatar"
+                    class="w-10 h-10 rounded-xl bg-blue border-[3px] border-slate-600 flex items-center justify-center font-heading text-white text-lg flex-shrink-0">
+                    ?</div>
+                <div class="min-w-0">
+                    <div id="adminName" class="font-bold text-white text-sm truncate">Loading...</div>
+                    <div class="text-[10px] text-blue font-bold uppercase tracking-widest">Super Admin</div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Nav -->
+        <nav class="flex-1 p-4 space-y-1">
+            <button onclick="setView('dashboard')" id="nav-dashboard" class="sidebar-link active w-full text-slate-300">
+                <i data-lucide="layout-dashboard" class="w-4 h-4 flex-shrink-0"></i> Dashboard
+            </button>
+            <button onclick="setView('users')" id="nav-users" class="sidebar-link w-full text-slate-400">
+                <i data-lucide="users" class="w-4 h-4 flex-shrink-0"></i> Users
+            </button>
+            <button onclick="setView('progress')" id="nav-progress" class="sidebar-link w-full text-slate-400">
+                <i data-lucide="bar-chart-2" class="w-4 h-4 flex-shrink-0"></i> Progress Data
+            </button>
+            <button onclick="setView('notes')" id="nav-notes" class="sidebar-link w-full text-slate-400">
+                <i data-lucide="book-open" class="w-4 h-4 flex-shrink-0"></i> Lesson Notes
+            </button>
+            <button onclick="setView('logs')" id="nav-logs" class="sidebar-link w-full text-slate-400">
+                <i data-lucide="scroll-text" class="w-4 h-4 flex-shrink-0"></i> System Logs
+            </button>
+            <button onclick="setView('announcements')" id="nav-announcements"
+                class="sidebar-link w-full text-slate-400">
+                <i data-lucide="megaphone" class="w-4 h-4 flex-shrink-0"></i> Announcements
+            </button>
+            <button onclick="setView('schedule-events')" id="nav-schedule-events"
+                class="sidebar-link w-full text-slate-400">
+                <i data-lucide="calendar" class="w-4 h-4 flex-shrink-0"></i> Schedules
+            </button>
+            <button onclick="setView('schedule-classes')" id="nav-schedule-classes"
+                class="sidebar-link w-full text-slate-400">
+                <i data-lucide="clipboard-check" class="w-4 h-4 flex-shrink-0"></i> Admin Tracker
+            </button>
+            <button onclick="setView('cloud')" id="nav-cloud" class="sidebar-link w-full text-slate-400">
+                <i data-lucide="hard-drive" class="w-4 h-4 flex-shrink-0"></i> Cloud Usage
+            </button>
+            <button onclick="setView('settings')" id="nav-settings" class="sidebar-link w-full text-slate-400">
+                <i data-lucide="settings" class="w-4 h-4 flex-shrink-0"></i> Settings
+            </button>
+        </nav>
+
+        <!-- Bottom actions -->
+        <div class="p-4 border-t-[3px] border-slate-800 space-y-2">
+            <a href="../hub.html" class="sidebar-link text-slate-400 w-full">
+                <i data-lucide="arrow-left" class="w-4 h-4 flex-shrink-0"></i> Back to Hub
+            </a>
+            <button onclick="signOut()" class="sidebar-link text-pink w-full">
+                <i data-lucide="log-out" class="w-4 h-4 flex-shrink-0"></i> Sign Out
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main -->
+    <main class="flex-1 flex flex-col min-w-0 bg-slate-900">
+
+        <!-- Top bar -->
+        <header
+            class="flex-shrink-0 bg-slate-950 border-b-[3px] border-slate-800 flex flex-col md:flex-row min-h-[64px] items-stretch md:items-center justify-between p-3 md:p-4 md:px-6 gap-4">
+
+            <div class="flex items-center gap-4">
+                <div
+                    class="flex items-center justify-between lg:hidden pb-2 md:pb-0 border-b-2 border-slate-800 md:border-b-0 md:w-auto">
+                    <button onclick="toggleSidebar()"
+                        class="neo-btn p-2 text-slate-400 hover:text-white bg-slate-800 rounded-xl">
+                        <i data-lucide="menu" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <h1 id="view-title" class="font-heading text-lg md:text-xl text-white">Dashboard</h1>
+                <div class="hidden lg:block w-px h-6 bg-slate-800 mx-1"></div>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-1.5 md:gap-3 md:gap-3 w-full md:w-auto flex-1">
+                <!-- Search -->
+                <div class="relative flex-1 min-w-[150px]">
+                    <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"></i>
+                    <input type="text" id="searchInput" placeholder="Search name or tool..."
+                        class="w-full pl-9 pr-4 py-2 bg-slate-800 border-2 border-slate-700 rounded-xl text-xs md:text-sm text-white placeholder-slate-500 outline-none focus:border-blue transition-colors"
+                        oninput="debouncedSearch()">
+                </div>
+                <!-- Tool filter -->
+                <select id="toolFilter" onchange="applyFilters()"
+                    class="flex-1 md:flex-none px-3 py-2 bg-slate-800 border-2 border-slate-700 rounded-xl text-xs md:text-sm text-slate-300 outline-none focus:border-blue transition-colors min-w-[120px]">
+                    <option value="">All tools</option>
+                </select>
+                <!-- Clear -->
+                <button onclick="clearFilters()"
+                    class="neo-btn px-3 py-1.5 bg-slate-800 text-slate-300 rounded-xl text-sm hidden sm:block">Clear</button>
+            </div>
+
+            <div class="hidden md:flex items-center gap-3 w-full md:w-auto justify-end">
+                <div id="lastRefreshed" class="hidden lg:block text-xs text-slate-500 font-mono"></div>
+                <button onclick="fetchData()" class="neo-btn px-4 py-1.5 bg-blue text-white rounded-xl text-sm">
+                    <i data-lucide="refresh-cw" class="w-4 h-4 refreshIcon"></i> Refresh
+                </button>
+            </div>
+        </header>
+
+        <!-- Floating Refresh Button for Mobile -->
+        <button onclick="fetchData()"
+            class="fixed bottom-6 right-6 z-30 neo-btn p-4 bg-blue text-white rounded-full shadow-lg md:hidden">
+            <i data-lucide="refresh-cw" class="w-6 h-6 refreshIcon"></i>
+        </button>
+
+        <!-- Content -->
+        <div class="flex-1 overflow-y-auto scrollbar p-6 space-y-6">
+
+            <!-- DASHBOARD VIEW -->
+            <div id="view-dashboard">
+                <!-- Stats -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4 mb-6">
+                    <div class="stat-card neo bg-slate-800">
+                        <div class="flex items-start justify-between mb-3">
+                            <div
+                                class="w-9 h-9 rounded-xl bg-blue/20 border-2 border-blue/40 flex items-center justify-center">
+                                <i data-lucide="users" class="w-4 h-4 text-blue"></i>
+                            </div>
+                            <span class="chip bg-blue/10 text-blue border-blue/40">Users</span>
+                        </div>
+                        <div class="font-heading text-4xl text-white mb-1" id="statUsers">—</div>
+                        <div class="text-xs text-slate-400 font-bold uppercase tracking-widest">Unique teachers</div>
+                    </div>
+
+                    <div class="stat-card neo bg-slate-800">
+                        <div class="flex items-start justify-between mb-3">
+                            <div
+                                class="w-9 h-9 rounded-xl bg-pink/20 border-2 border-pink/40 flex items-center justify-center">
+                                <i data-lucide="zap" class="w-4 h-4 text-pink"></i>
+                            </div>
+                            <span class="chip bg-pink/10 text-pink border-pink/40">Live</span>
+                        </div>
+                        <div class="font-heading text-4xl text-white mb-1" id="statRows">—</div>
+                        <div class="text-xs text-slate-400 font-bold uppercase tracking-widest">Progress rows</div>
+                    </div>
+
+                    <div class="stat-card neo bg-slate-800">
+                        <div class="flex items-start justify-between mb-3">
+                            <div
+                                class="w-9 h-9 rounded-xl bg-orange/20 border-2 border-orange/40 flex items-center justify-center">
+                                <i data-lucide="grid-2x2" class="w-4 h-4 text-orange"></i>
+                            </div>
+                            <span class="chip bg-orange/10 text-orange border-orange/40">Tools</span>
+                        </div>
+                        <div class="font-heading text-4xl text-white mb-1" id="statTools">—</div>
+                        <div class="text-xs text-slate-400 font-bold uppercase tracking-widest">Active tools</div>
+                    </div>
+
+                    <div class="stat-card neo bg-slate-800">
+                        <div class="flex items-start justify-between mb-3">
+                            <div
+                                class="w-9 h-9 rounded-xl bg-green/20 border-2 border-green/40 flex items-center justify-center">
+                                <i data-lucide="activity" class="w-4 h-4 text-green"></i>
+                            </div>
+                            <span class="chip bg-green/10 text-green border-green/40">Online</span>
+                        </div>
+                        <div class="font-heading text-xl text-white mb-1" id="statLatest">—</div>
+                        <div class="text-xs text-slate-400 font-bold uppercase tracking-widest">Last activity</div>
+                    </div>
+
+                    <div class="stat-card neo bg-slate-800">
+                        <div class="flex items-start justify-between mb-3">
+                            <div
+                                class="w-9 h-9 rounded-xl bg-orange/20 border-2 border-orange/40 flex items-center justify-center">
+                                <i data-lucide="database" class="w-4 h-4 text-orange"></i>
+                            </div>
+                            <span class="chip bg-orange/10 text-orange border-orange/40">Storage</span>
+                        </div>
+                        <div class="font-heading text-2xl text-white mb-1" id="statStorage">—</div>
+                        <div class="text-xs text-slate-400 font-bold uppercase tracking-widest">Cloud usage</div>
+                    </div>
+
+                    <div class="stat-card neo bg-slate-800">
+                        <div class="flex items-start justify-between mb-3">
+                            <div
+                                class="w-9 h-9 rounded-xl bg-blue/20 border-2 border-blue/40 flex items-center justify-center">
+                                <i data-lucide="book-open" class="w-4 h-4 text-blue"></i>
+                            </div>
+                            <span class="chip bg-blue/10 text-blue border-blue/40">Notes</span>
+                        </div>
+                        <div class="font-heading text-4xl text-white mb-1" id="statNotes">—</div>
+                        <div class="text-xs text-slate-400 font-bold uppercase tracking-widest">Total user notes</div>
+                    </div>
+
+                    <div class="stat-card neo bg-slate-800">
+                        <div class="flex items-start justify-between mb-3">
+                            <div
+                                class="w-9 h-9 rounded-xl bg-orange/20 border-2 border-orange/40 flex items-center justify-center">
+                                <i data-lucide="calendar" class="w-4 h-4 text-orange"></i>
+                            </div>
+                            <span class="chip bg-orange/10 text-orange border-orange/40">Events</span>
+                        </div>
+                        <div class="font-heading text-4xl text-white mb-1" id="statEvents">—</div>
+                        <div class="text-xs text-slate-400 font-bold uppercase tracking-widest">Master schedule</div>
+                    </div>
+
+                    <div class="stat-card neo bg-slate-800">
+                        <div class="flex items-start justify-between mb-3">
+                            <div
+                                class="w-9 h-9 rounded-xl bg-orange/20 border-2 border-orange/40 flex items-center justify-center">
+                                <i data-lucide="clipboard-check" class="w-4 h-4 text-orange"></i>
+                            </div>
+                            <span class="chip bg-orange/10 text-orange border-orange/40">Classes</span>
+                        </div>
+                        <div class="font-heading text-4xl text-white mb-1" id="statClasses">—</div>
+                        <div class="text-xs text-slate-400 font-bold uppercase tracking-widest">Admin classes</div>
+                    </div>
+                </div>
+
+                <!-- Charts Section -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                    <!-- Activity Graph -->
+                    <div class="neo bg-slate-800 rounded-[20px] p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="font-heading text-lg text-white">System Activity</h2>
+                            <div class="chip bg-blue/10 text-blue border-blue/40">Saves / Updates</div>
+                        </div>
+                        <div class="h-64">
+                            <canvas id="activityChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Category Distribution -->
+                    <div class="neo bg-slate-800 rounded-[20px] p-6">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="font-heading text-lg text-white">Usage by Category</h2>
+                            <div class="chip bg-orange/10 text-orange border-orange/40">Live Data</div>
+                        </div>
+                        <div class="h-64 flex justify-center">
+                            <canvas id="categoryChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Top Tools -->
+                    <div class="lg:col-span-2 neo bg-slate-800 rounded-[20px] p-6">
+                        <h2 class="font-heading text-lg text-white mb-6">Top Performing Tools</h2>
+                        <div class="h-80">
+                            <canvas id="toolsChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Tool breakdown list -->
+                    <div class="neo bg-slate-800 rounded-[20px] p-6 overflow-hidden flex flex-col">
+                        <h2 class="font-heading text-lg text-white mb-4">Quick Breakdown</h2>
+                        <div id="toolBreakdown" class="space-y-3 overflow-y-auto scrollbar pr-2 flex-1"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- USERS VIEW -->
+            <div id="view-users" class="hidden">
+                <div class="neo bg-slate-800 rounded-[20px] overflow-hidden">
+                    <div class="p-5 border-b-[3px] border-slate-700 flex items-center justify-between">
+                        <h2 class="font-heading text-lg text-white">All users</h2>
+                        <div id="userCount" class="chip bg-blue/10 text-blue border-blue/40">0 users</div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b-2 border-slate-700 bg-slate-900">
+                                    <th onclick="toggleSort('users', 'name')"
+                                        class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:text-blue transition-colors">
+                                        <div class="flex items-center gap-1">Name <span id="sort-users-name"></span>
+                                        </div>
+                                    </th>
+                                    <th
+                                        class="hidden md:table-cell text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                        User ID</th>
+                                    <th onclick="toggleSort('users', 'role')"
+                                        class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:text-blue transition-colors">
+                                        <div class="flex items-center gap-1">Role <span id="sort-users-role"></span>
+                                        </div>
+                                    </th>
+                                    <th onclick="toggleSort('users', 'storage')"
+                                        class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:text-blue transition-colors">
+                                        <div class="flex items-center gap-1">Storage <span
+                                                id="sort-users-storage"></span></div>
+                                    </th>
+                                    <th
+                                        class="hidden lg:table-cell text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                        Tools used</th>
+                                    <th onclick="toggleSort('users', 'active')"
+                                        class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:text-blue transition-colors">
+                                        <div class="flex items-center gap-1">Last active <span
+                                                id="sort-users-active"></span></div>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody" class="divide-y divide-slate-700/50"></tbody>
+                        </table>
+                    </div>
+                    <!-- Pagination -->
+                    <div
+                        class="p-2 md:p-4 border-t-[3px] border-slate-700 flex items-center justify-between bg-slate-900/50">
+                        <div class="text-[9px] md:text-[10px] text-slate-500 font-bold uppercase tracking-widest"
+                            id="users-page-info">Page 1 of 1</div>
+                        <div class="flex gap-2">
+                            <button onclick="changePage('users', -1)"
+                                class="neo-btn px-3 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs">Prev</button>
+                            <button onclick="changePage('users', 1)"
+                                class="neo-btn px-3 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs">Next</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PROGRESS VIEW -->
+            <div id="view-progress" class="hidden">
+                <div class="neo bg-slate-800 rounded-[20px] overflow-hidden">
+                    <div class="p-5 border-b-[3px] border-slate-700 flex items-center justify-between">
+                        <h2 class="font-heading text-lg text-white">Progress data</h2>
+                        <div id="progressCount" class="chip bg-pink/10 text-pink border-pink/40">0 rows</div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b-2 border-slate-700 bg-slate-900">
+                                    <th onclick="toggleSort('progress', 'user')"
+                                        class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:text-blue transition-colors">
+                                        <div class="flex items-center gap-1">User <span id="sort-progress-user"></span>
+                                        </div>
+                                    </th>
+                                    <th onclick="toggleSort('progress', 'tool')"
+                                        class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:text-blue transition-colors">
+                                        <div class="flex items-center gap-1">Tool <span id="sort-progress-tool"></span>
+                                        </div>
+                                    </th>
+                                    <th
+                                        class="hidden md:table-cell text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                        Preview</th>
+                                    <th onclick="toggleSort('progress', 'updated_at')"
+                                        class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:text-blue transition-colors">
+                                        <div class="flex items-center gap-1">Updated <span
+                                                id="sort-progress-updated_at"></span></div>
+                                    </th>
+                                    <th
+                                        class="px-5 py-3 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                        Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="progressTableBody" class="divide-y divide-slate-700/50"></tbody>
+                        </table>
+                    </div>
+                    <!-- Pagination -->
+                    <div
+                        class="p-2 md:p-4 border-t-[3px] border-slate-700 flex items-center justify-between bg-slate-900/50">
+                        <div class="text-[9px] md:text-[10px] text-slate-500 font-bold uppercase tracking-widest"
+                            id="progress-page-info">Page 1 of 1</div>
+                        <div class="flex gap-2">
+                            <button onclick="changePage('progress', -1)"
+                                class="neo-btn px-3 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs">Prev</button>
+                            <button onclick="changePage('progress', 1)"
+                                class="neo-btn px-3 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs">Next</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- NOTES VIEW -->
+            <div id="view-notes" class="hidden">
+                <div class="neo bg-slate-800 rounded-[20px] overflow-hidden">
+                    <div class="p-5 border-b-[3px] border-slate-700 flex items-center justify-between">
+                        <h2 class="font-heading text-lg text-white">Lesson Notes</h2>
+                        <div id="notesCount" class="chip bg-blue/10 text-blue border-blue/40">0 notes</div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b-2 border-slate-700 bg-slate-900">
+                                    <th onclick="toggleSort('notes', 'user')"
+                                        class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:text-blue transition-colors">
+                                        <div class="flex items-center gap-1">User <span id="sort-notes-user"></span>
+                                        </div>
+                                    </th>
+                                    <th onclick="toggleSort('notes', 'title')"
+                                        class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:text-blue transition-colors">
+                                        <div class="flex items-center gap-1">Title <span id="sort-notes-title"></span>
+                                        </div>
+                                    </th>
+                                    <th
+                                        class="hidden md:table-cell text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                        Folder</th>
+                                    <th onclick="toggleSort('notes', 'updated_at')"
+                                        class="hidden sm:table-cell text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:text-blue transition-colors">
+                                        <div class="flex items-center gap-1">Updated <span
+                                                id="sort-notes-updated_at"></span></div>
+                                    </th>
+                                    <th
+                                        class="px-5 py-3 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                        Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="notesTableBody" class="divide-y divide-slate-700/50"></tbody>
+                        </table>
+                    </div>
+                    <!-- Pagination -->
+                    <div
+                        class="p-2 md:p-4 border-t-[3px] border-slate-700 flex items-center justify-between bg-slate-900/50">
+                        <div class="text-[9px] md:text-[10px] text-slate-500 font-bold uppercase tracking-widest"
+                            id="notes-page-info">Page 1 of 1</div>
+                        <div class="flex gap-2">
+                            <button onclick="changePage('notes', -1)"
+                                class="neo-btn px-3 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs">Prev</button>
+                            <button onclick="changePage('notes', 1)"
+                                class="neo-btn px-3 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs">Next</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SCHEDULE EVENTS VIEW -->
+            <div id="view-schedule-events" class="hidden">
+                <div class="neo bg-slate-800 rounded-[20px] overflow-hidden">
+                    <div class="p-5 border-b-[3px] border-slate-700 flex items-center justify-between flex-wrap gap-3">
+                        <h2 class="font-heading text-lg text-white">Master Schedule Events <span
+                                class="text-slate-500 text-sm font-body font-normal">(Template Events)</span></h2>
+                        <div id="scheduleCount" class="chip bg-orange/10 text-orange border-orange/40">0
+                            events</div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b-2 border-slate-700 bg-slate-900">
+                                    <th onclick="toggleSort('schedule', 'user')"
+                                        class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:text-blue transition-colors">
+                                        <div class="flex items-center gap-1">User <span id="sort-schedule-user"></span>
+                                        </div>
+                                    </th>
+                                    <th onclick="toggleSort('schedule', 'name')"
+                                        class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:text-blue transition-colors">
+                                        <div class="flex items-center gap-1">Event Name <span
+                                                id="sort-schedule-name"></span></div>
+                                    </th>
+                                    <th
+                                        class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                        Type</th>
+                                    <th onclick="toggleSort('schedule', 'date')"
+                                        class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:text-blue transition-colors">
+                                        <div class="flex items-center gap-1">Start Date <span
+                                                id="sort-schedule-date"></span>
+                                        </div>
+                                    </th>
+                                    <th
+                                        class="hidden md:table-cell text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                        Recurrence</th>
+                                </tr>
+                            </thead>
+                            <tbody id="scheduleTableBody" class="divide-y divide-slate-700/50"></tbody>
+                        </table>
+                    </div>
+                    <div
+                        class="p-2 md:p-4 border-t-[3px] border-slate-700 flex items-center justify-between bg-slate-900/50">
+                        <div class="text-[9px] md:text-[10px] text-slate-500 font-bold uppercase tracking-widest"
+                            id="schedule-page-info">Page 1 of 1</div>
+                        <div class="flex gap-2">
+                            <button onclick="changePage('schedule', -1)"
+                                class="neo-btn px-3 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs">Prev</button>
+                            <button onclick="changePage('schedule', 1)"
+                                class="neo-btn px-3 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs">Next</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SCHEDULE CLASSES VIEW -->
+            <div id="view-schedule-classes" class="hidden">
+                <!-- Tabs -->
+                <div class="flex gap-2 mb-4">
+                    <button onclick="setClassTab('admin')" id="classtab-admin"
+                        class="neo-btn px-4 py-2 bg-orange text-white rounded-xl text-sm font-bold">
+                        <i data-lucide="layout-list" class="w-4 h-4"></i> Admin Tasks
+                    </button>
+                    <button onclick="setClassTab('units')" id="classtab-units"
+                        class="neo-btn px-4 py-2 bg-slate-700 text-slate-300 rounded-xl text-sm">
+                        <i data-lucide="book" class="w-4 h-4"></i> Unit Planning
+                    </button>
+                </div>
+
+                <!-- Admin Classes Table -->
+                <div id="classview-admin" class="neo bg-slate-800 rounded-[20px] overflow-hidden">
+                    <div class="p-5 border-b-[3px] border-slate-700 flex items-center justify-between flex-wrap gap-3">
+                        <h2 class="font-heading text-lg text-white">Admin Tracker Classes</h2>
+                        <div id="classAdminCount" class="chip bg-orange/10 text-orange border-orange/40">0 classes
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b-2 border-slate-700 bg-slate-900">
+                                    <th onclick="toggleSort('classes', 'user')"
+                                        class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:text-blue transition-colors">
+                                        <div class="flex items-center gap-1">User <span id="sort-classes-user"></span>
+                                        </div>
+                                    </th>
+                                    <th onclick="toggleSort('classes', 'class_name')"
+                                        class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:text-blue transition-colors">
+                                        <div class="flex items-center gap-1">Class Name <span
+                                                id="sort-classes-class_name"></span></div>
+                                    </th>
+                                    <th
+                                        class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                        Tasks</th>
+                                    <th onclick="toggleSort('classes', 'created_at')"
+                                        class="hidden sm:table-cell text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:text-blue transition-colors">
+                                        <div class="flex items-center gap-1">Created <span
+                                                id="sort-classes-created_at"></span></div>
+                                    </th>
+                                    <th
+                                        class="px-5 py-3 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                        Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="classAdminTableBody" class="divide-y divide-slate-700/50"></tbody>
+                        </table>
+                    </div>
+                    <div
+                        class="p-2 md:p-4 border-t-[3px] border-slate-700 flex items-center justify-between bg-slate-900/50">
+                        <div class="text-[9px] md:text-[10px] text-slate-500 font-bold uppercase tracking-widest"
+                            id="classes-page-info">Page 1 of 1</div>
+                        <div class="flex gap-2">
+                            <button onclick="changePage('classes', -1)"
+                                class="neo-btn px-3 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs">Prev</button>
+                            <button onclick="changePage('classes', 1)"
+                                class="neo-btn px-3 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs">Next</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Class Units Table -->
+                <div id="classview-units" class="neo bg-slate-800 rounded-[20px] overflow-hidden hidden">
+                    <div class="p-5 border-b-[3px] border-slate-700 flex items-center justify-between flex-wrap gap-3">
+                        <h2 class="font-heading text-lg text-white">Unit Planning / Syllabi</h2>
+                        <div id="classUnitsCount" class="chip bg-orange/10 text-orange border-orange/40">0 classes
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b-2 border-slate-700 bg-slate-900">
+                                    <th
+                                        class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                        User</th>
+                                    <th
+                                        class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                        Class Name</th>
+                                    <th
+                                        class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                        Units</th>
+                                    <th
+                                        class="hidden sm:table-cell text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                        Created</th>
+                                    <th
+                                        class="px-5 py-3 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                        Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="classUnitsTableBody" class="divide-y divide-slate-700/50"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LOGS VIEW -->
+            <div id="view-logs" class="hidden">
+                <div class="neo bg-slate-800 rounded-[20px] overflow-hidden">
+                    <div class="p-5 border-b-[3px] border-slate-700 flex items-center justify-between">
+                        <h2 class="font-heading text-lg text-white">System Activity Logs</h2>
+                        <div class="chip bg-green/10 text-green border-green/40">Real-time update</div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b-2 border-slate-700 bg-slate-900">
+                                    <th
+                                        class="hidden md:table-cell text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                        Time</th>
+                                    <th
+                                        class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                        User</th>
+                                    <th
+                                        class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                        Event</th>
+                                    <th
+                                        class="hidden sm:table-cell text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                        Tool</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logsTableBody" class="divide-y divide-slate-700/50"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ANNOUNCEMENTS VIEW -->
+            <div id="view-announcements" class="hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Create Announcement Form -->
+                    <div class="lg:col-span-1">
+                        <div class="neo bg-slate-800 rounded-[20px] p-6 sticky top-6">
+                            <h2 class="font-heading text-lg text-white mb-6">Create Announcement</h2>
+                            <form id="announcementForm" onsubmit="saveAnnouncement(event)" class="space-y-4">
+                                <input type="hidden" id="announcementId">
+                                <div>
+                                    <label
+                                        class="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Title</label>
+                                    <input type="text" id="annTitle" required placeholder="e.g. New Games Added!"
+                                        class="w-full bg-slate-900 border-2 border-slate-700 rounded-xl p-3 text-sm text-white focus:border-blue outline-none transition-colors">
+                                </div>
+                                <div>
+                                    <label
+                                        class="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Type</label>
+                                    <select id="annType"
+                                        class="w-full bg-slate-900 border-2 border-slate-700 rounded-xl p-3 text-sm text-white focus:border-blue outline-none transition-colors">
+                                        <option value="info">Information</option>
+                                        <option value="update">Update</option>
+                                        <option value="alert">Alert</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label
+                                        class="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2">Content</label>
+                                    <textarea id="annContent" required placeholder="Details about the update..."
+                                        class="w-full bg-slate-900 border-2 border-slate-700 rounded-xl p-3 text-sm text-white focus:border-blue outline-none transition-colors"
+                                        rows="4"></textarea>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" id="annActive" class="sr-only peer" checked>
+                                        <div
+                                            class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green">
+                                        </div>
+                                    </label>
+                                    <span class="text-xs font-bold text-slate-400">Published / Active</span>
+                                </div>
+                                <div class="pt-4 flex gap-2">
+                                    <button type="button" onclick="resetAnnForm()"
+                                        class="neo-btn flex-1 justify-center px-4 py-2.5 bg-slate-700 text-white rounded-xl text-sm">Cancel</button>
+                                    <button type="submit"
+                                        class="neo-btn flex-[2] justify-center px-4 py-2.5 bg-blue text-white rounded-xl text-sm">Save
+                                        Announcement</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Announcements List -->
+                    <div class="lg:col-span-2">
+                        <div class="neo bg-slate-800 rounded-[20px] overflow-hidden">
+                            <div class="p-5 border-b-[3px] border-slate-700 flex items-center justify-between">
+                                <h2 class="font-heading text-lg text-white">History</h2>
+                                <div id="annCount" class="chip bg-green/10 text-green border-green/40">0 items</div>
+                            </div>
+                            <div id="annList"
+                                class="divide-y divide-slate-700/50 max-h-[70vh] overflow-y-auto scrollbar">
+                                <!-- Announcements injected here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CLOUD USAGE VIEW -->
+            <div id="view-cloud" class="hidden">
+                <div class="space-y-6">
+                    <!-- Storage Summary -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="md:col-span-2 neo bg-slate-800 rounded-[20px] p-6">
+                            <div class="flex items-center justify-between mb-6">
+                                <h2 class="font-heading text-lg text-white">Global Storage Status</h2>
+                                <button onclick="syncAllStorage()" id="syncAllBtn"
+                                    class="neo-btn px-4 py-2 bg-blue text-white rounded-xl text-xs">
+                                    <i data-lucide="refresh-cw" class="w-4 h-4 mr-1"></i> Sync All Storage
+                                </button>
+                            </div>
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-between text-sm">
+                                    <span class="text-slate-400">Total Used Across All Users</span>
+                                    <span id="globalStorageUsed" class="font-bold text-white font-mono">0.0 MB</span>
+                                </div>
+                                <div class="h-4 bg-slate-900 border-2 border-slate-700 rounded-full overflow-hidden">
+                                    <div id="globalStorageBar" class="h-full bg-blue transition-all duration-700"
+                                        style="width: 0%"></div>
+                                </div>
+                                <div class="text-[10px] text-slate-500 font-bold uppercase tracking-widest text-center">
+                                    Capacity monitoring based on user limits
+                                </div>
+                            </div>
+                        </div>
+                        <div
+                            class="neo bg-slate-800 rounded-[20px] p-6 flex flex-col justify-center items-center text-center">
+                            <div
+                                class="w-12 h-12 rounded-2xl bg-orange/20 border-2 border-orange/40 flex items-center justify-center mb-4">
+                                <i data-lucide="users" class="w-6 h-6 text-orange"></i>
+                            </div>
+                            <div class="text-2xl font-heading text-white mb-1" id="globalActiveUsers">—</div>
+                            <div class="text-xs text-slate-500 font-bold uppercase tracking-widest">Active Storage Users
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- User Storage Table -->
+                    <div class="neo bg-slate-800 rounded-[20px] overflow-hidden">
+                        <div class="p-5 border-b-[3px] border-slate-700">
+                            <h2 class="font-heading text-lg text-white">User Storage Breakdown</h2>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="border-b-2 border-slate-700 bg-slate-900">
+                                        <th onclick="toggleSort('cloud', 'user')"
+                                            class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:text-blue transition-colors">
+                                            <div class="flex items-center gap-1">User <span id="sort-cloud-user"></span>
+                                            </div>
+                                        </th>
+                                        <th onclick="toggleSort('cloud', 'usage')"
+                                            class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:text-blue transition-colors">
+                                            <div class="flex items-center gap-1">Usage <span
+                                                    id="sort-cloud-usage"></span></div>
+                                        </th>
+                                        <th onclick="toggleSort('cloud', 'limit')"
+                                            class="hidden md:table-cell text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:text-blue transition-colors">
+                                            <div class="flex items-center gap-1">Limit <span
+                                                    id="sort-cloud-limit"></span></div>
+                                        </th>
+                                        <th onclick="toggleSort('cloud', 'percent')"
+                                            class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest cursor-pointer hover:text-blue transition-colors">
+                                            <div class="flex items-center gap-1">Progress <span
+                                                    id="sort-cloud-percent"></span></div>
+                                        </th>
+                                        <th
+                                            class="text-right px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                            Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cloudTableBody" class="divide-y divide-slate-700/50"></tbody>
+                            </table>
+                        </div>
+                        <!-- Pagination -->
+                        <div
+                            class="p-2 md:p-4 border-t-[3px] border-slate-700 flex items-center justify-between bg-slate-900/50">
+                            <div class="text-[9px] md:text-[10px] text-slate-500 font-bold uppercase tracking-widest"
+                                id="cloud-page-info">Page 1 of 1</div>
+                            <div class="flex gap-2">
+                                <button onclick="changePage('cloud', -1)"
+                                    class="neo-btn px-3 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs">Prev</button>
+                                <button onclick="changePage('cloud', 1)"
+                                    class="neo-btn px-3 py-1 bg-slate-800 text-slate-300 rounded-lg text-xs">Next</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SETTINGS VIEW -->
+            <div id="view-settings" class="hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- General Settings -->
+                    <div class="neo bg-slate-800 rounded-[20px] p-6">
+                        <h2 class="font-heading text-lg text-white mb-6">Platform Settings</h2>
+                        <div class="space-y-6">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="font-bold text-white">Maintenance Mode</div>
+                                    <div class="text-xs text-slate-500">Block public access to tools and games</div>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="setting-maintenance" class="sr-only peer"
+                                        onchange="saveSettings()">
+                                    <div
+                                        class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink">
+                                    </div>
+                                </label>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <div class="font-bold text-white">Cloud Sync Persistence</div>
+                                    <div class="text-xs text-slate-500">Enable real-time background synchronization
+                                    </div>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="setting-sync" class="sr-only peer" checked
+                                        onchange="saveSettings()">
+                                    <div
+                                        class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue">
+                                    </div>
+                                </label>
+                            </div>
+                            <div>
+                                <label class="block font-bold text-white mb-2">Global Announcement</label>
+                                <textarea id="setting-announcement" placeholder="Banner text for all users..."
+                                    class="w-full bg-slate-900 border-2 border-slate-700 rounded-xl p-3 text-sm text-white focus:border-blue outline-none transition-colors"
+                                    rows="3" oninput="debouncedSaveSettings()"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Security Info -->
+                    <div class="neo bg-slate-800 rounded-[20px] p-6">
+                        <h2 class="font-heading text-lg text-white mb-6">Security & Environment</h2>
+                        <div class="space-y-4">
+                            <div class="p-4 bg-slate-900 rounded-xl border-2 border-slate-700">
+                                <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                                    Database Provider</div>
+                                <div class="text-sm font-bold text-white flex items-center gap-2">
+                                    <i data-lucide="database" class="w-4 h-4 text-green"></i> Supabase Cloud (v2.0)
+                                </div>
+                            </div>
+                            <div class="p-4 bg-slate-900 rounded-xl border-2 border-slate-700">
+                                <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                                    Storage Schema</div>
+                                <div class="text-sm font-bold text-white">PostgreSQL with RLS Enabled</div>
+                            </div>
+                            <div class="p-4 bg-slate-900 rounded-xl border-2 border-slate-700">
+                                <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Admin
+                                    API Endpoint</div>
+                                <div class="text-[10px] font-mono text-slate-400 break-all">
+                                    https://mkarfktuvtllaxpunwtb.supabase.co/rest/v1/[PROTECTED]</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
