@@ -99,20 +99,15 @@ const ClassManager = {
       }
     }
 
-    if (!isSandbox() && typeof loadProgress === 'function') {
-      const cloud = await loadProgress('my-class');
-      if (cloud) {
-        this.data = cloud;
-      }
+    // Structure check
+    if (!this.data || !this.data.classes) {
+      this.data = { classes: {} };
     }
   },
 
   async saveData() {
-    if (typeof saveProgress === 'function') {
-      await saveProgress('my-class', this.data);
-    } else {
-      localStorage.setItem('prog_my-class', JSON.stringify(this.data));
-    }
+    // Local backup
+    localStorage.setItem('prog_my-class', JSON.stringify(this.data));
     
     // Trigger bulk sync if available
     if (window.Sync && !isSandbox()) {

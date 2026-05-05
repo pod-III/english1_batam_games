@@ -201,6 +201,9 @@ async function saveProgress(toolKey, data) {
   localStorage.setItem(`prog_${toolKey}`, JSON.stringify(data))
 
   if (isSandbox()) return;
+  
+  // My Class is handled by its own dedicated table (myspace_my_class)
+  if (toolKey === 'my-class') return;
 
   const user = await getUser()
   if (!user) return
@@ -275,7 +278,7 @@ async function migrateLocalToCloud() {
   const user = await getUser()
   if (!user) return
 
-  const keys = Object.keys(localStorage).filter(k => k.startsWith('prog_'))
+  const keys = Object.keys(localStorage).filter(k => k.startsWith('prog_') && k !== 'prog_my-class')
   for (const key of keys) {
     const toolKey = key.replace('prog_', '')
     const data = JSON.parse(localStorage.getItem(key))

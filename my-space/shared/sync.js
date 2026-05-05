@@ -404,28 +404,66 @@
     if (error) console.error('[Sync] Save categories error:', error);
   }
 
-  // My Class (using user_progress table for now, or dedicated if preferred)
+  // My Class (Dedicated table: myspace_my_class)
+  // Schema: id, user_id, class_name, data, updated_at
   async function cloudLoadMyClass(userId) {
-    const { data, error } = await db.from('user_progress')
-      .select('data').eq('user_id', userId).eq('tool_key', 'my-class').maybeSingle();
-    if (error) { console.error('[Sync] Load my-class error:', error); return null; }
-    return data?.data || null;
+    const { data, error } = await db.from('myspace_my_class')
+      .select('class_name, data').eq('user_id', userId);
+    if (error) { console.error('[Sync] Load myspace_my_class error:', error); return null; }
+    
+    // Merge rows into the single object structure expected by the app
+    const result = { classes: {} };
+    (data || []).forEach(row => {
+      result.classes[row.class_name] = row.data;
+    });
+    return result;
   }
 
-  async function cloudSaveMyClass(userId, data) {
-    console.info('[Sync] Upserting my-class to user_progress...', { userId, studentCount: Object.values(data.classes || {}).reduce((acc, c) => acc + (c.students?.length || 0), 0) });
-    const { error } = await db.from('user_progress')
-      .upsert({ 
-        user_id: userId, 
-        tool_key: 'my-class', 
-        data: data,
+  async function cloudSaveMyClass(userId, fullData) {
+    if (!fullData || !fullData.classes) return;
+
+    // Fetch existing rows to get IDs for upsert (to maintain PK stability)
+    const { data: existing, error: fetchErr } = await db.from('myspace_my_class')
+      .select('id, class_name').eq('user_id', userId);
+    
+    if (fetchErr) {
+      console.error('[Sync] Fetch existing my_class error:', fetchErr);
+      return;
+    }
+
+    const existingMap = {};
+    (existing || []).forEach(row => {
+      existingMap[row.class_name] = row.id;
+    });
+
+    const rowsToUpsert = [];
+    Object.entries(fullData.classes).forEach(([className, classData]) => {
+      const row = {
+        user_id: userId,
+        class_name: className,
+        data: classData,
         updated_at: new Date().toISOString()
-      }, { onConflict: 'user_id,tool_key' });
+      };
+      
+      // If we have an existing ID, use it for the upsert
+      if (existingMap[className]) {
+        row.id = existingMap[className];
+      }
+      
+      rowsToUpsert.push(row);
+    });
+
+    if (rowsToUpsert.length === 0) return;
+
+    console.info(`[Sync] Upserting ${rowsToUpsert.length} classes to myspace_my_class...`);
+    const { error } = await db.from('myspace_my_class')
+      .upsert(rowsToUpsert, { onConflict: 'user_id,class_name' });
+      
     if (error) {
-      console.error('[Sync] Save my-class error:', error);
-      if (window.showToast) window.showToast('Cloud sync failed for My Class', 'error');
+      console.error('[Sync] Save myspace_my_class error:', error);
+      if (window.showToast) window.showToast('Cloud sync failed for myspace_my_class', 'error');
     } else {
-      console.info('[Sync] my-class saved successfully.');
+      console.info('[Sync] myspace_my_class saved successfully.');
     }
   }
 

@@ -1,5 +1,6 @@
 let allProgress = []
 let allNotes = []
+let allMyClass = []
 let allProfiles = {}
 let allAnnouncements = []
 let allScheduleEvents = []
@@ -59,7 +60,7 @@ if ('serviceWorker' in navigator) {
 async function fetchData() {
     document.querySelectorAll('.refreshIcon').forEach(i => i.classList.add('animate-spin'))
 
-    const [progressRes, notesRes, profilesRes, quotasRes, schedEventsRes, classAdminRes, classUnitsRes, redDaysRes, noteFoldersRes] = await Promise.all([
+    const [progressRes, notesRes, profilesRes, quotasRes, schedEventsRes, classAdminRes, classUnitsRes, redDaysRes, noteFoldersRes, myClassRes] = await Promise.all([
         db.from('user_progress').select('*').order('updated_at', { ascending: false }),
         db.from('notes').select('*').order('updated_at', { ascending: false }),
         db.from('profiles').select('*'),
@@ -68,7 +69,8 @@ async function fetchData() {
         db.from('myspace_class_admin').select('*').order('created_at', { ascending: false }),
         db.from('myspace_class_units').select('*').order('created_at', { ascending: false }),
         db.from('myspace_settings').select('*'),
-        db.from('note_folders').select('*')
+        db.from('note_folders').select('*'),
+        db.from('myspace_my_class').select('*')
     ])
 
     document.querySelectorAll('.refreshIcon').forEach(i => i.classList.remove('animate-spin'))
@@ -92,6 +94,7 @@ async function fetchData() {
     })
     allProgress = progressRes.data || []
     allNotes = notesRes.data || []
+    allMyClass = myClassRes.data || []
 
     allScheduleEvents = schedEventsRes.data || []
     allClassAdmin = classAdminRes.data || []
@@ -261,7 +264,7 @@ function updateCharts() {
     categories['My Space'].count += allNotes.length
     categories['My Space'].count += allScheduleEvents.length
     categories['My Space'].count += allClassAdmin.length
-    categories['My Space'].count += (toolCounts['my-class'] || 0)
+    categories['My Space'].count += allMyClass.length
 
     // 2. Map progress records using the official registry
     const toolMap = window.toolCategoryMap || {}
