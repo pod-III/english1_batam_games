@@ -498,6 +498,12 @@
           unitPlanningMode: localStorage.getItem('kk_unit_planning_mode') === 'true',
           theme: localStorage.getItem('theme_admin-tracker')
         },
+        tasks: {
+          currentTab: localStorage.getItem('tasks_current_tab'),
+          timeFilter: localStorage.getItem('tasks_time_filter'),
+          currentSort: localStorage.getItem('tasks_current_sort'),
+          theme: localStorage.getItem('theme_tasks')
+        },
       };
 
       // Tasks
@@ -555,6 +561,13 @@
         const a = settings.admin_tracker || {};
         if (a.unitPlanningMode !== undefined) localStorage.setItem('kk_unit_planning_mode', a.unitPlanningMode);
         if (a.theme) localStorage.setItem('theme_admin-tracker', a.theme);
+
+        // Tasks settings
+        const t = settings.tasks || {};
+        if (t.currentTab) localStorage.setItem('tasks_current_tab', t.currentTab);
+        if (t.timeFilter) localStorage.setItem('tasks_time_filter', t.timeFilter);
+        if (t.currentSort) localStorage.setItem('tasks_current_sort', t.currentSort);
+        if (t.theme) localStorage.setItem('theme_tasks', t.theme);
       }
       if (adm !== null) localStorage.setItem('schedule_class_admin', JSON.stringify(adm));
       if (uns !== null) localStorage.setItem('schedule_class_units', JSON.stringify(uns));

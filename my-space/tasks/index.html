@@ -242,6 +242,14 @@
         </button>
       </div>
 
+      <!-- Time Range Filter -->
+      <div class="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-900/50 p-1 rounded-2xl border-2 border-slate-800 dark:border-slate-700 w-fit">
+        <button onclick="updateTimeFilter('today')" id="tf-today" class="time-filter-btn px-4 py-2 rounded-xl font-black text-[10px] uppercase transition-all">Today</button>
+        <button onclick="updateTimeFilter('3days')" id="tf-3days" class="time-filter-btn px-4 py-2 rounded-xl font-black text-[10px] uppercase transition-all">3 Days</button>
+        <button onclick="updateTimeFilter('week')" id="tf-week" class="time-filter-btn px-4 py-2 rounded-xl font-black text-[10px] uppercase transition-all">Week</button>
+        <button onclick="updateTimeFilter('all')" id="tf-all" class="time-filter-btn px-4 py-2 rounded-xl font-black text-[10px] uppercase transition-all">All Time</button>
+      </div>
+
       <!-- Tasks List -->
       <div id="taskList" class="space-y-4">
         <!-- Tasks will be injected here -->
@@ -302,9 +310,10 @@
     // State Management
     let tasks = JSON.parse(localStorage.getItem('klasskit_tasks')) || [];
     let categories = JSON.parse(localStorage.getItem('klasskit_categories')) || ['General', 'Events', 'Classes', 'Work', 'Personal'];
-    let currentTab = 'All';
+    let currentTab = localStorage.getItem('tasks_current_tab') || 'All';
+    let timeFilter = localStorage.getItem('tasks_time_filter') || 'week';
     let currentPriority = 'medium';
-    let currentSort = 'newest';
+    let currentSort = localStorage.getItem('tasks_current_sort') || 'deadline';
     let editingId = null;
 
     // Elements
@@ -321,6 +330,8 @@
     // Init
     function init() {
       renderCategories();
+      updateTimeFilterUI();
+      document.getElementById('sortMode').value = currentSort;
       renderTasks();
       updateProgress();
       updateLabels();
@@ -333,7 +344,8 @@
       const options = { weekday: 'long', month: 'long', day: 'numeric' };
       document.getElementById('currentDateLabel').innerText = now.toLocaleDateString('en-US', options);
       
-      const activeCount = tasks.filter(t => !t.completed).length;
+      const allTasks = [...tasks, ...getExternalTasks()];
+      const activeCount = allTasks.filter(t => !t.completed).length;
       taskCountLabel.innerText = `${activeCount} Task${activeCount !== 1 ? 's' : ''} Active`;
     }
 
@@ -341,6 +353,10 @@
     async function save() {
       localStorage.setItem('klasskit_tasks', JSON.stringify(tasks));
       localStorage.setItem('klasskit_categories', JSON.stringify(categories));
+      localStorage.setItem('tasks_current_tab', currentTab);
+      localStorage.setItem('tasks_time_filter', timeFilter);
+      localStorage.setItem('tasks_current_sort', currentSort);
+      
       renderTasks();
       updateProgress();
       updateLabels();
@@ -398,7 +414,7 @@
     function setTab(tab) {
       currentTab = tab;
       renderCategories();
-      renderTasks();
+      save();
     }
 
     function promptAddCategory() {
@@ -442,13 +458,299 @@
     }
 
     function toggleTask(id) {
-      tasks = tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t);
+      const internalTask = tasks.find(t => t.id == id);
+      if (internalTask) {
+        tasks = tasks.map(t => t.id == id ? { ...t, completed: !t.completed } : t);
+        save();
+        return;
+      }
+
+      // Check external tasks
+      const externalTaskEl = document.querySelector(`[data-external-id="${id}"]`);
+      if (externalTaskEl) {
+        const source = externalTaskEl.dataset.source;
+        const sourceId = externalTaskEl.dataset.sourceId;
+        const index = externalTaskEl.dataset.index;
+
+        if (source === 'event') {
+          toggleEventChecklistItem(sourceId, parseInt(index));
+        } else if (source === 'class') {
+          toggleClassAdminTask(sourceId, id);
+        }
+      }
+    }
+
+    // External Task Syncing
+    function toggleEventChecklistItem(eventId, index) {
+      const events = JSON.parse(localStorage.getItem('schedule_events') || '[]');
+      const promoted = JSON.parse(localStorage.getItem('schedule_promoted_instances') || '[]');
+      
+      let target = promoted.find(e => e.id === eventId) || events.find(e => e.id === eventId);
+
+      // Handle promotion if it's a generated recurrence not yet promoted
+      if (!target && eventId.includes('_recur_')) {
+        const parts = eventId.split('_recur_');
+        const masterId = parts[0];
+        const dateStr = parts[1];
+        const master = events.find(e => e.id === masterId);
+        if (master) {
+          target = {
+            ...master,
+            id: eventId,
+            date: dateStr,
+            isRecurrence: true,
+            originalEventId: masterId,
+            checklist: (master.checklist || []).map(item => ({ ...item, done: false }))
+          };
+          promoted.push(target);
+        }
+      }
+
+      if (target && target.checklist && target.checklist[index]) {
+        target.checklist[index].done = !target.checklist[index].done;
+        
+        // Update storage
+        if (target.isRecurrence) {
+          const pIdx = promoted.findIndex(e => e.id === target.id);
+          if (pIdx !== -1) promoted[pIdx] = target;
+          else promoted.push(target);
+        } else {
+          const eIdx = events.findIndex(e => e.id === target.id);
+          if (eIdx !== -1) events[eIdx] = target;
+        }
+
+        localStorage.setItem('schedule_events', JSON.stringify(events));
+        localStorage.setItem('schedule_promoted_instances', JSON.stringify(promoted));
+
+        if (window.Sync) {
+          Sync.fireCloudSave(async userId => {
+            await Sync.cloudSaveScheduleEvents(userId, [...events, ...promoted]);
+          });
+        }
+        renderTasks();
+        updateProgress();
+      }
+    }
+
+    function toggleClassAdminTask(className, taskId) {
+      const adminData = JSON.parse(localStorage.getItem('schedule_class_admin') || '{}');
+      if (adminData[className]) {
+        adminData[className] = adminData[className].map(t => t.id === taskId ? { ...t, done: !t.done } : t);
+        localStorage.setItem('schedule_class_admin', JSON.stringify(adminData));
+
+        if (window.Sync) {
+          Sync.fireCloudSave(async userId => {
+            await Sync.cloudSaveClassAdmin(userId, adminData);
+          });
+        }
+        renderTasks();
+        updateProgress();
+      }
+    }
+
+    function updateTimeFilter(filter) {
+      timeFilter = filter;
+      updateTimeFilterUI();
       save();
+    }
+
+    function updateTimeFilterUI() {
+      document.querySelectorAll('.time-filter-btn').forEach(btn => {
+        btn.classList.remove('bg-blue', 'text-white', 'shadow-hard-sm');
+        btn.classList.add('text-slate-400');
+      });
+      const active = document.getElementById(`tf-${timeFilter}`);
+      if (active) {
+        active.classList.remove('text-slate-400');
+        active.classList.add('bg-blue', 'text-white', 'shadow-hard-sm');
+      }
+    }
+
+    // External Task Syncing helpers
+    function getDayString(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${d}`;
+    }
+
+    function getDateRangeStrings(filter) {
+      const now = new Date();
+      const start = getDayString(now);
+      const end = new Date(now);
+
+      if (filter === 'today') {
+        return { start, end: start };
+      } else if (filter === '3days') {
+        end.setDate(now.getDate() + 2);
+        return { start, end: getDayString(end) };
+      } else if (filter === 'week') {
+        const day = now.getDay();
+        const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Monday
+        const mon = new Date(now);
+        mon.setDate(diff);
+        const sun = new Date(mon);
+        sun.setDate(mon.getDate() + 6);
+        return { start: getDayString(mon), end: getDayString(sun) };
+      }
+      return null; // All
+    }
+
+    function generateRecurrences(event, rangeStartStr, rangeEndStr, redDays) {
+      if (!event.recurrence || event.recurrence === 'none') return [];
+      
+      const occurrences = [];
+      const originalDate = new Date(event.date);
+      const rangeStart = new Date(rangeStartStr);
+      const rangeEnd = new Date(rangeEndStr);
+      const stepDays = { 'daily': 1, 'weekly': 7, 'biweekly': 14 };
+      
+      let currentDate = new Date(originalDate);
+      
+      // Optimization: jump to rangeStart
+      if (currentDate < rangeStart) {
+        if (event.recurrence === 'daily') {
+          const diffDays = Math.floor((rangeStart - currentDate) / 86400000);
+          currentDate.setDate(currentDate.getDate() + diffDays);
+        } else if (event.recurrence === 'weekly' || event.recurrence === 'biweekly') {
+          const step = stepDays[event.recurrence];
+          const diffDays = Math.floor((rangeStart - currentDate) / 86400000);
+          const steps = Math.floor(diffDays / step);
+          currentDate.setDate(currentDate.getDate() + (steps * step));
+        } else if (event.recurrence === 'monthly') {
+          const months = (rangeStart.getFullYear() - currentDate.getFullYear()) * 12 + (rangeStart.getMonth() - currentDate.getMonth());
+          if (months > 0) currentDate.setMonth(currentDate.getMonth() + months);
+        }
+      }
+
+      const maxIterations = 100; // Increased safety limit
+      let iterations = 0;
+
+      while (iterations < maxIterations) {
+        iterations++;
+        // Check current date first (for jumped or original date)
+        if (currentDate >= rangeStart && currentDate <= rangeEnd && getDayString(currentDate) !== event.date) {
+          const dateStr = getDayString(currentDate);
+          if (!redDays.includes(dateStr)) {
+            occurrences.push({
+              ...event,
+              id: `${event.id}_recur_${dateStr}`,
+              date: dateStr,
+              isRecurrence: true,
+              originalEventId: event.id,
+              // Fresh checklist for new occurrences
+              checklist: (event.checklist || []).map(item => ({ ...item, done: false }))
+            });
+          }
+        }
+
+        // Increment
+        if (event.recurrence === 'monthly') {
+          currentDate.setMonth(currentDate.getMonth() + 1);
+        } else if (event.recurrence === 'custom-days') {
+          currentDate.setDate(currentDate.getDate() + 1);
+          const day = currentDate.getDay();
+          const dayIndex = day === 0 ? 6 : day - 1;
+          if (!event.recurrenceDays?.includes(dayIndex)) {
+             // Still need to check next day, but don't count as valid occurrence iteration for safety
+             if (currentDate > rangeEnd) break;
+             continue; 
+          }
+        } else {
+          const days = stepDays[event.recurrence];
+          if (!days) break;
+          currentDate = new Date(currentDate.getTime() + days * 86400000);
+        }
+
+        if (currentDate > rangeEnd) break;
+      }
+      return occurrences;
+    }
+
+    function getExternalTasks() {
+      const externalTasks = [];
+      const redDays = JSON.parse(localStorage.getItem('schedule_red_days') || '[]');
+      const range = getDateRangeStrings(timeFilter);
+
+      // 1. Event Checklists
+      const events = JSON.parse(localStorage.getItem('schedule_events') || '[]');
+      const promoted = JSON.parse(localStorage.getItem('schedule_promoted_instances') || '[]');
+      
+      // Expand recurring events for this range
+      let allOccurrences = [];
+      events.forEach(evt => {
+        // Add master if it's within range
+        if (range) {
+          if (evt.date >= range.start && evt.date <= range.end && !redDays.includes(evt.date)) {
+            allOccurrences.push(evt);
+          }
+        } else {
+          // All time
+          allOccurrences.push(evt);
+        }
+
+        // Generate others
+        if (evt.recurrence && evt.recurrence !== 'none') {
+          const genStart = range ? range.start : evt.date;
+          const genEnd = range ? range.end : getDayString(new Date(new Date().setMonth(new Date().getMonth() + 1))); 
+          const clones = generateRecurrences(evt, genStart, genEnd, redDays);
+          allOccurrences = [...allOccurrences, ...clones];
+        }
+      });
+
+      // Overwrite with promoted instances
+      allOccurrences = allOccurrences.map(occ => {
+        const p = promoted.find(item => item.id === occ.id || (occ.isRecurrence && item.id === occ.id));
+        return p || occ;
+      });
+
+      allOccurrences.forEach(evt => {
+        if (evt.typeId !== 'class' && evt.checklist && evt.checklist.length > 0) {
+          evt.checklist.forEach((item, idx) => {
+            externalTasks.push({
+              id: `evt-${evt.id}-${idx}`,
+              externalId: `evt-${evt.id}-${idx}`,
+              text: item.text,
+              completed: !!item.done,
+              category: 'Events',
+              subcategory: evt.name,
+              source: 'event',
+              sourceId: evt.id,
+              index: idx,
+              priority: 'medium',
+              deadline: evt.date || null,
+              createdAt: evt.createdAt || new Date().toISOString()
+            });
+          });
+        }
+      });
+
+      // 2. Class Admin Tasks
+      const adminData = JSON.parse(localStorage.getItem('schedule_class_admin') || '{}');
+      Object.entries(adminData).forEach(([className, tasks]) => {
+        tasks.forEach(t => {
+          externalTasks.push({
+            id: t.id,
+            externalId: t.id,
+            text: t.text,
+            completed: !!t.done,
+            category: 'Classes',
+            subcategory: className,
+            source: 'class',
+            sourceId: className,
+            priority: 'medium',
+            deadline: t.deadline || null,
+            createdAt: t.createdAt || new Date().toISOString()
+          });
+        });
+      });
+
+      return externalTasks;
     }
 
     function deleteTask(id) {
       if (confirm("Delete this task?")) {
-        tasks = tasks.filter(t => t.id !== id);
+        tasks = tasks.filter(t => t.id != id);
         save();
       }
     }
@@ -460,7 +762,7 @@
 
     // Editing
     function openEditModal(id) {
-      const task = tasks.find(t => t.id === id);
+      const task = tasks.find(t => t.id == id);
       if (!task) return;
       editingId = id;
       document.getElementById('editTaskInput').value = task.text;
@@ -492,28 +794,49 @@
     // Rendering & Sorting
     function updateSort(mode) {
       currentSort = mode;
-      renderTasks();
+      save();
     }
 
     function renderTasks() {
       taskListEl.innerHTML = '';
       
-      let filtered = tasks;
+      const externalTasks = getExternalTasks();
+      const allTasks = [...tasks, ...externalTasks];
+      const range = getDateRangeStrings(timeFilter);
+
+      let filtered = allTasks;
       if (currentTab !== 'All') {
-        filtered = tasks.filter(t => t.category === currentTab);
+        filtered = allTasks.filter(t => t.category === currentTab);
       }
 
-      // Sort
+      // Time Range Filter
+      if (range) {
+        filtered = filtered.filter(t => {
+          if (!t.deadline) return false; // Hide tasks without deadline in timed views
+          return t.deadline >= range.start && t.deadline <= range.end;
+        });
+      }
+
+      // 1. Sort Logic
       filtered.sort((a, b) => {
+        // First: Completion status (active first)
+        if (a.completed !== b.completed) {
+          return a.completed ? 1 : -1;
+        }
+
+        // Second: Sort by currentSort preference
         if (currentSort === 'deadline') {
+          if (!a.deadline && !b.deadline) return new Date(b.createdAt) - new Date(a.createdAt);
           if (!a.deadline) return 1;
           if (!b.deadline) return -1;
           return new Date(a.deadline) - new Date(b.deadline);
         }
         if (currentSort === 'priority') {
           const map = { high: 3, medium: 2, low: 1 };
-          return map[b.priority] - map[a.priority];
+          if (map[b.priority] !== map[a.priority]) return map[b.priority] - map[a.priority];
+          return new Date(b.createdAt) - new Date(a.createdAt);
         }
+        // Default: Newest
         return new Date(b.createdAt) - new Date(a.createdAt);
       });
 
@@ -523,10 +846,32 @@
         emptyStateEl.classList.add('hidden');
       }
 
+      let hasCompletedSeparator = false;
+
       filtered.forEach(task => {
+        // Add separator for completed tasks
+        if (task.completed && !hasCompletedSeparator) {
+          const separator = document.createElement('div');
+          separator.className = 'flex items-center gap-4 py-6 opacity-50';
+          separator.innerHTML = `
+            <div class="h-1 flex-1 bg-slate-200 dark:bg-slate-700 rounded-full"></div>
+            <span class="font-heading font-bold text-xs uppercase tracking-[0.2em] text-slate-400">Completed Tasks</span>
+            <div class="h-1 flex-1 bg-slate-200 dark:bg-slate-700 rounded-full"></div>
+          `;
+          taskListEl.appendChild(separator);
+          hasCompletedSeparator = true;
+        }
+
         const card = document.createElement('div');
-        card.className = `todo-card glass-panel border-3 border-slate-800 dark:border-slate-600 p-5 rounded-[1.5rem] flex items-start gap-4 bg-white/90 dark:bg-slate-800/90 shadow-hard-sm ${task.completed ? 'opacity-60' : ''}`;
-        
+        const isExternal = !!task.source;
+        card.className = `todo-card glass-panel border-3 border-slate-800 dark:border-slate-600 p-5 rounded-[1.5rem] flex items-start gap-4 bg-white/90 dark:bg-slate-800/90 shadow-hard-sm transition-all hover:scale-[1.01] ${task.completed ? 'opacity-60 bg-slate-50/50' : ''}`;
+        if (isExternal) {
+          card.dataset.externalId = task.id;
+          card.dataset.source = task.source;
+          card.dataset.sourceId = task.sourceId;
+          card.dataset.index = task.index || '';
+        }
+
         // Deadline Logic
         let deadlineHtml = '';
         if (task.deadline) {
@@ -534,7 +879,7 @@
           const now = new Date();
           now.setHours(0,0,0,0);
           const isOverdue = d < now && !task.completed;
-          const isToday = d.getTime() === now.getTime();
+          const isToday = getDayString(d) === getDayString(new Date());
           
           let colorClass = 'text-slate-400 bg-slate-100 dark:bg-slate-700';
           if (isOverdue) colorClass = 'text-pink bg-pink/10 border-pink/20 animate-pulse';
@@ -554,8 +899,15 @@
           low: 'bg-blue/10 text-blue border-blue/20'
         };
 
+        const subcategoryHtml = task.subcategory ? `
+          <span class="px-2.5 py-1 rounded-lg border border-blue/20 bg-blue/5 text-blue font-black text-[9px] uppercase tracking-wider flex items-center gap-1">
+            <i data-lucide="${task.source === 'event' ? 'calendar' : 'graduation-cap'}" class="w-3 h-3"></i>
+            ${task.subcategory}
+          </span>
+        ` : '';
+
         card.innerHTML = `
-          <button onclick="toggleTask(${task.id})" class="w-8 h-8 rounded-lg border-2 border-slate-800 flex-shrink-0 flex items-center justify-center transition-all ${task.completed ? 'bg-green border-green shadow-none' : 'bg-white dark:bg-slate-700 hover:border-blue'}">
+          <button onclick="toggleTask('${task.id}')" class="w-8 h-8 rounded-lg border-2 border-slate-800 flex-shrink-0 flex items-center justify-center transition-all ${task.completed ? 'bg-green border-green shadow-none' : 'bg-white dark:bg-slate-700 hover:border-blue'}">
             ${task.completed ? '<i data-lucide="check" class="w-5 h-5 text-white"></i>' : ''}
           </button>
           
@@ -563,14 +915,19 @@
             <h4 class="font-bold text-base md:text-lg text-slate-800 dark:text-white leading-tight ${task.completed ? 'line-through text-slate-400' : ''}">${task.text}</h4>
             <div class="flex flex-wrap items-center gap-2 mt-2">
               <span class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 font-black text-[9px] uppercase tracking-wider">${task.category}</span>
+              ${subcategoryHtml}
               <span class="px-2.5 py-1 rounded-lg border font-black text-[9px] uppercase ${prioColors[task.priority]}">${task.priority}</span>
               ${deadlineHtml}
             </div>
           </div>
 
           <div class="flex items-center gap-1">
-            <button onclick="openEditModal(${task.id})" class="p-2 text-slate-400 hover:text-orange transition-colors"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
-            <button onclick="deleteTask(${task.id})" class="p-2 text-slate-400 hover:text-pink transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+            ${!isExternal ? `
+              <button onclick="openEditModal(${task.id})" class="p-2 text-slate-400 hover:text-orange transition-colors"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+              <button onclick="deleteTask(${task.id})" class="p-2 text-slate-400 hover:text-pink transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+            ` : `
+              <div class="px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-400 font-black text-[8px] uppercase tracking-widest border border-slate-200 dark:border-slate-600">Synced</div>
+            `}
           </div>
         `;
         
@@ -580,13 +937,14 @@
     }
 
     function updateProgress() {
-      if (tasks.length === 0) {
+      const allTasks = [...tasks, ...getExternalTasks()];
+      if (allTasks.length === 0) {
         progressBar.style.width = '0%';
         progressPercent.innerText = '0%';
         return;
       }
-      const done = tasks.filter(t => t.completed).length;
-      const percent = Math.round((done / tasks.length) * 100);
+      const done = allTasks.filter(t => t.completed).length;
+      const percent = Math.round((done / allTasks.length) * 100);
       progressBar.style.width = `${percent}%`;
       progressPercent.innerText = `${percent}%`;
     }
