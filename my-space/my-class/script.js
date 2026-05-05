@@ -22,6 +22,7 @@ const ClassManager = {
     
     // 3. Setup UI
     this.renderClassSelectors();
+    this.setupSelectorSync();
     
     // 4. Initial state
     const lastClass = localStorage.getItem('kk_myclass_last_selected');
@@ -99,6 +100,22 @@ const ClassManager = {
       sel.innerHTML = '<option value="">Select a class...</option>' + 
         this.classes.map(c => `<option value="${c.name}" ${this.activeClass === c.name ? 'selected' : ''}>${c.name}</option>`).join('');
     });
+  },
+
+  setupSelectorSync() {
+    const desktop = document.getElementById('classSelector');
+    const mobile = document.getElementById('classSelectorMobile');
+    
+    if (desktop && mobile) {
+      desktop.addEventListener('change', (e) => {
+        mobile.value = e.target.value;
+        this.selectClass(e.target.value);
+      });
+      mobile.addEventListener('change', (e) => {
+        desktop.value = e.target.value;
+        this.selectClass(e.target.value);
+      });
+    }
   },
 
   selectClass(className) {
@@ -260,7 +277,7 @@ const TabManager = {
       case 'students': StudentManager.render(); break;
       case 'reflections': ReflectionManager.render(); break;
       case 'sessions': SessionManager.render(); break;
-      case 'stats': break; // Stats coming soon
+      case 'stats': StatsManager.render(); break;
     }
   }
 };
@@ -531,6 +548,7 @@ const ReflectionManager = {
 const SessionManager = {
   render() {
     const body = document.getElementById('sessionTableBody');
+    const mobileList = document.getElementById('sessionMobileList');
     const classInfo = ClassManager.classes.find(c => c.name === ClassManager.activeClass);
     if (!classInfo) return;
 
@@ -546,36 +564,111 @@ const SessionManager = {
 
     const events = classInfo.events.sort((a, b) => b.date.localeCompare(a.date));
 
-    body.innerHTML = events.map((e, idx) => {
-      const lesson = syllabus[idx]?.lesson || 'No Lesson Plan';
-      const isPast = e.date < new Date().toISOString().split('T')[0];
-      
-      return `
-        <tr class="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
-          <td class="py-4">
-            <div class="flex flex-col">
-              <span class="text-sm font-bold">${new Date(e.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
-              <span class="text-[10px] text-slate-400 uppercase tracking-widest">${e.startTime}</span>
+    // Desktop Table Rows
+    if (body) {
+      body.innerHTML = events.map((e, idx) => {
+        const lesson = syllabus[idx]?.lesson || 'No Lesson Plan';
+        const isPast = e.date < new Date().toISOString().split('T')[0];
+        
+        return `
+          <tr class="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
+            <td class="py-4">
+              <div class="flex flex-col px-4">
+                <span class="text-sm font-bold">${new Date(e.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                <span class="text-[10px] text-slate-400 uppercase tracking-widest">${e.startTime}</span>
+              </div>
+            </td>
+            <td class="py-4">
+              <div class="text-sm font-semibold truncate max-w-xs">${lesson}</div>
+            </td>
+            <td class="py-4">
+              <span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest ${isPast ? 'bg-green/10 text-green border border-green/20' : 'bg-blue/10 text-blue border border-blue/20'}">
+                ${isPast ? 'Completed' : 'Upcoming'}
+              </span>
+            </td>
+            <td class="py-4 text-right px-4">
+               <button onclick="ReflectionManager.openForSession('${e.date}')" class="p-2 text-blue opacity-0 group-hover:opacity-100 transition-all" title="Add reflection for this session">
+                 <i data-lucide="message-square-plus" class="w-5 h-5"></i>
+               </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Mobile List Cards
+    if (mobileList) {
+      mobileList.innerHTML = events.map((e, idx) => {
+        const lesson = syllabus[idx]?.lesson || 'No Lesson Plan';
+        const isPast = e.date < new Date().toISOString().split('T')[0];
+        const dateStr = new Date(e.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', weekday: 'short' });
+
+        return `
+          <div class="glass-panel border-2 border-slate-800 dark:border-slate-700 rounded-2xl p-4 shadow-hard-sm">
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2">
+                <span class="text-[10px] font-black uppercase tracking-widest ${isPast ? 'text-green' : 'text-blue'}">${isPast ? 'Session Ended' : 'Upcoming'}</span>
+                <span class="w-1 h-1 bg-slate-300 rounded-full"></span>
+                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">${e.startTime}</span>
+              </div>
+              <button onclick="ReflectionManager.openForSession('${e.date}')" class="w-8 h-8 flex items-center justify-center bg-blue/10 rounded-lg text-blue">
+                <i data-lucide="message-square-plus" class="w-4 h-4"></i>
+              </button>
             </div>
-          </td>
-          <td class="py-4">
-            <div class="text-sm font-semibold truncate max-w-xs">${lesson}</div>
-          </td>
-          <td class="py-4">
-            <span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest ${isPast ? 'bg-green/10 text-green border border-green/20' : 'bg-blue/10 text-blue border border-blue/20'}">
-              ${isPast ? 'Completed' : 'Upcoming'}
-            </span>
-          </td>
-          <td class="py-4 text-right">
-             <button onclick="ReflectionManager.openForSession('${e.date}')" class="p-2 text-blue opacity-0 group-hover:opacity-100 transition-all" title="Add reflection for this session">
-               <i data-lucide="message-square-plus" class="w-5 h-5"></i>
-             </button>
-          </td>
-        </tr>
-      `;
-    }).join('');
+            <h4 class="font-heading font-bold text-lg text-slate-900 dark:text-white uppercase leading-tight">${dateStr}</h4>
+            <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <span class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 truncate max-w-[200px]">${lesson}</span>
+              <i data-lucide="chevron-right" class="w-4 h-4 text-slate-300"></i>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
     
-    if (window.lucide) lucide.createIcons({ root: body });
+    if (window.lucide) lucide.createIcons();
+  }
+};
+
+const StatsManager = {
+  render() {
+    const grid = document.getElementById('statsGrid');
+    const empty = document.getElementById('noStatsState');
+    const classData = ClassManager.data.classes[ClassManager.activeClass];
+    
+    if (!classData || (classData.students.length === 0 && classData.reflections.length === 0)) {
+      grid.innerHTML = '';
+      empty.classList.remove('hidden');
+      return;
+    }
+
+    empty.classList.add('hidden');
+    
+    const stats = [
+      { label: 'Total Students', value: classData.students.length, icon: 'users', color: 'blue' },
+      { label: 'Reflections', value: classData.reflections.length, icon: 'message-square', color: 'orange' },
+      { label: 'Avg Progress', value: this.calculateAvgStars(classData) + ' ★', icon: 'star', color: 'pink' },
+      { label: 'Sessions', value: ClassManager.classes.find(c => c.name === ClassManager.activeClass)?.events.length || 0, icon: 'calendar', color: 'green' }
+    ];
+
+    grid.innerHTML = stats.map(s => `
+      <div class="glass-panel border-[3px] border-slate-800 dark:border-slate-700 rounded-3xl p-6 shadow-hard-sm bg-white dark:bg-slate-900/50">
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center bg-${s.color}/10 text-${s.color} mb-4">
+          <i data-lucide="${s.icon}" class="w-5 h-5"></i>
+        </div>
+        <div class="space-y-1">
+          <h4 class="text-3xl font-black text-slate-800 dark:text-white">${s.value}</h4>
+          <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">${s.label}</p>
+        </div>
+      </div>
+    `).join('');
+
+    if (window.lucide) lucide.createIcons({ root: grid });
+  },
+
+  calculateAvgStars(classData) {
+    if (!classData.students || classData.students.length === 0) return 0;
+    const total = classData.students.reduce((sum, s) => sum + (s.stars || 0), 0);
+    return (total / classData.students.length).toFixed(1);
   }
 };
 
