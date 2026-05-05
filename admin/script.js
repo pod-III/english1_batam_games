@@ -1,6 +1,7 @@
 let allProgress = []
 let allNotes = []
 let allMyClass = []
+let allMySpaceTasks = []
 let allProfiles = {}
 let allAnnouncements = []
 let allScheduleEvents = []
@@ -60,7 +61,7 @@ if ('serviceWorker' in navigator) {
 async function fetchData() {
     document.querySelectorAll('.refreshIcon').forEach(i => i.classList.add('animate-spin'))
 
-    const [progressRes, notesRes, profilesRes, quotasRes, schedEventsRes, classAdminRes, classUnitsRes, redDaysRes, noteFoldersRes, myClassRes] = await Promise.all([
+    const [progressRes, notesRes, profilesRes, quotasRes, schedEventsRes, classAdminRes, classUnitsRes, redDaysRes, noteFoldersRes, myClassRes, tasksRes] = await Promise.all([
         db.from('user_progress').select('*').order('updated_at', { ascending: false }),
         db.from('notes').select('*').order('updated_at', { ascending: false }),
         db.from('profiles').select('*'),
@@ -70,7 +71,8 @@ async function fetchData() {
         db.from('myspace_class_units').select('*').order('created_at', { ascending: false }),
         db.from('myspace_settings').select('*'),
         db.from('note_folders').select('*'),
-        db.from('myspace_my_class').select('*')
+        db.from('myspace_my_class').select('*').order('updated_at', { ascending: false }),
+        db.from('myspace_tasks').select('*').order('updated_at', { ascending: false })
     ])
 
     document.querySelectorAll('.refreshIcon').forEach(i => i.classList.remove('animate-spin'))
@@ -95,6 +97,7 @@ async function fetchData() {
     allProgress = progressRes.data || []
     allNotes = notesRes.data || []
     allMyClass = myClassRes.data || []
+    allMySpaceTasks = tasksRes.data || []
 
     allScheduleEvents = schedEventsRes.data || []
     allClassAdmin = classAdminRes.data || []
@@ -556,6 +559,8 @@ function applyFilters() {
     renderNotesTable(pagedNotes)
     renderScheduleTable(pagedSched)
     renderClassesView(pagedClasses)
+    renderTasksTable()
+    renderMyClassTable()
     updateSortIcons()
 
     const userCount = document.getElementById('userCount')
@@ -570,6 +575,10 @@ function applyFilters() {
     if (classAdminCount) classAdminCount.textContent = allClassAdmin.length + ' classes'
     const classUnitsCount = document.getElementById('classUnitsCount')
     if (classUnitsCount) classUnitsCount.textContent = allClassUnits.length + ' classes'
+    const tasksCount = document.getElementById('tasksCount')
+    if (tasksCount) tasksCount.textContent = allMySpaceTasks.length + ' tasks'
+    const myclassCount = document.getElementById('myclassCount')
+    if (myclassCount) myclassCount.textContent = allMyClass.length + ' classes'
 }
 
 function clearFilters() {
@@ -907,7 +916,7 @@ function setClassTab(tab) {
 }
 
 function setDataTab(tab) {
-    const tabs = ['progress', 'notes', 'schedule', 'classes']
+    const tabs = ['progress', 'notes', 'schedule', 'classes', 'tasks', 'myclass']
     tabs.forEach(t => {
         const btn = document.getElementById('datatab-' + t)
         const view = document.getElementById('dataview-' + t)
@@ -1472,6 +1481,98 @@ function resetAnnForm() {
     const id = document.getElementById('announcementId')
     if (form) form.reset()
     if (id) id.value = ''
+}
+
+// ── MY SPACE TASKS VIEW ──
+function renderTasksTable() {
+    const body = document.getElementById('tasksTableBody')
+    if (!body) return
+    
+    if (!allMySpaceTasks.length) {
+        body.innerHTML = '<tr><td colspan="5" class="text-center py-12 text-slate-500 font-bold">No tasks found</td></tr>'
+        return
+    }
+
+    body.innerHTML = allMySpaceTasks.map(task => {
+        const profile = allProfiles[task.user_id]
+        const name = profile?.display_name || '—'
+        const initial = name[0]?.toUpperCase() || '?'
+        const statusColor = task.completed ? 'green' : (task.priority === 'high' ? 'pink' : 'blue')
+        const statusLabel = task.completed ? 'Completed' : (task.priority || 'Medium')
+
+        return `<tr class="group transition-colors hover:bg-slate-800/50">
+            <td class="px-5 py-3">
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-lg bg-blue/20 border-2 border-blue/30 flex items-center justify-center text-blue text-xs font-heading flex-shrink-0">${initial}</div>
+                    <span class="font-bold text-white text-sm">${name}</span>
+                </div>
+            </td>
+            <td class="px-5 py-3"><span class="font-bold text-slate-200">${task.text}</span></td>
+            <td class="px-5 py-3"><span class="chip bg-slate-700 text-slate-400 border-slate-600">${task.category || 'General'}</span></td>
+            <td class="px-5 py-3"><span class="chip bg-${statusColor}/10 text-${statusColor} border-${statusColor}/30">${statusLabel}</span></td>
+            <td class="px-5 py-3 text-right">
+                <button onclick="openTaskModal('${task.id}')" class="neo-btn px-3 py-1.5 bg-slate-800 text-slate-300 rounded-xl text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                    <i data-lucide="eye" class="w-3 h-3"></i>
+                </button>
+            </td>
+        </tr>`
+    }).join('')
+    lucide.createIcons({ root: body })
+}
+
+function openTaskModal(id) {
+    const task = allMySpaceTasks.find(t => t.id === id)
+    if (!task) return
+    const profile = allProfiles[task.user_id]
+    document.getElementById('viewModalTitle').textContent = `Task Detail — ${profile?.display_name || 'User'}`
+    document.getElementById('viewModalSub').textContent = `ID: ${task.id} · Created: ${new Date(task.created_at).toLocaleString()}`
+    document.getElementById('viewModalContent').textContent = JSON.stringify(task, null, 2)
+    document.getElementById('viewModalBg').classList.remove('hidden')
+}
+
+// ── MY CLASS VIEW ──
+function renderMyClassTable() {
+    const body = document.getElementById('myclassTableBody')
+    if (!body) return
+    
+    if (!allMyClass.length) {
+        body.innerHTML = '<tr><td colspan="4" class="text-center py-12 text-slate-500 font-bold">No class records found</td></tr>'
+        return
+    }
+
+    body.innerHTML = allMyClass.map(cls => {
+        const profile = allProfiles[cls.user_id]
+        const name = profile?.display_name || '—'
+        const initial = name[0]?.toUpperCase() || '?'
+        const updated = new Date(cls.updated_at).toLocaleDateString()
+
+        return `<tr class="group transition-colors hover:bg-slate-800/50">
+            <td class="px-5 py-3">
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-lg bg-orange/20 border-2 border-orange/30 flex items-center justify-center text-orange text-xs font-heading flex-shrink-0">${initial}</div>
+                    <span class="font-bold text-white text-sm">${name}</span>
+                </div>
+            </td>
+            <td class="px-5 py-3"><span class="font-bold text-slate-200">${cls.class_name}</span></td>
+            <td class="px-5 py-3 text-xs text-slate-500 font-mono">${updated}</td>
+            <td class="px-5 py-3 text-right">
+                <button onclick="openMyClassRowModal('${cls.id}')" class="neo-btn px-3 py-1.5 bg-slate-800 text-slate-300 rounded-xl text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                    <i data-lucide="eye" class="w-3 h-3"></i> View
+                </button>
+            </td>
+        </tr>`
+    }).join('')
+    lucide.createIcons({ root: body })
+}
+
+function openMyClassRowModal(id) {
+    const cls = allMyClass.find(c => c.id === id)
+    if (!cls) return
+    const profile = allProfiles[cls.user_id]
+    document.getElementById('viewModalTitle').textContent = `Class Data — ${cls.class_name}`
+    document.getElementById('viewModalSub').textContent = `Teacher: ${profile?.display_name || 'Unknown'} · Updated: ${new Date(cls.updated_at).toLocaleString()}`
+    document.getElementById('viewModalContent').textContent = JSON.stringify(cls.data, null, 2)
+    document.getElementById('viewModalBg').classList.remove('hidden')
 }
 
 // Keyboard shortcuts
