@@ -252,9 +252,9 @@ const ClassManager = {
       const reflectionCount = classData.reflections?.length || 0;
 
       return `
-        <div onclick="ClassManager.selectClass('${c.name.replace(/'/g, "\\'")}')" class="group bg-white dark:bg-slate-900/40 border-[3px] border-slate-800 dark:border-slate-500 rounded-3xl p-6 shadow-hard hover:-translate-y-1 hover:shadow-hard-dark dark:hover:shadow-hard transition-all duration-300 ease-out cursor-pointer relative overflow-hidden">
+        <div onclick="ClassManager.selectClass('${c.name.replace(/'/g, "\\'")}')" class="group bg-white dark:bg-slate-900/40 border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-3xl p-6 shadow-neo hover:-translate-y-1 hover:shadow-neo dark:hover:shadow-neo transition-all duration-300 ease-out cursor-pointer relative overflow-hidden">
           <div class="flex items-start justify-between mb-6">
-            <div class="w-12 h-12 rounded-xl flex items-center justify-center text-white border-[3px] border-slate-800 dark:border-slate-500 shadow-hard-sm group-hover:scale-105 transition-transform" style="background: ${c.color}">
+            <div class="w-12 h-12 rounded-xl flex items-center justify-center text-white border-[var(--border-width-thick)] border-[var(--border-primary)] shadow-neo-sm group-hover:scale-105 transition-transform" style="background: ${c.color}">
               <span class="font-heading font-bold text-xl uppercase">${c.name.charAt(0)}</span>
             </div>
             <div class="text-right">
@@ -265,7 +265,7 @@ const ClassManager = {
           
           <h3 class="font-heading font-bold text-xl text-slate-900 dark:text-white uppercase tracking-tight mb-4">${c.name}</h3>
           
-          <div class="flex items-center justify-between pt-4 border-t-[3px] border-slate-100 dark:border-slate-800">
+          <div class="flex items-center justify-between pt-4 border-t-[var(--border-width-thick)] border-[var(--bg-tertiary)] dark:border-slate-800">
             <div class="flex items-center gap-1.5">
               <i data-lucide="message-square" class="w-3.5 h-3.5 text-orange"></i>
               <span class="text-[10px] font-bold text-slate-500">${reflectionCount} Notes</span>
@@ -379,7 +379,7 @@ const StudentManager = {
 
     empty.classList.add('hidden');
     grid.innerHTML = classData.students.map(s => `
-      <div class="student-card border-[3px] border-slate-800 dark:border-slate-500 rounded-2xl p-6 bg-white dark:bg-slate-900/50 shadow-hard-sm hover:-translate-y-1 transition-transform">
+      <div class="student-card border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-2xl p-6 bg-white dark:bg-slate-900/50 shadow-neo-sm hover:-translate-y-1 transition-transform">
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-3">
             <div class="w-12 h-12 bg-blue/10 rounded-xl flex items-center justify-center text-blue font-black text-xl border-[3px] border-blue/20">
@@ -404,7 +404,7 @@ const StudentManager = {
           <div class="flex items-center justify-between">
              <span class="text-[10px] font-black uppercase text-slate-400 tracking-widest">Progress Stars</span>
              <div class="flex items-center gap-1">
-               <button onclick="StudentManager.updateStars('${s.id}', -1)" class="w-6 h-6 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 flex items-center justify-center text-slate-500 hover:bg-slate-200">-</button>
+               <button onclick="StudentManager.updateStars('${s.id}', -1)" class="w-6 h-6 rounded-md bg-slate-100 dark:bg-slate-800 border border-[var(--border-secondary)] dark:border-slate-600 flex items-center justify-center text-slate-500 hover:bg-slate-200">-</button>
                <span class="w-8 text-center font-black text-blue">${s.stars || 0}</span>
                <button onclick="StudentManager.updateStars('${s.id}', 1)" class="w-6 h-6 rounded-md bg-blue text-white border border-blue/30 flex items-center justify-center hover:brightness-110">+</button>
              </div>
@@ -432,8 +432,8 @@ const StudentManager = {
     document.getElementById('form-single').classList.toggle('hidden', !isSingle);
     document.getElementById('form-bulk').classList.toggle('hidden', isSingle);
     
-    document.getElementById('mode-single').className = isSingle ? 'flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all bg-blue text-white shadow-hard-sm' : 'flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all text-slate-400';
-    document.getElementById('mode-bulk').className = !isSingle ? 'flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all bg-blue text-white shadow-hard-sm' : 'flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all text-slate-400';
+    document.getElementById('mode-single').className = isSingle ? 'flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all bg-blue text-white shadow-neo-sm' : 'flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all text-slate-400';
+    document.getElementById('mode-bulk').className = !isSingle ? 'flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all bg-blue text-white shadow-neo-sm' : 'flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all text-slate-400';
     
     document.getElementById('saveStudentBtn').textContent = isSingle ? 'Add Student' : 'Add Students';
   },
@@ -560,7 +560,7 @@ const ReflectionManager = {
     list.innerHTML = classData.reflections
       .sort((a, b) => b.date.localeCompare(a.date))
       .map(r => `
-      <div class="border-[3px] border-slate-800 dark:border-slate-500 rounded-3xl p-6 shadow-hard-sm bg-white dark:bg-slate-900/40 relative hover:-translate-y-1 transition-transform">
+      <div class="border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-3xl p-6 shadow-neo-sm bg-white dark:bg-slate-900/40 relative hover:-translate-y-1 transition-transform">
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-3">
             <span class="px-3 py-1 bg-orange/15 text-orange border border-orange/20 rounded-lg font-black text-[10px] uppercase tracking-widest">${r.focus || 'General'}</span>
@@ -656,7 +656,7 @@ const SessionManager = {
         const isPast = e.date < new Date().toISOString().split('T')[0];
         
         return `
-          <tr class="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
+          <tr class="border-b border-[var(--bg-tertiary)] dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
             <td class="py-4">
               <div class="flex flex-col px-4">
                 <span class="text-sm font-bold">${new Date(e.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
@@ -689,7 +689,7 @@ const SessionManager = {
         const dateStr = new Date(e.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', weekday: 'short' });
 
         return `
-          <div class="glass-panel border-[3px] border-slate-800 dark:border-slate-500 rounded-2xl p-4 shadow-hard-sm hover:-translate-y-1 transition-transform">
+          <div class="glass-panel border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-2xl p-4 shadow-neo-sm hover:-translate-y-1 transition-transform">
             <div class="flex items-center justify-between mb-3">
               <div class="flex items-center gap-2">
                 <span class="text-[10px] font-black uppercase tracking-widest ${isPast ? 'text-green' : 'text-blue'}">${isPast ? 'Session Ended' : 'Upcoming'}</span>
@@ -736,7 +736,7 @@ const StatsManager = {
     ];
 
     grid.innerHTML = stats.map(s => `
-      <div class="glass-panel border-[3px] border-slate-800 dark:border-slate-700 rounded-3xl p-6 shadow-hard-sm bg-white dark:bg-slate-900/50">
+      <div class="glass-panel border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-3xl p-6 shadow-neo-sm bg-white dark:bg-slate-900/50">
         <div class="w-10 h-10 rounded-xl flex items-center justify-center bg-${s.color}/10 text-${s.color} mb-4">
           <i data-lucide="${s.icon}" class="w-5 h-5"></i>
         </div>
@@ -820,7 +820,7 @@ const UI = {
     const colorClass = type === 'success' ? 'bg-green' : (type === 'error' ? 'bg-pink' : 'bg-blue');
     const icon = type === 'success' ? 'check-circle' : (type === 'error' ? 'alert-circle' : 'info');
 
-    toast.className = `flex items-center gap-3 px-6 py-4 rounded-2xl border-[3px] border-slate-800 text-white shadow-hard translate-y-10 opacity-0 transition-all duration-300 pointer-events-auto ${colorClass}`;
+    toast.className = `flex items-center gap-3 px-6 py-4 rounded-2xl border-[var(--border-width-thick)] border-[var(--border-primary)] text-white shadow-neo translate-y-10 opacity-0 transition-all duration-300 pointer-events-auto ${colorClass}`;
     toast.innerHTML = `
       <i data-lucide="${icon}" class="w-5 h-5"></i>
       <span class="font-heading font-bold text-sm uppercase tracking-tight">${message}</span>

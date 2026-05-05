@@ -507,7 +507,7 @@ function renderTableView(classes) {
           ` : '';
 
           bodyHtml += `
-            <div class="p-2.5 rounded-xl border-[3px] border-[var(--border-primary)] bg-[var(--surface-card)] shadow-hard hover:shadow-hard transition-all cursor-pointer hover:-translate-y-0.5" onclick="openDrawer('${cls.name.replace(/'/g, "\\'")}')">
+            <div class="p-2.5 rounded-xl border-[3px] border-[var(--border-primary)] bg-[var(--surface-card)] shadow-neo hover:shadow-neo transition-all cursor-pointer hover:-translate-y-0.5" onclick="openDrawer('${cls.name.replace(/'/g, "\\'")}')">
               <div class="flex items-center gap-2 mb-1">
                 <button onclick="event.stopPropagation(); cycleSyllabusLessonStatus('${cls.name.replace(/'/g, "\\'")}', ${session.sequenceIndex})" class="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider text-white shadow-sm hover:brightness-110 active:translate-y-0.5 transition-all" style="background:${statusColor}">${label}</button>
                 <span class="text-[10px] font-extrabold text-slate-400 ml-auto whitespace-nowrap"><i data-lucide="clock" class="w-3 h-3 inline pb-0.5"></i> ${formatTime(inst.startTime)}</span>
@@ -561,7 +561,7 @@ function renderCardHeader(className, color, stats, headerStatusObj) {
         </div>
       </div>
       <div class="card-status-badge flex flex-col items-end gap-1.5">
-        <span class="px-2 py-1 rounded-lg text-xs font-extrabold uppercase tracking-wider shadow-hard" style="background:${headerStatusObj.color}; color:#fff; border: 2px solid var(--border-primary); transform: translateY(-2px);">
+        <span class="px-2 py-1 rounded-lg text-xs font-extrabold uppercase tracking-wider shadow-neo" style="background:${headerStatusObj.color}; color:#fff; border: 2px solid var(--border-primary); transform: translateY(-2px);">
           ${headerStatusObj.label}
         </span>
         ${unitPlanningMode ? `
@@ -1068,7 +1068,7 @@ function renderLessonsDrawer(className) {
             
             <div class="flex items-center gap-2">
               <button onclick="addSyllabusLesson('${className}', '${unitName.replace(/'/g, "\\'")}')" class="btn-chunky px-3 py-1.5 bg-[var(--surface-card)] text-[10px]">+ Lesson</button>
-              <button onclick="deleteSyllabusUnit('${className}', '${unitName.replace(/'/g, "\\'")}')" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[var(--color-pink)] border-[var(--border-width-medium)] border-transparent hover:border-[var(--border-primary)] hover:shadow-hard transition-all" title="Delete Unit"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+              <button onclick="deleteSyllabusUnit('${className}', '${unitName.replace(/'/g, "\\'")}')" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[var(--color-pink)] border-[var(--border-width-medium)] border-transparent hover:border-[var(--border-primary)] hover:shadow-neo transition-all" title="Delete Unit"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
             </div>
           </div>
           <div class="space-y-2">
@@ -1089,7 +1089,7 @@ function renderLessonsDrawer(className) {
 
         html += `
           <div class="flex items-center gap-3 p-3 bg-white dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 rounded-xl relative group/lesson hover:border-slate-200 dark:hover:border-slate-700 transition-colors">
-            <button onclick="cycleSyllabusLessonStatus('${className}', ${index})" class="flex-shrink-0 w-16 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border-2 border-dark shadow-hard active:translate-y-[1px] active:shadow-none hover:brightness-110 ${s.cls}">
+            <button onclick="cycleSyllabusLessonStatus('${className}', ${index})" class="flex-shrink-0 w-16 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border-2 border-dark shadow-neo active:translate-y-[1px] active:shadow-none hover:brightness-110 ${s.cls}">
               ${s.label}
             </button>
             <div class="flex-1 min-w-0">
