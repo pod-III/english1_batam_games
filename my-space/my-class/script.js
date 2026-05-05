@@ -40,6 +40,11 @@ const ClassManager = {
 
     // 7. Keyboard Listeners
     this.setupKeyboardShortcuts();
+
+    // 8. Global Listeners
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') ModalManager.closeAll();
+    });
   },
 
   setupKeyboardShortcuts() {
@@ -266,6 +271,14 @@ const ClassManager = {
   },
 
   updateSyncBadge() {
+    const badge = document.getElementById('cloudSyncBadge');
+    const isCloud = window.Sync && !isSandbox();
+    
+    if (badge) {
+      badge.classList.toggle('opacity-0', !isCloud);
+      badge.classList.toggle('opacity-100', isCloud);
+    }
+
     if (window.Sync) {
       const state = isSandbox() ? 'local' : 'synced';
       Sync.setSyncBadge(state);
