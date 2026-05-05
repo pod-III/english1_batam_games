@@ -252,9 +252,9 @@ const ClassManager = {
       const reflectionCount = classData.reflections?.length || 0;
 
       return `
-        <div onclick="ClassManager.selectClass('${c.name.replace(/'/g, "\\'")}')" class="tracker-card group bg-white dark:bg-slate-900/40">
+        <div onclick="ClassManager.selectClass('${c.name.replace(/'/g, "\\'")}')" class="group bg-white dark:bg-slate-900/40 border-[3px] border-slate-800 dark:border-slate-500 rounded-3xl p-6 shadow-hard hover:-translate-y-1 hover:shadow-hard-dark dark:hover:shadow-hard transition-all duration-300 ease-out cursor-pointer relative overflow-hidden">
           <div class="flex items-start justify-between mb-6">
-            <div class="w-12 h-12 rounded-xl flex items-center justify-center text-white border-2 border-slate-800 shadow-hard-sm group-hover:scale-105 transition-transform" style="background: ${c.color}">
+            <div class="w-12 h-12 rounded-xl flex items-center justify-center text-white border-[3px] border-slate-800 dark:border-slate-500 shadow-hard-sm group-hover:scale-105 transition-transform" style="background: ${c.color}">
               <span class="font-heading font-bold text-xl uppercase">${c.name.charAt(0)}</span>
             </div>
             <div class="text-right">
@@ -265,7 +265,7 @@ const ClassManager = {
           
           <h3 class="font-heading font-bold text-xl text-slate-900 dark:text-white uppercase tracking-tight mb-4">${c.name}</h3>
           
-          <div class="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
+          <div class="flex items-center justify-between pt-4 border-t-[3px] border-slate-100 dark:border-slate-800">
             <div class="flex items-center gap-1.5">
               <i data-lucide="message-square" class="w-3.5 h-3.5 text-orange"></i>
               <span class="text-[10px] font-bold text-slate-500">${reflectionCount} Notes</span>
@@ -359,10 +359,10 @@ const StudentManager = {
 
     empty.classList.add('hidden');
     grid.innerHTML = classData.students.map(s => `
-      <div class="student-card glass-panel border-2 border-slate-800 dark:border-slate-700 rounded-2xl p-6 bg-white dark:bg-slate-900/50">
+      <div class="student-card border-[3px] border-slate-800 dark:border-slate-500 rounded-2xl p-6 bg-white dark:bg-slate-900/50 shadow-hard-sm hover:-translate-y-1 transition-transform">
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-3">
-            <div class="w-12 h-12 bg-blue/10 rounded-xl flex items-center justify-center text-blue font-black text-xl border-2 border-blue/20">
+            <div class="w-12 h-12 bg-blue/10 rounded-xl flex items-center justify-center text-blue font-black text-xl border-[3px] border-blue/20">
               ${(s.nick || s.name).charAt(0)}
             </div>
             <div>
@@ -540,7 +540,7 @@ const ReflectionManager = {
     list.innerHTML = classData.reflections
       .sort((a, b) => b.date.localeCompare(a.date))
       .map(r => `
-      <div class="glass-panel border-2 border-slate-800 dark:border-slate-700 rounded-3xl p-6 shadow-hard-sm bg-white dark:bg-slate-900/40 relative">
+      <div class="border-[3px] border-slate-800 dark:border-slate-500 rounded-3xl p-6 shadow-hard-sm bg-white dark:bg-slate-900/40 relative hover:-translate-y-1 transition-transform">
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-3">
             <span class="px-3 py-1 bg-orange/15 text-orange border border-orange/20 rounded-lg font-black text-[10px] uppercase tracking-widest">${r.focus || 'General'}</span>
@@ -669,7 +669,7 @@ const SessionManager = {
         const dateStr = new Date(e.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', weekday: 'short' });
 
         return `
-          <div class="glass-panel border-2 border-slate-800 dark:border-slate-700 rounded-2xl p-4 shadow-hard-sm">
+          <div class="glass-panel border-[3px] border-slate-800 dark:border-slate-500 rounded-2xl p-4 shadow-hard-sm hover:-translate-y-1 transition-transform">
             <div class="flex items-center justify-between mb-3">
               <div class="flex items-center gap-2">
                 <span class="text-[10px] font-black uppercase tracking-widest ${isPast ? 'text-green' : 'text-blue'}">${isPast ? 'Session Ended' : 'Upcoming'}</span>
@@ -800,7 +800,7 @@ const UI = {
     const colorClass = type === 'success' ? 'bg-green' : (type === 'error' ? 'bg-pink' : 'bg-blue');
     const icon = type === 'success' ? 'check-circle' : (type === 'error' ? 'alert-circle' : 'info');
 
-    toast.className = `glass-panel flex items-center gap-3 px-6 py-4 rounded-2xl border-2 border-slate-800 text-white shadow-hard translate-y-10 opacity-0 transition-all duration-300 pointer-events-auto ${colorClass}`;
+    toast.className = `flex items-center gap-3 px-6 py-4 rounded-2xl border-[3px] border-slate-800 text-white shadow-hard translate-y-10 opacity-0 transition-all duration-300 pointer-events-auto ${colorClass}`;
     toast.innerHTML = `
       <i data-lucide="${icon}" class="w-5 h-5"></i>
       <span class="font-heading font-bold text-sm uppercase tracking-tight">${message}</span>
