@@ -110,9 +110,6 @@
   <!-- Header -->
   <header class="glass-panel sticky top-0 z-40 h-20 flex items-center justify-between px-4 md:px-8 border-b-[3px] border-slate-800 dark:border-slate-700">
     <div class="flex items-center gap-4">
-      <a href="/hub.html" class="w-10 h-10 bg-blue rounded-xl border-2 border-slate-800 dark:border-slate-500 flex items-center justify-center text-white shadow-hard-sm hover:-translate-y-1 transition-transform">
-        <i data-lucide="arrow-left" class="w-6 h-6"></i>
-      </a>
       <div class="flex items-center gap-3">
         <div class="w-12 h-12 bg-orange rounded-xl border-2 border-slate-800 dark:border-slate-500 flex items-center justify-center text-white shadow-hard">
           <i data-lucide="users" class="w-7 h-7"></i>
@@ -137,6 +134,11 @@
     </div>
 
     <div class="flex items-center gap-3">
+      <div id="backToGridBtn" class="hidden">
+        <button onclick="ClassManager.selectClass('')" class="btn-chunky px-4 py-2 bg-white dark:bg-slate-800 rounded-xl border-2 border-slate-800 dark:border-slate-600 shadow-hard-sm font-black text-[10px] uppercase tracking-widest flex items-center gap-2">
+          <i data-lucide="layout-grid" class="w-3.5 h-3.5"></i> All Classes
+        </button>
+      </div>
       <button onclick="Theme.toggle()" class="btn-chunky w-10 h-10 bg-white dark:bg-slate-800 rounded-xl border-2 border-slate-800 dark:border-slate-600 shadow-hard-sm flex items-center justify-center">
         <i data-lucide="sun" class="w-5 h-5 dark:hidden text-slate-700"></i>
         <i data-lucide="moon" class="w-5 h-5 hidden dark:block text-slate-300"></i>
@@ -155,19 +157,29 @@
 
   <main class="max-w-7xl mx-auto p-4 md:p-8">
     
-    <!-- Empty State -->
-    <div id="noClassState" class="glass-panel border-4 border-dashed border-slate-300 dark:border-slate-700 rounded-[2.5rem] p-12 md:p-24 flex flex-col items-center justify-center text-center animate-pop-in">
-      <div class="w-24 h-24 bg-blue/10 rounded-[2rem] border-2 border-blue/20 flex items-center justify-center mb-8 relative">
-        <i data-lucide="school" class="w-12 h-12 text-blue"></i>
-        <div class="absolute -top-2 -right-2 w-8 h-8 bg-pink rounded-full flex items-center justify-center border-2 border-white dark:border-slate-800 animate-bounce">
-          <i data-lucide="search" class="w-4 h-4 text-white"></i>
+    <!-- Landing State: Class Cards -->
+    <div id="noClassState" class="space-y-8 animate-pop-in">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 class="font-heading font-bold text-3xl text-slate-900 dark:text-white uppercase tracking-tight">Select Your Class</h2>
+          <p class="font-body font-semibold text-slate-500 dark:text-slate-400 mt-1">Choose a class from your schedule to manage students and reflections.</p>
         </div>
+        <a href="../schedule/" class="btn-chunky bg-white dark:bg-slate-800 px-6 py-3 rounded-xl border-2 border-slate-800 font-bold uppercase text-xs flex items-center gap-2">
+          <i data-lucide="calendar" class="w-4 h-4"></i> Edit Schedule
+        </a>
       </div>
-      <h2 class="font-heading font-bold text-3xl text-slate-900 dark:text-white uppercase tracking-tight">No Class Selected</h2>
-      <p class="font-body font-semibold text-slate-500 dark:text-slate-400 mt-4 max-w-md text-lg">Choose one of your classes from the schedule to start tracking students and recording reflections.</p>
-      <div class="mt-10 flex gap-4">
-        <a href="../schedule/" class="btn-chunky bg-white dark:bg-slate-800 px-6 py-3 rounded-xl border-2 border-slate-800 font-bold uppercase text-sm">Open Schedule</a>
-        <button onclick="document.getElementById('classSelector').focus()" class="btn-chunky bg-blue text-white px-8 py-3 rounded-xl border-2 border-slate-800 font-black uppercase text-sm shadow-hard">Select Class</button>
+
+      <div id="classGridLanding" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <!-- Class cards injected here -->
+      </div>
+
+      <div id="noScheduleState" class="hidden glass-panel border-4 border-dashed border-slate-300 dark:border-slate-700 rounded-[2.5rem] p-12 text-center">
+        <div class="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-3xl flex items-center justify-center mx-auto mb-6 text-slate-400">
+          <i data-lucide="calendar-off" class="w-10 h-10"></i>
+        </div>
+        <h3 class="font-heading font-bold text-xl text-slate-900 dark:text-white uppercase">No Classes Found</h3>
+        <p class="text-slate-500 mt-2 max-w-sm mx-auto">It looks like your schedule is empty. Add some classes to your schedule first to start tracking them here.</p>
+        <a href="../schedule/" class="btn-chunky inline-flex mt-8 bg-blue text-white px-8 py-3 rounded-xl border-2 border-slate-800 font-black uppercase text-sm shadow-hard">Go to Schedule</a>
       </div>
     </div>
 
@@ -175,31 +187,43 @@
     <div id="classWorkspace" class="hidden space-y-8">
       
       <!-- Class Header Card -->
-      <div id="classHeaderCard" class="glass-panel border-[3px] border-slate-800 dark:border-slate-700 rounded-[2.5rem] p-8 shadow-hard relative overflow-hidden">
-        <div id="classHeaderColor" class="absolute top-0 left-0 w-full h-2 bg-blue"></div>
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
-          <div class="flex items-center gap-6">
-             <div id="classAvatar" class="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-[1.5rem] border-2 border-slate-800 flex items-center justify-center text-3xl font-black text-blue shadow-hard-sm uppercase">
+      <div id="classHeaderCard" class="glass-panel border-[4px] border-slate-800 dark:border-slate-700 rounded-[3rem] p-10 shadow-hard relative overflow-hidden group">
+        <div id="classHeaderColor" class="absolute top-0 left-0 w-full h-3 bg-blue"></div>
+        <div class="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-3xl group-hover:bg-white/20 transition-all"></div>
+        
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-8 relative z-10">
+          <div class="flex items-center gap-8">
+             <div id="classAvatar" class="w-24 h-24 bg-white dark:bg-slate-800 rounded-[2rem] border-[3px] border-slate-800 flex items-center justify-center text-4xl font-black text-blue shadow-hard uppercase transform -rotate-3 group-hover:rotate-0 transition-transform">
                ?
              </div>
-             <div>
-               <h2 id="classNameDisplay" class="font-heading font-bold text-3xl text-slate-900 dark:text-white uppercase tracking-tight">Class Name</h2>
-               <div class="flex flex-wrap gap-3 mt-3">
-                 <span id="studentCountBadge" class="px-3 py-1 bg-blue/10 text-blue rounded-lg border border-blue/20 text-xs font-black uppercase tracking-widest flex items-center gap-1.5">
-                   <i data-lucide="users" class="w-3.5 h-3.5"></i> 0 Students
-                 </span>
-                 <span id="reflectionCountBadge" class="px-3 py-1 bg-orange/10 text-orange rounded-lg border border-orange/20 text-xs font-black uppercase tracking-widest flex items-center gap-1.5">
-                   <i data-lucide="message-square" class="w-3.5 h-3.5"></i> 0 Reflections
-                 </span>
-                 <span id="nextSessionBadge" class="px-3 py-1 bg-green/10 text-green rounded-lg border border-green/20 text-xs font-black uppercase tracking-widest flex items-center gap-1.5">
-                   <i data-lucide="calendar" class="w-3.5 h-3.5"></i> Next: Loading...
-                 </span>
+             <div class="space-y-3">
+               <div class="flex items-center gap-3">
+                 <h2 id="classNameDisplay" class="font-heading font-bold text-4xl text-slate-900 dark:text-white uppercase tracking-tighter">Class Name</h2>
+                 <span class="badge-pro">PRO TOOL</span>
+               </div>
+               <div class="flex flex-wrap gap-3">
+                 <div class="px-4 py-2 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl border-2 border-slate-800 dark:border-slate-700 flex items-center gap-2">
+                   <div class="w-2 h-2 rounded-full bg-blue animate-pulse"></div>
+                   <span id="studentCountBadge" class="text-[11px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">0 Students</span>
+                 </div>
+                 <div class="px-4 py-2 bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl border-2 border-slate-800 dark:border-slate-700 flex items-center gap-2">
+                   <i data-lucide="message-square" class="w-3.5 h-3.5 text-orange"></i>
+                   <span id="reflectionCountBadge" class="text-[11px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">0 Reflections</span>
+                 </div>
                </div>
              </div>
           </div>
-          <div class="flex gap-3">
-            <button onclick="ClassManager.openAddStudent()" class="btn-chunky bg-blue text-white px-6 py-3 rounded-xl border-2 border-slate-800 font-black uppercase text-xs flex items-center gap-2 shadow-hard">
-              <i data-lucide="user-plus" class="w-4 h-4"></i> Add Student
+          
+          <div class="flex flex-col sm:flex-row items-stretch lg:items-center gap-4">
+            <div id="nextSessionBadge" class="px-5 py-3 bg-white dark:bg-slate-900 rounded-2xl border-2 border-slate-800 dark:border-slate-700 shadow-hard-sm flex items-center gap-3">
+               <i data-lucide="calendar" class="w-5 h-5 text-green"></i>
+               <div class="flex flex-col">
+                 <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Next Session</span>
+                 <span id="nextSessionText" class="text-xs font-bold text-slate-800 dark:text-white mt-1">Loading...</span>
+               </div>
+            </div>
+            <button onclick="ClassManager.openAddStudent()" class="btn-chunky bg-blue text-white px-8 py-4 rounded-2xl border-2 border-slate-800 font-black uppercase text-sm flex items-center justify-center gap-3 shadow-hard active:translate-y-1 active:shadow-none">
+              <i data-lucide="user-plus" class="w-5 h-5"></i> Add Student
             </button>
           </div>
         </div>
@@ -294,16 +318,24 @@
   <div id="modalBackdrop" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[50] hidden opacity-0 transition-opacity duration-300" onclick="ModalManager.closeAll()"></div>
   
   <!-- Add Student Modal -->
-  <div id="studentModal" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md glass-panel border-4 border-slate-800 dark:border-slate-600 rounded-[2.5rem] p-8 z-[60] hidden opacity-0 transition-all duration-300 scale-95 shadow-2xl">
-    <div class="flex items-center justify-between mb-8">
+  <div id="studentModal" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg glass-panel border-4 border-slate-800 dark:border-slate-600 rounded-[2.5rem] p-8 z-[60] hidden opacity-0 transition-all duration-300 scale-95 shadow-2xl">
+    <div class="flex items-center justify-between mb-6">
        <h2 class="font-heading font-bold text-2xl text-slate-900 dark:text-white uppercase flex items-center gap-3">
-         <i data-lucide="user-plus" class="w-6 h-6 text-blue"></i> Add Student
+         <i data-lucide="user-plus" class="w-6 h-6 text-blue"></i> Add Students
        </h2>
        <button onclick="ModalManager.closeAll()" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
          <i data-lucide="x" class="w-6 h-6"></i>
        </button>
     </div>
-    <div class="space-y-6">
+
+    <!-- Toggle between Single and Bulk -->
+    <div class="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-2xl mb-6 border-2 border-slate-800 dark:border-slate-700">
+      <button onclick="StudentManager.setEntryMode('single')" id="mode-single" class="flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all bg-blue text-white shadow-hard-sm">Single Entry</button>
+      <button onclick="StudentManager.setEntryMode('bulk')" id="mode-bulk" class="flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all text-slate-400">Bulk Add</button>
+    </div>
+
+    <!-- Single Form -->
+    <div id="form-single" class="space-y-6">
       <div class="space-y-2">
         <label class="text-[10px] font-black uppercase text-slate-400 ml-1">Full Name</label>
         <input type="text" id="studentNameInput" placeholder="Enter student name..." class="input-chunky">
@@ -312,10 +344,20 @@
         <label class="text-[10px] font-black uppercase text-slate-400 ml-1">Nickname (Optional)</label>
         <input type="text" id="studentNickInput" placeholder="What do you call them?" class="input-chunky">
       </div>
-      <div class="pt-4 flex gap-3">
-        <button onclick="ModalManager.closeAll()" class="btn-chunky flex-1 bg-slate-100 dark:bg-slate-800 border-2 border-slate-800 font-black uppercase py-4 rounded-2xl">Cancel</button>
-        <button onclick="StudentManager.save()" class="btn-chunky flex-1 bg-blue text-white border-2 border-slate-800 font-black uppercase py-4 rounded-2xl shadow-hard">Add Student</button>
+    </div>
+
+    <!-- Bulk Form -->
+    <div id="form-bulk" class="hidden space-y-6">
+      <div class="space-y-2">
+        <label class="text-[10px] font-black uppercase text-slate-400 ml-1">Student List (One name per line)</label>
+        <textarea id="studentBulkInput" placeholder="John Doe&#10;Jane Smith&#10;Michael Scott" class="input-chunky min-h-[150px] resize-none"></textarea>
+        <p class="text-[9px] font-bold text-slate-400 ml-1 italic">Pro Tip: You can paste names from Excel or a text file.</p>
       </div>
+    </div>
+
+    <div class="pt-8 flex gap-3">
+      <button onclick="ModalManager.closeAll()" class="btn-chunky flex-1 bg-slate-100 dark:bg-slate-800 border-2 border-slate-800 font-black uppercase py-4 rounded-2xl">Cancel</button>
+      <button id="saveStudentBtn" onclick="StudentManager.save()" class="btn-chunky flex-1 bg-blue text-white border-2 border-slate-800 font-black uppercase py-4 rounded-2xl shadow-hard">Add Student</button>
     </div>
   </div>
 

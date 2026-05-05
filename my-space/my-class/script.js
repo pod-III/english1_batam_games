@@ -131,11 +131,14 @@ const ClassManager = {
     if (!this.activeClass) {
       noClass.classList.remove('hidden');
       workspace.classList.add('hidden');
+      document.getElementById('backToGridBtn').classList.add('hidden');
+      this.renderClassCards();
       return;
     }
 
     noClass.classList.add('hidden');
     workspace.classList.remove('hidden');
+    document.getElementById('backToGridBtn').classList.remove('hidden');
 
     // Header Info
     const classInfo = this.classes.find(c => c.name === this.activeClass);
@@ -144,13 +147,59 @@ const ClassManager = {
     document.getElementById('classHeaderColor').style.backgroundColor = classInfo?.color || '#1ea7fd';
     
     const classData = this.data.classes[this.activeClass];
-    document.getElementById('studentCountBadge').innerHTML = `<i data-lucide="users" class="w-3.5 h-3.5"></i> ${classData.students.length} Students`;
-    document.getElementById('reflectionCountBadge').innerHTML = `<i data-lucide="message-square" class="w-3.5 h-3.5"></i> ${classData.reflections.length} Reflections`;
+    document.getElementById('studentCountBadge').textContent = `${classData.students.length} Students`;
+    document.getElementById('reflectionCountBadge').textContent = `${classData.reflections.length} Reflections`;
     
     this.updateNextSession();
     
     // Render current tab
     TabManager.render();
+  },
+
+  renderClassCards() {
+    const grid = document.getElementById('classGridLanding');
+    const empty = document.getElementById('noScheduleState');
+    if (!grid) return;
+
+    if (this.classes.length === 0) {
+      grid.classList.add('hidden');
+      empty.classList.remove('hidden');
+      return;
+    }
+
+    empty.classList.add('hidden');
+    grid.classList.remove('hidden');
+
+    grid.innerHTML = this.classes.map(c => {
+      const classData = this.data.classes[c.name] || { students: [], reflections: [] };
+      const studentCount = classData.students?.length || 0;
+      const reflectionCount = classData.reflections?.length || 0;
+
+      return `
+        <div onclick="ClassManager.selectClass('${c.name.replace(/'/g, "\\'")}')" class="tracker-card bg-white dark:bg-slate-900/50 cursor-pointer group">
+          <div class="flex items-start justify-between mb-6">
+            <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-hard-sm transition-transform group-hover:scale-110" style="background: ${c.color}">
+              <span class="font-heading font-bold text-2xl uppercase">${c.name.charAt(0)}</span>
+            </div>
+            <div class="flex flex-col items-end">
+              <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Students</span>
+              <span class="text-xl font-black text-slate-800 dark:text-white">${studentCount}</span>
+            </div>
+          </div>
+          <h3 class="font-heading font-bold text-xl text-slate-900 dark:text-white uppercase tracking-tight mb-4">${c.name}</h3>
+          <div class="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
+            <span class="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1">
+              <i data-lucide="message-square" class="w-3 h-3"></i> ${reflectionCount} Notes
+            </span>
+            <span class="text-[9px] font-black uppercase tracking-widest text-blue flex items-center gap-1 group-hover:gap-2 transition-all">
+              Manage <i data-lucide="chevron-right" class="w-3 h-3"></i>
+            </span>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    if (window.lucide) lucide.createIcons({ root: grid });
   },
 
   updateNextSession() {
@@ -166,7 +215,7 @@ const ClassManager = {
     if (upcoming) {
       const d = new Date(upcoming.date);
       const fmt = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-      badge.innerHTML = `<i data-lucide="calendar" class="w-3.5 h-3.5"></i> Next: ${fmt} @ ${upcoming.startTime}`;
+      document.getElementById('nextSessionText').textContent = `${fmt} @ ${upcoming.startTime}`;
       badge.classList.remove('hidden');
     } else {
       badge.classList.add('hidden');
@@ -181,8 +230,9 @@ const ClassManager = {
   },
 
   openAddStudent() {
+    StudentManager.setEntryMode('single');
     ModalManager.open('studentModal');
-    document.getElementById('studentNameInput').focus();
+    setTimeout(() => document.getElementById('studentNameInput').focus(), 100);
   }
 };
 
@@ -216,6 +266,8 @@ const TabManager = {
 };
 
 const StudentManager = {
+  entryMode: 'single',
+
   render() {
     const grid = document.getElementById('studentGrid');
     const empty = document.getElementById('noStudentsState');
@@ -275,7 +327,28 @@ const StudentManager = {
     if (window.lucide) lucide.createIcons({ root: grid });
   },
 
+  setEntryMode(mode) {
+    this.entryMode = mode;
+    const isSingle = mode === 'single';
+    
+    document.getElementById('form-single').classList.toggle('hidden', !isSingle);
+    document.getElementById('form-bulk').classList.toggle('hidden', isSingle);
+    
+    document.getElementById('mode-single').className = isSingle ? 'flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all bg-blue text-white shadow-hard-sm' : 'flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all text-slate-400';
+    document.getElementById('mode-bulk').className = !isSingle ? 'flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all bg-blue text-white shadow-hard-sm' : 'flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all text-slate-400';
+    
+    document.getElementById('saveStudentBtn').textContent = isSingle ? 'Add Student' : 'Add Students';
+  },
+
   save() {
+    if (this.entryMode === 'bulk') {
+      this.saveBulk();
+    } else {
+      this.saveSingle();
+    }
+  },
+
+  saveSingle() {
     const name = document.getElementById('studentNameInput').value.trim();
     const nick = document.getElementById('studentNickInput').value.trim();
     
@@ -290,16 +363,50 @@ const StudentManager = {
       joinedAt: new Date().toISOString()
     };
     
-    this.data = ClassManager.data.classes[ClassManager.activeClass];
-    this.data.students.push(newStudent);
-    
-    ClassManager.saveData();
-    ModalManager.closeAll();
-    ClassManager.updateUI();
+    this.addStudentToData(newStudent);
     
     // Clear inputs
     document.getElementById('studentNameInput').value = '';
     document.getElementById('studentNickInput').value = '';
+    
+    this.finalizeSave();
+  },
+
+  saveBulk() {
+    const bulkText = document.getElementById('studentBulkInput').value.trim();
+    if (!bulkText) return;
+
+    const names = bulkText.split('\n').map(n => n.trim()).filter(n => n !== '');
+    if (names.length === 0) return;
+
+    names.forEach(name => {
+      const newStudent = {
+        id: crypto.randomUUID(),
+        name,
+        nick: '',
+        stars: 0,
+        notes: '',
+        joinedAt: new Date().toISOString()
+      };
+      this.addStudentToData(newStudent);
+    });
+
+    // Clear input
+    document.getElementById('studentBulkInput').value = '';
+    
+    this.finalizeSave();
+  },
+
+  addStudentToData(student) {
+    const classData = ClassManager.data.classes[ClassManager.activeClass];
+    if (!classData.students) classData.students = [];
+    classData.students.push(student);
+  },
+
+  finalizeSave() {
+    ClassManager.saveData();
+    ModalManager.closeAll();
+    ClassManager.updateUI();
   },
 
   delete(id) {
