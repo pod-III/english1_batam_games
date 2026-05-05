@@ -422,7 +422,7 @@
   async function cloudSaveMyClass(userId, fullData) {
     if (!fullData || !fullData.classes) return;
 
-    // Fetch existing rows to get IDs for upsert (to maintain PK stability)
+    // 1. Fetch existing rows to map Class Name -> DB ID
     const { data: existing, error: fetchErr } = await db.from('myspace_my_class')
       .select('id, class_name').eq('user_id', userId);
     
@@ -433,29 +433,32 @@
 
     const existingMap = {};
     (existing || []).forEach(row => {
-      existingMap[row.class_name] = row.id;
+      if (row.class_name) existingMap[row.class_name] = row.id;
     });
 
-    const rowsToUpsert = [];
-    Object.entries(fullData.classes).forEach(([className, classData]) => {
-      const row = {
+    // 2. Prepare rows, ensuring every row has a non-null ID
+    const rowsToUpsert = Object.entries(fullData.classes).map(([className, classData]) => {
+      // Generate ID if missing from map
+      const existingId = existingMap[className];
+      const finalId = existingId || (
+        (window.crypto && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : '00000000-0000-4000-8000-' + Date.now().toString(16).padStart(12, '0')
+      );
+
+      return {
+        id: finalId,
         user_id: userId,
         class_name: className,
         data: classData,
         updated_at: new Date().toISOString()
       };
-      
-      // If we have an existing ID, use it for the upsert
-      if (existingMap[className]) {
-        row.id = existingMap[className];
-      }
-      
-      rowsToUpsert.push(row);
-    });
+    }).filter(row => row.id && row.class_name); // Safety filter
 
     if (rowsToUpsert.length === 0) return;
 
-    console.info(`[Sync] Upserting ${rowsToUpsert.length} classes to myspace_my_class...`);
+    console.info(`[Sync] Upserting ${rowsToUpsert.length} classes to myspace_my_class...`, rowsToUpsert);
+    
     const { error } = await db.from('myspace_my_class')
       .upsert(rowsToUpsert, { onConflict: 'user_id,class_name' });
       
@@ -681,14 +684,19 @@
     const hasLocal = !!(
       localStorage.getItem('schedule_events') ||
       localStorage.getItem('schedule_class_admin') ||
-      localStorage.getItem('schedule_class_units')
+      localStorage.getItem('schedule_class_units') ||
+      localStorage.getItem('prog_my-class') ||
+      localStorage.getItem('klasskit_tasks')
     );
 
     // Check if cloud has data
-    const { data: cloudCheck, error } = await db.from('myspace_events')
-      .select('id').eq('user_id', userId).limit(1);
+    const [eventsCheck, myClassCheck] = await Promise.all([
+      db.from('myspace_events').select('id').eq('user_id', userId).limit(1),
+      db.from('myspace_my_class').select('id').eq('user_id', userId).limit(1)
+    ]);
 
-    const hasCloud = !error && cloudCheck && cloudCheck.length > 0;
+    const hasCloud = (eventsCheck.data && eventsCheck.data.length > 0) || 
+                     (myClassCheck.data && myClassCheck.data.length > 0);
 
     if (hasLocal && !hasCloud) {
       // First login: push local data to cloud
