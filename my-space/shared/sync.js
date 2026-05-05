@@ -142,6 +142,7 @@
     if (settings.dates !== undefined) row.dates = settings.dates;
     if (settings.schedule !== undefined) row.schedule = settings.schedule;
     if (settings.admin_tracker !== undefined) row.admin_tracker = settings.admin_tracker;
+    if (settings.task !== undefined) row.task = settings.task;
     if (settings.class !== undefined) row.class = settings.class;
     return row;
   }
@@ -246,6 +247,7 @@
       dates: newSettings.dates !== undefined ? newSettings.dates : (current?.dates || []),
       schedule: { ...(current?.schedule || {}), ...(newSettings.schedule || {}) },
       admin_tracker: { ...(current?.admin_tracker || {}), ...(newSettings.admin_tracker || {}) },
+      task: { ...(current?.task || {}), ...(newSettings.task || {}) },
       class: { ...(current?.class || {}), ...(newSettings.class || {}) },
     };
 
@@ -402,6 +404,31 @@
     if (error) console.error('[Sync] Save categories error:', error);
   }
 
+  // My Class (using user_progress table for now, or dedicated if preferred)
+  async function cloudLoadMyClass(userId) {
+    const { data, error } = await db.from('user_progress')
+      .select('data').eq('user_id', userId).eq('tool_key', 'my-class').maybeSingle();
+    if (error) { console.error('[Sync] Load my-class error:', error); return null; }
+    return data?.data || null;
+  }
+
+  async function cloudSaveMyClass(userId, data) {
+    console.info('[Sync] Upserting my-class to user_progress...', { userId, studentCount: Object.values(data.classes || {}).reduce((acc, c) => acc + (c.students?.length || 0), 0) });
+    const { error } = await db.from('user_progress')
+      .upsert({ 
+        user_id: userId, 
+        tool_key: 'my-class', 
+        data: data,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id,tool_key' });
+    if (error) {
+      console.error('[Sync] Save my-class error:', error);
+      if (window.showToast) window.showToast('Cloud sync failed for My Class', 'error');
+    } else {
+      console.info('[Sync] my-class saved successfully.');
+    }
+  }
+
   // ── Core Read Logic ──────────────────────────────────────────────
 
   function getSessionForDate(className, targetDate, allEvents, redDays, syllabusMap, targetStartTime = null) {
@@ -498,17 +525,24 @@
           unitPlanningMode: localStorage.getItem('kk_unit_planning_mode') === 'true',
           theme: localStorage.getItem('theme_admin-tracker')
         },
-        tasks: {
+        task: {
           currentTab: localStorage.getItem('tasks_current_tab'),
           timeFilter: localStorage.getItem('tasks_time_filter'),
           currentSort: localStorage.getItem('tasks_current_sort'),
           theme: localStorage.getItem('theme_tasks')
         },
+        class: {
+          lastSelected: localStorage.getItem('kk_myclass_last_selected'),
+          theme: localStorage.getItem('theme_my-class')
+        }
       };
 
       // Tasks
       const tasks = JSON.parse(localStorage.getItem('klasskit_tasks') || '[]');
       const cats = JSON.parse(localStorage.getItem('klasskit_categories') || '[]');
+      
+      // My Class Data
+      const myClassData = JSON.parse(localStorage.getItem('prog_my-class') || '{"classes":{}}');
 
       await Promise.all([
         db.from('myspace_events').upsert(mastersRows, { onConflict: 'id' }),
@@ -517,7 +551,8 @@
         cloudSaveClassAdmin(userId, adm),
         cloudSaveClassUnits(userId, uns),
         cloudSaveTasks(userId, tasks),
-        cloudSaveTaskCategories(userId, cats)
+        cloudSaveTaskCategories(userId, cats),
+        cloudSaveMyClass(userId, myClassData)
       ]);
 
       setSyncBadge('synced');
@@ -532,13 +567,14 @@
     console.log('[Sync] Loading Cloud → localStorage for', userId);
     setSyncBadge('syncing');
     try {
-      const [evts, settings, adm, uns, tasks, cats] = await Promise.all([
+      const [evts, settings, adm, uns, tasks, cats, myClass] = await Promise.all([
         cloudLoadScheduleEvents(userId),
         cloudLoadSettings(userId),
         cloudLoadClassAdmin(userId),
         cloudLoadClassUnits(userId),
         cloudLoadTasks(userId),
-        cloudLoadTaskCategories(userId)
+        cloudLoadTaskCategories(userId),
+        cloudLoadMyClass(userId)
       ]);
 
       // Write to localStorage
@@ -563,16 +599,22 @@
         if (a.theme) localStorage.setItem('theme_admin-tracker', a.theme);
 
         // Tasks settings
-        const t = settings.tasks || {};
+        const t = settings.task || {};
         if (t.currentTab) localStorage.setItem('tasks_current_tab', t.currentTab);
         if (t.timeFilter) localStorage.setItem('tasks_time_filter', t.timeFilter);
         if (t.currentSort) localStorage.setItem('tasks_current_sort', t.currentSort);
         if (t.theme) localStorage.setItem('theme_tasks', t.theme);
+
+        // Class settings
+        const c = settings.class || {};
+        if (c.lastSelected) localStorage.setItem('kk_myclass_last_selected', c.lastSelected);
+        if (c.theme) localStorage.setItem('theme_my-class', c.theme);
       }
       if (adm !== null) localStorage.setItem('schedule_class_admin', JSON.stringify(adm));
       if (uns !== null) localStorage.setItem('schedule_class_units', JSON.stringify(uns));
       if (tasks !== null) localStorage.setItem('klasskit_tasks', JSON.stringify(tasks));
       if (cats !== null) localStorage.setItem('klasskit_categories', JSON.stringify(cats));
+      if (myClass !== null) localStorage.setItem('prog_my-class', JSON.stringify(myClass));
 
       setSyncBadge('synced');
       console.log('[Sync] Download complete. Triggering re-render…');
@@ -916,6 +958,8 @@
     cloudSaveTasks,
     cloudLoadTaskCategories,
     cloudSaveTaskCategories,
+    cloudLoadMyClass,
+    cloudSaveMyClass,
 
     fireCloudSave,
     getCachedUserId,

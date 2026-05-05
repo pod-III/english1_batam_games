@@ -12,9 +12,18 @@ const ClassManager = {
   },
 
   async init() {
-    console.log('[MyClass] Initializing...');
-    
-    // 1. Load Data
+    if (typeof requireAuth === 'function') await requireAuth();
+
+    // 1. Fetch Cloud Data if applicable
+    if (window.Sync && !isSandbox()) {
+      const user = await getUser();
+      if (user) {
+        console.info('[MyClass] Fetching cloud data...');
+        await Sync.loadFromCloud(user.id);
+      }
+    }
+
+    // 2. Load Data from Local (which now has cloud data if sync worked)
     await this.loadData();
     
     // 2. Fetch Classes from Schedule
@@ -45,6 +54,16 @@ const ClassManager = {
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape') ModalManager.closeAll();
     });
+
+    // 9. Sync Listener
+    window._syncRerender = () => {
+      console.log('[MyClass] Sync re-render triggered');
+      this.loadData().then(() => {
+        this.fetchClassesFromSchedule();
+        this.renderClassSelectors();
+        this.updateUI();
+      });
+    };
   },
 
   setupKeyboardShortcuts() {
@@ -80,7 +99,7 @@ const ClassManager = {
       }
     }
 
-    if (!isSandbox()) {
+    if (!isSandbox() && typeof loadProgress === 'function') {
       const cloud = await loadProgress('my-class');
       if (cloud) {
         this.data = cloud;
@@ -89,7 +108,21 @@ const ClassManager = {
   },
 
   async saveData() {
-    await saveProgress('my-class', this.data);
+    if (typeof saveProgress === 'function') {
+      await saveProgress('my-class', this.data);
+    } else {
+      localStorage.setItem('prog_my-class', JSON.stringify(this.data));
+    }
+    
+    // Trigger bulk sync if available
+    if (window.Sync && !isSandbox()) {
+      const user = await getUser();
+      if (user) {
+        console.info('[MyClass] Triggering cloud sync...');
+        await Sync.syncToCloud(user.id);
+      }
+    }
+    
     this.updateSyncBadge();
   },
 
@@ -224,24 +257,25 @@ const ClassManager = {
       const reflectionCount = classData.reflections?.length || 0;
 
       return `
-        <div onclick="ClassManager.selectClass('${c.name.replace(/'/g, "\\'")}')" class="tracker-card bg-white dark:bg-slate-900/50 cursor-pointer group">
+        <div onclick="ClassManager.selectClass('${c.name.replace(/'/g, "\\'")}')" class="tracker-card group bg-white dark:bg-slate-900/40">
           <div class="flex items-start justify-between mb-6">
-            <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-white shadow-hard-sm transition-transform group-hover:scale-110" style="background: ${c.color}">
-              <span class="font-heading font-bold text-2xl uppercase">${c.name.charAt(0)}</span>
+            <div class="w-12 h-12 rounded-xl flex items-center justify-center text-white border-2 border-slate-800 shadow-hard-sm group-hover:scale-105 transition-transform" style="background: ${c.color}">
+              <span class="font-heading font-bold text-xl uppercase">${c.name.charAt(0)}</span>
             </div>
-            <div class="flex flex-col items-end">
-              <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Students</span>
-              <span class="text-xl font-black text-slate-800 dark:text-white">${studentCount}</span>
+            <div class="text-right">
+              <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest">Enrolled</span>
+              <div class="text-lg font-black text-slate-800 dark:text-white leading-none">${studentCount}</div>
             </div>
           </div>
+          
           <h3 class="font-heading font-bold text-xl text-slate-900 dark:text-white uppercase tracking-tight mb-4">${c.name}</h3>
+          
           <div class="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
-            <span class="text-[9px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1">
-              <i data-lucide="message-square" class="w-3 h-3"></i> ${reflectionCount} Notes
-            </span>
-            <span class="text-[9px] font-black uppercase tracking-widest text-blue flex items-center gap-1 group-hover:gap-2 transition-all">
-              Manage <i data-lucide="chevron-right" class="w-3 h-3"></i>
-            </span>
+            <div class="flex items-center gap-1.5">
+              <i data-lucide="message-square" class="w-3.5 h-3.5 text-orange"></i>
+              <span class="text-[10px] font-bold text-slate-500">${reflectionCount} Notes</span>
+            </div>
+            <span class="text-[9px] font-black uppercase text-blue group-hover:translate-x-1 transition-transform">View Class →</span>
           </div>
         </div>
       `;
@@ -271,14 +305,6 @@ const ClassManager = {
   },
 
   updateSyncBadge() {
-    const badge = document.getElementById('cloudSyncBadge');
-    const isCloud = window.Sync && !isSandbox();
-    
-    if (badge) {
-      badge.classList.toggle('opacity-0', !isCloud);
-      badge.classList.toggle('opacity-100', isCloud);
-    }
-
     if (window.Sync) {
       const state = isSandbox() ? 'local' : 'synced';
       Sync.setSyncBadge(state);
@@ -338,7 +364,7 @@ const StudentManager = {
 
     empty.classList.add('hidden');
     grid.innerHTML = classData.students.map(s => `
-      <div class="student-card glass-panel border-[3px] border-slate-800 dark:border-slate-700 rounded-3xl p-6 shadow-hard-sm bg-white dark:bg-slate-900/50">
+      <div class="student-card glass-panel border-2 border-slate-800 dark:border-slate-700 rounded-2xl p-6 bg-white dark:bg-slate-900/50">
         <div class="flex items-center justify-between mb-4">
           <div class="flex items-center gap-3">
             <div class="w-12 h-12 bg-blue/10 rounded-xl flex items-center justify-center text-blue font-black text-xl border-2 border-blue/20">
@@ -756,6 +782,17 @@ const Theme = {
   toggle() {
     const isDark = document.documentElement.classList.toggle('dark');
     localStorage.setItem('theme_my-class', isDark ? 'dark' : 'light');
+    
+    // Save to cloud if possible
+    if (window.Sync && !isSandbox()) {
+      getUser().then(user => {
+        if (user) {
+          Sync.cloudSaveSettings(user.id, {
+            class: { theme: isDark ? 'dark' : 'light' }
+          });
+        }
+      });
+    }
   }
 };
 

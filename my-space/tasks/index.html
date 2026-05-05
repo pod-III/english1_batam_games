@@ -114,9 +114,6 @@
   <!-- Unified Header -->
   <header class="glass-panel sticky top-0 z-40 h-16 flex items-center justify-between px-4 md:px-8 border-b-[3px] border-slate-800 dark:border-slate-700" style="border-radius: 0;">
     <div class="flex items-center gap-3">
-      <a href="../" class="w-10 h-10 bg-blue rounded-xl border-2 border-slate-800 dark:border-slate-500 flex items-center justify-center text-white shadow-hard-sm hover:-translate-y-1 transition-transform">
-        <i data-lucide="arrow-left" class="w-6 h-6"></i>
-      </a>
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 bg-orange rounded-xl border-2 border-slate-800 dark:border-slate-500 flex items-center justify-center text-white shadow-hard-sm">
           <i data-lucide="check-circle-2" class="w-6 h-6"></i>
@@ -368,7 +365,15 @@
         Sync.fireCloudSave(async userId => {
           await Promise.all([
             Sync.cloudSaveTasks(userId, tasks),
-            Sync.cloudSaveTaskCategories(userId, categories)
+            Sync.cloudSaveTaskCategories(userId, categories),
+            Sync.cloudSaveSettings(userId, {
+              task: {
+                currentTab: currentTab,
+                timeFilter: timeFilter,
+                currentSort: currentSort,
+                theme: localStorage.getItem('theme_tasks')
+              }
+            })
           ]);
         });
       }
@@ -983,6 +988,14 @@
     function toggleTheme() {
       const isDark = document.documentElement.classList.toggle('dark');
       localStorage.setItem("theme_tasks", isDark ? "dark" : "light");
+      
+      if (window.Sync && Sync.isCloudMode()) {
+        Sync.fireCloudSave(async userId => {
+          await Sync.cloudSaveSettings(userId, {
+            task: { theme: isDark ? 'dark' : 'light' }
+          });
+        });
+      }
     }
 
     // Start

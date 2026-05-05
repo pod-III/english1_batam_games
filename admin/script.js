@@ -261,6 +261,7 @@ function updateCharts() {
     categories['My Space'].count += allNotes.length
     categories['My Space'].count += allScheduleEvents.length
     categories['My Space'].count += allClassAdmin.length
+    categories['My Space'].count += (toolCounts['my-class'] || 0)
 
     // 2. Map progress records using the official registry
     const toolMap = window.toolCategoryMap || {}
