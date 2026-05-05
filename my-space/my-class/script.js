@@ -138,10 +138,28 @@ const ClassManager = {
               events: []
             };
           }
+          
+          // Add the master event
           classMap[evt.name].events.push(evt);
+
+          // Generate recurrences for the next 30 days to find upcoming sessions
+          if (evt.recurrence && evt.recurrence !== 'none' && window.Sync) {
+            const rangeStart = new Date();
+            const rangeEnd = new Date();
+            rangeEnd.setDate(rangeEnd.getDate() + 30); // 1 month ahead
+            
+            const clones = Sync.generateRecurrences(evt, rangeStart, rangeEnd);
+            classMap[evt.name].events.push(...clones);
+          }
         }
       });
       
+      // Filter out recurrence clones that fall on red days
+      const redDays = JSON.parse(localStorage.getItem('schedule_red_days') || '[]');
+      Object.values(classMap).forEach(c => {
+        c.events = c.events.filter(e => !(e.isRecurrence && redDays.includes(e.date)));
+      });
+
       this.classes = Object.values(classMap).sort((a, b) => a.name.localeCompare(b.name));
     } catch (e) {
       console.error('[MyClass] Failed to fetch classes from schedule', e);
@@ -198,6 +216,9 @@ const ClassManager = {
     this.renderClassSelectors();
     this.updateUI();
     if (window.lucide) lucide.createIcons();
+    
+    // Persistence: Trigger save so the cloud remembers our landing state
+    this.saveData();
   },
 
   updateUI() {

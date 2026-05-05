@@ -527,6 +527,137 @@
     return tasks;
   }
 
+  // ── Recurrence Logic ─────────────────────────────────────────────
+
+  function getDayString(date) {
+    if (!date) return '';
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  function generateRecurrences(event, rangeStart, rangeEnd) {
+    if (!event.recurrence || event.recurrence === 'none') return [];
+    
+    const occurrences = [];
+    const originalDate = new Date(event.date);
+    
+    // Cap repetition at 6 months from the original date
+    const maxEndDate = new Date(originalDate);
+    maxEndDate.setMonth(maxEndDate.getMonth() + 6);
+    
+    // Also cap by graduation date if applicable
+    const rangeEndFinal = (event.graduationClass && event.graduationDate) 
+      ? new Date(Math.min(rangeEnd.getTime(), new Date(event.graduationDate + 'T23:59:59').getTime(), maxEndDate.getTime()))
+      : new Date(Math.min(rangeEnd.getTime(), maxEndDate.getTime()));
+
+    const maxIterations = 200; // safety limit
+    
+    // Custom Days: completely separate logic
+    if (event.recurrence === 'custom-days') {
+      if (!event.recurrenceDays || event.recurrenceDays.length === 0) return [];
+      
+      let checkDate = new Date(originalDate);
+      checkDate.setHours(0,0,0,0);
+      let iterations = 0;
+      
+      while (iterations < maxIterations) {
+        iterations++;
+        checkDate.setDate(checkDate.getDate() + 1);
+        if (checkDate > rangeEndFinal) break;
+        
+        const day = checkDate.getDay();
+        const dayIndex = day === 0 ? 6 : day - 1; // Mon=0, Sun=6
+        
+        if (event.recurrenceDays.includes(dayIndex) && checkDate >= rangeStart) {
+          const dateStr = getDayString(checkDate);
+          occurrences.push({
+            ...event,
+            id: `${event.id}_recur_${dateStr}`,
+            date: dateStr,
+            isRecurrence: true,
+            originalEventId: event.id,
+            originalDate: dateStr,
+            originalStartTime: event.startTime,
+            originalEndTime: event.endTime,
+            originalRoom: event.room || '',
+            originalName: event.name,
+            originalColor: event.color,
+            _modified: false,
+            checklist: (event.checklist || []).map(item => ({ ...item, done: false })),
+            overrideType: ''
+          });
+        }
+      }
+      return occurrences;
+    }
+    
+    // Standard recurrence types
+    let currentDate = new Date(originalDate);
+    const stepDays = {
+      'daily': 1,
+      'weekly': 7,
+      'biweekly': 14,
+      'monthly': 0
+    };
+    let iterations = 0;
+    
+    while (iterations < maxIterations) {
+      iterations++;
+      
+      if (event.recurrence === 'monthly') {
+        currentDate = new Date(currentDate);
+        currentDate.setMonth(currentDate.getMonth() + 1);
+      } else {
+        const days = stepDays[event.recurrence];
+        if (!days) break;
+        currentDate = new Date(currentDate.getTime() + days * 86400000);
+      }
+      
+      if (currentDate > rangeEndFinal) break;
+      
+      if (currentDate >= rangeStart && currentDate.toDateString() !== originalDate.toDateString()) {
+        const dateStr = getDayString(currentDate);
+        occurrences.push({
+          ...event,
+          id: `${event.id}_recur_${dateStr}`,
+          date: dateStr,
+          isRecurrence: true,
+          originalEventId: event.id,
+          originalDate: dateStr,
+          originalStartTime: event.startTime,
+          originalEndTime: event.endTime,
+          originalRoom: event.room || '',
+          originalName: event.name,
+          originalColor: event.color,
+          _modified: false,
+          checklist: (event.checklist || []).map(item => ({ ...item, done: false })),
+          overrideType: ''
+        });
+      }
+    }
+    
+    // Merge in any promoted instances from localStorage
+    const promotedRaw = localStorage.getItem('schedule_promoted_instances');
+    if (promotedRaw) {
+      try {
+        const promoted = JSON.parse(promotedRaw);
+        occurrences.forEach((occ, idx) => {
+          const match = promoted.find(p => p.id === occ.id);
+          if (match) {
+            occurrences[idx] = match;
+          }
+        });
+      } catch (e) {
+        console.error('[Recurrence] Failed to parse promoted instances:', e);
+      }
+    }
+
+    return occurrences;
+  }
+
   // ── Bulk sync helpers ────────────────────────────────────────────
 
   async function syncToCloud(userId) {
@@ -1014,6 +1145,14 @@
 
     getSessionForDate,
     getAdminDataForClass,
+
+    // Helpers
+    getDayString,
+    generateRecurrences
   };
+
+  // Legacy globals for backward compatibility
+  window.getDayString = getDayString;
+  window.generateRecurrences = generateRecurrences;
 
 })();
