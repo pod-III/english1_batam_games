@@ -346,6 +346,26 @@ const TabManager = {
 const StudentManager = {
   entryMode: 'single',
 
+  copyToClipboard() {
+    const classData = ClassManager.data.classes[ClassManager.activeClass];
+    if (!classData || !classData.students || classData.students.length === 0) {
+      UI.showToast('No students to copy', 'warning');
+      return;
+    }
+    
+    const namesString = classData.students
+      .map(s => s.name || '')
+      .filter(name => name.trim() !== '')
+      .join(',');
+    
+    navigator.clipboard.writeText(namesString).then(() => {
+      UI.showToast('Student names copied as CSV!', 'success');
+    }).catch(err => {
+      console.error('Failed to copy text: ', err);
+      UI.showToast('Failed to copy to clipboard', 'error');
+    });
+  },
+
   render() {
     const grid = document.getElementById('studentGrid');
     const empty = document.getElementById('noStudentsState');
