@@ -1,0 +1,519 @@
+/**
+ * MY CLASS — Student & Progress Manager
+ * ------------------------------------
+ * Core logic for tracking students and class reflections.
+ */
+
+const ClassManager = {
+  activeClass: null,
+  classes: [], // List of classes from schedule
+  data: {
+    classes: {} // Per-class storage { "Class Name": { students: [], reflections: [] } }
+  },
+
+  async init() {
+    console.log('[MyClass] Initializing...');
+    
+    // 1. Load Data
+    await this.loadData();
+    
+    // 2. Fetch Classes from Schedule
+    this.fetchClassesFromSchedule();
+    
+    // 3. Setup UI
+    this.renderClassSelectors();
+    
+    // 4. Initial state
+    const lastClass = localStorage.getItem('kk_myclass_last_selected');
+    if (lastClass && this.classes.some(c => c.name === lastClass)) {
+      this.selectClass(lastClass);
+    } else {
+      this.updateUI();
+    }
+
+    // 5. Icons
+    if (window.lucide) lucide.createIcons();
+    
+    // 6. Sync Badge
+    this.updateSyncBadge();
+  },
+
+  async loadData() {
+    const local = localStorage.getItem('prog_my-class');
+    if (local) {
+      try {
+        this.data = JSON.parse(local);
+      } catch (e) {
+        console.error('[MyClass] Failed to parse local data', e);
+      }
+    }
+
+    if (!isSandbox()) {
+      const cloud = await loadProgress('my-class');
+      if (cloud) {
+        this.data = cloud;
+      }
+    }
+  },
+
+  async saveData() {
+    await saveProgress('my-class', this.data);
+    this.updateSyncBadge();
+  },
+
+  fetchClassesFromSchedule() {
+    const mastersRaw = localStorage.getItem('schedule_events');
+    if (!mastersRaw) return;
+    
+    try {
+      const masters = JSON.parse(mastersRaw);
+      const classMap = {};
+      
+      masters.forEach(evt => {
+        if (evt.typeId === 'class' && evt.name) {
+          if (!classMap[evt.name]) {
+            classMap[evt.name] = {
+              name: evt.name,
+              color: evt.color || '#1ea7fd',
+              events: []
+            };
+          }
+          classMap[evt.name].events.push(evt);
+        }
+      });
+      
+      this.classes = Object.values(classMap).sort((a, b) => a.name.localeCompare(b.name));
+    } catch (e) {
+      console.error('[MyClass] Failed to fetch classes from schedule', e);
+    }
+  },
+
+  renderClassSelectors() {
+    const selectors = [
+      document.getElementById('classSelector'),
+      document.getElementById('classSelectorMobile')
+    ];
+
+    selectors.forEach(sel => {
+      if (!sel) return;
+      sel.innerHTML = '<option value="">Select a class...</option>' + 
+        this.classes.map(c => `<option value="${c.name}" ${this.activeClass === c.name ? 'selected' : ''}>${c.name}</option>`).join('');
+    });
+  },
+
+  selectClass(className) {
+    if (!className) {
+      this.activeClass = null;
+      localStorage.removeItem('kk_myclass_last_selected');
+    } else {
+      this.activeClass = className;
+      localStorage.setItem('kk_myclass_last_selected', className);
+      
+      // Initialize data structure for this class if not exists
+      if (!this.data.classes[className]) {
+        this.data.classes[className] = {
+          students: [],
+          reflections: [],
+          attendance: {} // { "date": ["student_id", ...] }
+        };
+      }
+    }
+    
+    this.renderClassSelectors();
+    this.updateUI();
+    if (window.lucide) lucide.createIcons();
+  },
+
+  updateUI() {
+    const noClass = document.getElementById('noClassState');
+    const workspace = document.getElementById('classWorkspace');
+    
+    if (!this.activeClass) {
+      noClass.classList.remove('hidden');
+      workspace.classList.add('hidden');
+      return;
+    }
+
+    noClass.classList.add('hidden');
+    workspace.classList.remove('hidden');
+
+    // Header Info
+    const classInfo = this.classes.find(c => c.name === this.activeClass);
+    document.getElementById('classNameDisplay').textContent = this.activeClass;
+    document.getElementById('classAvatar').textContent = this.activeClass.charAt(0);
+    document.getElementById('classHeaderColor').style.backgroundColor = classInfo?.color || '#1ea7fd';
+    
+    const classData = this.data.classes[this.activeClass];
+    document.getElementById('studentCountBadge').innerHTML = `<i data-lucide="users" class="w-3.5 h-3.5"></i> ${classData.students.length} Students`;
+    document.getElementById('reflectionCountBadge').innerHTML = `<i data-lucide="message-square" class="w-3.5 h-3.5"></i> ${classData.reflections.length} Reflections`;
+    
+    this.updateNextSession();
+    
+    // Render current tab
+    TabManager.render();
+  },
+
+  updateNextSession() {
+    const badge = document.getElementById('nextSessionBadge');
+    const classInfo = this.classes.find(c => c.name === this.activeClass);
+    if (!classInfo) return;
+
+    const today = new Date().toISOString().split('T')[0];
+    const upcoming = classInfo.events
+      .filter(e => e.date >= today)
+      .sort((a, b) => a.date.localeCompare(b.date))[0];
+
+    if (upcoming) {
+      const d = new Date(upcoming.date);
+      const fmt = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      badge.innerHTML = `<i data-lucide="calendar" class="w-3.5 h-3.5"></i> Next: ${fmt} @ ${upcoming.startTime}`;
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+  },
+
+  updateSyncBadge() {
+    if (window.Sync) {
+      const state = isSandbox() ? 'local' : 'synced';
+      Sync.setSyncBadge(state);
+    }
+  },
+
+  openAddStudent() {
+    ModalManager.open('studentModal');
+    document.getElementById('studentNameInput').focus();
+  }
+};
+
+const TabManager = {
+  current: 'students',
+
+  switch(tabId) {
+    this.current = tabId;
+    
+    // UI Update
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.id === `tab-${tabId}`);
+    });
+
+    document.querySelectorAll('.tab-content').forEach(content => {
+      content.classList.toggle('hidden', content.id !== `content-${tabId}`);
+    });
+
+    this.render();
+    if (window.lucide) lucide.createIcons();
+  },
+
+  render() {
+    switch (this.current) {
+      case 'students': StudentManager.render(); break;
+      case 'reflections': ReflectionManager.render(); break;
+      case 'sessions': SessionManager.render(); break;
+      case 'stats': break; // Stats coming soon
+    }
+  }
+};
+
+const StudentManager = {
+  render() {
+    const grid = document.getElementById('studentGrid');
+    const empty = document.getElementById('noStudentsState');
+    const classData = ClassManager.data.classes[ClassManager.activeClass];
+    
+    if (!classData || classData.students.length === 0) {
+      grid.innerHTML = '';
+      empty.classList.remove('hidden');
+      return;
+    }
+
+    empty.classList.add('hidden');
+    grid.innerHTML = classData.students.map(s => `
+      <div class="student-card glass-panel border-[3px] border-slate-800 dark:border-slate-700 rounded-3xl p-6 shadow-hard-sm bg-white dark:bg-slate-900/50">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 bg-blue/10 rounded-xl flex items-center justify-center text-blue font-black text-xl border-2 border-blue/20">
+              ${(s.nick || s.name).charAt(0)}
+            </div>
+            <div>
+              <h4 class="font-heading font-bold text-lg leading-none text-slate-800 dark:text-white">${s.nick || s.name}</h4>
+              <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">${s.nick ? s.name : 'No Nickname'}</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="StudentManager.edit('${s.id}')" class="p-2 text-slate-400 hover:text-blue transition-colors">
+              <i data-lucide="edit-3" class="w-4 h-4"></i>
+            </button>
+            <button onclick="StudentManager.delete('${s.id}')" class="p-2 text-slate-400 hover:text-pink transition-colors">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+        
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+             <span class="text-[10px] font-black uppercase text-slate-400 tracking-widest">Progress Stars</span>
+             <div class="flex items-center gap-1">
+               <button onclick="StudentManager.updateStars('${s.id}', -1)" class="w-6 h-6 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 flex items-center justify-center text-slate-500 hover:bg-slate-200">-</button>
+               <span class="w-8 text-center font-black text-blue">${s.stars || 0}</span>
+               <button onclick="StudentManager.updateStars('${s.id}', 1)" class="w-6 h-6 rounded-md bg-blue text-white border border-blue/30 flex items-center justify-center hover:brightness-110">+</button>
+             </div>
+          </div>
+          
+          <div class="h-[2px] bg-slate-100 dark:bg-slate-800 rounded-full"></div>
+          
+          <div class="space-y-1">
+            <span class="text-[10px] font-black uppercase text-slate-400 tracking-widest">Teacher Notes</span>
+            <p class="text-xs font-semibold text-slate-600 dark:text-slate-400 line-clamp-2 italic">
+              ${s.notes || 'No notes yet. Click edit to add notes about learning style or progress.'}
+            </p>
+          </div>
+        </div>
+      </div>
+    `).join('');
+    
+    if (window.lucide) lucide.createIcons({ root: grid });
+  },
+
+  save() {
+    const name = document.getElementById('studentNameInput').value.trim();
+    const nick = document.getElementById('studentNickInput').value.trim();
+    
+    if (!name) return;
+    
+    const newStudent = {
+      id: crypto.randomUUID(),
+      name,
+      nick,
+      stars: 0,
+      notes: '',
+      joinedAt: new Date().toISOString()
+    };
+    
+    this.data = ClassManager.data.classes[ClassManager.activeClass];
+    this.data.students.push(newStudent);
+    
+    ClassManager.saveData();
+    ModalManager.closeAll();
+    ClassManager.updateUI();
+    
+    // Clear inputs
+    document.getElementById('studentNameInput').value = '';
+    document.getElementById('studentNickInput').value = '';
+  },
+
+  delete(id) {
+    if (!confirm('Are you sure you want to remove this student?')) return;
+    
+    const classData = ClassManager.data.classes[ClassManager.activeClass];
+    classData.students = classData.students.filter(s => s.id !== id);
+    
+    ClassManager.saveData();
+    this.render();
+    ClassManager.updateUI();
+  },
+
+  updateStars(id, delta) {
+    const classData = ClassManager.data.classes[ClassManager.activeClass];
+    const student = classData.students.find(s => s.id === id);
+    if (student) {
+      student.stars = Math.max(0, (student.stars || 0) + delta);
+      ClassManager.saveData();
+      this.render();
+    }
+  },
+
+  edit(id) {
+    const classData = ClassManager.data.classes[ClassManager.activeClass];
+    const student = classData.students.find(s => s.id === id);
+    if (!student) return;
+    
+    const newNotes = prompt('Edit notes for ' + (student.nick || student.name), student.notes);
+    if (newNotes !== null) {
+      student.notes = newNotes;
+      ClassManager.saveData();
+      this.render();
+    }
+  }
+};
+
+const ReflectionManager = {
+  render() {
+    const list = document.getElementById('reflectionList');
+    const empty = document.getElementById('noReflectionsState');
+    const classData = ClassManager.data.classes[ClassManager.activeClass];
+    
+    if (!classData || classData.reflections.length === 0) {
+      list.innerHTML = '';
+      empty.classList.remove('hidden');
+      return;
+    }
+
+    empty.classList.add('hidden');
+    list.innerHTML = classData.reflections
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .map(r => `
+      <div class="glass-panel border-2 border-slate-800 dark:border-slate-700 rounded-3xl p-6 shadow-hard-sm bg-white dark:bg-slate-900/40 relative">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <span class="px-3 py-1 bg-orange/15 text-orange border border-orange/20 rounded-lg font-black text-[10px] uppercase tracking-widest">${r.focus || 'General'}</span>
+            <span class="text-xs font-bold text-slate-400">${new Date(r.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
+          </div>
+          <button onclick="ReflectionManager.delete('${r.id}')" class="text-slate-400 hover:text-pink transition-colors">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+          </button>
+        </div>
+        <p class="font-body font-semibold text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">${r.text}</p>
+      </div>
+    `).join('');
+    
+    if (window.lucide) lucide.createIcons({ root: list });
+  },
+
+  openNew() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('reflectionDateInput').value = today;
+    document.getElementById('reflectionTextInput').value = '';
+    ModalManager.open('reflectionModal');
+    document.getElementById('reflectionTextInput').focus();
+  },
+
+  openForSession(date) {
+    document.getElementById('reflectionDateInput').value = date;
+    document.getElementById('reflectionTextInput').value = '';
+    ModalManager.open('reflectionModal');
+    document.getElementById('reflectionTextInput').focus();
+  },
+
+  save() {
+    const date = document.getElementById('reflectionDateInput').value;
+    const focus = document.getElementById('reflectionFocusInput').value;
+    const text = document.getElementById('reflectionTextInput').value.trim();
+    
+    if (!date || !text) return;
+    
+    const newReflection = {
+      id: crypto.randomUUID(),
+      date,
+      focus,
+      text,
+      createdAt: new Date().toISOString()
+    };
+    
+    const classData = ClassManager.data.classes[ClassManager.activeClass];
+    classData.reflections.push(newReflection);
+    
+    ClassManager.saveData();
+    ModalManager.closeAll();
+    this.render();
+    ClassManager.updateUI();
+  },
+
+  delete(id) {
+    if (!confirm('Are you sure you want to delete this reflection?')) return;
+    
+    const classData = ClassManager.data.classes[ClassManager.activeClass];
+    classData.reflections = classData.reflections.filter(r => r.id !== id);
+    
+    ClassManager.saveData();
+    this.render();
+    ClassManager.updateUI();
+  }
+};
+
+const SessionManager = {
+  render() {
+    const body = document.getElementById('sessionTableBody');
+    const classInfo = ClassManager.classes.find(c => c.name === ClassManager.activeClass);
+    if (!classInfo) return;
+
+    // Get syllabus info if available
+    const syllabusRaw = localStorage.getItem('schedule_class_units');
+    let syllabus = [];
+    if (syllabusRaw) {
+      try {
+        const parsed = JSON.parse(syllabusRaw);
+        syllabus = parsed[ClassManager.activeClass] || [];
+      } catch (e) {}
+    }
+
+    const events = classInfo.events.sort((a, b) => b.date.localeCompare(a.date));
+
+    body.innerHTML = events.map((e, idx) => {
+      const lesson = syllabus[idx]?.lesson || 'No Lesson Plan';
+      const isPast = e.date < new Date().toISOString().split('T')[0];
+      
+      return `
+        <tr class="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
+          <td class="py-4">
+            <div class="flex flex-col">
+              <span class="text-sm font-bold">${new Date(e.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+              <span class="text-[10px] text-slate-400 uppercase tracking-widest">${e.startTime}</span>
+            </div>
+          </td>
+          <td class="py-4">
+            <div class="text-sm font-semibold truncate max-w-xs">${lesson}</div>
+          </td>
+          <td class="py-4">
+            <span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest ${isPast ? 'bg-green/10 text-green border border-green/20' : 'bg-blue/10 text-blue border border-blue/20'}">
+              ${isPast ? 'Completed' : 'Upcoming'}
+            </span>
+          </td>
+          <td class="py-4 text-right">
+             <button onclick="ReflectionManager.openForSession('${e.date}')" class="p-2 text-blue opacity-0 group-hover:opacity-100 transition-all" title="Add reflection for this session">
+               <i data-lucide="message-square-plus" class="w-5 h-5"></i>
+             </button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+    
+    if (window.lucide) lucide.createIcons({ root: body });
+  }
+};
+
+const ModalManager = {
+  open(id) {
+    const modal = document.getElementById(id);
+    const backdrop = document.getElementById('modalBackdrop');
+    
+    modal.classList.remove('hidden');
+    backdrop.classList.remove('hidden');
+    
+    setTimeout(() => {
+      modal.classList.remove('opacity-0', 'scale-95');
+      modal.classList.add('opacity-100', 'scale-100');
+      backdrop.classList.remove('opacity-0');
+      backdrop.classList.add('opacity-100');
+    }, 10);
+    
+    document.body.style.overflow = 'hidden';
+  },
+
+  closeAll() {
+    const backdrop = document.getElementById('modalBackdrop');
+    const modals = document.querySelectorAll('[id$="Modal"]');
+    
+    modals.forEach(modal => {
+      modal.classList.remove('opacity-100', 'scale-100');
+      modal.classList.add('opacity-0', 'scale-95');
+      setTimeout(() => modal.classList.add('hidden'), 300);
+    });
+    
+    backdrop.classList.remove('opacity-100');
+    backdrop.classList.add('opacity-0');
+    setTimeout(() => backdrop.classList.add('hidden'), 300);
+    
+    document.body.style.overflow = '';
+  }
+};
+
+const Theme = {
+  toggle() {
+    const isDark = document.documentElement.classList.toggle('dark');
+    localStorage.setItem('theme_my-class', isDark ? 'dark' : 'light');
+  }
+};
+
+// Start
+document.addEventListener('DOMContentLoaded', () => ClassManager.init());
