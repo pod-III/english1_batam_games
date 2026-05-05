@@ -19,6 +19,11 @@
      cloudSaveClassAdmin(userId, data)
      cloudLoadClassUnits(userId)
      cloudSaveClassUnits(userId, data)
+
+     cloudLoadTasks(userId)
+     cloudSaveTasks(userId, tasks)
+     cloudLoadTaskCategories(userId)
+     cloudSaveTaskCategories(userId, categories)
    ============================================ */
 
 (function () {
@@ -137,7 +142,6 @@
     if (settings.dates !== undefined) row.dates = settings.dates;
     if (settings.schedule !== undefined) row.schedule = settings.schedule;
     if (settings.admin_tracker !== undefined) row.admin_tracker = settings.admin_tracker;
-    if (settings.task !== undefined) row.task = settings.task;
     if (settings.class !== undefined) row.class = settings.class;
     return row;
   }
@@ -242,7 +246,6 @@
       dates: newSettings.dates !== undefined ? newSettings.dates : (current?.dates || []),
       schedule: { ...(current?.schedule || {}), ...(newSettings.schedule || {}) },
       admin_tracker: { ...(current?.admin_tracker || {}), ...(newSettings.admin_tracker || {}) },
-      task: { ...(current?.task || {}), ...(newSettings.task || {}) },
       class: { ...(current?.class || {}), ...(newSettings.class || {}) },
     };
 
@@ -347,6 +350,58 @@
     // Optionally clean up duplicates or removed classes, but we'll leave them to prevent RLS delete issues
   }
 
+  // Tasks & Categories
+  async function cloudLoadTasks(userId) {
+    const { data, error } = await db.from('myspace_tasks')
+      .select('*').eq('user_id', userId);
+    if (error) { console.error('[Sync] Load tasks error:', error); return null; }
+    
+    return (data || []).map(row => ({
+      id: row.local_id, // Map back to local ID
+      text: row.text,
+      category: row.category,
+      priority: row.priority,
+      deadline: row.deadline,
+      completed: row.completed,
+      createdAt: row.created_at
+    }));
+  }
+
+  async function cloudSaveTasks(userId, tasks) {
+    const rows = tasks.map(t => ({
+      user_id: userId,
+      local_id: t.id,
+      text: t.text,
+      category: t.category,
+      priority: t.priority,
+      deadline: t.deadline,
+      completed: !!t.completed,
+      created_at: t.createdAt
+    }));
+
+    if (rows.length === 0) {
+      // If we want to support clearing all tasks, we might need a delete call here
+      // but for simple sync, we just return
+      return;
+    }
+
+    const { error } = await db.from('myspace_tasks').upsert(rows, { onConflict: 'user_id,local_id' });
+    if (error) console.error('[Sync] Save tasks error:', error);
+  }
+
+  async function cloudLoadTaskCategories(userId) {
+    const { data, error } = await db.from('myspace_task_categories')
+      .select('categories').eq('user_id', userId).maybeSingle();
+    if (error) { console.error('[Sync] Load categories error:', error); return null; }
+    return data?.categories || null;
+  }
+
+  async function cloudSaveTaskCategories(userId, categories) {
+    const { error } = await db.from('myspace_task_categories')
+      .upsert({ user_id: userId, categories: categories }, { onConflict: 'user_id' });
+    if (error) console.error('[Sync] Save categories error:', error);
+  }
+
   // ── Core Read Logic ──────────────────────────────────────────────
 
   function getSessionForDate(className, targetDate, allEvents, redDays, syllabusMap, targetStartTime = null) {
@@ -443,11 +498,11 @@
           unitPlanningMode: localStorage.getItem('kk_unit_planning_mode') === 'true',
           theme: localStorage.getItem('theme_admin-tracker')
         },
-        task: {
-          theme: localStorage.getItem('theme_tasks'),
-          todos: JSON.parse(localStorage.getItem('klasskit_todos') || '[]')
-        }
       };
+
+      // Tasks
+      const tasks = JSON.parse(localStorage.getItem('klasskit_tasks') || '[]');
+      const cats = JSON.parse(localStorage.getItem('klasskit_categories') || '[]');
 
       await Promise.all([
         db.from('myspace_events').upsert(mastersRows, { onConflict: 'id' }),
@@ -455,6 +510,8 @@
         cloudSaveSettings(userId, settings),
         cloudSaveClassAdmin(userId, adm),
         cloudSaveClassUnits(userId, uns),
+        cloudSaveTasks(userId, tasks),
+        cloudSaveTaskCategories(userId, cats)
       ]);
 
       setSyncBadge('synced');
@@ -469,11 +526,13 @@
     console.log('[Sync] Loading Cloud → localStorage for', userId);
     setSyncBadge('syncing');
     try {
-      const [evts, settings, adm, uns] = await Promise.all([
+      const [evts, settings, adm, uns, tasks, cats] = await Promise.all([
         cloudLoadScheduleEvents(userId),
         cloudLoadSettings(userId),
         cloudLoadClassAdmin(userId),
         cloudLoadClassUnits(userId),
+        cloudLoadTasks(userId),
+        cloudLoadTaskCategories(userId)
       ]);
 
       // Write to localStorage
@@ -496,14 +555,11 @@
         const a = settings.admin_tracker || {};
         if (a.unitPlanningMode !== undefined) localStorage.setItem('kk_unit_planning_mode', a.unitPlanningMode);
         if (a.theme) localStorage.setItem('theme_admin-tracker', a.theme);
-
-        // Task settings
-        const t = settings.task || {};
-        if (t.theme) localStorage.setItem('theme_tasks', t.theme);
-        if (t.todos) localStorage.setItem('klasskit_todos', JSON.stringify(t.todos));
       }
       if (adm !== null) localStorage.setItem('schedule_class_admin', JSON.stringify(adm));
       if (uns !== null) localStorage.setItem('schedule_class_units', JSON.stringify(uns));
+      if (tasks !== null) localStorage.setItem('klasskit_tasks', JSON.stringify(tasks));
+      if (cats !== null) localStorage.setItem('klasskit_categories', JSON.stringify(cats));
 
       setSyncBadge('synced');
       console.log('[Sync] Download complete. Triggering re-render…');
@@ -842,6 +898,11 @@
     cloudSaveClassAdmin,
     cloudLoadClassUnits,
     cloudSaveClassUnits,
+
+    cloudLoadTasks,
+    cloudSaveTasks,
+    cloudLoadTaskCategories,
+    cloudSaveTaskCategories,
 
     fireCloudSave,
     getCachedUserId,

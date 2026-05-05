@@ -8,7 +8,7 @@
   <script src="../shared/sync.js"></script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>My Task — KlassKit</title>
+  <title>Tasks — KlassKit</title>
   <link rel="icon" type="image/x-icon" href="../../media/icon.ico" />
   <link rel="icon" type="image/webp" href="../../media/icon.webp" />
 
@@ -48,9 +48,8 @@
           boxShadow: {
             'hard': '4px 4px 0px 0px rgba(17, 24, 39, 1)',
             'hard-sm': '2px 2px 0px 0px rgba(17, 24, 39, 1)',
-            'hard-dark': '4px 4px 0px 0px rgba(100, 116, 139, 1)',
-            'hard-sm-dark': '2px 2px 0px 0px rgba(100, 116, 139, 1)',
-            'hard-hover': '6px 6px 0px 0px rgba(17, 24, 39, 1)',
+            'hard-dark': '4px 4px 0px 0px rgba(51, 65, 85, 1)',
+            'hard-sm-dark': '2px 2px 0px 0px rgba(51, 65, 85, 1)',
             'neo': '4px 4px 0px 0px rgba(51,65,85,0.15)',
             'neo-sm': '2px 2px 0px 0px rgba(51,65,85,0.15)',
           }
@@ -63,337 +62,543 @@
   <link rel="stylesheet" href="../../css/components.css" />
 
   <style>
-    /* Custom styles for Task Manager */
-    .prio-pill, .cat-pill {
+    .category-tab {
       cursor: pointer;
-      transition: all 0.2s ease;
-    }
-    .prio-pill:hover, .cat-pill:hover {
-      transform: translateY(-2px);
+      transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+      white-space: nowrap;
     }
     
-    .active-pill-blue { background-color: var(--color-blue) !important; color: white !important; border-color: var(--border-primary) !important; box-shadow: var(--shadow-sm) !important; transform: translateY(-2px); }
-    .active-pill-orange { background-color: var(--color-orange) !important; color: var(--color-dark) !important; border-color: var(--border-primary) !important; box-shadow: var(--shadow-sm) !important; transform: translateY(-2px); }
-    .active-pill-pink { background-color: var(--color-pink) !important; color: white !important; border-color: var(--border-primary) !important; box-shadow: var(--shadow-sm) !important; transform: translateY(-2px); }
-    .active-pill-green { background-color: var(--color-green) !important; color: var(--color-dark) !important; border-color: var(--border-primary) !important; box-shadow: var(--shadow-sm) !important; transform: translateY(-2px); }
-    .active-pill-slate { background-color: #475569 !important; color: white !important; border-color: var(--border-primary) !important; box-shadow: var(--shadow-sm) !important; transform: translateY(-2px); }
-
-    .dark .active-pill-blue, .dark .active-pill-orange, .dark .active-pill-pink, .dark .active-pill-green, .dark .active-pill-slate {
-      border-color: #94a3b8 !important;
-      box-shadow: 2px 2px 0px #94a3b8 !important;
-    }
-
-    .todo-item {
-      transition: all var(--transition-base);
-    }
-    .todo-item:hover {
+    .category-tab.active {
+      background-color: var(--color-blue);
+      color: white;
       transform: translateY(-2px);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .dark .category-tab.active {
+      box-shadow: 2px 2px 0px #94a3b8;
+    }
+
+    .prio-btn.active-low { background-color: var(--color-blue); color: white; border-color: var(--border-primary); transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+    .prio-btn.active-medium { background-color: var(--color-orange); color: white; border-color: var(--border-primary); transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+    .prio-btn.active-high { background-color: var(--color-pink); color: white; border-color: var(--border-primary); transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+
+    .dark .prio-btn.active-low, .dark .prio-btn.active-medium, .dark .prio-btn.active-high {
+      border-color: #94a3b8;
+      box-shadow: 2px 2px 0px #94a3b8;
+    }
+
+    .todo-card {
+      transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    .todo-card:hover {
+      transform: translateY(-4px) scale(1.01);
+    }
+
+    .deadline-badge {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Horizontal scrollbar hide but keep functionality */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* Custom Input styles */
+    .input-chunky {
+      @apply w-full bg-white dark:bg-slate-800 border-2 border-slate-800 dark:border-slate-600 rounded-xl px-4 py-3 font-bold text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue focus:border-transparent transition-all;
     }
   </style>
 </head>
 
 <body class="min-h-screen pb-12">
   <!-- Unified Header -->
-  <header class="glass-panel sticky top-0 z-40 h-14 flex items-center justify-between px-4 md:px-6 border-b-[3px] border-[var(--border-primary)]" style="border-radius: 0;">
-    <div class="flex items-center gap-2 md:gap-3">
-      <div class="w-8 h-8 bg-orange rounded-xl border-[2px] border-white/40 flex items-center justify-center text-white shadow-neo-sm">
-        <i data-lucide="check-square" class="w-5 h-5 stroke-[2.5px]"></i>
-      </div>
-      <div>
-        <h1 class="font-heading font-bold text-lg md:text-xl tracking-tight leading-none text-dark dark:text-white">My Task</h1>
-        <p class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none mt-1">KlassKit Workspace</p>
+  <header class="glass-panel sticky top-0 z-40 h-16 flex items-center justify-between px-4 md:px-8 border-b-[3px] border-slate-800 dark:border-slate-700" style="border-radius: 0;">
+    <div class="flex items-center gap-3">
+      <a href="../" class="w-10 h-10 bg-blue rounded-xl border-2 border-slate-800 dark:border-slate-500 flex items-center justify-center text-white shadow-hard-sm hover:-translate-y-1 transition-transform">
+        <i data-lucide="arrow-left" class="w-6 h-6"></i>
+      </a>
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-orange rounded-xl border-2 border-slate-800 dark:border-slate-500 flex items-center justify-center text-white shadow-hard-sm">
+          <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h1 class="font-heading font-bold text-xl md:text-2xl tracking-tight leading-none text-slate-900 dark:text-white uppercase">Task Center</h1>
+          <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mt-1">Manage your academic workflows</p>
+        </div>
       </div>
     </div>
 
     <!-- Actions -->
-    <div class="flex items-center gap-2">
-      <button onclick="toggleTheme()"
-        class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title="Toggle Theme">
-        <i data-lucide="sun" class="w-4 h-4 dark:hidden text-slate-500"></i>
-        <i data-lucide="moon" class="w-4 h-4 hidden dark:block text-slate-400"></i>
+    <div class="flex items-center gap-3">
+      <div class="hidden md:flex flex-col items-end mr-2">
+        <span id="currentDateLabel" class="text-[10px] font-black uppercase text-slate-400">Tuesday, May 5</span>
+        <span id="taskCountLabel" class="text-xs font-bold text-blue">0 Tasks Active</span>
+      </div>
+      <button onclick="toggleTheme()" class="btn-chunky p-2.5 bg-white dark:bg-slate-800 rounded-xl border-2 border-slate-800 dark:border-slate-600 shadow-hard-sm">
+        <i data-lucide="sun" class="w-5 h-5 dark:hidden text-slate-700"></i>
+        <i data-lucide="moon" class="w-5 h-5 hidden dark:block text-slate-300"></i>
       </button>
     </div>
   </header>
 
   <!-- Main Content -->
-  <main class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start p-4 md:p-8 relative z-10">
+  <main class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 p-4 md:p-8">
     
-    <!-- Left Column: Controls -->
-    <div class="lg:col-span-4 space-y-6 lg:sticky lg:top-20">
+    <!-- Left Column: Controls (Sticky on Desktop) -->
+    <div class="lg:col-span-4 space-y-6">
       
-      <!-- Progress Panel -->
-      <div class="glass-panel border-[3px] border-[var(--border-primary)] rounded-[2rem] p-6 shadow-hard dark:shadow-hard-dark">
+      <!-- Quick Status -->
+      <div class="glass-panel border-3 border-slate-800 dark:border-slate-600 rounded-3xl p-6 shadow-hard dark:shadow-hard-dark bg-white/50 dark:bg-slate-900/50">
         <div class="flex items-center justify-between mb-4">
-          <h3 class="font-heading font-bold text-xl text-dark dark:text-white">Status</h3>
-          <div id="progressText" class="text-xs font-black bg-orange/10 text-orange px-3 py-1 rounded-full uppercase">0% Done</div>
+          <h3 class="font-heading font-bold text-lg text-slate-900 dark:text-white uppercase tracking-tight">Productivity</h3>
+          <span id="progressPercent" class="text-xs font-black bg-green/20 text-green px-3 py-1 rounded-lg border border-green/30">0%</span>
         </div>
-        <div class="w-full bg-slate-100 dark:bg-slate-800 border-2 border-[var(--border-primary)] rounded-full h-4 overflow-hidden shadow-inner">
-          <div id="progressBar" class="bg-orange h-full transition-all duration-700 ease-out" style="width: 0%"></div>
+        <div class="relative w-full h-6 bg-slate-200 dark:bg-slate-800 border-2 border-slate-800 dark:border-slate-700 rounded-xl overflow-hidden shadow-inner">
+          <div id="progressBar" class="absolute top-0 left-0 h-full bg-green transition-all duration-1000 ease-out" style="width: 0%"></div>
         </div>
       </div>
 
-      <!-- Input Panel -->
-      <div class="glass-panel border-[3px] border-[var(--border-primary)] rounded-[2rem] shadow-hard dark:shadow-hard-dark p-6 flex flex-col gap-5">
-        <div class="space-y-2">
-          <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">New Task</label>
-          <input type="text" id="todoInput" placeholder="What needs to be done?"
-            class="w-full font-bold text-base px-4 py-3 bg-white dark:bg-slate-800/90 border-2 border-[var(--border-primary)] rounded-xl focus:outline-none focus:-translate-y-1 focus:shadow-hard dark:focus:shadow-hard-dark transition-all placeholder-slate-400 dark:text-white">
-        </div>
-
-        <div class="grid grid-cols-2 gap-4">
-          <div class="space-y-2">
-            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Priority</label>
-            <div id="prioritySelector" class="grid grid-cols-1 gap-2">
-              <button onclick="setPriority('low')" data-value="low" class="prio-pill py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider border-2 border-slate-200 dark:border-slate-700 text-slate-400 bg-white dark:bg-slate-800">Low</button>
-              <button onclick="setPriority('medium')" data-value="medium" class="prio-pill py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider border-2 border-slate-200 dark:border-slate-700 text-slate-400 bg-white dark:bg-slate-800 active-pill-orange">Medium</button>
-              <button onclick="setPriority('high')" data-value="high" class="prio-pill py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider border-2 border-slate-200 dark:border-slate-700 text-slate-400 bg-white dark:bg-slate-800">High</button>
-            </div>
-          </div>
-          <div class="space-y-2">
-            <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Category</label>
-            <div id="categorySelector" class="grid grid-cols-1 gap-2">
-              <button onclick="setCategory('work')" data-value="work" class="cat-pill py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider border-2 border-slate-200 dark:border-slate-700 text-slate-400 bg-white dark:bg-slate-800">Work</button>
-              <button onclick="setCategory('personal')" data-value="personal" class="cat-pill py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider border-2 border-slate-200 dark:border-slate-700 text-slate-400 bg-white dark:bg-slate-800">Personal</button>
-              <button onclick="setCategory('urgent')" data-value="urgent" class="cat-pill py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider border-2 border-slate-200 dark:border-slate-700 text-slate-400 bg-white dark:bg-slate-800">Urgent</button>
-            </div>
-          </div>
-        </div>
-
-        <button onclick="addTodo()" class="btn-chunky w-full bg-orange text-white font-black uppercase tracking-widest py-3 rounded-xl flex items-center justify-center gap-2 text-sm shadow-hard transition-all mt-2">
-          <i data-lucide="plus-circle" class="w-5 h-5"></i> Add Task
-        </button>
-      </div>
-
-      <!-- Filters & Actions -->
-      <div class="glass-panel border-[3px] border-[var(--border-primary)] rounded-[2rem] p-6 space-y-4">
-        <div class="grid grid-cols-3 gap-2">
-          <button onclick="filterTasks('all')" id="filter-all" class="filter-btn py-2 rounded-lg text-[10px] font-bold uppercase border-2 border-[var(--border-primary)] bg-dark text-white shadow-hard-sm">All</button>
-          <button onclick="filterTasks('active')" id="filter-active" class="filter-btn py-2 rounded-lg text-[10px] font-bold uppercase border-2 border-[var(--border-primary)] bg-white dark:bg-slate-800">Active</button>
-          <button onclick="filterTasks('completed')" id="filter-completed" class="filter-btn py-2 rounded-lg text-[10px] font-bold uppercase border-2 border-[var(--border-primary)] bg-white dark:bg-slate-800">Done</button>
-        </div>
+      <!-- Add New Task Form -->
+      <div class="glass-panel border-3 border-slate-800 dark:border-slate-600 rounded-3xl p-6 shadow-hard dark:shadow-hard-dark bg-white/80 dark:bg-slate-900/80">
+        <h3 class="font-heading font-bold text-lg text-slate-900 dark:text-white uppercase tracking-tight mb-4 flex items-center gap-2">
+          <i data-lucide="plus-square" class="w-5 h-5 text-blue"></i> New Task
+        </h3>
         
-        <select id="sortSelector" onchange="changeSort(this.value)" class="w-full font-bold uppercase text-[10px] border-2 border-[var(--border-primary)] py-2 px-3 rounded-xl bg-white dark:bg-slate-800 text-dark dark:text-white outline-none cursor-pointer shadow-hard-sm">
-          <option value="date">Newest First</option>
-          <option value="priority">Highest Priority</option>
-          <option value="category">Category (A-Z)</option>
-        </select>
+        <div class="space-y-5">
+          <div class="space-y-1.5">
+            <label class="text-[10px] font-black uppercase text-slate-400 ml-1">What needs to be done?</label>
+            <input type="text" id="taskInput" placeholder="Write something productive..." 
+              class="w-full bg-white dark:bg-slate-800 border-2 border-slate-800 dark:border-slate-600 rounded-xl px-4 py-3 font-bold text-slate-800 dark:text-white focus:outline-none focus:border-blue transition-all placeholder-slate-400">
+          </div>
 
-        <div class="grid grid-cols-2 gap-2">
-          <button onclick="exportTasks()" class="flex items-center justify-center gap-2 py-2 rounded-lg text-[9px] font-black uppercase border-2 border-slate-200 dark:border-slate-700 hover:border-dark transition-all">
-            <i data-lucide="download" class="w-3 h-3"></i> Export
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-1.5">
+              <label class="text-[10px] font-black uppercase text-slate-400 ml-1">Deadline</label>
+              <input type="date" id="taskDeadline" 
+                class="w-full bg-white dark:bg-slate-800 border-2 border-slate-800 dark:border-slate-600 rounded-xl px-3 py-2.5 font-bold text-slate-800 dark:text-white focus:outline-none focus:border-blue transition-all text-xs">
+            </div>
+            <div class="space-y-1.5">
+              <label class="text-[10px] font-black uppercase text-slate-400 ml-1">Category</label>
+              <select id="taskCategorySelect" 
+                class="w-full bg-white dark:bg-slate-800 border-2 border-slate-800 dark:border-slate-600 rounded-xl px-3 py-2.5 font-bold text-slate-800 dark:text-white focus:outline-none focus:border-blue transition-all text-xs appearance-none cursor-pointer">
+                <!-- Categories will be injected here -->
+              </select>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <label class="text-[10px] font-black uppercase text-slate-400 ml-1">Priority Level</label>
+            <div class="grid grid-cols-3 gap-2">
+              <button onclick="setPriority('low')" id="prio-low" class="prio-btn py-2.5 rounded-xl border-2 border-slate-800 dark:border-slate-600 font-black text-[10px] uppercase transition-all bg-white dark:bg-slate-800 text-slate-400">Low</button>
+              <button onclick="setPriority('medium')" id="prio-medium" class="prio-btn py-2.5 rounded-xl border-2 border-slate-800 dark:border-slate-600 font-black text-[10px] uppercase transition-all bg-white dark:bg-slate-800 text-slate-400 active-medium">Medium</button>
+              <button onclick="setPriority('high')" id="prio-high" class="prio-btn py-2.5 rounded-xl border-2 border-slate-800 dark:border-slate-600 font-black text-[10px] uppercase transition-all bg-white dark:bg-slate-800 text-slate-400">High</button>
+            </div>
+          </div>
+
+          <button onclick="addTask()" class="btn-chunky w-full bg-blue text-white font-black uppercase py-4 rounded-xl shadow-hard border-2 border-slate-800 flex items-center justify-center gap-2 text-sm mt-2 active:translate-y-1 active:shadow-none transition-all">
+            <i data-lucide="plus-circle" class="w-5 h-5"></i> Create Task
           </button>
-          <label class="flex items-center justify-center gap-2 py-2 rounded-lg text-[9px] font-black uppercase border-2 border-slate-200 dark:border-slate-700 hover:border-dark transition-all cursor-pointer">
-            <i data-lucide="upload" class="w-3 h-3"></i> Import
-            <input type="file" id="importFile" class="hidden" accept=".json" onchange="importTasks(this)">
-          </label>
         </div>
+      </div>
+
+      <!-- Settings & Cleanup -->
+      <div class="glass-panel border-3 border-slate-800 dark:border-slate-600 rounded-3xl p-6 shadow-hard dark:shadow-hard-dark bg-white/50 dark:bg-slate-900/50 space-y-4">
+        <h3 class="font-heading font-bold text-xs text-slate-400 uppercase tracking-[0.2em] mb-2">Options</h3>
         
-        <button onclick="clearCompleted()" class="w-full py-2 bg-pink/10 text-pink border-2 border-pink/30 hover:bg-pink hover:text-white transition-all rounded-xl text-[10px] font-black uppercase tracking-widest">
-          Clear Completed
-        </button>
+        <div class="flex flex-col gap-2">
+          <select id="sortMode" onchange="updateSort(this.value)" class="w-full bg-white dark:bg-slate-800 border-2 border-slate-800 dark:border-slate-600 rounded-xl px-4 py-2.5 font-bold text-[11px] uppercase text-slate-800 dark:text-white outline-none cursor-pointer">
+            <option value="newest">Newest First</option>
+            <option value="deadline">Closest Deadline</option>
+            <option value="priority">Priority Order</option>
+          </select>
+          
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="exportTasks()" class="flex items-center justify-center gap-2 py-2.5 bg-white dark:bg-slate-800 border-2 border-slate-800 dark:border-slate-600 rounded-xl font-black text-[9px] uppercase hover:bg-slate-50 transition-colors">
+              <i data-lucide="download" class="w-3.5 h-3.5"></i> Export
+            </button>
+            <button onclick="document.getElementById('importInput').click()" class="flex items-center justify-center gap-2 py-2.5 bg-white dark:bg-slate-800 border-2 border-slate-800 dark:border-slate-600 rounded-xl font-black text-[9px] uppercase hover:bg-slate-50 transition-colors">
+              <i data-lucide="upload" class="w-3.5 h-3.5"></i> Import
+            </button>
+            <input type="file" id="importInput" class="hidden" accept=".json" onchange="importTasks(this)">
+          </div>
+
+          <button onclick="clearDone()" class="w-full py-3 bg-pink/10 text-pink border-2 border-pink/30 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-pink hover:text-white transition-all">
+            Clear Finished Tasks
+          </button>
+        </div>
       </div>
     </div>
 
-    <!-- Right Column: List -->
-    <div class="lg:col-span-8">
-      <ul id="todoList" class="space-y-4"></ul>
+    <!-- Right Column: Category Tabs and List -->
+    <div class="lg:col-span-8 flex flex-col gap-6">
+      
+      <!-- Category Tabs Bar -->
+      <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2">
+        <div id="categoryTabs" class="flex items-center gap-2">
+          <!-- Tabs injected here -->
+        </div>
+        <button onclick="promptAddCategory()" class="w-10 h-10 flex-shrink-0 bg-slate-100 dark:bg-slate-800 border-2 border-slate-800 dark:border-slate-600 rounded-xl flex items-center justify-center text-slate-500 hover:text-blue hover:border-blue transition-all shadow-hard-sm">
+          <i data-lucide="plus" class="w-5 h-5"></i>
+        </button>
+      </div>
 
-      <div id="emptyState" class="hidden glass-panel text-center py-24 rounded-[2rem] border-3 border-dashed border-slate-300 dark:border-slate-700 shadow-none mt-2">
-        <div class="inline-block p-4 rounded-2xl bg-white dark:bg-slate-800 border-2 border-[var(--border-primary)] shadow-hard-sm mb-4">
+      <!-- Tasks List -->
+      <div id="taskList" class="space-y-4">
+        <!-- Tasks will be injected here -->
+      </div>
+
+      <!-- Empty State -->
+      <div id="emptyState" class="hidden glass-panel border-3 border-dashed border-slate-300 dark:border-slate-700 rounded-[2.5rem] p-20 flex flex-col items-center justify-center text-center">
+        <div class="w-20 h-20 bg-blue/10 rounded-3xl border-2 border-blue/20 flex items-center justify-center mb-6">
           <i data-lucide="sparkles" class="w-10 h-10 text-blue"></i>
         </div>
-        <h3 class="font-heading text-2xl font-bold text-dark dark:text-white">All Caught Up!</h3>
-        <p class="text-slate-400 font-semibold mt-2 font-body text-base">Your task list is empty. Enjoy the peace.</p>
+        <h3 class="font-heading font-bold text-2xl text-slate-800 dark:text-white uppercase tracking-tight">No Tasks Found</h3>
+        <p class="font-body font-semibold text-slate-400 mt-2 max-w-xs">Your workspace is crystal clear. Time to relax or start something new!</p>
+        <button onclick="document.getElementById('taskInput').focus()" class="mt-8 font-black uppercase text-xs text-blue flex items-center gap-2 hover:gap-3 transition-all">
+          Create your first task <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </button>
       </div>
     </div>
 
   </main>
 
+  <!-- Task Edit Modal (Overlay) -->
+  <div id="editModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="closeEditModal()"></div>
+    <div class="glass-panel w-full max-w-md border-4 border-slate-800 dark:border-slate-500 rounded-[2rem] p-8 relative z-10 shadow-2xl animate-pop-in">
+       <h2 class="font-heading font-bold text-2xl text-slate-900 dark:text-white uppercase mb-6 flex items-center gap-3">
+         <i data-lucide="edit-3" class="w-6 h-6 text-orange"></i> Edit Task
+       </h2>
+       <div class="space-y-4">
+         <div class="space-y-1.5">
+           <label class="text-[10px] font-black uppercase text-slate-400">Task Title</label>
+           <input type="text" id="editTaskInput" class="input-chunky">
+         </div>
+         <div class="grid grid-cols-2 gap-4">
+           <div class="space-y-1.5">
+             <label class="text-[10px] font-black uppercase text-slate-400">Deadline</label>
+             <input type="date" id="editTaskDeadline" class="input-chunky text-xs">
+           </div>
+           <div class="space-y-1.5">
+             <label class="text-[10px] font-black uppercase text-slate-400">Category</label>
+             <select id="editTaskCategory" class="input-chunky text-xs appearance-none"></select>
+           </div>
+         </div>
+         <div class="flex gap-4 pt-4">
+           <button onclick="saveTaskEdit()" class="btn-chunky flex-1 bg-green text-white font-black uppercase py-3 rounded-xl shadow-hard border-2 border-slate-800">Save</button>
+           <button onclick="closeEditModal()" class="btn-chunky flex-1 bg-slate-200 text-slate-700 font-black uppercase py-3 rounded-xl shadow-hard border-2 border-slate-800">Cancel</button>
+         </div>
+       </div>
+    </div>
+  </div>
+
   <script type="module">
     import autoAnimate from 'https://cdn.jsdelivr.net/npm/@formkit/auto-animate@0.8.0/index.mjs';
-    autoAnimate(document.getElementById('todoList'));
+    autoAnimate(document.getElementById('taskList'));
+    autoAnimate(document.getElementById('categoryTabs'));
   </script>
 
   <script>
-    let todos = JSON.parse(localStorage.getItem('klasskit_todos')) || [];
-    let currentFilter = 'all';
-    let currentSort = 'date';
+    // State Management
+    let tasks = JSON.parse(localStorage.getItem('klasskit_tasks')) || [];
+    let categories = JSON.parse(localStorage.getItem('klasskit_categories')) || ['General', 'Events', 'Classes', 'Work', 'Personal'];
+    let currentTab = 'All';
+    let currentPriority = 'medium';
+    let currentSort = 'newest';
     let editingId = null;
-    let selectedPriority = 'medium';
-    let selectedCategory = 'work';
 
-    const listEl = document.getElementById('todoList');
-    const inputEl = document.getElementById('todoInput');
+    // Elements
+    const taskListEl = document.getElementById('taskList');
     const emptyStateEl = document.getElementById('emptyState');
+    const taskInput = document.getElementById('taskInput');
+    const taskDeadline = document.getElementById('taskDeadline');
+    const taskCategorySelect = document.getElementById('taskCategorySelect');
+    const categoryTabs = document.getElementById('categoryTabs');
+    const progressBar = document.getElementById('progressBar');
+    const progressPercent = document.getElementById('progressPercent');
+    const taskCountLabel = document.getElementById('taskCountLabel');
 
-    function save() {
-      localStorage.setItem('klasskit_todos', JSON.stringify(todos));
-      render();
-      saveToCloud();
+    // Init
+    function init() {
+      renderCategories();
+      renderTasks();
+      updateProgress();
+      updateLabels();
+      loadCloud();
+      lucide.createIcons();
     }
 
-    async function saveToCloud() {
+    function updateLabels() {
+      const now = new Date();
+      const options = { weekday: 'long', month: 'long', day: 'numeric' };
+      document.getElementById('currentDateLabel').innerText = now.toLocaleDateString('en-US', options);
+      
+      const activeCount = tasks.filter(t => !t.completed).length;
+      taskCountLabel.innerText = `${activeCount} Task${activeCount !== 1 ? 's' : ''} Active`;
+    }
+
+    // Persistence
+    async function save() {
+      localStorage.setItem('klasskit_tasks', JSON.stringify(tasks));
+      localStorage.setItem('klasskit_categories', JSON.stringify(categories));
+      renderTasks();
+      updateProgress();
+      updateLabels();
+      saveCloud();
+    }
+
+    async function saveCloud() {
       if (window.Sync && Sync.isCloudMode()) {
         Sync.fireCloudSave(async userId => {
-          await Sync.cloudSaveSettings(userId, {
-            task: {
-              theme: localStorage.getItem('theme_tasks'),
-              todos: todos
-            }
-          });
+          await Promise.all([
+            Sync.cloudSaveTasks(userId, tasks),
+            Sync.cloudSaveTaskCategories(userId, categories)
+          ]);
         });
-      } else if (window.saveProgress) {
-        // Fallback for sandbox or legacy
-        await saveProgress('todo_list_data', { todos, updatedAt: Date.now() });
       }
     }
 
-    async function loadFromCloud() {
+    async function loadCloud() {
       if (window.Sync && Sync.isCloudMode()) {
         const userId = await Sync.getCachedUserId();
         if (userId) {
-          const settings = await Sync.cloudLoadSettings(userId);
-          if (settings && settings.task && settings.task.todos) {
-            todos = settings.task.todos;
-            localStorage.setItem('klasskit_todos', JSON.stringify(todos));
-            if (settings.task.theme) {
-              localStorage.setItem('theme_tasks', settings.task.theme);
-              if (settings.task.theme === 'dark') document.documentElement.classList.add('dark');
-              else document.documentElement.classList.remove('dark');
-            }
-            render();
-          }
-        }
-      } else if (window.loadProgress) {
-        const data = await loadProgress('todo_list_data');
-        if (data && data.todos) {
-          todos = data.todos;
-          localStorage.setItem('klasskit_todos', JSON.stringify(todos));
-          render();
+          const [cloudTasks, cloudCats] = await Promise.all([
+            Sync.cloudLoadTasks(userId),
+            Sync.cloudLoadTaskCategories(userId)
+          ]);
+
+          if (cloudTasks) tasks = cloudTasks;
+          if (cloudCats) categories = cloudCats;
+          
+          renderCategories();
+          renderTasks();
+          updateProgress();
         }
       }
     }
 
+    // Category Management
+    function renderCategories() {
+      // Inject to select dropdowns
+      const selects = [taskCategorySelect, document.getElementById('editTaskCategory')];
+      selects.forEach(sel => {
+        if (!sel) return;
+        sel.innerHTML = categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
+      });
+
+      // Inject to tabs
+      const tabs = ['All', ...categories];
+      categoryTabs.innerHTML = tabs.map(tab => `
+        <button onclick="setTab('${tab}')" class="category-tab px-5 py-2.5 rounded-xl border-2 border-slate-800 dark:border-slate-600 font-black text-xs uppercase tracking-tight bg-white dark:bg-slate-800 text-slate-500 shadow-hard-sm ${currentTab === tab ? 'active' : ''}">
+          ${tab}
+        </button>
+      `).join('');
+    }
+
+    function setTab(tab) {
+      currentTab = tab;
+      renderCategories();
+      renderTasks();
+    }
+
+    function promptAddCategory() {
+      const name = prompt("Enter new category name:");
+      if (name && !categories.includes(name)) {
+        categories.push(name);
+        save();
+        renderCategories();
+      }
+    }
+
+    // Task Actions
     function setPriority(val) {
-      selectedPriority = val;
-      document.querySelectorAll('.prio-pill').forEach(btn => {
-        btn.classList.remove('active-pill-blue', 'active-pill-orange', 'active-pill-pink');
-        if (btn.dataset.value === val) {
-          if (val === 'low') btn.classList.add('active-pill-blue');
-          if (val === 'medium') btn.classList.add('active-pill-orange');
-          if (val === 'high') btn.classList.add('active-pill-pink');
+      currentPriority = val;
+      document.querySelectorAll('.prio-btn').forEach(btn => {
+        btn.className = 'prio-btn py-2.5 rounded-xl border-2 border-slate-800 dark:border-slate-600 font-black text-[10px] uppercase transition-all bg-white dark:bg-slate-800 text-slate-400';
+        if (btn.id === `prio-${val}`) {
+          btn.classList.add(`active-${val}`);
         }
       });
     }
 
-    function setCategory(val) {
-      selectedCategory = val;
-      document.querySelectorAll('.cat-pill').forEach(btn => {
-        btn.classList.remove('active-pill-blue', 'active-pill-green', 'active-pill-pink', 'active-pill-slate');
-        if (btn.dataset.value === val) {
-          if (val === 'work') btn.classList.add('active-pill-blue');
-          if (val === 'personal') btn.classList.add('active-pill-green');
-          if (val === 'urgent') btn.classList.add('active-pill-pink');
-        }
-      });
-    }
-
-    function addTodo() {
-      const text = inputEl.value.trim();
+    function addTask() {
+      const text = taskInput.value.trim();
       if (!text) return;
 
-      const newTodo = {
+      const newTask = {
         id: Date.now(),
         text: text,
-        priority: selectedPriority,
-        category: selectedCategory,
+        deadline: taskDeadline.value || null,
+        category: taskCategorySelect.value,
+        priority: currentPriority,
         completed: false,
         createdAt: new Date().toISOString()
       };
 
-      todos.unshift(newTodo);
-      inputEl.value = '';
+      tasks.unshift(newTask);
+      taskInput.value = '';
+      taskDeadline.value = '';
       save();
     }
 
-    function toggleTodo(id) {
-      todos = todos.map(t => t.id === id ? { ...t, completed: !t.completed } : t);
+    function toggleTask(id) {
+      tasks = tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t);
       save();
     }
 
-    function deleteTodo(id) {
-      todos = todos.filter(t => t.id !== id);
-      save();
-    }
-
-    function editTodo(id) {
-      editingId = id;
-      render();
-      setTimeout(() => {
-        const input = document.querySelector(`input[data-edit-id="${id}"]`);
-        if (input) { input.focus(); input.select(); }
-      }, 0);
-    }
-
-    function saveEdit(id) {
-      const input = document.querySelector(`input[data-edit-id="${id}"]`);
-      if (!input) return;
-      const newText = input.value.trim();
-      if (newText) {
-        todos = todos.map(t => t.id === id ? { ...t, text: newText } : t);
-        editingId = null;
+    function deleteTask(id) {
+      if (confirm("Delete this task?")) {
+        tasks = tasks.filter(t => t.id !== id);
         save();
-      } else {
-        editingId = null;
-        render();
       }
     }
 
-    function cancelEdit() {
-      editingId = null;
-      render();
-    }
-
-    function clearCompleted() {
-      todos = todos.filter(t => !t.completed);
+    function clearDone() {
+      tasks = tasks.filter(t => !t.completed);
       save();
     }
 
-    function filterTasks(filterType) {
-      currentFilter = filterType;
-      document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.className = 'filter-btn py-2 rounded-lg text-[10px] font-bold uppercase border-2 border-[var(--border-primary)] bg-white dark:bg-slate-800';
-        if (btn.id === `filter-${filterType}`) {
-          btn.className = 'filter-btn py-2 rounded-lg text-[10px] font-bold uppercase border-2 border-[var(--border-primary)] bg-dark text-white shadow-hard-sm';
+    // Editing
+    function openEditModal(id) {
+      const task = tasks.find(t => t.id === id);
+      if (!task) return;
+      editingId = id;
+      document.getElementById('editTaskInput').value = task.text;
+      document.getElementById('editTaskDeadline').value = task.deadline || '';
+      document.getElementById('editTaskCategory').value = task.category;
+      document.getElementById('editModal').classList.remove('hidden');
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').classList.add('hidden');
+      editingId = null;
+    }
+
+    function saveTaskEdit() {
+      const text = document.getElementById('editTaskInput').value.trim();
+      if (!text) return;
+      
+      tasks = tasks.map(t => t.id === editingId ? {
+        ...t,
+        text: text,
+        deadline: document.getElementById('editTaskDeadline').value || null,
+        category: document.getElementById('editTaskCategory').value
+      } : t);
+      
+      closeEditModal();
+      save();
+    }
+
+    // Rendering & Sorting
+    function updateSort(mode) {
+      currentSort = mode;
+      renderTasks();
+    }
+
+    function renderTasks() {
+      taskListEl.innerHTML = '';
+      
+      let filtered = tasks;
+      if (currentTab !== 'All') {
+        filtered = tasks.filter(t => t.category === currentTab);
+      }
+
+      // Sort
+      filtered.sort((a, b) => {
+        if (currentSort === 'deadline') {
+          if (!a.deadline) return 1;
+          if (!b.deadline) return -1;
+          return new Date(a.deadline) - new Date(b.deadline);
         }
-      });
-      render();
-    }
-
-    function changeSort(sortType) {
-      currentSort = sortType;
-      render();
-    }
-
-    function sortTasks(tasksArray) {
-      return [...tasksArray].sort((a, b) => {
         if (currentSort === 'priority') {
-          const pMap = { high: 3, medium: 2, low: 1 };
-          if (pMap[b.priority] !== pMap[a.priority]) return pMap[b.priority] - pMap[a.priority];
-        } else if (currentSort === 'category') {
-          if (a.category !== b.category) return a.category.localeCompare(b.category);
+          const map = { high: 3, medium: 2, low: 1 };
+          return map[b.priority] - map[a.priority];
         }
         return new Date(b.createdAt) - new Date(a.createdAt);
       });
+
+      if (filtered.length === 0) {
+        emptyStateEl.classList.remove('hidden');
+      } else {
+        emptyStateEl.classList.add('hidden');
+      }
+
+      filtered.forEach(task => {
+        const card = document.createElement('div');
+        card.className = `todo-card glass-panel border-3 border-slate-800 dark:border-slate-600 p-5 rounded-[1.5rem] flex items-start gap-4 bg-white/90 dark:bg-slate-800/90 shadow-hard-sm ${task.completed ? 'opacity-60' : ''}`;
+        
+        // Deadline Logic
+        let deadlineHtml = '';
+        if (task.deadline) {
+          const d = new Date(task.deadline);
+          const now = new Date();
+          now.setHours(0,0,0,0);
+          const isOverdue = d < now && !task.completed;
+          const isToday = d.getTime() === now.getTime();
+          
+          let colorClass = 'text-slate-400 bg-slate-100 dark:bg-slate-700';
+          if (isOverdue) colorClass = 'text-pink bg-pink/10 border-pink/20 animate-pulse';
+          else if (isToday) colorClass = 'text-orange bg-orange/10 border-orange/20';
+
+          deadlineHtml = `
+            <div class="deadline-badge flex items-center gap-1.5 px-2.5 py-1 rounded-lg border font-black text-[9px] uppercase ${colorClass}">
+              <i data-lucide="calendar" class="w-3 h-3"></i>
+              ${isOverdue ? 'Overdue: ' : (isToday ? 'Today: ' : '')} ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+            </div>
+          `;
+        }
+
+        const prioColors = {
+          high: 'bg-pink/10 text-pink border-pink/20',
+          medium: 'bg-orange/10 text-orange border-orange/20',
+          low: 'bg-blue/10 text-blue border-blue/20'
+        };
+
+        card.innerHTML = `
+          <button onclick="toggleTask(${task.id})" class="w-8 h-8 rounded-lg border-2 border-slate-800 flex-shrink-0 flex items-center justify-center transition-all ${task.completed ? 'bg-green border-green shadow-none' : 'bg-white dark:bg-slate-700 hover:border-blue'}">
+            ${task.completed ? '<i data-lucide="check" class="w-5 h-5 text-white"></i>' : ''}
+          </button>
+          
+          <div class="flex-1 min-w-0">
+            <h4 class="font-bold text-base md:text-lg text-slate-800 dark:text-white leading-tight ${task.completed ? 'line-through text-slate-400' : ''}">${task.text}</h4>
+            <div class="flex flex-wrap items-center gap-2 mt-2">
+              <span class="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-500 dark:text-slate-400 font-black text-[9px] uppercase tracking-wider">${task.category}</span>
+              <span class="px-2.5 py-1 rounded-lg border font-black text-[9px] uppercase ${prioColors[task.priority]}">${task.priority}</span>
+              ${deadlineHtml}
+            </div>
+          </div>
+
+          <div class="flex items-center gap-1">
+            <button onclick="openEditModal(${task.id})" class="p-2 text-slate-400 hover:text-orange transition-colors"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+            <button onclick="deleteTask(${task.id})" class="p-2 text-slate-400 hover:text-pink transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+          </div>
+        `;
+        
+        taskListEl.appendChild(card);
+      });
+      lucide.createIcons();
     }
 
+    function updateProgress() {
+      if (tasks.length === 0) {
+        progressBar.style.width = '0%';
+        progressPercent.innerText = '0%';
+        return;
+      }
+      const done = tasks.filter(t => t.completed).length;
+      const percent = Math.round((done / tasks.length) * 100);
+      progressBar.style.width = `${percent}%`;
+      progressPercent.innerText = `${percent}%`;
+    }
+
+    // Export/Import
     function exportTasks() {
-      const dataStr = JSON.stringify(todos, null, 2);
-      const blob = new Blob([dataStr], { type: "application/json" });
+      const data = { tasks, categories, version: '2.0', exportedAt: new Date().toISOString() };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `klasskit_tasks_${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `klasskit_tasks_${new Date().toISOString().split('T')[0]}.json`;
       a.click();
     }
 
@@ -403,14 +608,16 @@
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
-          const imported = JSON.parse(e.target.result);
-          if (Array.isArray(imported)) {
-            const existingIds = new Set(todos.map(t => t.id));
-            const newOnes = imported.filter(t => !existingIds.has(t.id));
-            todos = [...newOnes, ...todos];
+          const data = JSON.parse(e.target.result);
+          if (data.tasks) {
+            tasks = [...data.tasks, ...tasks].filter((t, i, arr) => arr.findIndex(x => x.id === t.id) === i);
+            if (data.categories) {
+              categories = [...new Set([...categories, ...data.categories])];
+            }
             save();
+            renderCategories();
           }
-        } catch (err) { alert("Invalid file"); }
+        } catch (err) { alert("Invalid file format"); }
       };
       reader.readAsText(file);
     }
@@ -420,83 +627,13 @@
       localStorage.setItem("theme_tasks", isDark ? "dark" : "light");
     }
 
-    function updateProgress() {
-      const total = todos.length;
-      const completed = todos.filter(t => t.completed).length;
-      const percentage = total === 0 ? 0 : Math.round((completed / total) * 100);
-      document.getElementById('progressBar').style.width = `${percentage}%`;
-      document.getElementById('progressText').innerText = `${percentage}% Done`;
-    }
-
-    function render() {
-      updateProgress();
-      listEl.innerHTML = '';
-
-      let filtered = todos;
-      if (currentFilter === 'active') filtered = todos.filter(t => !t.completed);
-      if (currentFilter === 'completed') filtered = todos.filter(t => t.completed);
-
-      const items = sortTasks(filtered);
-
-      if (items.length === 0) {
-        emptyStateEl.classList.remove('hidden');
-      } else {
-        emptyStateEl.classList.add('hidden');
-      }
-
-      items.forEach(todo => {
-        const li = document.createElement('li');
-        li.className = 'todo-item glass-panel border-[3px] border-[var(--border-primary)] p-4 rounded-2xl flex items-center gap-4 bg-white/80 dark:bg-slate-800/80 shadow-hard-sm';
-        
-        if (todo.completed) li.classList.add('opacity-60', 'grayscale-[0.5]');
-
-        if (editingId === todo.id) {
-          li.innerHTML = `
-            <div class="flex-1 flex flex-col gap-2">
-              <input type="text" data-edit-id="${todo.id}" value="${todo.text}" class="w-full px-3 py-2 border-2 border-dark rounded-lg bg-white dark:bg-slate-700">
-              <div class="flex gap-2">
-                <button onclick="saveEdit(${todo.id})" class="text-[10px] font-black uppercase px-4 py-1.5 bg-green rounded-lg border-2 border-dark">Save</button>
-                <button onclick="cancelEdit()" class="text-[10px] font-black uppercase px-4 py-1.5 bg-slate-200 rounded-lg border-2 border-dark">Cancel</button>
-              </div>
-            </div>
-          `;
-        } else {
-          let prioTag = `<span class="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-slate-100 dark:bg-slate-700 text-slate-500 border border-slate-200 dark:border-slate-600">Low</span>`;
-          if (todo.priority === 'high') prioTag = `<span class="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-pink/10 text-pink border border-pink/30">High</span>`;
-          if (todo.priority === 'medium') prioTag = `<span class="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-orange/10 text-orange border border-orange/30">Medium</span>`;
-
-          const catTag = `<span class="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-blue/10 text-blue border border-blue/20">${todo.category}</span>`;
-
-          li.innerHTML = `
-            <button onclick="toggleTodo(${todo.id})" class="w-10 h-10 rounded-xl border-2 border-dark flex items-center justify-center transition-all ${todo.completed ? 'bg-green' : 'bg-white dark:bg-slate-700'}">
-              ${todo.completed ? '<i data-lucide="check" class="w-6 h-6 text-dark"></i>' : ''}
-            </button>
-            <div class="flex-1 min-w-0">
-              <p class="font-bold text-base md:text-lg dark:text-white truncate ${todo.completed ? 'line-through text-slate-400' : ''}">${todo.text}</p>
-              <div class="flex gap-2 mt-1">
-                ${prioTag}
-                ${catTag}
-              </div>
-            </div>
-            <div class="flex gap-1">
-              <button onclick="editTodo(${todo.id})" class="p-2 text-slate-400 hover:text-blue"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
-              <button onclick="deleteTodo(${todo.id})" class="p-2 text-slate-400 hover:text-pink"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-            </div>
-          `;
-        }
-        listEl.appendChild(li);
-      });
-      lucide.createIcons();
-    }
-
-    inputEl.addEventListener('keypress', (e) => { if (e.key === 'Enter') addTodo(); });
-
-    async function init() {
-      if (window.requireAuth) await requireAuth();
-      render();
-      await loadFromCloud();
-    }
+    // Start
     init();
+    
+    // Global Event Listeners
+    taskInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addTask(); });
   </script>
 </body>
+
 </html>
+>
