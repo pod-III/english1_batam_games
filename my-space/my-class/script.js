@@ -37,6 +37,32 @@ const ClassManager = {
     
     // 6. Sync Badge
     this.updateSyncBadge();
+
+    // 7. Keyboard Listeners
+    this.setupKeyboardShortcuts();
+  },
+
+  setupKeyboardShortcuts() {
+    // Student Form
+    const studentInputs = ['studentNameInput', 'studentNickInput'];
+    studentInputs.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') StudentManager.save();
+        });
+      }
+    });
+
+    // Reflection Form
+    const reflectionText = document.getElementById('reflectionTextInput');
+    if (reflectionText) {
+      reflectionText.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+          ReflectionManager.save();
+        }
+      });
+    }
   },
 
   async loadData() {
@@ -279,6 +305,7 @@ const TabManager = {
       case 'sessions': SessionManager.render(); break;
       case 'stats': StatsManager.render(); break;
     }
+    if (window.lucide) lucide.createIcons();
   }
 };
 
@@ -424,6 +451,7 @@ const StudentManager = {
     ClassManager.saveData();
     ModalManager.closeAll();
     ClassManager.updateUI();
+    UI.showToast('Students added successfully!', 'success');
   },
 
   delete(id) {
@@ -435,6 +463,7 @@ const StudentManager = {
     ClassManager.saveData();
     this.render();
     ClassManager.updateUI();
+    UI.showToast('Student removed', 'info');
   },
 
   updateStars(id, delta) {
@@ -531,6 +560,7 @@ const ReflectionManager = {
     ModalManager.closeAll();
     this.render();
     ClassManager.updateUI();
+    UI.showToast('Reflection saved!', 'success');
   },
 
   delete(id) {
@@ -542,6 +572,7 @@ const ReflectionManager = {
     ClassManager.saveData();
     this.render();
     ClassManager.updateUI();
+    UI.showToast('Reflection deleted', 'info');
   }
 };
 
@@ -712,6 +743,37 @@ const Theme = {
   toggle() {
     const isDark = document.documentElement.classList.toggle('dark');
     localStorage.setItem('theme_my-class', isDark ? 'dark' : 'light');
+  }
+};
+
+const UI = {
+  showToast(message, type = 'success') {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+
+    const toast = document.createElement('div');
+    const colorClass = type === 'success' ? 'bg-green' : (type === 'error' ? 'bg-pink' : 'bg-blue');
+    const icon = type === 'success' ? 'check-circle' : (type === 'error' ? 'alert-circle' : 'info');
+
+    toast.className = `glass-panel flex items-center gap-3 px-6 py-4 rounded-2xl border-2 border-slate-800 text-white shadow-hard translate-y-10 opacity-0 transition-all duration-300 pointer-events-auto ${colorClass}`;
+    toast.innerHTML = `
+      <i data-lucide="${icon}" class="w-5 h-5"></i>
+      <span class="font-heading font-bold text-sm uppercase tracking-tight">${message}</span>
+    `;
+
+    container.appendChild(toast);
+    if (window.lucide) lucide.createIcons({ root: toast });
+
+    // Animate In
+    setTimeout(() => {
+      toast.classList.remove('translate-y-10', 'opacity-0');
+    }, 10);
+
+    // Animate Out
+    setTimeout(() => {
+      toast.classList.add('translate-y-10', 'opacity-0');
+      setTimeout(() => toast.remove(), 300);
+    }, 2500);
   }
 };
 
