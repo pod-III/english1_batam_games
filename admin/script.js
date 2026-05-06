@@ -45,6 +45,7 @@ async function init() {
         setTimeout(() => overlay.remove(), 400)
     }
     lucide.createIcons()
+    loadSettings()
     await fetchData()
 }
 
@@ -168,60 +169,99 @@ function debouncedSearch() {
 }
 
 // ── STATS ──
+function getExcludedUserIds() {
+    const saved = localStorage.getItem('kk_admin_settings')
+    if (saved) {
+        const settings = JSON.parse(saved)
+        return (settings.excluded_ids || '').split(',').map(id => id.trim()).filter(id => id)
+    }
+    return []
+}
+
 function updateStats() {
-    const uniqueTools = new Set([...allProgress.map(r => r.tool_key), ...allNotes.map(n => 'lesson-note')]).size
-    const latestProgress = allProgress[0]?.updated_at ? new Date(allProgress[0].updated_at).getTime() : 0
-    const latestNote = allNotes[0]?.updated_at ? new Date(allNotes[0].updated_at).getTime() : 0
+    const excludedIds = getExcludedUserIds()
+    
+    // Data filtered for metrics (excluding test users)
+    const metricsProgress = allProgress.filter(r => !excludedIds.includes(r.user_id))
+    const metricsNotes = allNotes.filter(n => !excludedIds.includes(n.user_id))
+    const metricsProfiles = Object.fromEntries(Object.entries(allProfiles).filter(([id]) => !excludedIds.includes(id)))
+    const metricsSched = allScheduleEvents.filter(e => !excludedIds.includes(e.user_id))
+    const metricsClasses = allClassAdmin.filter(c => !excludedIds.includes(c.user_id))
+
+    const uniqueTools = new Set([...metricsProgress.map(r => r.tool_key), ...metricsNotes.map(n => 'lesson-note')]).size
+    const latestProgress = metricsProgress[0]?.updated_at ? new Date(metricsProgress[0].updated_at).getTime() : 0
+    const latestNote = metricsNotes[0]?.updated_at ? new Date(metricsNotes[0].updated_at).getTime() : 0
     const latest = Math.max(latestProgress, latestNote)
         ? new Date(Math.max(latestProgress, latestNote)).toLocaleDateString()
         : '—'
 
     const statUsers = document.getElementById('statUsers')
-    if (statUsers) statUsers.textContent = Object.keys(allProfiles).length
+    if (statUsers) statUsers.textContent = Object.keys(metricsProfiles).length
     const statRows = document.getElementById('statRows')
-    if (statRows) statRows.textContent = allProgress.length
+    if (statRows) statRows.textContent = metricsProgress.length
     const statNotes = document.getElementById('statNotes')
-    if (statNotes) statNotes.textContent = allNotes.length
+    if (statNotes) statNotes.textContent = metricsNotes.length
     const statTools = document.getElementById('statTools')
     if (statTools) statTools.textContent = uniqueTools
     const statLatest = document.getElementById('statLatest')
     if (statLatest) statLatest.textContent = latest
     const statEvents = document.getElementById('statEvents')
-    if (statEvents) statEvents.textContent = allScheduleEvents.length
+    if (statEvents) statEvents.textContent = metricsSched.length
     const statClasses = document.getElementById('statClasses')
-    if (statClasses) statClasses.textContent = allClassAdmin.length
+    if (statClasses) statClasses.textContent = metricsClasses.length
 
     // Global Storage Stat
-    const totalUsed = Object.values(allProfiles).reduce((sum, p) => sum + (p.storage_usage || 0), 0)
+    const totalUsed = Object.values(metricsProfiles).reduce((sum, p) => sum + (p.storage_usage || 0), 0)
     const totalUsedMB = (totalUsed / (1024 * 1024)).toFixed(1)
     const statStorage = document.getElementById('statStorage')
     if (statStorage) statStorage.textContent = `${totalUsedMB} MB`
 
-    updateCharts()
+    updateCharts(metricsProgress, metricsNotes, metricsProfiles, metricsSched, metricsClasses)
 }
 
-function updateCharts() {
+function updateCharts(metricsProgress, metricsNotes, metricsProfiles, metricsSched, metricsClasses) {
     const ctxActivity = document.getElementById('activityChart')?.getContext('2d')
     const ctxCategory = document.getElementById('categoryChart')?.getContext('2d')
     const ctxTools = document.getElementById('toolsChart')?.getContext('2d')
+    const ctxActiveUsers = document.getElementById('activeUsersChart')?.getContext('2d')
 
-    if (!ctxActivity || !ctxCategory || !ctxTools) return
+    if (!ctxActivity || !ctxCategory || !ctxTools || !ctxActiveUsers) return
 
     // Filter out system keys like the Hub landing page
-    const filteredProgress = allProgress.filter(r => r.tool_key !== 'klasskit_hub' && r.tool_key !== 'hub')
+    const filteredProgress = metricsProgress.filter(r => r.tool_key !== 'klasskit_hub' && r.tool_key !== 'hub')
 
     // 1. Activity Line Chart
     const days = 14
     const today = new Date()
+    today.setHours(0, 0, 0, 0) // Normalize to local midnight to prevent shifting bins
+    
+    // Helper to get local date string YYYY-MM-DD
+    const getLocalDateKey = (date) => {
+        const d = new Date(date)
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    }
+
+    // Pre-calculate counts per local date for O(N) efficiency
+    const progressByDate = {}
+    const usersByDate = {}
+    filteredProgress.forEach(r => {
+        const key = getLocalDateKey(r.updated_at || Date.now())
+        progressByDate[key] = (progressByDate[key] || 0) + 1
+        if (!usersByDate[key]) usersByDate[key] = new Set()
+        usersByDate[key].add(r.user_id)
+    })
+
     const activityLabels = []
     const activityData = []
+    const dauData = []
+
     for (let i = days - 1; i >= 0; i--) {
         const d = new Date(today)
         d.setDate(d.getDate() - i)
-        const dateStr = d.toISOString().split('T')[0]
+        const dateStr = getLocalDateKey(d)
         activityLabels.push(d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }))
-        const count = filteredProgress.filter(r => (r.updated_at ? new Date(r.updated_at) : new Date()).toISOString().split('T')[0] === dateStr).length
-        activityData.push(count)
+        activityData.push(progressByDate[dateStr] || 0)
+        dauData.push(usersByDate[dateStr]?.size || 0)
     }
 
     if (charts.activity) charts.activity.destroy()
@@ -238,16 +278,98 @@ function updateCharts() {
                 tension: 0.4,
                 borderWidth: 3,
                 pointRadius: 4,
-                pointBackgroundColor: '#2979FF'
+                pointBackgroundColor: '#2979FF',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointHoverRadius: 6,
+                pointHoverBackgroundColor: '#2979FF',
+                pointHoverBorderColor: '#fff',
+                pointHoverBorderWidth: 3
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            interaction: {
+                intersect: false,
+                mode: 'index',
+            },
+            plugins: { 
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    titleFont: { family: 'Fredoka', size: 14 },
+                    bodyFont: { family: 'Nunito', size: 12 },
+                    borderColor: '#475569',
+                    borderWidth: 2,
+                    padding: 12,
+                    displayColors: false,
+                    callbacks: {
+                        label: (context) => ` ${context.parsed.y} Interactions`
+                    }
+                }
+            },
             scales: {
-                y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } },
-                x: { grid: { display: false }, ticks: { color: '#64748b' } }
+                y: { 
+                    beginAtZero: true, 
+                    grid: { color: 'rgba(255,255,255,0.05)' }, 
+                    ticks: { color: '#64748b', font: { family: 'Nunito' } } 
+                },
+                x: { 
+                    grid: { display: false }, 
+                    ticks: { color: '#64748b', font: { family: 'Nunito' } } 
+                }
+            }
+        }
+    })
+
+    if (charts.activeUsers) charts.activeUsers.destroy()
+    charts.activeUsers = new Chart(ctxActiveUsers, {
+        type: 'bar',
+        data: {
+            labels: activityLabels,
+            datasets: [{
+                label: 'Active Users',
+                data: dauData,
+                backgroundColor: '#00E676',
+                borderColor: '#1e293b',
+                borderWidth: 1,
+                borderRadius: 4,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { 
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    titleFont: { family: 'Fredoka', size: 14 },
+                    bodyFont: { family: 'Nunito', size: 12 },
+                    borderColor: '#475569',
+                    borderWidth: 2,
+                    padding: 12,
+                    displayColors: false,
+                    callbacks: {
+                        label: (context) => ` ${context.parsed.y} Unique Users`
+                    }
+                }
+            },
+            scales: {
+                y: { 
+                    beginAtZero: true, 
+                    grid: { color: 'rgba(255,255,255,0.05)' }, 
+                    ticks: { 
+                        color: '#64748b', 
+                        font: { family: 'Nunito' },
+                        stepSize: 1,
+                        precision: 0
+                    } 
+                },
+                x: { 
+                    grid: { display: false }, 
+                    ticks: { color: '#64748b', font: { family: 'Nunito' } } 
+                }
             }
         }
     })
@@ -296,18 +418,62 @@ function updateCharts() {
             datasets: [{
                 data: Object.values(categories).map(c => c.count),
                 backgroundColor: Object.values(categories).map(c => c.color),
-                borderWidth: 0,
-                hoverOffset: 10
+                borderWidth: 2,
+                borderColor: '#1e293b',
+                hoverOffset: 15
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            cutout: '75%',
             plugins: {
-                legend: { position: 'bottom', labels: { color: '#94a3b8', font: { weight: 'bold' }, padding: 20 } }
-            },
-            cutout: '70%'
-        }
+                legend: { 
+                    position: 'bottom', 
+                    labels: { 
+                        color: '#94a3b8', 
+                        font: { family: 'Nunito', weight: 'bold', size: 11 }, 
+                        padding: 15,
+                        usePointStyle: true,
+                        pointStyle: 'circle'
+                    } 
+                },
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    titleFont: { family: 'Fredoka', size: 14 },
+                    bodyFont: { family: 'Nunito', size: 12 },
+                    borderColor: '#475569',
+                    borderWidth: 2,
+                    padding: 12,
+                    displayColors: true,
+                    boxPadding: 6
+                }
+            }
+        },
+        plugins: [{
+            id: 'centerText',
+            beforeDraw(chart) {
+                const { width, height, ctx } = chart;
+                ctx.restore();
+                const total = chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                
+                ctx.font = '700 24px Fredoka';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = '#fff';
+                const text = total.toLocaleString();
+                const textX = Math.round((width - ctx.measureText(text).width) / 2);
+                const textY = height / 2 - 10;
+                ctx.fillText(text, textX, textY);
+
+                ctx.font = '800 10px Nunito';
+                ctx.fillStyle = '#64748b';
+                const subText = 'TOTAL ACTIONS';
+                const subTextX = Math.round((width - ctx.measureText(subText).width) / 2);
+                const subTextY = height / 2 + 15;
+                ctx.fillText(subText, subTextX, subTextY);
+                ctx.save();
+            }
+        }]
     })
 
     // 3. Top Tools Bar Chart
@@ -321,18 +487,40 @@ function updateCharts() {
                 label: 'Saves',
                 data: sortedTools.map(t => t[1]),
                 backgroundColor: '#FF8C42',
-                borderRadius: 8,
-                barThickness: 20
+                borderColor: '#1e293b',
+                borderWidth: 1,
+                borderRadius: 6,
+                barThickness: 16
             }]
         },
         options: {
             indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            plugins: { 
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    titleFont: { family: 'Fredoka', size: 14 },
+                    bodyFont: { family: 'Nunito', size: 12 },
+                    borderColor: '#475569',
+                    borderWidth: 2,
+                    padding: 10,
+                }
+            },
             scales: {
-                x: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#64748b' } },
-                y: { grid: { display: false }, ticks: { color: '#fff', font: { weight: 'bold' } } }
+                x: { 
+                    beginAtZero: true, 
+                    grid: { color: 'rgba(255,255,255,0.05)' }, 
+                    ticks: { color: '#64748b', font: { family: 'Nunito' } } 
+                },
+                y: { 
+                    grid: { display: false }, 
+                    ticks: { 
+                        color: '#fff', 
+                        font: { family: 'Fredoka', weight: '700', size: 11 } 
+                    } 
+                }
             }
         }
     })
@@ -340,17 +528,25 @@ function updateCharts() {
     // Breakdown List
     const breakdownEl = document.getElementById('toolBreakdown')
     if (breakdownEl) {
-        const total = allProgress.length || 1
+        const total = filteredProgress.length || 1
+        const toolMap = window.toolCategoryMap || {}
+        
         breakdownEl.innerHTML = sortedTools.map(([key, count]) => {
             const percent = Math.round((count / total) * 100)
+            let cat = toolMap[key] || 'Tools'
+            const catColor = categories[cat]?.color || '#2979FF'
+            
             return `
-                <div class="group">
-                    <div class="flex items-center justify-between text-xs mb-1">
-                        <span class="font-bold text-slate-300 uppercase tracking-wider">${key}</span>
-                        <span class="text-slate-500 font-mono">${count} saves</span>
+                <div class="group p-2 hover:bg-slate-700/30 rounded-xl transition-colors cursor-default">
+                    <div class="flex items-center justify-between text-[10px] mb-1.5">
+                        <div class="flex items-center gap-2">
+                            <div class="w-2 h-2 rounded-full" style="background: ${catColor}"></div>
+                            <span class="font-black text-white uppercase tracking-wider">${key}</span>
+                        </div>
+                        <span class="text-slate-500 font-mono font-bold">${count} saves</span>
                     </div>
-                    <div class="h-2 bg-slate-900 border border-slate-700 rounded-full overflow-hidden">
-                        <div class="h-full bg-blue transition-all duration-1000" style="width: ${percent}%"></div>
+                    <div class="h-2 bg-slate-900 border border-slate-700 rounded-full overflow-hidden p-[1px]">
+                        <div class="h-full rounded-full transition-all duration-1000" style="width: ${percent}%; background: ${catColor}"></div>
                     </div>
                 </div>`
         }).join('')
@@ -1100,10 +1296,12 @@ function saveSettings() {
     const settings = {
         maintenance: document.getElementById('setting-maintenance').checked,
         sync: document.getElementById('setting-sync').checked,
-        announcement: document.getElementById('setting-announcement').value
+        announcement: document.getElementById('setting-announcement').value,
+        excluded_ids: document.getElementById('setting-excluded-ids').value
     }
     localStorage.setItem('kk_admin_settings', JSON.stringify(settings))
-    // In a real app, you would also save to Supabase here
+    // Trigger re-render of stats to apply new exclusion
+    updateStats()
     console.log('[Admin] Settings saved:', settings)
 }
 
@@ -1114,9 +1312,11 @@ function loadSettings() {
         const maint = document.getElementById('setting-maintenance')
         const sync = document.getElementById('setting-sync')
         const ann = document.getElementById('setting-announcement')
+        const excl = document.getElementById('setting-excluded-ids')
         if (maint) maint.checked = settings.maintenance || false
         if (sync) sync.checked = settings.sync !== false
         if (ann) ann.value = settings.announcement || ''
+        if (excl) excl.value = settings.excluded_ids || ''
     }
 }
 
