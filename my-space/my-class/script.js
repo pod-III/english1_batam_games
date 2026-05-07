@@ -966,6 +966,18 @@ const StatsManager = {
 };
 
 const AttendanceManager = {
+  showTimes: false,
+  currentFilter: 'all',
+
+  setFilter(filter) {
+    this.currentFilter = filter;
+    // Update button UI
+    document.querySelectorAll('.att-filter-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.id === `att-filter-${filter}`);
+    });
+    this.render();
+  },
+
   render() {
     const header = document.getElementById('attendanceTableHeader');
     const body = document.getElementById('attendanceTableBody');
@@ -984,16 +996,45 @@ const AttendanceManager = {
 
     if (!classData || !classInfo) return;
 
-    // Get all past/current sessions
-    const today = new Date().toISOString().split('T')[0];
-    const sessions = classInfo.events
-      .filter(e => e.date <= today)
-      .sort((a, b) => a.date.localeCompare(b.date)); // Oldest first for table flow
+    // Filter sessions based on current filter
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayDate = new Date(todayStr);
+    
+    let sessions = [...classInfo.events].sort((a, b) => a.date.localeCompare(b.date));
+
+    if (this.currentFilter !== 'all') {
+      sessions = sessions.filter(s => {
+        const sDate = new Date(s.date);
+        const diffDays = (sDate - todayDate) / (1000 * 60 * 60 * 24);
+
+        switch (this.currentFilter) {
+          case 'today':
+            return s.date === todayStr;
+          case '3days':
+            return diffDays >= -1 && diffDays <= 2; // Yesterday to Day After Tomorrow
+          case 'week': {
+            const startOfWeek = new Date(todayDate);
+            startOfWeek.setDate(todayDate.getDate() - todayDate.getDay());
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
+            return sDate >= startOfWeek && sDate <= endOfWeek;
+          }
+          case 'month':
+            return sDate.getMonth() === todayDate.getMonth() && sDate.getFullYear() === todayDate.getFullYear();
+          default:
+            return true;
+        }
+      });
+    }
 
     if (sessions.length === 0 || classData.students.length === 0) {
       empty.classList.remove('hidden');
       container.classList.add('hidden');
       summary.classList.add('hidden');
+      // Fix: Show empty message based on filter
+      empty.querySelector('p').textContent = this.currentFilter === 'all' 
+        ? 'No sessions found for this class.' 
+        : `No sessions found for the "${this.currentFilter}" filter.`;
       return;
     }
 
@@ -1001,17 +1042,23 @@ const AttendanceManager = {
     container.classList.remove('hidden');
     summary.classList.remove('hidden');
 
+    // Update Toggle Button Text
+    const toggleBtn = document.querySelector('[onclick="AttendanceManager.toggleTimeView()"] span');
+    if (toggleBtn) toggleBtn.textContent = this.showTimes ? 'Hide Times' : 'Show Times';
+
     // Render Headers
     header.innerHTML = `
       <tr>
         <th class="sticky left-0 bg-slate-50 dark:bg-slate-800 z-10 text-left !p-4 min-w-[150px] border-r border-slate-200 dark:border-slate-700">Student</th>
         ${sessions.map(s => {
           const d = new Date(s.date);
+          const isFuture = s.date > todayStr;
           return `
-            <th class="text-center !p-3 min-w-[100px] border-r border-slate-200 dark:border-slate-700">
+            <th class="text-center !p-3 min-w-[100px] border-r border-slate-200 dark:border-slate-700 ${isFuture ? 'opacity-50' : ''}">
               <div class="flex flex-col items-center">
                 <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">${d.toLocaleDateString(undefined, { weekday: 'short' })}</span>
                 <span class="text-xs font-bold text-slate-700 dark:text-white">${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                ${this.showTimes ? `<span class="text-[9px] font-black text-blue mt-1">${s.startTime}</span>` : ''}
               </div>
             </th>
           `;
@@ -1033,13 +1080,16 @@ const AttendanceManager = {
           </td>
           ${sessions.map(s => {
             const isPresent = (classData.attendance?.[s.date] || []).includes(student.id);
+            const isFuture = s.date > todayStr;
             return `
-              <td class="text-center !p-2 border-r border-slate-200 dark:border-slate-700">
+              <td class="text-center !p-2 border-r border-slate-200 dark:border-slate-700 ${isFuture ? 'bg-slate-50/30 dark:bg-slate-800/20' : ''}">
                 <button onclick="AttendanceManager.toggle('${student.id}', '${s.date}')" 
                   class="w-10 h-10 rounded-xl transition-all flex items-center justify-center mx-auto
                   ${isPresent 
                     ? 'bg-green text-white shadow-neo-sm scale-110' 
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-300 hover:text-slate-400'
+                    : isFuture 
+                      ? 'bg-slate-200/50 dark:bg-slate-700/50 text-slate-400'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-300 hover:text-slate-400'
                   }">
                   <i data-lucide="${isPresent ? 'check' : 'minus'}" class="w-4 h-4"></i>
                 </button>
@@ -1050,10 +1100,11 @@ const AttendanceManager = {
       `;
     }).join('');
 
-    // Update Summary
-    const totalPossible = classData.students.length * sessions.length;
+    // Update Summary (Only for past/today sessions from the TOTAL pool)
+    const allPastSessions = classInfo.events.filter(s => s.date <= todayStr);
+    const totalPossible = classData.students.length * allPastSessions.length;
     let totalPresent = 0;
-    sessions.forEach(s => {
+    allPastSessions.forEach(s => {
       totalPresent += (classData.attendance?.[s.date] || []).length;
     });
     const avgPct = totalPossible > 0 ? Math.round((totalPresent / totalPossible) * 100) : 0;
@@ -1066,6 +1117,11 @@ const AttendanceManager = {
     `;
 
     if (window.lucide) lucide.createIcons();
+  },
+
+  toggleTimeView() {
+    this.showTimes = !this.showTimes;
+    this.render();
   },
 
   toggle(studentId, date) {
