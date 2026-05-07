@@ -1122,6 +1122,10 @@ const AttendanceManager = {
                 <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">${d.toLocaleDateString(undefined, { weekday: 'short' })}</span>
                 <span class="text-xs font-bold text-slate-700 dark:text-white">${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
                 ${this.showTimes ? `<span class="text-[9px] font-black text-blue mt-1">${s.startTime}</span>` : ''}
+                
+                <button onclick="AttendanceManager.markSessionPresent('${s.date}')" class="mt-2 p-1.5 bg-green/10 text-green hover:bg-green hover:text-white rounded-lg transition-all shadow-neo-sm group" title="Mark all present for this session">
+                  <i data-lucide="check-square" class="w-3.5 h-3.5"></i>
+                </button>
               </div>
             </th>
           `;
@@ -1185,6 +1189,37 @@ const AttendanceManager = {
   toggleTimeView() {
     this.showTimes = !this.showTimes;
     this.render();
+  },
+
+  markSessionPresent(date) {
+    const classData = ClassManager.data.classes[ClassManager.activeClass];
+    if (!classData) return;
+
+    if (classData.students.length === 0) {
+      UI.showToast('No students in this class', 'warning');
+      return;
+    }
+
+    if (!classData.attendance) classData.attendance = {};
+    if (!classData.attendance[date]) classData.attendance[date] = [];
+    
+    const arr = classData.attendance[date];
+    let added = 0;
+    classData.students.forEach(student => {
+      if (!arr.includes(student.id)) {
+        arr.push(student.id);
+        added++;
+      }
+    });
+
+    if (added === 0) {
+      UI.showToast('All students already marked present', 'info');
+      return;
+    }
+
+    ClassManager.saveData();
+    this.render();
+    UI.showToast(`Marked ${added} students as present`, 'success');
   },
 
   toggle(studentId, date) {
