@@ -121,10 +121,13 @@ const ClassManager = {
 
   fetchClassesFromSchedule() {
     const mastersRaw = localStorage.getItem('schedule_events');
+    const promotedRaw = localStorage.getItem('schedule_promoted_instances');
+    const redDays = JSON.parse(localStorage.getItem('schedule_red_days') || '[]');
     if (!mastersRaw) return;
     
     try {
       const masters = JSON.parse(mastersRaw);
+      const promoted = promotedRaw ? JSON.parse(promotedRaw) : [];
       const classMap = {};
       
       masters.forEach(evt => {
@@ -137,28 +140,53 @@ const ClassManager = {
             };
           }
           
-          // Add the master event
-          classMap[evt.name].events.push(evt);
+          const targetClass = classMap[evt.name];
+          
+          // 1. Add Master
+          targetClass.events.push(evt);
 
-          // Generate recurrences for the next 30 days to find upcoming sessions
+          // 2. Generate Recurrences (6 Months for parity with Admin Tracker)
           if (evt.recurrence && evt.recurrence !== 'none' && window.Sync) {
-            const rangeStart = new Date();
-            const rangeEnd = new Date();
-            rangeEnd.setDate(rangeEnd.getDate() + 30); // 1 month ahead
+            const rangeStart = new Date(evt.date);
+            const rangeEnd = new Date(rangeStart);
+            rangeEnd.setMonth(rangeEnd.getMonth() + 6);
             
             const clones = Sync.generateRecurrences(evt, rangeStart, rangeEnd);
-            classMap[evt.name].events.push(...clones);
+            targetClass.events.push(...clones);
           }
         }
       });
       
-      // Filter out recurrence clones that fall on red days
-      const redDays = JSON.parse(localStorage.getItem('schedule_red_days') || '[]');
-      Object.values(classMap).forEach(c => {
-        c.events = c.events.filter(e => !(e.isRecurrence && redDays.includes(e.date)));
-      });
+      // 3. Finalize and Deduplicate events for each class
+      Object.values(classMap).forEach(cls => {
+        // Map promoted instances back to this class
+        promoted.forEach(p => {
+          if (p.name === cls.name && p.typeId === 'class') {
+            const idx = cls.events.findIndex(e => e.id === p.id);
+            if (idx !== -1) {
+              cls.events[idx] = p;
+            } else if (p.isRecurrence) {
+              cls.events.push(p);
+            }
+          }
+        });
 
-      this.classes = Object.values(classMap).sort((a, b) => a.name.localeCompare(b.name));
+        // Deduplicate and filter red days
+        const uniqueEvents = {};
+        cls.events.forEach(e => {
+          // If multiple events on same day/time, promoted takes precedence
+          const key = `${e.date}_${e.startTime}`;
+          if (!uniqueEvents[key] || (!uniqueEvents[key]._modified && e._modified) || !uniqueEvents[key].isRecurrence) {
+            uniqueEvents[key] = e;
+          }
+        });
+
+        cls.events = Object.values(uniqueEvents)
+          .filter(e => !(e.isRecurrence && redDays.includes(e.date)))
+          .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
+      });
+      
+      this.classes = Object.values(classMap);
     } catch (e) {
       console.error('[MyClass] Failed to fetch classes from schedule', e);
     }
@@ -824,23 +852,24 @@ const SessionManager = {
     const classInfo = ClassManager.classes.find(c => c.name === ClassManager.activeClass);
     if (!classInfo) return;
 
-    // Get syllabus info if available
-    const syllabusRaw = localStorage.getItem('schedule_class_units');
-    let syllabus = [];
-    if (syllabusRaw) {
-      try {
-        const parsed = JSON.parse(syllabusRaw);
-        syllabus = parsed[ClassManager.activeClass] || [];
-      } catch (e) {}
-    }
+    const redDays = JSON.parse(localStorage.getItem('schedule_red_days') || '[]');
+    const syllabusMap = JSON.parse(localStorage.getItem('schedule_class_units') || '{}');
+    const allEvents = ClassManager.classes.flatMap(c => c.events);
+    const todayStr = new Date().toISOString().split('T')[0];
 
-    const events = classInfo.events.sort((a, b) => b.date.localeCompare(a.date));
+    // Sort chronologically (Oldest first)
+    const events = [...classInfo.events].sort((a, b) => {
+      const dateDiff = a.date.localeCompare(b.date);
+      if (dateDiff !== 0) return dateDiff;
+      return (a.startTime || '').localeCompare(b.startTime || '');
+    });
 
     // Desktop Table Rows
     if (body) {
-      body.innerHTML = events.map((e, idx) => {
-        const lesson = syllabus[idx]?.lesson || 'No Lesson Plan';
-        const isPast = e.date < new Date().toISOString().split('T')[0];
+      body.innerHTML = events.map((e) => {
+        const session = window.Sync.getSessionForDate(classInfo.name, e.date, allEvents, redDays, syllabusMap, e.startTime);
+        const title = session.override_type || session.lesson?.lesson || 'No Lesson Plan';
+        const isPast = e.date < todayStr;
         
         return `
           <tr class="border-b border-[var(--bg-tertiary)] dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
@@ -851,7 +880,7 @@ const SessionManager = {
               </div>
             </td>
             <td class="py-4">
-              <div class="text-sm font-semibold truncate max-w-xs">${lesson}</div>
+              <div class="text-sm font-semibold truncate max-w-xs">${title}</div>
             </td>
             <td class="py-4">
               <span class="px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest ${isPast ? 'bg-green/10 text-green border border-green/20' : 'bg-blue/10 text-blue border border-blue/20'}">
@@ -870,9 +899,10 @@ const SessionManager = {
 
     // Mobile List Cards
     if (mobileList) {
-      mobileList.innerHTML = events.map((e, idx) => {
-        const lesson = syllabus[idx]?.lesson || 'No Lesson Plan';
-        const isPast = e.date < new Date().toISOString().split('T')[0];
+      mobileList.innerHTML = events.map((e) => {
+        const session = window.Sync.getSessionForDate(classInfo.name, e.date, allEvents, redDays, syllabusMap, e.startTime);
+        const title = session.override_type || session.lesson?.lesson || 'No Lesson Plan';
+        const isPast = e.date < todayStr;
         const dateStr = new Date(e.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', weekday: 'short' });
 
         return `
@@ -889,7 +919,7 @@ const SessionManager = {
             </div>
             <h4 class="font-heading font-bold text-lg text-slate-900 dark:text-white uppercase leading-tight">${dateStr}</h4>
             <div class="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-              <span class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 truncate max-w-[200px]">${lesson}</span>
+              <span class="text-[11px] font-semibold text-slate-500 dark:text-slate-400 truncate max-w-[200px]">${title}</span>
               <i data-lucide="chevron-right" class="w-4 h-4 text-slate-300"></i>
             </div>
           </div>
