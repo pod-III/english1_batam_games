@@ -966,105 +966,114 @@ const StatsManager = {
 };
 
 const AttendanceManager = {
-  selectedDate: null,
-
   render() {
-    const grid = document.getElementById('attendanceGrid');
+    const header = document.getElementById('attendanceTableHeader');
+    const body = document.getElementById('attendanceTableBody');
     const empty = document.getElementById('noAttendanceState');
     const summary = document.getElementById('attendanceSummary');
-    const select = document.getElementById('attendanceDateSelect');
+    const container = document.getElementById('attendanceTableContainer');
+    
+    // Safety check
+    if (!header || !body || !empty || !summary || !container) {
+      console.warn('Attendance DOM elements missing');
+      return;
+    }
+
     const classData = ClassManager.data.classes[ClassManager.activeClass];
     const classInfo = ClassManager.classes.find(c => c.name === ClassManager.activeClass);
 
     if (!classData || !classInfo) return;
 
-    // Populate date select from sessions
+    // Get all past/current sessions
     const today = new Date().toISOString().split('T')[0];
-    const pastEvents = classInfo.events
+    const sessions = classInfo.events
       .filter(e => e.date <= today)
-      .sort((a, b) => b.date.localeCompare(a.date));
+      .sort((a, b) => a.date.localeCompare(b.date)); // Oldest first for table flow
 
-    select.innerHTML = '<option value="">Select session...</option>' +
-      pastEvents.map(e => {
-        const d = new Date(e.date);
-        const fmt = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
-        return `<option value="${e.date}" ${this.selectedDate === e.date ? 'selected' : ''}>${fmt} — ${e.startTime}</option>`;
-      }).join('');
-
-    if (!this.selectedDate || classData.students.length === 0) {
-      grid.innerHTML = '';
+    if (sessions.length === 0 || classData.students.length === 0) {
       empty.classList.remove('hidden');
+      container.classList.add('hidden');
       summary.classList.add('hidden');
-      if (classData.students.length === 0) {
-        empty.querySelector('h3').textContent = 'No Students Yet';
-        empty.querySelector('p').textContent = 'Add students first to record attendance.';
-      }
       return;
     }
 
     empty.classList.add('hidden');
-    if (!classData.attendance) classData.attendance = {};
-    const dateAttendance = classData.attendance[this.selectedDate] || [];
+    container.classList.remove('hidden');
+    summary.classList.remove('hidden');
 
-    grid.innerHTML = classData.students.map(s => {
-      const isPresent = dateAttendance.includes(s.id);
+    // Render Headers
+    header.innerHTML = `
+      <tr>
+        <th class="sticky left-0 bg-slate-50 dark:bg-slate-800 z-10 text-left !p-4 min-w-[150px] border-r border-slate-200 dark:border-slate-700">Student</th>
+        ${sessions.map(s => {
+          const d = new Date(s.date);
+          return `
+            <th class="text-center !p-3 min-w-[100px] border-r border-slate-200 dark:border-slate-700">
+              <div class="flex flex-col items-center">
+                <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">${d.toLocaleDateString(undefined, { weekday: 'short' })}</span>
+                <span class="text-xs font-bold text-slate-700 dark:text-white">${d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+              </div>
+            </th>
+          `;
+        }).join('')}
+      </tr>
+    `;
+
+    // Render Body
+    body.innerHTML = classData.students.map(student => {
       return `
-        <div class="attendance-row ${isPresent ? 'present' : 'absent'}">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-${isPresent ? 'green' : 'pink'}/10 rounded-xl flex items-center justify-center text-${isPresent ? 'green' : 'pink'} font-black text-lg border-[2px] border-${isPresent ? 'green' : 'pink'}/20">
-              ${(s.nick || s.name).charAt(0)}
+        <tr class="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+          <td class="sticky left-0 bg-white dark:bg-slate-900 z-10 !p-4 border-r border-slate-200 dark:border-slate-700">
+            <div class="flex items-center gap-2">
+              <div class="w-7 h-7 rounded-lg bg-blue/10 flex items-center justify-center text-blue font-black text-[10px] border border-blue/20">
+                ${(student.nick || student.name).charAt(0)}
+              </div>
+              <span class="text-xs font-bold text-slate-700 dark:text-slate-200">${student.nick || student.name}</span>
             </div>
-            <div>
-              <h4 class="font-heading font-bold text-sm leading-none text-slate-800 dark:text-white">${s.nick || s.name}</h4>
-              <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">${s.nick ? s.name : ''}</p>
-            </div>
-          </div>
-          <button onclick="AttendanceManager.toggle('${s.id}')" class="btn-chunky px-4 py-2 rounded-xl border-[var(--border-width-medium)] border-[var(--border-primary)] text-[10px] font-black uppercase shadow-neo-sm ${isPresent ? 'bg-green text-white' : 'bg-[var(--bg-tertiary)] dark:bg-slate-800 text-slate-500'}">
-            <i data-lucide="${isPresent ? 'check' : 'x'}" class="w-4 h-4 inline"></i>
-            ${isPresent ? 'Present' : 'Absent'}
-          </button>
-        </div>
+          </td>
+          ${sessions.map(s => {
+            const isPresent = (classData.attendance?.[s.date] || []).includes(student.id);
+            return `
+              <td class="text-center !p-2 border-r border-slate-200 dark:border-slate-700">
+                <button onclick="AttendanceManager.toggle('${student.id}', '${s.date}')" 
+                  class="w-10 h-10 rounded-xl transition-all flex items-center justify-center mx-auto
+                  ${isPresent 
+                    ? 'bg-green text-white shadow-neo-sm scale-110' 
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-300 hover:text-slate-400'
+                  }">
+                  <i data-lucide="${isPresent ? 'check' : 'minus'}" class="w-4 h-4"></i>
+                </button>
+              </td>
+            `;
+          }).join('')}
+        </tr>
       `;
     }).join('');
 
-    // Summary
-    const presentCount = dateAttendance.filter(id => classData.students.some(s => s.id === id)).length;
-    const totalCount = classData.students.length;
-    const pct = totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0;
+    // Update Summary
+    const totalPossible = classData.students.length * sessions.length;
+    let totalPresent = 0;
+    sessions.forEach(s => {
+      totalPresent += (classData.attendance?.[s.date] || []).length;
+    });
+    const avgPct = totalPossible > 0 ? Math.round((totalPresent / totalPossible) * 100) : 0;
 
-    summary.classList.remove('hidden');
     summary.innerHTML = `
-      <div class="glass-panel border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-2xl p-4 shadow-neo-sm flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-green/10 flex items-center justify-center text-green">
-            <i data-lucide="users" class="w-5 h-5"></i>
-          </div>
-          <div>
-            <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Attendance Rate</span>
-            <div class="font-heading font-bold text-2xl text-slate-800 dark:text-white leading-none">${pct}%</div>
-          </div>
-        </div>
-        <div class="text-right">
-          <span class="text-lg font-black text-green">${presentCount}</span>
-          <span class="text-sm text-slate-400 font-bold">/ ${totalCount}</span>
-        </div>
+      <div class="flex items-center gap-4 px-4 py-2 bg-green/5 border border-green/10 rounded-2xl">
+        <div class="text-green font-black text-xl">${avgPct}%</div>
+        <div class="text-[9px] font-bold text-slate-400 uppercase leading-tight">Avg Class<br>Attendance</div>
       </div>
     `;
 
     if (window.lucide) lucide.createIcons();
   },
 
-  selectDate(date) {
-    this.selectedDate = date;
-    this.render();
-  },
-
-  toggle(studentId) {
+  toggle(studentId, date) {
     const classData = ClassManager.data.classes[ClassManager.activeClass];
     if (!classData.attendance) classData.attendance = {};
-    if (!classData.attendance[this.selectedDate]) classData.attendance[this.selectedDate] = [];
+    if (!classData.attendance[date]) classData.attendance[date] = [];
 
-    const arr = classData.attendance[this.selectedDate];
+    const arr = classData.attendance[date];
     const idx = arr.indexOf(studentId);
     if (idx >= 0) {
       arr.splice(idx, 1);
@@ -1074,7 +1083,6 @@ const AttendanceManager = {
 
     ClassManager.saveData();
     this.render();
-    if (window.lucide) lucide.createIcons();
   }
 };
 
