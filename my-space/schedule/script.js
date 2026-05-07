@@ -292,8 +292,8 @@ function saveData() {
           schedule: {
             weekDayCount,
             viewMode,
-            startHour: typeof startHour !== 'undefined' ? startHour : 8,
-            endHour: typeof endHour !== 'undefined' ? endHour : 17,
+            startHour: SCHEDULE_START_HOUR,
+            endHour: SCHEDULE_END_HOUR,
             theme: localStorage.getItem('theme_schedule')
           }
         }),
