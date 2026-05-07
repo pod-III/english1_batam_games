@@ -916,6 +916,39 @@ const StatsManager = {
 
     empty.classList.add('hidden');
 
+    // Calculate Curriculum Progress (Admin Tracker logic parity)
+    const redDays = JSON.parse(localStorage.getItem('schedule_red_days') || '[]');
+    const syllabusMap = JSON.parse(localStorage.getItem('schedule_class_units') || '{}');
+    const allEvents = ClassManager.classes.flatMap(c => c.events); // Simplified for calculation
+    
+    let taught = 0;
+    let planned = 0;
+    const totalSessions = classInfo?.events.length || 0;
+
+    if (classInfo) {
+      classInfo.events.forEach(evt => {
+        if (evt.coveredBy) return;
+        
+        const session = window.Sync.getSessionForDate(classInfo.name, evt.date, allEvents, redDays, syllabusMap, evt.startTime);
+        
+        let status = 'not_ready';
+        if (session.override_type) {
+          status = 'ready';
+        } else if (session.lesson) {
+          status = session.lesson.status || (session.lesson.is_completed ? 'completed' : 'not_ready');
+        }
+
+        if (status === 'completed') {
+          taught++;
+          planned++;
+        } else if (status === 'ready') {
+          planned++;
+        }
+      });
+    }
+
+    const curriculumPct = totalSessions > 0 ? Math.round((taught / totalSessions) * 100) : 0;
+
     // Calculate Attendance Average
     const attendanceEntries = Object.entries(classData.attendance || {});
     let totalAttendancePct = 0;
@@ -935,8 +968,8 @@ const StatsManager = {
       { label: 'Attendance', value: totalAttendancePct + '%', sub: `${attendanceEntries.length} Sessions`, icon: 'clipboard-check', color: 'green' },
       { label: 'Skills', value: inputSkillsCount + outputSkillsCount, sub: `${inputSkillsCount} In / ${outputSkillsCount} Out`, icon: 'target', color: 'pink' },
       { label: 'Reflections', value: classData.reflections.length, sub: 'Gibbs Cycle', icon: 'message-square', color: 'orange' },
-      { label: 'Avg Progress', value: this.calculateAvgStars(classData) + ' ★', sub: 'Star Rating', icon: 'star', color: 'blue' },
-      { label: 'Curriculum', value: classInfo?.events.length || 0, sub: 'Planned Sessions', icon: 'calendar', color: 'pink' }
+      { label: 'Avg Mastery', value: this.calculateAvgStars(classData) + ' ★', sub: 'Class Score', icon: 'star', color: 'blue' },
+      { label: 'Curriculum', value: `${taught}/${totalSessions}`, sub: `${curriculumPct}% Course Progress`, icon: 'calendar', color: 'pink' }
     ];
 
     grid.innerHTML = stats.map(s => `
