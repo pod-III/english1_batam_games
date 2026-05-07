@@ -303,15 +303,80 @@ const ClassManager = {
     // 1. Render Stats
     this.renderLandingStats();
 
-    // 2. Render Cards
-    grid.innerHTML = this.classes.map(c => {
+    // 2. Find next session for each class and sort by proximity
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const currentTimeMin = now.getHours() * 60 + now.getMinutes();
+
+    const classesWithNext = this.classes.map(c => {
+      let nextEvent = null;
+      let minDiff = Infinity;
+      let isToday = false;
+
+      c.events.forEach(e => {
+        const evtDate = new Date(e.date + 'T' + (e.startTime || '00:00'));
+        const diff = evtDate.getTime() - now.getTime();
+        if (diff >= 0 && diff < minDiff) {
+          minDiff = diff;
+          nextEvent = e;
+          isToday = e.date === todayStr;
+        }
+      });
+
+      // If no upcoming, find most recent past event
+      if (!nextEvent) {
+        c.events.forEach(e => {
+          const evtDate = new Date(e.date + 'T' + (e.startTime || '00:00'));
+          const diff = now.getTime() - evtDate.getTime();
+          if (diff >= 0 && diff < minDiff) {
+            minDiff = diff;
+            nextEvent = e;
+          }
+        });
+      }
+
+      return { ...c, nextEvent, isToday, minDiff };
+    });
+
+    // Sort: upcoming today first, then future, then past (by recency)
+    classesWithNext.sort((a, b) => {
+      const aUpcoming = a.nextEvent ? new Date(a.nextEvent.date + 'T' + (a.nextEvent.startTime || '00:00')).getTime() >= now.getTime() : false;
+      const bUpcoming = b.nextEvent ? new Date(b.nextEvent.date + 'T' + (b.nextEvent.startTime || '00:00')).getTime() >= now.getTime() : false;
+      if (aUpcoming && !bUpcoming) return -1;
+      if (!aUpcoming && bUpcoming) return 1;
+      return a.minDiff - b.minDiff;
+    });
+
+    // 3. Render Cards
+    const closestClass = classesWithNext.find(c => {
+      if (!c.nextEvent) return false;
+      const t = new Date(c.nextEvent.date + 'T' + (c.nextEvent.startTime || '00:00')).getTime();
+      return t >= now.getTime();
+    });
+
+    grid.innerHTML = classesWithNext.map((c, idx) => {
       const classData = this.data.classes[c.name] || { students: [], reflections: [] };
       const studentCount = classData.students?.length || 0;
       const reflectionCount = classData.reflections?.length || 0;
+      const isClosest = closestClass && c.name === closestClass.name;
+
+      let sessionLabel = 'No upcoming sessions';
+      if (c.nextEvent) {
+        const d = new Date(c.nextEvent.date);
+        const fmt = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        if (c.isToday) sessionLabel = `Today @ ${c.nextEvent.startTime}`;
+        else if (c.nextEvent.date === todayStr) sessionLabel = `Today @ ${c.nextEvent.startTime}`;
+        else sessionLabel = `${fmt} @ ${c.nextEvent.startTime}`;
+      }
 
       return `
-        <div onclick="ClassManager.selectClass('${c.name.replace(/'/g, "\\'")}')" class="group bg-white dark:bg-slate-900/40 border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-3xl p-6 shadow-neo hover:-translate-y-1 hover:shadow-neo dark:hover:shadow-neo transition-all duration-300 ease-out cursor-pointer relative overflow-hidden">
-          <div class="flex items-start justify-between mb-6">
+        <div onclick="ClassManager.selectClass('${c.name.replace(/'/g, "\\'")}')" class="group bg-white dark:bg-slate-900/40 border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-3xl p-6 shadow-neo hover:-translate-y-1 hover:shadow-neo dark:hover:shadow-neo transition-all duration-300 ease-out cursor-pointer relative overflow-hidden ${isClosest ? 'ring-2 ring-green/50' : ''}">
+          ${isClosest ? `
+            <div class="absolute top-3 right-3 flex items-center gap-1.5 px-2.5 py-1 bg-green text-white text-[8px] font-black uppercase tracking-widest rounded-full shadow-neo-sm animate-pulse">
+              <i data-lucide="zap" class="w-3 h-3"></i> Next Up
+            </div>
+          ` : ''}
+          <div class="flex items-start justify-between mb-4">
             <div class="w-12 h-12 rounded-xl flex items-center justify-center text-white border-[var(--border-width-thick)] border-[var(--border-primary)] shadow-neo-sm group-hover:scale-105 transition-transform" style="background: ${c.color}">
               <span class="font-heading font-bold text-xl uppercase">${c.name.charAt(0)}</span>
             </div>
@@ -321,12 +386,21 @@ const ClassManager = {
             </div>
           </div>
           
-          <h3 class="font-heading font-bold text-xl text-slate-900 dark:text-white uppercase tracking-tight mb-4">${c.name}</h3>
+          <h3 class="font-heading font-bold text-xl text-slate-900 dark:text-white uppercase tracking-tight mb-1">${c.name}</h3>
+          <p class="text-[10px] font-bold ${isClosest ? 'text-green' : 'text-slate-400'} mb-4 flex items-center gap-1">
+            <i data-lucide="calendar" class="w-3 h-3"></i> ${sessionLabel}
+          </p>
           
           <div class="flex items-center justify-between pt-4 border-t-[var(--border-width-thick)] border-[var(--bg-tertiary)] dark:border-slate-800">
-            <div class="flex items-center gap-1.5">
-              <i data-lucide="message-square" class="w-3.5 h-3.5 text-orange"></i>
-              <span class="text-[10px] font-bold text-slate-500">${reflectionCount} Notes</span>
+            <div class="flex items-center gap-3">
+              <div class="flex items-center gap-1.5">
+                <i data-lucide="message-square" class="w-3.5 h-3.5 text-orange"></i>
+                <span class="text-[10px] font-bold text-slate-500">${reflectionCount}</span>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <i data-lucide="clipboard-check" class="w-3.5 h-3.5 text-green"></i>
+                <span class="text-[10px] font-bold text-slate-500">${Object.keys(classData.attendance || {}).length}</span>
+              </div>
             </div>
             <span class="text-[9px] font-black uppercase text-blue group-hover:translate-x-1 transition-transform">View Class →</span>
           </div>
@@ -340,6 +414,9 @@ const ClassManager = {
   renderLandingStats() {
     const statsGrid = document.getElementById('landingStatsGrid');
     const hofList = document.getElementById('hallOfFameList');
+    const todayBanner = document.getElementById('todayScheduleBanner');
+    const todayList = document.getElementById('todaySessionsList');
+    const todayLabel = document.getElementById('todayDateLabel');
     if (!statsGrid) return;
 
     // Calculate Aggregates
@@ -351,6 +428,14 @@ const ClassManager = {
     const allStudentsForHOF = [];
 
     const todayStr = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const currentTimeMin = now.getHours() * 60 + now.getMinutes();
+
+    // Collect today's sessions across all classes
+    const todaySessions = [];
+    let nextClassName = null;
+    let nextClassTime = null;
+    let minDiff = Infinity;
 
     this.classes.forEach(c => {
       const classData = this.data.classes[c.name];
@@ -373,31 +458,76 @@ const ClassManager = {
           totalPresentAttendance += (classData.attendance[s.date] || []).length;
         });
       }
+
+      // Find next session across all classes
+      c.events.forEach(e => {
+        if (e.date === todayStr) {
+          todaySessions.push({ className: c.name, color: c.color, time: e.startTime, endTime: e.endTime });
+        }
+        // Find next upcoming session (today or future)
+        const evtDate = new Date(e.date + 'T' + (e.startTime || '00:00'));
+        const diff = evtDate.getTime() - now.getTime();
+        if (diff >= 0 && diff < minDiff) {
+          minDiff = diff;
+          nextClassName = c.name;
+          nextClassTime = e.startTime;
+        }
+      });
     });
 
     const avgAttendance = totalPossibleAttendance > 0 
       ? Math.round((totalPresentAttendance / totalPossibleAttendance) * 100) 
       : 0;
 
+    // Build stats with Next Class replacing Avg Attendance when relevant
     const stats = [
       { label: 'Active Classes', value: totalClasses, icon: 'book-open', color: 'blue', sub: 'In Current Schedule' },
       { label: 'Total Students', value: totalStudents, icon: 'users', color: 'orange', sub: 'Across All Classes' },
-      { label: 'Avg Attendance', value: avgAttendance + '%', icon: 'clipboard-check', color: 'green', sub: 'Past Sessions' },
-      { label: 'Reflections', value: totalReflections, icon: 'message-square', color: 'pink', sub: 'Gibbs Cycle Entries' }
+      { label: 'Reflections', value: totalReflections, icon: 'message-square', color: 'pink', sub: 'Gibbs Cycle Entries' },
+      { label: 'Avg Attendance', value: avgAttendance + '%', icon: 'clipboard-check', color: 'green', sub: 'Past Sessions' }
     ];
+
+    // If there's a next class today, show it prominently
+    if (nextClassName && minDiff < 24 * 60 * 60 * 1000) {
+      stats[3] = { label: 'Next Class', value: nextClassTime, icon: 'clock', color: 'green', sub: nextClassName };
+    }
 
     statsGrid.innerHTML = stats.map(s => `
       <div class="glass-panel border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-3xl p-6 shadow-neo-sm bg-white dark:bg-slate-900/40 flex items-center gap-5 hover:scale-[1.02] transition-transform cursor-default">
         <div class="w-14 h-14 rounded-2xl flex items-center justify-center bg-${s.color}/10 text-${s.color} border-[var(--border-width-medium)] border-${s.color}/20 flex-shrink-0">
           <i data-lucide="${s.icon}" class="w-7 h-7"></i>
         </div>
-        <div class="space-y-0.5">
-          <div class="text-2xl font-black text-slate-800 dark:text-white leading-tight">${s.value}</div>
+        <div class="space-y-0.5 min-w-0">
+          <div class="text-2xl font-black text-slate-800 dark:text-white leading-tight truncate">${s.value}</div>
           <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">${s.label}</div>
-          <div class="text-[9px] font-bold text-slate-300 italic">${s.sub}</div>
+          <div class="text-[9px] font-bold text-slate-300 italic truncate">${s.sub}</div>
         </div>
       </div>
     `).join('');
+
+    // Today's Schedule Banner
+    if (todayBanner && todayList && todayLabel) {
+      if (todaySessions.length > 0) {
+        todayBanner.classList.remove('hidden');
+        todayLabel.textContent = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' });
+        todaySessions.sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+        todayList.innerHTML = todaySessions.map(s => {
+          const sMin = s.time ? parseInt(s.time.split(':')[0]) * 60 + parseInt(s.time.split(':')[1]) : 0;
+          const isPast = sMin < currentTimeMin;
+          const isNow = Math.abs(sMin - currentTimeMin) < 60;
+          return `
+            <button onclick="ClassManager.selectClass('${s.className.replace(/'/g, "\\'")}')" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border-2 ${isNow ? 'border-green bg-green/10 text-green' : isPast ? 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-400' : 'border-blue/30 bg-blue/5 text-blue'} hover:scale-105 transition-transform">
+              <div class="w-2 h-2 rounded-full" style="background:${s.color}"></div>
+              <span class="text-xs font-bold">${s.className}</span>
+              <span class="text-[10px] font-black opacity-70">${s.time}${s.endTime ? '-' + s.endTime : ''}</span>
+              ${isNow ? '<span class="text-[8px] font-black uppercase bg-green text-white px-1.5 py-0.5 rounded">Now</span>' : ''}
+            </button>
+          `;
+        }).join('');
+      } else {
+        todayBanner.classList.add('hidden');
+      }
+    }
 
     // Hall of Fame
     if (hofList) {
@@ -434,6 +564,7 @@ const ClassManager = {
 
     if (window.lucide) lucide.createIcons({ root: statsGrid });
     if (window.lucide && hofList) lucide.createIcons({ root: hofList });
+    if (window.lucide && todayList) lucide.createIcons({ root: todayList });
   },
 
   updateNextSession() {
@@ -566,76 +697,67 @@ const StudentManager = {
       if (lowSkills.length > 0) warnings.push(`Low: ${lowSkills.slice(0, 2).join(', ')}${lowSkills.length > 2 ? '...' : ''}`);
 
       return `
-      <div class="student-card border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-2xl p-5 bg-white dark:bg-slate-900/50 shadow-neo-sm hover:-translate-y-1 transition-transform relative overflow-hidden">
+      <div class="student-card border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-2xl p-5 bg-white dark:bg-slate-900/50 shadow-neo-sm hover:-translate-y-1 transition-transform overflow-hidden flex flex-col">
+        <!-- Header: Avatar + Identity + Actions -->
+        <div class="flex items-start justify-between gap-3 mb-3">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="w-14 h-14 bg-blue/10 rounded-2xl flex items-center justify-center text-blue font-black text-2xl border-[3px] border-blue/20 flex-shrink-0">
+              ${(s.nick || s.name).charAt(0)}
+            </div>
+            <div class="min-w-0">
+              <h4 class="font-heading font-bold text-xl leading-tight text-slate-800 dark:text-white truncate">${s.nick || s.name}</h4>
+              <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5 truncate">${s.nick ? s.name : 'No Nickname'}</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-0.5 flex-shrink-0">
+            <button onclick="StudentManager.edit('${s.id}')" class="p-2 text-slate-400 hover:text-blue transition-colors rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+              <i data-lucide="pencil" class="w-4 h-4"></i>
+            </button>
+            <button onclick="StudentManager.delete('${s.id}')" class="p-2 text-slate-400 hover:text-pink transition-colors rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Warning Chips -->
         ${warnings.length > 0 ? `
-          <div class="absolute top-0 right-0 p-1.5 flex gap-1">
+          <div class="flex flex-wrap gap-1.5 mb-3">
             ${warnings.map(w => `
-              <div class="bg-pink text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase shadow-neo-sm flex items-center gap-1">
+              <div class="inline-flex items-center gap-1 px-2 py-0.5 bg-pink/10 border border-pink/20 text-pink text-[8px] font-black rounded-full uppercase">
                 <i data-lucide="alert-triangle" class="w-2.5 h-2.5"></i> ${w}
               </div>
             `).join('')}
           </div>
         ` : ''}
-        
-        <div class="flex items-center justify-between mb-4 mt-2">
-          <div class="flex items-center gap-3">
-            <div class="w-12 h-12 bg-blue/10 rounded-xl flex items-center justify-center text-blue font-black text-xl border-[3px] border-blue/20">
-              ${(s.nick || s.name).charAt(0)}
-            </div>
-            <div>
-              <h4 class="font-heading font-bold text-lg leading-none text-slate-800 dark:text-white">${s.nick || s.name}</h4>
-              <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">${s.nick ? s.name : 'No Nickname'}</p>
-            </div>
+
+        <!-- Stats Bar -->
+        <div class="grid grid-cols-3 gap-2 mb-4">
+          <div class="text-center p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700/50">
+            <div class="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">Attendance</div>
+            <div class="font-heading font-bold text-lg text-slate-800 dark:text-white leading-none">${attendancePct}<span class="text-xs">%</span></div>
+            <div class="text-[8px] font-bold text-slate-400 mt-0.5">${studentAttendance.length}/${totalSessions}</div>
           </div>
-          <div class="flex items-center gap-1">
-            <button onclick="StudentManager.edit('${s.id}')" class="p-1.5 text-slate-400 hover:text-blue transition-colors">
-              <i data-lucide="edit-3" class="w-4 h-4"></i>
-            </button>
-            <button onclick="StudentManager.delete('${s.id}')" class="p-1.5 text-slate-400 hover:text-pink transition-colors">
-              <i data-lucide="trash-2" class="w-4 h-4"></i>
-            </button>
+          <div class="text-center p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700/50">
+            <div class="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">Skills</div>
+            <div class="font-heading font-bold text-lg text-slate-800 dark:text-white leading-none">${avgSkill}</div>
+            <div class="text-[8px] font-bold text-slate-400 mt-0.5">${skillValues.length} rated</div>
           </div>
-        </div>
-        
-        <div class="grid grid-cols-2 gap-3 mb-4">
-          <div class="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700">
-            <div class="flex items-center gap-1.5 mb-1">
-              <i data-lucide="clipboard-check" class="w-3 h-3 text-green"></i>
-              <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Attendance</span>
-            </div>
-            <div class="flex items-end justify-between">
-              <span class="font-heading font-bold text-lg text-slate-800 dark:text-white leading-none">${attendancePct}%</span>
-              <span class="text-[9px] font-bold text-slate-400">${studentAttendance.length}/${totalSessions}</span>
-            </div>
-          </div>
-          <div class="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700">
-            <div class="flex items-center gap-1.5 mb-1">
-              <i data-lucide="target" class="w-3 h-3 text-blue"></i>
-              <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Skills Avg</span>
-            </div>
-            <div class="flex items-end justify-between">
-              <span class="font-heading font-bold text-lg text-slate-800 dark:text-white leading-none">${avgSkill}</span>
-              <span class="text-[9px] font-bold text-slate-400">${skillValues.length} Rated</span>
+          <div class="text-center p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700/50">
+            <div class="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1">Stars</div>
+            <div class="flex items-center justify-center gap-1">
+              <button onclick="StudentManager.updateStars('${s.id}', -1)" class="w-5 h-5 rounded-md bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-500 hover:bg-slate-300 text-[10px] font-black">-</button>
+              <span class="font-heading font-bold text-lg text-blue leading-none w-5 text-center">${s.stars || 0}</span>
+              <button onclick="StudentManager.updateStars('${s.id}', 1)" class="w-5 h-5 rounded-md bg-blue text-white flex items-center justify-center hover:brightness-110 text-[10px] font-black">+</button>
             </div>
           </div>
         </div>
 
-        <div class="space-y-4">
-          <div class="flex items-center justify-between">
-             <span class="text-[10px] font-black uppercase text-slate-400 tracking-widest">Progress Stars</span>
-             <div class="flex items-center gap-1">
-               <button onclick="StudentManager.updateStars('${s.id}', -1)" class="w-6 h-6 rounded-md bg-slate-100 dark:bg-slate-800 border border-[var(--border-secondary)] dark:border-slate-600 flex items-center justify-center text-slate-500 hover:bg-slate-200">-</button>
-               <span class="w-8 text-center font-black text-blue">${s.stars || 0}</span>
-               <button onclick="StudentManager.updateStars('${s.id}', 1)" class="w-6 h-6 rounded-md bg-blue text-white border border-blue/30 flex items-center justify-center hover:brightness-110">+</button>
-             </div>
-          </div>
-          
-          <div class="h-px bg-slate-100 dark:bg-slate-800"></div>
-          
-          <div class="space-y-1">
-            <span class="text-[10px] font-black uppercase text-slate-400 tracking-widest">Teacher Notes</span>
-            <p class="text-[11px] font-semibold text-slate-600 dark:text-slate-400 line-clamp-2 italic leading-relaxed">
-              ${s.notes || 'No notes yet. Click edit to add notes about learning style or progress.'}
+        <!-- Notes -->
+        <div class="mt-auto pt-3 border-t border-slate-100 dark:border-slate-800">
+          <div class="flex items-start gap-2">
+            <i data-lucide="quote" class="w-3 h-3 text-slate-300 mt-0.5 flex-shrink-0"></i>
+            <p class="text-[11px] font-medium text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+              ${s.notes || '<span class="italic opacity-60">No notes yet. Click edit to add observations.</span>'}
             </p>
           </div>
         </div>
