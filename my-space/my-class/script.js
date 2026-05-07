@@ -1523,15 +1523,13 @@ var QuickActionManager = {
         </div>
       `;
     } else {
+      list.className = "grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar";
       list.innerHTML = ClassManager.classes.map(c => `
-        <button onclick="QuickActionManager.selectForAction('${c.name.replace(/'/g, "\\'")}')" class="w-full flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border-[var(--border-width-medium)] border-slate-100 dark:border-slate-800 hover:border-blue/30 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all group">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white border-2 border-white/20 shadow-neo-sm" style="background: ${c.color}">
-              <span class="font-heading font-bold text-sm uppercase">${c.name.charAt(0)}</span>
-            </div>
-            <span class="font-heading font-bold text-sm text-slate-800 dark:text-white uppercase tracking-tight">${c.name}</span>
+        <button onclick="QuickActionManager.selectForAction('${c.name.replace(/'/g, "\\'")}')" class="w-full flex items-center gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border-[var(--border-width-medium)] border-slate-100 dark:border-slate-800 hover:border-blue/30 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all group">
+          <div class="w-9 h-9 rounded-xl flex items-center justify-center text-white border-2 border-white/20 shadow-neo-sm flex-shrink-0" style="background: ${c.color}">
+            <span class="font-heading font-bold text-xs uppercase">${c.name.charAt(0)}</span>
           </div>
-          <i data-lucide="chevron-right" class="w-4 h-4 text-slate-300 group-hover:translate-x-1 transition-transform"></i>
+          <span class="font-heading font-bold text-[11px] text-slate-800 dark:text-white uppercase tracking-tight text-left truncate">${c.name}</span>
         </button>
       `).join('');
     }
