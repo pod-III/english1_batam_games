@@ -340,7 +340,7 @@ const ClassManager = {
 };
 
 const TabManager = {
-  current: 'students',
+  current: 'stats',
 
   switch(tabId) {
     this.current = tabId;
@@ -406,9 +406,47 @@ const StudentManager = {
     }
 
     empty.classList.add('hidden');
-    grid.innerHTML = classData.students.map(s => `
-      <div class="student-card border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-2xl p-6 bg-white dark:bg-slate-900/50 shadow-neo-sm hover:-translate-y-1 transition-transform">
-        <div class="flex items-center justify-between mb-4">
+    grid.innerHTML = classData.students.map(s => {
+      // Calculate Attendance stats
+      const attendanceEntries = Object.entries(classData.attendance || {});
+      const studentAttendance = attendanceEntries.filter(([date, list]) => list.includes(s.id));
+      const totalSessions = attendanceEntries.length;
+      const attendancePct = totalSessions > 0 ? Math.round((studentAttendance.length / totalSessions) * 100) : 0;
+      
+      // Calculate Last 4 Weeks Absences
+      const fourWeeksAgo = new Date();
+      fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28);
+      const recentAbsences = attendanceEntries.filter(([date, list]) => {
+        return date >= fourWeeksAgo.toISOString().split('T')[0] && !list.includes(s.id);
+      }).length;
+
+      // Calculate Skill stats
+      const studentSkills = classData.studentSkills?.[s.id] || {};
+      const skillValues = Object.values(studentSkills);
+      const avgSkill = skillValues.length > 0 ? (skillValues.reduce((a, b) => a + b, 0) / skillValues.length).toFixed(1) : '—';
+      const lowSkills = Object.entries(studentSkills)
+        .filter(([id, val]) => val > 0 && val <= 2)
+        .map(([id, val]) => classData.skills.find(sk => sk.id === id)?.name)
+        .filter(Boolean);
+
+      // Warning Logic
+      const warnings = [];
+      if (recentAbsences >= 2) warnings.push(`Missed ${recentAbsences} sessions in 4w`);
+      if (lowSkills.length > 0) warnings.push(`Low: ${lowSkills.slice(0, 2).join(', ')}${lowSkills.length > 2 ? '...' : ''}`);
+
+      return `
+      <div class="student-card border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-2xl p-5 bg-white dark:bg-slate-900/50 shadow-neo-sm hover:-translate-y-1 transition-transform relative overflow-hidden">
+        ${warnings.length > 0 ? `
+          <div class="absolute top-0 right-0 p-1.5 flex gap-1">
+            ${warnings.map(w => `
+              <div class="bg-pink text-white text-[8px] font-black px-2 py-0.5 rounded-full uppercase shadow-neo-sm flex items-center gap-1">
+                <i data-lucide="alert-triangle" class="w-2.5 h-2.5"></i> ${w}
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+        
+        <div class="flex items-center justify-between mb-4 mt-2">
           <div class="flex items-center gap-3">
             <div class="w-12 h-12 bg-blue/10 rounded-xl flex items-center justify-center text-blue font-black text-xl border-[3px] border-blue/20">
               ${(s.nick || s.name).charAt(0)}
@@ -418,16 +456,39 @@ const StudentManager = {
               <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">${s.nick ? s.name : 'No Nickname'}</p>
             </div>
           </div>
-          <div class="flex items-center gap-2">
-            <button onclick="StudentManager.edit('${s.id}')" class="p-2 text-slate-400 hover:text-blue transition-colors">
+          <div class="flex items-center gap-1">
+            <button onclick="StudentManager.edit('${s.id}')" class="p-1.5 text-slate-400 hover:text-blue transition-colors">
               <i data-lucide="edit-3" class="w-4 h-4"></i>
             </button>
-            <button onclick="StudentManager.delete('${s.id}')" class="p-2 text-slate-400 hover:text-pink transition-colors">
+            <button onclick="StudentManager.delete('${s.id}')" class="p-1.5 text-slate-400 hover:text-pink transition-colors">
               <i data-lucide="trash-2" class="w-4 h-4"></i>
             </button>
           </div>
         </div>
         
+        <div class="grid grid-cols-2 gap-3 mb-4">
+          <div class="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700">
+            <div class="flex items-center gap-1.5 mb-1">
+              <i data-lucide="clipboard-check" class="w-3 h-3 text-green"></i>
+              <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Attendance</span>
+            </div>
+            <div class="flex items-end justify-between">
+              <span class="font-heading font-bold text-lg text-slate-800 dark:text-white leading-none">${attendancePct}%</span>
+              <span class="text-[9px] font-bold text-slate-400">${studentAttendance.length}/${totalSessions}</span>
+            </div>
+          </div>
+          <div class="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700">
+            <div class="flex items-center gap-1.5 mb-1">
+              <i data-lucide="target" class="w-3 h-3 text-blue"></i>
+              <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Skills Avg</span>
+            </div>
+            <div class="flex items-end justify-between">
+              <span class="font-heading font-bold text-lg text-slate-800 dark:text-white leading-none">${avgSkill}</span>
+              <span class="text-[9px] font-bold text-slate-400">${skillValues.length} Rated</span>
+            </div>
+          </div>
+        </div>
+
         <div class="space-y-4">
           <div class="flex items-center justify-between">
              <span class="text-[10px] font-black uppercase text-slate-400 tracking-widest">Progress Stars</span>
@@ -438,17 +499,18 @@ const StudentManager = {
              </div>
           </div>
           
-          <div class="h-[2px] bg-slate-100 dark:bg-slate-800 rounded-full"></div>
+          <div class="h-px bg-slate-100 dark:bg-slate-800"></div>
           
           <div class="space-y-1">
             <span class="text-[10px] font-black uppercase text-slate-400 tracking-widest">Teacher Notes</span>
-            <p class="text-xs font-semibold text-slate-600 dark:text-slate-400 line-clamp-2 italic">
+            <p class="text-[11px] font-semibold text-slate-600 dark:text-slate-400 line-clamp-2 italic leading-relaxed">
               ${s.notes || 'No notes yet. Click edit to add notes about learning style or progress.'}
             </p>
           </div>
         </div>
       </div>
-    `).join('');
+    `;
+    }).join('');
     
     if (window.lucide) lucide.createIcons({ root: grid });
   },
@@ -844,6 +906,7 @@ const StatsManager = {
     const grid = document.getElementById('statsGrid');
     const empty = document.getElementById('noStatsState');
     const classData = ClassManager.data.classes[ClassManager.activeClass];
+    const classInfo = ClassManager.classes.find(c => c.name === ClassManager.activeClass);
     
     if (!classData || (classData.students.length === 0 && classData.reflections.length === 0)) {
       grid.innerHTML = '';
@@ -852,22 +915,42 @@ const StatsManager = {
     }
 
     empty.classList.add('hidden');
-    
+
+    // Calculate Attendance Average
+    const attendanceEntries = Object.entries(classData.attendance || {});
+    let totalAttendancePct = 0;
+    if (attendanceEntries.length > 0 && classData.students.length > 0) {
+      const sum = attendanceEntries.reduce((acc, [date, list]) => {
+        return acc + (list.length / classData.students.length);
+      }, 0);
+      totalAttendancePct = Math.round((sum / attendanceEntries.length) * 100);
+    }
+
+    // Calculate Skill Stats
+    const inputSkillsCount = (classData.skills || []).filter(s => s.type === 'input').length;
+    const outputSkillsCount = (classData.skills || []).filter(s => s.type === 'output').length;
+
     const stats = [
-      { label: 'Total Students', value: classData.students.length, icon: 'users', color: 'blue' },
-      { label: 'Reflections', value: classData.reflections.length, icon: 'message-square', color: 'orange' },
-      { label: 'Avg Progress', value: this.calculateAvgStars(classData) + ' ★', icon: 'star', color: 'pink' },
-      { label: 'Sessions', value: ClassManager.classes.find(c => c.name === ClassManager.activeClass)?.events.length || 0, icon: 'calendar', color: 'green' }
+      { label: 'Class Size', value: classData.students.length, sub: 'Active Students', icon: 'users', color: 'blue' },
+      { label: 'Attendance', value: totalAttendancePct + '%', sub: `${attendanceEntries.length} Sessions`, icon: 'clipboard-check', color: 'green' },
+      { label: 'Skills', value: inputSkillsCount + outputSkillsCount, sub: `${inputSkillsCount} In / ${outputSkillsCount} Out`, icon: 'target', color: 'pink' },
+      { label: 'Reflections', value: classData.reflections.length, sub: 'Gibbs Cycle', icon: 'message-square', color: 'orange' },
+      { label: 'Avg Progress', value: this.calculateAvgStars(classData) + ' ★', sub: 'Star Rating', icon: 'star', color: 'blue' },
+      { label: 'Curriculum', value: classInfo?.events.length || 0, sub: 'Planned Sessions', icon: 'calendar', color: 'pink' }
     ];
 
     grid.innerHTML = stats.map(s => `
-      <div class="glass-panel border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-3xl p-6 shadow-neo-sm bg-white dark:bg-slate-900/50">
-        <div class="w-10 h-10 rounded-xl flex items-center justify-center bg-${s.color}/10 text-${s.color} mb-4">
-          <i data-lucide="${s.icon}" class="w-5 h-5"></i>
+      <div class="glass-panel border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-3xl p-6 shadow-neo-sm bg-white dark:bg-slate-900/50 hover:scale-[1.02] transition-transform cursor-default">
+        <div class="flex items-start justify-between mb-4">
+          <div class="w-12 h-12 rounded-2xl flex items-center justify-center bg-${s.color}/10 text-${s.color} border-2 border-${s.color}/20">
+            <i data-lucide="${s.icon}" class="w-6 h-6"></i>
+          </div>
+          <span class="text-[10px] font-black text-slate-300 uppercase tracking-widest">Live</span>
         </div>
         <div class="space-y-1">
-          <h4 class="text-3xl font-black text-slate-800 dark:text-white">${s.value}</h4>
-          <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">${s.label}</p>
+          <h4 class="text-3xl font-black text-slate-800 dark:text-white tracking-tight">${s.value}</h4>
+          <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">${s.label}</p>
+          <p class="text-[9px] font-bold text-slate-300 italic mt-1">${s.sub}</p>
         </div>
       </div>
     `).join('');
