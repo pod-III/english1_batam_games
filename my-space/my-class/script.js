@@ -300,6 +300,10 @@ const ClassManager = {
     empty.classList.add('hidden');
     grid.classList.remove('hidden');
 
+    // 1. Render Stats
+    this.renderLandingStats();
+
+    // 2. Render Cards
     grid.innerHTML = this.classes.map(c => {
       const classData = this.data.classes[c.name] || { students: [], reflections: [] };
       const studentCount = classData.students?.length || 0;
@@ -331,6 +335,105 @@ const ClassManager = {
     }).join('');
 
     if (window.lucide) lucide.createIcons({ root: grid });
+  },
+
+  renderLandingStats() {
+    const statsGrid = document.getElementById('landingStatsGrid');
+    const hofList = document.getElementById('hallOfFameList');
+    if (!statsGrid) return;
+
+    // Calculate Aggregates
+    const totalClasses = this.classes.length;
+    let totalStudents = 0;
+    let totalReflections = 0;
+    let totalPossibleAttendance = 0;
+    let totalPresentAttendance = 0;
+    const allStudentsForHOF = [];
+
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    this.classes.forEach(c => {
+      const classData = this.data.classes[c.name];
+      if (!classData) return;
+
+      const classStudents = classData.students || [];
+      totalStudents += classStudents.length;
+      totalReflections += (classData.reflections || []).length;
+
+      classStudents.forEach(s => {
+        allStudentsForHOF.push({ ...s, className: c.name });
+      });
+
+      // Attendance Calculation
+      if (classStudents.length > 0 && classData.attendance) {
+        const pastSessions = c.events.filter(e => e.date <= todayStr);
+        totalPossibleAttendance += pastSessions.length * classStudents.length;
+        
+        pastSessions.forEach(s => {
+          totalPresentAttendance += (classData.attendance[s.date] || []).length;
+        });
+      }
+    });
+
+    const avgAttendance = totalPossibleAttendance > 0 
+      ? Math.round((totalPresentAttendance / totalPossibleAttendance) * 100) 
+      : 0;
+
+    const stats = [
+      { label: 'Active Classes', value: totalClasses, icon: 'book-open', color: 'blue', sub: 'In Current Schedule' },
+      { label: 'Total Students', value: totalStudents, icon: 'users', color: 'orange', sub: 'Across All Classes' },
+      { label: 'Avg Attendance', value: avgAttendance + '%', icon: 'clipboard-check', color: 'green', sub: 'Past Sessions' },
+      { label: 'Reflections', value: totalReflections, icon: 'message-square', color: 'pink', sub: 'Gibbs Cycle Entries' }
+    ];
+
+    statsGrid.innerHTML = stats.map(s => `
+      <div class="glass-panel border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-3xl p-6 shadow-neo-sm bg-white dark:bg-slate-900/40 flex items-center gap-5 hover:scale-[1.02] transition-transform cursor-default">
+        <div class="w-14 h-14 rounded-2xl flex items-center justify-center bg-${s.color}/10 text-${s.color} border-[var(--border-width-medium)] border-${s.color}/20 flex-shrink-0">
+          <i data-lucide="${s.icon}" class="w-7 h-7"></i>
+        </div>
+        <div class="space-y-0.5">
+          <div class="text-2xl font-black text-slate-800 dark:text-white leading-tight">${s.value}</div>
+          <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest">${s.label}</div>
+          <div class="text-[9px] font-bold text-slate-300 italic">${s.sub}</div>
+        </div>
+      </div>
+    `).join('');
+
+    // Hall of Fame
+    if (hofList) {
+      const topStudents = allStudentsForHOF
+        .sort((a, b) => (b.stars || 0) - (a.stars || 0))
+        .slice(0, 5);
+
+      if (topStudents.length === 0) {
+        hofList.innerHTML = `
+          <div class="text-center py-4">
+            <p class="text-[10px] font-bold text-slate-400 uppercase">No stars awarded yet</p>
+          </div>
+        `;
+      } else {
+        hofList.innerHTML = topStudents.map((s, idx) => `
+          <div class="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 hover:border-orange/30 transition-colors">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-lg bg-orange/10 text-orange flex items-center justify-center font-black text-xs">
+                ${idx + 1}
+              </div>
+              <div>
+                <div class="text-xs font-bold text-slate-800 dark:text-white">${s.nick || s.name}</div>
+                <div class="text-[8px] font-black text-slate-400 uppercase tracking-widest">${s.className}</div>
+              </div>
+            </div>
+            <div class="flex items-center gap-1 text-orange">
+              <span class="text-xs font-black">${s.stars || 0}</span>
+              <i data-lucide="star" class="w-3 h-3 fill-orange"></i>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+
+    if (window.lucide) lucide.createIcons({ root: statsGrid });
+    if (window.lucide && hofList) lucide.createIcons({ root: hofList });
   },
 
   updateNextSession() {
