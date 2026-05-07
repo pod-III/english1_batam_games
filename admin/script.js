@@ -140,6 +140,7 @@ async function fetchData() {
     applyFilters()
     renderAnnouncements()
     if (currentView === 'cloud') renderCloudTable()
+    renderExcludedUserPicker()
     showToast('Data refreshed')
 }
 
@@ -1329,6 +1330,95 @@ function loadSettings() {
         if (ann) ann.value = settings.announcement || ''
         if (excl) excl.value = settings.excluded_ids || ''
     }
+    renderExcludedUserPicker()
+}
+
+// ── EXCLUSION PICKER ──
+function renderExcludedUserPicker() {
+    const list = document.getElementById('exclusion-list')
+    const chips = document.getElementById('excluded-chips')
+    if (!list || !chips) return
+
+    const excluded = getExcludedUserIds()
+    const users = Object.entries(allProfiles).sort((a, b) => {
+        const nameA = (a[1].display_name || '').toLowerCase()
+        const nameB = (b[1].display_name || '').toLowerCase()
+        return nameA.localeCompare(nameB)
+    })
+
+    // Render chips
+    if (!excluded.length) {
+        chips.innerHTML = '<span class="text-xs text-slate-600 italic">No users excluded</span>'
+    } else {
+        chips.innerHTML = excluded.map(id => {
+            const p = allProfiles[id]
+            const name = p?.display_name || id.slice(0, 8)
+            return `<div class="inline-flex items-center gap-2 px-3 py-1 bg-pink/10 border border-pink/30 rounded-full text-xs text-pink font-bold animate-pop-in">
+                ${escapeHtml(name)}
+                <button onclick="removeExcludedUser('${id}')" class="hover:text-white transition-colors" title="Remove"><i data-lucide="x" class="w-3 h-3"></i></button>
+            </div>`
+        }).join('')
+        lucide.createIcons()
+    }
+
+    // Render list
+    if (!users.length) {
+        list.innerHTML = '<div class="text-xs text-slate-600 italic p-3 text-center">No users loaded yet</div>'
+        return
+    }
+
+    list.innerHTML = users.map(([id, profile]) => {
+        const name = profile.display_name || 'Unknown'
+        const initial = name[0]?.toUpperCase() || '?'
+        const isExcluded = excluded.includes(id)
+        return `<label class="exclusion-item flex items-center gap-3 p-2 hover:bg-slate-800/50 rounded-xl cursor-pointer transition-colors ${isExcluded ? 'bg-pink/5' : ''}">
+            <input type="checkbox" value="${id}" ${isExcluded ? 'checked' : ''} onchange="updateExcludedUsers()" class="w-4 h-4 rounded border-slate-600 bg-slate-800 cursor-pointer exclusion-checkbox">
+            <div class="w-7 h-7 rounded-lg bg-blue/20 border-2 border-blue/30 flex items-center justify-center text-blue text-xs font-heading flex-shrink-0">${initial}</div>
+            <span class="text-sm text-white font-bold">${escapeHtml(name)}</span>
+            <span class="text-[10px] text-slate-600 font-mono ml-auto">${id.slice(0, 8)}...</span>
+        </label>`
+    }).join('')
+
+    // Restore any active search filter
+    filterExclusionList()
+}
+
+function updateExcludedUsers() {
+    const list = document.getElementById('exclusion-list')
+    if (!list) return
+    const checked = Array.from(list.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value)
+    const textarea = document.getElementById('setting-excluded-ids')
+    if (textarea) textarea.value = checked.join(', ')
+    saveSettings()
+    renderExcludedUserPicker()
+}
+
+function removeExcludedUser(id) {
+    const textarea = document.getElementById('setting-excluded-ids')
+    if (!textarea) return
+    const current = getExcludedUserIds().filter(x => x !== id)
+    textarea.value = current.join(', ')
+    saveSettings()
+    renderExcludedUserPicker()
+}
+
+function filterExclusionList() {
+    const search = document.getElementById('exclusion-search')
+    const list = document.getElementById('exclusion-list')
+    if (!search || !list) return
+    const term = search.value.toLowerCase()
+    const labels = list.querySelectorAll('label.exclusion-item')
+    labels.forEach(label => {
+        const name = label.querySelector('span.font-bold')?.textContent.toLowerCase() || ''
+        const id = label.querySelector('.font-mono')?.textContent.toLowerCase() || ''
+        label.style.display = (name.includes(term) || id.includes(term)) ? 'flex' : 'none'
+    })
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div')
+    div.textContent = text
+    return div.innerHTML
 }
 
 // ── USER MANAGEMENT ──
