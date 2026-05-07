@@ -401,40 +401,26 @@ function updateStats() {
   let totalTasks = 0;
   let doneTasks = 0;
   
-  const uniqueClasses = new Set();
-  const classAdminData = loadClassAdmin();
-  const classSyllabusMap = loadClassUnits();
+  const coveredClasses = [];
 
   events.forEach(evt => {
     const evtDate = new Date(evt.date + 'T00:00:00');
     if (evtDate >= start && evtDate <= end) {
       if (evt.isRecurrence && redDays.includes(evt.date)) return;
       
+      // Collect covered classes for the sidebar
+      if (evt.coveredBy) {
+        coveredClasses.push(evt);
+        return; // Skip covered classes from event/task count
+      }
+      
       weekEvents++;
       
-      if (evt.typeId === 'class') {
-        uniqueClasses.add(evt.name);
-      }
-
       if (evt.checklist) {
         totalTasks += evt.checklist.length;
         doneTasks += evt.checklist.filter(i => i.done).length;
       }
     }
-  });
-
-  let globalAdminTotal = 0;
-  let globalAdminDone = 0;
-  const allWeekTasks = [];
-
-  uniqueClasses.forEach(className => {
-    const tasks = window.Sync.getAdminDataForClass(className, classAdminData);
-    globalAdminTotal += tasks.length;
-    globalAdminDone += tasks.filter(t => t.done).length;
-    
-    tasks.forEach(t => {
-      allWeekTasks.push({ ...t, className });
-    });
   });
 
   const elEvents = document.getElementById('stat-events');
@@ -443,35 +429,42 @@ function updateStats() {
   if (elEvents) elEvents.textContent = weekEvents;
   if (elTasks) elTasks.textContent = totalTasks;
 
-  const elAdminCount = document.getElementById('admin-stats-count');
-  if (elAdminCount) elAdminCount.textContent = `${globalAdminDone}/${globalAdminTotal}`;
+  // Render covered classes sidebar
+  const coveredCount = document.getElementById('covered-stats-count');
+  if (coveredCount) coveredCount.textContent = coveredClasses.length;
 
-  const sidebarTasksContainer = document.getElementById('sidebar-admin-tasks');
-  if (sidebarTasksContainer) {
-    if (allWeekTasks.length === 0) {
-      sidebarTasksContainer.innerHTML = '<p class="text-[10px] text-slate-400 italic px-1">No tasks for this week\'s classes.</p>';
+  const coveredContainer = document.getElementById('sidebar-covered-classes');
+  if (coveredContainer) {
+    if (coveredClasses.length === 0) {
+      coveredContainer.innerHTML = '<p class="text-[10px] text-slate-400 italic px-1">No covered classes.</p>';
     } else {
-      sidebarTasksContainer.innerHTML = allWeekTasks.map(task => {
-        const isOverdue = !task.done && task.deadline && task.deadline < getTodayStr();
+      // Sort by date
+      coveredClasses.sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
+      coveredContainer.innerHTML = coveredClasses.map(evt => {
+        const evtDate = new Date(evt.date + 'T00:00:00');
+        const dateLabel = evtDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
         return `
-          <div class="sidebar-task-card flex items-start gap-3 p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/40 hover:border-pink/30 hover:bg-pink/5 transition-all group/task mb-2 last:mb-0">
-            <label class="chunky-check flex-shrink-0 mt-0.5">
-              <input type="checkbox" ${task.done ? 'checked' : ''} onchange="toggleClassAdminTask('${task.className.replace(/'/g, "\\'")}', '${task.id}', this.checked)">
-              <div class="box"></div>
-            </label>
+          <div class="flex items-start gap-2 p-2 rounded-xl border border-amber-200/50 dark:border-amber-700/30 bg-white/60 dark:bg-slate-800/40 hover:border-amber-400/50 transition-all group/cov">
             <div class="min-w-0 flex-1">
-              <p class="text-[11px] font-bold leading-snug break-words ${task.done ? 'line-through opacity-40 text-slate-400' : (isOverdue ? 'text-pink font-extrabold' : 'text-slate-700 dark:text-slate-200')}" title="${task.text}">
-                ${task.text}
-              </p>
-              <div class="flex items-center gap-1.5 mt-1 opacity-70">
-                <span class="text-[7px] font-extrabold uppercase tracking-widest px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-500">${task.className}</span>
-                ${task.deadline ? `<span class="text-[7px] font-bold ${isOverdue ? 'text-pink' : 'text-slate-400'} flex items-center gap-0.5"><i data-lucide="clock" class="w-2 h-2"></i> ${new Date(task.deadline + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>` : ''}
+              <p class="text-[11px] font-bold leading-snug text-slate-700 dark:text-slate-200 truncate">${evt.name}</p>
+              <div class="flex items-center gap-1.5 mt-1">
+                <span class="text-[7px] font-extrabold uppercase tracking-widest px-1.5 py-0.5 rounded-md bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">${dateLabel}</span>
+                <span class="text-[7px] font-bold text-slate-400">${formatTimeDisplay(evt.startTime)}</span>
+              </div>
+              <div class="flex items-center gap-1 mt-1.5">
+                <i data-lucide="user-check" class="w-2.5 h-2.5 text-amber-500"></i>
+                <span class="text-[9px] font-bold text-amber-600 dark:text-amber-400 truncate">${evt.coveredBy}</span>
               </div>
             </div>
+            <button onclick="undoCoveredClass('${evt.id}')" 
+              class="flex-shrink-0 p-1.5 rounded-lg opacity-0 group-hover/cov:opacity-100 hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-400 hover:text-red-500 transition-all" 
+              title="Remove coverage">
+              <i data-lucide="x" class="w-3.5 h-3.5"></i>
+            </button>
           </div>
         `;
       }).join('');
-      if (window.lucide) lucide.createIcons({ root: sidebarTasksContainer });
+      if (window.lucide) lucide.createIcons({ root: coveredContainer });
     }
   }
 }
@@ -488,6 +481,7 @@ function updateTodayList() {
   const todayEvents = events
     .filter(e => e.date === todayStr)
     .filter(e => !(isTodayRed && e.isRecurrence))
+    .filter(e => !e.coveredBy) // Skip covered classes
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
   
   if (todayEvents.length === 0) {
@@ -623,6 +617,8 @@ function renderCalendar() {
     dayEvents.forEach(evt => {
       // Skip recurrences on red days (holidays/leaves)
       if (isDayRed && evt.isRecurrence) return;
+      // Skip classes covered by someone else
+      if (evt.coveredBy) return;
       col.appendChild(createEventBlock(evt));
     });
     
@@ -676,28 +672,6 @@ function createEventBlock(evt) {
     `;
   }
 
-  let lessonStatusHtml = '';
-  if (evt.typeId === 'class') {
-    const classSyllabusMap = loadClassUnits();
-    const session = window.Sync.getSessionForDate(evt.name, evt.date, events, redDays, classSyllabusMap, evt.startTime);
-    let statusObj;
-    if (session.override_type) statusObj = { icon: 'star', color: '#8B5CF6' }; 
-    else if (session.lesson) {
-      const ls = session.lesson.status || (session.lesson.is_completed ? 'completed' : 'not_ready');
-      if (ls === 'completed') statusObj = { icon: 'check-circle', color: '#00E676' };
-      else if (ls === 'ready') statusObj = { icon: 'edit-3', color: '#2979FF' };
-      else statusObj = { icon: 'circle-dashed', color: '#94a3b8' }; // not_ready
-    }
-    
-    if (statusObj) {
-      lessonStatusHtml = `
-        <div class="absolute top-1.5 right-7 opacity-80" title="Lesson: ${session.override_type || session.lesson?.lesson || 'Planned'}">
-          <i data-lucide="${statusObj.icon}" class="w-2.5 h-2.5" style="color: ${statusObj.color}"></i>
-        </div>
-      `;
-    }
-  }
-
   let notesHtml = '';
   if (evt.notes && evt.notes.trim() && height >= 40) {
     notesHtml = `<div class="event-notes text-[9px] opacity-80 italic leading-tight pointer-events-none text-dark dark:text-white whitespace-pre-wrap mt-1">${evt.notes.trim().replace(/"/g, '&quot;')}</div>`;
@@ -705,7 +679,7 @@ function createEventBlock(evt) {
 
   evtBlock.innerHTML = `
     <div class="event-title text-dark dark:text-white">${evt.name}</div>
-    <div class="event-time text-dark dark:text-white opacity-70">${formatTimeDisplay(evt.startTime)} - ${formatTimeDisplay(evt.endTime)}</div>${progressHtml}${notesHtml}${lessonStatusHtml}
+    <div class="event-time text-dark dark:text-white opacity-70">${formatTimeDisplay(evt.startTime)} - ${formatTimeDisplay(evt.endTime)}</div>${progressHtml}${notesHtml}
     ${evt.recurrence !== 'none' ? '<i data-lucide="repeat" class="event-recurrence-badge w-3 h-3"></i>' : ''}
     <div class="resize-handle" draggable="false" data-id="${evt.id}"></div>
   `;
@@ -1069,6 +1043,18 @@ function openDetailPanel(eventId, keepDirty = false) {
       Event Details
     </div>
     
+    <!-- Covered By -->
+    ${event.typeId === 'class' && event.isRecurrence ? `
+    <div class="covered-by-section bg-amber-50 dark:bg-amber-900/10 p-3 rounded-xl border border-amber-300/30 dark:border-amber-500/20 mb-4">
+      <div class="flex items-center gap-2 mb-2">
+        <i data-lucide="user-check" class="w-3.5 h-3.5 text-amber-600 dark:text-amber-400"></i>
+        <h4 class="text-[10px] font-extrabold uppercase tracking-widest text-amber-600 dark:text-amber-400">Covered By</h4>
+      </div>
+      <p class="text-[9px] text-slate-500 dark:text-slate-400 mb-2">If someone else is covering this class, enter their name. This hides the event but keeps the day as a normal day.</p>
+      <input type="text" class="panel-input text-[11px] py-1 w-full" value="${(event.coveredBy || '').replace(/"/g, '&quot;')}" placeholder="e.g., Mr. Smith" onchange="updateEventField('${eventId}', 'coveredBy', this.value)">
+    </div>
+    ` : ''}
+    
     <!-- Lesson Override -->
     ${event.typeId === 'class' && event.isRecurrence ? `
     <div class="bg-[var(--color-purple)]/5 dark:bg-[var(--color-purple)]/10 p-3 rounded-xl border border-[var(--color-purple)]/20 dark:border-[var(--color-purple)]/20 mb-4">
@@ -1230,7 +1216,7 @@ function updateEventField(id, field, value) {
     }
     
     // Re-render detail panel to reflect changes without toggling
-    if (field === 'typeId' || field === 'recurrence' || field === 'recurrenceDays' || field === 'graduationClass' || field === 'graduationDate') {
+    if (field === 'typeId' || field === 'recurrence' || field === 'recurrenceDays' || field === 'graduationClass' || field === 'graduationDate' || field === 'coveredBy') {
       selectedEventId = null;
       openDetailPanel(id, true);
     }
@@ -2033,10 +2019,24 @@ function setupEventListeners() {
 }
 
 /* ============================================
-   CLASS ADMIN ACTIONS
+   COVERED CLASS ACTIONS
    ============================================ */
 
-
+function undoCoveredClass(eventId) {
+  const event = events.find(e => e.id === eventId);
+  if (!event) return;
+  
+  event.coveredBy = '';
+  event.updatedAt = new Date().toISOString();
+  
+  saveData();
+  renderCalendar();
+  
+  // Sync promoted instance to cloud
+  if (window.Sync) Sync.syncPromotedInstance(event);
+  
+  showToast('Coverage removed — class restored', 'success');
+}
 
 // Re-render callback for sync.js loadFromCloud
 window._syncRerender = function () {
@@ -2068,12 +2068,3 @@ document.addEventListener('DOMContentLoaded', async () => {
     Sync.setSyncBadge('local');
   }
 });
-
-function toggleClassAdminTask(className, taskId, isDone) {
-  const data = loadClassAdmin();
-  const tasks = data[className] || [];
-  const task = tasks.find(t => t.id === taskId);
-  if (task) task.done = isDone;
-  saveClassAdmin(data);
-  updateStats();
-}

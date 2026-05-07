@@ -104,6 +104,7 @@ const RECURRENCE_OPTIONS = [
   { id: 'custom-days', label: 'Specific Days' },
 ];
 
+// Used by Admin Tracker (not displayed in Schedule view)
 const LESSON_STATUSES = [
   { id: 'not_ready', label: 'Not Ready', icon: 'x-circle',    color: '#ff4785' },
   { id: 'draft',    label: 'Draft',     icon: 'edit-3',       color: '#94a3b8' },

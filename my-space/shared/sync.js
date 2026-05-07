@@ -63,6 +63,7 @@
     // 2. Content changes
     if (evt.notes && evt.notes.trim() !== '') return true;
     if (evt.overrideType && evt.overrideType.trim() !== '') return true;
+    if (evt.coveredBy && evt.coveredBy.trim() !== '') return true;
     
     // 3. Room change (if we have originalRoom)
     if (evt.originalRoom !== undefined && evt.room !== evt.originalRoom) return true;
@@ -97,6 +98,7 @@
       recurrence_days: evt.recurrenceDays || [],
       checklist: evt.checklist || [],
       override_type: evt.overrideType || null,
+      covered_by: evt.coveredBy || null,
       graduation_class: !!evt.graduationClass,
       graduation_date: evt.graduationDate || null,
       is_master: !evt.isRecurrence,
@@ -122,6 +124,7 @@
       recurrenceDays: row.recurrence_days || [],
       checklist: row.checklist || [],
       overrideType: row.override_type || null,
+      coveredBy: row.covered_by || '',
       graduationClass: !!row.graduation_class,
       graduationDate: row.graduation_date || '',
       isRecurrence: !row.is_master,
@@ -555,7 +558,7 @@
 
     const maxIterations = 200; // safety limit
     
-    // Custom Days: completely separate logic
+    // Custom Days recurrence
     if (event.recurrence === 'custom-days') {
       if (!event.recurrenceDays || event.recurrenceDays.length === 0) return [];
       
@@ -591,55 +594,54 @@
           });
         }
       }
-      return occurrences;
+    } else {
+      // Standard recurrence types
+      let currentDate = new Date(originalDate);
+      const stepDays = {
+        'daily': 1,
+        'weekly': 7,
+        'biweekly': 14,
+        'monthly': 0
+      };
+      let iterations = 0;
+      
+      while (iterations < maxIterations) {
+        iterations++;
+        
+        if (event.recurrence === 'monthly') {
+          currentDate = new Date(currentDate);
+          currentDate.setMonth(currentDate.getMonth() + 1);
+        } else {
+          const days = stepDays[event.recurrence];
+          if (!days) break;
+          currentDate = new Date(currentDate.getTime() + days * 86400000);
+        }
+        
+        if (currentDate > rangeEndFinal) break;
+        
+        if (currentDate >= rangeStart && currentDate.toDateString() !== originalDate.toDateString()) {
+          const dateStr = getDayString(currentDate);
+          occurrences.push({
+            ...event,
+            id: `${event.id}_recur_${dateStr}`,
+            date: dateStr,
+            isRecurrence: true,
+            originalEventId: event.id,
+            originalDate: dateStr,
+            originalStartTime: event.startTime,
+            originalEndTime: event.endTime,
+            originalRoom: event.room || '',
+            originalName: event.name,
+            originalColor: event.color,
+            _modified: false,
+            checklist: (event.checklist || []).map(item => ({ ...item, done: false })),
+            overrideType: ''
+          });
+        }
+      }
     }
     
-    // Standard recurrence types
-    let currentDate = new Date(originalDate);
-    const stepDays = {
-      'daily': 1,
-      'weekly': 7,
-      'biweekly': 14,
-      'monthly': 0
-    };
-    let iterations = 0;
-    
-    while (iterations < maxIterations) {
-      iterations++;
-      
-      if (event.recurrence === 'monthly') {
-        currentDate = new Date(currentDate);
-        currentDate.setMonth(currentDate.getMonth() + 1);
-      } else {
-        const days = stepDays[event.recurrence];
-        if (!days) break;
-        currentDate = new Date(currentDate.getTime() + days * 86400000);
-      }
-      
-      if (currentDate > rangeEndFinal) break;
-      
-      if (currentDate >= rangeStart && currentDate.toDateString() !== originalDate.toDateString()) {
-        const dateStr = getDayString(currentDate);
-        occurrences.push({
-          ...event,
-          id: `${event.id}_recur_${dateStr}`,
-          date: dateStr,
-          isRecurrence: true,
-          originalEventId: event.id,
-          originalDate: dateStr,
-          originalStartTime: event.startTime,
-          originalEndTime: event.endTime,
-          originalRoom: event.room || '',
-          originalName: event.name,
-          originalColor: event.color,
-          _modified: false,
-          checklist: (event.checklist || []).map(item => ({ ...item, done: false })),
-          overrideType: ''
-        });
-      }
-    }
-    
-    // Merge in any promoted instances from localStorage
+    // Merge in any promoted instances from localStorage (applies to ALL recurrence types)
     const promotedRaw = localStorage.getItem('schedule_promoted_instances');
     if (promotedRaw) {
       try {
