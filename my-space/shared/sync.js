@@ -408,16 +408,23 @@
   }
 
   // My Class (Dedicated table: myspace_my_class)
-  // Schema: id, user_id, class_name, data, updated_at
+  // Schema: id, user_id, class_name, attendance, skills, reflections, students, student_skills, updated_at
   async function cloudLoadMyClass(userId) {
     const { data, error } = await db.from('myspace_my_class')
-      .select('class_name, data').eq('user_id', userId);
+      .select('class_name, attendance, skills, reflections, students, student_skills')
+      .eq('user_id', userId);
     if (error) { console.error('[Sync] Load myspace_my_class error:', error); return null; }
     
-    // Merge rows into the single object structure expected by the app
+    // Reconstruct the data object for the local application
     const result = { classes: {} };
     (data || []).forEach(row => {
-      result.classes[row.class_name] = row.data;
+      result.classes[row.class_name] = {
+        students: row.students || [],
+        attendance: row.attendance || {},
+        skills: row.skills || [],
+        studentSkills: row.student_skills || {},
+        reflections: row.reflections || []
+      };
     });
     return result;
   }
@@ -439,9 +446,8 @@
       if (row.class_name) existingMap[row.class_name] = row.id;
     });
 
-    // 2. Prepare rows, ensuring every row has a non-null ID
+    // 2. Prepare rows
     const rowsToUpsert = Object.entries(fullData.classes).map(([className, classData]) => {
-      // Generate ID if missing from map
       const existingId = existingMap[className];
       const finalId = existingId || (
         (window.crypto && crypto.randomUUID)
@@ -453,21 +459,24 @@
         id: finalId,
         user_id: userId,
         class_name: className,
-        data: classData,
+        students: classData.students || [],
+        attendance: classData.attendance || {},
+        skills: classData.skills || [],
+        student_skills: classData.studentSkills || {},
+        reflections: classData.reflections || [],
         updated_at: new Date().toISOString()
       };
-    }).filter(row => row.id && row.class_name); // Safety filter
+    }).filter(row => row.id && row.class_name);
 
     if (rowsToUpsert.length === 0) return;
 
-    console.info(`[Sync] Upserting ${rowsToUpsert.length} classes to myspace_my_class...`, rowsToUpsert);
+    console.info(`[Sync] Upserting ${rowsToUpsert.length} classes to myspace_my_class...`);
     
     const { error } = await db.from('myspace_my_class')
       .upsert(rowsToUpsert, { onConflict: 'user_id,class_name' });
       
     if (error) {
       console.error('[Sync] Save myspace_my_class error:', error);
-      if (window.showToast) window.showToast('Cloud sync failed for myspace_my_class', 'error');
     } else {
       console.info('[Sync] myspace_my_class saved successfully.');
     }
