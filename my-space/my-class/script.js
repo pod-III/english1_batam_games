@@ -78,13 +78,11 @@ const ClassManager = {
       }
     });
 
-    // Reflection Form
-    const reflectionText = document.getElementById('reflectionTextInput');
-    if (reflectionText) {
-      reflectionText.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-          ReflectionManager.save();
-        }
+    // Skill Form
+    const skillInput = document.getElementById('skillNameInput');
+    if (skillInput) {
+      skillInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') SkillsManager.saveSkill();
       });
     }
   },
@@ -208,9 +206,16 @@ const ClassManager = {
         this.data.classes[className] = {
           students: [],
           reflections: [],
-          attendance: {} // { "date": ["student_id", ...] }
+          attendance: {},
+          skills: [],
+          studentSkills: {}
         };
       }
+      // Ensure existing classes have new fields
+      const cd = this.data.classes[className];
+      if (!cd.attendance) cd.attendance = {};
+      if (!cd.skills) cd.skills = [];
+      if (!cd.studentSkills) cd.studentSkills = {};
     }
     
     this.renderClassSelectors();
@@ -356,6 +361,8 @@ const TabManager = {
   render() {
     switch (this.current) {
       case 'students': StudentManager.render(); break;
+      case 'attendance': AttendanceManager.render(); break;
+      case 'skills': SkillsManager.render(); break;
       case 'reflections': ReflectionManager.render(); break;
       case 'sessions': SessionManager.render(); break;
       case 'stats': StatsManager.render(); break;
@@ -566,6 +573,12 @@ const StudentManager = {
 };
 
 const ReflectionManager = {
+  currentStep: 0,
+  STEPS: ['description', 'feelings', 'evaluation', 'analysis', 'conclusion', 'action'],
+  STEP_LABELS: ['Description', 'Feelings', 'Evaluation', 'Analysis', 'Conclusion', 'Action Plan'],
+  STEP_COLORS: ['blue', 'pink', 'green', 'orange', 'blue', 'pink'],
+  editingId: null,
+
   render() {
     const list = document.getElementById('reflectionList');
     const empty = document.getElementById('noReflectionsState');
@@ -580,62 +593,153 @@ const ReflectionManager = {
     empty.classList.add('hidden');
     list.innerHTML = classData.reflections
       .sort((a, b) => b.date.localeCompare(a.date))
-      .map(r => `
-      <div class="border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-3xl p-6 shadow-neo-sm bg-white dark:bg-slate-900/40 relative hover:-translate-y-1 transition-transform">
-        <div class="flex items-center justify-between mb-4">
-          <div class="flex items-center gap-3">
-            <span class="px-3 py-1 bg-orange/15 text-orange border border-orange/20 rounded-lg font-black text-[10px] uppercase tracking-widest">${r.focus || 'General'}</span>
-            <span class="text-xs font-bold text-slate-400">${new Date(r.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
+      .map(r => {
+        // Build Gibbs stages display
+        const stages = this.STEPS.map((key, i) => {
+          const val = r[key] || r.gibbs?.[key] || '';
+          if (!val) return '';
+          return `
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="w-5 h-5 rounded-md bg-${this.STEP_COLORS[i]}/15 text-${this.STEP_COLORS[i]} flex items-center justify-center text-[9px] font-black">${i+1}</span>
+                <span class="text-[10px] font-black uppercase tracking-widest text-${this.STEP_COLORS[i]}">${this.STEP_LABELS[i]}</span>
+              </div>
+              <p class="font-body font-semibold text-xs text-slate-600 dark:text-slate-400 whitespace-pre-wrap leading-relaxed pl-7">${val}</p>
+            </div>
+          `;
+        }).filter(Boolean).join('');
+
+        // Legacy fallback: if reflection has old "text" field
+        const legacyText = (!stages && r.text) ? `<p class="font-body font-semibold text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">${r.text}</p>` : '';
+
+        return `
+        <div class="border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-3xl p-6 shadow-neo-sm bg-white dark:bg-slate-900/40 relative hover:-translate-y-1 transition-transform">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-3">
+              <span class="px-3 py-1 bg-orange/15 text-orange border border-orange/20 rounded-lg font-black text-[10px] uppercase tracking-widest">Gibbs' Cycle</span>
+              <span class="text-xs font-bold text-slate-400">${new Date(r.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="ReflectionManager.edit('${r.id}')" class="text-slate-400 hover:text-blue transition-colors">
+                <i data-lucide="edit-3" class="w-4 h-4"></i>
+              </button>
+              <button onclick="ReflectionManager.delete('${r.id}')" class="text-slate-400 hover:text-pink transition-colors">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+            </div>
           </div>
-          <button onclick="ReflectionManager.delete('${r.id}')" class="text-slate-400 hover:text-pink transition-colors">
-            <i data-lucide="trash-2" class="w-4 h-4"></i>
-          </button>
+          ${stages ? `<div class="space-y-3">${stages}</div>` : legacyText}
         </div>
-        <p class="font-body font-semibold text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed">${r.text}</p>
-      </div>
-    `).join('');
+      `;
+      }).join('');
     
     if (window.lucide) lucide.createIcons({ root: list });
   },
 
   openNew() {
+    this.editingId = null;
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('reflectionDateInput').value = today;
-    document.getElementById('reflectionTextInput').value = '';
+    this.STEPS.forEach(key => {
+      const el = document.getElementById(`gibbs-${key}`);
+      if (el) el.value = '';
+    });
+    this.goToStep(0);
     ModalManager.open('reflectionModal');
-    document.getElementById('reflectionTextInput').focus();
   },
 
   openForSession(date) {
+    this.editingId = null;
     document.getElementById('reflectionDateInput').value = date;
-    document.getElementById('reflectionTextInput').value = '';
+    this.STEPS.forEach(key => {
+      const el = document.getElementById(`gibbs-${key}`);
+      if (el) el.value = '';
+    });
+    this.goToStep(0);
     ModalManager.open('reflectionModal');
-    document.getElementById('reflectionTextInput').focus();
+  },
+
+  edit(id) {
+    const classData = ClassManager.data.classes[ClassManager.activeClass];
+    const r = classData.reflections.find(ref => ref.id === id);
+    if (!r) return;
+    this.editingId = id;
+    document.getElementById('reflectionDateInput').value = r.date;
+    this.STEPS.forEach(key => {
+      const el = document.getElementById(`gibbs-${key}`);
+      if (el) el.value = r[key] || r.gibbs?.[key] || '';
+    });
+    this.goToStep(0);
+    ModalManager.open('reflectionModal');
+  },
+
+  goToStep(step) {
+    this.currentStep = step;
+    // Show/hide panels
+    for (let i = 0; i < 6; i++) {
+      document.getElementById(`gibbs-step-${i}`).classList.toggle('hidden', i !== step);
+    }
+    // Update stepper buttons
+    document.querySelectorAll('.gibbs-step-btn').forEach(btn => {
+      const s = parseInt(btn.dataset.step);
+      btn.classList.remove('active', 'completed');
+      if (s === step) btn.classList.add('active');
+      else if (s < step) {
+        const key = this.STEPS[s];
+        const val = document.getElementById(`gibbs-${key}`)?.value?.trim();
+        if (val) btn.classList.add('completed');
+      }
+    });
+    // Update nav buttons
+    document.getElementById('gibbsPrevBtn').classList.toggle('hidden', step === 0);
+    document.getElementById('gibbsNextBtn').classList.toggle('hidden', step === 5);
+    document.getElementById('gibbsSaveBtn').classList.toggle('hidden', step !== 5);
+  },
+
+  nextStep() {
+    if (this.currentStep < 5) this.goToStep(this.currentStep + 1);
+  },
+
+  prevStep() {
+    if (this.currentStep > 0) this.goToStep(this.currentStep - 1);
   },
 
   save() {
     const date = document.getElementById('reflectionDateInput').value;
-    const focus = document.getElementById('reflectionFocusInput').value;
-    const text = document.getElementById('reflectionTextInput').value.trim();
+    if (!date) { UI.showToast('Please set a session date', 'error'); return; }
     
-    if (!date || !text) return;
+    const data = {};
+    let hasContent = false;
+    this.STEPS.forEach(key => {
+      data[key] = document.getElementById(`gibbs-${key}`)?.value?.trim() || '';
+      if (data[key]) hasContent = true;
+    });
     
-    const newReflection = {
-      id: crypto.randomUUID(),
-      date,
-      focus,
-      text,
-      createdAt: new Date().toISOString()
-    };
+    if (!hasContent) { UI.showToast('Please fill in at least one stage', 'error'); return; }
     
     const classData = ClassManager.data.classes[ClassManager.activeClass];
-    classData.reflections.push(newReflection);
+
+    if (this.editingId) {
+      const existing = classData.reflections.find(r => r.id === this.editingId);
+      if (existing) {
+        existing.date = date;
+        this.STEPS.forEach(key => { existing[key] = data[key]; });
+      }
+    } else {
+      classData.reflections.push({
+        id: crypto.randomUUID(),
+        date,
+        ...data,
+        createdAt: new Date().toISOString()
+      });
+    }
     
     ClassManager.saveData();
     ModalManager.closeAll();
     this.render();
     ClassManager.updateUI();
-    UI.showToast('Reflection saved!', 'success');
+    UI.showToast(this.editingId ? 'Reflection updated!' : 'Reflection saved!', 'success');
+    this.editingId = null;
   },
 
   delete(id) {
@@ -775,6 +879,278 @@ const StatsManager = {
     if (!classData.students || classData.students.length === 0) return 0;
     const total = classData.students.reduce((sum, s) => sum + (s.stars || 0), 0);
     return (total / classData.students.length).toFixed(1);
+  }
+};
+
+const AttendanceManager = {
+  selectedDate: null,
+
+  render() {
+    const grid = document.getElementById('attendanceGrid');
+    const empty = document.getElementById('noAttendanceState');
+    const summary = document.getElementById('attendanceSummary');
+    const select = document.getElementById('attendanceDateSelect');
+    const classData = ClassManager.data.classes[ClassManager.activeClass];
+    const classInfo = ClassManager.classes.find(c => c.name === ClassManager.activeClass);
+
+    if (!classData || !classInfo) return;
+
+    // Populate date select from sessions
+    const today = new Date().toISOString().split('T')[0];
+    const pastEvents = classInfo.events
+      .filter(e => e.date <= today)
+      .sort((a, b) => b.date.localeCompare(a.date));
+
+    select.innerHTML = '<option value="">Select session...</option>' +
+      pastEvents.map(e => {
+        const d = new Date(e.date);
+        const fmt = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+        return `<option value="${e.date}" ${this.selectedDate === e.date ? 'selected' : ''}>${fmt} — ${e.startTime}</option>`;
+      }).join('');
+
+    if (!this.selectedDate || classData.students.length === 0) {
+      grid.innerHTML = '';
+      empty.classList.remove('hidden');
+      summary.classList.add('hidden');
+      if (classData.students.length === 0) {
+        empty.querySelector('h3').textContent = 'No Students Yet';
+        empty.querySelector('p').textContent = 'Add students first to record attendance.';
+      }
+      return;
+    }
+
+    empty.classList.add('hidden');
+    if (!classData.attendance) classData.attendance = {};
+    const dateAttendance = classData.attendance[this.selectedDate] || [];
+
+    grid.innerHTML = classData.students.map(s => {
+      const isPresent = dateAttendance.includes(s.id);
+      return `
+        <div class="attendance-row ${isPresent ? 'present' : 'absent'}">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-${isPresent ? 'green' : 'pink'}/10 rounded-xl flex items-center justify-center text-${isPresent ? 'green' : 'pink'} font-black text-lg border-[2px] border-${isPresent ? 'green' : 'pink'}/20">
+              ${(s.nick || s.name).charAt(0)}
+            </div>
+            <div>
+              <h4 class="font-heading font-bold text-sm leading-none text-slate-800 dark:text-white">${s.nick || s.name}</h4>
+              <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">${s.nick ? s.name : ''}</p>
+            </div>
+          </div>
+          <button onclick="AttendanceManager.toggle('${s.id}')" class="btn-chunky px-4 py-2 rounded-xl border-[var(--border-width-medium)] border-[var(--border-primary)] text-[10px] font-black uppercase shadow-neo-sm ${isPresent ? 'bg-green text-white' : 'bg-[var(--bg-tertiary)] dark:bg-slate-800 text-slate-500'}">
+            <i data-lucide="${isPresent ? 'check' : 'x'}" class="w-4 h-4 inline"></i>
+            ${isPresent ? 'Present' : 'Absent'}
+          </button>
+        </div>
+      `;
+    }).join('');
+
+    // Summary
+    const presentCount = dateAttendance.filter(id => classData.students.some(s => s.id === id)).length;
+    const totalCount = classData.students.length;
+    const pct = totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0;
+
+    summary.classList.remove('hidden');
+    summary.innerHTML = `
+      <div class="glass-panel border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-2xl p-4 shadow-neo-sm flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-green/10 flex items-center justify-center text-green">
+            <i data-lucide="users" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Attendance Rate</span>
+            <div class="font-heading font-bold text-2xl text-slate-800 dark:text-white leading-none">${pct}%</div>
+          </div>
+        </div>
+        <div class="text-right">
+          <span class="text-lg font-black text-green">${presentCount}</span>
+          <span class="text-sm text-slate-400 font-bold">/ ${totalCount}</span>
+        </div>
+      </div>
+    `;
+
+    if (window.lucide) lucide.createIcons();
+  },
+
+  selectDate(date) {
+    this.selectedDate = date;
+    this.render();
+  },
+
+  toggle(studentId) {
+    const classData = ClassManager.data.classes[ClassManager.activeClass];
+    if (!classData.attendance) classData.attendance = {};
+    if (!classData.attendance[this.selectedDate]) classData.attendance[this.selectedDate] = [];
+
+    const arr = classData.attendance[this.selectedDate];
+    const idx = arr.indexOf(studentId);
+    if (idx >= 0) {
+      arr.splice(idx, 1);
+    } else {
+      arr.push(studentId);
+    }
+
+    ClassManager.saveData();
+    this.render();
+    if (window.lucide) lucide.createIcons();
+  }
+};
+
+const SkillsManager = {
+  skillType: 'input',
+
+  render() {
+    const content = document.getElementById('skillsContent');
+    const empty = document.getElementById('noSkillsState');
+    const classData = ClassManager.data.classes[ClassManager.activeClass];
+
+    if (!classData) return;
+    if (!classData.skills) classData.skills = [];
+    if (!classData.studentSkills) classData.studentSkills = {};
+
+    if (classData.skills.length === 0) {
+      content.innerHTML = '';
+      empty.classList.remove('hidden');
+      return;
+    }
+
+    empty.classList.add('hidden');
+
+    const inputSkills = classData.skills.filter(s => s.type === 'input');
+    const outputSkills = classData.skills.filter(s => s.type === 'output');
+
+    const renderSkillSection = (title, skills, typeClass, icon) => {
+      if (skills.length === 0) return '';
+      return `
+        <div class="glass-panel border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-[var(--radius-2xl)] overflow-hidden p-4 space-y-4">
+          <div class="flex items-center gap-2">
+            <i data-lucide="${icon}" class="w-4 h-4 text-${typeClass === 'input' ? 'blue' : 'pink'}"></i>
+            <h4 class="font-heading font-bold text-sm uppercase tracking-tight text-slate-800 dark:text-white">${title}</h4>
+            <span class="skill-badge ${typeClass}">${skills.length} skills</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full border-collapse">
+              <thead>
+                <tr class="bg-slate-50 dark:bg-slate-800/50">
+                  <th class="text-left !text-[9px] !py-2 !px-3 min-w-[120px]">Student</th>
+                  ${skills.map(sk => `
+                    <th class="text-center !text-[9px] !py-2 !px-3 min-w-[80px]">
+                      <div class="flex flex-col items-center gap-0.5">
+                        <span>${sk.name}</span>
+                        <button onclick="SkillsManager.deleteSkill('${sk.id}')" class="text-slate-300 hover:text-pink transition-colors">
+                          <i data-lucide="x" class="w-3 h-3"></i>
+                        </button>
+                      </div>
+                    </th>
+                  `).join('')}
+                </tr>
+              </thead>
+              <tbody>
+                ${classData.students.map(student => `
+                  <tr class="border-b border-[var(--bg-tertiary)] dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                    <td class="!py-2 !px-3">
+                      <span class="text-xs font-bold text-slate-700 dark:text-slate-300">${student.nick || student.name}</span>
+                    </td>
+                    ${skills.map(sk => {
+                      const level = classData.studentSkills[student.id]?.[sk.id] || 0;
+                      return `
+                        <td class="!py-2 !px-3 text-center">
+                          <div class="flex items-center justify-center gap-0.5">
+                            ${[1,2,3,4,5].map(n => `
+                              <button onclick="SkillsManager.setLevel('${student.id}','${sk.id}',${n})"
+                                class="w-5 h-5 rounded-md text-[9px] font-black transition-all
+                                ${n <= level
+                                  ? `bg-${typeClass === 'input' ? 'blue' : 'pink'} text-white border border-${typeClass === 'input' ? 'blue' : 'pink'}/30`
+                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700'
+                                }">${n}</button>
+                            `).join('')}
+                          </div>
+                        </td>
+                      `;
+                    }).join('')}
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    };
+
+    content.innerHTML = 
+      renderSkillSection('Input Skills (Receptive)', inputSkills, 'input', 'ear') +
+      renderSkillSection('Output Skills (Productive)', outputSkills, 'output', 'megaphone');
+
+    if (window.lucide) lucide.createIcons();
+  },
+
+  setSkillType(type) {
+    this.skillType = type;
+    const isInput = type === 'input';
+    document.getElementById('skillType-input').className = isInput
+      ? 'flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all bg-blue text-white shadow-neo-sm'
+      : 'flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all text-slate-400';
+    document.getElementById('skillType-output').className = !isInput
+      ? 'flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all bg-pink text-white shadow-neo-sm'
+      : 'flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all text-slate-400';
+  },
+
+  openAddSkill() {
+    this.skillType = 'input';
+    this.setSkillType('input');
+    document.getElementById('skillNameInput').value = '';
+    ModalManager.open('skillModal');
+    setTimeout(() => document.getElementById('skillNameInput').focus(), 100);
+  },
+
+  saveSkill() {
+    const name = document.getElementById('skillNameInput').value.trim();
+    if (!name) return;
+
+    const classData = ClassManager.data.classes[ClassManager.activeClass];
+    if (!classData.skills) classData.skills = [];
+
+    classData.skills.push({
+      id: crypto.randomUUID(),
+      name,
+      type: this.skillType,
+      createdAt: new Date().toISOString()
+    });
+
+    ClassManager.saveData();
+    ModalManager.closeAll();
+    this.render();
+    UI.showToast(`${this.skillType === 'input' ? 'Input' : 'Output'} skill added!`, 'success');
+  },
+
+  deleteSkill(skillId) {
+    if (!confirm('Delete this skill? All student ratings will be lost.')) return;
+    const classData = ClassManager.data.classes[ClassManager.activeClass];
+    classData.skills = classData.skills.filter(s => s.id !== skillId);
+    // Clean up student skill data
+    if (classData.studentSkills) {
+      Object.keys(classData.studentSkills).forEach(sid => {
+        delete classData.studentSkills[sid][skillId];
+      });
+    }
+    ClassManager.saveData();
+    this.render();
+    UI.showToast('Skill removed', 'info');
+  },
+
+  setLevel(studentId, skillId, level) {
+    const classData = ClassManager.data.classes[ClassManager.activeClass];
+    if (!classData.studentSkills) classData.studentSkills = {};
+    if (!classData.studentSkills[studentId]) classData.studentSkills[studentId] = {};
+
+    // Toggle off if same level clicked
+    if (classData.studentSkills[studentId][skillId] === level) {
+      classData.studentSkills[studentId][skillId] = 0;
+    } else {
+      classData.studentSkills[studentId][skillId] = level;
+    }
+
+    ClassManager.saveData();
+    this.render();
   }
 };
 
