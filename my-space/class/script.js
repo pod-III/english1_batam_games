@@ -710,6 +710,9 @@ const StudentManager = {
             </div>
           </div>
           <div class="flex items-center gap-0.5 flex-shrink-0">
+            <button onclick="StudentManager.openProgress('${s.id}')" class="p-2 text-slate-400 hover:text-green transition-colors rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800" title="View Progress">
+              <i data-lucide="activity" class="w-4 h-4"></i>
+            </button>
             <button onclick="StudentManager.edit('${s.id}')" class="p-2 text-slate-400 hover:text-blue transition-colors rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800">
               <i data-lucide="pencil" class="w-4 h-4"></i>
             </button>
@@ -884,6 +887,114 @@ const StudentManager = {
       ClassManager.saveData();
       this.render();
     }
+  },
+
+  openProgress(id) {
+    const classData = ClassManager.data.classes[ClassManager.activeClass];
+    const student = classData.students.find(s => s.id === id);
+    if (!student) return;
+
+    const studentSkills = classData.studentSkills?.[id] || {};
+    const skills = classData.skills || [];
+
+    // Attendance
+    const attendanceEntries = Object.entries(classData.attendance || {});
+    const studentAttendance = attendanceEntries.filter(([date, list]) => list.includes(id));
+    const totalSessions = attendanceEntries.length;
+    const attendancePct = totalSessions > 0 ? Math.round((studentAttendance.length / totalSessions) * 100) : 0;
+
+    // Stats
+    const skillValues = Object.values(studentSkills).filter(v => v > 0);
+    const avgSkill = skillValues.length > 0 ? (skillValues.reduce((a, b) => a + b, 0) / skillValues.length).toFixed(1) : '—';
+    const topSkillEntry = Object.entries(studentSkills)
+      .filter(([sid, val]) => val > 0)
+      .sort((a, b) => b[1] - a[1])[0];
+    const topSkill = topSkillEntry ? skills.find(s => s.id === topSkillEntry[0])?.name || '—' : '—';
+
+    // Populate modal
+    document.getElementById('progressAvatar').textContent = (student.nick || student.name).charAt(0);
+    document.getElementById('progressName').textContent = student.nick || student.name;
+    document.getElementById('progressMeta').textContent = ClassManager.activeClass;
+    document.getElementById('progressAttendance').textContent = attendancePct + '%';
+    document.getElementById('progressAttendanceSub').textContent = `${studentAttendance.length}/${totalSessions} sessions`;
+    document.getElementById('progressSkillAvg').textContent = avgSkill;
+    document.getElementById('progressSkillCount').textContent = `${skillValues.length} rated`;
+    document.getElementById('progressStars').textContent = student.stars || 0;
+    document.getElementById('progressTopSkill').textContent = topSkill;
+    document.getElementById('progressNotes').innerHTML = student.notes || '<span class="italic opacity-60">No notes yet.</span>';
+
+    // Skill bars
+    const barsContainer = document.getElementById('progressSkillBars');
+    if (skills.length === 0) {
+      barsContainer.innerHTML = '<p class="text-xs text-slate-400 italic">No skills defined for this class.</p>';
+    } else {
+      barsContainer.innerHTML = skills.map(sk => {
+        const val = studentSkills[sk.id] || 0;
+        const pct = (val / 5) * 100;
+        const color = sk.type === 'input' ? 'bg-blue' : 'bg-pink';
+        return `
+          <div class="flex items-center gap-3">
+            <span class="text-[10px] font-black uppercase text-slate-500 w-24 text-right tracking-wider flex-shrink-0">${sk.name}</span>
+            <div class="flex-1 h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+              <div class="h-full ${color} rounded-full transition-all duration-500" style="width: ${pct}%"></div>
+            </div>
+            <span class="text-xs font-black text-slate-700 dark:text-slate-300 w-6 text-right flex-shrink-0">${val}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Radar chart
+    const ctx = document.getElementById('progressRadarChart').getContext('2d');
+    if (window._progressRadarChart) window._progressRadarChart.destroy();
+
+    const isDark = document.documentElement.classList.contains('dark');
+    const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+    const tickColor = isDark ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.5)';
+
+    if (skills.length > 0) {
+      window._progressRadarChart = new Chart(ctx, {
+        type: 'radar',
+        data: {
+          labels: skills.map(s => s.name),
+          datasets: [{
+            label: 'Current Rating',
+            data: skills.map(s => studentSkills[s.id] || 0),
+            backgroundColor: 'rgba(30, 167, 253, 0.2)',
+            borderColor: '#1ea7fd',
+            pointBackgroundColor: '#1ea7fd',
+            pointBorderColor: '#fff',
+            pointHoverBackgroundColor: '#fff',
+            pointHoverBorderColor: '#1ea7fd',
+            borderWidth: 2,
+            pointRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            r: {
+              beginAtZero: true,
+              max: 5,
+              ticks: { stepSize: 1, color: tickColor, backdropColor: 'transparent' },
+              grid: { color: gridColor },
+              angleLines: { color: gridColor },
+              pointLabels: { color: tickColor, font: { family: 'Fredoka', size: 11, weight: '700' } }
+            }
+          },
+          plugins: {
+            legend: { display: false }
+          }
+        }
+      });
+    } else {
+      // No skills: show placeholder
+      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    }
+
+    ModalManager.open('progressModal');
+    if (window.lucide) lucide.createIcons();
   }
 };
 
