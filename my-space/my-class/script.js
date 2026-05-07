@@ -1502,7 +1502,65 @@ const SkillsManager = {
   }
 };
 
-const ModalManager = {
+var QuickActionManager = {
+  activeType: null,
+
+  openPicker(type) {
+    this.activeType = type;
+    const title = document.getElementById('quickActionTitle');
+    const list = document.getElementById('quickActionClassList');
+    
+    if (type === 'reflection') {
+      title.innerHTML = '<i data-lucide="pen-tool" class="w-6 h-6 text-orange"></i> New Reflection';
+    } else {
+      title.innerHTML = '<i data-lucide="clipboard-check" class="w-6 h-6 text-green"></i> Track Attendance';
+    }
+
+    if (ClassManager.classes.length === 0) {
+      list.innerHTML = `
+        <div class="text-center py-8">
+          <p class="text-xs font-bold text-slate-500 uppercase">No classes found in schedule</p>
+        </div>
+      `;
+    } else {
+      list.innerHTML = ClassManager.classes.map(c => `
+        <button onclick="QuickActionManager.selectForAction('${c.name.replace(/'/g, "\\'")}')" class="w-full flex items-center justify-between p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border-[var(--border-width-medium)] border-slate-100 dark:border-slate-800 hover:border-blue/30 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all group">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-white border-2 border-white/20 shadow-neo-sm" style="background: ${c.color}">
+              <span class="font-heading font-bold text-sm uppercase">${c.name.charAt(0)}</span>
+            </div>
+            <span class="font-heading font-bold text-sm text-slate-800 dark:text-white uppercase tracking-tight">${c.name}</span>
+          </div>
+          <i data-lucide="chevron-right" class="w-4 h-4 text-slate-300 group-hover:translate-x-1 transition-transform"></i>
+        </button>
+      `).join('');
+    }
+
+    if (window.lucide) lucide.createIcons({ root: title });
+    if (window.lucide) lucide.createIcons({ root: list });
+    
+    ModalManager.open('quickActionModal');
+  },
+
+  selectForAction(className) {
+    const type = this.activeType;
+    ModalManager.closeAll();
+    
+    // 1. Select the class
+    ClassManager.selectClass(className);
+    
+    // 2. Perform action
+    setTimeout(() => {
+      if (type === 'reflection') {
+        ReflectionManager.openNew();
+      } else if (type === 'attendance') {
+        TabManager.switch('attendance');
+      }
+    }, 350); // Wait for modal close animation
+  }
+};
+
+var ModalManager = {
   open(id) {
     const modal = document.getElementById(id);
     const backdrop = document.getElementById('modalBackdrop');
@@ -1538,7 +1596,7 @@ const ModalManager = {
   }
 };
 
-const Theme = {
+var Theme = {
   toggle() {
     const isDark = document.documentElement.classList.toggle('dark');
     localStorage.setItem('theme_my-class', isDark ? 'dark' : 'light');
@@ -1556,7 +1614,7 @@ const Theme = {
   }
 };
 
-const UI = {
+var UI = {
   showToast(message, type = 'success') {
     const container = document.getElementById('toastContainer');
     if (!container) return;
