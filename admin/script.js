@@ -1260,27 +1260,38 @@ async function executeDelete() {
 function renderLogsTable() {
     const body = document.getElementById('logsTableBody')
     if (!body) return
-    const recent = allProgress.slice(0, 50) // Show last 50 actions
+    const recent = allProgress.slice(0, 100) // Show last 100 actions
 
     body.innerHTML = recent.map(row => {
         const profile = allProfiles[row.user_id]
         const name = profile?.display_name || row.user_id.slice(0, 8)
-        const date = new Date(row.updated_at).toLocaleString()
+        const date = new Date(row.updated_at).toLocaleTimeString()
         const initial = name[0]?.toUpperCase() || '?'
 
-        return `<tr class="hover:bg-blue/5 transition-colors">
-            <td class="hidden md:table-cell px-5 py-3 text-xs text-slate-500 font-mono">${date}</td>
-            <td class="px-5 py-3">
-              <div class="flex items-center gap-2">
-                <div class="w-6 h-6 rounded bg-slate-700 flex items-center justify-center text-[10px] font-bold">${initial}</div>
-                <span class="text-white font-medium">${name}</span>
+        return `<tr class="group transition-all hover:bg-white/5 border-l-4 border-transparent hover:border-blue">
+            <td class="px-6 py-4">
+                <div class="flex flex-col">
+                    <span class="text-white font-mono text-xs">${date}</span>
+                    <span class="text-[9px] text-slate-600 font-mono">${new Date(row.updated_at).toLocaleDateString()}</span>
+                </div>
+            </td>
+            <td class="px-6 py-4">
+              <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-slate-800 border-2 border-slate-700 flex items-center justify-center text-[10px] font-black text-slate-400 group-hover:border-blue group-hover:text-blue transition-colors">${initial}</div>
+                <div class="flex flex-col">
+                    <span class="text-white font-bold text-xs tracking-tight">${name}</span>
+                    <span class="text-[9px] text-slate-500 font-mono">UID: ${row.user_id.slice(0, 8)}</span>
+                </div>
               </div>
             </td>
-            <td class="px-5 py-3">
-              <span class="text-slate-300 uppercase text-[10px] font-black tracking-widest">Update Progress</span>
+            <td class="px-6 py-4">
+              <div class="flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-blue shadow-[0_0_8px_rgba(30,167,253,0.5)]"></div>
+                <span class="text-slate-300 font-black text-[10px] uppercase tracking-widest">Update_Payload</span>
+              </div>
             </td>
-            <td class="hidden sm:table-cell px-5 py-3">
-              <span class="chip bg-blue/10 text-blue border-blue/20">${row.tool_key}</span>
+            <td class="px-6 py-4">
+              <span class="chip bg-slate-900 text-blue border-slate-800 group-hover:border-blue/30 transition-colors">${row.tool_key}</span>
             </td>
           </tr>`
     }).join('')
@@ -1450,31 +1461,34 @@ function renderCloudTable() {
         totalLimit += limit
 
         return `
-            <tr class="group hover:bg-slate-700/20 transition-colors">
-                <td class="px-5 py-4">
-                    <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-lg bg-blue/20 border-2 border-blue/40 flex items-center justify-center font-heading text-blue text-xs flex-shrink-0">${initial}</div>
+            <tr class="group hover:bg-white/5 transition-all">
+                <td class="px-8 py-5">
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-xl bg-slate-800 border-4 border-slate-700 flex items-center justify-center font-heading text-slate-400 group-hover:border-blue group-hover:text-blue transition-colors text-xs flex-shrink-0">${initial}</div>
                         <div>
-                            <div class="font-bold text-white text-sm">${name}</div>
-                            <div class="hidden md:block text-[10px] text-slate-500 font-mono">${p.id.slice(0, 12)}...</div>
+                            <div class="font-bold text-white text-sm tracking-tight">${name}</div>
+                            <div class="text-[9px] text-slate-600 font-mono">NODE_ID: ${p.id.slice(0, 8)}</div>
                         </div>
                     </div>
                 </td>
-                <td class="px-5 py-4 font-mono text-xs text-white">${usedMB} MB</td>
-                <td class="hidden md:table-cell px-5 py-4 font-mono text-xs text-slate-400">${limitMB} MB</td>
-                <td class="px-5 py-4">
-                    <div class="flex flex-col gap-1 w-32">
-                        <div class="flex justify-between text-[10px] font-bold">
-                            <span class="${percent > 85 ? 'text-pink' : 'text-blue'}">${percent}%</span>
-                        </div>
-                        <div class="h-2 bg-slate-900 border-2 border-slate-700 rounded-full overflow-hidden">
-                            <div class="h-full ${barColor} transition-all duration-500" style="width: ${percent}%"></div>
-                        </div>
+                <td class="px-8 py-5">
+                    <div class="flex flex-col">
+                        <span class="font-mono text-xs text-white">${usedMB} MB</span>
+                        <span class="text-[9px] text-slate-600 uppercase font-black">Quota: ${limitMB} MB</span>
                     </div>
                 </td>
-                <td class="px-5 py-4 text-right">
-                    <button onclick="syncUserStorage('${p.id}')" id="sync-btn-${p.id}" class="neo-btn px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-[10px] hover:text-white group-hover:border-blue transition-colors">
-                        <i data-lucide="refresh-cw" class="w-3 h-3 sync-icon-${p.id}"></i> Sync
+                <td class="px-8 py-5">
+                    <div class="flex items-center gap-4">
+                        <div class="flex-1 h-3 bg-slate-950 border-2 border-slate-800 rounded-full overflow-hidden p-0.5 min-w-[120px]">
+                            <div class="h-full ${barColor} rounded-full transition-all duration-700 shadow-[0_0_10px_rgba(30,167,253,0.2)]" style="width: ${percent}%"></div>
+                        </div>
+                        <span class="text-[10px] font-black ${percent > 85 ? 'text-pink' : 'text-blue'} w-8">${percent}%</span>
+                    </div>
+                </td>
+                <td class="px-8 py-5 text-right">
+                    <button onclick="syncUserStorage('${p.id}')" id="sync-btn-${p.id}" 
+                        class="neo-btn !p-2 !bg-slate-900 !border-2 !border-slate-800 hover:!border-blue transition-all group/btn">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-slate-500 group-hover/btn:text-blue sync-icon-${p.id}"></i>
                     </button>
                 </td>
             </tr>
@@ -1488,10 +1502,16 @@ function renderCloudTable() {
 
     const globalStorageUsed = document.getElementById('globalStorageUsed')
     const globalStorageBar = document.getElementById('globalStorageBar')
+    const globalStoragePercent = document.getElementById('globalStoragePercent')
+    
     if (globalStorageUsed) globalStorageUsed.textContent = `${globalUsedMB} MB / ${globalLimitMB} MB`
+    if (globalStoragePercent) globalStoragePercent.textContent = `${globalPercent}%`
+    
     if (globalStorageBar) {
         globalStorageBar.style.width = `${globalPercent}%`
-        globalStorageBar.className = `h-full transition-all duration-700 ${globalPercent > 90 ? 'bg-pink' : 'bg-blue'}`
+        const colorClass = globalPercent > 90 ? 'bg-pink' : (globalPercent > 70 ? 'bg-orange' : 'bg-blue')
+        const shadowClass = globalPercent > 90 ? 'shadow-[0_0_20px_rgba(255,71,133,0.3)]' : (globalPercent > 70 ? 'shadow-[0_0_20px_rgba(255,126,51,0.3)]' : 'shadow-[0_0_20px_rgba(30,167,253,0.3)]')
+        globalStorageBar.className = `h-full rounded-full transition-all duration-1000 ${colorClass} ${shadowClass}`
     }
 
     const activeUsers = profiles.filter(p => (p.storage_usage || 0) > 0).length
@@ -1635,33 +1655,45 @@ function renderAnnouncements() {
 
     list.innerHTML = allAnnouncements.map(ann => {
         const date = new Date(ann.created_at).toLocaleDateString()
-        const typeColors = {
-            info: 'blue',
-            update: 'green',
-            alert: 'orange'
+        const typeStyles = {
+            info: { color: 'blue', icon: 'info' },
+            update: { color: 'green', icon: 'zap' },
+            alert: { color: 'pink', icon: 'alert-triangle' }
         }
-        const color = typeColors[ann.type] || 'blue'
+        const style = typeStyles[ann.type] || typeStyles.info
 
         return `
-            <div class="p-5 hover:bg-slate-700/30 transition-colors group">
-                <div class="flex items-start justify-between mb-2">
-                    <div class="flex items-center gap-3">
-                        <span class="chip bg-${color}/10 text-${color} border-${color}/30 uppercase">${ann.type}</span>
-                        <h3 class="font-bold text-white">${ann.title}</h3>
+            <div class="p-6 hover:bg-white/5 transition-all group relative border-l-4 border-transparent hover:border-${style.color}">
+                <div class="flex items-start justify-between gap-4">
+                    <div class="flex gap-4">
+                        <div class="w-10 h-10 rounded-xl bg-${style.color}/10 border-2 border-${style.color}/20 flex items-center justify-center flex-shrink-0">
+                            <i data-lucide="${style.icon}" class="w-5 h-5 text-${style.color}"></i>
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-3 mb-1">
+                                <h3 class="font-heading text-white tracking-tight">${ann.title}</h3>
+                                <span class="chip bg-${style.color}/10 text-${style.color} border-${style.color}/20">${ann.type}</span>
+                                ${!ann.is_active ? '<span class="chip bg-slate-800 text-slate-500 border-slate-700">DRAFT</span>' : ''}
+                            </div>
+                            <p class="text-sm text-slate-400 leading-relaxed max-w-2xl whitespace-pre-wrap">${ann.content}</p>
+                            <div class="flex items-center gap-4 mt-4">
+                                <div class="flex items-center gap-1.5 text-[10px] font-mono text-slate-500">
+                                    <i data-lucide="calendar" class="w-3 h-3"></i>
+                                    ${date}
+                                </div>
+                                <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onclick="editAnnouncement('${ann.id}')" class="text-[10px] font-black text-blue hover:underline uppercase tracking-widest">Modify</button>
+                                    <span class="text-slate-700">|</span>
+                                    <button onclick="openDeleteModal('${ann.id}', 'announcement')" class="text-[10px] font-black text-pink hover:underline uppercase tracking-widest">Terminate</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <span class="text-[10px] font-mono text-slate-500">${date}</span>
-                        ${!ann.is_active ? '<span class="chip bg-slate-700 text-slate-400 border-slate-600">DRAFT</span>' : ''}
-                    </div>
-                </div>
-                <p class="text-sm text-slate-400 mb-4 whitespace-pre-wrap">${ann.content}</p>
-                <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onclick="editAnnouncement('${ann.id}')" class="neo-btn px-3 py-1.5 bg-blue/20 text-blue border-blue/30 rounded-lg text-xs">Edit</button>
-                    <button onclick="openDeleteModal('${ann.id}', 'announcement')" class="neo-btn px-3 py-1.5 bg-red-500/20 text-red-400 border-red-500/30 rounded-lg text-xs">Delete</button>
                 </div>
             </div>
         `
     }).join('')
+    lucide.createIcons({ root: list })
 }
 
 function editAnnouncement(id) {
