@@ -244,9 +244,15 @@ function getClassStats(className) {
 
   const instances = getClassInstances(className);
   const total = instances.length;
-  let taught = 0, planned = 0, skipped = 0, upcoming = 0;
+  let taught = 0, planned = 0, skipped = 0, upcoming = 0, covered = 0;
 
   instances.forEach(evt => {
+    // Covered sessions — no action needed from the user
+    if (evt.coveredBy) {
+      covered++;
+      return;
+    }
+
     const session = window.Sync.getSessionForDate(className, evt.date, allEvents, redDays, syllabusMap, evt.startTime);
 
     let status = 'not_ready';
@@ -272,6 +278,7 @@ function getClassStats(className) {
   // Dynamic calculation: only check units visible in the current time filter
   const activeUnits = new Set();
   instances.forEach(evt => {
+    if (evt.coveredBy) return; // Skip covered from unit planning check
     const session = window.Sync.getSessionForDate(className, evt.date, allEvents, redDays, syllabusMap, evt.startTime);
     if (session.lesson && session.lesson.unit) {
       activeUnits.add(session.lesson.unit);
@@ -294,7 +301,7 @@ function getClassStats(className) {
     });
   }
 
-  return { total, taught, planned, ready: planned - taught, skipped, upcoming, instances, allPlanned };
+  return { total, taught, planned, ready: planned - taught, skipped, upcoming, covered, instances, allPlanned };
 }
 
 function getHeaderStatusObj(stats) {
@@ -482,6 +489,23 @@ function renderTableView(classes) {
 
         // Render instances
         instances.forEach(inst => {
+          // Check if this instance is covered by someone else
+          if (inst.coveredBy) {
+            bodyHtml += `
+              <div class="p-2.5 rounded-xl border-[3px] border-amber-300/40 dark:border-amber-700/40 bg-amber-50/50 dark:bg-amber-900/10 opacity-70 cursor-pointer" onclick="openDrawer('${cls.name.replace(/'/g, "\\'")}')"> 
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider text-white shadow-sm bg-amber-500">Covered</span>
+                  <span class="text-[10px] font-extrabold text-slate-400 ml-auto whitespace-nowrap"><i data-lucide="clock" class="w-3 h-3 inline pb-0.5"></i> ${formatTime(inst.startTime)}</span>
+                </div>
+                <div class="text-[11px] font-bold leading-snug text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                  <i data-lucide="user-check" class="w-3 h-3 flex-shrink-0"></i>
+                  <span class="truncate">${inst.coveredBy}</span>
+                </div>
+              </div>
+            `;
+            return;
+          }
+
           const session = window.Sync.getSessionForDate(cls.name, inst.date, allEvents, redDays, syllabusMap, inst.startTime);
           const ls = session.lesson?.status || (session.lesson?.is_completed ? 'completed' : 'not_ready');
           const isCompleted = ls === 'completed';
@@ -507,7 +531,7 @@ function renderTableView(classes) {
           ` : '';
 
           bodyHtml += `
-            <div class="p-2.5 rounded-xl border-[3px] border-[var(--border-primary)] bg-[var(--surface-card)] shadow-neo hover:shadow-neo transition-all cursor-pointer hover:-translate-y-0.5" onclick="openDrawer('${cls.name.replace(/'/g, "\\'")}')">
+            <div class="p-2.5 rounded-xl border-[3px] border-[var(--border-primary)] bg-[var(--surface-card)] shadow-neo hover:shadow-neo transition-all cursor-pointer hover:-translate-y-0.5" onclick="openDrawer('${cls.name.replace(/'/g, "\\'")}')"> 
               <div class="flex items-center gap-2 mb-1">
                 <button onclick="event.stopPropagation(); cycleSyllabusLessonStatus('${cls.name.replace(/'/g, "\\'")}', ${session.sequenceIndex})" class="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-wider text-white shadow-sm hover:brightness-110 active:translate-y-0.5 transition-all" style="background:${statusColor}">${label}</button>
                 <span class="text-[10px] font-extrabold text-slate-400 ml-auto whitespace-nowrap"><i data-lucide="clock" class="w-3 h-3 inline pb-0.5"></i> ${formatTime(inst.startTime)}</span>
@@ -558,6 +582,7 @@ function renderCardHeader(className, color, stats, headerStatusObj) {
         <div class="card-meta">
           <span>${stats.total} Lessons</span>
           ${hasSkipped ? `<span>•</span><span class="text-pink flex items-center gap-1"><span class="skipped-dot"></span> ${stats.skipped} Skipped</span>` : ''}
+          ${stats.covered > 0 ? `<span>•</span><span class="text-amber-500 flex items-center gap-1">${stats.covered} Covered</span>` : ''}
         </div>
       </div>
       <div class="card-status-badge flex flex-col items-end gap-1.5">
@@ -621,6 +646,17 @@ function renderNextUpSection(instances, mode, classSyllabus, className) {
   if (mode === 'lessons') {
     const next3 = instances.filter(e => isUpcoming(e.date)).slice(0, 3);
     quickHtml = next3.length > 0 ? `<div class="space-y-1.5 mt-2">` + next3.map(l => {
+      // Covered session
+      if (l.coveredBy) {
+        return `
+          <div class="flex items-center gap-2 opacity-60">
+            <span class="px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wider text-white shadow-sm flex-shrink-0 bg-amber-500">Covered</span>
+            <span class="text-[12px] font-bold truncate flex-1 text-amber-600 dark:text-amber-400">${l.coveredBy}</span> 
+            <span class="text-[10px] text-slate-400 font-semibold whitespace-nowrap">${formatDate(l.date)}</span>
+          </div>
+        `;
+      }
+
       const session = window.Sync.getSessionForDate(className, l.date, allEvents, redDays, syllabusMap, l.startTime);
       const ls = session.lesson?.status || (session.lesson?.is_completed ? 'completed' : 'not_ready');
       const isCompleted = ls === 'completed';
@@ -1077,7 +1113,32 @@ function renderLessonsDrawer(className) {
       lessons.forEach((item, i) => {
         const index = item.originalIndex;
         const inst = allInstances[index];
+        const isCovered = inst && inst.coveredBy;
         const dateHtml = inst ? `<span class="text-[10px] font-bold text-slate-400 ml-2 whitespace-nowrap"><i data-lucide="calendar" class="w-3 h-3 inline"></i> ${formatDate(inst.date)}</span>` : '';
+
+        // If covered, show a special row
+        if (isCovered) {
+          html += `
+            <div class="flex items-center gap-3 p-3 bg-amber-50/50 dark:bg-amber-900/10 border-2 border-amber-200/50 dark:border-amber-700/30 rounded-xl relative opacity-70">
+              <span class="flex-shrink-0 w-16 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider text-center bg-amber-500 text-white border-2 border-dark shadow-neo">
+                Cover
+              </span>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-3">
+                  <span class="text-xs font-black text-slate-300 w-8 flex-shrink-0 flex items-center justify-center bg-slate-50 dark:bg-slate-900 py-1 rounded-md">
+                    ${unitBaseIndex + i}
+                  </span>
+                  <span class="text-sm font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                    <i data-lucide="user-check" class="w-3.5 h-3.5"></i>
+                    ${inst.coveredBy}
+                  </span>
+                  ${dateHtml}
+                </div>
+              </div>
+            </div>
+          `;
+          return;
+        }
 
         const resolvedStatus = item.status || (item.is_completed ? 'completed' : 'not_ready');
         const statusMap = {
