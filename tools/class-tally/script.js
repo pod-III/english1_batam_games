@@ -25,6 +25,16 @@ const ClassTallyApp = (function () {
         await saveProgress('class_tally_sets', { sets: filtered })
     }
 
+    async function updateClassSetInDB(id, data) {
+        const sets = await getAllClassSets();
+        const idx = sets.findIndex(s => s.id === id);
+        if (idx !== -1) {
+            sets[idx].data = data;
+            sets[idx].lastUsed = Date.now();
+            await saveProgress('class_tally_sets', { sets });
+        }
+    }
+
     const State = {
         students: [],
         rules: [],
@@ -45,6 +55,7 @@ const ClassTallyApp = (function () {
         isAutoFit: false,
         showRankings: false,
         editingStudentId: null,
+        activeSetId: null,
 
         // NEW STATE PROPERTY FOR NON-REPEATING PICKER
         pickedQueue: [],
@@ -329,9 +340,15 @@ const ClassTallyApp = (function () {
                 bad: State.currentBad,
                 pickedQueue: State.pickedQueue,
                 cardSize: State.cardSize,
-                isAutoFit: State.isAutoFit
+                isAutoFit: State.isAutoFit,
+                activeSetId: State.activeSetId
             };
             saveProgress('class_tally', dataToSave)
+            
+            // Auto-save to the active set if one exists
+            if (State.activeSetId) {
+                Student.autoSaveActiveSet();
+            }
         },
         load: async () => {
             // Try cloud first, fall back to old localStorage keys (auto-migration)
@@ -353,6 +370,7 @@ const ClassTallyApp = (function () {
                     State.pickedQueue = o.pickedQueue || []
                     State.cardSize = o.cardSize || 1
                     State.isAutoFit = o.isAutoFit || false
+                    State.activeSetId = o.activeSetId || null
                 } catch (e) {
                     console.error('Error loading saved state:', e)
                     State.students = []
@@ -514,6 +532,16 @@ const ClassTallyApp = (function () {
              Audio.playGood();
         },
 
+        autoSaveActiveSet: async () => {
+            if (!State.activeSetId) return;
+            const clone = JSON.parse(JSON.stringify({
+                students: State.students,
+                good: State.currentGood,
+                bad: State.currentBad
+            }));
+            await updateClassSetInDB(State.activeSetId, clone);
+        },
+        
         // MODIFIED: NON-REPEATING PICK RANDOM LOGIC
         pickRandom: () => {
             if (State.students.length === 0) return console.error("Class is empty. Add students first.");
@@ -869,40 +897,135 @@ const ClassTallyApp = (function () {
             nameInput.value = '';
             UI.renderClassSets();
         },
-        loadClassSet: (data) => {
+        loadClassSet: async (set) => {
+            const data = set.data;
             State.students = data.students || [];
             State.currentGood = data.good || '⭐️';
             State.currentBad = data.bad || '⚠️';
             State.pickedQueue = [];
             State.showRankings = false;
+            State.activeSetId = set.id;
+            
+            // Update usage stats
+            const sets = await getAllClassSets();
+            const idx = sets.findIndex(s => s.id === set.id);
+            if (idx !== -1) {
+                sets[idx].usageCount = (sets[idx].usageCount || 0) + 1;
+                sets[idx].lastUsed = Date.now();
+                await saveProgress('class_tally_sets', { sets });
+            }
+
             Persistence.save();
             UI.initEmojiPickers();
             UI.render();
             UI.hideManageClassesModal();
+            UI.updateActiveIndicator();
+        },
+        newSet: () => {
+            State.students = [];
+            State.activeSetId = null;
+            State.pickedQueue = [];
+            State.showRankings = false;
+            Persistence.save();
+            UI.render();
+            UI.hideManageClassesModal();
+            UI.updateActiveIndicator();
+        },
+        updateActiveIndicator: async () => {
+            const indicator = document.getElementById('active-set-indicator');
+            const nameEl = document.getElementById('active-set-name');
+            if (!indicator || !nameEl) return;
+
+            if (State.activeSetId) {
+                const sets = await getAllClassSets();
+                const active = sets.find(s => s.id === State.activeSetId);
+                if (active) {
+                    indicator.classList.remove('hidden');
+                    nameEl.textContent = `Editing: ${active.name}`;
+                } else {
+                    State.activeSetId = null;
+                    indicator.classList.add('hidden');
+                }
+            } else {
+                indicator.classList.add('hidden');
+            }
         },
         renderClassSets: async () => {
             const list = document.getElementById('classes-list');
+            const sortVal = document.getElementById('sets-sort')?.value || 'recent';
             if (!list) return;
-            const sets = await getAllClassSets();
-            if (sets.length === 0) { list.innerHTML = '<p class="text-slate-400 text-xs italic">No saved classes yet.</p>'; return; }
+
+            let sets = await getAllClassSets();
+            
+            // Sorting logic
+            if (sortVal === 'alpha') {
+                sets.sort((a, b) => a.name.localeCompare(b.name));
+            } else if (sortVal === 'used') {
+                sets.sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0));
+            } else {
+                // Recent
+                sets.sort((a, b) => (b.lastUsed || b.createdAt || 0) - (a.lastUsed || a.createdAt || 0));
+            }
+
+            if (sets.length === 0) { 
+                list.innerHTML = `
+                    <div class="flex flex-col items-center justify-center py-8 text-slate-400 opacity-60">
+                        <i data-lucide="folder-search" class="w-8 h-8 mb-2"></i>
+                        <p class="text-xs italic font-bold">No saved classes yet.</p>
+                    </div>
+                `; 
+                lucide.createIcons();
+                return; 
+            }
+
             list.innerHTML = '';
             sets.forEach(set => {
+                const isActive = set.id === State.activeSetId;
+                const activeClass = isActive ? 'border-brand-orange ring-2 ring-brand-orange/10 bg-orange-50/30' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-700';
+                
                 const item = document.createElement('div');
-                item.className = 'flex items-center gap-2 p-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-700 rounded-xl hover:border-brand-blue/40 transition-all';
+                item.className = `flex items-center gap-3 p-3 border rounded-2xl hover:border-brand-blue/40 transition-all group ${activeClass}`;
                 const count = set.data?.students?.length || 0;
+                const usage = set.usageCount || 0;
+                
                 item.innerHTML = `
-                    <div class="flex-1 min-w-0">
-                        <p class="text-sm font-bold text-slate-700 dark:text-white truncate">${set.name}</p>
-                        <p class="text-[10px] text-slate-400 truncate">${count} student(s)</p>
+                    <div class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-lg shrink-0 border border-black/5">
+                        ${isActive ? '🔥' : '🏫'}
                     </div>
-                    <button class="set-load p-1.5 bg-brand-blue/10 text-brand-blue rounded-lg border border-brand-blue/20 hover:bg-brand-blue hover:text-white transition-all" title="Load">
-                        <i data-lucide="upload" class="w-3.5 h-3.5 pointer-events-none"></i>
-                    </button>
-                    <button class="set-del p-1.5 bg-brand-pink/10 text-brand-pink rounded-lg border border-brand-pink/20 hover:bg-brand-pink hover:text-white transition-all" title="Delete">
-                        <i data-lucide="trash-2" class="w-3.5 h-3.5 pointer-events-none"></i>
-                    </button>`;
-                item.querySelector('.set-load').onclick = () => UI.loadClassSet(set.data);
-                item.querySelector('.set-del').onclick = async () => { await deleteClassSet(set.id); UI.renderClassSets(); };
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2">
+                            <p class="text-sm font-black text-slate-700 dark:text-white truncate">${set.name}</p>
+                            ${isActive ? '<span class="text-[7px] font-black bg-brand-orange text-white px-1.5 py-0.5 rounded-full">ACTIVE</span>' : ''}
+                        </div>
+                        <div class="flex items-center gap-2 mt-0.5">
+                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">${count} Students</p>
+                            <span class="w-1 h-1 rounded-full bg-slate-300"></span>
+                            <p class="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">${usage} Plays</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <button class="set-load p-2 bg-brand-blue/10 text-brand-blue rounded-xl border border-brand-blue/20 hover:bg-brand-blue hover:text-white transition-all transform active:scale-90" title="Load Class">
+                            <i data-lucide="upload" class="w-4 h-4 pointer-events-none"></i>
+                        </button>
+                        <button class="set-del p-2 bg-slate-100 dark:bg-slate-800 text-slate-400 hover:bg-brand-pink hover:text-white rounded-xl border border-slate-100 dark:border-slate-700 transition-all transform active:scale-90" title="Delete">
+                            <i data-lucide="trash-2" class="w-4 h-4 pointer-events-none"></i>
+                        </button>
+                    </div>`;
+                
+                item.querySelector('.set-load').onclick = () => UI.loadClassSet(set);
+                item.querySelector('.set-del').onclick = async (e) => { 
+                    e.stopPropagation();
+                    UI.showConfirmationModal('Delete Class?', `Are you sure you want to delete "${set.name}"?`, 'Delete', async (y) => {
+                        if (y) {
+                            await deleteClassSet(set.id);
+                            if (State.activeSetId === set.id) {
+                                State.activeSetId = null;
+                                UI.updateActiveIndicator();
+                            }
+                            UI.renderClassSets();
+                        }
+                    });
+                };
                 list.appendChild(item);
             });
             lucide.createIcons();
@@ -1223,6 +1346,7 @@ const ClassTallyApp = (function () {
             document.addEventListener('click', UI.closeAllDropdowns);
             document.getElementById('btn-sound').innerHTML = State.soundEnabled ? '<i data-lucide="volume-2" class="w-5 h-5"></i>' : '<i data-lucide="volume-x" class="w-5 h-5 text-red-400"></i>';
             lucide.createIcons();
+            UI.updateActiveIndicator();
         },
         Student, Teams, UI, Timer, CanvasDraw, Keyboard
     };

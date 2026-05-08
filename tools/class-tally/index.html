@@ -113,7 +113,10 @@
                     <div class="flex flex-col">
                         <h1 class="text-xl md:text-2xl font-black tracking-tight text-slate-800 dark:text-white leading-none"
                             id="class-title-display">Class Tally</h1>
-                        <span class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">KlassKit</span>
+                        <div id="active-set-indicator" class="hidden mt-1 flex items-center gap-1.5 overflow-hidden">
+                            <span class="w-1.5 h-1.5 rounded-full bg-brand-orange animate-pulse"></span>
+                            <span id="active-set-name" class="text-[9px] font-bold text-brand-orange uppercase truncate max-w-[120px]">Editing: Class Name</span>
+                        </div>
                     </div>
                 </div>
 
@@ -477,19 +480,27 @@
     <div id="manage-classes-modal"
         class="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-[100] hidden flex items-center justify-center p-4 transition-opacity duration-300 opacity-0">
         <div class="bg-white dark:bg-slate-800 w-full max-w-2xl rounded-[2.5rem] p-0 shadow-2xl animate-pop-in flex flex-col max-h-[85vh] overflow-hidden ring-1 ring-white/50">
-            <div class="px-8 py-6 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/80 dark:bg-slate-900/80">
-                <div>
-                    <h3 class="text-2xl font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-3">
+                <div class="px-8 py-6 border-b border-slate-100 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-start sm:items-center bg-slate-50/80 dark:bg-slate-900/80 gap-4">
+                    <div class="flex items-center gap-3">
                         <span class="bg-brand-blue/10 text-brand-blue p-2 rounded-xl"><i data-lucide="folder" class="w-6 h-6"></i></span>
-                        Class Manager
-                    </h3>
-                    <p class="text-slate-500 dark:text-slate-400 text-sm font-medium pl-12">Bulk import or load saved sets</p>
+                        <div>
+                            <h3 class="text-2xl font-black text-slate-800 dark:text-white tracking-tight leading-tight">Class Manager</h3>
+                            <p class="text-slate-500 dark:text-slate-400 text-[10px] font-bold uppercase tracking-wider">Sync & Manage Sets</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3 w-full sm:w-auto">
+                        <label class="text-[8px] font-black text-slate-400 uppercase tracking-tighter">Sort By:</label>
+                        <select id="sets-sort" onchange="ClassTallyApp.UI.renderClassSets()" class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-bold py-1.5 px-3 outline-none text-slate-600 dark:text-slate-300 cursor-pointer flex-1 sm:flex-none">
+                            <option value="recent">RECENT</option>
+                            <option value="alpha">A-Z</option>
+                            <option value="used">POPULAR</option>
+                        </select>
+                        <button onclick="ClassTallyApp.UI.hideManageClassesModal()"
+                            class="w-9 h-9 flex items-center justify-center rounded-xl bg-white dark:bg-slate-700 text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors shadow-sm border border-slate-100 dark:border-slate-600">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </div>
                 </div>
-                <button onclick="ClassTallyApp.UI.hideManageClassesModal()"
-                    class="w-10 h-10 flex items-center justify-center rounded-full bg-white dark:bg-slate-700 text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-600 transition-colors shadow-sm border border-slate-100 dark:border-slate-600">
-                    <i data-lucide="x" class="w-5 h-5"></i>
-                </button>
-            </div>
             
             <div class="overflow-y-auto p-8 custom-scrollbar bg-white dark:bg-slate-800 flex-1">
                 <div class="flex bg-slate-100 dark:bg-slate-700 p-1.5 rounded-2xl mb-8">
@@ -500,13 +511,21 @@
                 </div>
 
                 <div id="mgr-content-saved" class="tab-mgr-content animate-slide-up">
-                    <div class="flex gap-2 mb-4">
-                        <input id="class-set-name" type="text" placeholder="Save current classroom as..."
-                            class="flex-1 px-4 py-3 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white font-bold text-sm border-2 border-slate-100 dark:border-slate-600 rounded-2xl focus:border-brand-blue outline-none transition-colors" />
-                        <button onclick="ClassTallyApp.UI.saveCurrentClass()"
-                            class="bg-brand-blue text-white px-6 py-3 rounded-2xl text-sm font-bold active:scale-95 transition-transform flex items-center gap-2 shadow-sm shadow-blue-500/20">
-                            <i data-lucide="save" class="w-4 h-4"></i> Save
-                        </button>
+                    <div class="flex flex-col gap-2 mb-6">
+                        <div class="relative w-full">
+                            <input id="class-set-name" type="text" placeholder="Class name..."
+                                class="w-full px-4 py-3 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white font-bold text-sm border-2 border-slate-100 dark:border-slate-600 rounded-2xl focus:border-brand-blue outline-none transition-colors" />
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="ClassTallyApp.UI.newSet()"
+                                class="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold py-2.5 px-4 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-all flex items-center justify-center gap-2 text-xs">
+                                <i data-lucide="plus-circle" class="w-4 h-4"></i> NEW CLASS
+                            </button>
+                            <button onclick="ClassTallyApp.UI.saveCurrentClass()"
+                                class="bg-brand-blue text-white font-bold py-2.5 px-4 rounded-xl hover:bg-blue-600 transition-all flex items-center justify-center gap-2 text-xs shadow-sm shadow-blue-500/20">
+                                <i data-lucide="save" class="w-4 h-4"></i> SAVE AS NEW
+                            </button>
+                        </div>
                     </div>
                     <div class="bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-700 p-2 min-h-[160px]">
                         <div id="classes-list" class="space-y-1.5 max-h-[300px] overflow-y-auto custom-scrollbar p-1">
