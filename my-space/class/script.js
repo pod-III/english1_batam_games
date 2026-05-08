@@ -244,6 +244,7 @@ const ClassManager = {
       if (!cd.attendance) cd.attendance = {};
       if (!cd.skills) cd.skills = [];
       if (!cd.studentSkills) cd.studentSkills = {};
+      if (!cd.skillSnapshots) cd.skillSnapshots = {};
     }
     
     this.renderClassSelectors();
@@ -687,7 +688,7 @@ const StudentManager = {
       const skillValues = Object.values(studentSkills);
       const avgSkill = skillValues.length > 0 ? (skillValues.reduce((a, b) => a + b, 0) / skillValues.length).toFixed(1) : '—';
       const lowSkills = Object.entries(studentSkills)
-        .filter(([id, val]) => val > 0 && val <= 2)
+        .filter(([id, val]) => val > 0 && val <= 3)
         .map(([id, val]) => classData.skills.find(sk => sk.id === id)?.name)
         .filter(Boolean);
 
@@ -923,6 +924,51 @@ const StudentManager = {
     document.getElementById('progressTopSkill').textContent = topSkill;
     document.getElementById('progressNotes').innerHTML = student.notes || '<span class="italic opacity-60">No notes yet.</span>';
 
+    // Snapshot Timeline
+    const timeline = document.getElementById('progressSnapshotTimeline');
+    const snapshots = classData.skillSnapshots?.[id] || [];
+    if (snapshots.length === 0) {
+      timeline.innerHTML = '<p class="text-xs text-slate-400 italic">No snapshots yet. Open the Skills tab and click the camera button to save one.</p>';
+    } else {
+      timeline.innerHTML = snapshots.slice().reverse().map((snap, idx, arr) => {
+        const d = new Date(snap.date);
+        const dateStr = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+        const timeStr = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+        const snapSkillEntries = Object.entries(snap.ratings || {}).filter(([skid, val]) => val > 0);
+        const avgSnap = snapSkillEntries.length > 0
+          ? (snapSkillEntries.reduce((a, b) => a + b[1], 0) / snapSkillEntries.length).toFixed(1)
+          : '—';
+        return `
+          <div class="flex gap-3">
+            <div class="flex flex-col items-center gap-1 pt-1">
+              <div class="w-2.5 h-2.5 rounded-full bg-green border-2 border-white dark:border-slate-900 shadow-sm"></div>
+              ${idx < arr.length - 1 ? '<div class="w-0.5 flex-1 bg-slate-200 dark:bg-slate-700"></div>' : '<div class="w-0.5 flex-1"></div>'}
+            </div>
+            <div class="flex-1 pb-4">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">${dateStr}</span>
+                <span class="text-[9px] font-bold text-slate-400">${timeStr}</span>
+              </div>
+              <div class="bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-100 dark:border-slate-700/50 p-3">
+                <div class="flex flex-wrap gap-2 mb-2">
+                  ${snapSkillEntries.slice(0, 6).map(([skid, val]) => {
+                    const skName = skills.find(s => s.id === skid)?.name || '?';
+                    return `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue/10 text-blue border border-blue/20">${skName}: ${val}</span>`;
+                  }).join('')}
+                  ${snapSkillEntries.length > 6 ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">+${snapSkillEntries.length - 6} more</span>` : ''}
+                </div>
+                ${snap.notes ? `<p class="text-[11px] text-slate-500 dark:text-slate-400 italic leading-relaxed">${snap.notes}</p>` : ''}
+                <div class="mt-1.5 flex items-center gap-2">
+                  <span class="text-[9px] font-black text-slate-400 uppercase tracking-wider">Avg</span>
+                  <span class="text-xs font-black text-blue">${avgSnap}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
     // Skill bars
     const barsContainer = document.getElementById('progressSkillBars');
     if (skills.length === 0) {
@@ -930,8 +976,8 @@ const StudentManager = {
     } else {
       barsContainer.innerHTML = skills.map(sk => {
         const val = studentSkills[sk.id] || 0;
-        const pct = (val / 5) * 100;
-        const color = sk.type === 'input' ? 'bg-blue' : 'bg-pink';
+        const pct = (val / 10) * 100;
+        const color = 'bg-blue';
         return `
           <div class="flex items-center gap-3">
             <span class="text-[10px] font-black uppercase text-slate-500 w-24 text-right tracking-wider flex-shrink-0">${sk.name}</span>
@@ -1577,8 +1623,6 @@ const AttendanceManager = {
 };
 
 const SkillsManager = {
-  skillType: 'input',
-
   render() {
     const content = document.getElementById('skillsContent');
     const empty = document.getElementById('noSkillsState');
@@ -1587,6 +1631,7 @@ const SkillsManager = {
     if (!classData) return;
     if (!classData.skills) classData.skills = [];
     if (!classData.studentSkills) classData.studentSkills = {};
+    if (!classData.skillSnapshots) classData.skillSnapshots = {};
 
     if (classData.skills.length === 0) {
       content.innerHTML = '';
@@ -1595,38 +1640,40 @@ const SkillsManager = {
     }
 
     empty.classList.add('hidden');
+    const skills = classData.skills;
+    const snapshots = classData.skillSnapshots;
 
-    const inputSkills = classData.skills.filter(s => s.type === 'input');
-    const outputSkills = classData.skills.filter(s => s.type === 'output');
-
-    const renderSkillSection = (title, skills, typeClass, icon) => {
-      if (skills.length === 0) return '';
-      return `
-        <div class="glass-panel border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-[var(--radius-2xl)] overflow-hidden p-4 space-y-4">
+    content.innerHTML = `
+      <div class="glass-panel border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-[var(--radius-2xl)] overflow-hidden p-4 space-y-4">
+        <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <i data-lucide="${icon}" class="w-4 h-4 text-${typeClass === 'input' ? 'blue' : 'pink'}"></i>
-            <h4 class="font-heading font-bold text-sm uppercase tracking-tight text-slate-800 dark:text-white">${title}</h4>
-            <span class="skill-badge ${typeClass}">${skills.length} skills</span>
+            <i data-lucide="target" class="w-4 h-4 text-pink"></i>
+            <h4 class="font-heading font-bold text-sm uppercase tracking-tight text-slate-800 dark:text-white">Class Skills</h4>
+            <span class="skill-badge input">${skills.length} skills</span>
           </div>
-          <div class="overflow-x-auto">
-            <table class="w-full border-collapse">
-              <thead>
-                <tr class="bg-slate-50 dark:bg-slate-800/50">
-                  <th class="text-left !text-[9px] !py-2 !px-3 min-w-[120px]">Student</th>
-                  ${skills.map(sk => `
-                    <th class="text-center !text-[9px] !py-2 !px-3 min-w-[80px]">
-                      <div class="flex flex-col items-center gap-0.5">
-                        <span>${sk.name}</span>
-                        <button onclick="SkillsManager.deleteSkill('${sk.id}')" class="text-slate-300 hover:text-pink transition-colors">
-                          <i data-lucide="x" class="w-3 h-3"></i>
-                        </button>
-                      </div>
-                    </th>
-                  `).join('')}
-                </tr>
-              </thead>
-              <tbody>
-                ${classData.students.map(student => `
+        </div>
+        <div class="overflow-x-auto custom-scrollbar">
+          <table class="w-full border-collapse">
+            <thead>
+              <tr class="bg-slate-50 dark:bg-slate-800/50">
+                <th class="text-left !text-[9px] !py-2 !px-3 min-w-[100px]">Student</th>
+                ${skills.map(sk => `
+                  <th class="text-center !text-[9px] !py-2 !px-2 min-w-[90px]">
+                    <div class="flex flex-col items-center gap-0.5">
+                      <span>${sk.name}</span>
+                      <button onclick="SkillsManager.deleteSkill('${sk.id}')" class="text-slate-300 hover:text-pink transition-colors">
+                        <i data-lucide="x" class="w-3 h-3"></i>
+                      </button>
+                    </div>
+                  </th>
+                `).join('')}
+                <th class="text-center !text-[9px] !py-2 !px-2 min-w-[100px]">Snapshot</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${classData.students.map(student => {
+                const snapCount = (snapshots[student.id] || []).length;
+                return `
                   <tr class="border-b border-[var(--bg-tertiary)] dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
                     <td class="!py-2 !px-3">
                       <span class="text-xs font-bold text-slate-700 dark:text-slate-300">${student.nick || student.name}</span>
@@ -1634,50 +1681,36 @@ const SkillsManager = {
                     ${skills.map(sk => {
                       const level = classData.studentSkills[student.id]?.[sk.id] || 0;
                       return `
-                        <td class="!py-2 !px-3 text-center">
-                          <div class="flex items-center justify-center gap-0.5">
-                            ${[1,2,3,4,5].map(n => `
-                              <button onclick="SkillsManager.setLevel('${student.id}','${sk.id}',${n})"
-                                class="w-5 h-5 rounded-md text-[9px] font-black transition-all
-                                ${n <= level
-                                  ? `bg-${typeClass === 'input' ? 'blue' : 'pink'} text-white border border-${typeClass === 'input' ? 'blue' : 'pink'}/30`
-                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700'
-                                }">${n}</button>
-                            `).join('')}
+                        <td class="!py-2 !px-2 text-center">
+                          <div class="flex items-center justify-center gap-1">
+                            <button onclick="SkillsManager.adjustLevel('${student.id}','${sk.id}',-1)" class="w-5 h-5 rounded bg-slate-100 dark:bg-slate-800 text-slate-400 text-[8px] font-black hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center">-</button>
+                            <input type="number" min="0" max="10" value="${level}"
+                              onchange="SkillsManager.setLevel('${student.id}','${sk.id}',parseInt(this.value)||0)"
+                              class="skill-rating-input w-8 h-6 text-center text-[11px] font-black bg-transparent border border-slate-200 dark:border-slate-700 rounded focus:border-blue focus:outline-none text-slate-700 dark:text-slate-200">
+                            <button onclick="SkillsManager.adjustLevel('${student.id}','${sk.id}',1)" class="w-5 h-5 rounded bg-slate-100 dark:bg-slate-800 text-slate-400 text-[8px] font-black hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center">+</button>
                           </div>
                         </td>
                       `;
                     }).join('')}
+                    <td class="!py-2 !px-2 text-center">
+                      <button onclick="SkillsManager.openSnapshot('${student.id}')" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-green/10 text-green border border-green/20 text-[9px] font-black uppercase hover:bg-green/20 transition-colors">
+                        <i data-lucide="camera" class="w-3 h-3"></i>
+                        <span>${snapCount}</span>
+                      </button>
+                    </td>
                   </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
         </div>
-      `;
-    };
-
-    content.innerHTML = 
-      renderSkillSection('Input Skills (Receptive)', inputSkills, 'input', 'ear') +
-      renderSkillSection('Output Skills (Productive)', outputSkills, 'output', 'megaphone');
+      </div>
+    `;
 
     if (window.lucide) lucide.createIcons();
   },
 
-  setSkillType(type) {
-    this.skillType = type;
-    const isInput = type === 'input';
-    document.getElementById('skillType-input').className = isInput
-      ? 'flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all bg-blue text-white shadow-neo-sm'
-      : 'flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all text-slate-400';
-    document.getElementById('skillType-output').className = !isInput
-      ? 'flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all bg-pink text-white shadow-neo-sm'
-      : 'flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all text-slate-400';
-  },
-
   openAddSkill() {
-    this.skillType = 'input';
-    this.setSkillType('input');
     document.getElementById('skillNameInput').value = '';
     ModalManager.open('skillModal');
     setTimeout(() => document.getElementById('skillNameInput').focus(), 100);
@@ -1693,24 +1726,28 @@ const SkillsManager = {
     classData.skills.push({
       id: crypto.randomUUID(),
       name,
-      type: this.skillType,
       createdAt: new Date().toISOString()
     });
 
     ClassManager.saveData();
     ModalManager.closeAll();
     this.render();
-    UI.showToast(`${this.skillType === 'input' ? 'Input' : 'Output'} skill added!`, 'success');
+    UI.showToast('Skill added!', 'success');
   },
 
   deleteSkill(skillId) {
-    if (!confirm('Delete this skill? All student ratings will be lost.')) return;
+    if (!confirm('Delete this skill? All student ratings and snapshot history will be lost.')) return;
     const classData = ClassManager.data.classes[ClassManager.activeClass];
     classData.skills = classData.skills.filter(s => s.id !== skillId);
-    // Clean up student skill data
     if (classData.studentSkills) {
       Object.keys(classData.studentSkills).forEach(sid => {
         delete classData.studentSkills[sid][skillId];
+      });
+    }
+    // Remove skill from all snapshots
+    if (classData.skillSnapshots) {
+      Object.values(classData.skillSnapshots).forEach(snapList => {
+        snapList.forEach(snap => delete snap.ratings[skillId]);
       });
     }
     ClassManager.saveData();
@@ -1719,19 +1756,72 @@ const SkillsManager = {
   },
 
   setLevel(studentId, skillId, level) {
+    level = Math.max(0, Math.min(10, level));
     const classData = ClassManager.data.classes[ClassManager.activeClass];
     if (!classData.studentSkills) classData.studentSkills = {};
     if (!classData.studentSkills[studentId]) classData.studentSkills[studentId] = {};
-
-    // Toggle off if same level clicked
-    if (classData.studentSkills[studentId][skillId] === level) {
-      classData.studentSkills[studentId][skillId] = 0;
-    } else {
-      classData.studentSkills[studentId][skillId] = level;
-    }
-
+    classData.studentSkills[studentId][skillId] = level;
     ClassManager.saveData();
     this.render();
+  },
+
+  adjustLevel(studentId, skillId, delta) {
+    const classData = ClassManager.data.classes[ClassManager.activeClass];
+    const current = classData.studentSkills?.[studentId]?.[skillId] || 0;
+    this.setLevel(studentId, skillId, current + delta);
+  },
+
+  openSnapshot(studentId) {
+    const classData = ClassManager.data.classes[ClassManager.activeClass];
+    const student = classData.students.find(s => s.id === studentId);
+    if (!student) return;
+
+    const ratings = classData.studentSkills?.[studentId] || {};
+    const skills = classData.skills || [];
+
+    document.getElementById('snapshotStudentId').value = studentId;
+    document.getElementById('snapshotNotesInput').value = '';
+
+    const preview = document.getElementById('snapshotPreviewSkills');
+    if (skills.length === 0) {
+      preview.innerHTML = '<span class="text-xs text-slate-400 italic">No skills defined</span>';
+    } else {
+      preview.innerHTML = skills.map(sk => {
+        const val = ratings[sk.id] || 0;
+        return `
+          <div class="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-bold">
+            <span class="text-slate-500">${sk.name}</span>
+            <span class="text-blue font-black">${val}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    ModalManager.open('snapshotModal');
+    if (window.lucide) lucide.createIcons();
+  },
+
+  saveSnapshot() {
+    const studentId = document.getElementById('snapshotStudentId').value;
+    const notes = document.getElementById('snapshotNotesInput').value.trim();
+    const classData = ClassManager.data.classes[ClassManager.activeClass];
+    if (!studentId || !classData) return;
+
+    if (!classData.skillSnapshots) classData.skillSnapshots = {};
+    if (!classData.skillSnapshots[studentId]) classData.skillSnapshots[studentId] = [];
+
+    const ratings = { ...(classData.studentSkills?.[studentId] || {}) };
+
+    classData.skillSnapshots[studentId].push({
+      date: new Date().toISOString(),
+      ratings,
+      notes
+    });
+
+    ClassManager.saveData();
+    ModalManager.closeAll();
+    this.render();
+    UI.showToast('Snapshot saved!', 'success');
   }
 };
 

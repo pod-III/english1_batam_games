@@ -356,7 +356,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h3 class="font-heading font-bold text-xl text-slate-900 dark:text-white uppercase tracking-tight">Skills Tracker</h3>
-            <p class="text-[10px] font-bold text-slate-400 mt-1">Track input & output skills per student</p>
+            <p class="text-[10px] font-bold text-slate-400 mt-1">Track skills per student on a 1-10 scale and save snapshots</p>
           </div>
           <button onclick="SkillsManager.openAddSkill()" class="btn-chunky bg-pink text-white px-4 py-2 rounded-xl border-[var(--border-width-medium)] border-[var(--border-primary)] text-[10px] font-black uppercase shadow-neo-sm flex items-center gap-2">
             <i data-lucide="plus" class="w-4 h-4"></i> Add Skill
@@ -367,7 +367,7 @@
             <i data-lucide="target" class="w-8 h-8"></i>
           </div>
           <h3 class="font-heading font-bold text-lg text-slate-900 dark:text-white uppercase">No Skills Defined</h3>
-          <p class="text-slate-500 text-xs mt-1">Define input and output skills to track student progress.</p>
+          <p class="text-slate-500 text-xs mt-1">Add skills to track student progress and take snapshots over time.</p>
         </div>
         <div id="skillsContent" class="space-y-6">
           <!-- Skills grid injected by JS -->
@@ -612,18 +612,40 @@
         <label class="text-[10px] font-black uppercase text-slate-400 ml-1">Skill Name</label>
         <input type="text" id="skillNameInput" placeholder="e.g. Reading Comprehension" class="input-chunky">
       </div>
-      <div class="space-y-2">
-        <label class="text-[10px] font-black uppercase text-slate-400 ml-1">Skill Type</label>
-        <div class="flex p-1 bg-[var(--bg-tertiary)] dark:bg-slate-800 rounded-2xl border-[var(--border-width-thick)] border-[var(--border-primary)] shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)]">
-          <button onclick="SkillsManager.setSkillType('input')" id="skillType-input" class="flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all bg-blue text-white shadow-neo-sm">Input</button>
-          <button onclick="SkillsManager.setSkillType('output')" id="skillType-output" class="flex-1 py-2.5 rounded-xl font-black text-[10px] uppercase transition-all text-slate-400">Output</button>
-        </div>
-        <p class="text-[9px] font-bold text-slate-400 ml-1 italic">Input = receptive skills (listening, reading). Output = productive skills (speaking, writing).</p>
-      </div>
     </div>
     <div class="pt-6 flex gap-3">
       <button onclick="ModalManager.closeAll()" class="btn-chunky flex-1 bg-[var(--bg-tertiary)] dark:bg-slate-800 border-[var(--border-width-thick)] border-[var(--border-primary)] font-black uppercase py-4 rounded-2xl shadow-neo-sm">Cancel</button>
       <button onclick="SkillsManager.saveSkill()" class="btn-chunky flex-1 bg-pink text-white border-[var(--border-width-thick)] border-[var(--border-primary)] font-black uppercase py-4 rounded-2xl shadow-neo">Add Skill</button>
+    </div>
+  </div>
+
+  <!-- Snapshot Modal -->
+  <div id="snapshotModal" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-[var(--surface-card)] dark:bg-slate-900/95 border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-[var(--radius-2xl)] p-6 z-[60] hidden opacity-0 transition-all duration-300 scale-95 shadow-neo backdrop-blur-xl">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="font-heading font-bold text-xl text-slate-900 dark:text-white uppercase flex items-center gap-3">
+        <i data-lucide="camera" class="w-6 h-6 text-green"></i> Snapshot
+      </h2>
+      <button onclick="ModalManager.closeAll()" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+        <i data-lucide="x" class="w-6 h-6"></i>
+      </button>
+    </div>
+    <p class="text-[10px] font-black uppercase text-slate-400 mb-2 ml-1">Save current skill ratings with notes</p>
+    <input type="hidden" id="snapshotStudentId">
+    <div class="space-y-3">
+      <div class="space-y-2">
+        <label class="text-[10px] font-black uppercase text-slate-400 ml-1">Notes (optional)</label>
+        <textarea id="snapshotNotesInput" placeholder="e.g. Midterm assessment, showed improvement in listening..." class="input-chunky min-h-[80px] resize-none text-sm"></textarea>
+      </div>
+      <div id="snapshotPreview" class="bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 p-3">
+        <span class="text-[9px] font-black uppercase text-slate-400 tracking-wider">Current Ratings</span>
+        <div id="snapshotPreviewSkills" class="flex flex-wrap gap-2 mt-2">
+          <!-- Injected by JS -->
+        </div>
+      </div>
+    </div>
+    <div class="pt-6 flex gap-3">
+      <button onclick="ModalManager.closeAll()" class="btn-chunky flex-1 bg-[var(--bg-tertiary)] dark:bg-slate-800 border-[var(--border-width-thick)] border-[var(--border-primary)] font-black uppercase py-3 rounded-2xl shadow-neo-sm">Cancel</button>
+      <button onclick="SkillsManager.saveSnapshot()" class="btn-chunky flex-1 bg-green text-white border-[var(--border-width-thick)] border-[var(--border-primary)] font-black uppercase py-3 rounded-2xl shadow-neo">Save Snapshot</button>
     </div>
   </div>
 
@@ -683,6 +705,16 @@
       </h3>
       <div id="progressSkillBars" class="space-y-3">
         <!-- Bars injected here -->
+      </div>
+    </div>
+
+    <!-- Snapshot Timeline -->
+    <div class="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800">
+      <h3 class="font-heading font-bold text-sm uppercase text-slate-500 tracking-widest mb-4 flex items-center gap-2">
+        <i data-lucide="camera" class="w-4 h-4 text-green"></i> Snapshot History
+      </h3>
+      <div id="progressSnapshotTimeline" class="space-y-3">
+        <!-- Timeline items injected here -->
       </div>
     </div>
 
