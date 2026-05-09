@@ -22,7 +22,9 @@ const CONFIG = {
     homeView: "klasskit_homeView",
     viewMode: "klasskit_viewMode",
     lastReadAnn: "klasskit_lastReadAnn",
-    recentCollapsed: "klasskit_recentCollapsed"
+    recentCollapsed: "klasskit_recentCollapsed",
+    timerVisible: "klasskit_timerVisible",
+    timerPosition: "klasskit_timerPosition"
   }
 };
 
@@ -2423,6 +2425,186 @@ const TabManager = {
   }
 };
 
+// --- UNIVERSAL TIMER ---
+const Timer = {
+  el: null,
+  running: false,
+  elapsed: 0,
+  lastTick: 0,
+  intervalId: null,
+  drag: { active: false, offsetX: 0, offsetY: 0 },
+
+  init() {
+    if (this.el) return;
+
+    const timer = document.createElement('div');
+    timer.id = 'universal-timer';
+    timer.className = 'universal-timer hidden';
+    timer.innerHTML = `
+      <div class="timer-drag-handle" title="Drag to move">
+        <i data-lucide="grip-vertical" class="w-3 h-3 opacity-50"></i>
+        <span>Timer</span>
+      </div>
+      <div class="timer-display">00:00</div>
+      <div class="timer-controls">
+        <button class="timer-btn timer-play" title="Start" aria-label="Start timer">
+          <i data-lucide="play" class="w-4 h-4"></i>
+        </button>
+        <button class="timer-btn timer-pause hidden" title="Pause" aria-label="Pause timer">
+          <i data-lucide="pause" class="w-4 h-4"></i>
+        </button>
+        <button class="timer-btn timer-reset" title="Reset" aria-label="Reset timer">
+          <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+        </button>
+      </div>
+    `;
+    document.body.appendChild(timer);
+    this.el = timer;
+
+    // Restore state
+    const visible = Storage.get(CONFIG.storageKeys.timerVisible);
+    if (visible) this.show();
+
+    const pos = Storage.get(CONFIG.storageKeys.timerPosition);
+    if (pos && typeof pos.x === 'number' && typeof pos.y === 'number') {
+      timer.style.left = `${pos.x}px`;
+      timer.style.top = `${pos.y}px`;
+      timer.style.right = 'auto';
+      timer.style.bottom = 'auto';
+    }
+
+    this.bindEvents();
+    Utils.refreshIcons(timer);
+  },
+
+  bindEvents() {
+    if (!this.el) return;
+    const handle = this.el.querySelector('.timer-drag-handle');
+    const playBtn = this.el.querySelector('.timer-play');
+    const pauseBtn = this.el.querySelector('.timer-pause');
+    const resetBtn = this.el.querySelector('.timer-reset');
+
+    handle.addEventListener('mousedown', (e) => {
+      this.drag.active = true;
+      const rect = this.el.getBoundingClientRect();
+      this.drag.offsetX = e.clientX - rect.left;
+      this.drag.offsetY = e.clientY - rect.top;
+      this.el.style.cursor = 'grabbing';
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!this.drag.active) return;
+      let x = e.clientX - this.drag.offsetX;
+      let y = e.clientY - this.drag.offsetY;
+      const maxX = window.innerWidth - this.el.offsetWidth;
+      const maxY = window.innerHeight - this.el.offsetHeight;
+      x = Math.max(0, Math.min(x, maxX));
+      y = Math.max(0, Math.min(y, maxY));
+      this.el.style.left = `${x}px`;
+      this.el.style.top = `${y}px`;
+      this.el.style.right = 'auto';
+      this.el.style.bottom = 'auto';
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (this.drag.active) {
+        this.drag.active = false;
+        this.el.style.cursor = '';
+        const rect = this.el.getBoundingClientRect();
+        Storage.set(CONFIG.storageKeys.timerPosition, { x: rect.left, y: rect.top });
+      }
+    });
+
+    playBtn?.addEventListener('click', (e) => { e.stopPropagation(); this.start(); });
+    pauseBtn?.addEventListener('click', (e) => { e.stopPropagation(); this.pause(); });
+    resetBtn?.addEventListener('click', (e) => { e.stopPropagation(); this.reset(); });
+  },
+
+  toggle() {
+    const wasHidden = !this.el || this.el.classList.contains('hidden');
+    if (!this.el) this.init();
+    if (wasHidden) {
+      this.show();
+    } else {
+      this.hide();
+    }
+    AudioEngine.click();
+  },
+
+  show() {
+    if (!this.el) this.init();
+    this.el.classList.remove('hidden');
+    this.el.classList.add('animate-pop-in');
+    Storage.set(CONFIG.storageKeys.timerVisible, true);
+    Utils.refreshIcons(this.el);
+  },
+
+  hide() {
+    if (!this.el) return;
+    this.el.classList.add('hidden');
+    this.el.classList.remove('animate-pop-in');
+    Storage.set(CONFIG.storageKeys.timerVisible, false);
+  },
+
+  start() {
+    if (this.running) return;
+    this.running = true;
+    this.lastTick = performance.now();
+    this.intervalId = setInterval(() => this.tick(), 100);
+    this.updatePlayPauseUI();
+    AudioEngine.click();
+  },
+
+  pause() {
+    if (!this.running) return;
+    this.running = false;
+    clearInterval(this.intervalId);
+    this.intervalId = null;
+    this.updatePlayPauseUI();
+    AudioEngine.click();
+  },
+
+  reset() {
+    this.pause();
+    this.elapsed = 0;
+    this.updateDisplay();
+    AudioEngine.click();
+  },
+
+  tick() {
+    const now = performance.now();
+    this.elapsed += now - this.lastTick;
+    this.lastTick = now;
+    this.updateDisplay();
+  },
+
+  updateDisplay() {
+    const totalSeconds = Math.floor(this.elapsed / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    const display = this.el?.querySelector('.timer-display');
+    if (!display) return;
+
+    if (hours > 0) {
+      display.textContent = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    } else {
+      display.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+  },
+
+  updatePlayPauseUI() {
+    if (!this.el) return;
+    const playBtn = this.el.querySelector('.timer-play');
+    const pauseBtn = this.el.querySelector('.timer-pause');
+    if (playBtn) playBtn.classList.toggle('hidden', this.running);
+    if (pauseBtn) pauseBtn.classList.toggle('hidden', !this.running);
+    this.el.classList.toggle('running', this.running);
+  }
+};
+
 // --- GAME MODAL ---
 const GameModal = {
   open(gameId, element = null) {
@@ -2721,6 +2903,7 @@ const App = {
       toggleSplitScreen: () => TabManager.toggleSplitScreen(),
       toggleFocus: () => UI.toggleFocus(),
       toggleSettings: () => UI.toggleSettings(),
+      toggleTimer: () => Timer.toggle(),
       toggleInfo: () => GameModal.toggleInfo(),
       openWorkspace: () => {
         AudioEngine.click();
@@ -2903,6 +3086,7 @@ async function initAuthIndicator() {
 window.App = App;
 window.AudioEngine = AudioEngine;
 window.TabManager = TabManager;
+window.Timer = Timer;
 window.filterGames = (category) => Filters.setCategory(category);
 
 if (document.readyState === 'loading') {
