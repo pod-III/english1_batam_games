@@ -1645,6 +1645,22 @@ const SkillsManager = {
     const skills = classData.skills;
     const snapshots = classData.skillSnapshots;
 
+    // Group skills by category for rendering
+    const categoryOrder = ['Classroom', 'Social', 'Academic', 'Other'];
+    const skillsByCategory = {};
+    skills.forEach(sk => {
+      const cat = sk.category || 'Other';
+      if (!skillsByCategory[cat]) skillsByCategory[cat] = [];
+      skillsByCategory[cat].push(sk);
+    });
+
+    const orderedSkills = [];
+    categoryOrder.forEach(cat => {
+      if (skillsByCategory[cat]) orderedSkills.push(...skillsByCategory[cat]);
+    });
+    // Fallback for any skills with unknown categories
+    skills.forEach(sk => { if (!orderedSkills.includes(sk)) orderedSkills.push(sk); });
+
     content.innerHTML = `
       <div class="glass-panel border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-[var(--radius-2xl)] overflow-hidden p-4 space-y-4">
         <div class="flex items-center justify-between">
@@ -1657,9 +1673,16 @@ const SkillsManager = {
         <div class="overflow-x-auto custom-scrollbar">
           <table class="w-full border-collapse">
             <thead>
+              <tr class="bg-slate-100/50 dark:bg-slate-800/80">
+                <th class="!py-1"></th>
+                ${categoryOrder.filter(cat => skillsByCategory[cat]).map(cat => `
+                  <th colspan="${skillsByCategory[cat].length}" class="text-center !text-[8px] font-black uppercase tracking-tighter text-slate-400 border-x border-slate-200/50 dark:border-slate-700/50 !py-1">${cat}</th>
+                `).join('')}
+                <th></th>
+              </tr>
               <tr class="bg-slate-50 dark:bg-slate-800/50">
                 <th class="text-left !text-[9px] !py-2 !px-3 min-w-[100px]">Student</th>
-                ${skills.map(sk => `
+                ${orderedSkills.map(sk => `
                   <th class="text-center !text-[9px] !py-2 !px-2 min-w-[90px]">
                     <div class="flex flex-col items-center gap-0.5">
                       <span>${sk.name}</span>
@@ -1680,7 +1703,7 @@ const SkillsManager = {
                     <td class="!py-2 !px-3">
                       <span class="text-xs font-bold text-slate-700 dark:text-slate-300">${student.nick || student.name}</span>
                     </td>
-                    ${skills.map(sk => {
+                    ${orderedSkills.map(sk => {
                       const level = classData.studentSkills[student.id]?.[sk.id] || 0;
                       return `
                         <td class="!py-2 !px-2 text-center">
@@ -1755,6 +1778,37 @@ const SkillsManager = {
     ClassManager.saveData();
     this.render();
     UI.showToast('Skill removed', 'info');
+  },
+
+  syncFromCommentHelper(studentId, fields, labels) {
+    const classData = ClassManager.data.classes[ClassManager.activeClass];
+    if (!classData) return;
+    if (!classData.skills) classData.skills = [];
+    if (!classData.studentSkills) classData.studentSkills = {};
+
+    const CATEGORY_MAP = {
+      participation: 'Classroom', listening: 'Classroom', spoken: 'Classroom', attendance: 'Classroom',
+      social: 'Social', confidence: 'Social',
+      progress: 'Academic', grammar: 'Academic', reading: 'Academic', vocabulary: 'Academic', writing: 'Academic', homework: 'Academic', errors: 'Academic'
+    };
+
+    for (const [key, value] of Object.entries(fields)) {
+      const skillName = labels[key];
+      const category = CATEGORY_MAP[key] || 'Other';
+      let skill = classData.skills.find(s => s.name === skillName);
+      
+      // Create or update skill with category
+      if (!skill) {
+        skill = { id: crypto.randomUUID(), name: skillName, category, createdAt: new Date().toISOString() };
+        classData.skills.push(skill);
+      } else {
+        skill.category = category; // Update category if missing
+      }
+
+      // Update student level
+      if (!classData.studentSkills[studentId]) classData.studentSkills[studentId] = {};
+      classData.studentSkills[studentId][skill.id] = parseInt(value) || 0;
+    }
   },
 
   setLevel(studentId, skillId, level) {
@@ -2114,6 +2168,7 @@ const CommentsManager = {
     this.hideError();
 
     s.puScores = fields;
+    SkillsManager.syncFromCommentHelper(this.currentStudentId, fields, labels);
     s.puPronoun = this.currentPronoun;
     s.puComments = this.buildComments(s.nick || s.name, fields, this.currentPronoun);
     ClassManager.saveData();
@@ -2801,3 +2856,4 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target === document.getElementById('report-archive-modal')) ReportManager.closeArchiveModal();
   });
 });
+// Class management logic synchronized with categories
