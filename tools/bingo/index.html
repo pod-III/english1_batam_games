@@ -138,20 +138,7 @@
                 max-width: none !important;
             }
 
-            #printGrid {
-                display: grid !important;
-                grid-template-columns: 1fr 1fr !important;
-                gap: 2cm !important;
-                padding: 0 !important;
-                width: 100% !important;
-                margin: 0 !important;
-                border: none !important;
-            }
-
-            #printGrid>div:nth-child(2n) {
-                page-break-after: always;
-                break-after: page;
-            }
+            /* Print grid styles are generated dynamically */
 
             .hub-card {
                 box-shadow: none !important;
@@ -330,13 +317,31 @@
                     </div>
                     <div class="flex flex-wrap items-center gap-4">
                         <div class="flex items-center gap-2">
+                            <label class="font-bold">Paper Size:</label>
+                            <select id="printPaperSize" class="input-chunky px-3 py-2 text-brand-dark dark:text-white text-sm" onchange="updatePrintPreviewLayout()">
+                                <option value="A4 portrait">A4 Portrait</option>
+                                <option value="A4 landscape" selected>A4 Landscape</option>
+                                <option value="Letter portrait">Letter Portrait</option>
+                                <option value="Letter landscape">Letter Landscape</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label class="font-bold">Cards per Page:</label>
+                            <select id="printCardsPerPage" class="input-chunky px-3 py-2 text-brand-dark dark:text-white text-sm" onchange="updatePrintPreviewLayout()">
+                                <option value="1">1 Card</option>
+                                <option value="2" selected>2 Cards</option>
+                                <option value="4">4 Cards</option>
+                                <option value="6">6 Cards</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-2">
                             <label class="font-bold">Quantity:</label>
                             <input type="number" id="printCount" value="20" min="1" max="100"
-                                class="input-chunky w-20 px-2 py-2 text-center text-brand-dark dark:text-white">
+                                class="input-chunky w-20 px-3 py-2 text-center text-brand-dark dark:text-white text-sm">
                         </div>
                         <button onclick="generatePrintCards()"
                             class="btn-chunky bg-brand-green text-brand-dark px-6 py-3 rounded-xl text-sm gap-2">
-                            <i data-lucide="layers" class="w-5 h-5"></i> Generate Cards
+                            <i data-lucide="layers" class="w-5 h-5"></i> Generate Preview
                         </button>
                         <button onclick="window.print()"
                             class="btn-chunky bg-brand-dark text-white px-6 py-3 rounded-xl text-sm gap-2">
@@ -347,11 +352,10 @@
             </div>
 
             <div id="printGrid"
-                class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8 print:grid-cols-2 print:gap-4 w-full print:bg-white">
+                class="w-full print:bg-white flex flex-col gap-8 items-center bg-slate-200 dark:bg-slate-900 p-8 rounded-2xl print:p-0 print:bg-transparent">
                 <!-- Generated cards go here -->
-                <div
-                    class="flex items-center justify-center p-12 text-slate-400 font-heading text-xl border-4 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl">
-                    Click "Generate Cards" to see layout
+                <div class="flex items-center justify-center p-12 text-slate-400 font-heading text-xl border-4 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl w-full">
+                    Click "Generate Preview" to see layout
                 </div>
             </div>
         </section>
@@ -859,16 +863,105 @@
             document.getElementById('previewCard').innerHTML = generateCardHTML();
         }
 
+        function updatePrintPreviewLayout() {
+            const container = document.getElementById('printGrid');
+            if (container.querySelector('.print-page')) {
+                generatePrintCards();
+            }
+        }
+
         function generatePrintCards() {
             const count = parseInt(document.getElementById('printCount').value);
             const container = document.getElementById('printGrid');
+            const cardsPerPage = parseInt(document.getElementById('printCardsPerPage').value);
+            const paperSize = document.getElementById('printPaperSize').value;
+
             container.innerHTML = '';
 
-            for (let i = 0; i < count; i++) {
-                const wrapper = document.createElement('div');
-                wrapper.innerHTML = generateCardHTML();
-                container.appendChild(wrapper.firstElementChild);
+            let columns = 1;
+            let rows = 1;
+            if (cardsPerPage === 2) {
+                columns = paperSize.includes('portrait') ? 1 : 2;
+                rows = paperSize.includes('portrait') ? 2 : 1;
+            } else if (cardsPerPage === 4) {
+                columns = 2; rows = 2;
+            } else if (cardsPerPage === 6) {
+                columns = paperSize.includes('landscape') ? 3 : 2;
+                rows = paperSize.includes('landscape') ? 2 : 3;
             }
+
+            let paperWidth = "210mm";
+            let paperHeight = "297mm";
+            if (paperSize === "A4 landscape") { paperWidth = "297mm"; paperHeight = "210mm"; }
+            else if (paperSize === "Letter portrait") { paperWidth = "8.5in"; paperHeight = "11in"; }
+            else if (paperSize === "Letter landscape") { paperWidth = "11in"; paperHeight = "8.5in"; }
+
+            let currentCards = [];
+            
+            for (let i = 0; i < count; i++) {
+                currentCards.push(generateCardHTML());
+                
+                if (currentCards.length === cardsPerPage || i === count - 1) {
+                    const page = document.createElement('div');
+                    page.className = 'print-page bg-white shadow-xl flex shrink-0 box-border mx-auto print:shadow-none print:m-0 print:p-0 print:w-auto print:h-auto overflow-hidden relative';
+                    
+                    page.style.cssText = `
+                        width: ${paperWidth};
+                        height: ${paperHeight};
+                        padding: 1cm;
+                        display: grid;
+                        grid-template-columns: repeat(${columns}, 1fr);
+                        grid-template-rows: repeat(${rows}, 1fr);
+                        gap: 1cm;
+                        page-break-after: always;
+                        break-after: page;
+                    `;
+                    
+                    currentCards.forEach(cardHTML => {
+                        const wrapper = document.createElement('div');
+                        wrapper.innerHTML = cardHTML;
+                        wrapper.className = 'flex w-full h-full justify-center items-center overflow-hidden';
+                        const cardNode = wrapper.firstElementChild;
+                        cardNode.classList.remove('max-w-[400px]', 'mx-auto');
+                        cardNode.classList.add('w-full', 'h-full', 'max-h-[100%]');
+                        page.appendChild(cardNode);
+                    });
+                    
+                    container.appendChild(page);
+                    currentCards = [];
+                }
+            }
+
+            let styleEl = document.getElementById('dynamicPrintStyles');
+            if (!styleEl) {
+                styleEl = document.createElement('style');
+                styleEl.id = 'dynamicPrintStyles';
+                document.head.appendChild(styleEl);
+            }
+
+            styleEl.innerHTML = `
+                @media print {
+                    @page {
+                        size: ${paperSize};
+                        margin: 0; 
+                    }
+                    body {
+                        background: white !important;
+                    }
+                    .print-page {
+                        width: 100vw !important;
+                        height: 100vh !important;
+                        box-shadow: none !important;
+                        margin: 0 !important;
+                    }
+                    #printGrid {
+                        background: transparent !important;
+                        padding: 0 !important;
+                        gap: 0 !important;
+                        display: block !important;
+                    }
+                }
+            `;
         }
 
         // --- CALLER LOGIC ---
