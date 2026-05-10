@@ -204,27 +204,45 @@
                 </div>
 
                 <div class="card-neo p-6 flex flex-col gap-4">
-                    <label class="font-heading font-bold text-xl text-brand-dark dark:text-white flex items-center gap-2">
-                        <i data-lucide="layers" class="w-5 h-5 text-brand-blue"></i>
-                        How many groups?
-                    </label>
-                    
-                    <div class="flex items-center gap-3">
-                        <button onclick="adjustCount(-1)" class="w-14 h-14 btn-neo bg-white dark:bg-slate-800 hover:bg-red-50 flex items-center justify-center text-brand-pink">
-                            <i data-lucide="minus" class="w-8 h-8 stroke-[3px]"></i>
-                        </button>
+                    <div>
+                        <label class="font-heading font-bold text-xl text-brand-dark dark:text-white flex items-center gap-2 mb-4">
+                            <i data-lucide="layers" class="w-5 h-5 text-brand-blue"></i>
+                            How many groups?
+                        </label>
                         
-                        <div class="flex-1 bg-brand-dark dark:bg-slate-800 rounded-xl border-3 border-brand-dark dark:border-slate-500 h-14 flex items-center justify-center relative overflow-hidden">
-                            <input type="number" id="listCount" value="4" min="1" max="12" class="w-full h-full bg-slate-800 text-white text-3xl font-heading font-bold text-center outline-none border-none">
-                        </div>
+                        <div class="flex items-center gap-3">
+                            <button onclick="adjustCount(-1)" class="w-14 h-14 btn-neo bg-white dark:bg-slate-800 hover:bg-red-50 flex items-center justify-center text-brand-pink">
+                                <i data-lucide="minus" class="w-8 h-8 stroke-[3px]"></i>
+                            </button>
+                            
+                            <div class="flex-1 bg-brand-dark dark:bg-slate-800 rounded-xl border-3 border-brand-dark dark:border-slate-500 h-14 flex items-center justify-center relative overflow-hidden">
+                                <input type="number" id="listCount" value="4" min="1" max="12" class="w-full h-full bg-slate-800 text-white text-3xl font-heading font-bold text-center outline-none border-none">
+                            </div>
 
-                        <button onclick="adjustCount(1)" class="w-14 h-14 btn-neo bg-white dark:bg-slate-800 hover:bg-green-50 flex items-center justify-center text-brand-green">
-                            <i data-lucide="plus" class="w-8 h-8 stroke-[3px]"></i>
-                        </button>
+                            <button onclick="adjustCount(1)" class="w-14 h-14 btn-neo bg-white dark:bg-slate-800 hover:bg-green-50 flex items-center justify-center text-brand-green">
+                                <i data-lucide="plus" class="w-8 h-8 stroke-[3px]"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <hr class="border-2 border-slate-100 dark:border-slate-700 my-2">
+
+                    <div>
+                        <label class="font-heading font-bold text-xl text-brand-dark dark:text-white flex items-center gap-2 mb-4">
+                            <i data-lucide="list-ordered" class="w-5 h-5 text-brand-pink"></i>
+                            List Format
+                        </label>
+                        <div class="flex gap-2">
+                            <button id="formatUnordered" onclick="setFormat('unordered')" class="flex-1 btn-neo bg-brand-pink text-white py-2 font-bold border-3">Unordered</button>
+                            <button id="formatOrdered" onclick="setFormat('ordered')" class="flex-1 btn-neo bg-white dark:bg-slate-800 text-brand-dark dark:text-white py-2 font-bold border-3">Ordered</button>
+                        </div>
                     </div>
 
-                    <button id="generateButton" class="mt-2 w-full btn-neo bg-brand-blue text-white py-4 text-2xl tracking-wide flex items-center justify-center gap-3 hover:bg-blue-600">
+                    <button id="generateButton" class="mt-2 w-full btn-neo bg-brand-blue text-white py-4 text-2xl tracking-wide flex items-center justify-center gap-3 hover:bg-blue-600 transition-colors">
                         <i data-lucide="shuffle" class="w-7 h-7 stroke-[3px]"></i> MIX IT UP!
+                    </button>
+                    <button onclick="resetAll()" class="w-full btn-neo bg-slate-200 dark:bg-slate-700 text-slate-500 py-3 text-lg font-bold flex items-center justify-center gap-2 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">
+                        <i data-lucide="rotate-ccw" class="w-5 h-5"></i> Reset Everything
                     </button>
                 </div>
             </div>
@@ -325,10 +343,52 @@
             }
         }
 
-        function loadWords() {
+        const LS_KEY_FORMAT = 'e1_randomizer_format';
+        let currentFormat = 'unordered';
+
+        function setFormat(format) {
+            currentFormat = format;
+            localStorage.setItem(LS_KEY_FORMAT, format);
+            document.getElementById('formatUnordered').className = `flex-1 btn-neo py-2 font-bold border-3 ${format === 'unordered' ? 'bg-brand-pink text-white' : 'bg-white dark:bg-slate-800 text-brand-dark dark:text-white'}`;
+            document.getElementById('formatOrdered').className = `flex-1 btn-neo py-2 font-bold border-3 ${format === 'ordered' ? 'bg-brand-pink text-white' : 'bg-white dark:bg-slate-800 text-brand-dark dark:text-white'}`;
+            
             try {
-                const saved = localStorage.getItem(LS_KEY_WORDS);
-                if (saved) wordInput.value = saved;
+                const savedResults = localStorage.getItem(LS_KEY_RESULTS);
+                if (savedResults && !emptyState.classList.contains('hidden')) {
+                    // Do nothing if hidden (reset state)
+                } else if (savedResults) {
+                    renderLists(JSON.parse(savedResults));
+                }
+            } catch(e){}
+        }
+
+        function resetAll() {
+            clearInput();
+            localStorage.removeItem(LS_KEY_RESULTS);
+            listsGrid.innerHTML = '';
+            listsGrid.classList.add('hidden');
+            emptyState.classList.remove('hidden');
+            document.getElementById('listCount').value = 4;
+            setFormat('unordered');
+            showToast('Everything reset!');
+        }
+
+        function loadState() {
+            try {
+                const savedFormat = localStorage.getItem(LS_KEY_FORMAT);
+                if (savedFormat) setFormat(savedFormat);
+
+                const savedWords = localStorage.getItem(LS_KEY_WORDS);
+                if (savedWords) wordInput.value = savedWords;
+
+                const savedResults = localStorage.getItem(LS_KEY_RESULTS);
+                if (savedResults) {
+                    const parsed = JSON.parse(savedResults);
+                    if (parsed && parsed.length > 0) {
+                        document.getElementById('listCount').value = parsed.length;
+                        renderLists(parsed);
+                    }
+                }
             } catch (e) {}
         }
 
@@ -366,6 +426,7 @@
                 results.push(shuffle(words));
             }
 
+            localStorage.setItem(LS_KEY_RESULTS, JSON.stringify(results));
             renderLists(results);
             showToast("Lists Generated!");
         }
@@ -393,9 +454,12 @@
                 `;
 
                 // List
-                const listItems = list.map(item => `
-                    <li class="flex items-center gap-3 py-2 border-b-2 border-slate-100 last:border-0">
-                        <div class="w-2 h-2 rounded-full ${theme.bg}"></div>
+                const listItems = list.map((item, idx) => `
+                    <li class="flex items-center gap-3 py-2 border-b-2 border-slate-100 dark:border-slate-700 last:border-0">
+                        ${currentFormat === 'ordered' 
+                            ? `<div class="w-6 h-6 shrink-0 rounded-full ${theme.bg} text-white flex items-center justify-center text-xs font-bold">${idx + 1}</div>`
+                            : `<div class="w-2 h-2 shrink-0 rounded-full ${theme.bg}"></div>`
+                        }
                         <span class="font-bold text-brand-dark dark:text-white">${item}</span>
                     </li>
                 `).join('');
@@ -459,7 +523,7 @@
         // --- INIT ---
         window.onload = async () => {
             await requireAuth();
-            loadWords();
+            loadState();
             await loadFromCloud();
             lucide.createIcons();
         };
