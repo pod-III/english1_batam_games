@@ -2326,9 +2326,7 @@ const ReportManager = {
   commentBank: [],
   state: {},
   activeAccordion: null,
-  dataBase: null,
-  dbName: 'KlassKitReportsDB_v2',
-  dbVersion: 1,
+
   STORAGE_KEY: 'kk_reportgen_state',
   pronouns: {
     she: { subject:'she', object:'her', possessive:'her', reflexive:'herself', CapSubject:'She', CapPossessive:'Her' },
@@ -2455,165 +2453,6 @@ const ReportManager = {
     UI.showToast('Report saved!', 'success');
   },
 
-  initDB() {
-    const request = indexedDB.open(this.dbName, this.dbVersion);
-    request.onerror = (e) => console.error('IndexedDB Error:', e);
-    request.onsuccess = (e) => { this.dataBase = e.target.result; this.loadArchiveFromCloud(); };
-    request.onupgradeneeded = (e) => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains('reports')) {
-        const store = db.createObjectStore('reports', { keyPath:'id', autoIncrement:true });
-        store.createIndex('className','className',{unique:false});
-        store.createIndex('studentName','studentName',{unique:false});
-      }
-    };
-  },
-
-  showToast(message) {
-    UI.showToast(message, 'success');
-  },
-
-  saveToDB() {
-    if (!this.dataBase) return UI.showToast('Database not ready', 'warning');
-    const studentName = (document.getElementById('report-student-name')?.value || '').trim();
-    const className = ClassManager.activeClass || 'Uncategorized';
-    const pronoun = document.getElementById('report-pronoun')?.value || 'they';
-    if (!studentName) return UI.showToast('Please enter a Student Name', 'warning');
-
-    const reportData = { className, studentName, pronoun, state: JSON.parse(JSON.stringify(this.state)), timestamp: Date.now() };
-    const tx = this.dataBase.transaction('reports','readwrite');
-    const store = tx.objectStore('reports');
-    const req = store.index('className').getAll(className);
-    req.onsuccess = () => {
-      const existing = req.result.find(r => r.studentName.toLowerCase() === studentName.toLowerCase());
-      if (existing) { reportData.id = existing.id; store.put(reportData); }
-      else { store.add(reportData); }
-      this.showToast('Saved to Archive!');
-      this.syncArchiveWithCloud();
-    };
-  },
-
-  deleteReport(id, e) {
-    if (e) e.stopPropagation();
-    if (!confirm('Delete this report?')) return;
-    const tx = this.dataBase.transaction('reports','readwrite');
-    tx.objectStore('reports').delete(id);
-    tx.oncomplete = () => { this.showToast('Report deleted'); this.openDBModal(); };
-  },
-
-  duplicateReport(report, e) {
-    if (e) e.stopPropagation();
-    const copy = JSON.parse(JSON.stringify(report));
-    delete copy.id; copy.studentName += ' (Copy)'; copy.timestamp = Date.now();
-    const tx = this.dataBase.transaction('reports','readwrite');
-    tx.objectStore('reports').add(copy);
-    tx.oncomplete = () => { this.showToast('Report duplicated'); this.openDBModal(); };
-  },
-
-  duplicateReportById(id, e) {
-    if (e) e.stopPropagation();
-    if (!this.dataBase) return;
-    const tx = this.dataBase.transaction('reports','readonly');
-    tx.objectStore('reports').get(id).onsuccess = (ev) => {
-      const report = ev.target.result;
-      if (report) this.duplicateReport(report, null);
-    };
-  },
-
-  deleteClass(className) {
-    if (!confirm(`Delete ALL reports for class ${className}?`)) return;
-    const tx = this.dataBase.transaction('reports','readwrite');
-    const store = tx.objectStore('reports');
-    store.index('className').getAllKeys(className).onsuccess = (e) => { e.target.result.forEach(id => store.delete(id)); };
-    tx.oncomplete = () => { this.showToast(`Deleted class ${className}`); this.openDBModal(); };
-  },
-
-  exportClass(className) {
-    const tx = this.dataBase.transaction('reports','readonly');
-    const store = tx.objectStore('reports');
-    store.index('className').getAll(className).onsuccess = (e) => {
-      const blob = new Blob([JSON.stringify(e.target.result,null,2)],{type:'application/json'});
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href=url; a.download=`KlassKit_${className}_Backup.json`; a.click(); URL.revokeObjectURL(url);
-      this.showToast(`Exported ${className}`);
-    };
-  },
-
-  triggerImport() { document.getElementById('report-import-file').click(); },
-
-  importData(event) {
-    const file = event.target.files[0]; if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = JSON.parse(e.target.result);
-        if (!Array.isArray(data)) throw new Error('Expected array');
-        const tx = this.dataBase.transaction('reports','readwrite');
-        const store = tx.objectStore('reports');
-        let count = 0;
-        data.forEach(item => { if (item.className && item.studentName && item.state) { delete item.id; item.timestamp = Date.now(); store.add(item); count++; } });
-        tx.oncomplete = () => { this.showToast(`Imported ${count} reports!`); this.openDBModal(); };
-      } catch(err) { UI.showToast('Invalid import file', 'error'); }
-      event.target.value = '';
-    };
-    reader.readAsText(file);
-  },
-
-  openDBModal() {
-    if (!this.dataBase) return;
-    const modal = document.getElementById('report-db-modal');
-    const content = document.getElementById('report-db-content');
-    content.innerHTML = '<div class="text-center py-10 text-slate-500 font-bold">Loading...</div>';
-    modal.classList.remove('hidden');
-    const tx = this.dataBase.transaction('reports','readonly');
-    const store = tx.objectStore('reports');
-    store.getAll().onsuccess = (e) => {
-      const reports = e.target.result;
-      if (!reports.length) { content.innerHTML = '<div class="text-center py-10 text-slate-500 font-bold">No saved reports yet.</div>'; return; }
-      const grouped = {};
-      reports.forEach(r => { if (!grouped[r.className]) grouped[r.className]=[]; grouped[r.className].push(r); });
-      content.innerHTML = '';
-      Object.keys(grouped).sort().forEach(cn => {
-        const block = document.createElement('div'); block.className = 'mb-6';
-        block.innerHTML = `<div class="font-heading font-bold text-lg text-slate-900 dark:text-white mb-3 border-b border-slate-200 dark:border-slate-700 pb-2 flex justify-between items-center">
-          <div class="flex items-center gap-2"><i data-lucide="users" class="w-5 h-5 text-orange"></i> ${cn} <span class="bg-slate-100 dark:bg-slate-800 text-slate-500 text-xs px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-600">${grouped[cn].length}</span></div>
-          <div class="flex gap-2"><button onclick="ReportManager.exportClass('${cn}')" class="btn-chunky bg-[var(--bg-tertiary)] dark:bg-slate-800 border-[var(--border-width-medium)] border-[var(--border-primary)] rounded px-2 py-1 text-xs font-bold shadow-neo-sm">Export</button><button onclick="ReportManager.deleteClass('${cn}')" class="btn-chunky bg-red-100 dark:bg-red-900/30 border-[var(--border-width-medium)] border-red-200 dark:border-red-800 rounded px-2 py-1 text-xs font-bold text-red-700 dark:text-red-400 shadow-neo-sm">Delete</button></div>
-        </div>`;
-        const grid = document.createElement('div'); grid.className = 'grid grid-cols-1 md:grid-cols-2 gap-3';
-        grouped[cn].sort((a,b)=>b.timestamp-a.timestamp).forEach(r => {
-          const dateStr = new Date(r.timestamp).toLocaleDateString();
-          const card = document.createElement('div'); card.className = 'bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 flex justify-between items-center shadow-neo-sm hover:-translate-y-1 transition-transform';
-          card.innerHTML = `<div class="flex-grow cursor-pointer" onclick="ReportManager.loadReportFromDBById(${r.id})"><p class="font-bold text-slate-900 dark:text-white truncate pr-2">${r.studentName}</p><p class="text-xs text-slate-500 dark:text-slate-400 capitalize">${r.pronoun} • ${dateStr}</p></div>
-            <div class="flex gap-1.5 shrink-0"><button onclick="ReportManager.loadReportFromDBById(${r.id})" class="bg-blue text-white p-1.5 rounded-lg border border-slate-200 dark:border-slate-600"><i data-lucide="upload" class="w-3.5 h-3.5"></i></button><button onclick="ReportManager.duplicateReportById(${r.id}, event)" class="bg-green text-[var(--text-primary)] p-1.5 rounded-lg border border-slate-200 dark:border-slate-600"><i data-lucide="copy" class="w-3.5 h-3.5"></i></button><button onclick="ReportManager.deleteReport(${r.id}, event)" class="bg-red-500 text-white p-1.5 rounded-lg border border-slate-200 dark:border-slate-600"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button></div>`;
-          grid.appendChild(card);
-        });
-        block.appendChild(grid); content.appendChild(block);
-      });
-      if (window.lucide) lucide.createIcons({ root: content });
-    };
-  },
-
-  closeDBModal() { document.getElementById('report-db-modal').classList.add('hidden'); },
-
-  loadReportFromDBById(id) {
-    if (!this.dataBase) return;
-    const tx = this.dataBase.transaction('reports','readonly');
-    tx.objectStore('reports').get(id).onsuccess = (e) => { if (e.target.result) this.loadReportFromDB(e.target.result); };
-  },
-
-  loadReportFromDB(report) {
-    const sn = document.getElementById('report-student-name');
-    if (sn) sn.value = report.studentName;
-    const pr = document.getElementById('report-pronoun');
-    if (pr) pr.value = report.pronoun;
-    this.commentBank.forEach(cat => {
-      if (report.state && report.state[cat.id]) this.state[cat.id] = JSON.parse(JSON.stringify(report.state[cat.id]));
-      else this.state[cat.id] = { level:'good', selectionIndex:null, activeTag:'All' };
-    });
-    this.closeDBModal();
-    this.renderStepper(); this.renderAccordions(); this.compileReport();
-    this.saveState(); this.showToast(`Loaded ${report.studentName}`);
-  },
 
   saveState() {
     if (!this.currentStudentId) return;
@@ -2727,29 +2566,6 @@ const ReportManager = {
     UI.showToast('Exported successfully!', 'success');
   },
 
-  async syncArchiveWithCloud() {
-    if (!this.dataBase || typeof saveProgress !== 'function' || isSandbox()) return;
-    const tx = this.dataBase.transaction('reports','readonly');
-    tx.objectStore('reports').getAll().onsuccess = async (e) => {
-      try { await saveProgress('report-helper-archive', { reports: e.target.result }); this.showToast('Archive synced to cloud!'); }
-      catch(e) { console.error(e); }
-    };
-  },
-
-  async loadArchiveFromCloud() {
-    if (!this.dataBase || typeof loadProgress !== 'function' || isSandbox()) return;
-    try {
-      const cloudData = await loadProgress('report-helper-archive');
-      if (cloudData && cloudData.reports) {
-        const tx = this.dataBase.transaction('reports','readwrite');
-        const store = tx.objectStore('reports');
-        for (const report of cloudData.reports) {
-          store.get(report.id).onsuccess = (e) => { if (!e.target.result) store.add(report); };
-        }
-        this.showToast('Archive pulled from cloud!');
-      }
-    } catch(e) { console.error(e); }
-  },
 
   loadState() {
     try { const raw = localStorage.getItem(this.STORAGE_KEY); return raw ? JSON.parse(raw) : null; }
@@ -2946,7 +2762,7 @@ const ReportManager = {
 document.addEventListener('DOMContentLoaded', () => {
   ClassManager.init();
   CommentsManager.loadComments();
-  ReportManager.initDB();
+
 
   // Archive modal backdrop clicks
   document.getElementById('pu-archive-modal')?.addEventListener('click', e => {
