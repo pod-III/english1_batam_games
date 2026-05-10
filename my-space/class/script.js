@@ -64,6 +64,14 @@ const ClassManager = {
         this.updateUI();
       });
     };
+
+    // 10. Exit Listener (Flush Save)
+    window.addEventListener('beforeunload', () => {
+      if (this._saveTimeout) {
+        clearTimeout(this._saveTimeout);
+        localStorage.setItem('prog_my-class', JSON.stringify(this.data));
+      }
+    });
   },
 
   setupKeyboardShortcuts() {
@@ -109,20 +117,35 @@ const ClassManager = {
     }
   },
 
+  _saveTimeout: null,
+
   async saveData() {
-    // Local backup
-    localStorage.setItem('prog_my-class', JSON.stringify(this.data));
-    
-    // Trigger bulk sync if available
-    if (window.Sync && !isSandbox()) {
-      const user = await getUser();
-      if (user) {
-        console.info('[MyClass] Triggering cloud sync...');
-        await Sync.syncToCloud(user.id);
+    // Visual feedback: Mark as saving immediately
+    if (window.Sync) Sync.setSyncBadge('saving');
+
+    // Debounce the heavy operations (stringify + network)
+    if (this._saveTimeout) clearTimeout(this._saveTimeout);
+
+    this._saveTimeout = setTimeout(async () => {
+      try {
+        // Local backup
+        localStorage.setItem('prog_my-class', JSON.stringify(this.data));
+        
+        // Trigger cloud sync if available
+        if (window.Sync && !isSandbox()) {
+          const user = await getUser();
+          if (user) {
+            console.info('[MyClass] Triggering debounced cloud sync...');
+            await Sync.syncToCloud(user.id);
+          }
+        }
+      } catch (e) {
+        console.error('[MyClass] Save failed', e);
+      } finally {
+        this.updateSyncBadge();
+        this._saveTimeout = null;
       }
-    }
-    
-    this.updateSyncBadge();
+    }, 1500); // 1.5 second debounce for slider performance
   },
 
   migrateTo100Scale() {
