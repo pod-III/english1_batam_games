@@ -1528,15 +1528,20 @@ const TabManager = {
     tabIcon.addEventListener('touchstart', (e) => {
       if (e.touches.length !== 1) return;
       const touch = e.touches[0];
-      this._touchDrag.startX = touch.clientX;
-      this._touchDrag.startY = touch.clientY;
-      this._touchDrag.sourceType = 'tab';
-      this._touchDrag.sourceId = tabId;
+      const td = this._touchDrag;
+      td.startX = touch.clientX;
+      td.startY = touch.clientY;
+      td.sourceType = 'tab';
+      td.sourceId = tabId;
+      td._sourceEl = tabIcon;
 
-      this._touchDrag.longPressTimer = setTimeout(() => {
-        this._startTouchDrag(touch, tabIcon);
-      }, this._touchDrag.longPressDelay);
-    }, { passive: true });
+      // Clear any previous timer
+      if (td.longPressTimer) clearTimeout(td.longPressTimer);
+      td.longPressTimer = setTimeout(() => {
+        td.longPressTimer = null;
+        this._startTouchDrag(td.startX, td.startY, tabIcon);
+      }, td.longPressDelay);
+    }, { passive: false });
   },
 
   attachTouchDragToGroup(groupEl, groupId) {
@@ -1544,25 +1549,32 @@ const TabManager = {
     if (!header) return;
     header.addEventListener('touchstart', (e) => {
       if (e.touches.length !== 1) return;
-      e.stopPropagation(); // Prevent tab touch from firing
+      e.stopPropagation();
       const touch = e.touches[0];
-      this._touchDrag.startX = touch.clientX;
-      this._touchDrag.startY = touch.clientY;
-      this._touchDrag.sourceType = 'group';
-      this._touchDrag.sourceId = groupId;
+      const td = this._touchDrag;
+      td.startX = touch.clientX;
+      td.startY = touch.clientY;
+      td.sourceType = 'group';
+      td.sourceId = groupId;
+      td._sourceEl = groupEl;
 
-      this._touchDrag.longPressTimer = setTimeout(() => {
-        this._startTouchDrag(touch, groupEl);
-      }, this._touchDrag.longPressDelay);
-    }, { passive: true });
+      if (td.longPressTimer) clearTimeout(td.longPressTimer);
+      td.longPressTimer = setTimeout(() => {
+        td.longPressTimer = null;
+        this._startTouchDrag(td.startX, td.startY, groupEl);
+      }, td.longPressDelay);
+    }, { passive: false });
   },
 
-  _startTouchDrag(touch, sourceEl) {
+  _startTouchDrag(x, y, sourceEl) {
     const td = this._touchDrag;
     td.active = true;
 
     // Haptic feedback if available
     if (navigator.vibrate) navigator.vibrate(30);
+
+    // Prevent context menu / text selection while dragging
+    document.body.classList.add('touch-dragging');
 
     // Create ghost
     const ghost = document.createElement('div');
@@ -1570,14 +1582,13 @@ const TabManager = {
     ghost.innerHTML = sourceEl.querySelector('.side-panel-tab-icon')?.outerHTML
                    || sourceEl.querySelector('.tab-group-name')?.outerHTML
                    || '<span>⋮</span>';
-    ghost.style.left = `${touch.clientX - 24}px`;
-    ghost.style.top = `${touch.clientY - 24}px`;
+    ghost.style.left = `${x - 24}px`;
+    ghost.style.top = `${y - 24}px`;
     document.body.appendChild(ghost);
     td.ghost = ghost;
 
     // Mark source
     sourceEl.classList.add('dragging');
-    td._sourceEl = sourceEl;
 
     Utils.refreshIcons(ghost);
   },
@@ -1697,6 +1708,7 @@ const TabManager = {
 
     // Clean up all drag-over states
     document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    document.body.classList.remove('touch-dragging');
     td.currentDropTarget = null;
     td._sourceEl = null;
   },
@@ -1848,12 +1860,12 @@ const TabManager = {
       const header = document.createElement('button');
       header.className = 'tab-group-header';
       header.type = 'button';
+      header.setAttribute('data-title', group.name);
       header.style.borderColor = colorHex;
       header.style.background = `${colorHex}18`;
       header.innerHTML = `
         <span class="tab-group-color-dot" style="background:${colorHex}"></span>
         <span class="tab-group-chevron"><i data-lucide="${group.collapsed ? 'chevron-right' : 'chevron-down'}"></i></span>
-        <span class="tab-group-name">${this.escapeHtml(group.name)}</span>
         <span class="tab-group-count" style="background:${colorHex}">${this.tabs.filter(t => t.groupId === group.id).length}</span>
       `;
       header.addEventListener('click', () => this.toggleGroupCollapsed(group.id));
