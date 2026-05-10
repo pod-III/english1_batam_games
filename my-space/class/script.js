@@ -2141,9 +2141,11 @@ const CommentsManager = {
     let skillBreakdown = `Here is ${name}'s progress across all skills:\n\n`;
     for (const [k, v] of Object.entries(sc)) {
       const raw = this.pick(this.hopefulPhrases[k]?.[this.level(v)]);
-      skillBreakdown += `• ${labels[k]}:\n  ${this.applyPronoun(raw, pronoun)}\n\n`;
+      const withPronoun = this.applyPronoun(raw, pronoun);
+      const personal = this.personalise(withPronoun, name, pronoun);
+      skillBreakdown += `• ${labels[k]}:\n  ${personal}\n\n`;
     }
-    skillBreakdown += `Keep up the great work!`;
+    skillBreakdown += `Keep up the great work, ${name}!`;
     return [skillBreakdown.trim()];
   },
 
@@ -2181,6 +2183,18 @@ const CommentsManager = {
     if (/(?:s|sh|ch|x|z)$/.test(low)) return verb+'es';
     if (/[^aeiou]y$/.test(low)) return verb.slice(0,-1)+'ies';
     return verb+'s';
+  },
+
+  personalise(text, name, pronoun) {
+    // Randomly decide whether to use the name or keep the pronoun (approx 50/50)
+    if (Math.random() > 0.5) return text;
+
+    // Replace the first subject pronoun with the student's name
+    if (pronoun === 'he') return text.replace(/\bHe\b/, name).replace(/\bhe\b/, name);
+    if (pronoun === 'she') return text.replace(/\bShe\b/, name).replace(/\bshe\b/, name);
+    // For 'they' pronoun: need to conjugate the verb that follows
+    return text.replace(/\bThey (\w+)/, (_, verb) => name + ' ' + this.conjugate3rd(verb))
+               .replace(/\bthey (\w+)/, (_, verb) => name.toLowerCase() + ' ' + this.conjugate3rd(verb));
   },
 
   renderComments(name, comments) {
