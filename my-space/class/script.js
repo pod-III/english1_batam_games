@@ -2109,19 +2109,16 @@ const CommentsManager = {
     document.getElementById('pu-form-title').textContent = `Scores for ${s.nick || s.name}`;
 
     const sc = s.puScores || {};
-    document.getElementById('pu-participation').value = sc.participation ?? '';
-    document.getElementById('pu-social').value = sc.social ?? '';
-    document.getElementById('pu-listening').value = sc.listening ?? '';
-    document.getElementById('pu-confidence').value = sc.confidence ?? '';
-    document.getElementById('pu-spoken').value = sc.spoken ?? '';
-    document.getElementById('pu-attendance').value = sc.attendance ?? '';
-    document.getElementById('pu-errors').value = sc.errors ?? '';
-    document.getElementById('pu-progress').value = sc.progress ?? '';
-    document.getElementById('pu-grammar').value = sc.grammar ?? '';
-    document.getElementById('pu-reading').value = sc.reading ?? '';
-    document.getElementById('pu-vocabulary').value = sc.vocabulary ?? '';
-    document.getElementById('pu-writing').value = sc.writing ?? '';
-    document.getElementById('pu-homework').value = sc.homework ?? '';
+    const fieldIds = ['participation','social','listening','confidence','spoken','attendance','errors','progress','grammar','reading','vocabulary','writing','homework'];
+    fieldIds.forEach(id => {
+      const val = sc[id] ?? 0;
+      const el = document.getElementById(`pu-${id}`);
+      if (el) {
+        el.value = val;
+        const valLabel = document.getElementById(`pu-${id}-val`);
+        if (valLabel) valLabel.textContent = val;
+      }
+    });
 
     this.currentPronoun = s.puPronoun || 'they';
     this.renderPronounButtons();
@@ -2180,9 +2177,16 @@ const CommentsManager = {
     this.currentStudentId = null;
     document.getElementById('pu-score-card').classList.add('hidden');
     document.getElementById('pu-output-section').classList.add('hidden');
-    ['pu-participation','pu-social','pu-listening','pu-confidence','pu-spoken','pu-attendance','pu-errors',
-     'pu-progress','pu-grammar','pu-reading','pu-vocabulary','pu-writing','pu-homework']
-      .forEach(id => { document.getElementById(id).value = ''; });
+    ['participation','social','listening','confidence','spoken','attendance','errors',
+     'progress','grammar','reading','vocabulary','writing','homework']
+      .forEach(id => { 
+        const el = document.getElementById(`pu-${id}`);
+        if (el) {
+          el.value = 0;
+          const valLabel = document.getElementById(`pu-${id}-val`);
+          if (valLabel) valLabel.textContent = 0;
+        }
+      });
     this.currentPronoun = 'they';
     this.renderPronounButtons();
     this.renderRoster();
