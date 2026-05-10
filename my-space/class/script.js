@@ -1676,6 +1676,8 @@ const AttendanceManager = {
 };
 
 const SkillsManager = {
+  selectedStudentId: null,
+
   render() {
     const content = document.getElementById('skillsContent');
     const empty = document.getElementById('noSkillsState');
@@ -1699,9 +1701,17 @@ const SkillsManager = {
     empty.classList.add('hidden');
     const skills = classData.skills;
     const snapshots = classData.skillSnapshots;
+    const students = classData.students || [];
 
-    // Group skills by category for rendering
+    // Auto-select first student if none selected
+    if (!this.selectedStudentId || !students.find(s => s.id === this.selectedStudentId)) {
+      this.selectedStudentId = students.length > 0 ? students[0].id : null;
+    }
+
+    // Group skills by category
     const categoryOrder = ['Classroom', 'Social', 'Academic', 'Other'];
+    const categoryIcons = { Classroom: 'layout', Social: 'users', Academic: 'book-open', Other: 'shapes' };
+    const categoryColors = { Classroom: 'pink', Social: 'orange', Academic: 'blue', Other: 'slate-400' };
     const skillsByCategory = {};
     skills.forEach(sk => {
       const cat = sk.category || 'Other';
@@ -1709,85 +1719,188 @@ const SkillsManager = {
       skillsByCategory[cat].push(sk);
     });
 
-    const orderedSkills = [];
-    categoryOrder.forEach(cat => {
-      if (skillsByCategory[cat]) orderedSkills.push(...skillsByCategory[cat]);
-    });
-    // Fallback for any skills with unknown categories
-    skills.forEach(sk => { if (!orderedSkills.includes(sk)) orderedSkills.push(sk); });
+    // Build student pills
+    const studentPillsHTML = students.map(s => {
+      const isActive = s.id === this.selectedStudentId;
+      const hasScores = classData.studentSkills[s.id] && Object.values(classData.studentSkills[s.id]).some(v => v > 0);
+      const snapCount = (snapshots[s.id] || []).length;
+      return `
+        <button onclick="SkillsManager.selectStudent('${s.id}')"
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200
+          ${isActive 
+            ? 'bg-blue text-white border-2 border-[var(--border-primary)] shadow-[2px_2px_0px_var(--border-primary)] scale-105' 
+            : 'bg-[var(--bg-secondary)] dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-2 border-slate-200 dark:border-slate-700 hover:border-blue/40 hover:scale-[1.02]'}">
+          ${hasScores ? '<span class="w-1.5 h-1.5 rounded-full bg-green flex-shrink-0"></span>' : ''}
+          <span class="truncate max-w-[80px]">${s.nick || s.name}</span>
+          ${snapCount > 0 ? `<span class="text-[8px] px-1 rounded bg-white/20 text-white/80">${snapCount}</span>` : ''}
+        </button>
+      `;
+    }).join('');
 
-    content.innerHTML = `
-      <div class="glass-panel border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-[var(--radius-2xl)] overflow-hidden p-4 space-y-4">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <i data-lucide="target" class="w-4 h-4 text-pink"></i>
-            <h4 class="font-heading font-bold text-sm uppercase tracking-tight text-slate-800 dark:text-white">Class Skills</h4>
-            <span class="skill-badge input">${skills.length} skills</span>
+    // Build slider panel for selected student
+    let sliderPanelHTML = '';
+    const selectedStudent = students.find(s => s.id === this.selectedStudentId);
+    
+    if (selectedStudent) {
+      const studentSkills = classData.studentSkills[selectedStudent.id] || {};
+      const snapCount = (snapshots[selectedStudent.id] || []).length;
+
+      // Calculate average
+      let total = 0, count = 0;
+      skills.forEach(sk => {
+        const v = studentSkills[sk.id] || 0;
+        total += v;
+        count++;
+      });
+      const avg = count > 0 ? Math.round(total / count) : 0;
+
+      // Build categorized sliders
+      const categoryBlocks = categoryOrder.filter(cat => skillsByCategory[cat]).map(cat => {
+        const catSkills = skillsByCategory[cat];
+        const color = categoryColors[cat];
+        const icon = categoryIcons[cat];
+        
+        const slidersHTML = catSkills.map(sk => {
+          const val = studentSkills[sk.id] || 0;
+          return `
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between">
+                <label class="font-heading font-semibold text-slate-700 dark:text-slate-200 text-[10px] flex items-center gap-1.5 uppercase tracking-tighter">
+                  ${sk.name}
+                </label>
+                <span id="sk-val-${sk.id}" class="text-xs font-black text-${color} bg-${color}/10 px-1.5 rounded-md">${val}</span>
+              </div>
+              <input type="range" min="0" max="100" value="${val}"
+                oninput="SkillsManager.onSliderChange('${selectedStudent.id}','${sk.id}', this.value)"
+                class="kk-slider accent-${color}" />
+            </div>
+          `;
+        }).join('');
+
+        return `
+          <div>
+            <p class="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3 flex items-center gap-1.5">
+              <i data-lucide="${icon}" class="w-3 h-3 text-${color}"></i> ${cat}
+            </p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+              ${slidersHTML}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      sliderPanelHTML = `
+        <div class="glass-panel border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-[var(--radius-2xl)] p-5 space-y-5 animate-pop-in">
+          <!-- Student Header -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 rounded-xl bg-blue/10 border-2 border-blue/30 flex items-center justify-center">
+                <i data-lucide="user" class="w-4 h-4 text-blue"></i>
+              </div>
+              <div>
+                <h4 class="font-heading font-bold text-base text-slate-900 dark:text-white leading-tight">${selectedStudent.nick || selectedStudent.name}</h4>
+                <div class="flex items-center gap-2 mt-0.5">
+                  <span class="text-[10px] font-bold text-slate-400 uppercase">Average</span>
+                  <span id="sk-avg-val" class="text-xs font-black ${avg >= 70 ? 'text-green' : avg >= 50 ? 'text-orange' : 'text-pink'}">${avg}/100</span>
+                </div>
+              </div>
+            </div>
+            <button onclick="SkillsManager.openSnapshot('${selectedStudent.id}')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green/10 text-green border-2 border-green/20 text-[10px] font-black uppercase hover:bg-green/20 transition-all hover:scale-105">
+              <i data-lucide="camera" class="w-3.5 h-3.5"></i>
+              Snapshot <span class="bg-green/20 px-1.5 rounded">${snapCount}</span>
+            </button>
+          </div>
+
+          <!-- Categorized Sliders -->
+          <div class="space-y-6">
+            ${categoryBlocks}
           </div>
         </div>
-        <div class="overflow-x-auto custom-scrollbar">
-          <table class="w-full border-collapse">
-            <thead>
-              <tr class="bg-slate-100/50 dark:bg-slate-800/80">
-                <th class="!py-1"></th>
-                ${categoryOrder.filter(cat => skillsByCategory[cat]).map(cat => `
-                  <th colspan="${skillsByCategory[cat].length}" class="text-center !text-[8px] font-black uppercase tracking-tighter text-slate-400 border-x border-slate-200/50 dark:border-slate-700/50 !py-1">${cat}</th>
-                `).join('')}
-                <th></th>
-              </tr>
-              <tr class="bg-slate-50 dark:bg-slate-800/50">
-                <th class="text-left !text-[9px] !py-2 !px-3 min-w-[100px]">Student</th>
-                ${orderedSkills.map(sk => `
-                  <th class="text-center !text-[9px] !py-2 !px-2 min-w-[90px]">
-                    <div class="flex flex-col items-center gap-0.5">
-                      <span>${sk.name}</span>
-                      <button onclick="SkillsManager.deleteSkill('${sk.id}')" class="text-slate-300 hover:text-pink transition-colors">
-                        <i data-lucide="x" class="w-3 h-3"></i>
-                      </button>
-                    </div>
-                  </th>
-                `).join('')}
-                <th class="text-center !text-[9px] !py-2 !px-2 min-w-[100px]">Snapshot</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${classData.students.map(student => {
-                const snapCount = (snapshots[student.id] || []).length;
-                return `
-                  <tr class="border-b border-[var(--bg-tertiary)] dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
-                    <td class="!py-2 !px-3">
-                      <span class="text-xs font-bold text-slate-700 dark:text-slate-300">${student.nick || student.name}</span>
-                    </td>
-                    ${orderedSkills.map(sk => {
-                      const level = classData.studentSkills[student.id]?.[sk.id] || 0;
-                      return `
-                        <td class="!py-2 !px-2 text-center">
-                          <div class="flex items-center justify-center gap-1">
-                            <button onclick="SkillsManager.adjustLevel('${student.id}','${sk.id}',-1)" class="w-5 h-5 rounded bg-slate-100 dark:bg-slate-800 text-slate-400 text-[8px] font-black hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center">-</button>
-                            <input type="number" min="0" max="100" value="${level}"
-                              onchange="SkillsManager.setLevel('${student.id}','${sk.id}',parseInt(this.value)||0)"
-                              class="skill-rating-input w-8 h-6 text-center text-[11px] font-black bg-transparent border border-slate-200 dark:border-slate-700 rounded focus:border-blue focus:outline-none text-slate-700 dark:text-slate-200">
-                            <button onclick="SkillsManager.adjustLevel('${student.id}','${sk.id}',1)" class="w-5 h-5 rounded bg-slate-100 dark:bg-slate-800 text-slate-400 text-[8px] font-black hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center">+</button>
-                          </div>
-                        </td>
-                      `;
-                    }).join('')}
-                    <td class="!py-2 !px-2 text-center">
-                      <button onclick="SkillsManager.openSnapshot('${student.id}')" class="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-green/10 text-green border border-green/20 text-[9px] font-black uppercase hover:bg-green/20 transition-colors">
-                        <i data-lucide="camera" class="w-3 h-3"></i>
-                        <span>${snapCount}</span>
-                      </button>
-                    </td>
-                  </tr>
-                `;
-              }).join('')}
-            </tbody>
-          </table>
+      `;
+    } else {
+      sliderPanelHTML = `
+        <div class="glass-panel border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-[var(--radius-2xl)] p-8 text-center">
+          <i data-lucide="user-x" class="w-10 h-10 text-slate-300 mx-auto mb-3"></i>
+          <p class="font-heading font-bold text-sm text-slate-400">No students in this class</p>
+          <p class="text-xs text-slate-400 mt-1">Add students from the Students tab first.</p>
         </div>
+      `;
+    }
+
+    content.innerHTML = `
+      <div class="space-y-4">
+        <!-- Top Bar -->
+        <div class="glass-panel border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-[var(--radius-2xl)] p-4">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <i data-lucide="target" class="w-4 h-4 text-pink"></i>
+              <h4 class="font-heading font-bold text-sm uppercase tracking-tight text-slate-800 dark:text-white">Skills Matrix</h4>
+              <span class="text-[10px] font-black px-2 py-0.5 rounded-lg bg-pink/10 text-pink border border-pink/20">${skills.length} skills</span>
+            </div>
+          </div>
+          <!-- Student Tabs -->
+          <div class="flex flex-wrap gap-2">
+            ${studentPillsHTML}
+          </div>
+        </div>
+
+        <!-- Slider Panel -->
+        ${sliderPanelHTML}
       </div>
     `;
 
     if (window.lucide) lucide.createIcons();
+  },
+
+  selectStudent(id) {
+    this.selectedStudentId = id;
+    this.render();
+  },
+
+  onSliderChange(studentId, skillId, value) {
+    const numVal = parseInt(value) || 0;
+    const classData = ClassManager.data.classes[ClassManager.activeClass];
+    if (!classData.studentSkills) classData.studentSkills = {};
+    if (!classData.studentSkills[studentId]) classData.studentSkills[studentId] = {};
+    classData.studentSkills[studentId][skillId] = numVal;
+
+    // Update label
+    const valLabel = document.getElementById(`sk-val-${skillId}`);
+    if (valLabel) valLabel.textContent = numVal;
+
+    // Update Average dynamically
+    let total = 0, count = 0;
+    classData.skills.forEach(sk => {
+      total += (classData.studentSkills[studentId][sk.id] || 0);
+      count++;
+    });
+    const avg = count > 0 ? Math.round(total / count) : 0;
+    const avgLabel = document.getElementById('sk-avg-val');
+    if (avgLabel) {
+      avgLabel.textContent = `${avg}/100`;
+      avgLabel.className = `text-xs font-black ${avg >= 70 ? 'text-green' : avg >= 50 ? 'text-orange' : 'text-pink'}`;
+    }
+
+    // Sync back to puScores on the student object for Comment Helper compatibility
+    const student = classData.students.find(s => s.id === studentId);
+    if (student) {
+      if (!student.puScores) student.puScores = {};
+      const skill = classData.skills.find(s => s.id === skillId);
+      if (skill) {
+        // Reverse-map skill name to puScores key
+        const REVERSE_MAP = {
+          'Participation': 'participation', 'Listening': 'listening', 'Speaking': 'spoken',
+          'Attendance': 'attendance', 'Social': 'social', 'Confidence': 'confidence',
+          'Progress': 'progress', 'Grammar': 'grammar', 'Reading': 'reading',
+          'Vocabulary': 'vocabulary', 'Writing': 'writing', 'Homework': 'homework',
+          'Accuracy (Errors)': 'errors'
+        };
+        const puKey = REVERSE_MAP[skill.name];
+        if (puKey) student.puScores[puKey] = numVal;
+      }
+    }
+
+    ClassManager.saveData();
   },
 
   openAddSkill() {
