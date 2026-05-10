@@ -2451,6 +2451,9 @@ const Timer = {
     timer.id = 'universal-timer';
     timer.className = 'universal-timer hidden';
     timer.innerHTML = `
+      <button class="timer-exit-btn" title="Close" aria-label="Close timer">
+        <i data-lucide="x" class="w-3 h-3"></i>
+      </button>
       <div class="timer-drag-handle" title="Drag to move" touch-action="none">
         <i data-lucide="grip-vertical" class="w-3 h-3 opacity-50"></i>
         <span>Timer</span>
@@ -2523,6 +2526,13 @@ const Timer = {
     const playBtn = this.el.querySelector('.timer-play');
     const pauseBtn = this.el.querySelector('.timer-pause');
     const resetBtn = this.el.querySelector('.timer-reset');
+    const exitBtn = this.el.querySelector('.timer-exit-btn');
+
+    exitBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.hide();
+      AudioEngine.click();
+    });
 
     // --- Pointer-based drag (mouse + touch unified, smooth via RAF) ---
     handle.addEventListener('pointerdown', (e) => {
