@@ -2062,6 +2062,12 @@ const CommentsManager = {
     document.getElementById('pu-spoken').value = sc.spoken ?? '';
     document.getElementById('pu-attendance').value = sc.attendance ?? '';
     document.getElementById('pu-errors').value = sc.errors ?? '';
+    document.getElementById('pu-progress').value = sc.progress ?? '';
+    document.getElementById('pu-grammar').value = sc.grammar ?? '';
+    document.getElementById('pu-reading').value = sc.reading ?? '';
+    document.getElementById('pu-vocabulary').value = sc.vocabulary ?? '';
+    document.getElementById('pu-writing').value = sc.writing ?? '';
+    document.getElementById('pu-homework').value = sc.homework ?? '';
 
     this.currentPronoun = s.puPronoun || 'they';
     this.renderPronounButtons();
@@ -2089,10 +2095,17 @@ const CommentsManager = {
       spoken: document.getElementById('pu-spoken').value,
       attendance: document.getElementById('pu-attendance').value,
       errors: document.getElementById('pu-errors').value,
+      progress: document.getElementById('pu-progress').value,
+      grammar: document.getElementById('pu-grammar').value,
+      reading: document.getElementById('pu-reading').value,
+      vocabulary: document.getElementById('pu-vocabulary').value,
+      writing: document.getElementById('pu-writing').value,
+      homework: document.getElementById('pu-homework').value,
     };
 
     const labels = { participation:'Participation', social:'Social', listening:'Listening',
-                     confidence:'Confidence', spoken:'Speaking', attendance:'Attendance', errors:'Accuracy (Errors)' };
+                     confidence:'Confidence', spoken:'Speaking', attendance:'Attendance', errors:'Accuracy (Errors)',
+                     progress:'Progress', grammar:'Grammar', reading:'Reading', vocabulary:'Vocabulary', writing:'Writing', homework:'Homework' };
 
     for (const [k, v] of Object.entries(fields)) {
       if (v === '' || isNaN(+v)) { this.showError(`Please enter a score for "${labels[k]}".`); return; }
@@ -2112,7 +2125,8 @@ const CommentsManager = {
     this.currentStudentId = null;
     document.getElementById('pu-score-card').classList.add('hidden');
     document.getElementById('pu-output-section').classList.add('hidden');
-    ['pu-participation','pu-social','pu-listening','pu-confidence','pu-spoken','pu-attendance','pu-errors']
+    ['pu-participation','pu-social','pu-listening','pu-confidence','pu-spoken','pu-attendance','pu-errors',
+     'pu-progress','pu-grammar','pu-reading','pu-vocabulary','pu-writing','pu-homework']
       .forEach(id => { document.getElementById(id).value = ''; });
     this.currentPronoun = 'they';
     this.renderPronounButtons();
@@ -2122,7 +2136,8 @@ const CommentsManager = {
 
   buildComments(name, sc, pronoun) {
     pronoun = pronoun || 'they';
-    const labels = { participation:'Participation', social:'Social', listening:'Listening', confidence:'Confidence', spoken:'Speaking', attendance:'Attendance', errors:'Accuracy' };
+    const labels = { participation:'Participation', social:'Social', listening:'Listening', confidence:'Confidence', spoken:'Speaking', attendance:'Attendance', errors:'Accuracy',
+                     progress:'Progress', grammar:'Grammar', reading:'Reading', vocabulary:'Vocabulary', writing:'Writing', homework:'Homework' };
     let skillBreakdown = `Here is ${name}'s progress across all skills:\n\n`;
     for (const [k, v] of Object.entries(sc)) {
       const raw = this.pick(this.hopefulPhrases[k]?.[this.level(v)]);
