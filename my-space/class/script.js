@@ -1682,6 +1682,10 @@ const SkillsManager = {
     const classData = ClassManager.data.classes[ClassManager.activeClass];
 
     if (!classData) return;
+    
+    // Auto-initialize core skills from Comment Helper
+    this.ensureCoreSkills(classData);
+
     if (!classData.skills) classData.skills = [];
     if (!classData.studentSkills) classData.studentSkills = {};
     if (!classData.skillSnapshots) classData.skillSnapshots = {};
@@ -1870,6 +1874,46 @@ const SkillsManager = {
     classData.studentSkills[studentId][skillId] = level;
     ClassManager.saveData();
     this.render();
+  },
+
+  ensureCoreSkills(classData) {
+    if (!classData) return;
+    if (!classData.skills) classData.skills = [];
+
+    const CORE_SKILLS = [
+      { name: 'Participation', category: 'Classroom' },
+      { name: 'Listening', category: 'Classroom' },
+      { name: 'Speaking', category: 'Classroom' },
+      { name: 'Attendance', category: 'Classroom' },
+      { name: 'Social', category: 'Social' },
+      { name: 'Confidence', category: 'Social' },
+      { name: 'Progress', category: 'Academic' },
+      { name: 'Grammar', category: 'Academic' },
+      { name: 'Reading', category: 'Academic' },
+      { name: 'Vocabulary', category: 'Academic' },
+      { name: 'Writing', category: 'Academic' },
+      { name: 'Homework', category: 'Academic' },
+      { name: 'Accuracy (Errors)', category: 'Academic' }
+    ];
+
+    let changed = false;
+    CORE_SKILLS.forEach(core => {
+      const exists = classData.skills.find(s => s.name === core.name);
+      if (!exists) {
+        classData.skills.push({
+          id: crypto.randomUUID(),
+          name: core.name,
+          category: core.category,
+          createdAt: new Date().toISOString(),
+          isCore: true
+        });
+        changed = true;
+      }
+    });
+
+    if (changed) {
+      ClassManager.saveData();
+    }
   },
 
   adjustLevel(studentId, skillId, delta) {
@@ -2159,14 +2203,32 @@ const CommentsManager = {
     document.getElementById('pu-score-card').classList.remove('hidden');
     document.getElementById('pu-form-title').textContent = `Scores for ${s.nick || s.name}`;
 
-    const sc = s.puScores || {};
+    const classData = ClassManager.data.classes[ClassManager.activeClass] || {};
+    const studentSkills = classData.studentSkills?.[id] || {};
+    const skillList = classData.skills || [];
+    
     const fieldIds = ['participation','social','listening','confidence','spoken','attendance','errors','progress','grammar','reading','vocabulary','writing','homework'];
-    fieldIds.forEach(id => {
-      const val = sc[id] ?? 0;
-      const el = document.getElementById(`pu-${id}`);
+    const labels = { participation:'Participation', social:'Social', listening:'Listening', confidence:'Confidence', spoken:'Speaking', attendance:'Attendance', errors:'Accuracy (Errors)',
+                     progress:'Progress', grammar:'Grammar', reading:'Reading', vocabulary:'Vocabulary', writing:'Writing', homework:'Homework' };
+
+    fieldIds.forEach(key => {
+      // Find skill in global list to get its ID
+      const skillName = labels[key];
+      const skill = skillList.find(sk => sk.name === skillName);
+      
+      // Prioritize value from studentSkills, fallback to puScores
+      let val = 0;
+      if (skill && studentSkills[skill.id] !== undefined) {
+        val = studentSkills[skill.id];
+      } else {
+        const sc = s.puScores || {};
+        val = sc[key] ?? 0;
+      }
+
+      const el = document.getElementById(`pu-${key}`);
       if (el) {
         el.value = val;
-        const valLabel = document.getElementById(`pu-${id}-val`);
+        const valLabel = document.getElementById(`pu-${key}-val`);
         if (valLabel) valLabel.textContent = val;
       }
     });
@@ -2184,26 +2246,43 @@ const CommentsManager = {
     if (window.lucide) lucide.createIcons();
   },
 
+  updateScore(key, value) {
+    if (!this.currentStudentId) return;
+    const s = this.getStudent(this.currentStudentId);
+    if (!s) return;
+
+    // 1. Update student puScores (for backward compatibility/individual tool use)
+    if (!s.puScores) s.puScores = {};
+    const numVal = parseInt(value) || 0;
+    s.puScores[key] = numVal;
+
+    // 2. Update Skills Matrix state immediately (Seamless Integration)
+    const labels = { participation:'Participation', social:'Social', listening:'Listening',
+                     confidence:'Confidence', spoken:'Speaking', attendance:'Attendance', errors:'Accuracy (Errors)',
+                     progress:'Progress', grammar:'Grammar', reading:'Reading', vocabulary:'Vocabulary', writing:'Writing', homework:'Homework' };
+    
+    const fieldObj = {};
+    fieldObj[key] = numVal;
+    SkillsManager.syncFromCommentHelper(this.currentStudentId, fieldObj, labels);
+
+    // 3. Update visual label
+    const valLabel = document.getElementById(`pu-${key}-val`);
+    if (valLabel) valLabel.textContent = numVal;
+
+    // 4. Save persistence
+    ClassManager.saveData();
+  },
+
   saveAndGenerate() {
     if (!this.currentStudentId) { this.showError('Please select a student first.'); return; }
     const s = this.getStudent(this.currentStudentId);
     if (!s) return;
 
-    const fields = {
-      participation: document.getElementById('pu-participation').value,
-      social: document.getElementById('pu-social').value,
-      listening: document.getElementById('pu-listening').value,
-      confidence: document.getElementById('pu-confidence').value,
-      spoken: document.getElementById('pu-spoken').value,
-      attendance: document.getElementById('pu-attendance').value,
-      errors: document.getElementById('pu-errors').value,
-      progress: document.getElementById('pu-progress').value,
-      grammar: document.getElementById('pu-grammar').value,
-      reading: document.getElementById('pu-reading').value,
-      vocabulary: document.getElementById('pu-vocabulary').value,
-      writing: document.getElementById('pu-writing').value,
-      homework: document.getElementById('pu-homework').value,
-    };
+    const fields = {};
+    const fieldIds = ['participation','social','listening','confidence','spoken','attendance','errors','progress','grammar','reading','vocabulary','writing','homework'];
+    fieldIds.forEach(id => {
+      fields[id] = document.getElementById(`pu-${id}`).value;
+    });
 
     const labels = { participation:'Participation', social:'Social', listening:'Listening',
                      confidence:'Confidence', spoken:'Speaking', attendance:'Attendance', errors:'Accuracy (Errors)',
@@ -2216,7 +2295,6 @@ const CommentsManager = {
     this.hideError();
 
     s.puScores = fields;
-    SkillsManager.syncFromCommentHelper(this.currentStudentId, fields, labels);
     s.puPronoun = this.currentPronoun;
     s.puComments = this.buildComments(s.nick || s.name, fields, this.currentPronoun);
     ClassManager.saveData();
