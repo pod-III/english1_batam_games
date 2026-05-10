@@ -820,11 +820,11 @@ body.focus-mode .side-panel-toggle-btn {
 }
 
 /* ============================================
-   22. UNIVERSAL FLOATING TIMER
+   22. UNIVERSAL FLOATING COUNTDOWN TIMER
    ============================================ */
 
 .universal-timer {
-  position: fixed;
+  position: absolute;
   top: 1rem;
   right: 1rem;
   z-index: 80;
@@ -832,28 +832,37 @@ body.focus-mode .side-panel-toggle-btn {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.4rem;
+  gap: 0.5rem;
 
-  min-width: 7rem;
-  padding: 0.6rem 0.8rem;
+  min-width: 9rem;
+  padding: 0.6rem 0.8rem 0.7rem;
 
   background: var(--bg-secondary);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 
   border: 3px solid var(--border-primary);
-  border-radius: 1rem;
+  border-radius: 1.25rem;
   box-shadow: 4px 4px 0 var(--border-primary);
 
   font-family: 'Nunito', sans-serif;
   user-select: none;
   cursor: default;
+  touch-action: none;
 
-  transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+              border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Kill ALL transitions while dragging so position updates are instant */
+.universal-timer.timer-dragging {
+  transition: none !important;
+  will-change: left, top;
+  cursor: grabbing;
 }
 
 .dark .universal-timer {
-  background: rgba(15, 23, 42, 0.85);
+  background: rgba(15, 23, 42, 0.9);
   box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.6);
 }
 
@@ -872,13 +881,32 @@ body.focus-mode .side-panel-toggle-btn {
   box-shadow: 4px 4px 0 rgba(0, 208, 99, 0.5);
 }
 
+/* Finished / alarm state */
+.universal-timer.timer-finished {
+  border-color: var(--color-pink);
+  box-shadow: 4px 4px 0 var(--color-pink);
+  animation: timer-alarm-pulse 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes timer-alarm-pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 4px 4px 0 var(--color-pink);
+  }
+  100% {
+    transform: scale(1.06);
+    box-shadow: 4px 4px 12px var(--color-pink), 0 0 20px rgba(255, 71, 133, 0.3);
+  }
+}
+
+/* --- Drag Handle --- */
 .timer-drag-handle {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.25rem;
   width: 100%;
-  padding-bottom: 0.3rem;
+  padding-bottom: 0.35rem;
   border-bottom: 2px solid var(--border-secondary);
   cursor: grab;
   font-size: 0.6rem;
@@ -886,22 +914,207 @@ body.focus-mode .side-panel-toggle-btn {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-tertiary);
+  touch-action: none;
 }
 
 .timer-drag-handle:active {
   cursor: grabbing;
 }
 
+/* --- Circular Progress Ring --- */
+.timer-ring-wrap {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.timer-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.timer-ring-bg {
+  fill: none;
+  stroke: var(--border-secondary);
+  stroke-width: 5;
+}
+
+.dark .timer-ring-bg {
+  stroke: rgba(71, 85, 105, 0.4);
+}
+
+.timer-ring-fg {
+  fill: none;
+  stroke: var(--color-blue);
+  stroke-width: 5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.15s linear, stroke 0.3s ease;
+}
+
+.universal-timer.running .timer-ring-fg {
+  stroke: var(--color-green);
+}
+
+.universal-timer.timer-finished .timer-ring-fg {
+  stroke: var(--color-pink);
+}
+
+/* --- Display (inside ring) --- */
 .timer-display {
   font-family: 'Nunito', sans-serif;
-  font-size: 1.6rem;
+  font-size: 1.3rem;
   font-weight: 900;
   line-height: 1;
   color: var(--text-primary);
   text-align: center;
-  min-width: 4.5rem;
+  min-width: 3.5rem;
+  z-index: 2;
 }
 
+.universal-timer.timer-finished .timer-display {
+  color: var(--color-pink);
+}
+
+/* --- Preset Duration Buttons --- */
+.timer-presets {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.timer-preset-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0.2rem 0.45rem;
+  min-width: 1.8rem;
+
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+
+  border: 2px solid var(--border-secondary);
+  border-radius: 0.5rem;
+
+  font-family: 'Nunito', sans-serif;
+  font-size: 0.6rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.timer-preset-btn:hover {
+  background: var(--color-blue);
+  color: white;
+  border-color: var(--color-blue);
+  transform: translateY(-1px);
+  box-shadow: 1px 1px 0 var(--color-blue);
+}
+
+.timer-preset-btn:active {
+  transform: translateY(1px);
+  box-shadow: none;
+}
+
+.timer-preset-btn.active {
+  background: var(--color-blue);
+  color: white;
+  border-color: var(--color-blue);
+  box-shadow: 1px 1px 0 var(--color-blue);
+}
+
+/* --- Custom Time Input --- */
+.timer-custom-input {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding-top: 0.3rem;
+  border-top: 2px solid var(--border-secondary);
+}
+
+.timer-custom-input.hidden {
+  display: none;
+}
+
+.timer-custom-fields {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.timer-custom-field {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.timer-custom-field input {
+  width: 2.5rem;
+  padding: 0.2rem 0.1rem;
+  text-align: center;
+  font-family: 'Nunito', sans-serif;
+  font-size: 1rem;
+  font-weight: 900;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border: 2px solid var(--border-secondary);
+  border-radius: 0.5rem;
+  outline: none;
+  -moz-appearance: textfield;
+}
+
+.timer-custom-field input::-webkit-inner-spin-button,
+.timer-custom-field input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.timer-custom-field input:focus {
+  border-color: var(--color-blue);
+  box-shadow: 0 0 0 2px rgba(30, 167, 253, 0.2);
+}
+
+.timer-custom-field label {
+  font-size: 0.5rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-tertiary);
+}
+
+.timer-custom-sep {
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: var(--text-tertiary);
+  padding-bottom: 0.8rem;
+}
+
+.timer-set-btn {
+  background: var(--color-green) !important;
+  color: white !important;
+  border-color: var(--color-green) !important;
+  padding: 0.2rem 0.8rem !important;
+}
+
+.timer-set-btn:hover {
+  box-shadow: 2px 2px 0 var(--color-green) !important;
+}
+
+/* --- Timer Controls --- */
 .timer-controls {
   display: flex;
   align-items: center;
@@ -959,21 +1172,31 @@ body.focus-mode .side-panel-toggle-btn {
   box-shadow: 2px 2px 0 var(--color-blue);
 }
 
-/* Responsive timer */
+/* --- Responsive Timer --- */
 @media (max-width: 768px) {
   .universal-timer {
     top: 0.5rem;
     right: 0.5rem;
-    min-width: 6rem;
+    min-width: 7.5rem;
     padding: 0.4rem 0.6rem;
   }
 
+  .timer-ring-wrap {
+    width: 68px;
+    height: 68px;
+  }
+
   .timer-display {
-    font-size: 1.3rem;
+    font-size: 1.1rem;
   }
 
   .timer-btn {
     width: 1.6rem;
     height: 1.6rem;
+  }
+
+  .timer-preset-btn {
+    font-size: 0.55rem;
+    padding: 0.15rem 0.35rem;
   }
 }
