@@ -1709,7 +1709,7 @@ const SkillsManager = {
                         <td class="!py-2 !px-2 text-center">
                           <div class="flex items-center justify-center gap-1">
                             <button onclick="SkillsManager.adjustLevel('${student.id}','${sk.id}',-1)" class="w-5 h-5 rounded bg-slate-100 dark:bg-slate-800 text-slate-400 text-[8px] font-black hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center">-</button>
-                            <input type="number" min="0" max="10" value="${level}"
+                            <input type="number" min="0" max="100" value="${level}"
                               onchange="SkillsManager.setLevel('${student.id}','${sk.id}',parseInt(this.value)||0)"
                               class="skill-rating-input w-8 h-6 text-center text-[11px] font-black bg-transparent border border-slate-200 dark:border-slate-700 rounded focus:border-blue focus:outline-none text-slate-700 dark:text-slate-200">
                             <button onclick="SkillsManager.adjustLevel('${student.id}','${sk.id}',1)" class="w-5 h-5 rounded bg-slate-100 dark:bg-slate-800 text-slate-400 text-[8px] font-black hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center">+</button>
@@ -1812,7 +1812,7 @@ const SkillsManager = {
   },
 
   setLevel(studentId, skillId, level) {
-    level = Math.max(0, Math.min(10, level));
+    level = Math.max(0, Math.min(100, level));
     const classData = ClassManager.data.classes[ClassManager.activeClass];
     if (!classData.studentSkills) classData.studentSkills = {};
     if (!classData.studentSkills[studentId]) classData.studentSkills[studentId] = {};
@@ -2160,7 +2160,7 @@ const CommentsManager = {
 
     for (const [k, v] of Object.entries(fields)) {
       if (v === '' || isNaN(+v)) { this.showError(`Please enter a score for "${labels[k]}".`); return; }
-      if (+v < 0 || +v > 10) { this.showError(`"${labels[k]}" must be between 0 and 10.`); return; }
+      if (+v < 0 || +v > 100) { this.showError(`"${labels[k]}" must be between 0 and 100.`); return; }
     }
     this.hideError();
 
@@ -2210,9 +2210,9 @@ const CommentsManager = {
 
   level(v) {
     v = +v;
-    if (v >= 9) return 'excellent';
-    if (v >= 7) return 'good';
-    if (v >= 5) return 'developing';
+    if (v >= 90) return 'excellent';
+    if (v >= 70) return 'good';
+    if (v >= 50) return 'developing';
     return 'needs_work';
   },
 
