@@ -92,6 +92,12 @@ const ClassManager = {
     if (local) {
       try {
         this.data = JSON.parse(local);
+        // Migration: Scale scores from 10 to 100
+        if (!this.data.version || this.data.version < 2) {
+          this.migrateTo100Scale();
+          this.data.version = 2;
+          this.saveData();
+        }
       } catch (e) {
         console.error('[MyClass] Failed to parse local data', e);
       }
@@ -117,6 +123,51 @@ const ClassManager = {
     }
     
     this.updateSyncBadge();
+  },
+
+  migrateTo100Scale() {
+    console.info('[MyClass] Migrating data to 100-point scale...');
+    for (const className in this.data.classes) {
+      const cls = this.data.classes[className];
+      // 1. Migrate puScores in students
+      if (cls.students) {
+        cls.students.forEach(s => {
+          if (s.puScores) {
+            for (const k in s.puScores) {
+              const val = s.puScores[k];
+              if (val !== '' && !isNaN(val) && val <= 10) {
+                s.puScores[k] = val * 10;
+              }
+            }
+          }
+        });
+      }
+      // 2. Migrate studentSkills
+      if (cls.studentSkills) {
+        for (const studentId in cls.studentSkills) {
+          const skills = cls.studentSkills[studentId];
+          for (const skillId in skills) {
+            if (skills[skillId] <= 10) {
+              skills[skillId] = skills[skillId] * 10;
+            }
+          }
+        }
+      }
+      // 3. Migrate snapshots
+      if (cls.skillSnapshots) {
+        for (const studentId in cls.skillSnapshots) {
+          cls.skillSnapshots[studentId].forEach(snap => {
+            if (snap.levels) {
+              for (const skillId in snap.levels) {
+                if (snap.levels[skillId] <= 10) {
+                  snap.levels[skillId] = snap.levels[skillId] * 10;
+                }
+              }
+            }
+          });
+        }
+      }
+    }
   },
 
   fetchClassesFromSchedule() {
@@ -978,7 +1029,7 @@ const StudentManager = {
     } else {
       barsContainer.innerHTML = skills.map(sk => {
         const val = studentSkills[sk.id] || 0;
-        const pct = (val / 10) * 100;
+        const pct = Math.min(100, Math.max(0, val));
         const color = 'bg-blue';
         return `
           <div class="flex items-center gap-3">
@@ -1024,7 +1075,7 @@ const StudentManager = {
           scales: {
             r: {
               beginAtZero: true,
-              max: 5,
+              max: 100,
               ticks: { stepSize: 1, color: tickColor, backdropColor: 'transparent' },
               grid: { color: gridColor },
               angleLines: { color: gridColor },
