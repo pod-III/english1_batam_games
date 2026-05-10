@@ -548,6 +548,11 @@ C,A,T</textarea>
                     <i data-lucide="eye" class="w-6 h-6"></i> REVEAL
                 </button>
 
+                <button id="skip-btn" onclick="loadNextRound()"
+                    class="hidden btn-chunky bg-white dark:bg-slate-700 !text-slate-600 dark:!text-slate-300 px-6 py-4 rounded-2xl text-xl font-black tracking-wide flex items-center gap-3 hover:scale-105 active:scale-95 shadow-neo">
+                    NEXT <i data-lucide="chevron-right" class="w-6 h-6"></i>
+                </button>
+
                 <!-- Hidden by default until played -->
                 <button id="next-round-btn" onclick="loadNextRound()"
                     class="hidden btn-chunky bg-pink text-white dark:text-white px-8 py-4 rounded-2xl text-xl font-black tracking-wide flex items-center gap-3 hover:scale-105 active:scale-95 shadow-neo">
@@ -907,7 +912,6 @@ C,A,T</textarea>
                 this.width = this.element.offsetWidth;
                 this.height = this.element.offsetHeight;
 
-                this.radius = (Math.max(this.width, this.height) / 2) * 0.85;
                 this.mass = (this.width * this.height) / 500;
 
                 this.x = Math.random() * (containerWidth - this.width);
@@ -990,18 +994,27 @@ C,A,T</textarea>
                     const b1 = activeBouncingWords[i];
                     const b2 = activeBouncingWords[j];
 
-                    const c1 = b1.center;
-                    const c2 = b2.center;
+                    const dx = b2.center.x - b1.center.x;
+                    const dy = b2.center.y - b1.center.y;
 
-                    const dx = c2.x - c1.x;
-                    const dy = c2.y - c1.y;
-                    const distance = Math.sqrt(dx * dx + dy * dy);
-                    const minDistance = b1.radius + b2.radius;
+                    const combinedHalfWidth = (b1.width + b2.width) / 2;
+                    const combinedHalfHeight = (b1.height + b2.height) / 2;
 
-                    if (distance < minDistance) {
-                        const overlap = minDistance - distance;
-                        const nx = dx / distance;
-                        const ny = dy / distance;
+                    const overlapX = combinedHalfWidth - Math.abs(dx);
+                    const overlapY = combinedHalfHeight - Math.abs(dy);
+
+                    if (overlapX > 0 && overlapY > 0) {
+                        let nx, ny, overlap;
+
+                        if (overlapX < overlapY) {
+                            overlap = overlapX;
+                            nx = dx > 0 ? 1 : -1;
+                            ny = 0;
+                        } else {
+                            overlap = overlapY;
+                            nx = 0;
+                            ny = dy > 0 ? 1 : -1;
+                        }
 
                         const totalMass = b1.mass + b2.mass;
                         const m1Ratio = b2.mass / totalMass;
@@ -1111,6 +1124,7 @@ C,A,T</textarea>
             calculateRevealPositions();
 
             document.getElementById('reveal-btn').classList.add('hidden');
+            document.getElementById('skip-btn').classList.add('hidden');
             document.getElementById('next-round-btn').classList.remove('hidden');
             document.getElementById('speed-control-display').classList.add('opacity-50', 'pointer-events-none');
         }
@@ -1143,6 +1157,7 @@ C,A,T</textarea>
             isRevealed = false;
 
             document.getElementById('reveal-btn').classList.remove('hidden');
+            document.getElementById('skip-btn').classList.remove('hidden');
             document.getElementById('next-round-btn').classList.add('hidden');
             document.getElementById('speed-control-display').classList.remove('opacity-50', 'pointer-events-none');
 
