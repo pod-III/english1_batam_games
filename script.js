@@ -326,7 +326,7 @@ const FloatingTooltip = {
     document.addEventListener('mouseover', (e) => {
       const target = e.target.closest('[data-title]');
       // Only for side-panel elements as requested
-      if (target && (target.closest('#side-panel') || target.classList.contains('side-panel-tab'))) {
+      if (target && (target.closest('#side-panel') || target.closest('#game-modal') || target.classList.contains('side-panel-tab'))) {
         const title = target.getAttribute('data-title');
         if (title) {
           this.show(title, e.clientX, e.clientY);
@@ -1473,12 +1473,232 @@ const TabManager = {
   groups: [],
   contextMenu: null,
   groupMenu: null,
+  GROUP_COLORS: [
+    { name: 'Blue',   value: 'blue',   hex: '#1ea7fd' },
+    { name: 'Pink',   value: 'pink',   hex: '#ff4785' },
+    { name: 'Green',  value: 'green',  hex: '#00d063' },
+    { name: 'Orange', value: 'orange', hex: '#ff7e33' },
+    { name: 'Purple', value: 'purple', hex: '#8b5cf6' },
+    { name: 'Teal',   value: 'teal',   hex: '#14b8a6' },
+    { name: 'Red',    value: 'red',    hex: '#ef4444' },
+    { name: 'Amber',  value: 'amber',  hex: '#f59e0b' },
+  ],
+
+  getGroupColorHex(colorValue) {
+    return this.GROUP_COLORS.find(c => c.value === colorValue)?.hex || '#1ea7fd';
+  },
+
+  getNextGroupColor() {
+    const usedColors = this.groups.map(g => g.color);
+    const unused = this.GROUP_COLORS.find(c => !usedColors.includes(c.value));
+    return unused ? unused.value : this.GROUP_COLORS[this.groups.length % this.GROUP_COLORS.length].value;
+  },
 
   init() {
     this.setupKeyboardShortcuts();
     this.loadGroupsFromStorage();
     this.loadTabsFromStorage();
     this.setupContextMenu();
+    this.setupTouchDrag();
+  },
+
+  // ============================
+  // TOUCH DRAG SYSTEM
+  // ============================
+  _touchDrag: {
+    active: false,
+    startX: 0,
+    startY: 0,
+    ghost: null,
+    sourceType: null,  // 'tab' | 'group'
+    sourceId: null,
+    longPressTimer: null,
+    longPressDelay: 300,
+    currentDropTarget: null,
+  },
+
+  setupTouchDrag() {
+    // Global touch move / end handlers (bound once)
+    document.addEventListener('touchmove', (e) => this._onTouchMove(e), { passive: false });
+    document.addEventListener('touchend', (e) => this._onTouchEnd(e), { passive: false });
+    document.addEventListener('touchcancel', (e) => this._onTouchEnd(e), { passive: false });
+  },
+
+  attachTouchDragToTab(tabIcon, tabId) {
+    tabIcon.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      this._touchDrag.startX = touch.clientX;
+      this._touchDrag.startY = touch.clientY;
+      this._touchDrag.sourceType = 'tab';
+      this._touchDrag.sourceId = tabId;
+
+      this._touchDrag.longPressTimer = setTimeout(() => {
+        this._startTouchDrag(touch, tabIcon);
+      }, this._touchDrag.longPressDelay);
+    }, { passive: true });
+  },
+
+  attachTouchDragToGroup(groupEl, groupId) {
+    const header = groupEl.querySelector('.tab-group-header');
+    if (!header) return;
+    header.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1) return;
+      e.stopPropagation(); // Prevent tab touch from firing
+      const touch = e.touches[0];
+      this._touchDrag.startX = touch.clientX;
+      this._touchDrag.startY = touch.clientY;
+      this._touchDrag.sourceType = 'group';
+      this._touchDrag.sourceId = groupId;
+
+      this._touchDrag.longPressTimer = setTimeout(() => {
+        this._startTouchDrag(touch, groupEl);
+      }, this._touchDrag.longPressDelay);
+    }, { passive: true });
+  },
+
+  _startTouchDrag(touch, sourceEl) {
+    const td = this._touchDrag;
+    td.active = true;
+
+    // Haptic feedback if available
+    if (navigator.vibrate) navigator.vibrate(30);
+
+    // Create ghost
+    const ghost = document.createElement('div');
+    ghost.className = 'touch-drag-ghost';
+    ghost.innerHTML = sourceEl.querySelector('.side-panel-tab-icon')?.outerHTML
+                   || sourceEl.querySelector('.tab-group-name')?.outerHTML
+                   || '<span>⋮</span>';
+    ghost.style.left = `${touch.clientX - 24}px`;
+    ghost.style.top = `${touch.clientY - 24}px`;
+    document.body.appendChild(ghost);
+    td.ghost = ghost;
+
+    // Mark source
+    sourceEl.classList.add('dragging');
+    td._sourceEl = sourceEl;
+
+    Utils.refreshIcons(ghost);
+  },
+
+  _onTouchMove(e) {
+    const td = this._touchDrag;
+    if (!td.longPressTimer && !td.active) return;
+
+    const touch = e.touches[0];
+
+    // If not yet dragging, check if finger moved too much → cancel long press
+    if (td.longPressTimer && !td.active) {
+      const dx = Math.abs(touch.clientX - td.startX);
+      const dy = Math.abs(touch.clientY - td.startY);
+      if (dx > 10 || dy > 10) {
+        clearTimeout(td.longPressTimer);
+        td.longPressTimer = null;
+      }
+      return;
+    }
+
+    if (!td.active) return;
+    e.preventDefault(); // Prevent scroll while dragging
+
+    // Move ghost
+    if (td.ghost) {
+      td.ghost.style.left = `${touch.clientX - 24}px`;
+      td.ghost.style.top = `${touch.clientY - 24}px`;
+    }
+
+    // Find drop target under finger
+    if (td.ghost) td.ghost.style.pointerEvents = 'none';
+    const elUnder = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (td.ghost) td.ghost.style.pointerEvents = '';
+
+    // Clear old highlight
+    if (td.currentDropTarget && td.currentDropTarget !== elUnder) {
+      td.currentDropTarget.classList.remove('drag-over');
+    }
+
+    // Highlight new target
+    const dropTarget = elUnder?.closest('.side-panel-tab, .tab-group-header, .tab-ungrouped-dropzone');
+    if (dropTarget) {
+      dropTarget.classList.add('drag-over');
+      td.currentDropTarget = dropTarget;
+    } else {
+      td.currentDropTarget = null;
+    }
+  },
+
+  _onTouchEnd(e) {
+    const td = this._touchDrag;
+
+    // Clear long-press timer
+    if (td.longPressTimer) {
+      clearTimeout(td.longPressTimer);
+      td.longPressTimer = null;
+    }
+
+    if (!td.active) return;
+    td.active = false;
+
+    // Remove ghost
+    if (td.ghost) {
+      td.ghost.remove();
+      td.ghost = null;
+    }
+
+    // Remove source styling
+    if (td._sourceEl) {
+      td._sourceEl.classList.remove('dragging');
+    }
+
+    // Resolve drop
+    const target = td.currentDropTarget;
+    if (target) {
+      target.classList.remove('drag-over');
+
+      if (td.sourceType === 'tab') {
+        if (target.classList.contains('side-panel-tab')) {
+          // Drop tab on tab
+          const targetTabId = target.dataset.tabId;
+          if (targetTabId && targetTabId !== td.sourceId) {
+            const draggedTab = this.tabs.find(t => t.id === td.sourceId);
+            const targetTab = this.tabs.find(t => t.id === targetTabId);
+            if (draggedTab && targetTab && draggedTab.groupId === targetTab.groupId) {
+              this.reorderTabs(td.sourceId, targetTabId);
+            } else if (draggedTab) {
+              this.moveTabToGroup(td.sourceId, targetTab?.groupId || null);
+            }
+            AudioEngine.click();
+          }
+        } else if (target.classList.contains('tab-group-header')) {
+          // Drop tab on group header
+          const groupEl = target.closest('.tab-group');
+          const groupId = groupEl?.dataset.groupId;
+          if (groupId) {
+            this.moveTabToGroup(td.sourceId, groupId);
+            AudioEngine.click();
+          }
+        } else if (target.classList.contains('tab-ungrouped-dropzone')) {
+          // Drop tab to ungrouped
+          this.moveTabToGroup(td.sourceId, null);
+          AudioEngine.click();
+        }
+      } else if (td.sourceType === 'group') {
+        if (target.classList.contains('tab-group-header')) {
+          const groupEl = target.closest('.tab-group');
+          const targetGroupId = groupEl?.dataset.groupId;
+          if (targetGroupId && targetGroupId !== td.sourceId) {
+            this.reorderGroups(td.sourceId, targetGroupId);
+            AudioEngine.click();
+          }
+        }
+      }
+    }
+
+    // Clean up all drag-over states
+    document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    td.currentDropTarget = null;
+    td._sourceEl = null;
   },
 
   saveTabsToStorage() {
@@ -1493,6 +1713,12 @@ const TabManager = {
   loadGroupsFromStorage() {
     const saved = Storage.get(CONFIG.storageKeys.tabGroups);
     this.groups = Array.isArray(saved) ? saved : [];
+    // Migrate old 'text-blue' format to just 'blue'
+    this.groups.forEach(g => {
+      if (g.color && g.color.startsWith('text-')) {
+        g.color = g.color.replace('text-', '').split('-')[0];
+      }
+    });
   },
 
   loadTabsFromStorage() {
@@ -1515,14 +1741,34 @@ const TabManager = {
     this.updateEmptyState();
   },
 
-  createGroup(name, color = 'text-blue') {
+  createGroup(name, color = null) {
     const id = `group-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    const group = { id, name: name || 'New Group', color, collapsed: false };
+    const assignedColor = color || this.getNextGroupColor();
+    const group = { id, name: name || 'New Group', color: assignedColor, collapsed: false };
     this.groups.push(group);
     this.saveGroupsToStorage();
     this.renderGroups();
     AudioEngine.click();
     return group;
+  },
+
+  changeGroupColor(groupId, newColor) {
+    const group = this.groups.find(g => g.id === groupId);
+    if (group) {
+      group.color = newColor;
+      this.saveGroupsToStorage();
+      this.renderGroups();
+    }
+  },
+
+  reorderGroups(draggedGroupId, targetGroupId) {
+    const draggedIdx = this.groups.findIndex(g => g.id === draggedGroupId);
+    const targetIdx = this.groups.findIndex(g => g.id === targetGroupId);
+    if (draggedIdx === -1 || targetIdx === -1) return;
+    const [moved] = this.groups.splice(draggedIdx, 1);
+    this.groups.splice(targetIdx, 0, moved);
+    this.saveGroupsToStorage();
+    this.renderGroups();
   },
 
   deleteGroup(groupId) {
@@ -1576,17 +1822,6 @@ const TabManager = {
     // Remember scroll position
     const scrollTop = container.scrollTop;
 
-    // Remove existing group containers (but keep ungrouped tab icons that are already in DOM)
-    // Actually, rebuild everything cleanly
-    const existingUngrouped = [];
-    container.querySelectorAll('.side-panel-tab').forEach(el => {
-      const tabId = el.dataset.tabId;
-      const tab = this.tabs.find(t => t.id === tabId);
-      if (tab && !tab.groupId) {
-        existingUngrouped.push({ el, tabId });
-      }
-    });
-
     // Clear container but keep references to iconElements
     container.innerHTML = '';
 
@@ -1602,22 +1837,47 @@ const TabManager = {
 
     // Then render each group
     this.groups.forEach(group => {
+      const colorHex = this.getGroupColorHex(group.color);
+
       const groupEl = document.createElement('div');
       groupEl.id = group.id;
       groupEl.className = `tab-group${group.collapsed ? ' collapsed' : ''}`;
       groupEl.dataset.groupId = group.id;
+      groupEl.draggable = true;
 
       const header = document.createElement('button');
       header.className = 'tab-group-header';
       header.type = 'button';
+      header.style.borderColor = colorHex;
+      header.style.background = `${colorHex}18`;
       header.innerHTML = `
+        <span class="tab-group-color-dot" style="background:${colorHex}"></span>
         <span class="tab-group-chevron"><i data-lucide="${group.collapsed ? 'chevron-right' : 'chevron-down'}"></i></span>
         <span class="tab-group-name">${this.escapeHtml(group.name)}</span>
-        <span class="tab-group-count">${this.tabs.filter(t => t.groupId === group.id).length}</span>
+        <span class="tab-group-count" style="background:${colorHex}">${this.tabs.filter(t => t.groupId === group.id).length}</span>
       `;
       header.addEventListener('click', () => this.toggleGroupCollapsed(group.id));
 
-      // Drag over header to move tab into group
+      // --- Group dragging ---
+      groupEl.addEventListener('dragstart', (e) => {
+        // Only start group drag from the header
+        if (!e.target.closest('.tab-group-header') && !e.target.classList?.contains('tab-group')) {
+          // Let tab drag bubble naturally
+          return;
+        }
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('application/group-id', group.id);
+        e.dataTransfer.setData('text/plain', ''); // prevent tab handler from acting
+        setTimeout(() => groupEl.classList.add('dragging'), 0);
+      });
+
+      groupEl.addEventListener('dragend', () => {
+        groupEl.classList.remove('dragging');
+        container.querySelectorAll('.tab-group').forEach(el => el.classList.remove('drag-over'));
+        container.querySelectorAll('.tab-group-header').forEach(el => el.classList.remove('drag-over'));
+      });
+
+      // Drop on group header: accept tabs AND groups
       header.addEventListener('dragover', (e) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
@@ -1626,9 +1886,18 @@ const TabManager = {
       header.addEventListener('dragleave', () => header.classList.remove('drag-over'));
       header.addEventListener('drop', (e) => {
         e.preventDefault();
+        e.stopPropagation();
         header.classList.remove('drag-over');
+        const draggedGroupId = e.dataTransfer.getData('application/group-id');
         const draggedTabId = e.dataTransfer.getData('text/plain');
-        if (draggedTabId) this.moveTabToGroup(draggedTabId, group.id);
+        if (draggedGroupId && draggedGroupId !== group.id) {
+          // Reorder groups
+          this.reorderGroups(draggedGroupId, group.id);
+          AudioEngine.click();
+        } else if (draggedTabId && draggedTabId !== '') {
+          // Move tab into group
+          this.moveTabToGroup(draggedTabId, group.id);
+        }
       });
 
       // Context menu for group
@@ -1639,6 +1908,7 @@ const TabManager = {
 
       const tabsContainer = document.createElement('div');
       tabsContainer.className = 'tab-group-tabs';
+      tabsContainer.style.borderLeftColor = colorHex;
 
       const groupTabs = this.tabs.filter(t => t.groupId === group.id);
       groupTabs.forEach(tab => {
@@ -1653,7 +1923,30 @@ const TabManager = {
       groupEl.appendChild(header);
       groupEl.appendChild(tabsContainer);
       container.appendChild(groupEl);
+
+      // Touch drag support for groups
+      this.attachTouchDragToGroup(groupEl, group.id);
     });
+
+    // Add an ungrouped drop zone at the bottom so you can drop tabs out of groups
+    const dropZone = document.createElement('div');
+    dropZone.className = 'tab-ungrouped-dropzone';
+    dropZone.innerHTML = '<i data-lucide="inbox" class="w-3 h-3 opacity-40"></i>';
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      dropZone.classList.add('drag-over');
+    });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      const draggedTabId = e.dataTransfer.getData('text/plain');
+      if (draggedTabId && draggedTabId !== '') {
+        this.moveTabToGroup(draggedTabId, null);
+      }
+    });
+    container.appendChild(dropZone);
 
     Utils.refreshIcons(container);
     container.scrollTop = scrollTop;
@@ -1758,7 +2051,7 @@ const TabManager = {
     this.groups.forEach(group => {
       const btn = document.createElement('button');
       btn.className = 'w-full text-left px-3 py-2 rounded-lg text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 transition-colors';
-      btn.innerHTML = `<span class="w-3 h-3 rounded-full" style="background:var(--color-${group.color.replace('text-', '')})"></span><span>${this.escapeHtml(group.name)}</span>`;
+      btn.innerHTML = `<span class="w-3 h-3 rounded-full" style="background:${this.getGroupColorHex(group.color)}"></span><span>${this.escapeHtml(group.name)}</span>`;
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         this.moveTabToGroup(tabId, group.id);
@@ -1799,6 +2092,35 @@ const TabManager = {
       const name = prompt('Rename group:', group.name);
       if (name) this.renameGroup(groupId, name);
     });
+
+    // Color picker row
+    const colorRow = document.createElement('div');
+    colorRow.className = 'px-3 py-2';
+    const colorLabel = document.createElement('div');
+    colorLabel.className = 'text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2';
+    colorLabel.textContent = 'Color';
+    colorRow.appendChild(colorLabel);
+    const colorGrid = document.createElement('div');
+    colorGrid.className = 'flex flex-wrap gap-1.5';
+    this.GROUP_COLORS.forEach(c => {
+      const swatch = document.createElement('button');
+      swatch.className = `w-5 h-5 rounded-full border-2 transition-all hover:scale-125 ${group.color === c.value ? 'border-dark dark:border-white scale-110 ring-2 ring-offset-1 ring-offset-white dark:ring-offset-slate-800' : 'border-transparent'}`;
+      swatch.style.background = c.hex;
+      swatch.title = c.name;
+      swatch.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.changeGroupColor(groupId, c.value);
+        this.hideContextMenu();
+      });
+      colorGrid.appendChild(swatch);
+    });
+    colorRow.appendChild(colorGrid);
+    menu.appendChild(colorRow);
+
+    const sep = document.createElement('div');
+    sep.className = 'h-px bg-slate-200 dark:bg-slate-700 my-1';
+    menu.appendChild(sep);
+
     addItem('Delete Group', 'trash-2', () => {
       if (confirm('Delete this group? Tabs will become ungrouped.')) this.deleteGroup(groupId);
     });
@@ -1937,6 +2259,9 @@ const TabManager = {
       document.querySelectorAll('.side-panel-tab').forEach(el => el.classList.remove('drag-over'));
       document.querySelectorAll('.tab-group-header').forEach(el => el.classList.remove('drag-over'));
     });
+
+    // Touch drag support
+    this.attachTouchDragToTab(tabIcon, tab.id);
 
     const closeBtn = tabIcon.querySelector('.side-panel-tab-close');
     if (closeBtn) {
