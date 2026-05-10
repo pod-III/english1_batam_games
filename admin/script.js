@@ -802,7 +802,7 @@ function renderUsersTable(userIds, rows) {
     const body = document.getElementById('usersTableBody')
     if (!body) return
     if (!userIds.length) {
-        body.innerHTML = '<tr><td colspan="6" class="text-center py-12 text-slate-500 font-bold">No users found</td></tr>'
+        body.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-slate-500 font-bold">No users found</td></tr>'
         return
     }
 
@@ -863,6 +863,14 @@ function renderUsersTable(userIds, rows) {
             </div>`}
           </td>
           <td class="px-5 py-3 text-xs text-slate-500">${date}</td>
+          <td class="px-5 py-3">
+            <div class="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button onclick="viewUser('${uid}')"
+                class="neo-btn px-3 py-1.5 bg-blue text-white rounded-xl text-xs">
+                <i data-lucide="eye" class="w-3 h-3"></i> Details
+              </button>
+            </div>
+          </td>
         </tr>`
     }).join('')
 }
@@ -1136,7 +1144,7 @@ function openClassModal(id, type) {
     const label = type === 'admin' ? 'Admin Tasks' : 'Syllabus Units'
     document.getElementById('viewModalTitle').textContent = `${item.class_name} — ${label}`
     document.getElementById('viewModalSub').textContent = (profile?.display_name || item.user_id.slice(0, 8)) + ' · ' + new Date(item.created_at).toLocaleDateString()
-    document.getElementById('viewModalContent').textContent = JSON.stringify(type === 'admin' ? item.tasks : item.syllabus, null, 2)
+    document.getElementById('viewModalContent').innerHTML = `<pre class="text-green whitespace-pre-wrap font-mono text-xs">${JSON.stringify(type === 'admin' ? item.tasks : item.syllabus, null, 2).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>`
     document.getElementById('viewModalBg').classList.remove('hidden')
 }
 
@@ -1149,7 +1157,7 @@ function openNoteModal(noteId) {
         (profile?.display_name || note.user_id.slice(0, 8)) + ' — ' + (note.title || 'Untitled')
     document.getElementById('viewModalSub').textContent =
         'Updated ' + (Number(note.updated_at) ? new Date(Number(note.updated_at)).toLocaleString() : '—')
-    document.getElementById('viewModalContent').textContent = note.content
+    document.getElementById('viewModalContent').innerHTML = `<pre class="text-green whitespace-pre-wrap font-mono text-xs">${(note.content || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>`
     document.getElementById('viewModalBg').classList.remove('hidden')
 }
 
@@ -1163,8 +1171,8 @@ function openViewModal(userId, toolKey) {
         (profile?.display_name || userId.slice(0, 8)) + ' — ' + toolKey
     document.getElementById('viewModalSub').textContent =
         'Updated ' + new Date(row.updated_at).toLocaleString()
-    document.getElementById('viewModalContent').textContent =
-        JSON.stringify(row.data, null, 2)
+    document.getElementById('viewModalContent').innerHTML =
+        `<pre class="text-green whitespace-pre-wrap font-mono text-xs">${JSON.stringify(row.data, null, 2).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>`
     document.getElementById('viewModalBg').classList.remove('hidden')
 }
 
@@ -1174,16 +1182,99 @@ function closeViewModal() {
 
 // ── VIEW USER ──
 function viewUser(userId) {
-    const userRows = allProgress.filter(r => r.user_id === userId)
-    const profile = allProfiles[userId]
-    const name = profile?.display_name || userId.slice(0, 8)
-    const firstTool = userRows[0]?.tool_key || ''
-    if (userRows.length === 1) {
-        openViewModal(userId, firstTool)
-    } else {
-        // Show first row; user can use progress table for individual rows
-        openViewModal(userId, firstTool)
-    }
+    const profile = allProfiles[userId] || {};
+    const name = profile.display_name || userId.slice(0, 8);
+    const email = profile.email || '—';
+    const role = profile.role || 'user';
+    const userProgress = allProgress.filter(r => r.user_id === userId);
+    const userNotes = allNotes.filter(n => n.user_id === userId);
+    const userTasks = allMySpaceTasks.filter(t => t.user_id === userId);
+    const userClasses = allMyClass.filter(c => c.user_id === userId);
+    const userEvents = allScheduleEvents.filter(e => e.user_id === userId);
+
+    const formatTs = (ts) => ts ? new Date(ts).toLocaleString() : '—';
+    
+    const toolCounts = {};
+    const toolOrder = [];
+    userProgress.forEach(r => {
+        if (!toolCounts[r.tool_key]) {
+            toolCounts[r.tool_key] = 0;
+            toolOrder.push(r.tool_key);
+        }
+        
+        // Count instances within the data payload
+        let count = 1;
+        if (Array.isArray(r.data)) {
+            count = r.data.length;
+        } else if (r.data && typeof r.data === 'object') {
+            // Find the first array property which usually contains the items
+            const arrayVal = Object.values(r.data).find(v => Array.isArray(v));
+            if (arrayVal) {
+                count = arrayVal.length;
+            } else {
+                count = Object.keys(r.data).length;
+            }
+        }
+        toolCounts[r.tool_key] += count;
+    });
+    
+    let html = `
+        <div class="space-y-6 text-slate-300">
+            <div class="grid grid-cols-2 gap-4">
+                <div class="neo bg-slate-950 p-4 border-2 border-slate-700">
+                    <div class="text-[10px] text-slate-500 uppercase font-black mb-1">Email / Auth</div>
+                    <div class="text-sm text-white font-bold">${email}</div>
+                </div>
+                <div class="neo bg-slate-950 p-4 border-2 border-slate-700">
+                    <div class="text-[10px] text-slate-500 uppercase font-black mb-1">User ID</div>
+                    <div class="text-xs text-slate-400 font-mono break-all">${userId}</div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div class="neo bg-slate-800 p-3 text-center border-2 border-slate-600">
+                    <div class="text-2xl font-heading text-blue mb-1">${userProgress.length}</div>
+                    <div class="text-[10px] uppercase font-bold text-slate-400">Tool Saves</div>
+                </div>
+                <div class="neo bg-slate-800 p-3 text-center border-2 border-slate-600">
+                    <div class="text-2xl font-heading text-orange mb-1">${userNotes.length}</div>
+                    <div class="text-[10px] uppercase font-bold text-slate-400">Notes</div>
+                </div>
+                <div class="neo bg-slate-800 p-3 text-center border-2 border-slate-600">
+                    <div class="text-2xl font-heading text-green mb-1">${userClasses.length}</div>
+                    <div class="text-[10px] uppercase font-bold text-slate-400">Classes</div>
+                </div>
+                <div class="neo bg-slate-800 p-3 text-center border-2 border-slate-600">
+                    <div class="text-2xl font-heading text-pink mb-1">${userEvents.length}</div>
+                    <div class="text-[10px] uppercase font-bold text-slate-400">Events</div>
+                </div>
+            </div>
+
+            <div class="neo bg-slate-950 p-4 border-2 border-slate-700">
+                <h3 class="font-heading text-sm text-white mb-3 flex items-center gap-2"><i data-lucide="grid-2x2" class="w-4 h-4 text-blue"></i> Tools Activity</h3>
+                ${toolOrder.length ? `
+                <div class="flex flex-wrap gap-2">
+                    ${toolOrder.map(k => `<span class="chip bg-blue/10 text-blue border-blue/40">${k} <span class="ml-1 opacity-60">(${toolCounts[k]})</span></span>`).join('')}
+                </div>
+                ` : '<div class="text-xs text-slate-500 italic">No tool activity</div>'}
+            </div>
+            
+            <div class="neo bg-slate-950 p-4 border-2 border-slate-700">
+                <h3 class="font-heading text-sm text-white mb-3 flex items-center gap-2"><i data-lucide="book-open" class="w-4 h-4 text-orange"></i> Recent Notes</h3>
+                ${userNotes.length ? `
+                <ul class="space-y-2 text-xs">
+                    ${userNotes.slice(0, 5).map(n => `<li class="flex justify-between items-center border-b border-slate-800 pb-2"><span class="font-bold text-slate-300 truncate mr-4">${n.title || 'Untitled'}</span><span class="text-slate-500 font-mono whitespace-nowrap">${formatTs(Number(n.updated_at))}</span></li>`).join('')}
+                </ul>
+                ` : '<div class="text-xs text-slate-500 italic">No notes</div>'}
+            </div>
+        </div>
+    `;
+
+    document.getElementById('viewModalTitle').textContent = name + ' — Profile Details';
+    document.getElementById('viewModalSub').textContent = 'Role: ' + role.toUpperCase();
+    document.getElementById('viewModalContent').innerHTML = html;
+    document.getElementById('viewModalBg').classList.remove('hidden');
+    lucide.createIcons();
 }
 
 // ── DELETE MODAL ──
@@ -1848,7 +1939,7 @@ function openTaskModal(id) {
     const profile = allProfiles[task.user_id]
     document.getElementById('viewModalTitle').textContent = `Task Detail — ${profile?.display_name || 'User'}`
     document.getElementById('viewModalSub').textContent = `ID: ${task.id} · Created: ${new Date(task.created_at).toLocaleString()}`
-    document.getElementById('viewModalContent').textContent = JSON.stringify(task, null, 2)
+    document.getElementById('viewModalContent').innerHTML = `<pre class="text-green whitespace-pre-wrap font-mono text-xs">${JSON.stringify(task, null, 2).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>`
     document.getElementById('viewModalBg').classList.remove('hidden')
 }
 
@@ -1893,7 +1984,7 @@ function openMyClassRowModal(id) {
     const profile = allProfiles[cls.user_id]
     document.getElementById('viewModalTitle').textContent = `Class Data — ${cls.class_name}`
     document.getElementById('viewModalSub').textContent = `Teacher: ${profile?.display_name || 'Unknown'} · Updated: ${new Date(cls.updated_at).toLocaleString()}`
-    document.getElementById('viewModalContent').textContent = JSON.stringify(cls.data, null, 2)
+    document.getElementById('viewModalContent').innerHTML = `<pre class="text-green whitespace-pre-wrap font-mono text-xs">${JSON.stringify(cls.data, null, 2).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>`
     document.getElementById('viewModalBg').classList.remove('hidden')
 }
 
