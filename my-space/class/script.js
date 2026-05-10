@@ -2392,9 +2392,12 @@ const CommentsManager = {
     if (!s) return;
 
     const fields = {};
+    const enabledSkills = {};
     const fieldIds = ['participation','social','listening','confidence','spoken','attendance','errors','progress','grammar','reading','vocabulary','writing','homework'];
     fieldIds.forEach(id => {
       fields[id] = document.getElementById(`pu-${id}`).value;
+      const toggle = document.getElementById(`pu-toggle-${id}`);
+      enabledSkills[id] = toggle ? toggle.checked : true;
     });
 
     const labels = { participation:'Participation', social:'Social', listening:'Listening',
@@ -2402,14 +2405,16 @@ const CommentsManager = {
                      progress:'Progress', grammar:'Grammar', reading:'Reading', vocabulary:'Vocabulary', writing:'Writing', homework:'Homework' };
 
     for (const [k, v] of Object.entries(fields)) {
-      if (v === '' || isNaN(+v)) { this.showError(`Please enter a score for "${labels[k]}".`); return; }
-      if (+v < 0 || +v > 100) { this.showError(`"${labels[k]}" must be between 0 and 100.`); return; }
+      if (enabledSkills[k]) {
+        if (v === '' || isNaN(+v)) { this.showError(`Please enter a score for "${labels[k]}".`); return; }
+        if (+v < 0 || +v > 100) { this.showError(`"${labels[k]}" must be between 0 and 100.`); return; }
+      }
     }
     this.hideError();
 
     s.puScores = fields;
     s.puPronoun = this.currentPronoun;
-    s.puComments = this.buildComments(s.nick || s.name, fields, this.currentPronoun);
+    s.puComments = this.buildComments(s.nick || s.name, fields, this.currentPronoun, enabledSkills);
     ClassManager.saveData();
     this.renderRoster();
     this.renderComments(s.nick || s.name, s.puComments);
@@ -2435,19 +2440,20 @@ const CommentsManager = {
     this.hideError();
   },
 
-  buildComments(name, sc, pronoun) {
+  buildComments(name, sc, pronoun, enabledSkills) {
     pronoun = pronoun || 'they';
+    enabledSkills = enabledSkills || {};
     const labels = { participation:'Participation', social:'Social', listening:'Listening', confidence:'Confidence', spoken:'Speaking', attendance:'Attendance', errors:'Accuracy',
                      progress:'Progress', grammar:'Grammar', reading:'Reading', vocabulary:'Vocabulary', writing:'Writing', homework:'Homework' };
-    let skillBreakdown = `Here is ${name}'s progress across all skills:\n\n`;
+    const comments = [];
     for (const [k, v] of Object.entries(sc)) {
+      if (!enabledSkills[k]) continue;
       const raw = this.pick(this.hopefulPhrases[k]?.[this.level(v)]);
       const withPronoun = this.applyPronoun(raw, pronoun);
       const personal = this.personalise(withPronoun, name, pronoun);
-      skillBreakdown += `• ${labels[k]}:\n  ${personal}\n\n`;
+      comments.push({ skill: labels[k], text: personal });
     }
-    skillBreakdown += `Keep up the great work, ${name}!`;
-    return [skillBreakdown.trim()];
+    return comments;
   },
 
   level(v) {
@@ -2502,20 +2508,64 @@ const CommentsManager = {
     document.getElementById('pu-output-name').textContent = `Comments for ${name}`;
     const container = document.getElementById('pu-comment-cards');
     container.innerHTML = '';
-    comments.forEach((text, i) => {
-      const card = document.createElement('div');
-      card.className = 'pu-comment-card glass-panel border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-[var(--radius-2xl)] p-5';
-      card.style.animationDelay = (i * 0.08) + 's';
-      card.innerHTML = `<p class="text-slate-700 dark:text-slate-200 font-semibold leading-relaxed whitespace-pre-wrap">${text.replace(/\n/g, '<br>')}</p>`;
-      container.appendChild(card);
-    });
+    
+    if (!comments || comments.length === 0) {
+      container.innerHTML = '<p class="text-slate-500 italic p-4 text-center text-sm font-bold">No skills selected for generation.</p>';
+    } else if (typeof comments[0] === 'string') {
+      // Backward compatibility for old single string comments
+      comments.forEach((text, i) => {
+        const card = document.createElement('div');
+        card.className = 'pu-comment-card glass-panel border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-[var(--radius-2xl)] p-5';
+        card.style.animationDelay = (i * 0.08) + 's';
+        card.innerHTML = `<p class="text-slate-700 dark:text-slate-200 font-semibold leading-relaxed whitespace-pre-wrap">${text.replace(/\n/g, '<br>')}</p>`;
+        container.appendChild(card);
+      });
+    } else {
+      // New format: Array of skill objects
+      comments.forEach((c, i) => {
+        const card = document.createElement('div');
+        card.className = 'pu-comment-card glass-panel border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-[var(--radius-2xl)] p-4 relative';
+        card.style.animationDelay = (i * 0.08) + 's';
+        card.innerHTML = `
+          <div class="flex items-center justify-between mb-2">
+            <h5 class="text-[10px] font-black text-slate-400 uppercase tracking-widest">${c.skill}</h5>
+            <button onclick="CommentsManager.copySkillComment(this)" class="btn-chunky bg-white border-2 border-[var(--border-primary)] rounded-lg px-2 py-1 text-xs font-bold text-slate-700 shadow-[2px_2px_0px_var(--border-primary)] flex items-center gap-1 hover:text-blue hover:border-blue">
+              <i data-lucide="copy" class="w-3 h-3"></i> Copy
+            </button>
+          </div>
+          <textarea class="w-full bg-transparent border-none p-0 text-slate-700 dark:text-slate-200 font-semibold text-sm leading-relaxed resize-none focus:ring-0" rows="2" readonly>${c.text}</textarea>
+        `;
+        container.appendChild(card);
+      });
+    }
+    
     document.getElementById('pu-output-section').classList.remove('hidden');
+    if (window.lucide) lucide.createIcons();
+  },
+
+  copySkillComment(btn) {
+    const textarea = btn.closest('.pu-comment-card').querySelector('textarea');
+    if (textarea) {
+      navigator.clipboard.writeText(textarea.value).then(() => UI.showToast('Skill comment copied!', 'success'));
+    }
   },
 
   copyAll() {
     const s = this.getStudent(this.currentStudentId);
     if (!s || !s.puComments) return;
-    navigator.clipboard.writeText(s.puComments[0]).then(() => UI.showToast('Comment copied!', 'success'));
+    
+    let fullText = '';
+    if (typeof s.puComments[0] === 'string') {
+      fullText = s.puComments.join('\n\n');
+    } else {
+      fullText = `Here is ${s.nick || s.name}'s progress across selected skills:\n\n`;
+      s.puComments.forEach(c => {
+        fullText += `• ${c.skill}:\n  ${c.text}\n\n`;
+      });
+      fullText += `Keep up the great work, ${s.nick || s.name}!`;
+    }
+    
+    navigator.clipboard.writeText(fullText.trim()).then(() => UI.showToast('Full comment copied!', 'success'));
   },
 
   showError(msg) {
