@@ -224,8 +224,8 @@ function isJunk(line) {
 }
 
 const ANCHORS = [
-    'Target Language:',
-    'Target Grammar:',
+    'Target Language',
+    'Target Grammar',
     'Materials:',
     'Preparation:',
     'In this section'
@@ -241,11 +241,11 @@ function splitChunk(chunk) {
 
 function extractField(key, header) {
     const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const stopPat = ANCHORS.filter(a => a !== key).map(esc).join('|');
-    const re = new RegExp(`${esc(key)}\\s*(.*?)(?=\\n\\s*(?:${stopPat}|$))`, 'is');
+    const stopPat = ANCHORS.filter(a => a !== key).map(a => esc(a) + '\\:?').join('|');
+    const re = new RegExp(`${esc(key)}\\:?\\s*(.*?)(?=\\n\\s*(?:${stopPat}|$))`, 'is');
     const m = re.exec(header);
     if (!m) return [];
-    
+
     return m[1]
         .split('\n')
         .map(s => s.replace(/^[-•…*]\s*/, '').trim())
@@ -313,14 +313,43 @@ function buildRefsState(tokens) {
     return { pres, pages: [...pages].sort((a, b) => +a - +b) };
 }
 
+function normalizeWraps(text) {
+    let t = text.replace(/([a-zA-Z])-\n([a-zA-Z])/g, '$1$2');
+    const lines = t.split('\n');
+    const out = [];
+    let buf = '';
+    const anchorStarts = ['target language', 'target grammar', 'materials:', 'preparation:', 'in this section'];
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        if (!buf) { buf = line; continue; }
+        const prevTrim = buf.trimEnd();
+        const currTrim = line.trimStart();
+        const endsTerm = /[.!?]$/.test(prevTrim) || /:$/.test(prevTrim);
+        const currIsAnchor = anchorStarts.some(a => currTrim.toLowerCase().startsWith(a));
+        const currIsModule = /^[A-Z]/.test(currTrim) && /\(\s*\d+\s*min/.test(currTrim);
+
+        if (endsTerm || currIsAnchor || currIsModule) {
+            out.push(buf);
+            buf = line;
+        } else {
+            buf = prevTrim + ' ' + currTrim;
+        }
+    }
+    if (buf) out.push(buf);
+    return out.join('\n');
+}
+
 function parseExtractedText(rawFull, rawBold) {
     const norm = t => t.replace(/\r/g, '').replace(/•/g, '-').replace(/[\u2013\u2014]/g, '-').replace(/[\u2018\u2019]/g, "'").replace(/[\u201c\u201d]/g, '"');
-    const fullText = norm(rawFull);
-    const boldText = norm(rawBold);
+    let fullText = norm(rawFull);
+    let boldText = norm(rawBold);
+    fullText = normalizeWraps(fullText);
+    boldText = normalizeWraps(boldText);
     const boldOK = boldText.length === fullText.length;
 
     const modules = [];
-    const MOD_RE = /^([A-Z][A-Za-z0-9\s&:\-\/'"]+?)\s*\(\s*(\d+)\s*min\.?\s*\)/gm;
+    const MOD_RE = /([A-Z][A-Za-z0-9\s&:\-\/'"]+?)\s*\(\s*(\d+)\s*min\.?\s*\)/gm;
     let match;
     const idx = [];
     while ((match = MOD_RE.exec(fullText)) !== null)
