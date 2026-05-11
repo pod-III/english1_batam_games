@@ -199,6 +199,32 @@
         const wordFreqEl = document.getElementById('wordFrequency');
         const letterFreqEl = document.getElementById('letterFrequency');
 
+        // --- PERSISTENCE ---
+        const TOOL_ID = 'workshop_analyzer';
+        let saveTimeout;
+
+        async function initPersistence() {
+            // Load Theme
+            const savedTheme = localStorage.getItem('theme_workshop_analyzer') || 'light';
+            if (savedTheme === 'dark') document.documentElement.classList.add('dark');
+            updateThemeIcon();
+
+            // Load Progress
+            const progress = await loadProgress(TOOL_ID);
+            if (progress && progress.text) {
+                inputText.value = progress.text;
+                inputText.dispatchEvent(new Event('input'));
+            }
+        }
+
+        function triggerSave() {
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                saveProgress(TOOL_ID, { text: inputText.value });
+            }, 1000);
+        }
+
+
         // Theme Handling
         const themeToggle = document.getElementById('themeToggle');
         
@@ -212,7 +238,7 @@
 
         themeToggle.addEventListener('click', () => {
             const isDark = document.documentElement.classList.toggle('dark');
-            localStorage.setItem('theme_text_analyzer', isDark ? 'dark' : 'light');
+            localStorage.setItem('theme_workshop_analyzer', isDark ? 'dark' : 'light');
             updateThemeIcon();
         });
 
@@ -236,6 +262,7 @@
 
         // Analyzer Logic
         inputText.addEventListener('input', () => {
+            triggerSave();
             const text = inputText.value;
             const words = text.trim() ? text.trim().split(/\s+/) : [];
             const sentences = text.trim() ? text.split(/[.!?]+/).filter(s => s.trim().length > 0) : [];
@@ -340,10 +367,9 @@
         }
 
         // Persistence
-        window.onload = () => {
-            const savedTheme = localStorage.getItem('theme_text_analyzer');
-            if (savedTheme === 'dark') document.documentElement.classList.add('dark');
-            updateThemeIcon();
+        window.onload = async () => {
+            if (typeof requireAuth === 'function') await requireAuth();
+            await initPersistence();
             lucide.createIcons();
         };
     </script>
