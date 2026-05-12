@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Library - KlassKit</title>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Global Styles -->
+    <link rel="stylesheet" href="../../css/base.css">
+    <link rel="stylesheet" href="../../css/components.css">
+    
+    <style>
+        :root {
+            --sidebar-width: 320px;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Nunito', sans-serif;
+        }
+
+        /* Layout */
+        .app-container {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Sidebar / Library */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--bg-secondary);
+            backdrop-filter: blur(16px);
+            border-right: var(--border-width-thick) solid var(--border-primary);
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            border-bottom: var(--border-width-medium) solid var(--border-primary);
+            background: var(--surface-card);
+        }
+
+        .sidebar-title {
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
+            font-size: 1.5rem;
+            color: var(--color-pink);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .library-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg-primary);
+            position: relative;
+        }
+
+        .player-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        #player-wrapper {
+            width: 100%;
+            max-width: 1000px;
+            aspect-ratio: 16 / 9;
+            background: #000;
+            border: var(--border-width-thick) solid var(--border-primary);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+            position: relative;
+        }
+
+        #player {
+            width: 100%;
+            height: 100%;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1.5rem;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+
+        .empty-state i {
+            width: 64px;
+            height: 64px;
+            color: var(--color-blue);
+            opacity: 0.5;
+        }
+
+        /* Video Card */
+        .video-card {
+            background: var(--surface-card);
+            border: var(--border-width-medium) solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            padding: 0.75rem;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .video-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+            border-color: var(--color-blue);
+        }
+
+        .video-card.active {
+            background: var(--color-blue);
+            color: white;
+            border-color: var(--border-primary);
+            transform: translateY(2px);
+            box-shadow: none;
+        }
+
+        .video-card-title {
+            font-weight: 800;
+            font-size: 0.9rem;
+            line-height: 1.2;
+            word-break: break-word;
+        }
+
+        .video-card-meta {
+            font-size: 0.7rem;
+            opacity: 0.7;
+            font-family: monospace;
+        }
+
+        .delete-btn {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            background: #ef4444;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--border-primary);
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .video-card:hover .delete-btn {
+            opacity: 1;
+        }
+
+        .delete-btn:hover {
+            transform: scale(1.1);
+            background: #dc2626;
+        }
+
+        /* Controls */
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .input-chunky {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            font-family: 'Nunito', sans-serif;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .btn-add {
+            background: var(--color-green);
+            color: white;
+            padding: 0 1rem;
+            border-radius: var(--radius-md);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .app-container {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+                height: 40%;
+                border-right: none;
+                border-bottom: var(--border-width-thick) solid var(--border-primary);
+            }
+            .player-container {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body class="selection:bg-pink selection:text-white">
+
+    <div class="app-container">
+        <!-- Sidebar: Video Library -->
+        <aside class="sidebar animate-slide-in-left">
+            <div class="sidebar-header">
+                <div class="sidebar-title">
+                    <i data-lucide="youtube"></i>
+                    <span>Library</span>
+                </div>
+                
+                <div class="input-group">
+                    <div class="input-row">
+                        <input type="text" id="video-input" class="input-chunky" placeholder="YouTube URL or ID...">
+                        <button id="add-btn" class="btn-chunky btn-add" title="Add to Library">
+                            <i data-lucide="plus"></i>
+                        </button>
+                    </div>
+                    <input type="text" id="title-input" class="input-chunky" placeholder="Optional: Title">
+                </div>
+            </div>
+            
+            <div id="library-list" class="library-list custom-scrollbar">
+                <!-- Videos will be injected here -->
+            </div>
+        </aside>
+
+        <!-- Main Content: Player -->
+        <main class="main-content">
+            <div class="player-container">
+                <div id="player-wrapper">
+                    <div id="player"></div>
+                    <div id="player-empty" class="empty-state">
+                        <i data-lucide="play-circle"></i>
+                        <div>
+                            <h2 class="font-heading text-2xl font-black">Ready to Play</h2>
+                            <p class="font-bold opacity-70">Add a video to your library or paste a URL to start.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // 1. YouTube IFrame API
+        var tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        let player;
+        let currentVideoId = null;
+        let library = [];
+
+        function onYouTubeIframeAPIReady() {
+            // Player is initialized when a video is selected
+            console.log("YouTube API Ready");
+            initApp();
+        }
+
+        function loadVideo(id) {
+            document.getElementById('player-empty').style.display = 'none';
+            
+            if (!player) {
+                player = new YT.Player('player', {
+                    height: '100%',
+                    width: '100%',
+                    videoId: id,
+                    playerVars: {
+                        'playsinline': 1,
+                        'autoplay': 1,
+                        'modestbranding': 1
+                    },
+                    events: {
+                        'onReady': (event) => {
+                            event.target.playVideo();
+                            updateActiveCard(id);
+                        }
+                    }
+                });
+            } else {
+                player.loadVideoById(id);
+                updateActiveCard(id);
+            }
+            currentVideoId = id;
+        }
+
+        // 2. Library Management
+        function initApp() {
+            // Load from LocalStorage
+            const saved = localStorage.getItem('klasskit_youtube_library');
+            if (saved) {
+                library = JSON.parse(saved);
+                renderLibrary();
+            }
+            
+            lucide.createIcons();
+            
+            // Add Button Listener
+            document.getElementById('add-btn').addEventListener('click', addVideoFromInput);
+            document.getElementById('video-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') addVideoFromInput();
+            });
+        }
+
+        function extractVideoId(url) {
+            const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+            const match = url.match(regExp);
+            if (match && match[2].length == 11) {
+                return match[2];
+            } else {
+                // If it's just the ID
+                if (url.length === 11) return url;
+                return null;
+            }
+        }
+
+        function addVideoFromInput() {
+            const urlInput = document.getElementById('video-input');
+            const titleInput = document.getElementById('title-input');
+            
+            const rawUrl = urlInput.value.trim();
+            const id = extractVideoId(rawUrl);
+            const title = titleInput.value.trim() || `Video ${id}`;
+
+            if (id) {
+                // Check if already in library
+                if (library.find(v => v.id === id)) {
+                    loadVideo(id);
+                } else {
+                    const video = { id, title, date: new Date().toISOString() };
+                    library.unshift(video);
+                    saveLibrary();
+                    renderLibrary();
+                    loadVideo(id);
+                }
+                
+                urlInput.value = '';
+                titleInput.value = '';
+            } else {
+                alert('Please enter a valid YouTube URL or Video ID');
+            }
+        }
+
+        function deleteVideo(id, event) {
+            event.stopPropagation();
+            library = library.filter(v => v.id !== id);
+            saveLibrary();
+            renderLibrary();
+            
+            if (currentVideoId === id) {
+                if (player) player.stopVideo();
+                document.getElementById('player-empty').style.display = 'flex';
+                currentVideoId = null;
+            }
+        }
+
+        function saveLibrary() {
+            localStorage.setItem('klasskit_youtube_library', JSON.stringify(library));
+        }
+
+        function renderLibrary() {
+            const list = document.getElementById('library-list');
+            list.innerHTML = '';
+
+            if (library.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-state" style="padding: 2rem;">
+                        <i data-lucide="bookmark"></i>
+                        <p class="font-bold text-xs opacity-50 uppercase tracking-widest">Library Empty</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            library.forEach(video => {
+                const card = document.createElement('div');
+                card.className = `video-card animate-pop-in ${currentVideoId === video.id ? 'active' : ''}`;
+                card.onclick = () => loadVideo(video.id);
+                
+                card.innerHTML = `
+                    <button class="delete-btn" onclick="deleteVideo('${video.id}', event)">
+                        <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+                    </button>
+                    <div class="video-card-title">${video.title}</div>
+                    <div class="video-card-meta">${video.id}</div>
+                `;
+                
+                list.appendChild(card);
+            });
+            
+            lucide.createIcons();
+        }
+
+        function updateActiveCard(id) {
+            document.querySelectorAll('.video-card').forEach(card => {
+                card.classList.remove('active');
+                if (card.querySelector('.video-card-meta').textContent === id) {
+                    card.classList.add('active');
+                }
+            });
+        }
+    </script>
+</body>
+</html>
