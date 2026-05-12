@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YouTube Library - KlassKit</title>
     
+    <!-- Supabase Auth -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../../supabase.js"></script>
+    
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
     
@@ -16,92 +20,188 @@
     <link rel="stylesheet" href="../../css/components.css">
     
     <style>
-        :root {
-            --sidebar-width: 320px;
-        }
-
         body {
             margin: 0;
             padding: 0;
-            display: flex;
-            height: 100vh;
-            overflow: hidden;
+            min-height: 100vh;
+            background-color: var(--bg-primary);
             font-family: 'Nunito', sans-serif;
+            overflow-x: hidden;
         }
 
-        /* Layout */
-        .app-container {
-            display: flex;
+        /* Views */
+        .view {
+            display: none;
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
             width: 100%;
-            height: 100%;
+            animation: pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
-        /* Sidebar / Library */
-        .sidebar {
-            width: var(--sidebar-width);
-            background: var(--bg-secondary);
-            backdrop-filter: blur(16px);
-            border-right: var(--border-width-thick) solid var(--border-primary);
+        .view.active {
             display: flex;
             flex-direction: column;
-            z-index: 10;
         }
 
-        .sidebar-header {
-            padding: 1.5rem;
-            border-bottom: var(--border-width-medium) solid var(--border-primary);
-            background: var(--surface-card);
+        /* Library View */
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1.5rem;
         }
 
-        .sidebar-title {
+        .title-group h1 {
             font-family: 'Fredoka', sans-serif;
             font-weight: 700;
-            font-size: 1.5rem;
+            font-size: 2.5rem;
             color: var(--color-pink);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
+            margin: 0;
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
 
-        .library-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 1rem;
+        .title-group p {
+            margin: 0;
+            font-weight: 700;
+            opacity: 0.6;
+        }
+
+        .action-group {
             display: flex;
-            flex-direction: column;
             gap: 1rem;
         }
 
-        /* Main Content */
-        .main-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            background-color: var(--bg-primary);
-            position: relative;
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 2rem;
         }
 
-        .player-container {
-            flex: 1;
+        .video-card {
+            background: var(--surface-card);
+            border: var(--border-width-thick) solid var(--border-primary);
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            box-shadow: var(--shadow-md);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .video-card:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--color-blue);
+        }
+
+        .thumbnail-container {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background: #000;
+            position: relative;
+            border-bottom: var(--border-width-medium) solid var(--border-primary);
+        }
+
+        .thumbnail-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .play-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.3);
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 2rem;
+            opacity: 0;
+            transition: opacity 0.2s;
         }
 
-        #player-wrapper {
+        .video-card:hover .play-overlay {
+            opacity: 1;
+        }
+
+        .play-overlay i {
+            width: 48px;
+            height: 48px;
+            color: white;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+        }
+
+        .card-content {
+            padding: 1.25rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            position: relative;
+        }
+
+        .card-title {
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
+            font-size: 1.1rem;
+            line-height: 1.2;
+            color: var(--text-primary);
+        }
+
+        .card-meta {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-tertiary);
+            margin-top: auto;
+        }
+
+        .card-actions {
+            position: absolute;
+            top: -1rem;
+            right: 1rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .action-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: var(--border-width-medium) solid var(--border-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            box-shadow: var(--shadow-sm);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .btn-delete:hover {
+            background: #ef4444;
+            color: white;
+        }
+
+        /* Player View */
+        .player-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .player-container {
             width: 100%;
-            max-width: 1000px;
             aspect-ratio: 16 / 9;
             background: #000;
             border: var(--border-width-thick) solid var(--border-primary);
-            border-radius: var(--radius-xl);
-            box-shadow: var(--shadow-lg);
+            border-radius: var(--radius-2xl);
+            box-shadow: var(--shadow-xl);
             overflow: hidden;
-            position: relative;
         }
 
         #player {
@@ -109,199 +209,342 @@
             height: 100%;
         }
 
-        .empty-state {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 1.5rem;
-            text-align: center;
-            color: var(--text-secondary);
-        }
-
-        .empty-state i {
-            width: 64px;
-            height: 64px;
-            color: var(--color-blue);
-            opacity: 0.5;
-        }
-
-        /* Video Card */
-        .video-card {
-            background: var(--surface-card);
-            border: var(--border-width-medium) solid var(--border-primary);
-            border-radius: var(--radius-lg);
-            padding: 0.75rem;
-            cursor: pointer;
-            transition: all var(--transition-fast);
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            box-shadow: var(--shadow-sm);
-        }
-
-        .video-card:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-md);
-            border-color: var(--color-blue);
-        }
-
-        .video-card.active {
-            background: var(--color-blue);
-            color: white;
-            border-color: var(--border-primary);
-            transform: translateY(2px);
-            box-shadow: none;
-        }
-
-        .video-card-title {
-            font-weight: 800;
-            font-size: 0.9rem;
-            line-height: 1.2;
-            word-break: break-word;
-        }
-
-        .video-card-meta {
-            font-size: 0.7rem;
-            opacity: 0.7;
-            font-family: monospace;
-        }
-
-        .delete-btn {
-            position: absolute;
-            top: 0.5rem;
-            right: 0.5rem;
-            width: 24px;
-            height: 24px;
-            border-radius: 6px;
-            background: #ef4444;
-            color: white;
-            display: flex;
+        /* Modal / Add View */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(2, 6, 23, 0.85);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            display: none;
             align-items: center;
             justify-content: center;
-            border: 2px solid var(--border-primary);
-            cursor: pointer;
-            opacity: 0;
-            transition: opacity 0.2s;
+            padding: 2rem;
         }
 
-        .video-card:hover .delete-btn {
-            opacity: 1;
+        .modal.active {
+            display: flex;
         }
 
-        .delete-btn:hover {
-            transform: scale(1.1);
-            background: #dc2626;
+        .modal-content {
+            background: var(--surface-card);
+            border: var(--border-width-thick) solid var(--border-primary);
+            border-radius: var(--radius-2xl);
+            width: 100%;
+            max-width: 500px;
+            padding: 2.5rem;
+            box-shadow: var(--shadow-xl);
+            animation: pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
         }
 
-        /* Controls */
-        .input-group {
+        .form-group {
             display: flex;
             flex-direction: column;
             gap: 0.5rem;
         }
 
-        .input-row {
-            display: flex;
-            gap: 0.5rem;
+        .form-label {
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            letter-spacing: 0.05em;
         }
 
         .input-chunky {
-            flex: 1;
-            padding: 0.75rem 1rem;
-            font-family: 'Nunito', sans-serif;
-            font-weight: 700;
-            font-size: 0.9rem;
+            padding: 1rem;
+            font-size: 1rem;
+            border-width: var(--border-width-medium);
         }
 
-        .btn-add {
-            background: var(--color-green);
-            color: white;
-            padding: 0 1rem;
+        .empty-state {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 5rem 2rem;
+            text-align: center;
+            background: var(--bg-secondary);
+            border: var(--border-width-medium) dashed var(--border-primary);
+            border-radius: var(--radius-2xl);
+            opacity: 0.8;
+        }
+
+        .empty-state i {
+            width: 80px;
+            height: 80px;
+            color: var(--color-blue);
+            margin-bottom: 1.5rem;
+        }
+
+        /* Auth Status Bar */
+        .auth-bar {
+            background: var(--bg-secondary);
+            padding: 0.5rem 1rem;
             border-radius: var(--radius-md);
+            font-size: 0.8rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-secondary);
         }
 
-        /* Responsive */
-        @media (max-width: 768px) {
-            .app-container {
-                flex-direction: column;
-            }
-            .sidebar {
-                width: 100%;
-                height: 40%;
-                border-right: none;
-                border-bottom: var(--border-width-thick) solid var(--border-primary);
-            }
-            .player-container {
-                padding: 1rem;
-            }
+        .sync-spinner {
+            animation: spin 2s linear infinite;
         }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
     </style>
 </head>
 <body class="selection:bg-pink selection:text-white">
 
-    <div class="app-container">
-        <!-- Sidebar: Video Library -->
-        <aside class="sidebar animate-slide-in-left">
-            <div class="sidebar-header">
-                <div class="sidebar-title">
-                    <i data-lucide="youtube"></i>
-                    <span>Library</span>
-                </div>
-                
-                <div class="input-group">
-                    <div class="input-row">
-                        <input type="text" id="video-input" class="input-chunky" placeholder="YouTube URL or ID...">
-                        <button id="add-btn" class="btn-chunky btn-add" title="Add to Library">
-                            <i data-lucide="plus"></i>
-                        </button>
-                    </div>
-                    <input type="text" id="title-input" class="input-chunky" placeholder="Optional: Title">
-                </div>
+    <!-- 1. LIBRARY VIEW (Default) -->
+    <div id="view-library" class="view active">
+        <div class="header-section">
+            <div class="title-group">
+                <h1>Video Library</h1>
+                <p>Curated learning videos for your class</p>
             </div>
             
-            <div id="library-list" class="library-list custom-scrollbar">
-                <!-- Videos will be injected here -->
-            </div>
-        </aside>
-
-        <!-- Main Content: Player -->
-        <main class="main-content">
-            <div class="player-container">
-                <div id="player-wrapper">
-                    <div id="player"></div>
-                    <div id="player-empty" class="empty-state">
-                        <i data-lucide="play-circle"></i>
-                        <div>
-                            <h2 class="font-heading text-2xl font-black">Ready to Play</h2>
-                            <p class="font-bold opacity-70">Add a video to your library or paste a URL to start.</p>
-                        </div>
-                    </div>
+            <div class="action-group">
+                <div id="auth-status" class="auth-bar">
+                    <i data-lucide="cloud"></i>
+                    <span id="sync-text">Checking Sync...</span>
                 </div>
+                <button onclick="toggleModal(true)" class="btn-chunky bg-green text-white px-6 py-3 rounded-xl flex items-center gap-2">
+                    <i data-lucide="plus"></i>
+                    <span>Add Video</span>
+                </button>
             </div>
-        </main>
+        </div>
+
+        <div id="video-grid" class="video-grid">
+            <!-- Videos injected here -->
+        </div>
+    </div>
+
+    <!-- 2. PLAYER VIEW -->
+    <div id="view-player" class="view">
+        <div class="player-header">
+            <button onclick="switchView('library')" class="btn-chunky bg-white dark:bg-slate-800 p-3 rounded-xl">
+                <i data-lucide="arrow-left"></i>
+            </button>
+            <div class="title-group">
+                <h2 id="current-title" class="font-heading text-2xl font-black text-dark dark:text-white">Video Title</h2>
+            </div>
+        </div>
+
+        <div class="player-container">
+            <div id="player"></div>
+        </div>
+    </div>
+
+    <!-- 3. ADD MODAL -->
+    <div id="add-modal" class="modal">
+        <div class="modal-content">
+            <div class="form-group">
+                <h3 class="font-heading text-2xl font-black text-pink uppercase">New Video</h3>
+                <p class="font-bold opacity-60">Paste a YouTube link to save it.</p>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Video URL</label>
+                <input type="text" id="video-url" class="input-chunky" placeholder="https://youtube.com/watch?v=..." autofocus>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Custom Title (Optional)</label>
+                <input type="text" id="video-title" class="input-chunky" placeholder="E.g. Present Continuous Grammar">
+            </div>
+
+            <div class="action-group" style="margin-top: 1rem;">
+                <button onclick="toggleModal(false)" class="btn-chunky bg-slate-200 text-dark flex-1 py-3 rounded-xl">Cancel</button>
+                <button onclick="addVideo()" class="btn-chunky bg-blue text-white flex-2 py-3 rounded-xl">Save Video</button>
+            </div>
+        </div>
     </div>
 
     <script>
-        // 1. YouTube IFrame API
+        // --- CONSTANTS ---
+        const TOOL_KEY = 'youtube-library';
+        let library = [];
+        let player = null;
+        let currentUser = null;
+        let apiReady = false;
+
+        // --- AUTH & INITIALIZATION ---
+        async function init() {
+            try {
+                // 1. Auth Check
+                currentUser = await requireAuth();
+                updateSyncStatus('Synced with Cloud');
+                
+                // 2. Load Data (Cloud + Local Fallback)
+                library = await loadProgress(TOOL_KEY) || [];
+                renderLibrary();
+                
+                // 3. Setup Icons
+                lucide.createIcons();
+            } catch (err) {
+                console.error('Init Error:', err);
+                updateSyncStatus('Offline Mode', 'cloud-off');
+            }
+        }
+
+        // --- VIEWS ---
+        function switchView(viewName) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById(`view-${viewName}`).classList.add('active');
+            
+            if (viewName === 'library' && player) {
+                player.stopVideo();
+            }
+        }
+
+        function toggleModal(show) {
+            const modal = document.getElementById('add-modal');
+            if (show) {
+                modal.classList.add('active');
+                document.getElementById('video-url').focus();
+            } else {
+                modal.classList.remove('active');
+                document.getElementById('video-url').value = '';
+                document.getElementById('video-title').value = '';
+            }
+        }
+
+        // --- LIBRARY LOGIC ---
+        function renderLibrary() {
+            const grid = document.getElementById('video-grid');
+            grid.innerHTML = '';
+
+            if (library.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <i data-lucide="tv-2"></i>
+                        <h2 class="font-heading text-3xl font-black">Your Library is Empty</h2>
+                        <p class="font-bold text-lg opacity-60">Save videos you use for teaching to find them instantly.</p>
+                        <button onclick="toggleModal(true)" class="btn-chunky bg-blue text-white px-8 py-4 rounded-xl mt-6">
+                            Add Your First Video
+                        </button>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            library.forEach((video, index) => {
+                const card = document.createElement('div');
+                card.className = 'video-card';
+                card.onclick = () => playVideo(video.id, video.title);
+
+                const thumbUrl = `https://img.youtube.com/vi/${video.id}/mqdefault.jpg`;
+
+                card.innerHTML = `
+                    <div class="thumbnail-container">
+                        <img src="${thumbUrl}" alt="${video.title}" loading="lazy">
+                        <div class="play-overlay">
+                            <i data-lucide="play"></i>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <div class="card-actions">
+                            <button class="action-btn btn-delete" onclick="event.stopPropagation(); deleteVideo('${video.id}')" title="Remove">
+                                <i data-lucide="trash-2"></i>
+                            </button>
+                        </div>
+                        <div class="card-title">${video.title}</div>
+                        <div class="card-meta">ID: ${video.id}</div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+
+            lucide.createIcons();
+        }
+
+        function extractVideoId(url) {
+            const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+            const match = url.match(regExp);
+            return (match && match[2].length == 11) ? match[2] : (url.length === 11 ? url : null);
+        }
+
+        async function addVideo() {
+            const urlInput = document.getElementById('video-url');
+            const titleInput = document.getElementById('video-title');
+            
+            const id = extractVideoId(urlInput.value.trim());
+            const title = titleInput.value.trim() || `Untitled Video (${id})`;
+
+            if (!id) {
+                alert('Please enter a valid YouTube URL or ID.');
+                return;
+            }
+
+            if (library.find(v => v.id === id)) {
+                alert('This video is already in your library.');
+                toggleModal(false);
+                return;
+            }
+
+            const video = { id, title, added: new Date().toISOString() };
+            library.unshift(video);
+            
+            await sync();
+            renderLibrary();
+            toggleModal(false);
+        }
+
+        async function deleteVideo(id) {
+            if (!confirm('Remove this video from your library?')) return;
+            library = library.filter(v => v.id !== id);
+            await sync();
+            renderLibrary();
+        }
+
+        async function sync() {
+            updateSyncStatus('Syncing...', 'refresh-cw', true);
+            await saveProgress(TOOL_KEY, library);
+            updateSyncStatus('Synced with Cloud', 'cloud');
+        }
+
+        function updateSyncStatus(text, icon = 'cloud', spin = false) {
+            const status = document.getElementById('auth-status');
+            status.innerHTML = `
+                <i data-lucide="${icon}" class="${spin ? 'sync-spinner' : ''}"></i>
+                <span>${text}</span>
+            `;
+            lucide.createIcons();
+        }
+
+        // --- PLAYER LOGIC ---
         var tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
         var firstScriptTag = document.getElementsByTagName('script')[0];
         firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
 
-        let player;
-        let currentVideoId = null;
-        let library = [];
-
         function onYouTubeIframeAPIReady() {
-            // Player is initialized when a video is selected
-            console.log("YouTube API Ready");
-            initApp();
+            apiReady = true;
+            console.log('YouTube API Ready');
         }
 
-        function loadVideo(id) {
-            document.getElementById('player-empty').style.display = 'none';
-            
+        function playVideo(id, title) {
+            if (!apiReady) {
+                alert('YouTube Player is still loading. Please try again in a moment.');
+                return;
+            }
+            document.getElementById('current-title').textContent = title;
+            switchView('player');
+
             if (!player) {
                 player = new YT.Player('player', {
                     height: '100%',
@@ -310,138 +553,18 @@
                     playerVars: {
                         'playsinline': 1,
                         'autoplay': 1,
-                        'modestbranding': 1
-                    },
-                    events: {
-                        'onReady': (event) => {
-                            event.target.playVideo();
-                            updateActiveCard(id);
-                        }
+                        'modestbranding': 1,
+                        'rel': 0
                     }
                 });
             } else {
                 player.loadVideoById(id);
-                updateActiveCard(id);
-            }
-            currentVideoId = id;
-        }
-
-        // 2. Library Management
-        function initApp() {
-            // Load from LocalStorage
-            const saved = localStorage.getItem('klasskit_youtube_library');
-            if (saved) {
-                library = JSON.parse(saved);
-                renderLibrary();
-            }
-            
-            lucide.createIcons();
-            
-            // Add Button Listener
-            document.getElementById('add-btn').addEventListener('click', addVideoFromInput);
-            document.getElementById('video-input').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') addVideoFromInput();
-            });
-        }
-
-        function extractVideoId(url) {
-            const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-            const match = url.match(regExp);
-            if (match && match[2].length == 11) {
-                return match[2];
-            } else {
-                // If it's just the ID
-                if (url.length === 11) return url;
-                return null;
             }
         }
 
-        function addVideoFromInput() {
-            const urlInput = document.getElementById('video-input');
-            const titleInput = document.getElementById('title-input');
-            
-            const rawUrl = urlInput.value.trim();
-            const id = extractVideoId(rawUrl);
-            const title = titleInput.value.trim() || `Video ${id}`;
+        // Start
+        window.addEventListener('load', init);
 
-            if (id) {
-                // Check if already in library
-                if (library.find(v => v.id === id)) {
-                    loadVideo(id);
-                } else {
-                    const video = { id, title, date: new Date().toISOString() };
-                    library.unshift(video);
-                    saveLibrary();
-                    renderLibrary();
-                    loadVideo(id);
-                }
-                
-                urlInput.value = '';
-                titleInput.value = '';
-            } else {
-                alert('Please enter a valid YouTube URL or Video ID');
-            }
-        }
-
-        function deleteVideo(id, event) {
-            event.stopPropagation();
-            library = library.filter(v => v.id !== id);
-            saveLibrary();
-            renderLibrary();
-            
-            if (currentVideoId === id) {
-                if (player) player.stopVideo();
-                document.getElementById('player-empty').style.display = 'flex';
-                currentVideoId = null;
-            }
-        }
-
-        function saveLibrary() {
-            localStorage.setItem('klasskit_youtube_library', JSON.stringify(library));
-        }
-
-        function renderLibrary() {
-            const list = document.getElementById('library-list');
-            list.innerHTML = '';
-
-            if (library.length === 0) {
-                list.innerHTML = `
-                    <div class="empty-state" style="padding: 2rem;">
-                        <i data-lucide="bookmark"></i>
-                        <p class="font-bold text-xs opacity-50 uppercase tracking-widest">Library Empty</p>
-                    </div>
-                `;
-                lucide.createIcons();
-                return;
-            }
-
-            library.forEach(video => {
-                const card = document.createElement('div');
-                card.className = `video-card animate-pop-in ${currentVideoId === video.id ? 'active' : ''}`;
-                card.onclick = () => loadVideo(video.id);
-                
-                card.innerHTML = `
-                    <button class="delete-btn" onclick="deleteVideo('${video.id}', event)">
-                        <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
-                    </button>
-                    <div class="video-card-title">${video.title}</div>
-                    <div class="video-card-meta">${video.id}</div>
-                `;
-                
-                list.appendChild(card);
-            });
-            
-            lucide.createIcons();
-        }
-
-        function updateActiveCard(id) {
-            document.querySelectorAll('.video-card').forEach(card => {
-                card.classList.remove('active');
-                if (card.querySelector('.video-card-meta').textContent === id) {
-                    card.classList.add('active');
-                }
-            });
-        }
     </script>
 </body>
 </html>
