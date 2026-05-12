@@ -198,9 +198,6 @@ function updateStats() {
 
     const statUsers = document.getElementById('statUsers')
     if (statUsers) statUsers.textContent = Object.keys(metricsProfiles).length
-    const proCount = Object.values(metricsProfiles).filter(p => p.role === 'pro').length
-    const statPro = document.getElementById('statPro')
-    if (statPro) statPro.textContent = proCount
     const statRows = document.getElementById('statRows')
     if (statRows) statRows.textContent = metricsProgress.length
     const statNotes = document.getElementById('statNotes')
@@ -610,9 +607,8 @@ function applyFilters() {
             valA = (profA.display_name || '').toLowerCase()
             valB = (profB.display_name || '').toLowerCase()
         } else if (conf.col === 'role') {
-            const roleOrder = { admin: 0, pro: 1, user: 2 }
-            valA = roleOrder[profA.role] ?? 2
-            valB = roleOrder[profB.role] ?? 2
+            valA = profA.role || 'user'
+            valB = profB.role || 'user'
         } else if (conf.col === 'storage') {
             valA = profA.storage_usage || 0
             valB = profB.storage_usage || 0
@@ -832,37 +828,20 @@ function renderUsersTable(userIds, rows) {
         const date = activeDate
         const initial = name[0]?.toUpperCase() || '?'
         const isAdmin = role === 'admin'
-        const isPro = role === 'pro'
-
-        const avatarClass = isAdmin
-            ? 'bg-pink/20 border-2 border-pink/40 text-pink'
-            : isPro
-                ? 'bg-orange/20 border-2 border-orange/40 text-orange'
-                : 'bg-blue/20 border-2 border-blue/40 text-blue'
-
-        const selectClass = isAdmin
-            ? 'text-pink border-pink/40'
-            : isPro
-                ? 'text-orange border-orange/40'
-                : 'text-slate-400 border-slate-600'
 
         return `<tr class="group transition-colors">
           <td class="px-5 py-3">
             <div class="flex items-center gap-3">
-              <div class="w-8 h-8 rounded-lg flex items-center justify-center font-heading text-sm flex-shrink-0 ${avatarClass}">${initial}</div>
-              <div>
-                <span class="font-bold text-white">${name}</span>
-                ${isPro ? '<span class="ml-1 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-orange/20 border border-orange/40 text-[9px] font-black text-orange uppercase tracking-wider">⭐ Pro</span>' : ''}
-              </div>
+              <div class="w-8 h-8 rounded-lg flex items-center justify-center font-heading text-sm flex-shrink-0 ${isAdmin ? 'bg-pink/20 border-2 border-pink/40 text-pink' : 'bg-blue/20 border-2 border-blue/40 text-blue'}">${initial}</div>
+              <span class="font-bold text-white">${name}</span>
             </div>
           </td>
           <td class="hidden md:table-cell px-5 py-3"><span class="font-mono text-xs text-slate-500">${uid.slice(0, 12)}...</span></td>
           <td class="px-5 py-3">
             <select onchange="updateRole('${uid}', this.value)" 
-              class="bg-slate-800 border-2 border-slate-700 rounded-lg text-[10px] font-black uppercase px-2 py-1 outline-none focus:border-blue transition-colors cursor-pointer ${selectClass}">
-              <option value="user" ${role === 'user' ? 'selected' : ''}>👤 User</option>
-              <option value="pro" ${isPro ? 'selected' : ''}>⭐ Pro</option>
-              <option value="admin" ${isAdmin ? 'selected' : ''}>🛡️ Admin</option>
+              class="bg-slate-800 border-2 border-slate-700 rounded-lg text-[10px] font-black uppercase px-2 py-1 outline-none focus:border-blue transition-colors cursor-pointer ${isAdmin ? 'text-pink border-pink/40' : 'text-slate-400 border-slate-600'}">
+              <option value="user" ${role === 'user' ? 'selected' : ''}>User</option>
+              <option value="admin" ${isAdmin ? 'selected' : ''}>Admin</option>
             </select>
           </td>
           <td class="px-5 py-3">
@@ -1291,9 +1270,8 @@ function viewUser(userId) {
         </div>
     `;
 
-    const roleLabel = role === 'pro' ? '⭐ PRO USER' : role === 'admin' ? '🛡️ ADMIN' : '👤 USER';
     document.getElementById('viewModalTitle').textContent = name + ' — Profile Details';
-    document.getElementById('viewModalSub').textContent = 'Role: ' + roleLabel;
+    document.getElementById('viewModalSub').textContent = 'Role: ' + role.toUpperCase();
     document.getElementById('viewModalContent').innerHTML = html;
     document.getElementById('viewModalBg').classList.remove('hidden');
     lucide.createIcons();
@@ -1539,9 +1517,7 @@ async function updateRole(userId, newRole) {
     const row = allProfiles[userId]
     if (!row) return
 
-    const roleLabels = { user: '👤 User', pro: '⭐ Pro', admin: '🛡️ Admin' }
-    const roleDisplay = roleLabels[newRole] || newRole.toUpperCase()
-    if (!confirm(`Change role for ${row.display_name || userId} to ${roleDisplay}?`)) {
+    if (!confirm(`Change role for ${row.display_name || userId} to ${newRole.toUpperCase()}?`)) {
         applyFilters() // Reset dropdown
         return
     }
