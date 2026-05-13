@@ -236,37 +236,55 @@ function updateCharts(metricsProgress, metricsNotes, metricsProfiles, metricsSch
 
     // 1. Activity Line Chart
     const days = 14
-    const today = new Date()
-    today.setHours(0, 0, 0, 0) // Normalize to local midnight to prevent shifting bins
-    
-    // Helper to get local date string YYYY-MM-DD
-    const getLocalDateKey = (date) => {
-        const d = new Date(date)
+
+    // Helper: local calendar date string YYYY-MM-DD from any date value.
+    // Uses local getFullYear/Month/Date (not UTC) so the day aligns with the user's wall clock.
+    const getLocalDateKey = (dateVal) => {
+        const d = new Date(dateVal)
         return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
     }
 
-    // Pre-calculate counts per local date for O(N) efficiency
-    const progressByDate = {}
-    const usersByDate = {}
+    // Build the 14-day window anchored to today's real calendar date.
+    // Noon (12:00) is used instead of midnight so DST boundary shifts never flip the date.
+    const dateKeys = []
+    const activityLabels = []
+    for (let i = days - 1; i >= 0; i--) {
+        const d = new Date()
+        d.setHours(12, 0, 0, 0)   // noon anchor — immune to DST shifts
+        d.setDate(d.getDate() - i)
+        dateKeys.push(getLocalDateKey(d))
+        activityLabels.push(d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }))
+    }
+
+    // Activity chart bins by created_at so historical bars are STABLE.
+    // If we binned by updated_at, every subsequent save moves the record out of its
+    // original day's bucket, making old days silently lose counts on each refresh.
+    //
+    // DAU chart bins by updated_at to reflect when users were actually last engaged.
+    const activityByDate = {}  // created_at → total save count
+    const usersByDate = {}     // updated_at → Set<user_id>
+
     filteredProgress.forEach(r => {
-        const key = getLocalDateKey(r.updated_at || Date.now())
-        progressByDate[key] = (progressByDate[key] || 0) + 1
-        if (!usersByDate[key]) usersByDate[key] = new Set()
-        usersByDate[key].add(r.user_id)
+        const createdKey = getLocalDateKey(r.created_at || r.updated_at)
+        activityByDate[createdKey] = (activityByDate[createdKey] || 0) + 1
+
+        const updatedKey = getLocalDateKey(r.updated_at || r.created_at)
+        if (!usersByDate[updatedKey]) usersByDate[updatedKey] = new Set()
+        usersByDate[updatedKey].add(r.user_id)
     })
 
-    const activityLabels = []
-    const activityData = []
-    const dauData = []
+    // Fold notes into both charts — they are real user activity
+    metricsNotes.forEach(n => {
+        const createdKey = getLocalDateKey(n.created_at || n.updated_at)
+        activityByDate[createdKey] = (activityByDate[createdKey] || 0) + 1
 
-    for (let i = days - 1; i >= 0; i--) {
-        const d = new Date(today)
-        d.setDate(d.getDate() - i)
-        const dateStr = getLocalDateKey(d)
-        activityLabels.push(d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }))
-        activityData.push(progressByDate[dateStr] || 0)
-        dauData.push(usersByDate[dateStr]?.size || 0)
-    }
+        const updatedKey = getLocalDateKey(n.updated_at || n.created_at)
+        if (!usersByDate[updatedKey]) usersByDate[updatedKey] = new Set()
+        usersByDate[updatedKey].add(n.user_id)
+    })
+
+    const activityData = dateKeys.map(k => activityByDate[k] || 0)
+    const dauData = dateKeys.map(k => usersByDate[k]?.size || 0)
 
     if (charts.activity) charts.activity.destroy()
     charts.activity = new Chart(ctxActivity, {
