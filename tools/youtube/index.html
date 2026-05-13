@@ -760,6 +760,36 @@
         </div>
     </div>
 
+    <!-- 5. EDIT VIDEO MODAL -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <div class="form-group">
+                <h3 class="font-heading text-2xl font-black text-blue uppercase flex items-center gap-2">
+                    <i data-lucide="pencil" class="w-6 h-6"></i>
+                    Edit Video
+                </h3>
+                <p class="font-bold opacity-60 text-sm">Update video details.</p>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Video Title</label>
+                <input type="text" id="edit-video-title" class="input-chunky" placeholder="Video title...">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Category</label>
+                <select id="edit-video-category" class="input-chunky">
+                    <!-- Categories populated by JS -->
+                </select>
+            </div>
+
+            <div class="action-group" style="margin-top: 1rem;">
+                <button onclick="toggleEditModal(false)" class="btn-chunky bg-slate-200 dark:bg-slate-700 text-dark dark:text-white flex-1 py-3 rounded-xl border-[var(--border-width-medium)] border-[var(--border-primary)]">Cancel</button>
+                <button onclick="saveVideoEdit()" class="btn-chunky bg-blue text-white flex-2 py-3 rounded-xl border-[var(--border-width-medium)] border-[var(--border-primary)]">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // --- CONSTANTS ---
         const TOOL_KEY = 'youtube-library';
@@ -785,6 +815,7 @@
         let searchQuery = '';
         let selectedVideos = new Set();
         let favoritesOnly = false;
+        let editingVideoId = null;
 
         // --- THEME MANAGER ---
         const Theme = {
@@ -828,6 +859,7 @@
         function populateCategoryDropdowns() {
             const filterSelect = document.getElementById('category-filter');
             const modalSelect = document.getElementById('video-category');
+            const editModalSelect = document.getElementById('edit-video-category');
             
             if (filterSelect) {
                 filterSelect.innerHTML = '<option value="all">All Categories</option>';
@@ -840,6 +872,13 @@
                 modalSelect.innerHTML = '';
                 categories.forEach(cat => {
                     modalSelect.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
+                });
+            }
+
+            if (editModalSelect) {
+                editModalSelect.innerHTML = '';
+                categories.forEach(cat => {
+                    editModalSelect.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
                 });
             }
         }
@@ -1130,6 +1169,54 @@
                 sync();
                 renderLibrary();
             }
+        }
+
+        // --- EDIT VIDEO ---
+        function openEditModal(videoId) {
+            const video = library.find(v => v.id === videoId);
+            if (!video) return;
+
+            editingVideoId = videoId;
+            document.getElementById('edit-video-title').value = video.title;
+            document.getElementById('edit-video-category').value = video.category || 'uncategorized';
+            
+            toggleEditModal(true);
+        }
+
+        function toggleEditModal(show) {
+            const modal = document.getElementById('edit-modal');
+            if (show) {
+                modal.classList.add('active');
+            } else {
+                modal.classList.remove('active');
+                editingVideoId = null;
+                document.getElementById('edit-video-title').value = '';
+            }
+        }
+
+        async function saveVideoEdit() {
+            if (!editingVideoId) return;
+
+            const video = library.find(v => v.id === editingVideoId);
+            if (!video) return;
+
+            const titleInput = document.getElementById('edit-video-title');
+            const categoryInput = document.getElementById('edit-video-category');
+
+            const newTitle = titleInput.value.trim();
+            const newCategory = categoryInput.value;
+
+            if (!newTitle) {
+                alert('Please enter a video title.');
+                return;
+            }
+
+            video.title = newTitle;
+            video.category = newCategory;
+
+            await sync();
+            renderLibrary();
+            toggleEditModal(false);
         }
 
         // --- CATEGORY MANAGEMENT ---
