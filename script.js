@@ -24,7 +24,8 @@ const CONFIG = {
     lastReadAnn: "klasskit_lastReadAnn",
     recentCollapsed: "klasskit_recentCollapsed",
     timerVisible: "klasskit_timerVisible",
-    timerPosition: "klasskit_timerPosition"
+    timerPosition: "klasskit_timerPosition",
+    timerDuration: "klasskit_timerDuration"
   }
 };
 
@@ -2848,10 +2849,25 @@ const Timer = {
       timer.style.top = `${pos.y}px`;
       timer.style.right = 'auto';
       timer.style.bottom = 'auto';
+    } else {
+      // First init: center in the iframe container
+      const container = document.getElementById('tab-content-area');
+      if (container) {
+        const containerRect = container.getBoundingClientRect();
+        const timerWidth = 200; // Approximate timer width
+        const timerHeight = 280; // Approximate timer height
+        const centerX = (containerRect.width - timerWidth) / 2;
+        const centerY = (containerRect.height - timerHeight) / 2;
+        timer.style.left = `${centerX}px`;
+        timer.style.top = `${centerY}px`;
+        timer.style.right = 'auto';
+        timer.style.bottom = 'auto';
+      }
     }
 
-    // Set default 5 min
-    this.setDuration(300);
+    // Restore duration or set default 5 min
+    const savedDuration = Storage.get(CONFIG.storageKeys.timerDuration);
+    this.setDuration(savedDuration || 300);
 
     this.bindEvents();
     Utils.refreshIcons(timer);
@@ -2989,6 +3005,8 @@ const Timer = {
     this.el?.querySelectorAll('.timer-preset-btn:not(.timer-custom-btn):not(.timer-set-btn)').forEach(btn => {
       btn.classList.toggle('active', parseInt(btn.dataset.seconds) === seconds);
     });
+    // Save duration to storage
+    Storage.set(CONFIG.storageKeys.timerDuration, seconds);
   },
 
   toggle() {
