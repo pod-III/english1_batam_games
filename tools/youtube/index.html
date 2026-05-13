@@ -3,21 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Library - KlassKit</title>
+    <title>YouTube Library — KlassKit</title>
+    <link rel="icon" type="image/x-icon" href="../../media/icon.ico" />
+    <link rel="icon" type="image/webp" href="../../media/icon.webp" />
     
     <!-- Supabase Auth -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="../../supabase.js"></script>
     
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
     
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        heading: ['Fredoka', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                    },
+                    colors: {
+                        pink: '#ff4785',
+                        orange: '#ff7e33',
+                        green: '#00d063',
+                        blue: '#1ea7fd',
+                        dark: '#0f172a',
+                        chalk: '#f8fafc'
+                    },
+                    boxShadow: {
+                        'neo': '4px 4px 0px 0px rgba(51,65,85,0.15)',
+                        'neo-sm': '2px 2px 0px 0px rgba(51,65,85,0.15)',
+                    }
+                }
+            }
+        }
+    </script>
+    
     <!-- Global Styles -->
     <link rel="stylesheet" href="../../css/base.css">
     <link rel="stylesheet" href="../../css/components.css">
+    
+    <script>
+        if (localStorage.getItem("theme_youtube") === "dark" || (!localStorage.getItem("theme_youtube") && window.matchMedia("(prefers-color-scheme:dark)").matches)) {
+            document.documentElement.classList.add("dark")
+        }
+    </script>
     
     <style>
         body {
@@ -33,7 +72,7 @@
         .view {
             display: none;
             padding: 2rem;
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             width: 100%;
             animation: pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -65,37 +104,40 @@
         }
 
         .title-group p {
-            margin: 0;
-            font-weight: 700;
-            opacity: 0.6;
+            margin: 0.5rem 0 0 0;
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
         }
 
         .action-group {
             display: flex;
             gap: 1rem;
+            align-items: center;
         }
 
         .video-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
             gap: 2rem;
         }
 
         .video-card {
             background: var(--surface-card);
             border: var(--border-width-thick) solid var(--border-primary);
-            border-radius: var(--radius-xl);
+            border-radius: var(--radius-2xl);
             overflow: hidden;
             cursor: pointer;
             transition: all var(--transition-fast);
             box-shadow: var(--shadow-md);
             display: flex;
             flex-direction: column;
+            position: relative;
         }
 
         .video-card:hover {
-            transform: translateY(-4px) scale(1.02);
-            box-shadow: var(--shadow-lg);
+            transform: translateY(-6px) scale(1.02);
+            box-shadow: var(--shadow-xl);
             border-color: var(--color-blue);
         }
 
@@ -105,23 +147,29 @@
             background: #000;
             position: relative;
             border-bottom: var(--border-width-medium) solid var(--border-primary);
+            overflow: hidden;
         }
 
         .thumbnail-container img {
             width: 100%;
             height: 100%;
             object-fit: cover;
+            transition: transform var(--transition-base);
+        }
+
+        .video-card:hover .thumbnail-container img {
+            transform: scale(1.05);
         }
 
         .play-overlay {
             position: absolute;
             inset: 0;
-            background: rgba(0, 0, 0, 0.3);
+            background: rgba(0, 0, 0, 0.4);
             display: flex;
             align-items: center;
             justify-content: center;
             opacity: 0;
-            transition: opacity 0.2s;
+            transition: opacity var(--transition-fast);
         }
 
         .video-card:hover .play-overlay {
@@ -129,60 +177,75 @@
         }
 
         .play-overlay i {
-            width: 48px;
-            height: 48px;
+            width: 64px;
+            height: 64px;
             color: white;
-            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.5));
+            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.6));
+            transform: scale(0.9);
+            transition: transform var(--transition-fast);
+        }
+
+        .video-card:hover .play-overlay i {
+            transform: scale(1);
         }
 
         .card-content {
-            padding: 1.25rem;
+            padding: 1.5rem;
             flex: 1;
             display: flex;
             flex-direction: column;
-            gap: 0.5rem;
+            gap: 0.75rem;
             position: relative;
         }
 
         .card-title {
             font-family: 'Fredoka', sans-serif;
             font-weight: 700;
-            font-size: 1.1rem;
-            line-height: 1.2;
+            font-size: 1.15rem;
+            line-height: 1.3;
             color: var(--text-primary);
         }
 
         .card-meta {
-            font-size: 0.75rem;
+            font-size: 0.8rem;
             font-weight: 700;
             color: var(--text-tertiary);
             margin-top: auto;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
         .card-actions {
             position: absolute;
             top: -1rem;
-            right: 1rem;
+            right: 1.5rem;
             display: flex;
             gap: 0.5rem;
+            z-index: 10;
         }
 
         .action-btn {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
             border: var(--border-width-medium) solid var(--border-primary);
             display: flex;
             align-items: center;
             justify-content: center;
-            background: white;
+            background: var(--surface-card);
             box-shadow: var(--shadow-sm);
             cursor: pointer;
             transition: all var(--transition-fast);
         }
 
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
         .btn-delete:hover {
             background: #ef4444;
+            border-color: #dc2626;
             color: white;
         }
 
@@ -214,7 +277,8 @@
             position: fixed;
             inset: 0;
             background: rgba(2, 6, 23, 0.85);
-            backdrop-filter: blur(8px);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             z-index: 100;
             display: none;
             align-items: center;
@@ -231,7 +295,7 @@
             border: var(--border-width-thick) solid var(--border-primary);
             border-radius: var(--radius-2xl);
             width: 100%;
-            max-width: 500px;
+            max-width: 520px;
             padding: 2.5rem;
             box-shadow: var(--shadow-xl);
             animation: pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -243,15 +307,16 @@
         .form-group {
             display: flex;
             flex-direction: column;
-            gap: 0.5rem;
+            gap: 0.75rem;
         }
 
         .form-label {
             font-family: 'Fredoka', sans-serif;
             font-weight: 700;
             text-transform: uppercase;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             letter-spacing: 0.05em;
+            color: var(--text-secondary);
         }
 
         .input-chunky {
@@ -266,32 +331,50 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 5rem 2rem;
+            padding: 6rem 2rem;
             text-align: center;
             background: var(--bg-secondary);
-            border: var(--border-width-medium) dashed var(--border-primary);
+            border: var(--border-width-thick) dashed var(--border-primary);
             border-radius: var(--radius-2xl);
-            opacity: 0.8;
+            opacity: 0.9;
         }
 
         .empty-state i {
-            width: 80px;
-            height: 80px;
+            width: 96px;
+            height: 96px;
             color: var(--color-blue);
-            margin-bottom: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .empty-state h2 {
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
+            font-size: 2rem;
+            color: var(--text-primary);
+            margin: 0 0 1rem 0;
+            text-transform: uppercase;
+        }
+
+        .empty-state p {
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin: 0 0 2rem 0;
+            font-size: 1.1rem;
         }
 
         /* Auth Status Bar */
         .auth-bar {
             background: var(--bg-secondary);
-            padding: 0.5rem 1rem;
-            border-radius: var(--radius-md);
+            padding: 0.75rem 1.25rem;
+            border-radius: var(--radius-xl);
             font-size: 0.8rem;
             font-weight: 800;
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.75rem;
             color: var(--text-secondary);
+            border: var(--border-width-medium) solid var(--border-primary);
+            box-shadow: var(--shadow-sm);
         }
 
         .sync-spinner {
@@ -303,9 +386,66 @@
             to { transform: rotate(360deg); }
         }
 
+        /* Responsive */
+        @media (max-width: 768px) {
+            .view {
+                padding: 1rem;
+            }
+
+            .title-group h1 {
+                font-size: 1.75rem;
+            }
+
+            .video-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+
+            .modal-content {
+                padding: 1.75rem;
+            }
+
+            .empty-state {
+                padding: 4rem 1.5rem;
+            }
+
+            .empty-state i {
+                width: 64px;
+                height: 64px;
+            }
+
+            .empty-state h2 {
+                font-size: 1.5rem;
+            }
+        }
     </style>
 </head>
-<body class="selection:bg-pink selection:text-white">
+<body class="min-h-screen text-dark dark:text-white relative font-body pb-12 overflow-x-hidden">
+
+    <!-- Header -->
+    <header class="glass-panel sticky top-0 z-30 h-12 flex items-center justify-between px-4 md:px-6 border-b-[3px] border-[var(--border-primary)]" style="border-radius: 0;">
+        <div class="flex items-center gap-2 md:gap-3">
+            <div class="w-8 h-8 bg-pink rounded-xl border-[2px] border-white/40 flex items-center justify-center text-white shadow-neo-sm">
+                <i data-lucide="youtube" class="w-5 h-5 stroke-[2.5px]"></i>
+            </div>
+            <div>
+                <h1 class="font-heading font-bold text-lg md:text-xl tracking-tight leading-none text-dark dark:text-white">YouTube Library</h1>
+                <p class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none mt-1">KlassKit Workspace</p>
+            </div>
+        </div>
+
+        <!-- Right Actions -->
+        <div class="flex items-center gap-1 md:gap-2">
+            <div id="auth-status" class="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-xl border-[2px] border-[var(--border-primary)] bg-slate-100 dark:bg-slate-800 text-[9px] font-extrabold uppercase tracking-widest text-slate-500">
+                <i data-lucide="cloud" class="w-3 h-3"></i>
+                <span id="sync-text">Checking...</span>
+            </div>
+            <button onclick="Theme.toggle()" class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title="Toggle Theme">
+                <i data-lucide="sun" class="w-3.5 h-3.5 dark:hidden text-slate-500"></i>
+                <i data-lucide="moon" class="w-3.5 h-3.5 hidden dark:block text-slate-400"></i>
+            </button>
+        </div>
+    </header>
 
     <!-- 1. LIBRARY VIEW (Default) -->
     <div id="view-library" class="view active">
@@ -316,9 +456,9 @@
             </div>
             
             <div class="action-group">
-                <div id="auth-status" class="auth-bar">
+                <div id="auth-status-mobile" class="sm:hidden auth-bar">
                     <i data-lucide="cloud"></i>
-                    <span id="sync-text">Checking Sync...</span>
+                    <span id="sync-text-mobile">Checking...</span>
                 </div>
                 <button onclick="toggleModal(true)" class="btn-chunky bg-green text-white px-6 py-3 rounded-xl flex items-center gap-2">
                     <i data-lucide="plus"></i>
@@ -335,7 +475,7 @@
     <!-- 2. PLAYER VIEW -->
     <div id="view-player" class="view">
         <div class="player-header">
-            <button onclick="switchView('library')" class="btn-chunky bg-white dark:bg-slate-800 p-3 rounded-xl">
+            <button onclick="switchView('library')" class="btn-chunky bg-white dark:bg-slate-800 p-3 rounded-xl border-[var(--border-width-medium)] border-[var(--border-primary)] shadow-neo-sm">
                 <i data-lucide="arrow-left"></i>
             </button>
             <div class="title-group">
@@ -352,8 +492,11 @@
     <div id="add-modal" class="modal">
         <div class="modal-content">
             <div class="form-group">
-                <h3 class="font-heading text-2xl font-black text-pink uppercase">New Video</h3>
-                <p class="font-bold opacity-60">Paste a YouTube link to save it.</p>
+                <h3 class="font-heading text-2xl font-black text-pink uppercase flex items-center gap-2">
+                    <i data-lucide="plus-circle" class="w-6 h-6"></i>
+                    New Video
+                </h3>
+                <p class="font-bold opacity-60 text-sm">Paste a YouTube link to save it to your library.</p>
             </div>
 
             <div class="form-group">
@@ -367,8 +510,8 @@
             </div>
 
             <div class="action-group" style="margin-top: 1rem;">
-                <button onclick="toggleModal(false)" class="btn-chunky bg-slate-200 text-dark flex-1 py-3 rounded-xl">Cancel</button>
-                <button onclick="addVideo()" class="btn-chunky bg-blue text-white flex-2 py-3 rounded-xl">Save Video</button>
+                <button onclick="toggleModal(false)" class="btn-chunky bg-slate-200 dark:bg-slate-700 text-dark dark:text-white flex-1 py-3 rounded-xl border-[var(--border-width-medium)] border-[var(--border-primary)]">Cancel</button>
+                <button onclick="addVideo()" class="btn-chunky bg-blue text-white flex-2 py-3 rounded-xl border-[var(--border-width-medium)] border-[var(--border-primary)]">Save Video</button>
             </div>
         </div>
     </div>
@@ -381,12 +524,21 @@
         let currentUser = null;
         let apiReady = false;
 
+        // --- THEME MANAGER ---
+        const Theme = {
+            toggle() {
+                const html = document.documentElement;
+                const isDark = html.classList.toggle('dark');
+                localStorage.setItem('theme_youtube', isDark ? 'dark' : 'light');
+            }
+        };
+
         // --- AUTH & INITIALIZATION ---
         async function init() {
             try {
                 // 1. Auth Check
                 currentUser = await requireAuth();
-                updateSyncStatus('Synced with Cloud');
+                updateSyncStatus('Synced');
                 
                 // 2. Load Data (Cloud + Local Fallback)
                 library = await loadProgress(TOOL_KEY) || [];
@@ -396,7 +548,7 @@
                 lucide.createIcons();
             } catch (err) {
                 console.error('Init Error:', err);
-                updateSyncStatus('Offline Mode', 'cloud-off');
+                updateSyncStatus('Offline', 'cloud-off');
             }
         }
 
@@ -514,15 +666,26 @@
         async function sync() {
             updateSyncStatus('Syncing...', 'refresh-cw', true);
             await saveProgress(TOOL_KEY, library);
-            updateSyncStatus('Synced with Cloud', 'cloud');
+            updateSyncStatus('Synced', 'cloud');
         }
 
         function updateSyncStatus(text, icon = 'cloud', spin = false) {
+            // Desktop version
             const status = document.getElementById('auth-status');
-            status.innerHTML = `
-                <i data-lucide="${icon}" class="${spin ? 'sync-spinner' : ''}"></i>
-                <span>${text}</span>
-            `;
+            if (status) {
+                status.innerHTML = `
+                    <i data-lucide="${icon}" class="${spin ? 'sync-spinner' : ''}"></i>
+                    <span>${text}</span>
+                `;
+            }
+            // Mobile version
+            const statusMobile = document.getElementById('auth-status-mobile');
+            if (statusMobile) {
+                statusMobile.innerHTML = `
+                    <i data-lucide="${icon}" class="${spin ? 'sync-spinner' : ''}"></i>
+                    <span>${text}</span>
+                `;
+            }
             lucide.createIcons();
         }
 
