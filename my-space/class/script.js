@@ -72,6 +72,9 @@ const ClassManager = {
         localStorage.setItem('prog_my-class', JSON.stringify(this.data));
       }
     });
+
+    // 11. Rich Text Init
+    ReflectionManager.init();
   },
 
   setupKeyboardShortcuts() {
@@ -1126,6 +1129,38 @@ const ReflectionManager = {
   STEP_LABELS: ['Description', 'Feelings', 'Evaluation', 'Analysis', 'Conclusion', 'Action Plan'],
   STEP_COLORS: ['blue', 'pink', 'green', 'orange', 'blue', 'pink'],
   editingId: null,
+  editors: {},
+
+  init() {
+    this.STEPS.forEach(key => {
+      const container = document.getElementById(`gibbs-${key}`);
+      if (container) {
+        this.editors[key] = new Quill(container, {
+          theme: 'snow',
+          placeholder: this.getPlaceholder(key),
+          modules: {
+            toolbar: [
+              ['bold', 'italic', 'underline'],
+              [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+              ['clean']
+            ]
+          }
+        });
+      }
+    });
+  },
+
+  getPlaceholder(key) {
+    const placeholders = {
+      description: "What happened? Describe the situation objectively...",
+      feelings: "What were you thinking and feeling?",
+      evaluation: "What was good and bad about the experience?",
+      analysis: "What sense can you make of the situation?",
+      conclusion: "What else could you have done?",
+      action: "If this arose again, what would you do?"
+    };
+    return placeholders[key] || "Type here...";
+  },
 
   render() {
     const list = document.getElementById('reflectionList');
@@ -1189,8 +1224,7 @@ const ReflectionManager = {
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('reflectionDateInput').value = today;
     this.STEPS.forEach(key => {
-      const el = document.getElementById(`gibbs-${key}`);
-      if (el) el.value = '';
+      if (this.editors[key]) this.editors[key].root.innerHTML = '';
     });
     this.goToStep(0);
     ModalManager.open('reflectionModal');
@@ -1200,8 +1234,7 @@ const ReflectionManager = {
     this.editingId = null;
     document.getElementById('reflectionDateInput').value = date;
     this.STEPS.forEach(key => {
-      const el = document.getElementById(`gibbs-${key}`);
-      if (el) el.value = '';
+      if (this.editors[key]) this.editors[key].root.innerHTML = '';
     });
     this.goToStep(0);
     ModalManager.open('reflectionModal');
@@ -1214,8 +1247,10 @@ const ReflectionManager = {
     this.editingId = id;
     document.getElementById('reflectionDateInput').value = r.date;
     this.STEPS.forEach(key => {
-      const el = document.getElementById(`gibbs-${key}`);
-      if (el) el.value = r[key] || r.gibbs?.[key] || '';
+      if (this.editors[key]) {
+        const val = r[key] || r.gibbs?.[key] || '';
+        this.editors[key].root.innerHTML = val;
+      }
     });
     this.goToStep(0);
     ModalManager.open('reflectionModal');
@@ -1234,7 +1269,7 @@ const ReflectionManager = {
       if (s === step) btn.classList.add('active');
       else if (s < step) {
         const key = this.STEPS[s];
-        const val = document.getElementById(`gibbs-${key}`)?.value?.trim();
+        const val = this.editors[key] ? this.editors[key].getText().trim() : '';
         if (val) btn.classList.add('completed');
       }
     });
@@ -1259,8 +1294,16 @@ const ReflectionManager = {
     const data = {};
     let hasContent = false;
     this.STEPS.forEach(key => {
-      data[key] = document.getElementById(`gibbs-${key}`)?.value?.trim() || '';
-      if (data[key]) hasContent = true;
+      const html = this.editors[key] ? this.editors[key].root.innerHTML.trim() : '';
+      const text = this.editors[key] ? this.editors[key].getText().trim() : '';
+      
+      // Quill adds a <p><br></p> even when empty
+      if (text) {
+        data[key] = html;
+        hasContent = true;
+      } else {
+        data[key] = '';
+      }
     });
     
     if (!hasContent) { UI.showToast('Please fill in at least one stage', 'error'); return; }
