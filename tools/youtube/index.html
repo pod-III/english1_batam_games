@@ -714,10 +714,8 @@
             </div>
 
             <div class="form-group">
-                <label class="form-label">Category</label>
-                <select id="video-category" class="input-chunky">
-                    <option value="uncategorized">Uncategorized</option>
-                </select>
+                <label class="form-label">Category (Optional)</label>
+                <input type="text" id="video-category" class="input-chunky" placeholder="e.g. Grammar, Vocabulary, Listening...">
             </div>
 
             <div class="action-group" style="margin-top: 1rem;">
@@ -778,9 +776,7 @@
 
             <div class="form-group">
                 <label class="form-label">Category</label>
-                <select id="edit-video-category" class="input-chunky">
-                    <!-- Categories populated by JS -->
-                </select>
+                <input type="text" id="edit-video-category" class="input-chunky" placeholder="e.g. Grammar, Vocabulary, Listening...">
             </div>
 
             <div class="action-group" style="margin-top: 1rem;">
@@ -858,8 +854,6 @@
 
         function populateCategoryDropdowns() {
             const filterSelect = document.getElementById('category-filter');
-            const modalSelect = document.getElementById('video-category');
-            const editModalSelect = document.getElementById('edit-video-category');
             
             if (filterSelect) {
                 filterSelect.innerHTML = '<option value="all">All Categories</option>';
@@ -867,20 +861,35 @@
                     filterSelect.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
                 });
             }
-            
-            if (modalSelect) {
-                modalSelect.innerHTML = '';
-                categories.forEach(cat => {
-                    modalSelect.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
-                });
+        }
+
+        function getOrCreateCategory(categoryName) {
+            if (!categoryName || categoryName.trim() === '') {
+                return categories[0]; // Return uncategorized
             }
 
-            if (editModalSelect) {
-                editModalSelect.innerHTML = '';
-                categories.forEach(cat => {
-                    editModalSelect.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
-                });
+            const normalizedName = categoryName.trim();
+            const existingCategory = categories.find(c => c.name.toLowerCase() === normalizedName.toLowerCase());
+            
+            if (existingCategory) {
+                return existingCategory;
             }
+
+            // Create new category with random color
+            const colors = ['#ff4785', '#1ea7fd', '#00d063', '#ff7e33', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
+            
+            const newCategory = {
+                id: normalizedName.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now(),
+                name: normalizedName,
+                color: randomColor
+            };
+            
+            categories.push(newCategory);
+            saveCategories();
+            populateCategoryDropdowns();
+            
+            return newCategory;
         }
 
         // --- VIEWS ---
@@ -1178,7 +1187,10 @@
 
             editingVideoId = videoId;
             document.getElementById('edit-video-title').value = video.title;
-            document.getElementById('edit-video-category').value = video.category || 'uncategorized';
+            
+            // Get category name from category ID
+            const category = categories.find(c => c.id === video.category);
+            document.getElementById('edit-video-category').value = category ? category.name : '';
             
             toggleEditModal(true);
         }
@@ -1204,15 +1216,17 @@
             const categoryInput = document.getElementById('edit-video-category');
 
             const newTitle = titleInput.value.trim();
-            const newCategory = categoryInput.value;
+            const categoryName = categoryInput.value.trim();
 
             if (!newTitle) {
                 alert('Please enter a video title.');
                 return;
             }
 
+            const category = getOrCreateCategory(categoryName);
+
             video.title = newTitle;
-            video.category = newCategory;
+            video.category = category.id;
 
             await sync();
             renderLibrary();
@@ -1333,7 +1347,7 @@
             
             const id = extractVideoId(urlInput.value.trim());
             const title = titleInput.value.trim() || `Untitled Video (${id})`;
-            const category = categoryInput.value || 'uncategorized';
+            const categoryName = categoryInput.value.trim();
 
             if (!id) {
                 alert('Please enter a valid YouTube URL or ID.');
@@ -1346,7 +1360,9 @@
                 return;
             }
 
-            const video = { id, title, category, added: new Date().toISOString(), favorite: false };
+            const category = getOrCreateCategory(categoryName);
+
+            const video = { id, title, category: category.id, added: new Date().toISOString(), favorite: false };
             library.unshift(video);
             
             await sync();
