@@ -1359,41 +1359,45 @@ const ClassTallyApp = (function () {
                 if (State.viewMode === 'list') {
                     return `
                     <div id="card-${s.id}" 
-                        class="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-2xl p-2 px-4 flex items-center gap-4 transition-all hover:border-brand-blue group relative overflow-hidden ${pickedClass} ${absentClass} ${animationClass}" style="${animationStyle}">
+                        class="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-[1.5rem] p-4 px-6 flex items-center gap-6 transition-all hover:border-brand-blue group relative overflow-hidden min-h-[96px] ${pickedClass} ${absentClass} ${animationClass}" style="${animationStyle}">
                         <!-- Color Accent -->
-                        <div class="absolute left-0 top-0 bottom-0 w-2" style="background-color: ${s.cardColor}"></div>
+                        <div class="absolute left-0 top-0 bottom-0 w-2.5" style="background-color: ${s.cardColor}"></div>
                         
                         <!-- Avatar -->
-                        <div class="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-2xl shrink-0 border border-black/5 shadow-inner" style="background-color: ${s.cardColor}15">
+                        <div class="w-14 h-14 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-3xl shrink-0 border border-black/5 shadow-inner" style="background-color: ${s.cardColor}15">
                             ${s.avatar || '😀'}
                         </div>
 
                         <!-- Name & Logs -->
                         <div class="flex-1 min-w-0 flex flex-col justify-center">
-                            <h3 class="text-base font-black text-slate-800 dark:text-white truncate leading-tight">${s.name}</h3>
-                            
-                            <!-- Logs Display (Compact + Interactive) -->
-                            <div class="tally-log-container flex flex-wrap gap-0.5 mt-0.5">
-                                ${s.goodLogs.slice(0, 20).map(e => `<span onclick="event.stopPropagation(); ClassTallyApp.Student.removeLastPoint(${s.id},'good')" class="tally-item select-none cursor-pointer hover:opacity-50">${e}</span>`).join('')}
-                                ${s.badLogs.slice(0, 20).map(e => `<span onclick="event.stopPropagation(); ClassTallyApp.Student.removeLastPoint(${s.id},'bad')" class="tally-item select-none cursor-pointer hover:opacity-50 grayscale opacity-80 hover:opacity-100">${e}</span>`).join('')}
-                                ${goodCount + badCount > 40 ? '<span class="text-[8px] text-slate-400 font-black ml-1">...</span>' : ''}
+                            <div class="flex items-center gap-4 flex-wrap">
+                                <h3 class="text-2xl font-black text-slate-800 dark:text-white shrink-0 leading-tight">${s.name}</h3>
+                                
+                                <div class="h-10 w-1 bg-slate-100 dark:bg-slate-800 rounded-full shrink-0 mx-1"></div>
+
+                                <!-- Logs Display -->
+                                <div class="tally-log-container flex flex-wrap items-center gap-2">
+                                    ${s.goodLogs.slice(0, 25).map(e => `<span onclick="event.stopPropagation(); ClassTallyApp.Student.removeLastPoint(${s.id},'good')" class="tally-item select-none cursor-pointer hover:opacity-50 text-7xl leading-none">${e}</span>`).join('')}
+                                    ${s.badLogs.slice(0, 10).map(e => `<span onclick="event.stopPropagation(); ClassTallyApp.Student.removeLastPoint(${s.id},'bad')" class="tally-item select-none cursor-pointer hover:opacity-50 grayscale opacity-80 hover:opacity-100 text-7xl leading-none">${e}</span>`).join('')}
+                                    ${goodCount + badCount > 35 ? '<span class="text-sm text-slate-400 font-black ml-1">...</span>' : ''}
+                                </div>
                             </div>
                         </div>
 
                         <!-- Counters & Actions -->
-                        <div class="flex items-center gap-3">
-                             <div class="hidden sm:flex items-center gap-2 px-3 border-r border-slate-100 dark:border-slate-800">
-                                <span class="text-[10px] font-black text-brand-green uppercase">${State.currentGood} ${goodCount}</span>
-                                <span class="text-[10px] font-black text-brand-pink uppercase">${State.currentBad} ${badCount}</span>
+                        <div class="flex items-center gap-5">
+                             <div class="hidden sm:flex flex-col items-end gap-0.5 px-4 border-r border-slate-100 dark:border-slate-800">
+                                <span class="text-xs font-black text-brand-green uppercase tracking-tighter">${State.currentGood} ${goodCount}</span>
+                                <span class="text-xs font-black text-brand-pink uppercase tracking-tighter">${State.currentBad} ${badCount}</span>
                              </div>
 
-                             <div class="flex items-center gap-1.5">
+                             <div class="flex items-center gap-2">
                                 <button onclick="ClassTallyApp.Student.addPoint(${s.id}, 'good')" 
                                     data-tooltip="Add ${State.currentGood}"
-                                    class="w-10 h-10 rounded-xl border-2 border-brand-green/20 text-brand-green hover:bg-brand-green hover:text-white transition-all flex items-center justify-center font-bold btn-chunky shadow-sm hover:shadow-brand-green/20 text-lg">${State.currentGood}</button>
+                                    class="w-12 h-12 rounded-2xl border-2 border-brand-green/20 text-brand-green hover:bg-brand-green hover:text-white transition-all flex items-center justify-center font-bold btn-chunky shadow-sm hover:shadow-brand-green/20 text-xl">${State.currentGood}</button>
                                 <button onclick="ClassTallyApp.Student.addPoint(${s.id}, 'bad')" 
                                     data-tooltip="Add ${State.currentBad}"
-                                    class="w-10 h-10 rounded-xl border-2 border-brand-pink/20 text-brand-pink hover:bg-brand-pink hover:text-white transition-all flex items-center justify-center font-bold btn-chunky shadow-sm hover:shadow-brand-pink/20 text-lg">${State.currentBad}</button>
+                                    class="w-12 h-12 rounded-2xl border-2 border-brand-pink/20 text-brand-pink hover:bg-brand-pink hover:text-white transition-all flex items-center justify-center font-bold btn-chunky shadow-sm hover:shadow-brand-pink/20 text-xl">${State.currentBad}</button>
                              </div>
 
                              <div class="flex items-center gap-0.5 ml-1">
