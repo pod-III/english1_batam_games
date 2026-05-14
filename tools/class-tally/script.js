@@ -16,6 +16,7 @@ function showToast(message, type = 'success') {
 const ClassTallyApp = (function () {
     let modalCallback = null;
     let timerInterval = null;
+    let rankingDebounceTimeout = null;
 
     // --- IndexedDB ---
     const DB_NAME = 'ClassTallyDB';
@@ -513,10 +514,13 @@ const ClassTallyApp = (function () {
                 if (card) { card.classList.remove('animate-shake'); void card.offsetWidth; card.classList.add('animate-shake'); }
             }
             Persistence.save();
+            UI.updateCardLogs(id);
+            
             if (State.viewMode === 'list' && State.isLiveRanking) {
-                UI.render();
-            } else {
-                UI.updateCardLogs(id);
+                if (rankingDebounceTimeout) clearTimeout(rankingDebounceTimeout);
+                rankingDebounceTimeout = setTimeout(() => {
+                    UI.render({ animate: false, useFlip: true });
+                }, 1200);
             }
         },
 
@@ -525,10 +529,13 @@ const ClassTallyApp = (function () {
             if (type === 'good' && s.goodLogs.length > 0) s.goodLogs.pop();
             else if (type === 'bad' && s.badLogs.length > 0) s.badLogs.pop();
             Persistence.save();
+            UI.updateCardLogs(id);
+
             if (State.viewMode === 'list' && State.isLiveRanking) {
-                UI.render();
-            } else {
-                UI.updateCardLogs(id);
+                if (rankingDebounceTimeout) clearTimeout(rankingDebounceTimeout);
+                rankingDebounceTimeout = setTimeout(() => {
+                    UI.render({ animate: false, useFlip: true });
+                }, 1200);
             }
         },
 
@@ -545,10 +552,13 @@ const ClassTallyApp = (function () {
                         s.goodLogs = [];
                         s.badLogs = [];
                         Persistence.save();
+                        UI.updateCardLogs(id);
+
                         if (State.viewMode === 'list' && State.isLiveRanking) {
-                            UI.render();
-                        } else {
-                            UI.updateCardLogs(id);
+                            if (rankingDebounceTimeout) clearTimeout(rankingDebounceTimeout);
+                            rankingDebounceTimeout = setTimeout(() => {
+                                UI.render({ animate: false, useFlip: true });
+                            }, 1200);
                         }
                         Audio.playTick();
                     }
@@ -1181,7 +1191,7 @@ const ClassTallyApp = (function () {
             State.isLiveRanking = !State.isLiveRanking;
             UI.updateViewModeUI();
             UI.render();
-            Storage.save();
+            Persistence.save();
         },
         celebrate: (id) => {
             const el = document.getElementById(`card-${id}`);
@@ -1295,7 +1305,17 @@ const ClassTallyApp = (function () {
 
         render: (options = {}) => {
             const animate = options.animate || false;
+            const useFlip = options.useFlip || false;
             const container = document.getElementById('grid-container');
+
+            // FLIP ANIMATION: FIRST
+            let firstPositions = new Map();
+            if (useFlip && container) {
+                const cards = container.querySelectorAll(':scope > div');
+                cards.forEach(c => {
+                    if (c.id) firstPositions.set(c.id, c.getBoundingClientRect());
+                });
+            }
 
             // Sorting logic
             let studentsToRender = [...State.students];
@@ -1454,6 +1474,27 @@ const ClassTallyApp = (function () {
                 </div>`;
             }).join('');
             
+            // FLIP ANIMATION: LAST + INVERT + PLAY
+            if (useFlip && container) {
+                const newCards = container.querySelectorAll(':scope > div');
+                newCards.forEach(c => {
+                    const firstPos = firstPositions.get(c.id);
+                    if (firstPos) {
+                        const lastPos = c.getBoundingClientRect();
+                        const dy = firstPos.top - lastPos.top;
+                        const dx = firstPos.left - lastPos.left;
+                        if (dx || dy) {
+                            c.style.transition = 'none';
+                            c.style.transform = `translate(${dx}px, ${dy}px)`;
+                            requestAnimationFrame(() => {
+                                c.style.transition = 'transform 0.6s cubic-bezier(0.2, 0, 0, 1)';
+                                c.style.transform = '';
+                            });
+                        }
+                    }
+                });
+            }
+
             // Auto-Fit logic
             if (State.viewMode === 'grid') {
                 if (State.isAutoFit) {
