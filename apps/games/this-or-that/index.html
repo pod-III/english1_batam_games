@@ -1,0 +1,1459 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <!-- Supabase Auth -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
+    <script src="/supabase.js"></script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>This or That</title>
+    <link rel="icon" type="image/x-icon" href="../../../media/icon.ico" />
+    <link rel="icon" type="image/webp" href="../../../media/icon.webp" />
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap"
+        rel="stylesheet" />
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    fontFamily: {
+                        display: ["Fredoka", "sans-serif"],
+                        body: ["Nunito", "sans-serif"],
+                    },
+                    colors: {
+                        kkpink: "#FF6B95",
+                        kkorange: "#FF8C42",
+                        kkgreen: "#00E676",
+                        kkblue: "#2979FF",
+                        kkyellow: "#FFD600",
+                        kkdark: "#1e293b",
+                        kkchalk: "#f8fafc",
+                    },
+                    boxShadow: {
+                        hard: "4px 4px 0px 0px rgba(30, 41, 59, 1)",
+                        "hard-sm": "2px 2px 0px 0px rgba(30, 41, 59, 1)",
+                        "hard-md": "6px 6px 0px 0px rgba(30, 41, 59, 1)",
+                        "hard-lg": "8px 8px 0px 0px rgba(30, 41, 59, 1)",
+                        "hard-xl": "12px 12px 0px 0px rgba(30, 41, 59, 1)",
+                    },
+                    borderWidth: {
+                        '3': '3px',
+                        '5': '5px',
+                        '6': '6px',
+                    },
+                    animation: {
+                        "float-slow": "float 6s ease-in-out infinite",
+                        "float-medium": "float 4s ease-in-out infinite",
+                        "float-fast": "float 3s ease-in-out infinite",
+                        "pop-in": "popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards",
+                        "slide-up": "slideUp 0.5s cubic-bezier(0.2, 1, 0.3, 1) forwards",
+                        "slide-down": "slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards",
+                    },
+                },
+            },
+        };
+    </script>
+
+    <style>
+        body {
+            font-family: "Nunito", sans-serif;
+            background-color: #f8fafc;
+            background-image:
+                linear-gradient(rgba(30, 41, 59, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg,
+                    rgba(30, 41, 59, 0.1) 1px,
+                    transparent 1px);
+            background-size: 40px 40px;
+            overflow: hidden;
+        }
+
+        @keyframes popIn {
+            0% {
+                transform: scale(0.5);
+                opacity: 0;
+            }
+
+            70% {
+                transform: scale(1.05);
+                opacity: 1;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideDown {
+            from {
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(0px) rotate(0deg);
+            }
+
+            50% {
+                transform: translateY(-10px) rotate(5deg);
+            }
+
+            100% {
+                transform: translateY(0px) rotate(0deg);
+            }
+        }
+
+        .animate-pop {
+            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        .animate-slide-up {
+            animation: slideUp 0.5s cubic-bezier(0.2, 1, 0.3, 1) forwards;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-left: 2px solid #e2e8f0;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border: 3px solid #f1f5f9;
+            border-radius: 99px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .btn-chunky {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+
+        .btn-chunky:hover:not(:disabled) {
+            transform: translateY(-3px);
+            box-shadow: 6px 6px 0px 0px rgba(30, 41, 59, 1);
+        }
+
+        .btn-chunky:active:not(:disabled) {
+            transform: translateY(4px);
+            box-shadow: 0px 0px 0px 0px rgba(30, 41, 59, 1) !important;
+        }
+
+        .btn-chunky:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Panel Hover Effect for Image Zoom */
+        .option-panel:hover .bg-image-layer {
+            transform: scale(1.1);
+        }
+
+        .option-panel:hover .panel-icon {
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        .text-stroke-3 {
+            -webkit-text-stroke: 3px #1e293b;
+            paint-order: stroke fill;
+        }
+
+        .text-stroke-2 {
+            -webkit-text-stroke: 2px #1e293b;
+            paint-order: stroke fill;
+        }
+
+        .bg-dots {
+            background-image: radial-gradient(rgba(30, 41, 59, 0.1) 2px, transparent 1px);
+            background-size: 24px 24px;
+        }
+
+        .glass-dark {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .glass-light {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .editor-input {
+            transition: all 0.2s ease;
+        }
+
+        .editor-input:focus {
+            transform: translateY(-1px);
+            box-shadow: 4px 4px 0px 0px rgba(30, 41, 59, 1);
+        }
+    </style>
+    <link rel="stylesheet" href="../../../css/base.css" />
+    <link rel="stylesheet" href="../../../css/components.css" />
+  <!-- Vercel Web Analytics -->
+  <script>
+    window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+  </script>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+
+<body class="h-screen w-screen flex flex-col text-kkdark select-none">
+    <header class="bg-white border-b-4 border-kkdark px-4 py-3 flex justify-between items-center z-50 shadow-md">
+        <div class="flex items-center gap-3">
+            <div
+                class="w-10 h-10 md:w-12 md:h-12 bg-kkpink rounded-xl border-4 border-kkdark flex items-center justify-center shadow-hard-sm">
+                <i data-lucide="layers" class="text-white w-6 h-6"></i>
+            </div>
+            <div>
+                <h1 class="font-display font-bold text-xl md:text-2xl tracking-wide leading-none text-kkdark">
+                    This or That
+                </h1>
+            </div>
+        </div>
+        <div class="flex gap-2 md:gap-3">
+            <button onclick="toggleSound()" id="soundBtn"
+                class="btn-chunky bg-white w-10 h-10 md:w-12 md:h-12 rounded-xl border-4 border-kkdark shadow-hard-sm flex items-center justify-center">
+                <i data-lucide="volume-2" class="w-6 h-6"></i>
+            </button>
+            <button onclick="location.reload()"
+                class="btn-chunky bg-kkorange text-white px-4 md:px-6 py-1 md:py-2 rounded-xl border-4 border-kkdark shadow-hard-sm font-display font-bold text-sm md:text-lg uppercase">
+                Exit
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-grow relative flex flex-col overflow-hidden w-full bg-kkchalk">
+        <div id="startScreen" class="absolute inset-0 flex flex-col items-center justify-center z-20 overflow-hidden">
+            <div class="absolute inset-0 pointer-events-none opacity-20">
+                <i data-lucide="help-circle" class="w-32 h-32 text-kkblue absolute top-10 left-10"></i>
+                <i data-lucide="gamepad-2" class="w-32 h-32 text-kkpink absolute bottom-20 right-10"></i>
+                <i data-lucide="zap" class="w-24 h-24 text-kkyellow absolute top-20 right-1/4"></i>
+                <i data-lucide="star" class="w-20 h-20 text-kkgreen absolute bottom-10 left-1/4"></i>
+            </div>
+
+            <div class="relative z-10 w-full max-w-lg px-4">
+                <div class="mb-8 text-center animate-pop relative">
+                    <div
+                        class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-white rounded-full border-4 border-kkdark shadow-hard-lg -z-10">
+                    </div>
+                    <h1
+                        class="font-display font-bold text-8xl md:text-9xl leading-none text-white text-stroke-3 drop-shadow-[6px_6px_0_rgba(30,41,59,1)] transform -rotate-3">
+                        This</h1>
+                    <h1
+                        class="font-display font-bold text-8xl md:text-9xl leading-none text-kkyellow text-stroke-3 drop-shadow-[6px_6px_0_rgba(30,41,59,1)] transform rotate-2 -mt-4">
+                        That</h1>
+                </div>
+
+                <div class="bg-white rounded-3xl border-[6px] border-kkdark shadow-hard-xl overflow-hidden animate-slide-up"
+                    style="animation-delay: 0.2s">
+                    <div class="p-6 md:p-8 flex flex-col gap-4">
+                        <button onclick="startGame()"
+                            class="btn-chunky w-full bg-kkblue text-white text-2xl md:text-3xl py-5 rounded-2xl border-4 border-kkdark shadow-hard font-display font-bold flex items-center justify-center gap-4 group">
+                            <span
+                                class="bg-white text-kkblue w-10 h-10 rounded-full flex items-center justify-center border-2 border-kkdark group-hover:scale-110 transition-transform">
+                                <i data-lucide="play" class="w-5 h-5 ml-1"></i>
+                            </span>
+                            PLAY NOW
+                        </button>
+
+                        <button onclick="openSetupModal()"
+                            class="btn-chunky w-full bg-white text-kkdark text-xl py-4 rounded-2xl border-4 border-kkdark shadow-hard font-bold flex items-center justify-center gap-3">
+                            <i data-lucide="settings-2" class="w-6 h-6 text-kkorange"></i>
+                            CUSTOMIZE
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="gameScreen" class="hidden absolute inset-0 flex flex-col">
+            <div
+                class="absolute top-6 left-1/2 transform -translate-x-1/2 z-40 w-full px-4 text-center pointer-events-none">
+                <div class="inline-block animate-pop">
+                    <div
+                        class="bg-white px-6 md:px-10 py-3 md:py-4 rounded-2xl border-4 border-kkdark shadow-hard transform -rotate-1">
+                        <h3 id="questionText"
+                            class="font-display font-bold text-xl md:text-4xl text-kkdark uppercase tracking-wide leading-tight">
+                            Ready?</h3>
+                    </div>
+                </div>
+            </div>
+
+            <div id="optionsContainer" class="w-full h-full flex flex-col md:flex-row bg-kkdark"></div>
+
+            <div class="absolute bottom-6 left-0 w-full flex justify-center items-center z-50 pointer-events-none">
+                <div
+                    class="pointer-events-auto flex gap-3 items-center bg-white p-2 md:p-3 rounded-2xl border-4 border-kkdark shadow-hard transform scale-90 md:scale-100">
+                    <button onclick="prevSlide()"
+                        class="btn-chunky bg-gray-100 w-12 h-12 rounded-xl border-4 border-gray-200 text-gray-400 hover:text-kkdark hover:border-kkdark flex items-center justify-center">
+                        <i data-lucide="chevron-left" class="w-8 h-8"></i>
+                    </button>
+                    <div class="font-display font-bold text-xl min-w-[60px] text-center text-kkdark">
+                        <span id="slideCounter">1/1</span>
+                    </div>
+                    <button onclick="nextSlide()"
+                        class="btn-chunky bg-kkblue w-14 h-14 rounded-xl border-4 border-kkdark text-white shadow-sm flex items-center justify-center">
+                        <i data-lucide="chevron-right" class="w-8 h-8"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="endScreen"
+            class="hidden absolute inset-0 z-30 bg-kkchalk flex flex-col items-center justify-center p-6">
+            <div class="animate-pop text-center">
+                <i data-lucide="trophy"
+                    class="w-32 h-32 text-kkyellow drop-shadow-[4px_4px_0_#1e293b] mx-auto mb-6 transform -rotate-6"></i>
+                <h2
+                    class="font-display font-bold text-6xl md:text-8xl mb-2 text-kkpink drop-shadow-[4px_4px_0_#1e293b] stroke-black text-stroke-2">
+                    FINISH</h2>
+                <div class="bg-white px-8 py-4 rounded-2xl border-4 border-kkdark shadow-hard mb-10 inline-block">
+                    <p class="text-2xl font-bold text-gray-700">Class dismissed!</p>
+                </div>
+            </div>
+            <div class="flex flex-col md:flex-row gap-4 w-full max-w-md animate-slide-up" style="animation-delay: 0.2s">
+                <button onclick="resetGame()"
+                    class="btn-chunky flex-1 bg-kkblue text-white text-xl py-4 rounded-xl border-4 border-kkdark shadow-hard font-display font-bold">REPLAY</button>
+                <button onclick="openSetupModal()"
+                    class="btn-chunky flex-1 bg-kkorange text-white text-xl py-4 rounded-xl border-4 border-kkdark shadow-hard font-display font-bold">NEW
+                    SETUP</button>
+            </div>
+        </div>
+
+        <div id="customAlertModal"
+            class="fixed inset-0 bg-slate-900/90 z-[200] hidden flex items-center justify-center backdrop-blur-sm p-4">
+            <div
+                class="bg-white max-w-sm w-full rounded-2xl border-[6px] border-kkdark shadow-hard-lg flex flex-col overflow-hidden animate-pop text-center p-6">
+                <i data-lucide="alert-circle" class="w-16 h-16 text-kkorange mx-auto mb-4"></i>
+                <h3 class="font-display font-bold text-2xl text-kkdark mb-2">Notice</h3>
+                <p id="customAlertMessage" class="text-gray-600 font-bold mb-6"></p>
+                <button onclick="closeCustomAlert()"
+                    class="btn-push w-full bg-kkblue text-white py-3 rounded-xl border-4 border-kkdark shadow-hard font-display font-bold text-lg">GOT
+                    IT</button>
+            </div>
+        </div>
+        <div id="customConfirmModal"
+            class="fixed inset-0 bg-slate-900/90 z-[200] hidden flex items-center justify-center backdrop-blur-sm p-4">
+            <div
+                class="bg-white max-w-sm w-full rounded-2xl border-[6px] border-kkdark shadow-hard-lg flex flex-col overflow-hidden animate-pop text-center p-6">
+                <i data-lucide="help-circle" class="w-16 h-16 text-kkpink mx-auto mb-4"></i>
+                <h3 class="font-display font-bold text-2xl text-kkdark mb-2">Confirm</h3>
+                <p id="customConfirmMessage" class="text-gray-600 font-bold mb-6"></p>
+                <div class="flex gap-4">
+                    <button onclick="closeCustomConfirm(false)"
+                        class="btn-chunky flex-1 bg-white text-kkdark py-3 rounded-xl border-4 border-kkdark shadow-hard font-display font-bold text-lg">CANCEL</button>
+                    <button onclick="closeCustomConfirm(true)"
+                        class="btn-chunky flex-1 bg-red-500 text-white py-3 rounded-xl border-4 border-kkdark shadow-hard font-display font-bold text-lg">DELETE</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="setupModal"
+        class="fixed inset-0 bg-slate-900/90 z-[100] hidden flex items-center justify-center backdrop-blur-sm p-2 md:p-4">
+        <div
+            class="bg-white w-full max-w-[95vw] h-[95vh] rounded-3xl border-[6px] border-kkdark shadow-hard-lg flex flex-col overflow-hidden animate-pop">
+            <div class="bg-kkchalk border-b-4 border-kkdark p-4 md:p-6 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="bg-kkorange text-white p-2 rounded-xl border-4 border-kkdark shadow-sm">
+                        <i data-lucide="hammer" class="w-6 h-6"></i>
+                    </div>
+                    <h2 class="font-display font-bold text-2xl md:text-3xl text-kkdark uppercase">Game Builder</h2>
+                </div>
+                <button onclick="closeSetupModal()"
+                    class="btn-chunky w-10 h-10 bg-white border-4 border-kkdark rounded-xl flex items-center justify-center hover:bg-red-50 hover:text-red-500 shadow-hard-sm">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <div class="flex flex-col md:flex-row h-full overflow-hidden">
+                <div
+                    class="w-full md:w-80 bg-gray-50 border-b-4 md:border-b-0 md:border-r-4 border-kkdark p-4 md:p-6 overflow-y-auto custom-scrollbar flex-shrink-0">
+                    <h3 class="font-black text-gray-400 text-xs uppercase tracking-widest mb-4">Quick Presets</h3>
+                    <div class="flex flex-col gap-3">
+                        <button onclick="loadBlank()"
+                            class="btn-chunky text-left p-3 rounded-xl border-4 border-kkdark bg-white hover:bg-slate-100 font-bold text-sm text-gray-700 shadow-hard-sm flex items-center gap-3 mb-2">
+                            <span
+                                class="bg-kkdark text-white w-6 h-6 rounded-lg border-2 border-kkdark flex items-center justify-center text-xs"><i
+                                    data-lucide="file-plus" class="w-4 h-4"></i></span> Start from Scratch
+                        </button>
+                        <button onclick="loadPreset('standard2')"
+                            class="btn-chunky text-left p-3 rounded-xl border-4 border-kkdark bg-white hover:bg-pink-50 font-bold text-sm text-gray-700 shadow-hard-sm flex items-center gap-3">
+                            <span
+                                class="bg-kkpink text-white w-6 h-6 rounded-lg border-2 border-kkdark flex items-center justify-center text-xs font-display">2</span>
+                            Standard (2)
+                        </button>
+                        <button onclick="loadPreset('classroom2')"
+                            class="btn-chunky text-left p-3 rounded-xl border-4 border-kkdark bg-white hover:bg-yellow-50 font-bold text-sm text-gray-700 shadow-hard-sm flex items-center gap-3">
+                            <span
+                                class="bg-kkyellow text-white w-6 h-6 rounded-lg border-2 border-kkdark flex items-center justify-center text-xs font-display">2</span>
+                            Classroom (2)
+                        </button>
+                        <button onclick="loadPreset('classroom3')"
+                            class="btn-chunky text-left p-3 rounded-xl border-4 border-kkdark bg-white hover:bg-blue-50 font-bold text-sm text-gray-700 shadow-hard-sm flex items-center gap-3">
+                            <span
+                                class="bg-kkblue text-white w-6 h-6 rounded-lg border-2 border-kkdark flex items-center justify-center text-xs font-display">3</span>
+                            Classroom (3)
+                        </button>
+                        <button onclick="loadPreset('classroom4')"
+                            class="btn-chunky text-left p-3 rounded-xl border-4 border-kkdark bg-white hover:bg-green-50 font-bold text-sm text-gray-700 shadow-hard-sm flex items-center gap-3">
+                            <span
+                                class="bg-kkgreen text-white w-6 h-6 rounded-lg border-2 border-kkdark flex items-center justify-center text-xs font-display">4</span>
+                            Classroom (4)
+                        </button>
+                    </div>
+
+                    <h3 class="font-black text-gray-400 text-xs uppercase tracking-widest mt-6 mb-4">My Presets</h3>
+                    <div
+                        class="flex flex-col gap-2 bg-white p-3 rounded-xl border-4 border-kkdark shadow-[2px_2px_0_#1e293b]">
+                        <select id="userPresetSelect" onchange="onUserPresetSelect()"
+                            class="w-full p-2 bg-gray-50 border-2 border-kkdark rounded-lg text-sm font-bold text-gray-700 focus:outline-none focus:border-kkblue cursor-pointer">
+                            <option value="">-- Select a Custom Preset --</option>
+                        </select>
+                        <input type="text" id="userPresetNameInput" placeholder="Preset name..."
+                            class="w-full p-2 bg-gray-50 border-2 border-kkdark rounded-lg text-sm font-bold text-gray-700 focus:outline-none focus:border-kkblue">
+                        <div class="flex gap-2 mt-1">
+                            <button onclick="saveCurrentUserPreset()"
+                                class="btn-chunky flex-1 bg-kkgreen text-kkdark py-2 rounded-lg border-2 border-kkdark font-bold text-xs flex items-center justify-center gap-1">
+                                <i data-lucide="save" class="w-3 h-3"></i> SAVE
+                            </button>
+                            <button onclick="createNewUserPreset()"
+                                class="btn-chunky flex-1 bg-kkblue text-white py-2 rounded-lg border-2 border-kkdark font-bold text-xs flex items-center justify-center gap-1">
+                                <i data-lucide="plus" class="w-3 h-3"></i> NEW
+                            </button>
+                            <button onclick="deleteCurrentUserPreset()"
+                                class="btn-chunky flex-1 bg-kkpink text-white py-2 rounded-lg border-2 border-kkdark font-bold text-xs flex items-center justify-center gap-1">
+                                <i data-lucide="trash-2" class="w-3 h-3"></i> DEL
+                            </button>
+                        </div>
+                    </div>
+
+                    <h3 class="font-black text-gray-400 text-xs uppercase tracking-widest mt-6 mb-4">Share / Load</h3>
+                    <div class="flex flex-col gap-3">
+                        <button onclick="exportGameData()"
+                            class="btn-chunky text-left p-3 rounded-xl border-4 border-kkdark bg-kkblue text-white hover:brightness-110 font-bold text-sm shadow-hard-sm flex items-center gap-3">
+                            <i data-lucide="download" class="w-5 h-5"></i> Export Game
+                        </button>
+                        <button onclick="document.getElementById('importFileInput').click()"
+                            class="btn-chunky text-left p-3 rounded-xl border-4 border-kkdark bg-kkgreen text-kkdark hover:brightness-105 font-bold text-sm shadow-hard-sm flex items-center gap-3">
+                            <i data-lucide="upload" class="w-5 h-5"></i> Import Game
+                        </button>
+                        <input type="file" id="importFileInput" accept=".json" class="hidden"
+                            onchange="handleImport(event)">
+                    </div>
+                </div>
+
+                <div class="flex-grow bg-slate-100 overflow-y-auto custom-scrollbar p-4 md:p-10" id="builderScrollArea">
+                    <div class="max-w-6xl mx-auto flex flex-col gap-8">
+                        <div id="builderContainer" class="grid grid-cols-1 lg:grid-cols-2 gap-8"></div>
+                        <button onclick="addNewSlide()"
+                            class="lg:col-span-2 btn-chunky w-full bg-white text-kkblue py-6 rounded-2xl border-4 border-kkdark shadow-hard font-display font-bold text-xl flex items-center justify-center gap-3 hover:bg-blue-50 transition-colors">
+                            <i data-lucide="plus-circle" class="w-8 h-8"></i> ADD NEW SLIDE
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 md:p-6 border-t-4 border-kkdark bg-white flex justify-end gap-4 shrink-0 z-10 glass-light">
+                <button onclick="closeSetupModal()"
+                    class="btn-chunky px-6 py-3 rounded-xl font-bold text-gray-500 hover:text-kkdark border-4 border-transparent hover:border-gray-200 transition-colors">Cancel</button>
+                <button onclick="saveAndStart()"
+                    class="btn-chunky bg-kkorange text-white px-8 py-3 rounded-xl border-4 border-kkdark shadow-hard font-display font-bold text-lg tracking-wide hover:brightness-110 flex items-center gap-2">
+                    SAVE & PLAY <i data-lucide="arrow-right" class="w-6 h-6"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- IndexedDB Wrapper ---
+        const DB_NAME = "KKThisOrThatDB";
+        const DB_VERSION = 3; // Bumped for image_cache store
+        const STORE_NAME = "gameData";
+        const STORE_PRESETS = "userPresets";
+        const STORE_IMAGES = "imageHashes"; // For deduplication
+        const STORE_CACHE = "image_cache"; // For cloud caching
+
+        let currentPresetId = "states";
+
+        function openDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.createObjectStore(STORE_NAME, { keyPath: "id" });
+                    }
+                    if (!db.objectStoreNames.contains(STORE_PRESETS)) {
+                        const presetStore = db.createObjectStore(STORE_PRESETS, { keyPath: "id", autoIncrement: true });
+                        presetStore.createIndex("name", "name", { unique: false });
+                        presetStore.createIndex("updatedAt", "updatedAt", { unique: false });
+                    }
+                    if (!db.objectStoreNames.contains(STORE_IMAGES)) {
+                        db.createObjectStore(STORE_IMAGES, { keyPath: "hash" });
+                    }
+                    if (!db.objectStoreNames.contains(STORE_CACHE)) {
+                        db.createObjectStore(STORE_CACHE);
+                    }
+                };
+                request.onsuccess = (e) => resolve(e.target.result);
+                request.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        async function getCacheImg(url) {
+            try {
+                const db = await openDB();
+                return new Promise((res) => {
+                    const r = db.transaction(STORE_CACHE, "readonly").objectStore(STORE_CACHE).get(url);
+                    r.onsuccess = () => res(r.result);
+                    r.onerror = () => res(null);
+                });
+            } catch(e) { return null; }
+        }
+
+        async function putCacheImg(url, blob) {
+            try {
+                const db = await openDB();
+                db.transaction(STORE_CACHE, "readwrite").objectStore(STORE_CACHE).put(blob, url);
+            } catch(e) { }
+        }
+
+        const blobCache = new Map();
+
+        async function resolveAndCache(url) {
+            if (!url || !url.includes('klasskit-media')) return url;
+            if (blobCache.has(url)) return blobCache.get(url);
+
+            const cachedBlob = await getCacheImg(url);
+            if (cachedBlob) {
+                const bUrl = URL.createObjectURL(cachedBlob);
+                blobCache.set(url, bUrl);
+                return bUrl;
+            }
+
+            try {
+                const signedUrl = await resolveMediaUrl(url);
+                const resp = await fetch(signedUrl);
+                const blob = await resp.blob();
+                
+                await putCacheImg(url, blob);
+                const bUrl = URL.createObjectURL(blob);
+                blobCache.set(url, bUrl);
+                return bUrl;
+            } catch (e) {
+                console.warn("Cloud cache failed", e);
+                return url;
+            }
+        }
+
+        // --- PRESET MANAGEMENT ---
+        async function getAllPresets() {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_PRESETS, "readonly");
+                const store = tx.objectStore(STORE_PRESETS);
+                const index = store.index("updatedAt");
+                const request = index.getAll();
+                request.onsuccess = () => resolve(request.result.reverse());
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function saveUserPreset(name, data, id = null) {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_PRESETS, "readwrite");
+                const store = tx.objectStore(STORE_PRESETS);
+                const preset = { name, data, updatedAt: Date.now() };
+                if (id) preset.id = id;
+                const request = id ? store.put(preset) : store.add(preset);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function deleteUserPreset(id) {
+            // Cloud Cleanup
+            const { data: { user } } = await db.auth.getUser();
+            if (!isSandbox() && user) {
+                deleteFolder(`${user.id}/this_or_that/${id}`).catch(e => console.warn("Cloud folder delete failed", e));
+            }
+
+            const localDb = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = localDb.transaction(STORE_PRESETS, "readwrite");
+                const store = tx.objectStore(STORE_PRESETS);
+                const request = store.delete(id);
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function saveCurrentPresetId(id) {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, "readwrite");
+                const store = tx.objectStore(STORE_NAME);
+                const request = store.put({ id: "currentPresetId", value: id });
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function getCurrentPresetId() {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, "readonly");
+                const store = tx.objectStore(STORE_NAME);
+                const request = store.get("currentPresetId");
+                request.onsuccess = () => resolve(request.result?.value || null);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function renderPresetSelector() {
+            const presets = await getAllPresets();
+            const select = document.getElementById("userPresetSelect");
+            if (!select) return;
+            select.innerHTML = '<option value="">-- Select a Custom Preset --</option>';
+            presets.forEach(p => {
+                const option = document.createElement("option");
+                option.value = p.id;
+                option.textContent = p.name;
+                if (p.id === currentPresetId) option.selected = true;
+                select.appendChild(option);
+            });
+            syncToCloud();
+        }
+
+        async function syncToCloud() {
+            if (syncTimeout) clearTimeout(syncTimeout);
+            syncTimeout = setTimeout(async () => {
+                const presets = await getAllPresets();
+                // Strip local DataURLs from cloud sync, but keep Supabase URLs
+                const cleanPresets = presets.map(p => ({
+                    ...p,
+                    data: p.data.map(slide => ({
+                        ...slide,
+                        images: (slide.images || []).map(img => (img && img.startsWith('http')) ? img : "")
+                    }))
+                }));
+                const cleanQuestions = questions.map(s => ({
+                    ...s,
+                    images: (s.images || []).map(img => (img && img.startsWith('http')) ? img : "")
+                }));
+
+                await saveProgress('this_or_that', {
+                    questions: cleanQuestions,
+                    presets: cleanPresets,
+                    currentPresetId
+                });
+            }, 2000);
+        }
+
+        async function loadFromCloud() {
+            const cloudData = await loadProgress('this_or_that');
+            if (cloudData) {
+                // Merge presets (cloud prioritized)
+                const db = await openDB();
+                if (cloudData.presets) {
+                    for (const p of cloudData.presets) {
+                        const tx = db.transaction(STORE_PRESETS, "readwrite");
+                        const store = tx.objectStore(STORE_PRESETS);
+                        // We use name as a weak unique identifier for cloud merge
+                        const existing = await new Promise(r => {
+                            const req = store.index("name").get(p.name);
+                            req.onsuccess = () => r(req.result);
+                        });
+                        if (!existing) {
+                            delete p.id; // Let local DB assign new ID
+                            store.add(p);
+                        }
+                    }
+                }
+                if (cloudData.questions && questions.length === 0) {
+                    questions = cloudData.questions;
+                    await saveGameData(questions);
+                }
+                currentPresetId = cloudData.currentPresetId ?? currentPresetId;
+                await renderPresetSelector();
+            }
+        }
+
+        let syncTimeout = null;
+
+        async function onUserPresetSelect() {
+            const select = document.getElementById("userPresetSelect");
+            const id = parseInt(select.value);
+            if (!id) return;
+            const presets = await getAllPresets();
+            const preset = presets.find(p => p.id === id);
+            if (preset) {
+                currentPresetId = id;
+                editorData = JSON.parse(JSON.stringify(preset.data));
+                document.getElementById("userPresetNameInput").value = preset.name;
+                await saveCurrentPresetId(id);
+                renderBuilder();
+                renderPresetSelector();
+            }
+        }
+
+        async function saveCurrentUserPreset() {
+            const name = document.getElementById("userPresetNameInput").value.trim() || "Untitled";
+            const oldId = currentPresetId;
+            const id = await saveUserPreset(name, editorData, (typeof oldId === 'number') ? oldId : null);
+            
+            // Migration Logic: If we saved from "states" or "custom" to a real ID
+            if (oldId === "states" || oldId === "custom") {
+                const { data: { user } } = await db.auth.getUser();
+                if (!isSandbox() && user) {
+                    console.log("Finalizing cloud folder...");
+                    
+                    const oldDir = `${user.id}/this_or_that/${oldId}`;
+                    const newDir = `${user.id}/this_or_that/${id}`;
+
+                    // 1. List files in old dir
+                    const { data: files } = await db.storage.from(STORAGE_CONFIG.bucket).list(oldDir);
+                    if (files && files.length > 0) {
+                        for (const file of files) {
+                            if (file.name === '.emptyFolderPlaceholder') continue;
+                            const oldPath = `${oldDir}/${file.name}`;
+                            const newPath = `${newDir}/${file.name}`;
+                            await copyMedia(oldPath, newPath).catch(e => console.warn("Copy failed", e));
+                        }
+                        
+                        // 2. Update editorData URLs to point to new ID
+                        const oldDirUrl = `/this_or_that/${oldId}/`;
+                        const newDirUrl = `/this_or_that/${id}/`;
+                        editorData.forEach(slide => {
+                            if (slide.images) {
+                                slide.images = slide.images.map(img => (img && img.includes(oldDirUrl)) ? img.replace(oldDirUrl, newDirUrl) : img);
+                            }
+                        });
+                        
+                        // 3. Save again with updated URLs
+                        await saveUserPreset(name, editorData, id);
+                        
+                        // 4. Delete old folder
+                        await deleteFolder(oldDir).catch(e => console.warn(e));
+                    }
+                }
+            }
+
+            currentPresetId = id;
+            await saveCurrentPresetId(id);
+            await renderPresetSelector();
+            renderBuilder();
+            customAlert("Preset saved successfully!");
+        }
+
+        async function createNewUserPreset() {
+            document.getElementById("userPresetNameInput").value = "New Preset";
+            editorData = [{ question: "", options: ["", ""], images: [] }];
+            currentPresetId = null;
+            await saveCurrentPresetId(null);
+            await renderPresetSelector();
+            document.getElementById("userPresetSelect").value = "";
+            renderBuilder();
+        }
+
+        async function deleteCurrentUserPreset() {
+            if (!currentPresetId) {
+                customAlert("No preset selected to delete.");
+                return;
+            }
+            customConfirm("Delete this preset?", async () => {
+                await deleteUserPreset(currentPresetId);
+                currentPresetId = null;
+                document.getElementById("userPresetNameInput").value = "";
+                await saveCurrentPresetId(null);
+                await renderPresetSelector();
+                document.getElementById("userPresetSelect").value = "";
+            });
+        }
+        // --- END PRESET MANAGEMENT ---
+
+        // --- IMAGE DEDUPLICATION ---
+        async function hashImage(dataUrl) {
+            // Simple hash based on first 100 chars + length
+            return dataUrl.slice(0, 100) + "_" + dataUrl.length;
+        }
+
+        async function storeImageHash(hash, dataUrl) {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_IMAGES, "readwrite");
+                const store = tx.objectStore(STORE_IMAGES);
+                const request = store.put({ hash, dataUrl });
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function getImageByHash(hash) {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_IMAGES, "readonly");
+                const store = tx.objectStore(STORE_IMAGES);
+                const request = store.get(hash);
+                request.onsuccess = () => resolve(request.result?.dataUrl || null);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function deduplicateImagesInEditorData() {
+            for (const slide of editorData) {
+                if (slide.images) {
+                    for (let i = 0; i < slide.images.length; i++) {
+                        const img = slide.images[i];
+                        if (img) {
+                            const hash = await hashImage(img);
+                            const existing = await getImageByHash(hash);
+                            if (existing) {
+                                // Use existing image
+                                slide.images[i] = existing;
+                            } else {
+                                // Store new image
+                                await storeImageHash(hash, img);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // --- END IMAGE DEDUPLICATION ---
+
+        async function saveGameData(data) {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, "readwrite");
+                const store = tx.objectStore(STORE_NAME);
+                const request = store.put({ id: "savedGame", questions: data });
+                request.onsuccess = () => resolve();
+                request.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        async function loadGameData() {
+            const db = await openDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, "readonly");
+                const store = tx.objectStore(STORE_NAME);
+                const request = store.get("savedGame");
+                request.onsuccess = (e) => resolve(e.target.result ? e.target.result.questions : null);
+                request.onerror = (e) => reject(e.target.error);
+            });
+        }
+        // --- End IndexedDB Wrapper ---
+
+        const COLORS = ["bg-kkpink", "bg-kkblue", "bg-kkgreen", "bg-kkorange", "bg-kkyellow"];
+
+        const ICON_MAP = {
+            coffee: "coffee", tea: "leaf", dog: "dog", cat: "cat",
+            pizza: "pizza", burger: "sandwich", morning: "sun", night: "moon"
+        };
+
+        const PRESETS = {
+            standard2: [
+                { question: "Which drink?", options: ["Coffee", "Tea"], images: [] },
+                { question: "Best Pet?", options: ["Cat", "Dog"], images: [] },
+                { question: "Best Time?", options: ["Morning", "Night"], images: [] }
+            ],
+            classroom2: [
+                { question: "Writing Tool?", options: ["Pencil", "Pen"], images: [] },
+                { question: "Math or English?", options: ["Math", "English"], images: [] },
+                { question: "Lunch or Recess?", options: ["Lunch", "Recess"], images: [] },
+                { question: "Backpack or Tote?", options: ["Backpack", "Tote Bag"], images: [] },
+                { question: "Digital or Paper?", options: ["Digital", "Paper"], images: [] },
+                { question: "Whiteboard or Blackboard?", options: ["Whiteboard", "Blackboard"], images: [] },
+                { question: "Morning or Afternoon?", options: ["Morning Class", "Afternoon Class"], images: [] },
+                { question: "Individual or Group?", options: ["Solo Work", "Group Project"], images: [] }
+            ],
+            classroom3: [
+                { question: "English Skill?", options: ["Reading", "Writing", "Speaking"], images: [] },
+                { question: "Favorite Science?", options: ["Biology", "Physics", "Chemistry"], images: [] },
+                { question: "Art Tool?", options: ["Markers", "Crayons", "Paints"], images: [] },
+                { question: "Where to Sit?", options: ["Front Row", "Middle", "Back Row"], images: [] },
+                { question: "Study Method?", options: ["Flashcards", "Mind Maps", "Reading Notes"], images: [] },
+                { question: "Break Activity?", options: ["Snacking", "Chatting", "Gaming"], images: [] },
+                { question: "Exam Type?", options: ["Multiple Choice", "Essay", "Oral Test"], images: [] },
+                { question: "School Sport?", options: ["Soccer", "Basketball", "Badminton"], images: [] }
+            ],
+            classroom4: [
+                { question: "Primary Color?", options: ["Red", "Blue", "Yellow", "Green"], images: [] },
+                { question: "Seasons?", options: ["Spring", "Summer", "Autumn", "Winter"], images: [] },
+                { question: "Instrument?", options: ["Piano", "Guitar", "Drums", "Flute"], images: [] },
+                { question: "Language?", options: ["English", "Spanish", "French", "Chinese"], images: [] },
+                { question: "Shape?", options: ["Square", "Circle", "Triangle", "Star"], images: [] },
+                { question: "Dinosaur?", options: ["T-Rex", "Triceratops", "Pterodactyl", "Stegosaurus"], images: [] },
+                { question: "Space?", options: ["Earth", "Mars", "Jupiter", "Saturn"], images: [] },
+                { question: "Transport?", options: ["Bus", "Train", "Plane", "Car"], images: [] }
+            ]
+        };
+
+        let questions = [];
+        let editorData = [];
+        let currentIndex = 0;
+        let isMuted = localStorage.getItem("e1_mute") === "true";
+
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            if (isMuted) return;
+            if (audioCtx.state === "suspended") audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            const t = audioCtx.currentTime;
+
+            if (type === "click") {
+                osc.type = "sine";
+                osc.frequency.setValueAtTime(400, t);
+                osc.frequency.exponentialRampToValueAtTime(100, t + 0.1);
+                gain.gain.setValueAtTime(0.1, t);
+                gain.gain.linearRampToValueAtTime(0, t + 0.1);
+                osc.start(t); osc.stop(t + 0.1);
+            } else if (type === "pop") {
+                osc.type = "triangle";
+                osc.frequency.setValueAtTime(200, t);
+                osc.frequency.linearRampToValueAtTime(400, t + 0.1);
+                gain.gain.setValueAtTime(0.1, t);
+                gain.gain.linearRampToValueAtTime(0, t + 0.15);
+                osc.start(t); osc.stop(t + 0.15);
+            }
+        }
+
+        function toggleSound() {
+            isMuted = !isMuted;
+            localStorage.setItem("e1_mute", isMuted);
+            updateSoundIcon();
+            if (!isMuted) playSound("click");
+        }
+
+        function updateSoundIcon() {
+            const btn = document.getElementById("soundBtn");
+            if (isMuted) {
+                btn.innerHTML = '<i data-lucide="volume-x" class="w-6 h-6 text-gray-400"></i>';
+                btn.classList.add("bg-gray-100");
+            } else {
+                btn.innerHTML = '<i data-lucide="volume-2" class="w-6 h-6 text-kkdark"></i>';
+                btn.classList.remove("bg-gray-100");
+            }
+            lucide.createIcons();
+        }
+
+        function customAlert(msg) {
+            playSound("click");
+            document.getElementById("customAlertMessage").innerText = msg;
+            document.getElementById("customAlertModal").classList.remove("hidden");
+        }
+        function closeCustomAlert() {
+            playSound("click");
+            document.getElementById("customAlertModal").classList.add("hidden");
+        }
+
+        let confirmCallback = null;
+        function customConfirm(msg, callback) {
+            playSound("click");
+            document.getElementById("customConfirmMessage").innerText = msg;
+            confirmCallback = callback;
+            document.getElementById("customConfirmModal").classList.remove("hidden");
+        }
+        function closeCustomConfirm(result) {
+            playSound("click");
+            document.getElementById("customConfirmModal").classList.add("hidden");
+            if (result && confirmCallback) confirmCallback();
+            confirmCallback = null;
+        }
+
+        async function init() {
+            await requireAuth();
+            updateSoundIcon();
+            lucide.createIcons();
+
+            try {
+                const savedData = await loadGameData();
+                const savedPresetId = await getCurrentPresetId();
+                if (savedPresetId) {
+                    currentPresetId = savedPresetId;
+                } else {
+                    currentPresetId = "states";
+                }
+                if (savedData) {
+                    questions = savedData;
+                } else {
+                    questions = [];
+                }
+                await loadFromCloud();
+            } catch (error) {
+                console.error("Failed to load from IndexedDB:", error);
+                questions = [];
+            }
+        }
+
+        function getIcon(text) {
+            const lower = text.toLowerCase();
+            for (const key in ICON_MAP) {
+                if (lower.includes(key)) return ICON_MAP[key];
+            }
+            return "circle";
+        }
+
+        function openSetupModal() {
+            playSound("click");
+            if (questions.length === 0) {
+                editorData = [{ question: "", options: ["", ""], images: [] }];
+            } else {
+                editorData = JSON.parse(JSON.stringify(questions));
+                editorData.forEach(slide => {
+                    if (!slide.images) slide.images = [];
+                });
+            }
+            renderBuilder();
+            renderPresetSelector();
+            document.getElementById("setupModal").classList.remove("hidden");
+        }
+
+        function closeSetupModal() {
+            playSound("click");
+            document.getElementById("setupModal").classList.add("hidden");
+        }
+
+        function loadPreset(key) {
+            playSound("click");
+            currentPresetId = key;
+            editorData = JSON.parse(JSON.stringify(PRESETS[key]));
+            renderBuilder();
+        }
+
+        function loadBlank() {
+            playSound("click");
+            currentPresetId = "states";
+            editorData = [{ question: "", options: ["", ""], images: [] }];
+            renderBuilder();
+        }
+
+        // --- EXPORT / IMPORT FUNCTIONS ---
+        function exportGameData() {
+            playSound("click");
+            if (editorData.length === 0) {
+                customAlert("There is no data to export!");
+                return;
+            }
+
+            const dataStr = JSON.stringify(editorData);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "this-or-that-klasskit.json";
+            document.body.appendChild(a);
+            a.click();
+
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function handleImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+
+                    if (Array.isArray(importedData) && importedData[0].hasOwnProperty("options")) {
+                        editorData = importedData;
+
+                        editorData.forEach(slide => {
+                            if (!slide.images) slide.images = [];
+                        });
+
+                        renderBuilder();
+                        customAlert("Game imported successfully!");
+                    } else {
+                        customAlert("Invalid game file. Please select a correct This or That .json file.");
+                    }
+                } catch (err) {
+                    customAlert("Error reading the file. Make sure it is a valid JSON game file.");
+                }
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+        // --- END EXPORT / IMPORT ---
+
+        async function handleImageUpload(event, sIdx, oIdx) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            try {
+                const { data: { user } } = await db.auth.getUser();
+                let imgSource;
+                if (!isSandbox() && user) {
+                    imgSource = await uploadMedia(file, 'this_or_that', currentPresetId);
+                } else {
+                    imgSource = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => resolve(e.target.result);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(file);
+                    });
+                }
+                
+                if (!editorData[sIdx].images) editorData[sIdx].images = [];
+                editorData[sIdx].images[oIdx] = imgSource;
+                renderBuilder();
+            } catch (err) {
+                console.error("Image upload failed", err);
+                customAlert("Failed to process image.");
+            }
+        }
+
+        function renderBuilder() {
+            const container = document.getElementById("builderContainer");
+            container.innerHTML = "";
+
+            editorData.forEach((slide, sIdx) => {
+                if (!slide.images) slide.images = [];
+                const card = document.createElement("div");
+                card.className = "bg-white p-4 md:p-5 rounded-2xl border-4 border-kkdark shadow-hard animate-pop-in relative group overflow-hidden";
+                card.style.animationDelay = `${sIdx * 0.05}s`;
+
+                let html = `
+                    <div class="absolute top-0 left-0 w-2 h-full ${COLORS[sIdx % COLORS.length]}"></div>
+                    <div class="flex justify-between items-center mb-4 pl-3">
+                        <div class="flex items-center gap-3 w-full">
+                            <div class="bg-kkdark text-white font-display text-xs w-6 h-6 rounded flex items-center justify-center shrink-0 shadow-hard-sm">
+                                ${sIdx + 1}
+                            </div>
+                            <div class="relative w-full">
+                                <input type="text" value="${slide.question}" onchange="updateQuestion(${sIdx}, this.value)" 
+                                    placeholder="Question or Category..." 
+                                    class="editor-input font-display text-lg w-full bg-slate-50 border-2 border-kkdark rounded-lg px-3 py-1 text-kkdark focus:bg-white outline-none">
+                            </div>
+                        </div>
+                        <div class="flex gap-2 shrink-0 ml-3">
+                            <button onclick="duplicateSlide(${sIdx})" title="Duplicate" 
+                                class="btn-chunky w-8 h-8 rounded-lg bg-blue-50 text-kkblue border-2 border-kkdark flex items-center justify-center">
+                                <i data-lucide="copy" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="deleteSlide(${sIdx})" title="Delete" 
+                                class="btn-chunky w-8 h-8 rounded-lg bg-red-50 text-red-500 border-2 border-kkdark flex items-center justify-center">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pl-3">
+                    `;
+
+                slide.options.forEach((opt, oIdx) => {
+                    const hasImg = slide.images[oIdx];
+                    const accentColor = COLORS[oIdx % COLORS.length];
+
+                    html += `
+                        <div class="flex flex-col gap-1.5 p-3 rounded-xl border-2 border-kkdark bg-slate-50/50 relative">
+                            <div class="flex items-center gap-2">
+                                <div class="w-3 h-3 rounded-full ${accentColor} border-2 border-kkdark shadow-hard-sm"></div>
+                                <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Option ${oIdx + 1}</span>
+                            </div>
+                            
+                            <div class="relative flex items-center gap-2">
+                                <input type="text" value="${opt}" onchange="updateOption(${sIdx}, ${oIdx}, this.value)" 
+                                    placeholder="Answer..." 
+                                    class="editor-input w-full bg-white border-2 border-kkdark rounded-lg px-3 py-2 font-bold text-sm focus:border-kkblue outline-none text-kkdark">
+                                
+                                <div class="flex items-center gap-1.5">
+                                    <div class="relative w-10 h-10 flex-shrink-0">
+                                        ${hasImg ? `
+                                            <img data-src="${hasImg}" class="w-10 h-10 rounded-lg border-2 border-kkdark object-cover shadow-hard-sm">
+                                            <button onclick="removeImage(${sIdx}, ${oIdx})" class="absolute -top-1.5 -right-1.5 bg-red-500 text-white w-5 h-5 rounded-full border-2 border-kkdark flex items-center justify-center shadow-hard-sm hover:scale-110 transition-transform">
+                                                <i data-lucide="x" class="w-2.5 h-2.5"></i>
+                                            </button>
+                                        ` : `
+                                            <label class="btn-chunky w-10 h-10 bg-white rounded-lg border-2 border-kkdark flex items-center justify-center cursor-pointer text-gray-400 hover:text-kkblue shadow-hard-sm">
+                                                <i data-lucide="image" class="w-5 h-5"></i>
+                                                <input type="file" accept="image/*" class="hidden" onchange="handleImageUpload(event, ${sIdx}, ${oIdx})">
+                                            </label>
+                                        `}
+                                    </div>
+                                    ${slide.options.length > 2 ? `
+                                        <button onclick="deleteOption(${sIdx}, ${oIdx})" class="btn-chunky w-8 h-8 bg-white border-2 border-kkdark rounded-lg text-gray-400 hover:text-red-500 flex items-center justify-center shadow-hard-sm">
+                                            <i data-lucide="minus-circle" class="w-4 h-4"></i>
+                                        </button>
+                                    ` : ""}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                if (slide.options.length < 5) {
+                    html += `
+                        <button onclick="addOption(${sIdx})" 
+                            class="btn-chunky flex flex-col items-center justify-center gap-1 border-2 border-dashed border-gray-300 rounded-xl py-2 text-gray-400 font-bold text-xs hover:border-kkblue hover:text-kkblue bg-white hover:bg-blue-50 transition-all shadow-hard-sm">
+                            <i data-lucide="plus" class="w-5 h-5"></i>
+                            <span>ADD</span>
+                        </button>
+                    `;
+                }
+
+                html += `</div>`;
+                card.innerHTML = html;
+                container.appendChild(card);
+            });
+
+            if (editorData.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-20 bg-white rounded-3xl border-4 border-dashed border-gray-200 animate-pulse">
+                        <i data-lucide="layout" class="w-16 h-16 mx-auto mb-4 text-gray-200"></i>
+                        <p class="text-gray-400 font-display text-xl">Create your first slide to start!</p>
+                    </div>`;
+            }
+            lucide.createIcons();
+
+            // Resolve cloud images in builder
+            const imgs = container.querySelectorAll('img[data-src]');
+            for (const img of imgs) {
+                const src = img.getAttribute('data-src');
+                if (src && src.includes('klasskit-media')) {
+                    resolveAndCache(src).then(url => { img.src = url; });
+                } else {
+                    img.src = src;
+                }
+            }
+        }
+
+        function updateQuestion(sIdx, val) { editorData[sIdx].question = val; }
+        function updateOption(sIdx, oIdx, val) { editorData[sIdx].options[oIdx] = val; }
+
+        function removeImage(sIdx, oIdx) {
+            playSound("click");
+            if (editorData[sIdx].images) {
+                const url = editorData[sIdx].images[oIdx];
+                if (url && url.includes('klasskit-media')) {
+                    deleteMediaFromUrl(url).catch(e => console.error("Cloud delete failed", e));
+                }
+                editorData[sIdx].images[oIdx] = null;
+                renderBuilder();
+            }
+        }
+
+        function addOption(sIdx) {
+            if (editorData[sIdx].options.length < 5) {
+                editorData[sIdx].options.push("");
+                renderBuilder();
+            }
+        }
+
+        function addNewSlide() {
+            editorData.push({ question: "", options: ["", ""], images: [] });
+            renderBuilder();
+            const scrollContainer = document.getElementById("builderScrollArea");
+            setTimeout(() => { scrollContainer.scrollTo({ top: scrollContainer.scrollHeight, behavior: "smooth" }); }, 50);
+        }
+
+        function deleteOption(sIdx, oIdx) {
+            if (editorData[sIdx].options.length > 2) {
+                editorData[sIdx].options.splice(oIdx, 1);
+                editorData[sIdx].images.splice(oIdx, 1);
+                renderBuilder();
+            }
+        }
+
+        function duplicateSlide(sIdx) {
+            playSound("click");
+            const slideToDuplicate = JSON.parse(JSON.stringify(editorData[sIdx]));
+            editorData.splice(sIdx + 1, 0, slideToDuplicate);
+            renderBuilder();
+        }
+
+        function deleteSlide(sIdx) {
+            customConfirm("Are you sure you want to delete this slide?", () => {
+                editorData.splice(sIdx, 1);
+                renderBuilder();
+            });
+        }
+
+        async function saveAndStart() {
+            const validData = editorData.filter(
+                (s) => s.question.trim() !== "" && s.options.every((o) => o.trim() !== "")
+            );
+            if (validData.length === 0) {
+                customAlert("Please add at least one valid slide with completed options before saving.");
+                return;
+            }
+            questions = validData;
+
+            try {
+                await saveGameData(questions);
+            } catch (error) {
+                console.warn("Failed to save to local database (might be out of storage or in private mode):", error);
+            }
+            
+            syncToCloud();
+            closeSetupModal();
+            startGame();
+        }
+
+        function startGame() {
+            if (questions.length === 0) {
+                customAlert("Your game is empty! Let's build one first.");
+                openSetupModal();
+                return;
+            }
+            currentIndex = 0;
+            document.getElementById("startScreen").classList.add("hidden");
+            document.getElementById("endScreen").classList.add("hidden");
+            document.getElementById("gameScreen").classList.remove("hidden");
+            renderSlide();
+        }
+
+        function renderSlide() {
+            const container = document.getElementById("optionsContainer");
+            container.innerHTML = "";
+            const data = questions[currentIndex];
+            if (!data) { endGame(); return; }
+
+            document.getElementById("questionText").innerText = data.question;
+            document.getElementById("slideCounter").innerText = `${currentIndex + 1}/${questions.length}`;
+
+            data.options.forEach((optText, idx) => {
+                const colorClass = COLORS[idx % COLORS.length];
+                const iconClass = getIcon(optText);
+                const imgSrc = data.images && data.images[idx];
+
+                const panel = document.createElement("div");
+                let borderClass = "border-b-4 md:border-b-0 md:border-r-4 border-kkdark";
+                if (idx === data.options.length - 1) borderClass = "";
+
+                panel.className = `${colorClass} ${borderClass} option-panel flex-1 relative flex flex-col items-center justify-center p-2 md:p-6 overflow-hidden cursor-pointer`;
+                panel.style.animation = `slideUp 0.6s cubic-bezier(0.2, 1, 0.3, 1) forwards`;
+                panel.style.animationDelay = `${idx * 0.1}s`;
+                panel.style.opacity = "0";
+
+                let backgroundLayer = '';
+                let contentLayer = '';
+
+                if (imgSrc) {
+                    // IMAGE MODE: Duotone Background (Gray Image + Color Mix Blend)
+                    backgroundLayer = `
+                            <div class="absolute inset-0 z-0 overflow-hidden">
+                                <img src="${imgSrc}" class="bg-image-layer w-full h-full object-cover opacity-60 mix-blend-multiply grayscale transition-transform duration-700 pointer-events-none">
+                            </div>
+                            <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/10 z-0 pointer-events-none"></div> 
+                        `;
+
+                    // Text Only (No Circle)
+                    contentLayer = `
+                            <div class="relative z-10 flex flex-col items-center justify-center h-full px-4">
+                                <h2 class="font-display font-bold text-4xl md:text-7xl text-white drop-shadow-[4px_4px_0_rgba(30,41,59,1)] uppercase tracking-wide text-center leading-tight">
+                                    ${optText}
+                                </h2>
+                            </div>
+                        `;
+                } else {
+                    // ICON MODE: Classic Circle Design
+                    backgroundLayer = `<div class="absolute inset-0 bg-dots opacity-20 pointer-events-none"></div>`;
+                    contentLayer = `
+                            <div class="relative z-10 flex flex-row md:flex-col items-center gap-4 md:gap-6 panel-icon transition-transform duration-300">
+                                <div class="w-24 h-24 md:w-32 md:h-32 bg-white/20 rounded-full border-4 border-white/40 shadow-lg flex items-center justify-center backdrop-blur-sm flex-shrink-0 overflow-hidden">
+                                    <i data-lucide="${iconClass}" class="w-12 h-12 md:w-16 md:h-16 text-white drop-shadow-md"></i>
+                                </div>
+                                <h2 class="font-display font-bold text-2xl md:text-5xl text-white drop-shadow-[4px_4px_0_rgba(0,0,0,0.3)] uppercase tracking-wide text-center leading-tight">
+                                    ${optText}
+                                </h2>
+                            </div>
+                        `;
+                }
+
+                panel.innerHTML = backgroundLayer + contentLayer;
+
+                // Resolve cloud images in slide
+                if (imgSrc && imgSrc.includes('klasskit-media')) {
+                    const bgImg = panel.querySelector('.bg-image-layer');
+                    resolveAndCache(imgSrc).then(url => { if (bgImg) bgImg.src = url; });
+                }
+
+                panel.onclick = () => { playSound("pop"); };
+                container.appendChild(panel);
+            });
+
+            hydrateImages();
+            lucide.createIcons();
+            playSound("pop");
+        }
+
+        function nextSlide() {
+            if (currentIndex < questions.length - 1) { currentIndex++; renderSlide(); }
+            else { endGame(); }
+        }
+
+        function prevSlide() {
+            if (currentIndex > 0) { currentIndex--; renderSlide(); }
+            else { playSound("click"); }
+        }
+
+        function endGame() {
+            playSound("pop");
+            document.getElementById("gameScreen").classList.add("hidden");
+            document.getElementById("endScreen").classList.remove("hidden");
+        }
+
+        function resetGame() {
+            playSound("click");
+            document.getElementById("endScreen").classList.add("hidden");
+            startGame();
+        }
+
+        document.addEventListener("keydown", (e) => {
+            if (document.getElementById("gameScreen").classList.contains("hidden")) return;
+            if (e.key === "ArrowRight" || e.key === " " || e.key === "Enter") nextSlide();
+            if (e.key === "ArrowLeft") prevSlide();
+        });
+
+        init();
+    </script>
+</body>
+
+</html>

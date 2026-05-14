@@ -7,7 +7,7 @@ test('Teacher Hub main menu loads', async ({ page }) => {
 });
 
 test('Bingo game loads correctly', async ({ page }) => {
-  await page.goto('http://localhost:3000/games/bingo/index.html');
+  await page.goto('http://localhost:3000/apps/tools/bingo/index.html');
   // Checks that the Bingo game page renders without crashing
   await expect(page.locator('body')).toBeVisible();
 });

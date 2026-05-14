@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Supabase Auth -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/supabase.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word List</title>
+    <link rel="icon" type="image/x-icon" href="../../../media/icon.ico" />
+    <link rel="icon" type="image/webp" href="../../../media/icon.webp" />
+    
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        const st = localStorage.getItem('theme_random-word-list');
+        if (st === 'dark' || (!st && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            pink: '#ff4785',
+                            orange: '#ff7e33',
+                            green: '#00d063',
+                            blue: '#1ea7fd',
+                            dark: '#1e293b',
+                            chalk: '#f8fafc'
+                        }
+                    },
+                    fontFamily: {
+                        heading: ["Fredoka", "sans-serif"],
+                        body: ["Nunito", "sans-serif"],
+                    },
+                    boxShadow: {
+                        "neo-sm": "var(--shadow-hard-sm)",
+                        "neo": "var(--shadow-hard-md)",
+                        "neo-lg": "var(--shadow-hard-lg)",
+                    },
+                    animation: {
+                        'pop-in': 'pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                    },
+                    keyframes: {
+                        'pop-in': {
+                            '0%': { opacity: '0', transform: 'scale(0.9) translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'scale(1) translateY(0)' },
+                        }
+                    }
+                },
+            },
+        };
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        /* --- Neo-Brutalism Classes --- */
+        .card-neo {
+            background-color: white;
+            border: 3px solid var(--border-primary, #1e293b);
+            border-radius: 1.5rem; /* rounded-3xl */
+            box-shadow: var(--shadow-hard-md, 4px 4px 0px 0px rgba(30, 41, 59, 1));
+        }
+        .dark .card-neo {
+            background-color: #1e293b;
+            border-color: #64748b;
+            box-shadow: 4px 4px 0px 0px #64748b;
+        }
+
+        .btn-neo {
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 600;
+            border: 3px solid var(--border-primary, #1e293b);
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: var(--shadow-hard-md, 4px 4px 0px 0px rgba(30, 41, 59, 1));
+            transition: all 0.1s ease;
+        }
+        .dark .btn-neo {
+            border-color: #64748b;
+            box-shadow: 4px 4px 0px 0px #64748b;
+        }
+        .btn-neo:hover {
+            transform: translate(-1px, -1px);
+            box-shadow: var(--shadow-hard-lg, 6px 6px 0px 0px rgba(30, 41, 59, 1));
+        }
+        .dark .btn-neo:hover {
+            box-shadow: 6px 6px 0px 0px #64748b;
+        }
+        .btn-neo:active {
+            transform: translate(4px, 4px);
+            box-shadow: 0px 0px 0px 0px rgba(30, 41, 59, 1);
+        }
+
+        .input-neo {
+            background-color: #f8fafc;
+            border: 3px solid var(--border-primary, #1e293b);
+            border-radius: 1rem;
+            padding: 1rem;
+            font-family: 'Nunito', sans-serif;
+            font-weight: 600;
+            transition: all 0.2s;
+            resize: none;
+            color: #1e293b;
+        }
+        .dark .input-neo {
+            background-color: #0f172a;
+            border-color: #64748b;
+            color: #f8fafc;
+        }
+        .input-neo:focus {
+            outline: none;
+            background-color: white;
+            box-shadow: 4px 4px 0px 0px #2979FF;
+            border-color: #2979FF;
+        }
+        .dark .input-neo:focus {
+            background-color: #1e293b;
+            box-shadow: 4px 4px 0px 0px #2979FF;
+        }
+
+        /* Animation */
+        @keyframes popIn {
+            0% { transform: scale(0.9); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .animate-pop {
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border: 3px solid #1e293b; border-radius: 99px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .dark ::-webkit-scrollbar-thumb { border-color: #64748b; background: #475569; }
+        .dark ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    </style>
+    <link rel="stylesheet" href="../../../css/base.css" />
+    <link rel="stylesheet" href="../../../css/components.css" />
+  <!-- Vercel Web Analytics -->
+  <script>
+    window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+  </script>
+  <script defer src="/_vercel/insights/script.js"></script>
+</head>
+<body class="flex flex-col min-h-screen pb-12 transition-colors duration-300">
+
+    <header class="w-full bg-white dark:bg-slate-800 border-b-3 border-brand-dark dark:border-slate-500 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <div class="bg-brand-pink border-3 border-brand-dark dark:border-slate-500 w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-neo-sm transform -rotate-3">
+                    <i data-lucide="dices" class="w-7 h-7 stroke-[2.5px]"></i>
+                </div>
+                <div>
+                    <h1 class="text-3xl font-heading font-bold text-brand-dark dark:text-white leading-none">Word List</h1>
+                    <div class="text-sm font-bold text-brand-blue bg-blue-100 px-2 rounded border-2 border-brand-blue dark:border-brand-blue inline-block mt-1">KlassKit</div>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <button onclick="toggleTheme()" id="themeToggleBtn" class="btn-neo bg-white dark:bg-slate-800 dark:bg-slate-800 dark:text-white dark:border-slate-500 px-4 py-2 text-sm flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700">
+                    <i data-lucide="moon" class="w-4 h-4 dark:hidden block"></i>
+                    <i data-lucide="sun" class="w-4 h-4 hidden dark:block"></i>
+                </button>
+                <button onclick="copyAllLists()" class="hidden md:flex btn-neo bg-white dark:bg-slate-800 dark:bg-slate-800 dark:text-white dark:border-slate-500 px-4 py-2 text-sm flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700">
+                    <i data-lucide="copy" class="w-4 h-4"></i> Copy All
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="w-full max-w-7xl mx-auto p-6 md:p-8 animate-pop">
+        
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <div class="lg:col-span-4 flex flex-col gap-6">
+                
+                <div class="card-neo p-6 flex flex-col gap-4 relative overflow-hidden">
+                    <div class="absolute top-0 left-0 w-full h-4 bg-brand-orange border-b-3 border-brand-dark dark:border-slate-500"></div>
+                    
+                    <div class="mt-2 flex justify-between items-center">
+                         <label class="font-heading font-bold text-xl text-brand-dark dark:text-white">Word List</label>
+                         <button onclick="clearInput()" class="text-xs font-bold text-slate-400 hover:text-red-500 hover:underline">Clear</button>
+                    </div>
+
+                    <textarea id="wordInput" rows="8" class="input-neo text-lg" placeholder="Type names or words here...&#10;Apple&#10;Banana&#10;Cherry"></textarea>
+                    
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="loadPreset('verbs')" class="btn-neo bg-blue-100 hover:bg-brand-blue hover:text-white px-3 py-1 text-xs border-2">Verbs</button>
+                        <button onclick="loadPreset('animals')" class="btn-neo bg-orange-100 hover:bg-brand-orange hover:text-white px-3 py-1 text-xs border-2">Animals</button>
+                        <button onclick="loadPreset('classroom')" class="btn-neo bg-green-100 hover:bg-brand-green hover:text-white px-3 py-1 text-xs border-2">Class</button>
+                        <button onclick="loadPreset('colors')" class="btn-neo bg-pink-100 hover:bg-brand-pink hover:text-white px-3 py-1 text-xs border-2">Colors</button>
+                    </div>
+                </div>
+
+                <div class="card-neo p-6 flex flex-col gap-4">
+                    <div>
+                        <label class="font-heading font-bold text-xl text-brand-dark dark:text-white flex items-center gap-2 mb-4">
+                            <i data-lucide="layers" class="w-5 h-5 text-brand-blue"></i>
+                            How many groups?
+                        </label>
+                        
+                        <div class="flex items-center gap-3">
+                            <button onclick="adjustCount(-1)" class="w-14 h-14 btn-neo bg-white dark:bg-slate-800 hover:bg-red-50 flex items-center justify-center text-brand-pink">
+                                <i data-lucide="minus" class="w-8 h-8 stroke-[3px]"></i>
+                            </button>
+                            
+                            <div class="flex-1 bg-brand-dark dark:bg-slate-800 rounded-xl border-3 border-brand-dark dark:border-slate-500 h-14 flex items-center justify-center relative overflow-hidden">
+                                <input type="number" id="listCount" value="4" min="1" max="12" class="w-full h-full bg-slate-800 text-white text-3xl font-heading font-bold text-center outline-none border-none">
+                            </div>
+
+                            <button onclick="adjustCount(1)" class="w-14 h-14 btn-neo bg-white dark:bg-slate-800 hover:bg-green-50 flex items-center justify-center text-brand-green">
+                                <i data-lucide="plus" class="w-8 h-8 stroke-[3px]"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <hr class="border-2 border-slate-100 dark:border-slate-700 my-2">
+
+                    <div>
+                        <label class="font-heading font-bold text-xl text-brand-dark dark:text-white flex items-center gap-2 mb-4">
+                            <i data-lucide="list-ordered" class="w-5 h-5 text-brand-pink"></i>
+                            List Format
+                        </label>
+                        <div class="flex gap-2">
+                            <button id="formatUnordered" onclick="setFormat('unordered')" class="flex-1 btn-neo bg-brand-pink text-white py-2 font-bold border-3">Unordered</button>
+                            <button id="formatOrdered" onclick="setFormat('ordered')" class="flex-1 btn-neo bg-white dark:bg-slate-800 text-brand-dark dark:text-white py-2 font-bold border-3">Ordered</button>
+                        </div>
+                    </div>
+
+                    <button id="generateButton" class="mt-2 w-full btn-neo bg-brand-blue text-white py-4 text-2xl tracking-wide flex items-center justify-center gap-3 hover:bg-blue-600 transition-colors">
+                        <i data-lucide="shuffle" class="w-7 h-7 stroke-[3px]"></i> MIX IT UP!
+                    </button>
+                    <button onclick="resetAll()" class="w-full btn-neo bg-slate-200 dark:bg-slate-700 text-slate-500 py-3 text-lg font-bold flex items-center justify-center gap-2 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">
+                        <i data-lucide="rotate-ccw" class="w-5 h-5"></i> Reset Everything
+                    </button>
+                </div>
+            </div>
+
+            <div class="lg:col-span-8">
+                <div id="emptyState" class="h-full min-h-[400px] flex flex-col items-center justify-center text-center p-8 bg-white dark:bg-slate-800/50 border-3 border-dashed border-slate-300 rounded-3xl">
+                    <div class="bg-white dark:bg-slate-800 p-6 rounded-full border-3 border-brand-dark dark:border-slate-500 shadow-neo mb-6 transform rotate-3">
+                        <i data-lucide="layout-grid" class="w-16 h-16 text-brand-orange stroke-[2px]"></i>
+                    </div>
+                    <h3 class="text-3xl font-heading font-bold text-brand-dark dark:text-white mb-2">Ready to Sort</h3>
+                    <p class="text-lg font-body text-slate-500 max-w-md">
+                        Enter your list on the left and click "Mix It Up" to create your groups.
+                    </p>
+                </div>
+
+                <div id="listsGrid" class="hidden grid grid-cols-1 md:grid-cols-2 gap-6 pb-20">
+                    </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        // --- CONFIG & STATE ---
+        const LS_KEY_WORDS = 'e1_randomizer_words';
+        const LS_KEY_RESULTS = 'e1_randomizer_results';
+        
+        const presets = {
+            verbs: "Run\nJump\nSwim\nFly\nRead\nWrite\nSing\nDance\nPlay\nSleep\nEat\nDrink\nWalk\nTalk\nListen\nWatch",
+            adjectives: "Happy\nSad\nBig\nSmall\nFast\nSlow\nHot\nCold\nHungry\nThirsty\nLoud\nQuiet\nStrong\nWeak",
+            animals: "Lion\nTiger\nElephant\nGiraffe\nMonkey\nZebra\nBear\nWolf\nFox\nRabbit\nCat\nDog\nBird\nSnake",
+            colors: "Red\nOrange\nYellow\nGreen\nBlue\nPurple\nPink\nBlack\nWhite\nBrown\nGrey",
+            classroom: "Pencil\nPen\nEraser\nRuler\nNotebook\nBook\nBackpack\nDesk\nChair\nWhiteboard\nMarker"
+        };
+
+        // KlassKit Palette Cycle
+        const themeCycle = [
+            { bg: 'bg-brand-pink', border: 'border-brand-pink dark:border-brand-pink', text: 'text-brand-pink' },
+            { bg: 'bg-brand-orange', border: 'border-brand-orange dark:border-brand-orange', text: 'text-brand-orange' },
+            { bg: 'bg-brand-green', border: 'border-brand-green dark:border-brand-green', text: 'text-brand-green' },
+            { bg: 'bg-brand-blue', border: 'border-brand-blue dark:border-brand-blue', text: 'text-brand-blue' }
+        ];
+
+        // --- DOM ---
+        const wordInput = document.getElementById('wordInput');
+        const listCountInput = document.getElementById('listCount');
+        const listsGrid = document.getElementById('listsGrid');
+        const emptyState = document.getElementById('emptyState');
+
+        // --- LOGIC ---
+
+        function loadPreset(key) {
+            if (presets[key]) {
+                wordInput.value = presets[key];
+                saveWords(wordInput.value);
+                showToast(`Loaded ${key}`);
+            }
+        }
+
+        function clearInput() {
+            wordInput.value = '';
+            saveWords('');
+            wordInput.focus();
+        }
+
+        function adjustCount(delta) {
+            let current = parseInt(listCountInput.value) || 4;
+            let newVal = current + delta;
+            if (newVal < 1) newVal = 1;
+            if (newVal > 12) newVal = 12;
+            listCountInput.value = newVal;
+        }
+
+        function saveWords(text) {
+             try { 
+                 localStorage.setItem(LS_KEY_WORDS, text); 
+                 saveToCloud(text);
+             } catch (e) {}
+        }
+
+        async function saveToCloud(text) {
+            try {
+                await saveProgress('randomizer_words_data', { words: text, updatedAt: Date.now() });
+            } catch (e) {
+                console.error("Cloud save failed", e);
+            }
+        }
+
+        async function loadFromCloud() {
+            try {
+                const data = await loadProgress('randomizer_words_data');
+                if (data && data.words) {
+                    wordInput.value = data.words;
+                    localStorage.setItem(LS_KEY_WORDS, data.words);
+                }
+            } catch (e) {
+                console.error("Cloud load failed", e);
+            }
+        }
+
+        const LS_KEY_FORMAT = 'e1_randomizer_format';
+        let currentFormat = 'unordered';
+
+        function setFormat(format) {
+            currentFormat = format;
+            localStorage.setItem(LS_KEY_FORMAT, format);
+            document.getElementById('formatUnordered').className = `flex-1 btn-neo py-2 font-bold border-3 ${format === 'unordered' ? 'bg-brand-pink text-white' : 'bg-white dark:bg-slate-800 text-brand-dark dark:text-white'}`;
+            document.getElementById('formatOrdered').className = `flex-1 btn-neo py-2 font-bold border-3 ${format === 'ordered' ? 'bg-brand-pink text-white' : 'bg-white dark:bg-slate-800 text-brand-dark dark:text-white'}`;
+            
+            try {
+                const savedResults = localStorage.getItem(LS_KEY_RESULTS);
+                if (savedResults && !emptyState.classList.contains('hidden')) {
+                    // Do nothing if hidden (reset state)
+                } else if (savedResults) {
+                    renderLists(JSON.parse(savedResults));
+                }
+            } catch(e){}
+        }
+
+        function resetAll() {
+            clearInput();
+            localStorage.removeItem(LS_KEY_RESULTS);
+            listsGrid.innerHTML = '';
+            listsGrid.classList.add('hidden');
+            emptyState.classList.remove('hidden');
+            document.getElementById('listCount').value = 4;
+            setFormat('unordered');
+            showToast('Everything reset!');
+        }
+
+        function loadState() {
+            try {
+                const savedFormat = localStorage.getItem(LS_KEY_FORMAT);
+                if (savedFormat) setFormat(savedFormat);
+
+                const savedWords = localStorage.getItem(LS_KEY_WORDS);
+                if (savedWords) wordInput.value = savedWords;
+
+                const savedResults = localStorage.getItem(LS_KEY_RESULTS);
+                if (savedResults) {
+                    const parsed = JSON.parse(savedResults);
+                    if (parsed && parsed.length > 0) {
+                        document.getElementById('listCount').value = parsed.length;
+                        renderLists(parsed);
+                    }
+                }
+            } catch (e) {}
+        }
+
+        function shuffle(array) {
+            let newArr = [...array];
+            for (let i = newArr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+            }
+            return newArr;
+        }
+
+        function generateLists() {
+            const text = wordInput.value.trim();
+            saveWords(text);
+
+            if (!text) {
+                showToast("Please enter some words!", true);
+                return;
+            }
+
+            // Split by newline or comma
+            const words = text.split(/[\n,]+/).map(w => w.trim()).filter(w => w.length > 0);
+            
+            if (words.length < 2) {
+                showToast("Add at least 2 items.", true);
+                return;
+            }
+
+            const count = Math.min(Math.max(parseInt(listCountInput.value) || 1, 1), 12);
+            let results = [];
+
+            // Generate N randomized versions of the full list
+            for (let i = 0; i < count; i++) {
+                results.push(shuffle(words));
+            }
+
+            localStorage.setItem(LS_KEY_RESULTS, JSON.stringify(results));
+            renderLists(results);
+            showToast("Lists Generated!");
+        }
+
+        function renderLists(data) {
+            emptyState.classList.add('hidden');
+            listsGrid.classList.remove('hidden');
+            listsGrid.innerHTML = '';
+
+            data.forEach((list, i) => {
+                const theme = themeCycle[i % themeCycle.length];
+                
+                const card = document.createElement('div');
+                card.className = `card-neo overflow-hidden flex flex-col animate-pop`;
+                card.style.animationDelay = `${i * 0.1}s`;
+
+                // Header
+                const header = `
+                    <div class="${theme.bg} p-4 border-b-3 border-brand-dark dark:border-slate-500 flex justify-between items-center">
+                        <h3 class="font-heading font-bold text-white text-xl uppercase tracking-wide">Group ${i + 1}</h3>
+                        <div class="bg-white dark:bg-slate-800/20 px-2 py-1 rounded text-white font-bold text-xs border-2 border-white/40">
+                            ${list.length}
+                        </div>
+                    </div>
+                `;
+
+                // List
+                const listItems = list.map((item, idx) => `
+                    <li class="flex items-center gap-3 py-2 border-b-2 border-slate-100 dark:border-slate-700 last:border-0">
+                        ${currentFormat === 'ordered' 
+                            ? `<div class="w-6 h-6 shrink-0 rounded-full ${theme.bg} text-white flex items-center justify-center text-xs font-bold">${idx + 1}</div>`
+                            : `<div class="w-2 h-2 shrink-0 rounded-full ${theme.bg}"></div>`
+                        }
+                        <span class="font-bold text-brand-dark dark:text-white">${item}</span>
+                    </li>
+                `).join('');
+
+                const body = `
+                    <div class="p-5 bg-white dark:bg-slate-800 flex-grow">
+                        <ul class="text-lg font-body">
+                            ${listItems}
+                        </ul>
+                    </div>
+                `;
+
+                card.innerHTML = header + body;
+                listsGrid.appendChild(card);
+            });
+
+            lucide.createIcons();
+            // Scroll to results on mobile
+            if(window.innerWidth < 1024) {
+                listsGrid.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        function copyAllLists() {
+            if (listsGrid.children.length === 0) return;
+            
+            let output = "";
+            const cards = listsGrid.querySelectorAll('.card-neo');
+            
+            cards.forEach((card, idx) => {
+                output += `--- GROUP ${idx + 1} ---\n`;
+                card.querySelectorAll('li span').forEach((span, i) => {
+                    output += `${i + 1}. ${span.innerText}\n`;
+                });
+                output += "\n";
+            });
+
+            navigator.clipboard.writeText(output).then(() => {
+                showToast("Copied all lists!");
+            });
+        }
+
+        function showToast(msg, isError = false) {
+            const existing = document.querySelector('.toast');
+            if (existing) existing.remove();
+
+            const toast = document.createElement('div');
+            toast.className = `toast fixed bottom-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-xl font-heading font-bold text-sm shadow-neo z-50 animate-pop flex items-center gap-2 border-3 border-brand-dark dark:border-slate-500 ${isError ? 'bg-brand-pink text-white' : 'bg-brand-green text-white'}`;
+            toast.innerHTML = isError ? `<i data-lucide="alert-circle" class="w-5 h-5"></i> ${msg}` : `<i data-lucide="check" class="w-5 h-5"></i> ${msg}`;
+            
+            document.body.appendChild(toast);
+            lucide.createIcons();
+            
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translate(-50%, 20px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // --- INIT ---
+        window.onload = async () => {
+            await requireAuth();
+            loadState();
+            await loadFromCloud();
+            lucide.createIcons();
+        };
+
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme_random-word-list', isDark ? 'dark' : 'light');
+        }
+
+        document.getElementById('generateButton').addEventListener('click', generateLists);
+        wordInput.addEventListener('input', (e) => saveWords(e.target.value));
+
+    </script>
+</body>
+</html>

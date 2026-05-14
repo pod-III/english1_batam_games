@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Library — KlassKit</title>
+    <link rel="icon" type="image/x-icon" href="../../../media/icon.ico" />
+    <link rel="icon" type="image/webp" href="../../../media/icon.webp" />
+    
+    <!-- Supabase Auth -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="../../../supabase.js"></script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        heading: ['Fredoka', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                    },
+                    colors: {
+                        pink: '#ff4785',
+                        orange: '#ff7e33',
+                        green: '#00d063',
+                        blue: '#1ea7fd',
+                        dark: '#0f172a',
+                        chalk: '#f8fafc'
+                    },
+                    boxShadow: {
+                        'neo': '4px 4px 0px 0px rgba(51,65,85,0.15)',
+                        'neo-sm': '2px 2px 0px 0px rgba(51,65,85,0.15)',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Global Styles -->
+    <link rel="stylesheet" href="../../../css/base.css">
+    <link rel="stylesheet" href="../../../css/components.css">
+    
+    <script>
+        if (localStorage.getItem("theme_youtube") === "dark" || (!localStorage.getItem("theme_youtube") && window.matchMedia("(prefers-color-scheme:dark)").matches)) {
+            document.documentElement.classList.add("dark")
+        }
+    </script>
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            background-color: var(--bg-primary);
+            font-family: 'Nunito', sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Views */
+        .view {
+            display: none;
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+            animation: pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .view.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Library View */
+        .header-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+        }
+
+        .title-group h1 {
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
+            font-size: 2.5rem;
+            color: var(--color-pink);
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .title-group p {
+            margin: 0.5rem 0 0 0;
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .action-group {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 2rem;
+        }
+
+        .video-grid.list-view {
+            grid-template-columns: 1fr;
+            gap: 1rem;
+        }
+
+        .video-card {
+            background: var(--surface-card);
+            border: var(--border-width-thick) solid var(--border-primary);
+            border-radius: var(--radius-2xl);
+            overflow: hidden;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            box-shadow: var(--shadow-md);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .video-grid.list-view .video-card {
+            flex-direction: row;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .video-card:hover {
+            transform: translateY(-6px) scale(1.02);
+            box-shadow: var(--shadow-xl);
+            border-color: var(--color-blue);
+        }
+
+        .video-grid.list-view .video-card:hover {
+            transform: translateX(4px);
+        }
+
+        .thumbnail-container {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background: #000;
+            position: relative;
+            border-bottom: var(--border-width-medium) solid var(--border-primary);
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .video-grid.list-view .thumbnail-container {
+            width: 240px;
+            aspect-ratio: 16 / 9;
+            border-bottom: none;
+            border-right: var(--border-width-medium) solid var(--border-primary);
+            border-radius: var(--radius-2xl) 0 0 var(--radius-2xl);
+        }
+
+        .thumbnail-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform var(--transition-base);
+        }
+
+        .video-card:hover .thumbnail-container img {
+            transform: scale(1.05);
+        }
+
+        .play-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity var(--transition-fast);
+        }
+
+        .video-card:hover .play-overlay {
+            opacity: 1;
+        }
+
+        .play-overlay i {
+            width: 64px;
+            height: 64px;
+            color: white;
+            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.6));
+            transform: scale(0.9);
+            transition: transform var(--transition-fast);
+        }
+
+        .video-card:hover .play-overlay i {
+            transform: scale(1);
+        }
+
+        .card-content {
+            padding: 1.5rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            position: relative;
+        }
+
+        .video-grid.list-view .card-content {
+            padding: 1rem 1.5rem;
+            flex-direction: row;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .card-title {
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
+            font-size: 1.15rem;
+            line-height: 1.3;
+            color: var(--text-primary);
+        }
+
+        .video-grid.list-view .card-title {
+            flex: 1;
+            font-size: 1rem;
+        }
+
+        .card-meta {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-tertiary);
+            margin-top: auto;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .video-grid.list-view .card-meta {
+            margin-top: 0;
+            white-space: nowrap;
+        }
+
+        .category-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.35rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .card-actions {
+            position: absolute;
+            top: -1rem;
+            right: 1.5rem;
+            display: flex;
+            gap: 0.5rem;
+            z-index: 10;
+        }
+
+        .video-grid.list-view .card-actions {
+            position: static;
+            top: auto;
+            right: auto;
+        }
+
+        .action-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            border: var(--border-width-medium) solid var(--border-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--surface-card);
+            box-shadow: var(--shadow-sm);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-delete:hover {
+            background: #ef4444;
+            border-color: #dc2626;
+            color: white;
+        }
+
+        .btn-favorite:hover {
+            background: #fbbf24;
+            border-color: #f59e0b;
+            color: white;
+        }
+
+        .btn-favorite.active {
+            background: #fbbf24;
+            border-color: #f59e0b;
+            color: white;
+        }
+
+        .checkbox-select {
+            width: 24px;
+            height: 24px;
+            border: var(--border-width-medium) solid var(--border-primary);
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--surface-card);
+            transition: all var(--transition-fast);
+        }
+
+        .checkbox-select:hover {
+            border-color: var(--color-blue);
+        }
+
+        .checkbox-select.checked {
+            background: var(--color-blue);
+            border-color: var(--color-blue);
+            color: white;
+        }
+
+        .checkbox-select.hidden {
+            display: none;
+        }
+
+        /* Player View */
+        #view-player {
+            height: calc(100vh - 48px);
+            padding: 1rem;
+            box-sizing: border-box;
+        }
+
+        .player-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .player-container {
+            width: 100%;
+            max-width: 1350px;
+            height: calc(100% - 60px);
+            background: #000;
+            border: var(--border-width-thick) solid var(--border-primary);
+            border-radius: var(--radius-2xl);
+            box-shadow: var(--shadow-xl);
+            overflow: hidden;
+            margin: 0 auto;
+        }
+
+        #player {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Modal / Add View */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(2, 6, 23, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            z-index: 100;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--surface-card);
+            border: var(--border-width-thick) solid var(--border-primary);
+            border-radius: var(--radius-2xl);
+            width: 100%;
+            max-width: 520px;
+            padding: 2.5rem;
+            box-shadow: var(--shadow-xl);
+            animation: pop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .form-label {
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+        }
+
+        .input-chunky {
+            padding: 1rem;
+            font-size: 1rem;
+            border-width: var(--border-width-medium);
+        }
+
+        .empty-state {
+            grid-column: 1 / -1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 6rem 2rem;
+            text-align: center;
+            background: var(--bg-secondary);
+            border: var(--border-width-thick) dashed var(--border-primary);
+            border-radius: var(--radius-2xl);
+            opacity: 0.9;
+        }
+
+        .empty-state i {
+            width: 96px;
+            height: 96px;
+            color: var(--color-blue);
+            margin-bottom: 2rem;
+        }
+
+        .empty-state h2 {
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
+            font-size: 2rem;
+            color: var(--text-primary);
+            margin: 0 0 1rem 0;
+            text-transform: uppercase;
+        }
+
+        .empty-state p {
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin: 0 0 2rem 0;
+            font-size: 1.1rem;
+        }
+
+        /* Auth Status Bar */
+        .auth-bar {
+            background: var(--bg-secondary);
+            padding: 0.75rem 1.25rem;
+            border-radius: var(--radius-xl);
+            font-size: 0.8rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: var(--text-secondary);
+            border: var(--border-width-medium) solid var(--border-primary);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .sync-spinner {
+            animation: spin 2s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .view {
+                padding: 1rem;
+            }
+
+            .title-group h1 {
+                font-size: 1.75rem;
+            }
+
+            .video-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+
+            .modal-content {
+                padding: 1.75rem;
+            }
+
+            .empty-state {
+                padding: 4rem 1.5rem;
+            }
+
+            .empty-state i {
+                width: 64px;
+                height: 64px;
+            }
+
+            .empty-state h2 {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen text-dark dark:text-white relative font-body pb-12 overflow-x-hidden">
+
+    <!-- Header -->
+    <header class="glass-panel sticky top-0 z-30 h-12 flex items-center justify-between px-4 md:px-6 border-b-[3px] border-[var(--border-primary)]" style="border-radius: 0;">
+        <div class="flex items-center gap-2 md:gap-3">
+            <div class="w-8 h-8 bg-pink rounded-xl border-[2px] border-white/40 flex items-center justify-center text-white shadow-neo-sm">
+                <i data-lucide="youtube" class="w-5 h-5 stroke-[2.5px]"></i>
+            </div>
+            <div>
+                <h1 class="font-heading font-bold text-lg md:text-xl tracking-tight leading-none text-dark dark:text-white">YouTube Library</h1>
+                <p class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none mt-1">KlassKit Workspace</p>
+            </div>
+        </div>
+
+        <!-- Right Actions -->
+        <div class="flex items-center gap-1 md:gap-2">
+            <div id="auth-status" class="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-xl border-[2px] border-[var(--border-primary)] bg-slate-100 dark:bg-slate-800 text-[9px] font-extrabold uppercase tracking-widest text-slate-500">
+                <i data-lucide="cloud" class="w-3 h-3"></i>
+                <span id="sync-text">Checking...</span>
+            </div>
+            <button onclick="Theme.toggle()" class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title="Toggle Theme">
+                <i data-lucide="sun" class="w-3.5 h-3.5 dark:hidden text-slate-500"></i>
+                <i data-lucide="moon" class="w-3.5 h-3.5 hidden dark:block text-slate-400"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- 1. LIBRARY VIEW (Default) -->
+    <div id="view-library" class="view active">
+        <div class="header-section">
+            <div class="title-group">
+                <h1>Video Library</h1>
+                <p>Curated learning videos for your class</p>
+            </div>
+            
+            <div class="action-group">
+                <div id="auth-status-mobile" class="sm:hidden auth-bar">
+                    <i data-lucide="cloud"></i>
+                    <span id="sync-text-mobile">Checking...</span>
+                </div>
+                <button onclick="toggleModal(true)" class="btn-chunky bg-green text-white px-6 py-3 rounded-xl flex items-center gap-2">
+                    <i data-lucide="plus"></i>
+                    <span>Add Video</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Search, Filter, Sort, View Controls -->
+        <div class="glass-panel border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-3xl p-4 mb-6 shadow-neo-sm bg-white dark:bg-slate-900/40">
+            <div class="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+                <!-- Search -->
+                <div class="relative flex-1 max-w-md w-full">
+                    <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4"></i>
+                    <input type="text" id="search-input" oninput="handleSearch(this.value)" placeholder="Search videos..." class="w-full pl-10 pr-4 py-2.5 border-[var(--border-width-medium)] border-[var(--border-primary)] rounded-xl bg-[var(--bg-secondary)] dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue/30 text-slate-700 dark:text-white">
+                </div>
+
+                <div class="flex flex-wrap gap-3 items-center">
+                    <!-- Filter by Category -->
+                    <div class="relative">
+                        <select id="category-filter" onchange="handleFilter(this.value)" class="appearance-none pl-10 pr-8 py-2.5 border-[var(--border-width-medium)] border-[var(--border-primary)] rounded-xl bg-[var(--bg-secondary)] dark:bg-slate-800 text-sm font-heading font-bold text-slate-700 dark:text-slate-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue/30">
+                            <option value="all">All Categories</option>
+                        </select>
+                        <i data-lucide="filter" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none"></i>
+                        <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none"></i>
+                    </div>
+
+                    <!-- Favorites Filter -->
+                    <button onclick="toggleFavoritesFilter()" id="favorites-filter-btn" class="btn-chunky bg-slate-200 dark:bg-slate-700 text-dark dark:text-white px-4 py-2.5 rounded-xl flex items-center gap-2 text-xs">
+                        <i data-lucide="star" class="w-4 h-4"></i>
+                        <span class="hidden sm:inline">Favorites</span>
+                    </button>
+
+                    <!-- Manage Categories Button -->
+                    <button onclick="toggleCategoryModal(true)" class="btn-chunky bg-slate-200 dark:bg-slate-700 text-dark dark:text-white px-4 py-2.5 rounded-xl flex items-center gap-2 text-xs">
+                        <i data-lucide="settings" class="w-4 h-4"></i>
+                        <span class="hidden sm:inline">Categories</span>
+                    </button>
+
+                    <!-- Sort -->
+                    <div class="relative">
+                        <select id="sort-select" onchange="handleSort(this.value)" class="appearance-none pl-10 pr-8 py-2.5 border-[var(--border-width-medium)] border-[var(--border-primary)] rounded-xl bg-[var(--bg-secondary)] dark:bg-slate-800 text-sm font-heading font-bold text-slate-700 dark:text-slate-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue/30">
+                            <option value="date-desc">Newest First</option>
+                            <option value="date-asc">Oldest First</option>
+                            <option value="title-asc">Title A-Z</option>
+                            <option value="title-desc">Title Z-A</option>
+                            <option value="category">Category</option>
+                        </select>
+                        <i data-lucide="arrow-up-down" class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none"></i>
+                        <i data-lucide="chevron-down" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none"></i>
+                    </div>
+
+                    <!-- View Toggle -->
+                    <div class="flex border-[var(--border-width-medium)] border-[var(--border-primary)] rounded-xl overflow-hidden">
+                        <button onclick="setViewMode('grid')" id="view-grid-btn" class="p-2.5 bg-blue text-white transition-colors">
+                            <i data-lucide="layout-grid" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="setViewMode('list')" id="view-list-btn" class="p-2.5 bg-[var(--bg-secondary)] dark:bg-slate-800 text-slate-600 dark:text-slate-400 transition-colors">
+                            <i data-lucide="list" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+
+                    <!-- Bulk Actions -->
+                    <button onclick="toggleBulkMode()" id="bulk-mode-btn" class="btn-chunky bg-slate-200 dark:bg-slate-700 text-dark dark:text-white px-4 py-2.5 rounded-xl flex items-center gap-2 text-xs">
+                        <i data-lucide="check-square" class="w-4 h-4"></i>
+                        <span class="hidden sm:inline">Select</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Bulk Actions Bar (Hidden by default) -->
+            <div id="bulk-actions-bar" class="hidden mt-4 pt-4 border-t-[2px] border-[var(--border-primary)] flex items-center justify-between">
+                <span class="text-sm font-bold text-slate-600 dark:text-slate-400">
+                    <span id="selected-count">0</span> videos selected
+                </span>
+                <div class="flex gap-2">
+                    <button onclick="selectAllVideos()" class="btn-chunky bg-blue text-white px-4 py-2 rounded-xl text-xs">Select All</button>
+                    <button onclick="clearSelection()" class="btn-chunky bg-slate-200 dark:bg-slate-700 text-dark dark:text-white px-4 py-2 rounded-xl text-xs">Clear</button>
+                    <button onclick="deleteSelected()" class="btn-chunky bg-red-500 text-white px-4 py-2 rounded-xl text-xs">Delete Selected</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Library Statistics -->
+        <div id="library-stats" class="glass-panel border-[var(--border-width-thick)] border-[var(--border-primary)] rounded-3xl p-4 mb-6 shadow-neo-sm bg-white dark:bg-slate-900/40">
+            <div class="flex flex-wrap gap-4 items-center justify-between">
+                <div class="flex flex-wrap gap-6">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="video" class="w-5 h-5 text-blue"></i>
+                        <span class="text-sm font-bold text-slate-600 dark:text-slate-400">
+                            <span id="total-videos" class="text-lg font-black text-dark dark:text-white">0</span> Videos
+                        </span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="star" class="w-5 h-5 text-yellow-500"></i>
+                        <span class="text-sm font-bold text-slate-600 dark:text-slate-400">
+                            <span id="total-favorites" class="text-lg font-black text-dark dark:text-white">0</span> Favorites
+                        </span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="folder" class="w-5 h-5 text-pink"></i>
+                        <span class="text-sm font-bold text-slate-600 dark:text-slate-400">
+                            <span id="total-categories" class="text-lg font-black text-dark dark:text-white">0</span> Categories
+                        </span>
+                    </div>
+                </div>
+                <div class="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    Library Stats
+                </div>
+            </div>
+        </div>
+
+        <div id="video-grid" class="video-grid">
+            <!-- Videos injected here -->
+        </div>
+    </div>
+
+    <!-- 2. PLAYER VIEW -->
+    <div id="view-player" class="view">
+        <div class="player-header">
+            <button onclick="switchView('library')" class="btn-chunky bg-white dark:bg-slate-800 p-3 rounded-xl border-[var(--border-width-medium)] border-[var(--border-primary)] shadow-neo-sm">
+                <i data-lucide="arrow-left"></i>
+            </button>
+            <div class="title-group">
+                <h2 id="current-title" class="font-heading text-2xl font-black text-dark dark:text-white">Video Title</h2>
+            </div>
+        </div>
+
+        <div class="player-container">
+            <div id="player"></div>
+        </div>
+    </div>
+
+    <!-- 3. ADD MODAL -->
+    <div id="add-modal" class="modal">
+        <div class="modal-content">
+            <div class="form-group">
+                <h3 class="font-heading text-2xl font-black text-pink uppercase flex items-center gap-2">
+                    <i data-lucide="plus-circle" class="w-6 h-6"></i>
+                    New Video
+                </h3>
+                <p class="font-bold opacity-60 text-sm">Paste a YouTube link to save it to your library.</p>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Video URL</label>
+                <input type="text" id="video-url" class="input-chunky" placeholder="https://youtube.com/watch?v=..." autofocus>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Custom Title (Optional)</label>
+                <input type="text" id="video-title" class="input-chunky" placeholder="E.g. Present Continuous Grammar">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Category (Optional)</label>
+                <input type="text" id="video-category" class="input-chunky" placeholder="e.g. Grammar, Vocabulary, Listening...">
+            </div>
+
+            <div class="action-group" style="margin-top: 1rem;">
+                <button onclick="toggleModal(false)" class="btn-chunky bg-slate-200 dark:bg-slate-700 text-dark dark:text-white flex-1 py-3 rounded-xl border-[var(--border-width-medium)] border-[var(--border-primary)]">Cancel</button>
+                <button onclick="addVideo()" class="btn-chunky bg-blue text-white flex-2 py-3 rounded-xl border-[var(--border-width-medium)] border-[var(--border-primary)]">Save Video</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. CATEGORY MANAGEMENT MODAL -->
+    <div id="category-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="form-group">
+                <h3 class="font-heading text-2xl font-black text-pink uppercase flex items-center gap-2">
+                    <i data-lucide="settings" class="w-6 h-6"></i>
+                    Manage Categories
+                </h3>
+                <p class="font-bold opacity-60 text-sm">Add, edit, or delete video categories.</p>
+            </div>
+
+            <!-- Add New Category -->
+            <div class="glass-panel border-[var(--border-width-medium)] border-[var(--border-primary)] rounded-xl p-4 mb-4">
+                <div class="flex gap-3">
+                    <input type="text" id="new-category-name" class="input-chunky flex-1" placeholder="Category name...">
+                    <input type="color" id="new-category-color" class="w-12 h-12 rounded-lg border-[var(--border-width-medium)] border-[var(--border-primary)] cursor-pointer" value="#ff4785">
+                    <button onclick="addCategory()" class="btn-chunky bg-green text-white px-4 py-2 rounded-xl">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Category List -->
+            <div id="category-list" class="space-y-2 max-h-64 overflow-y-auto">
+                <!-- Categories injected here -->
+            </div>
+
+            <div class="action-group" style="margin-top: 1rem;">
+                <button onclick="toggleCategoryModal(false)" class="btn-chunky bg-slate-200 dark:bg-slate-700 text-dark dark:text-white flex-1 py-3 rounded-xl border-[var(--border-width-medium)] border-[var(--border-primary)]">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. EDIT VIDEO MODAL -->
+    <div id="edit-modal" class="modal">
+        <div class="modal-content">
+            <div class="form-group">
+                <h3 class="font-heading text-2xl font-black text-blue uppercase flex items-center gap-2">
+                    <i data-lucide="pencil" class="w-6 h-6"></i>
+                    Edit Video
+                </h3>
+                <p class="font-bold opacity-60 text-sm">Update video details.</p>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Video Title</label>
+                <input type="text" id="edit-video-title" class="input-chunky" placeholder="Video title...">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Category</label>
+                <input type="text" id="edit-video-category" class="input-chunky" placeholder="e.g. Grammar, Vocabulary, Listening...">
+            </div>
+
+            <div class="action-group" style="margin-top: 1rem;">
+                <button onclick="toggleEditModal(false)" class="btn-chunky bg-slate-200 dark:bg-slate-700 text-dark dark:text-white flex-1 py-3 rounded-xl border-[var(--border-width-medium)] border-[var(--border-primary)]">Cancel</button>
+                <button onclick="saveVideoEdit()" class="btn-chunky bg-blue text-white flex-2 py-3 rounded-xl border-[var(--border-width-medium)] border-[var(--border-primary)]">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- CONSTANTS ---
+        const TOOL_KEY = 'youtube-library';
+        const CATEGORIES_KEY = 'youtube-categories';
+        let library = [];
+        let categories = [
+            { id: 'uncategorized', name: 'Uncategorized', color: '#94a3b8' },
+            { id: 'grammar', name: 'Grammar', color: '#ff4785' },
+            { id: 'vocabulary', name: 'Vocabulary', color: '#1ea7fd' },
+            { id: 'listening', name: 'Listening', color: '#00d063' },
+            { id: 'speaking', name: 'Speaking', color: '#ff7e33' },
+            { id: 'reading', name: 'Reading', color: '#8b5cf6' },
+            { id: 'writing', name: 'Writing', color: '#ec4899' }
+        ];
+        let player = null;
+        let currentUser = null;
+        let apiReady = false;
+        
+        // UI State
+        let currentFilter = 'all';
+        let currentSort = 'date-desc';
+        let currentView = 'grid';
+        let searchQuery = '';
+        let selectedVideos = new Set();
+        let favoritesOnly = false;
+        let editingVideoId = null;
+
+        // --- THEME MANAGER ---
+        const Theme = {
+            toggle() {
+                const html = document.documentElement;
+                const isDark = html.classList.toggle('dark');
+                localStorage.setItem('theme_youtube', isDark ? 'dark' : 'light');
+            }
+        };
+
+        // --- AUTH & INITIALIZATION ---
+        async function init() {
+            try {
+                // 1. Auth Check
+                currentUser = await requireAuth();
+                updateSyncStatus('Synced');
+                
+                // 2. Load Data (Cloud + Local Fallback)
+                library = await loadProgress(TOOL_KEY) || [];
+                
+                // Load custom categories
+                const savedCategories = await loadProgress(CATEGORIES_KEY);
+                if (savedCategories && savedCategories.length > 0) {
+                    categories = savedCategories;
+                }
+                
+                // 3. Populate category dropdowns
+                populateCategoryDropdowns();
+                
+                // 4. Render library
+                renderLibrary();
+                
+                // 5. Setup Icons
+                lucide.createIcons();
+            } catch (err) {
+                console.error('Init Error:', err);
+                updateSyncStatus('Offline', 'cloud-off');
+            }
+        }
+
+        function populateCategoryDropdowns() {
+            const filterSelect = document.getElementById('category-filter');
+            
+            if (filterSelect) {
+                filterSelect.innerHTML = '<option value="all">All Categories</option>';
+                categories.forEach(cat => {
+                    filterSelect.innerHTML += `<option value="${cat.id}">${cat.name}</option>`;
+                });
+            }
+        }
+
+        function getOrCreateCategory(categoryName) {
+            if (!categoryName || categoryName.trim() === '') {
+                return categories[0]; // Return uncategorized
+            }
+
+            const normalizedName = categoryName.trim();
+            const existingCategory = categories.find(c => c.name.toLowerCase() === normalizedName.toLowerCase());
+            
+            if (existingCategory) {
+                return existingCategory;
+            }
+
+            // Create new category with random color
+            const colors = ['#ff4785', '#1ea7fd', '#00d063', '#ff7e33', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
+            
+            const newCategory = {
+                id: normalizedName.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now(),
+                name: normalizedName,
+                color: randomColor
+            };
+            
+            categories.push(newCategory);
+            saveCategories();
+            populateCategoryDropdowns();
+            
+            return newCategory;
+        }
+
+        // --- VIEWS ---
+        function switchView(viewName) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById(`view-${viewName}`).classList.add('active');
+            
+            if (viewName === 'library' && player) {
+                player.stopVideo();
+            }
+        }
+
+        function toggleModal(show) {
+            const modal = document.getElementById('add-modal');
+            if (show) {
+                modal.classList.add('active');
+                document.getElementById('video-url').focus();
+            } else {
+                modal.classList.remove('active');
+                document.getElementById('video-url').value = '';
+                document.getElementById('video-title').value = '';
+            }
+        }
+
+        // --- LIBRARY LOGIC ---
+        function renderLibrary() {
+            const grid = document.getElementById('video-grid');
+            grid.innerHTML = '';
+
+            // Filter, search, and sort
+            let filteredLibrary = [...library];
+            
+            // Apply search
+            if (searchQuery) {
+                const query = searchQuery.toLowerCase();
+                filteredLibrary = filteredLibrary.filter(v => 
+                    v.title.toLowerCase().includes(query) || 
+                    v.id.toLowerCase().includes(query)
+                );
+            }
+            
+            // Apply category filter
+            if (currentFilter !== 'all') {
+                filteredLibrary = filteredLibrary.filter(v => v.category === currentFilter);
+            }
+            
+            // Apply favorites filter
+            if (favoritesOnly) {
+                filteredLibrary = filteredLibrary.filter(v => v.favorite);
+            }
+            
+            // Apply sort
+            filteredLibrary.sort((a, b) => {
+                switch (currentSort) {
+                    case 'date-desc':
+                        return new Date(b.added) - new Date(a.added);
+                    case 'date-asc':
+                        return new Date(a.added) - new Date(b.added);
+                    case 'title-asc':
+                        return a.title.localeCompare(b.title);
+                    case 'title-desc':
+                        return b.title.localeCompare(a.title);
+                    case 'category':
+                        const catA = categories.find(c => c.id === a.category)?.name || 'Uncategorized';
+                        const catB = categories.find(c => c.id === b.category)?.name || 'Uncategorized';
+                        return catA.localeCompare(catB);
+                    default:
+                        return 0;
+                }
+            });
+
+            // Update stats
+            updateLibraryStats();
+
+            if (filteredLibrary.length === 0) {
+                const message = library.length === 0 
+                    ? 'Your Library is Empty' 
+                    : 'No videos match your search';
+                const subtext = library.length === 0 
+                    ? 'Save videos you use for teaching to find them instantly.'
+                    : 'Try adjusting your search or filters.';
+                
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <i data-lucide="tv-2"></i>
+                        <h2 class="font-heading text-3xl font-black">${message}</h2>
+                        <p class="font-bold text-lg opacity-60">${subtext}</p>
+                        ${library.length === 0 ? `
+                        <button onclick="toggleModal(true)" class="btn-chunky bg-blue text-white px-8 py-4 rounded-xl mt-6">
+                            Add Your First Video
+                        </button>
+                        ` : ''}
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            filteredLibrary.forEach((video, index) => {
+                const card = document.createElement('div');
+                card.className = 'video-card';
+                card.dataset.videoId = video.id;
+                card.onclick = (e) => {
+                    if (!e.target.closest('.action-btn') && !e.target.closest('.checkbox-select')) {
+                        playVideo(video.id, video.title);
+                    }
+                };
+
+                const thumbUrl = `https://img.youtube.com/vi/${video.id}/mqdefault.jpg`;
+                const category = categories.find(c => c.id === video.category) || categories[0];
+                const isFavorite = video.favorite || false;
+                const isSelected = selectedVideos.has(video.id);
+
+                card.innerHTML = `
+                    <div class="thumbnail-container">
+                        <img src="${thumbUrl}" alt="${video.title}" loading="lazy">
+                        <div class="play-overlay">
+                            <i data-lucide="play"></i>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <div class="checkbox-select ${isSelected ? 'checked' : ''} ${bulkMode ? '' : 'hidden'}" onclick="event.stopPropagation(); toggleVideoSelection('${video.id}')">
+                            ${isSelected ? '<i data-lucide="check" class="w-4 h-4"></i>' : ''}
+                        </div>
+                        <div class="card-title">${video.title}</div>
+                        <div class="card-meta">
+                            <span class="category-badge" style="background-color: ${category.color}">${category.name}</span>
+                            <span class="ml-2">${new Date(video.added).toLocaleDateString()}</span>
+                        </div>
+                        <div class="card-actions">
+                            <button class="action-btn btn-favorite ${isFavorite ? 'active' : ''}" onclick="event.stopPropagation(); toggleFavorite('${video.id}')" title="Favorite">
+                                <i data-lucide="${isFavorite ? 'star' : 'star'}" class="${isFavorite ? 'fill-current' : ''}"></i>
+                            </button>
+                            <button class="action-btn" onclick="event.stopPropagation(); openEditModal('${video.id}')" title="Edit">
+                                <i data-lucide="pencil"></i>
+                            </button>
+                            <button class="action-btn btn-delete" onclick="event.stopPropagation(); deleteVideo('${video.id}')" title="Remove">
+                                <i data-lucide="trash-2"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+
+            lucide.createIcons();
+        }
+
+        // --- SEARCH, FILTER, SORT ---
+        function handleSearch(query) {
+            searchQuery = query;
+            renderLibrary();
+        }
+
+        function handleFilter(categoryId) {
+            currentFilter = categoryId;
+            renderLibrary();
+        }
+
+        function handleSort(sortValue) {
+            currentSort = sortValue;
+            renderLibrary();
+        }
+
+        function toggleFavoritesFilter() {
+            favoritesOnly = !favoritesOnly;
+            const btn = document.getElementById('favorites-filter-btn');
+            if (favoritesOnly) {
+                btn.classList.add('bg-yellow-500', 'text-white');
+                btn.classList.remove('bg-slate-200', 'dark:bg-slate-700', 'text-dark', 'dark:text-white');
+            } else {
+                btn.classList.remove('bg-yellow-500', 'text-white');
+                btn.classList.add('bg-slate-200', 'dark:bg-slate-700', 'text-dark', 'dark:text-white');
+            }
+            renderLibrary();
+        }
+
+        function updateLibraryStats() {
+            document.getElementById('total-videos').textContent = library.length;
+            document.getElementById('total-favorites').textContent = library.filter(v => v.favorite).length;
+            document.getElementById('total-categories').textContent = categories.length;
+        }
+
+        // --- VIEW MODE ---
+        let bulkMode = false;
+
+        function setViewMode(mode) {
+            currentView = mode;
+            const grid = document.getElementById('video-grid');
+            const gridBtn = document.getElementById('view-grid-btn');
+            const listBtn = document.getElementById('view-list-btn');
+            
+            if (mode === 'list') {
+                grid.classList.add('list-view');
+                listBtn.classList.add('bg-blue', 'text-white');
+                listBtn.classList.remove('bg-[var(--bg-secondary)]', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-400');
+                gridBtn.classList.remove('bg-blue', 'text-white');
+                gridBtn.classList.add('bg-[var(--bg-secondary)]', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-400');
+            } else {
+                grid.classList.remove('list-view');
+                gridBtn.classList.add('bg-blue', 'text-white');
+                gridBtn.classList.remove('bg-[var(--bg-secondary)]', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-400');
+                listBtn.classList.remove('bg-blue', 'text-white');
+                listBtn.classList.add('bg-[var(--bg-secondary)]', 'dark:bg-slate-800', 'text-slate-600', 'dark:text-slate-400');
+            }
+        }
+
+        // --- BULK ACTIONS ---
+        function toggleBulkMode() {
+            bulkMode = !bulkMode;
+            const bulkBar = document.getElementById('bulk-actions-bar');
+            const btn = document.getElementById('bulk-mode-btn');
+            
+            if (bulkMode) {
+                bulkBar.classList.remove('hidden');
+                btn.classList.add('bg-blue', 'text-white');
+                btn.classList.remove('bg-slate-200', 'dark:bg-slate-700', 'text-dark', 'dark:text-white');
+            } else {
+                bulkBar.classList.add('hidden');
+                btn.classList.remove('bg-blue', 'text-white');
+                btn.classList.add('bg-slate-200', 'dark:bg-slate-700', 'text-dark', 'dark:text-white');
+                clearSelection();
+            }
+            
+            renderLibrary();
+        }
+
+        function toggleVideoSelection(videoId) {
+            if (selectedVideos.has(videoId)) {
+                selectedVideos.delete(videoId);
+            } else {
+                selectedVideos.add(videoId);
+            }
+            updateSelectedCount();
+            renderLibrary();
+        }
+
+        function selectAllVideos() {
+            const filteredLibrary = getFilteredLibrary();
+            filteredLibrary.forEach(v => selectedVideos.add(v.id));
+            updateSelectedCount();
+            renderLibrary();
+        }
+
+        function clearSelection() {
+            selectedVideos.clear();
+            updateSelectedCount();
+            renderLibrary();
+        }
+
+        function updateSelectedCount() {
+            document.getElementById('selected-count').textContent = selectedVideos.size;
+        }
+
+        function getFilteredLibrary() {
+            let filtered = [...library];
+            if (searchQuery) {
+                const query = searchQuery.toLowerCase();
+                filtered = filtered.filter(v => 
+                    v.title.toLowerCase().includes(query) || 
+                    v.id.toLowerCase().includes(query)
+                );
+            }
+            if (currentFilter !== 'all') {
+                filtered = filtered.filter(v => v.category === currentFilter);
+            }
+            return filtered;
+        }
+
+        async function deleteSelected() {
+            if (selectedVideos.size === 0) return;
+            if (!confirm(`Delete ${selectedVideos.size} selected videos?`)) return;
+            
+            library = library.filter(v => !selectedVideos.has(v.id));
+            selectedVideos.clear();
+            updateSelectedCount();
+            await sync();
+            renderLibrary();
+        }
+
+        // --- FAVORITES ---
+        function toggleFavorite(videoId) {
+            const video = library.find(v => v.id === videoId);
+            if (video) {
+                video.favorite = !video.favorite;
+                sync();
+                renderLibrary();
+            }
+        }
+
+        // --- EDIT VIDEO ---
+        function openEditModal(videoId) {
+            const video = library.find(v => v.id === videoId);
+            if (!video) return;
+
+            editingVideoId = videoId;
+            document.getElementById('edit-video-title').value = video.title;
+            
+            // Get category name from category ID
+            const category = categories.find(c => c.id === video.category);
+            document.getElementById('edit-video-category').value = category ? category.name : '';
+            
+            toggleEditModal(true);
+        }
+
+        function toggleEditModal(show) {
+            const modal = document.getElementById('edit-modal');
+            if (show) {
+                modal.classList.add('active');
+            } else {
+                modal.classList.remove('active');
+                editingVideoId = null;
+                document.getElementById('edit-video-title').value = '';
+            }
+        }
+
+        async function saveVideoEdit() {
+            if (!editingVideoId) return;
+
+            const video = library.find(v => v.id === editingVideoId);
+            if (!video) return;
+
+            const titleInput = document.getElementById('edit-video-title');
+            const categoryInput = document.getElementById('edit-video-category');
+
+            const newTitle = titleInput.value.trim();
+            const categoryName = categoryInput.value.trim();
+
+            if (!newTitle) {
+                alert('Please enter a video title.');
+                return;
+            }
+
+            const category = getOrCreateCategory(categoryName);
+
+            video.title = newTitle;
+            video.category = category.id;
+
+            await sync();
+            renderLibrary();
+            toggleEditModal(false);
+        }
+
+        // --- CATEGORY MANAGEMENT ---
+        function toggleCategoryModal(show) {
+            const modal = document.getElementById('category-modal');
+            if (show) {
+                modal.classList.add('active');
+                renderCategoryList();
+            } else {
+                modal.classList.remove('active');
+            }
+        }
+
+        function renderCategoryList() {
+            const list = document.getElementById('category-list');
+            list.innerHTML = '';
+
+            categories.forEach(cat => {
+                const isDefault = cat.id === 'uncategorized';
+                const item = document.createElement('div');
+                item.className = 'flex items-center gap-3 p-3 bg-[var(--bg-secondary)] dark:bg-slate-800 rounded-xl border-[var(--border-width-medium)] border-[var(--border-primary)]';
+                item.innerHTML = `
+                    <div class="w-8 h-8 rounded-lg flex-shrink-0" style="background-color: ${cat.color}"></div>
+                    <input type="text" value="${cat.name}" 
+                        class="flex-1 bg-transparent border-none outline-none font-heading font-bold text-sm text-slate-700 dark:text-slate-200"
+                        ${isDefault ? 'disabled' : `onchange="updateCategoryName('${cat.id}', this.value)"`}
+                        ${isDefault ? 'class="flex-1 bg-transparent border-none outline-none font-heading font-bold text-sm text-slate-400"' : ''}>
+                    ${!isDefault ? `
+                    <button onclick="deleteCategory('${cat.id}')" class="action-btn btn-delete" title="Delete">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                    ` : '<span class="text-xs font-bold text-slate-400 uppercase">Default</span>'}
+                `;
+                list.appendChild(item);
+            });
+
+            lucide.createIcons();
+        }
+
+        function addCategory() {
+            const nameInput = document.getElementById('new-category-name');
+            const colorInput = document.getElementById('new-category-color');
+            
+            const name = nameInput.value.trim();
+            const color = colorInput.value;
+
+            if (!name) {
+                alert('Please enter a category name.');
+                return;
+            }
+
+            const id = name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now();
+            categories.push({ id, name, color });
+
+            saveCategories();
+            renderCategoryList();
+            populateCategoryDropdowns();
+
+            nameInput.value = '';
+        }
+
+        function updateCategoryName(catId, newName) {
+            const cat = categories.find(c => c.id === catId);
+            if (cat) {
+                cat.name = newName;
+                saveCategories();
+                populateCategoryDropdowns();
+                renderLibrary();
+            }
+        }
+
+        function deleteCategory(catId) {
+            if (catId === 'uncategorized') {
+                alert('Cannot delete the default category.');
+                return;
+            }
+
+            // Check if any videos use this category
+            const videosInCategory = library.filter(v => v.category === catId);
+            if (videosInCategory.length > 0) {
+                if (!confirm(`${videosInCategory.length} videos are in this category. They will be moved to Uncategorized. Continue?`)) {
+                    return;
+                }
+                // Move videos to uncategorized
+                library.forEach(v => {
+                    if (v.category === catId) {
+                        v.category = 'uncategorized';
+                    }
+                });
+                sync();
+            }
+
+            categories = categories.filter(c => c.id !== catId);
+            saveCategories();
+            renderCategoryList();
+            populateCategoryDropdowns();
+            renderLibrary();
+        }
+
+        async function saveCategories() {
+            await saveProgress(CATEGORIES_KEY, categories);
+        }
+
+        function extractVideoId(url) {
+            const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+            const match = url.match(regExp);
+            return (match && match[2].length == 11) ? match[2] : (url.length === 11 ? url : null);
+        }
+
+        async function addVideo() {
+            const urlInput = document.getElementById('video-url');
+            const titleInput = document.getElementById('video-title');
+            const categoryInput = document.getElementById('video-category');
+            
+            const id = extractVideoId(urlInput.value.trim());
+            const title = titleInput.value.trim() || `Untitled Video (${id})`;
+            const categoryName = categoryInput.value.trim();
+
+            if (!id) {
+                alert('Please enter a valid YouTube URL or ID.');
+                return;
+            }
+
+            if (library.find(v => v.id === id)) {
+                alert('This video is already in your library.');
+                toggleModal(false);
+                return;
+            }
+
+            const category = getOrCreateCategory(categoryName);
+
+            const video = { id, title, category: category.id, added: new Date().toISOString(), favorite: false };
+            library.unshift(video);
+            
+            await sync();
+            renderLibrary();
+            toggleModal(false);
+        }
+
+        async function deleteVideo(id) {
+            if (!confirm('Remove this video from your library?')) return;
+            library = library.filter(v => v.id !== id);
+            await sync();
+            renderLibrary();
+        }
+
+        async function sync() {
+            updateSyncStatus('Syncing...', 'refresh-cw', true);
+            await saveProgress(TOOL_KEY, library);
+            updateSyncStatus('Synced', 'cloud');
+        }
+
+        function updateSyncStatus(text, icon = 'cloud', spin = false) {
+            // Desktop version
+            const status = document.getElementById('auth-status');
+            if (status) {
+                status.innerHTML = `
+                    <i data-lucide="${icon}" class="${spin ? 'sync-spinner' : ''}"></i>
+                    <span>${text}</span>
+                `;
+            }
+            // Mobile version
+            const statusMobile = document.getElementById('auth-status-mobile');
+            if (statusMobile) {
+                statusMobile.innerHTML = `
+                    <i data-lucide="${icon}" class="${spin ? 'sync-spinner' : ''}"></i>
+                    <span>${text}</span>
+                `;
+            }
+            lucide.createIcons();
+        }
+
+        // --- PLAYER LOGIC ---
+        var tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        function onYouTubeIframeAPIReady() {
+            apiReady = true;
+            console.log('YouTube API Ready');
+        }
+
+        function playVideo(id, title) {
+            if (!apiReady) {
+                alert('YouTube Player is still loading. Please try again in a moment.');
+                return;
+            }
+            document.getElementById('current-title').textContent = title;
+            switchView('player');
+
+            if (!player) {
+                player = new YT.Player('player', {
+                    height: '100%',
+                    width: '100%',
+                    videoId: id,
+                    playerVars: {
+                        'playsinline': 1,
+                        'autoplay': 1,
+                        'modestbranding': 1,
+                        'rel': 0
+                    }
+                });
+            } else {
+                player.loadVideoById(id);
+            }
+        }
+
+        // Start
+        window.addEventListener('load', init);
+
+    </script>
+</body>
+</html>

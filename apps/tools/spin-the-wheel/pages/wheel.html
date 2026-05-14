@@ -1,0 +1,1651 @@
+<!doctype html>
+<html lang="en" class="light">
+    <head>
+    <!-- Supabase Auth -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/supabase.js"></script>
+    <meta charset="UTF-8" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+        />
+        <title>Multi-Spin Picker - KlassKit</title>
+    <link rel="icon" type="image/x-icon" href="../../../../media/icon.ico" />
+    <link rel="icon" type="image/webp" href="../../../../media/icon.webp" />
+
+        <!-- External Libraries -->
+        <script src="https://unpkg.com/lucide@latest"></script>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+        <!-- Fonts -->
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;700;900&family=JetBrains+Mono:wght@500;700&display=swap"
+            rel="stylesheet"
+        />
+
+        <!-- Theme Configuration -->
+        <script>
+            tailwind.config = {
+                darkMode: "class",
+                theme: {
+                    extend: {
+                        colors: {
+                            pink: "#FF6B95",
+                            orange: "#FF8C42",
+                            green: "#00E676",
+                            blue: "#2979FF",
+                            purple: "#7C4DFF",
+                            dark: "#0F172A",
+                            surface: "#FFFFFF",
+                            border: "#cbd5e1",
+                        },
+                        fontFamily: {
+                            heading: ["Fredoka", "sans-serif"],
+                            body: ["Nunito", "sans-serif"],
+                            mono: ["JetBrains Mono", "monospace"],
+                        },
+                        boxShadow: {
+                            neo: "4px 4px 0px 0px rgba(51, 65, 85, 0.15)",
+                            "neo-sm": "2px 2px 0px 0px rgba(51, 65, 85, 0.15)",
+                            "neo-lg": "8px 8px 0px 0px rgba(51, 65, 85, 0.15)",
+                            hard: "4px 4px 0px 0px #0F172A",
+                            "hard-sm": "2px 2px 0px 0px #0F172A",
+                            "hard-lg": "8px 8px 0px 0px #0F172A",
+                        },
+                    },
+                },
+            };
+        </script>
+
+        <style>
+            * {
+                box-sizing: border-box;
+            }
+
+            html,
+            body {
+                margin: 0;
+                padding: 0;
+                height: 100vh;
+                width: 100vw;
+                overflow: hidden;
+            }
+
+            body {
+                font-family: "Nunito", sans-serif;
+                background-color: #f8fafc;
+                background-image:
+                    linear-gradient(#e2e8f0 1.5px, transparent 1.5px),
+                    linear-gradient(90deg, #e2e8f0 1.5px, transparent 1.5px);
+                background-size: 30px 30px;
+                color: #1e293b;
+                user-select: none;
+                -webkit-tap-highlight-color: transparent;
+                transition:
+                    background-color 0.3s,
+                    color 0.3s;
+            }
+
+            html.dark body {
+                background-color: #020617;
+                background-image:
+                    linear-gradient(#0f172a 1.5px, transparent 1.5px),
+                    linear-gradient(90deg, #0f172a 1.5px, transparent 1.5px);
+                color: #e2e8f0;
+            }
+
+            .glass-panel {
+                background: rgba(255, 255, 255, 0.85);
+                backdrop-filter: blur(24px);
+                -webkit-backdrop-filter: blur(24px);
+            }
+
+            html.dark .glass-panel {
+                background: rgba(15, 23, 42, 0.8);
+                border-color: rgba(255, 255, 255, 0.1);
+            }
+
+            .console-frame {
+                background: rgba(255, 255, 255, 0.6);
+                backdrop-filter: blur(24px);
+                -webkit-backdrop-filter: blur(24px);
+                border: 1px solid rgba(203, 213, 225, 0.6);
+                border-radius: 1.5rem;
+                box-shadow: 8px 8px 0px rgba(51, 65, 85, 0.15);
+                overflow: hidden;
+                transition: all 0.3s ease;
+            }
+
+            html.dark .console-frame {
+                background: rgba(15, 23, 42, 0.8);
+                border-color: rgba(255, 255, 255, 0.1);
+                box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.4);
+            }
+
+            .btn-chunky {
+                transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                transform: translateY(0);
+                position: relative;
+                border: 1px solid rgba(203, 213, 225, 0.6);
+                box-shadow: 4px 4px 0 rgba(51, 65, 85, 0.15);
+                font-family: "Fredoka", sans-serif;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }
+
+            html.dark .btn-chunky {
+                border-color: rgba(255, 255, 255, 0.1);
+                box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.4);
+                background-color: rgba(30, 41, 59, 0.8);
+                color: #e2e8f0;
+            }
+
+            .btn-chunky:hover:not(:disabled) {
+                transform: translate(-2px, -2px);
+                box-shadow: 6px 6px 0 rgba(51, 65, 85, 0.15);
+                filter: brightness(105%);
+            }
+
+            html.dark .btn-chunky:hover:not(:disabled) {
+                box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.4);
+            }
+
+            .btn-chunky:active:not(:disabled) {
+                transform: translate(2px, 2px);
+                box-shadow: 2px 2px 0 rgba(51, 65, 85, 0.15) !important;
+            }
+
+            html.dark .btn-chunky:active:not(:disabled) {
+                box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.4) !important;
+            }
+
+            .btn-chunky:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+                transform: translateY(2px);
+                box-shadow: 0 0 0 rgba(51, 65, 85, 0.15);
+                filter: grayscale(100%);
+            }
+
+            .btn-chunky.active {
+                background: #2979ff !important;
+                color: white !important;
+                border-color: #2979ff !important;
+            }
+
+            .custom-scrollbar::-webkit-scrollbar {
+                width: 8px;
+                height: 8px;
+            }
+
+            .custom-scrollbar::-webkit-scrollbar-track {
+                background: transparent;
+            }
+
+            .custom-scrollbar::-webkit-scrollbar-thumb {
+                background: rgba(203, 213, 225, 0.6);
+                border-radius: 10px;
+                border: 2px solid transparent;
+                background-clip: content-box;
+            }
+
+            html.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+                background: rgba(255, 255, 255, 0.2);
+            }
+
+            input[type="range"] {
+                -webkit-appearance: none;
+                background: transparent;
+            }
+
+            input[type="range"]::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                height: 24px;
+                width: 24px;
+                border-radius: 50%;
+                background: white;
+                border: 2px solid #2979ff;
+                margin-top: -8px;
+                cursor: pointer;
+                box-shadow: 2px 2px 0px rgba(51, 65, 85, 0.15);
+                transition: transform 0.1s;
+            }
+
+            html.dark input[type="range"]::-webkit-slider-thumb {
+                background: #0f172a;
+                border-color: #2979ff;
+                box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.4);
+            }
+
+            input[type="range"]::-webkit-slider-thumb:hover {
+                transform: scale(1.1);
+            }
+
+            input[type="range"]::-webkit-slider-runnable-track {
+                width: 100%;
+                height: 8px;
+                background: rgba(203, 213, 225, 0.6);
+                border: 1px solid rgba(203, 213, 225, 0.8);
+                border-radius: 99px;
+            }
+
+            html.dark input[type="range"]::-webkit-slider-runnable-track {
+                background: rgba(30, 41, 59, 0.8);
+                border-color: rgba(255, 255, 255, 0.1);
+            }
+
+            .wheel-canvas {
+                border-radius: 50%;
+                box-shadow: 8px 8px 0px rgba(51, 65, 85, 0.2);
+                transition: transform 0.1s;
+            }
+
+            html.dark .wheel-canvas {
+                box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.5);
+            }
+
+            .wheel-pointer {
+                width: 0;
+                height: 0;
+                border-left: 12px solid transparent;
+                border-right: 12px solid transparent;
+                border-top: 24px solid #0f172a;
+                position: absolute;
+                top: 8px;
+                left: 50%;
+                transform: translateX(-50%);
+                z-index: 20;
+                filter: drop-shadow(0px 2px 0px rgba(255, 255, 255, 0.5));
+            }
+
+            html.dark .wheel-pointer {
+                border-top-color: #e2e8f0;
+                filter: drop-shadow(0px 2px 0px rgba(0, 0, 0, 0.5));
+            }
+
+            .wheel-container {
+                position: relative;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .wheel-label {
+                margin-top: 0.5rem;
+                font-family: "Fredoka", sans-serif;
+                font-weight: 700;
+                font-size: 0.875rem;
+                color: #64748b;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }
+
+            .wheel-count-selector {
+                transition: all 0.2s ease;
+            }
+
+            .wheel-count-selector.active {
+                background: #2979ff;
+                color: white;
+                border-color: #2979ff;
+            }
+
+            .winner-modal {
+                background: rgba(15, 23, 42, 0.5);
+                backdrop-filter: blur(4px);
+                transition: opacity 0.3s;
+            }
+
+            .winner-card {
+                background: #ffffff;
+                border: 4px solid #0f172a;
+                box-shadow: 16px 16px 0px #0f172a;
+                transform: scale(0.9);
+                opacity: 0;
+                transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            }
+
+            html.dark .winner-card {
+                background: rgba(15, 23, 42, 0.95);
+                border-color: rgba(255, 255, 255, 0.2);
+            }
+
+            .winner-modal.active .winner-card {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            .result-item {
+                animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            }
+
+            @keyframes popIn {
+                0% {
+                    transform: scale(0);
+                    opacity: 0;
+                }
+                100% {
+                    transform: scale(1);
+                    opacity: 1;
+                }
+            }
+
+            /* Toggle Switch */
+            .switch {
+                position: relative;
+                display: inline-block;
+                width: 48px;
+                height: 24px;
+            }
+
+            .switch input {
+                opacity: 0;
+                width: 0;
+                height: 0;
+            }
+
+            .slider {
+                position: absolute;
+                cursor: pointer;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: rgba(203, 213, 225, 0.6);
+                border: 1px solid rgba(203, 213, 225, 0.8);
+                transition: 0.3s;
+                border-radius: 34px;
+            }
+
+            html.dark .slider {
+                background-color: rgba(30, 41, 59, 0.8);
+                border-color: rgba(255, 255, 255, 0.1);
+            }
+
+            .slider:before {
+                position: absolute;
+                content: "";
+                height: 16px;
+                width: 16px;
+                left: 3px;
+                bottom: 3px;
+                background-color: white;
+                box-shadow: 2px 2px 0px rgba(51, 65, 85, 0.15);
+                transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                border-radius: 50%;
+            }
+
+            html.dark .slider:before {
+                background-color: #94a3b8;
+                box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.4);
+            }
+
+            input:checked + .slider {
+                background-color: rgba(0, 230, 118, 0.3);
+                border-color: #00e676;
+            }
+
+            html.dark input:checked + .slider {
+                background-color: rgba(0, 230, 118, 0.2);
+                border-color: #00e676;
+            }
+
+            input:checked + .slider:before {
+                transform: translateX(24px);
+                background-color: #00e676;
+            }
+
+            .hidden-panel-mobile {
+                transform: translateY(100%);
+            }
+
+            @media (min-width: 768px) {
+                .hidden-panel-desktop {
+                    margin-left: -24rem;
+                }
+            }
+
+            /* Panel animations */
+            #controls {
+                transition:
+                    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                    width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+
+            #controls.collapsed {
+                transform: translateX(-100%);
+                width: 0;
+                min-width: 0;
+                padding: 0;
+                margin: 0;
+                border: none;
+                overflow: hidden;
+            }
+
+            @media (max-width: 768px) {
+                #controls {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    height: 100vh;
+                    z-index: 100;
+                    transform: translateX(-100%);
+                }
+
+                #controls.mobile-open {
+                    transform: translateX(0);
+                }
+
+                #controls.collapsed {
+                    transform: translateX(-100%);
+                    width: 85%;
+                    min-width: 300px;
+                }
+            }
+
+            /* Dynamic wheel sizing */
+            .wheels-grid {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                justify-content: center;
+                gap: 1rem;
+                width: 100%;
+                height: 100%;
+                padding: 1rem;
+            }
+
+            .wheels-grid.count-1 {
+                flex-direction: column;
+            }
+
+            .wheels-grid.count-1 .wheel-wrapper {
+                width: min(85vmin, 600px);
+                height: min(85vmin, 600px);
+            }
+
+            .wheels-grid.count-2 {
+                flex-direction: row;
+            }
+
+            .wheels-grid.count-2 .wheel-wrapper {
+                width: min(45vmin, 450px);
+                height: min(45vmin, 450px);
+            }
+
+            .wheels-grid.count-3 {
+                flex-direction: row;
+            }
+
+            .wheels-grid.count-3 .wheel-wrapper {
+                width: min(32vmin, 350px);
+                height: min(32vmin, 350px);
+            }
+
+            @media (max-width: 768px) {
+                .wheels-grid.count-2 {
+                    flex-direction: column;
+                }
+
+                .wheels-grid.count-2 .wheel-wrapper {
+                    width: min(70vmin, 350px);
+                    height: min(70vmin, 350px);
+                }
+
+                .wheels-grid.count-3 {
+                    flex-direction: column;
+                }
+
+                .wheels-grid.count-3 .wheel-wrapper {
+                    width: min(55vmin, 280px);
+                    height: min(55vmin, 280px);
+                }
+            }
+
+            .wheel-wrapper {
+                position: relative;
+                flex-shrink: 0;
+            }
+        </style>
+    </head>
+    <body class="h-screen w-screen overflow-hidden">
+        <div
+            id="toast-container"
+            class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 pointer-events-none"
+        ></div>
+
+        <div
+            class="console-frame w-full h-full relative flex z-10 rounded-none md:rounded-2xl"
+        >
+            <!-- LEFT PANEL: CONTROLS -->
+            <aside
+                id="controls"
+                class="w-80 glass-panel border-r-[1px] border-slate-300 dark:border-white/10 flex flex-col z-50 h-full shrink-0"
+            >
+                <!-- Header -->
+                <div class="p-4 border-b-[1px] border-slate-300 dark:border-white/10 bg-slate-50/50 dark:bg-slate-800/50 flex flex-col gap-3 shrink-0">
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <a href="../index.html" class="p-2 bg-white dark:bg-slate-700 border-[1px] border-slate-300 dark:border-white/10 rounded-lg text-slate-400 hover:text-blue transition-colors shadow-sm" title="Back to Home">
+                                <i data-lucide="home" class="w-4 h-4"></i>
+                            </a>
+                            <h1 class="text-xl font-heading text-dark dark:text-slate-100 tracking-wide leading-none truncate">
+                                MULTI<span class="text-pink">SPIN</span>
+                            </h1>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="toggleTheme()" class="p-2 bg-white dark:bg-slate-700 border-[1px] border-slate-300 dark:border-white/10 rounded-lg text-slate-400 hover:text-blue transition-colors shadow-sm">
+                                <i data-lucide="moon" class="w-4 h-4 hidden dark:block"></i>
+                                <i data-lucide="sun" class="w-4 h-4 block dark:hidden"></i>
+                            </button>
+                            <button onclick="togglePanel()" class="md:hidden p-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg">
+                                <i data-lucide="x" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- ACTIVE INDICATOR (Pattern 4.1) -->
+                    <div id="active-indicator" class="hidden flex items-center justify-between bg-blue/10 border-[1px] border-blue/20 rounded-xl px-3 py-2 animate-pop-in">
+                        <div class="flex items-center gap-2 overflow-hidden">
+                            <div class="w-2 h-2 rounded-full bg-blue animate-pulse"></div>
+                            <span id="active-set-name" class="text-[10px] font-black text-blue uppercase tracking-widest truncate">Editing: Unsaved Set</span>
+                        </div>
+                        <span class="text-[8px] font-bold text-blue/60 uppercase">Auto-saving</span>
+                    </div>
+                </div>
+
+                <!-- Content -->
+                <div class="flex-1 p-4 overflow-y-auto custom-scrollbar bg-transparent relative space-y-4">
+                    
+                    <!-- ACTION GRID (Pattern 4.2) -->
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="newSet()" class="btn-chunky bg-white dark:bg-slate-700 text-dark dark:text-white py-2 rounded-xl text-xs flex items-center justify-center gap-2">
+                            <i data-lucide="plus-circle" class="w-4 h-4"></i> NEW
+                        </button>
+                        <button onclick="openSaveAsModal()" class="btn-chunky bg-green text-dark py-2 rounded-xl text-xs flex items-center justify-center gap-2">
+                            <i data-lucide="save" class="w-4 h-4"></i> SAVE AS
+                        </button>
+                    </div>
+
+                    <!-- LIBRARY & SORTING (Pattern 4.3) -->
+                    <div class="shrink-0 p-3 bg-slate-50/50 dark:bg-slate-800/50 border-[1px] border-slate-300 dark:border-white/10 rounded-xl shadow-sm">
+                        <div class="flex justify-between items-center border-b-[1px] border-slate-200 dark:border-white/10 pb-2 mb-2">
+                            <label class="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                <i data-lucide="library" class="w-4 h-4 text-blue"></i>
+                                Library
+                            </label>
+                            <select id="library-sort" onchange="renderLibrary()" class="bg-transparent text-[10px] font-bold text-blue outline-none cursor-pointer">
+                                <option value="recent">Recent</option>
+                                <option value="alpha">Alpha</option>
+                                <option value="popular">Popular</option>
+                            </select>
+                        </div>
+
+                        <!-- Library List -->
+                        <div id="library-list" class="space-y-1 max-h-40 overflow-y-auto custom-scrollbar">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+
+                    <!-- WHEEL COUNT SELECTOR -->
+                    <div
+                        class="p-3 bg-slate-50/50 dark:bg-slate-800/50 border-[1px] border-slate-300 dark:border-white/10 rounded-xl shadow-sm"
+                    >
+                        <div
+                            class="flex justify-between items-center border-b-[1px] border-slate-200 dark:border-white/10 pb-2 mb-2"
+                        >
+                            <label
+                                class="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"
+                            >
+                                <i
+                                    data-lucide="layers"
+                                    class="w-4 h-4 text-blue"
+                                ></i>
+                                Wheels to Spin
+                            </label>
+                        </div>
+                        <div class="flex gap-2">
+                            <button
+                                onclick="setWheelCount(1)"
+                                id="count-1"
+                                class="wheel-count-selector flex-1 btn-chunky py-2 rounded-xl text-xs font-bold"
+                            >
+                                <i
+                                    data-lucide="circle"
+                                    class="w-4 h-4 inline mr-1"
+                                ></i>
+                                1
+                            </button>
+                            <button
+                                onclick="setWheelCount(2)"
+                                id="count-2"
+                                class="wheel-count-selector active flex-1 btn-chunky py-2 rounded-xl text-xs font-bold"
+                            >
+                                <i
+                                    data-lucide="circle-2"
+                                    class="w-4 h-4 inline mr-1"
+                                ></i>
+                                2
+                            </button>
+                            <button
+                                onclick="setWheelCount(3)"
+                                id="count-3"
+                                class="wheel-count-selector flex-1 btn-chunky py-2 rounded-xl text-xs font-bold"
+                            >
+                                <i
+                                    data-lucide="circle-3"
+                                    class="w-4 h-4 inline mr-1"
+                                ></i>
+                                3
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- BIG SPIN BUTTON -->
+                    <button
+                        id="spinBtn"
+                        onclick="spinAll()"
+                        class="w-full btn-chunky bg-gradient-to-r from-pink to-orange text-white dark:text-white py-5 rounded-xl text-lg tracking-widest flex items-center justify-center gap-3 hover:brightness-110 shadow-neo-lg group"
+                    >
+                        <i
+                            data-lucide="dices"
+                            class="w-6 h-6 group-hover:rotate-180 transition-transform duration-500"
+                        ></i>
+                        SPIN
+                    </button>
+
+                    <!-- SETTINGS -->
+                    <div
+                        class="p-3 bg-slate-50/50 dark:bg-slate-800/50 border-[1px] border-slate-300 dark:border-white/10 rounded-xl shadow-sm space-y-3"
+                    >
+                        <div
+                            class="flex justify-between items-center border-b-[1px] border-slate-200 dark:border-white/10 pb-2"
+                        >
+                            <label
+                                class="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"
+                            >
+                                <i
+                                    data-lucide="settings"
+                                    class="w-4 h-4 text-orange"
+                                ></i>
+                                Settings
+                            </label>
+                        </div>
+
+                        <div class="space-y-1">
+                            <div class="flex justify-between">
+                                <span
+                                    class="text-sm font-bold text-dark dark:text-slate-200"
+                                    >Duration</span
+                                >
+                                <span
+                                    id="duration-display"
+                                    class="text-xs font-mono font-bold text-blue bg-blue/10 px-2 py-0.5 rounded"
+                                    >5s</span
+                                >
+                            </div>
+                            <input
+                                type="range"
+                                id="duration-slider"
+                                min="2"
+                                max="10"
+                                step="0.5"
+                                value="5"
+                                oninput="updateDuration(this.value)"
+                                class="w-full accent-blue"
+                            />
+                        </div>
+
+                        <div class="flex items-center justify-between">
+                            <span
+                                class="text-sm font-bold text-dark dark:text-slate-200"
+                                >Sound</span
+                            >
+                            <label class="switch">
+                                <input
+                                    type="checkbox"
+                                    id="sound-toggle"
+                                    checked
+                                />
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- WHEEL CONFIGURATION -->
+                    <div
+                        class="p-3 bg-slate-50/50 dark:bg-slate-800/50 border-[1px] border-slate-300 dark:border-white/10 rounded-xl shadow-sm"
+                    >
+                        <div
+                            class="flex justify-between items-center border-b-[1px] border-slate-200 dark:border-white/10 pb-2 mb-2"
+                        >
+                            <label
+                                class="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2"
+                            >
+                                <i
+                                    data-lucide="sliders"
+                                    class="w-4 h-4 text-green"
+                                ></i>
+                                Configure Wheels
+                            </label>
+                        </div>
+
+                        <!-- Wheel Tabs -->
+                        <div class="flex gap-1 mb-3" id="config-tabs">
+                            <button
+                                onclick="switchConfigWheel(0)"
+                                id="config-tab-0"
+                                class="flex-1 btn-chunky bg-blue text-white py-2 rounded-lg text-xs font-bold"
+                            >
+                                Wheel A
+                            </button>
+                            <button
+                                onclick="switchConfigWheel(1)"
+                                id="config-tab-1"
+                                class="flex-1 btn-chunky bg-white dark:bg-slate-700 text-dark dark:text-slate-200 py-2 rounded-lg text-xs font-bold"
+                            >
+                                Wheel B
+                            </button>
+                            <button
+                                onclick="switchConfigWheel(2)"
+                                id="config-tab-2"
+                                class="flex-1 btn-chunky bg-white dark:bg-slate-700 text-dark dark:text-slate-200 py-2 rounded-lg text-xs font-bold hidden"
+                            >
+                                Wheel C
+                            </button>
+                        </div>
+
+                        <!-- Current Wheel Info -->
+                        <div
+                            class="mb-2 p-2 bg-white/50 dark:bg-slate-900/50 rounded-lg"
+                        >
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs text-slate-500 font-bold"
+                                    >Items</span
+                                >
+                                <span
+                                    id="current-wheel-count"
+                                    class="font-mono font-bold text-blue"
+                                    >0</span
+                                >
+                            </div>
+                        </div>
+
+                        <!-- Add Item -->
+                        <div class="flex gap-2 mb-2">
+                            <input
+                                type="text"
+                                id="option-input"
+                                placeholder="Add item..."
+                                class="flex-1 border-[1px] border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 font-bold text-dark dark:text-slate-200 text-sm bg-white/50 dark:bg-slate-900/50 focus:outline-none focus:border-blue focus:ring-1 focus:ring-blue"
+                            />
+                            <button
+                                onclick="addOption()"
+                                class="btn-chunky bg-green text-dark dark:text-dark px-3 rounded-lg"
+                            >
+                                <i data-lucide="plus" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+
+                        <!-- Batch Edit -->
+                        <button
+                            onclick="toggleBatch()"
+                            class="text-xs text-blue font-bold hover:underline mb-2"
+                        >
+                            Batch Edit
+                        </button>
+
+                        <div id="batch-container" class="hidden mb-2">
+                            <textarea
+                                id="batch-input"
+                                rows="3"
+                                class="w-full p-2 bg-white/50 dark:bg-slate-900/50 text-dark dark:text-slate-200 font-mono text-xs border-[1px] border-slate-300 dark:border-white/10 rounded-lg resize-none mb-2"
+                                placeholder="One item per line..."
+                            ></textarea>
+                            <button
+                                onclick="saveBatch()"
+                                class="w-full btn-chunky bg-dark text-white py-2 rounded-lg text-xs"
+                            >
+                                Update Wheel
+                            </button>
+                        </div>
+
+                        <!-- Items List -->
+                        <div
+                            id="items-list"
+                            class="flex flex-wrap gap-1 max-h-32 overflow-y-auto custom-scrollbar"
+                        >
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div
+                    class="p-3 border-t-[1px] border-slate-300 dark:border-white/10 bg-slate-50/50 dark:bg-slate-800/50 flex justify-between items-center shrink-0"
+                >
+                    <div class="flex items-center gap-2">
+                        <button
+                            onclick="clearCurrentWheel()"
+                            class="p-2 bg-white dark:bg-slate-700 border-[1px] border-slate-300 dark:border-white/10 rounded-lg text-slate-400 hover:text-pink transition-colors"
+                        >
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                    <div
+                        class="font-heading font-black text-slate-400 text-xs uppercase tracking-wider"
+                    >
+                        TOTAL: <span id="total-items" class="text-blue">0</span>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- MAIN DISPLAY AREA -->
+            <main
+                id="main-area"
+                class="flex-1 relative h-full bg-slate-50/50 dark:bg-slate-900/50 flex flex-col overflow-hidden transition-colors duration-300"
+            >
+                <!-- Toggle Panel Button -->
+                <button
+                    id="panel-toggle"
+                    onclick="togglePanel()"
+                    class="absolute top-4 left-4 z-30 p-2 glass-panel border-[1px] border-slate-300 dark:border-white/10 rounded-xl shadow-neo-sm hover:translate-y-[-2px] transition-transform text-slate-500 hover:text-dark dark:hover:text-slate-200"
+                >
+                    <i data-lucide="panel-left-close" class="w-5 h-5"></i>
+                </button>
+
+                <!-- Show Panel Button (when collapsed) -->
+                <button
+                    id="show-panel-btn"
+                    onclick="togglePanel()"
+                    class="hidden absolute top-4 left-4 z-30 p-2 glass-panel border-[1px] border-slate-300 dark:border-white/10 rounded-xl shadow-neo-sm hover:translate-y-[-2px] transition-transform text-slate-500 hover:text-dark dark:hover:text-slate-200"
+                >
+                    <i data-lucide="panel-left-open" class="w-5 h-5"></i>
+                </button>
+
+                <!-- Wheels Display - Dynamic sizing -->
+                <div class="flex-1 flex items-center justify-center p-4 md:p-8">
+                    <div id="wheels-container" class="wheels-grid count-1">
+                        <!-- Wheels generated by JS -->
+                    </div>
+                </div>
+            </main>
+
+            <!-- WINNER MODAL -->
+            <div
+                id="winner-modal"
+                class="winner-modal fixed inset-0 z-[100] hidden flex items-center justify-center p-4"
+            >
+                <div
+                    class="winner-card w-full max-w-lg p-6 md:p-8 rounded-3xl text-center relative"
+                >
+                    <button
+                        onclick="closeWinnerModal()"
+                        class="absolute top-4 right-4 text-slate-400 hover:text-dark dark:hover:text-slate-200"
+                    >
+                        <i data-lucide="x" class="w-6 h-6"></i>
+                    </button>
+
+                    <div class="mb-4 flex justify-center">
+                        <div
+                            class="w-16 h-16 md:w-20 md:h-20 bg-green/10 rounded-full flex items-center justify-center border-4 border-green text-green animate-bounce"
+                        >
+                            <i
+                                data-lucide="trophy"
+                                class="w-8 h-8 md:w-10 md:h-10"
+                            ></i>
+                        </div>
+                    </div>
+
+                    <h2
+                        class="text-xs font-black text-slate-400 uppercase tracking-widest mb-4"
+                    >
+                        Results
+                    </h2>
+
+                    <div id="results-container" class="space-y-3 mb-6">
+                        <!-- Results populated by JS -->
+                    </div>
+
+                    <div class="flex gap-3">
+                        <button
+                            onclick="closeWinnerModal()"
+                            class="flex-1 btn-chunky bg-blue text-white py-3 rounded-xl font-bold"
+                        >
+                            Spin Again
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+        // Universal Slides/Sets Management Pattern Implementation
+        const appState = {
+            data: {
+                name: "",
+                wheels: [
+                    { name: "Wheel A", label: "Category A", options: ["Option 1", "Option 2", "Option 3"] },
+                    { name: "Wheel B", label: "Category B", options: ["Choice A", "Choice B", "Choice C"] },
+                    { name: "Wheel C", label: "Category C", options: ["Red", "Green", "Blue"] }
+                ],
+                activeWheelCount: 1,
+                history: [],
+                totalSpins: 0,
+            },
+            activeId: null
+        };
+
+        const STORAGE_KEY = "multispin_library_v2";
+        const PALETTE = ["#FF6B95", "#FF8C42", "#00E676", "#2979FF", "#7C4DFF", "#FFD700", "#00BCD4", "#E91E63"];
+
+        // State for rendering
+        let wheelStates = [
+            { startAngle: 0, arc: 0, isSpinning: false, lastTickIndex: -1 },
+            { startAngle: 0, arc: 0, isSpinning: false, lastTickIndex: -1 },
+            { startAngle: 0, arc: 0, isSpinning: false, lastTickIndex: -1 }
+        ];
+
+        let currentConfigWheel = 0;
+        let spinDuration = 5;
+        let isMuted = false;
+        let audioInitialized = false;
+        let synth, winSynth;
+        let panelOpen = true;
+
+        // Persistence Helpers
+        function getLibrary() {
+            const data = localStorage.getItem(STORAGE_KEY);
+            return data ? JSON.parse(data) : [];
+        }
+
+        function saveLibrary(library) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(library));
+            saveProgress(STORAGE_KEY, library).catch(console.error);
+        }
+
+        function onContentChange() {
+            updateSessionPersistence();
+            
+            if (appState.activeId) {
+                const library = getLibrary();
+                const index = library.findIndex(item => item.id === appState.activeId);
+                if (index !== -1) {
+                    library[index] = {
+                        ...library[index],
+                        name: appState.data.name,
+                        wheels: JSON.parse(JSON.stringify(appState.data.wheels)),
+                        activeWheelCount: appState.data.activeWheelCount,
+                        history: [...appState.data.history],
+                        totalSpins: appState.data.totalSpins,
+                        lastUsed: Date.now()
+                    };
+                    saveLibrary(library);
+                }
+            }
+        }
+
+        function updateSessionPersistence() {
+            localStorage.setItem('multispin_session', JSON.stringify(appState.data));
+            localStorage.setItem('multispin_activeId', appState.activeId);
+        }
+
+        // Lifecycle Workflows
+        function newSet() {
+            appState.data = {
+                name: "",
+                wheels: [
+                    { name: "Wheel A", label: "Category A", options: [] },
+                    { name: "Wheel B", label: "Category B", options: [] },
+                    { name: "Wheel C", label: "Category C", options: [] }
+                ],
+                activeWheelCount: 1,
+                history: [],
+                totalSpins: 0
+            };
+            appState.activeId = null;
+            updateUI();
+            renderLibrary();
+            showToast("New workspace ready", "info");
+        }
+
+        function openSaveAsModal() {
+            const name = prompt("Enter a name for this multi-spin set:", appState.data.name || "");
+            if (name === null) return;
+            if (!name.trim()) {
+                showToast("Name is required", "error");
+                return;
+            }
+            saveAsNew(name.trim());
+        }
+
+        function saveAsNew(name) {
+            const library = getLibrary();
+            const newId = Date.now();
+            const newEntry = {
+                id: newId,
+                name: name,
+                wheels: JSON.parse(JSON.stringify(appState.data.wheels)),
+                activeWheelCount: appState.data.activeWheelCount,
+                history: [...appState.data.history],
+                totalSpins: appState.data.totalSpins,
+                createdAt: Date.now(),
+                lastUsed: Date.now(),
+                usageCount: 1
+            };
+            library.push(newEntry);
+            saveLibrary(library);
+            
+            appState.activeId = newId;
+            appState.data.name = name;
+            
+            renderLibrary();
+            updateActiveIndicator();
+            showToast(`Saved as "${name}"`, "success");
+        }
+
+        function loadSet(id) {
+            const library = getLibrary();
+            const item = library.find(i => i.id === id);
+            if (!item) return;
+
+            item.usageCount = (item.usageCount || 0) + 1;
+            item.lastUsed = Date.now();
+            saveLibrary(library);
+
+            appState.activeId = id;
+            appState.data = {
+                name: item.name,
+                wheels: JSON.parse(JSON.stringify(item.wheels)),
+                activeWheelCount: item.activeWheelCount || 2,
+                history: [...(item.history || [])],
+                totalSpins: item.totalSpins || 0
+            };
+
+            updateUI();
+            renderLibrary();
+            showToast(`Loaded ${item.name}`, "info");
+        }
+
+        function deleteLibraryItem(id, event) {
+            if (event) event.stopPropagation();
+            if (!confirm("Are you sure you want to delete this set?")) return;
+
+            let library = getLibrary();
+            library = library.filter(i => i.id !== id);
+            saveLibrary(library);
+
+            if (appState.activeId === id) {
+                newSet();
+            } else {
+                renderLibrary();
+            }
+            showToast("Set deleted", "info");
+        }
+
+        // UI Updates
+        function updateUI() {
+            updateActiveIndicator();
+            updateWheelCountUI();
+            updateConfigTabs();
+            renderItemsList();
+            updateHistoryDisplay();
+            updateStats();
+            
+            document.getElementById("duration-display").textContent = spinDuration + "s";
+            document.getElementById("duration-slider").value = spinDuration;
+        }
+
+        function updateActiveIndicator() {
+            const indicator = document.getElementById("active-indicator");
+            const nameEl = document.getElementById("active-set-name");
+            
+            if (appState.activeId) {
+                indicator.classList.remove("hidden");
+                nameEl.textContent = `Editing: ${appState.data.name}`;
+            } else {
+                indicator.classList.add("hidden");
+            }
+        }
+
+        function renderLibrary() {
+            const list = document.getElementById("library-list");
+            const sortBy = document.getElementById("library-sort").value;
+            let library = getLibrary();
+
+            if (library.length === 0) {
+                list.innerHTML = '<p class="text-[10px] text-slate-400 text-center py-4 italic">Library is empty</p>';
+                return;
+            }
+
+            if (sortBy === "recent") library.sort((a, b) => b.lastUsed - a.lastUsed);
+            else if (sortBy === "alpha") library.sort((a, b) => a.name.localeCompare(b.name));
+            else if (sortBy === "popular") library.sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0));
+
+            list.innerHTML = library.map(item => `
+                <div onclick="loadSet(${item.id})" class="group flex items-center justify-between p-2 rounded-xl border-[1px] cursor-pointer transition-all ${appState.activeId === item.id ? 'bg-blue/10 border-blue/30' : 'border-transparent hover:bg-slate-100 dark:hover:bg-slate-800'}">
+                    <div class="flex items-center gap-2 overflow-hidden">
+                        <div class="w-7 h-7 rounded-lg bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-black text-slate-500 shrink-0">
+                            ${item.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div class="flex flex-col overflow-hidden">
+                            <span class="text-xs font-bold truncate text-dark dark:text-slate-200">${item.name}</span>
+                            <span class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">${item.wheels.filter(w => w.options.length > 0).length} Active Wheels</span>
+                        </div>
+                    </div>
+                    <button onclick="deleteLibraryItem(${item.id}, event)" class="p-1.5 text-slate-300 hover:text-pink opacity-0 group-hover:opacity-100 transition-all">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            `).join("");
+            
+            lucide.createIcons();
+        }
+
+        // Theme & Panel
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.toggle("dark");
+            localStorage.setItem("theme_spin-the-wheel", isDark ? "dark" : "light");
+            lucide.createIcons();
+            for (let i = 0; i < 3; i++) drawWheel(i);
+        }
+
+        function loadTheme() {
+            const saved = localStorage.getItem("theme_spin-the-wheel");
+            if (saved === "dark" || (!saved && window.matchMedia("(prefers-color-scheme: dark)").matches))
+                document.documentElement.classList.add("dark");
+        }
+
+        function togglePanel() {
+            const controls = document.getElementById("controls");
+            const isMobile = window.innerWidth < 768;
+            panelOpen = !panelOpen;
+
+            if (isMobile) {
+                controls.classList.toggle("mobile-open", panelOpen);
+            } else {
+                controls.classList.toggle("collapsed", !panelOpen);
+            }
+            setTimeout(() => { for (let i = 0; i < 3; i++) drawWheel(i); }, 350);
+        }
+
+        // Toast
+        function showToast(message, type = "info") {
+            const container = document.getElementById("toast-container");
+            const toast = document.createElement("div");
+            const colors = { success: "bg-green text-dark border-green", error: "bg-pink text-white border-pink", info: "bg-blue text-white border-blue" };
+            toast.className = `${colors[type]} px-4 py-3 rounded-xl shadow-neo border-[1px] font-bold text-sm flex items-center gap-2 transform transition-all duration-300 translate-y-[-20px] opacity-0`;
+            toast.innerHTML = `<i data-lucide="${type === "success" ? "check-circle" : type === "error" ? "x-circle" : "info"}" class="w-4 h-4"></i> ${message}`;
+            container.appendChild(toast);
+            lucide.createIcons();
+            requestAnimationFrame(() => toast.classList.remove("translate-y-[-20px]", "opacity-0"));
+            setTimeout(() => { toast.classList.add("translate-y-[-20px]", "opacity-0"); setTimeout(() => toast.remove(), 300); }, 2500);
+        }
+
+        // Wheel Logic
+        function setWheelCount(count) {
+            appState.data.activeWheelCount = count;
+            updateWheelCountUI();
+            updateConfigTabs();
+            onContentChange();
+        }
+
+        function updateWheelCountUI() {
+            const count = appState.data.activeWheelCount;
+            for (let i = 1; i <= 3; i++) {
+                const btn = document.getElementById(`count-${i}`);
+                if (btn) {
+                    if (i === count) btn.classList.add("active");
+                    else btn.classList.remove("active");
+                }
+            }
+            const container = document.getElementById("wheels-container");
+            if (container) {
+                container.className = `wheels-grid count-${count}`;
+                renderWheels();
+            }
+        }
+
+        function renderWheels() {
+            const container = document.getElementById("wheels-container");
+            if (!container) return;
+            
+            const count = appState.data.activeWheelCount;
+            container.innerHTML = "";
+
+            for (let i = 0; i < count; i++) {
+                const wheelDiv = document.createElement("div");
+                wheelDiv.className = "wheel-wrapper";
+                wheelDiv.innerHTML = `
+                    <div class="wheel-container w-full h-full">
+                        <div class="wheel-pointer"></div>
+                        <canvas id="wheel-canvas-${i}" class="wheel-canvas w-full h-full"></canvas>
+                        <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 bg-white dark:bg-slate-800 border-[1px] border-slate-300 dark:border-white/10 rounded-full shadow-neo flex items-center justify-center z-10">
+                            <span class="font-heading font-bold text-dark dark:text-white text-xs md:text-sm">${String.fromCharCode(65 + i)}</span>
+                        </div>
+                    </div>
+                    <div class="wheel-label">${appState.data.wheels[i].label || appState.data.wheels[i].name}</div>
+                `;
+                container.appendChild(wheelDiv);
+                
+                // Draw after it's in the DOM
+                requestAnimationFrame(() => drawWheel(i));
+            }
+            lucide.createIcons();
+        }
+
+        function updateConfigTabs() {
+            const count = appState.data.activeWheelCount;
+            for (let i = 0; i < 3; i++) {
+                const tab = document.getElementById(`config-tab-${i}`);
+                if (tab) tab.classList.toggle("hidden", i >= count);
+            }
+            if (currentConfigWheel >= count) switchConfigWheel(0);
+        }
+
+        function switchConfigWheel(index) {
+            currentConfigWheel = index;
+            for (let i = 0; i < 3; i++) {
+                const tab = document.getElementById(`config-tab-${i}`);
+                if (tab) {
+                    if (i === index) tab.classList.add("bg-blue", "text-white");
+                    else {
+                        tab.classList.remove("bg-blue", "text-white");
+                        tab.classList.add("bg-white", "dark:bg-slate-700", "text-dark", "dark:text-slate-200");
+                    }
+                }
+            }
+            renderItemsList();
+        }
+
+        function drawWheel(index) {
+            const canvas = document.getElementById(`wheel-canvas-${index}`);
+            if (!canvas) return;
+            const ctx = canvas.getContext("2d");
+            const options = appState.data.wheels[index].options;
+            const state = wheelStates[index];
+
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = 600 * dpr;
+            canvas.height = 600 * dpr;
+            ctx.scale(dpr, dpr);
+
+            const cx = 300;
+            const cy = 300;
+            const outsideRadius = 280;
+            const textRadius = 190;
+
+            ctx.clearRect(0, 0, 600, 600);
+            state.arc = (Math.PI * 2) / (options.length || 1);
+
+            if (options.length === 0) {
+                ctx.beginPath();
+                ctx.arc(cx, cy, outsideRadius, 0, 2 * Math.PI);
+                ctx.fillStyle = document.documentElement.classList.contains("dark") ? "#1E293B" : "#F1F5F9";
+                ctx.fill();
+                ctx.font = '700 24px "Fredoka"';
+                ctx.fillStyle = "#94A3B8";
+                ctx.textAlign = "center";
+                ctx.fillText("EMPTY", cx, cy);
+                return;
+            }
+
+            for (let i = 0; i < options.length; i++) {
+                const angle = state.startAngle + i * state.arc;
+                ctx.fillStyle = PALETTE[i % PALETTE.length];
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.arc(cx, cy, outsideRadius, angle, angle + state.arc, false);
+                ctx.lineTo(cx, cy);
+                ctx.fill();
+
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = "#0F172A";
+                ctx.stroke();
+
+                ctx.save();
+                ctx.fillStyle = "#FFFFFF";
+                ctx.translate(cx + Math.cos(angle + state.arc / 2) * textRadius, cy + Math.sin(angle + state.arc / 2) * textRadius);
+                ctx.rotate(angle + state.arc / 2);
+                const text = options[i];
+                ctx.font = '700 24px "Nunito"';
+                ctx.textAlign = "right";
+                ctx.fillText(text, 50, 10);
+                ctx.restore();
+            }
+        }
+
+        async function spinAll() {
+            if (wheelStates.some(s => s.isSpinning)) return;
+            const count = appState.data.activeWheelCount;
+            for (let i = 0; i < count; i++) {
+                if (appState.data.wheels[i].options.length < 2) {
+                    showToast(`Wheel ${String.fromCharCode(65 + i)} needs at least 2 items!`, "error");
+                    return;
+                }
+            }
+
+            await initAudio();
+            const btn = document.getElementById("spinBtn");
+            btn.disabled = true;
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-6 h-6 animate-spin"></i> SPINNING...`;
+            lucide.createIcons();
+
+            const spinPromises = [];
+            for (let i = 0; i < count; i++) {
+                wheelStates[i].isSpinning = true;
+                spinPromises.push(spinWheel(i));
+            }
+
+            await Promise.all(spinPromises);
+            showResults();
+            btn.disabled = false;
+            btn.innerHTML = `<i data-lucide="dices" class="w-6 h-6"></i> SPIN`;
+            lucide.createIcons();
+        }
+
+        function spinWheel(index) {
+            return new Promise((resolve) => {
+                const state = wheelStates[index];
+                const durationMs = spinDuration * 1000;
+                const extraSpins = 3 + Math.random() * 3;
+                const randomAngle = Math.random() * 360;
+                const startTime = performance.now();
+
+                function animate(currentTime) {
+                    const elapsed = currentTime - startTime;
+                    if (elapsed >= durationMs) {
+                        state.isSpinning = false;
+                        resolve();
+                        return;
+                    }
+                    const spinAngle = extraSpins * 360 * easeOut(elapsed, 0, 1, durationMs);
+                    state.startAngle = ((spinAngle + randomAngle) * Math.PI) / 180;
+                    drawWheel(index);
+
+                    const degrees = (state.startAngle * 180) / Math.PI + 90;
+                    const currentIndex = Math.floor((360 - (degrees % 360)) / ((state.arc * 180) / Math.PI));
+                    if (currentIndex !== state.lastTickIndex) {
+                        playTick();
+                        state.lastTickIndex = currentIndex;
+                    }
+                    requestAnimationFrame(animate);
+                }
+                state.lastTickIndex = -1;
+                requestAnimationFrame(animate);
+            });
+        }
+
+        function easeOut(t, b, c, d) {
+            const ts = (t /= d) * t;
+            const tc = ts * t;
+            return b + c * (tc + -3 * ts + 3 * t);
+        }
+
+        function showResults() {
+            const count = appState.data.activeWheelCount;
+            const winners = [];
+            for (let i = 0; i < count; i++) {
+                const state = wheelStates[i];
+                const degrees = (state.startAngle * 180) / Math.PI + 90;
+                const arcd = (state.arc * 180) / Math.PI;
+                const index = Math.floor((360 - (degrees % 360)) / arcd) % appState.data.wheels[i].options.length;
+                winners.push({
+                    wheelIndex: i,
+                    item: appState.data.wheels[i].options[index],
+                    color: PALETTE[index % PALETTE.length],
+                    label: appState.data.wheels[i].label
+                });
+            }
+
+            playWinSound();
+            confetti({ particleCount: 200, spread: 70, origin: { y: 0.6 }, colors: PALETTE });
+
+            const container = document.getElementById("results-container");
+            container.innerHTML = winners.map((w, i) => `
+                <div class="result-item flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border-[1px] border-slate-200 dark:border-white/10" style="animation-delay: ${i * 0.1}s">
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-neo flex-shrink-0" style="background-color: ${w.color}">
+                        ${String.fromCharCode(65 + w.wheelIndex)}
+                    </div>
+                    <div class="flex-1 text-left">
+                        <p class="text-xs text-slate-400 font-bold uppercase">${w.label || 'Wheel ' + String.fromCharCode(65+w.wheelIndex)}</p>
+                        <p class="text-lg font-heading font-bold text-dark dark:text-white">${w.item}</p>
+                    </div>
+                </div>
+            `).join("");
+
+            const modal = document.getElementById("winner-modal");
+            modal.classList.remove("hidden");
+            requestAnimationFrame(() => modal.classList.add("active"));
+
+            appState.data.totalSpins++;
+            appState.data.history.unshift({ winners, timestamp: Date.now() });
+            onContentChange();
+            updateHistoryDisplay();
+            updateStats();
+        }
+
+        function closeWinnerModal() {
+            const modal = document.getElementById("winner-modal");
+            modal.classList.remove("active");
+            setTimeout(() => modal.classList.add("hidden"), 300);
+        }
+
+        // Configuration
+        function renderItemsList() {
+            const list = document.getElementById("items-list");
+            const options = appState.data.wheels[currentConfigWheel].options;
+            const el = document.getElementById("current-wheel-count");
+            if (el) el.textContent = options.length;
+
+            if (list) {
+                list.innerHTML = options.map((opt, i) => `
+                    <div class="flex items-center gap-1 bg-white dark:bg-slate-800 border-[1px] border-slate-300 dark:border-white/10 rounded px-2 py-1 text-xs font-bold text-dark dark:text-slate-200 shadow-neo-sm">
+                        <div class="w-2 h-2 rounded-full" style="background-color: ${PALETTE[i % PALETTE.length]}"></div>
+                        <span class="truncate max-w-[80px]">${opt}</span>
+                        <button onclick="removeOption(${i})" class="ml-1 text-slate-400 hover:text-pink">
+                            <i data-lucide="x" class="w-3 h-3"></i>
+                        </button>
+                    </div>
+                `).join("");
+            }
+            lucide.createIcons();
+            
+            const total = appState.data.wheels.reduce((sum, w) => sum + w.options.length, 0);
+            const totalEl = document.getElementById("total-items");
+            if (totalEl) totalEl.textContent = total;
+        }
+
+        function addOption() {
+            const input = document.getElementById("option-input");
+            const val = input.value.trim();
+            if (!val) return;
+            appState.data.wheels[currentConfigWheel].options.push(val);
+            input.value = "";
+            onContentChange();
+            renderItemsList();
+            drawWheel(currentConfigWheel);
+        }
+
+        function removeOption(index) {
+            appState.data.wheels[currentConfigWheel].options.splice(index, 1);
+            onContentChange();
+            renderItemsList();
+            drawWheel(currentConfigWheel);
+        }
+
+        function toggleBatch() {
+            const container = document.getElementById("batch-container");
+            const input = document.getElementById("batch-input");
+            if (container) {
+                if (container.classList.contains("hidden")) {
+                    if (input) input.value = appState.data.wheels[currentConfigWheel].options.join("\n");
+                    container.classList.remove("hidden");
+                } else container.classList.add("hidden");
+            }
+        }
+
+        function saveBatch() {
+            const input = document.getElementById("batch-input");
+            if (input) {
+                appState.data.wheels[currentConfigWheel].options = input.value.split(/[\n,]+/).map(s => s.trim()).filter(s => s.length > 0);
+                onContentChange();
+                toggleBatch();
+                renderItemsList();
+                drawWheel(currentConfigWheel);
+            }
+        }
+
+        function updateDuration(val) {
+            spinDuration = parseFloat(val);
+            const el = document.getElementById("duration-display");
+            if (el) el.textContent = spinDuration + "s";
+        }
+
+        // Audio
+        async function initAudio() {
+            if (audioInitialized || isMuted) return;
+            await Tone.start();
+            synth = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 2, oscillator: { type: "sine" }, envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.01 }, volume: -10 }).toDestination();
+            winSynth = new Tone.PolySynth(Tone.Synth, { volume: -5, oscillator: { type: "triangle" }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 1 } }).toDestination();
+            audioInitialized = true;
+        }
+
+        function playTick() { 
+            if (!isMuted && synth) {
+                try { synth.triggerAttackRelease("C2", "32n", Tone.now()); } catch (e) {}
+            }
+        }
+        function playWinSound() { 
+            if (!isMuted && winSynth) { 
+                try {
+                    const now = Tone.now() + 0.05; 
+                    winSynth.triggerAttackRelease(["C4", "E4", "G4"], "8n", now); 
+                    winSynth.triggerAttackRelease(["E4", "G4", "C5"], "8n", now + 0.1); 
+                    winSynth.triggerAttackRelease(["G4", "C5", "E5"], "2n", now + 0.2); 
+                } catch (e) {}
+            } 
+        }
+
+        // History
+        function updateHistoryDisplay() {
+            const list = document.getElementById("history-list");
+            const countEl = document.getElementById("history-count");
+            if (countEl) countEl.textContent = `${appState.data.history.length} spin${appState.data.history.length !== 1 ? "s" : ""}`;
+            if (!list) return;
+            if (appState.data.history.length === 0) {
+                list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 italic">No spins yet...</p>';
+                return;
+            }
+            list.innerHTML = appState.data.history.slice(0, 20).map(h => `
+                <div class="flex items-center gap-2 p-2 bg-white/50 dark:bg-slate-800/50 rounded-lg border-[1px] border-slate-200 dark:border-white/10">
+                    <div class="flex-1">
+                        <p class="font-bold text-[10px] text-dark dark:text-slate-200 truncate">${h.winners.map(w => w.item).join(" • ")}</p>
+                        <p class="text-[8px] text-slate-400">${new Date(h.timestamp).toLocaleTimeString()}</p>
+                    </div>
+                </div>
+            `).join("");
+        }
+
+        function updateStats() { 
+            const el = document.getElementById("total-spins");
+            if (el) el.textContent = appState.data.totalSpins; 
+        }
+        function clearHistory() { if (!confirm("Clear history?")) return; appState.data.history = []; appState.data.totalSpins = 0; onContentChange(); updateHistoryDisplay(); updateStats(); }
+
+        // Migration
+        async function migrateLegacyData() {
+            const MIGRATED_KEY = 'multispin_migrated_v2';
+            if (localStorage.getItem(MIGRATED_KEY)) return;
+
+            // Local Migration
+            try {
+                const raw = localStorage.getItem('multispin-data');
+                if (raw) {
+                    const data = JSON.parse(raw);
+                    if (data && data.wheels) {
+                        const library = getLibrary();
+                        const name = "Legacy Multi-Spin";
+                        if (!library.some(l => l.name === name)) {
+                            library.push({
+                                id: Date.now(),
+                                name: name,
+                                wheels: data.wheels,
+                                activeWheelCount: data.wheelCount || 2,
+                                history: [],
+                                totalSpins: 0,
+                                createdAt: Date.now(),
+                                lastUsed: Date.now(),
+                                usageCount: 1
+                            });
+                            saveLibrary(library);
+                            renderLibrary();
+                        }
+                    }
+                }
+            } catch (e) {}
+
+            // Cloud Migration
+            try {
+                const cloudData = await loadProgress('multispin_wheel_data');
+                if (cloudData && cloudData.wheels) {
+                    const library = getLibrary();
+                    const name = "Cloud Legacy Multi-Spin";
+                    if (!library.some(l => l.name === name)) {
+                        library.push({
+                            id: Date.now() + 1,
+                            name: name,
+                            wheels: cloudData.wheels,
+                            activeWheelCount: cloudData.wheelCount || 2,
+                            history: [],
+                            totalSpins: 0,
+                            createdAt: Date.now(),
+                            lastUsed: Date.now(),
+                            usageCount: 1
+                        });
+                        saveLibrary(library);
+                        renderLibrary();
+                    }
+                }
+            } catch (e) {}
+
+            localStorage.setItem(MIGRATED_KEY, 'true');
+        }
+
+        // Init
+        async function init() {
+            await requireAuth();
+            loadTheme();
+
+            // Initial Cloud Sync
+            if (getLibrary().length === 0) {
+                const cloudLibrary = await loadProgress(STORAGE_KEY);
+                if (cloudLibrary) {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudLibrary));
+                }
+            }
+
+            await migrateLegacyData();
+            const savedActiveId = localStorage.getItem('multispin_activeId');
+            if (savedActiveId && savedActiveId !== "null") loadSet(parseInt(savedActiveId));
+            else {
+                const session = localStorage.getItem('multispin_session');
+                if (session) { appState.data = JSON.parse(session); updateUI(); }
+                else newSet();
+            }
+            renderLibrary();
+            const st = document.getElementById("sound-toggle");
+            if (st) st.addEventListener("change", (e) => { isMuted = !e.target.checked; if (!isMuted && !audioInitialized) initAudio(); });
+            window.addEventListener("resize", () => { for (let i = 0; i < 3; i++) drawWheel(i); });
+        }
+
+        window.onload = init;
+        </script>
+    </body>
+</html>

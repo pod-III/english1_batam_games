@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+
+<head>
+    <!-- Supabase Auth -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/supabase.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Team Picker</title>
+    <link rel="icon" type="image/x-icon" href="../../../media/icon.ico" />
+    <link rel="icon" type="image/webp" href="../../../media/icon.webp" />
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        heading: ['Fredoka', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                    },
+                    colors: {
+                        pink: '#FF6B95',
+                        orange: '#FF8C42',
+                        green: '#00E676',
+                        blue: '#2979FF',
+                        purple: '#7C4DFF',
+                        dark: '#0f172a',
+                        chalk: '#f8fafc',
+                    },
+                    boxShadow: {
+                        'neo': '4px 4px 0px 0px rgba(51,65,85,0.15)',
+                        'neo-sm': '2px 2px 0px 0px rgba(51,65,85,0.15)',
+                        'neo-lg': '8px 8px 0px 0px rgba(51,65,85,0.15)',
+                    },
+                    animation: {
+                        'slide-up-fade': 'slideUpFade 0.3s ease-out forwards',
+                    },
+                    keyframes: {
+                        slideUpFade: {
+                            '0%': { transform: 'translateY(16px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' },
+                        },
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        * { box-sizing: border-box; }
+        html, body { margin:0; padding:0; height:100vh; width:100vw; overflow:hidden; }
+        body {
+            font-family: 'Nunito', sans-serif;
+            background-color: #f8fafc;
+            background-image: linear-gradient(#e2e8f0 1.5px, transparent 1.5px), linear-gradient(90deg, #e2e8f0 1.5px, transparent 1.5px);
+            background-size: 30px 30px;
+            color: #1e293b;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        html.dark body {
+            background-color: #020617;
+            background-image: linear-gradient(#0f172a 1.5px, transparent 1.5px), linear-gradient(90deg, #0f172a 1.5px, transparent 1.5px);
+            color: #e2e8f0;
+        }
+
+        .glass-panel { background: rgba(255,255,255,0.85); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
+        html.dark .glass-panel { background: rgba(15,23,42,0.8); border-color: rgba(255,255,255,0.1); }
+
+        .console-frame {
+            background: rgba(255,255,255,0.6); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(203,213,225,0.6); border-radius: 1.5rem;
+            box-shadow: 8px 8px 0px rgba(51,65,85,0.15); overflow: hidden; transition: all 0.3s ease;
+        }
+        html.dark .console-frame { background: rgba(15,23,42,0.8); border-color: rgba(255,255,255,0.1); box-shadow: 8px 8px 0px rgba(0,0,0,0.4); }
+
+        .btn-chunky {
+            transition: all 0.2s cubic-bezier(0.175,0.885,0.32,1.275); transform: translateY(0); position: relative;
+            border: 1px solid rgba(203,213,225,0.6); box-shadow: 4px 4px 0 rgba(51,65,85,0.15);
+            font-family: 'Fredoka', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        html.dark .btn-chunky { border-color: rgba(255,255,255,0.1); box-shadow: 4px 4px 0 rgba(0,0,0,0.4); background-color: rgba(30,41,59,0.8); color: #e2e8f0; }
+        .btn-chunky:hover:not(:disabled) { transform: translate(-2px,-2px); box-shadow: 6px 6px 0 rgba(51,65,85,0.15); filter: brightness(105%); }
+        html.dark .btn-chunky:hover:not(:disabled) { box-shadow: 6px 6px 0 rgba(0,0,0,0.4); }
+        .btn-chunky:active:not(:disabled) { transform: translate(2px,2px); box-shadow: 2px 2px 0 rgba(51,65,85,0.15) !important; }
+        html.dark .btn-chunky:active:not(:disabled) { box-shadow: 2px 2px 0 rgba(0,0,0,0.4) !important; }
+        .btn-chunky:disabled { opacity:0.5; cursor:not-allowed; transform:translateY(2px); box-shadow:0 0 0 rgba(51,65,85,0.15); filter:grayscale(100%); }
+
+        .custom-scrollbar::-webkit-scrollbar { width:6px; height:6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background:transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background:rgba(203,213,225,0.6); border-radius:10px; border:2px solid transparent; background-clip:content-box; }
+        html.dark .custom-scrollbar::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.2); }
+
+        .card-enter { animation: slideUp 0.4s cubic-bezier(0.175,0.885,0.32,1.275) forwards; opacity:0; transform:translateY(20px); }
+        .name-enter { animation: popIn 0.3s cubic-bezier(0.175,0.885,0.32,1.275) forwards; opacity:0; transform:scale(0.9); }
+        @keyframes slideUp { to { opacity:1; transform:translateY(0); } }
+        @keyframes popIn { to { opacity:1; transform:scale(1); } }
+
+        .student-row.is-absent { opacity:0.4; }
+        .student-row.is-absent .student-name-text { text-decoration:line-through; }
+
+        .btn-press { transition: transform 0.08s, box-shadow 0.08s; }
+        .btn-press:active { transform: translate(2px,2px); box-shadow: none !important; }
+
+        #controls, #roster-panel { transition: transform 0.3s cubic-bezier(0.4,0,0.2,1), width 0.3s cubic-bezier(0.4,0,0.2,1); }
+        #controls.collapsed { transform:translateX(-100%); width:0; min-width:0; padding:0; margin:0; border:none; overflow:hidden; }
+        #roster-panel.collapsed { transform:translateX(100%); width:0; min-width:0; padding:0; margin:0; border:none; overflow:hidden; }
+        
+        @media (max-width:1280px) {
+            #controls, #roster-panel { position:fixed; top:0; height:100vh; z-index:100; width:288px; }
+            #controls { left:0; transform:translateX(-100%); }
+            #roster-panel { right:0; transform:translateX(100%); }
+            #controls.mobile-open { transform:translateX(0); }
+            #roster-panel.mobile-open { transform:translateX(0); }
+            #controls.collapsed, #roster-panel.collapsed { width:288px; }
+        }
+    </style>
+
+    <link rel="stylesheet" href="../../../css/base.css" />
+    <link rel="stylesheet" href="../../../css/components.css" />
+    <script>
+        window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
+</head>
+
+<body class="h-screen w-screen overflow-hidden">
+    <div id="toast-container" class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 pointer-events-none"></div>
+
+    <div class="console-frame w-full h-full relative flex z-10 rounded-none md:rounded-2xl">
+        
+        <!-- LEFT PANEL: SETUP -->
+        <aside id="controls" class="w-72 glass-panel border-r-[1px] border-slate-300 dark:border-white/10 flex flex-col z-50 h-full shrink-0">
+            <div class="p-4 border-b-[1px] border-slate-300 dark:border-white/10 bg-slate-50/50 dark:bg-slate-800/50 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-3 flex-1 min-w-0">
+                    <div class="flex-1 min-w-0">
+                        <h1 class="text-xl font-heading text-dark dark:text-slate-100 tracking-wide leading-none truncate">
+                            TEAM<span class="text-blue">PICKER</span>
+                        </h1>
+                        <div class="flex items-center gap-2 mt-1">
+                            <button onclick="toggleTheme()" class="px-2 py-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-[10px] font-bold rounded flex items-center gap-1 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors">
+                                <i data-lucide="moon" class="w-3 h-3 hidden dark:block"></i>
+                                <i data-lucide="sun" class="w-3 h-3 block dark:hidden"></i>
+                            </button>
+                            <span class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Setup</span>
+                        </div>
+                    </div>
+                </div>
+                <button onclick="togglePanel('controls')" class="xl:hidden p-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="flex-1 p-4 overflow-y-auto custom-scrollbar space-y-4 bg-transparent relative">
+                <!-- Class Selector -->
+                <div class="p-3 bg-slate-50/50 dark:bg-slate-800/50 border-[1px] border-slate-300 dark:border-white/10 rounded-xl shadow-sm">
+                    <div class="flex justify-between items-center border-b-[1px] border-slate-200 dark:border-white/10 pb-2 mb-2">
+                        <label class="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                            <i data-lucide="folder-open" class="w-4 h-4 text-blue"></i>
+                            Saved Lists
+                        </label>
+                        <button onclick="app.addClass()" class="text-xs text-blue font-bold hover:underline">
+                            + New
+                        </button>
+                    </div>
+                    <select id="class-select" onchange="app.switchClass(this.value)" class="w-full bg-white dark:bg-slate-900 border-[1px] border-slate-300 dark:border-white/10 rounded-lg px-2 py-1.5 text-sm font-bold focus:outline-none mb-3">
+                    </select>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="app.renameClass()" class="btn-chunky bg-white dark:bg-slate-700 py-2 rounded-lg text-[10px] font-bold">RENAME</button>
+                        <button onclick="app.requestDeleteClass()" class="btn-chunky bg-pink text-white py-2 rounded-lg text-[10px] font-bold">DELETE</button>
+                    </div>
+                </div>
+
+                <!-- Config -->
+                <div class="p-3 bg-slate-50/50 dark:bg-slate-800/50 border-[1px] border-slate-300 dark:border-white/10 rounded-xl shadow-sm space-y-4">
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Grouping Mode</label>
+                        <div class="flex p-1 bg-slate-100 dark:bg-slate-900 rounded-lg border-[1px] border-slate-300 dark:border-white/10 gap-1">
+                            <button id="btn-mode-teams" onclick="app.setMode('teams')" class="flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all">Teams</button>
+                            <button id="btn-mode-members" onclick="app.setMode('members')" class="flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all">Members</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label id="count-label" class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Number of Teams</label>
+                        <div class="flex items-center gap-2">
+                            <button onclick="app.adjustValue(-1)" class="btn-chunky bg-white dark:bg-slate-700 w-9 h-9 flex items-center justify-center rounded-lg"><i data-lucide="minus" class="w-4 h-4"></i></button>
+                            <div id="count-display" class="flex-1 text-center font-heading font-bold text-xl">2</div>
+                            <button onclick="app.adjustValue(1)" class="btn-chunky bg-blue text-white w-9 h-9 flex items-center justify-center rounded-lg"><i data-lucide="plus" class="w-4 h-4"></i></button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Gender Sorting</label>
+                        <div class="flex p-1 bg-slate-100 dark:bg-slate-900 rounded-lg border-[1px] border-slate-300 dark:border-white/10 gap-1">
+                            <button id="btn-gender-none" onclick="app.setGenderMode('none')" class="flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all">Mix</button>
+                            <button id="btn-gender-balance" onclick="app.setGenderMode('balance')" class="flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all">Balance</button>
+                            <button id="btn-gender-separate" onclick="app.setGenderMode('separate')" class="flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all">Separate</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Import -->
+                <div class="p-3 bg-slate-50/50 dark:bg-slate-800/50 border-[1px] border-slate-300 dark:border-white/10 rounded-xl shadow-sm space-y-3">
+                    <div class="space-y-1">
+                        <label class="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                            <i data-lucide="user-plus" class="w-4 h-4 text-orange"></i>
+                            Quick Import
+                        </label>
+                        <p class="text-[10px] font-bold text-slate-400 leading-tight">
+                            Paste your student list or CSV data. Names will be automatically extracted from the list.
+                        </p>
+                    </div>
+                    <textarea id="bulk-input" class="w-full p-4 bg-white dark:bg-slate-900 text-dark dark:text-slate-200 font-mono text-xs border-[1px] border-slate-300 dark:border-white/10 rounded-xl resize-none focus:ring-1 focus:ring-blue outline-none" rows="8" placeholder="Example:&#10;John Smith&#10;Alice, Bob, Charlie&#10;Daisy, Eve"></textarea>
+                    <button onclick="app.importStudents()" class="w-full btn-chunky bg-orange text-white py-3 rounded-xl text-xs font-bold">ADD TO ROSTER</button>
+                </div>
+            </div>
+
+            <div class="p-4 border-t-[1px] border-slate-300 dark:border-white/10 bg-slate-50/50 dark:bg-slate-800/50 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-2">
+                    <button onclick="app.toggleSound()" id="sound-toggle" class="p-2.5 bg-white dark:bg-slate-700 border-[1px] border-slate-300 dark:border-white/10 rounded-xl text-slate-400 hover:text-blue transition-colors shadow-sm">
+                        <i data-lucide="volume-2" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="app.reset()" class="p-2.5 bg-white dark:bg-slate-700 border-[1px] border-slate-300 dark:border-white/10 rounded-xl text-slate-400 hover:text-pink transition-colors shadow-sm">
+                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <button onclick="document.getElementById('help-modal').classList.remove('hidden')" class="p-2.5 bg-white dark:bg-slate-700 border-[1px] border-slate-300 dark:border-white/10 rounded-xl text-slate-400 hover:text-orange transition-colors shadow-sm">
+                    <i data-lucide="help-circle" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- MAIN AREA -->
+        <main id="main-area" class="flex-1 relative h-full bg-slate-50/50 dark:bg-slate-900/50 flex flex-col overflow-hidden transition-colors duration-300">
+            <!-- Toggle Buttons -->
+            <div class="absolute top-6 left-6 z-30 flex gap-2">
+                <button onclick="togglePanel('controls')" class="p-2.5 glass-panel border-[1px] border-slate-300 dark:border-white/10 rounded-xl shadow-neo-sm hover:translate-y-[-2px] transition-transform text-slate-500 hover:text-dark">
+                    <i data-lucide="settings" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="absolute top-6 right-6 z-30 flex gap-3">
+                <button id="copy-btn" onclick="app.copyToClipboard()" class="btn-chunky bg-white dark:bg-slate-700 px-6 py-3 rounded-2xl text-sm font-bold flex items-center gap-2 tracking-widest">
+                    <i data-lucide="copy" class="w-4 h-4"></i> COPY
+                </button>
+                <button onclick="togglePanel('roster-panel')" class="p-2.5 glass-panel border-[1px] border-slate-300 dark:border-white/10 rounded-xl shadow-neo-sm hover:translate-y-[-2px] transition-transform text-slate-500 hover:text-dark">
+                    <i data-lucide="users" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-8 md:p-12 custom-scrollbar">
+                <div id="view-results" class="relative min-h-full flex flex-col">
+                    <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center text-slate-400 pointer-events-none transition-opacity duration-300">
+                        <div class="w-32 h-32 rounded-full bg-slate-200/50 dark:bg-slate-800/50 flex items-center justify-center mb-6 border-4 border-dashed border-slate-300 dark:border-slate-700">
+                            <i data-lucide="dices" class="w-16 h-16 opacity-20"></i>
+                        </div>
+                        <h2 class="font-heading text-3xl font-bold mb-2">Ready to Group</h2>
+                        <p class="text-lg font-medium opacity-60">Hit Mix It!</p>
+                    </div>
+
+                    <div id="sorting-state" class="hidden absolute inset-0 bg-white/60 dark:bg-slate-900/60 backdrop-blur-md z-40 flex flex-col items-center justify-center gap-6 rounded-3xl animate-slide-up-fade">
+                        <div class="flex gap-4">
+                            <div class="w-6 h-6 rounded-full bg-pink animate-bounce" style="animation-delay: 0s"></div>
+                            <div class="w-6 h-6 rounded-full bg-orange animate-bounce" style="animation-delay: 0.1s"></div>
+                            <div class="w-6 h-6 rounded-full bg-green animate-bounce" style="animation-delay: 0.2s"></div>
+                            <div class="w-6 h-6 rounded-full bg-blue animate-bounce" style="animation-delay: 0.3s"></div>
+                        </div>
+                        <p class="font-heading text-4xl text-dark dark:text-white font-bold tracking-widest uppercase">Shuffling…</p>
+                    </div>
+
+                    <!-- Team Cards Grid -->
+                    <div id="results-grid" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-8 pb-40">
+                        <!-- Cards injected by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="absolute bottom-12 left-1/2 -translate-x-1/2 z-30">
+                <button id="btn-generate" onclick="app.startGeneration()" class="btn-chunky bg-green text-dark px-16 py-6 rounded-[2rem] text-2xl font-black tracking-[0.2em] shadow-neo-lg hover:scale-105 transition-all">
+                    MIX IT!
+                </button>
+            </div>
+        </main>
+
+        <!-- RIGHT PANEL: ROSTER -->
+        <aside id="roster-panel" class="w-72 glass-panel border-l-[1px] border-slate-300 dark:border-white/10 flex flex-col z-50 h-full shrink-0">
+            <div class="p-4 border-b-[1px] border-slate-300 dark:border-white/10 bg-slate-50/50 dark:bg-slate-800/50 flex justify-between items-center shrink-0">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="users" class="w-5 h-5 text-purple"></i>
+                    <h2 class="text-sm font-black text-slate-400 uppercase tracking-widest">Attendance</h2>
+                </div>
+                <button onclick="togglePanel('roster-panel')" class="xl:hidden p-2 bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="flex-1 p-4 overflow-y-auto custom-scrollbar flex flex-col min-h-0 space-y-4">
+                <div class="p-3 bg-slate-50/50 dark:bg-slate-800/50 border-[1px] border-slate-300 dark:border-white/10 rounded-xl shadow-sm space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-bold text-slate-400 uppercase">Roster (<span id="name-count">0</span>)</span>
+                        <span id="attendance-badge" class="text-[10px] font-bold px-3 py-1 rounded-full border-[1px] border-slate-300 dark:border-white/10">0 / 0</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="app.markAllPresent()" class="btn-chunky bg-green text-dark py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider">All In</button>
+                        <button onclick="app.markAllAbsent()" class="btn-chunky bg-white dark:bg-slate-700 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider">All Out</button>
+                        <button onclick="app.reset()" class="btn-chunky bg-pink text-white py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider">Clear</button>
+                    </div>
+                    <div class="pt-1 border-t border-slate-200 dark:border-white/10 space-y-1.5">
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                            <i data-lucide="clipboard-copy" class="w-3 h-3"></i> Copy Roster As
+                        </p>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="app.copyRoster('lines')" class="btn-chunky bg-blue text-white py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5">
+                                <i data-lucide="list" class="w-3 h-3"></i> Lines
+                            </button>
+                            <button onclick="app.copyRoster('csv')" class="btn-chunky bg-purple text-white py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5">
+                                <i data-lucide="table-2" class="w-3 h-3"></i> CSV
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex-1 overflow-y-auto custom-scrollbar min-h-[150px]">
+                    <div id="roster-empty" class="flex flex-col items-center justify-center py-12 text-slate-400 opacity-50">
+                        <i data-lucide="user-plus" class="w-10 h-10 mb-2"></i>
+                        <p class="text-xs font-bold uppercase tracking-widest">Empty Roster</p>
+                    </div>
+                    <ul id="roster-list" class="divide-y-[1px] divide-slate-200 dark:divide-white/5"></ul>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- MODALS -->
+    <div id="confirm-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm px-4">
+        <div class="glass-panel w-full max-w-sm border-[1px] border-slate-300 dark:border-white/10 rounded-3xl shadow-neo-lg p-8 relative animate-slide-up-fade text-center">
+            <div class="w-20 h-20 bg-pink/10 rounded-2xl flex items-center justify-center mx-auto mb-6 border-4 border-pink text-pink">
+                <i data-lucide="alert-triangle" class="w-10 h-10"></i>
+            </div>
+            <h3 class="font-heading font-bold text-3xl mb-3 text-dark dark:text-white">Clear Roster?</h3>
+            <p class="text-slate-500 dark:text-slate-400 mb-8 font-medium">This will remove all students and reset the teams.</p>
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="document.getElementById('confirm-modal').classList.add('hidden')" class="btn-chunky bg-white dark:bg-slate-700 text-dark dark:text-white py-4 rounded-2xl font-bold">CANCEL</button>
+                <button onclick="app.executeReset()" class="btn-chunky bg-pink text-white py-4 rounded-2xl font-bold">CLEAR</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="delete-class-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm px-4">
+        <div class="glass-panel w-full max-w-sm border-[1px] border-slate-300 dark:border-white/10 rounded-3xl shadow-neo-lg p-8 relative animate-slide-up-fade text-center">
+            <div class="w-20 h-20 bg-pink/10 rounded-2xl flex items-center justify-center mx-auto mb-6 border-4 border-pink text-pink">
+                <i data-lucide="trash-2" class="w-10 h-10"></i>
+            </div>
+            <h3 class="font-heading font-bold text-3xl mb-3 text-dark dark:text-white">Delete Class?</h3>
+            <p class="text-slate-500 dark:text-slate-400 mb-8 font-medium">Permanently delete <span id="delete-class-name" class="font-bold text-pink"></span>?</p>
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="document.getElementById('delete-class-modal').classList.add('hidden')" class="btn-chunky bg-white dark:bg-slate-700 text-dark dark:text-white py-4 rounded-2xl font-bold">CANCEL</button>
+                <button onclick="app.deleteClass()" class="btn-chunky bg-pink text-white py-4 rounded-2xl font-bold">DELETE</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="help-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm px-4">
+        <div class="glass-panel w-full max-w-md border-[1px] border-slate-300 dark:border-white/10 rounded-[2.5rem] shadow-neo-lg p-8 relative animate-slide-up-fade">
+            <button onclick="document.getElementById('help-modal').classList.add('hidden')" class="absolute top-6 right-6 p-2 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-400 hover:text-dark transition-colors">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+            <h3 class="font-heading font-bold text-3xl mb-8 text-dark dark:text-white flex items-center gap-3">
+                <i data-lucide="info" class="w-8 h-8 text-blue"></i> Help Guide
+            </h3>
+            <div class="space-y-4">
+                <div class="flex items-start gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border-[1px] border-slate-200 dark:border-white/5">
+                    <span class="w-8 h-8 bg-pink text-white flex items-center justify-center rounded-xl font-bold shrink-0">1</span>
+                    <p class="text-sm font-medium text-slate-600 dark:text-slate-300"><b>Roster:</b> Use Quick Import to add names. Manage multiple lists via the <b>Saved Lists</b> selector.</p>
+                </div>
+                <div class="flex items-start gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border-[1px] border-slate-200 dark:border-white/5">
+                    <span class="w-8 h-8 bg-orange text-white flex items-center justify-center rounded-xl font-bold shrink-0">2</span>
+                    <p class="text-sm font-medium text-slate-600 dark:text-slate-300"><b>Attendance:</b> Tap the green check to mark students absent. Only present students are mixed into teams.</p>
+                </div>
+                <div class="flex items-start gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border-[1px] border-slate-200 dark:border-white/5">
+                    <span class="w-8 h-8 bg-blue text-white flex items-center justify-center rounded-xl font-bold shrink-0">3</span>
+                    <p class="text-sm font-medium text-slate-600 dark:text-slate-300"><b>Config:</b> Choose "Teams" (fixed count) or "Members" (students per team). Use <b>Gender Sorting</b> for balanced groups.</p>
+                </div>
+                <div class="flex items-start gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border-[1px] border-slate-200 dark:border-white/5">
+                    <span class="w-8 h-8 bg-green text-dark flex items-center justify-center rounded-xl font-bold shrink-0">4</span>
+                    <p class="text-sm font-medium text-slate-600 dark:text-slate-300"><b>Results:</b> Hit <b>MIX IT!</b> to generate. Collapse sidebars to focus on teams.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        /* ── UI Helpers ── */
+        function togglePanel(id) {
+            const panel = document.getElementById(id);
+            if (!panel) return;
+            
+            const isMobile = window.innerWidth < 1280;
+            if (isMobile) {
+                panel.classList.toggle('mobile-open');
+                // Close other panel on mobile
+                const other = id === 'controls' ? 'roster-panel' : 'controls';
+                document.getElementById(other).classList.remove('mobile-open');
+            } else {
+                panel.classList.toggle('collapsed');
+            }
+        }
+
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+            const isDark = document.documentElement.classList.contains('dark');
+            localStorage.setItem('klasskit_theme', isDark ? 'dark' : 'light');
+        }
+
+        if (localStorage.getItem('klasskit_theme') === 'dark' || 
+            (!localStorage.getItem('klasskit_theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        }
+
+        const app = {
+            mode: 'teams',
+            teamCount: 2,
+            memberCount: 2,
+            calculatedTeamCount: 2,
+            classes: {},
+            activeClassId: null,
+            genderMode: 'none',
+            soundEnabled: true,
+            synth: null,
+            polySynth: null,
+            hexColors: ['#FF6B95', '#FF8C42', '#00E676', '#2979FF', '#7C4DFF', '#00BCD4'],
+            isGenerating: false,
+
+            /* ── Init ── */
+            async init() {
+                this.synth = new Tone.MembraneSynth().toDestination();
+                this.polySynth = new Tone.PolySynth(Tone.Synth).toDestination();
+                this.polySynth.volume.value = -10;
+
+                let stateStr = localStorage.getItem('e1_teampicker_state');
+                if (stateStr) {
+                    try {
+                        let s = JSON.parse(stateStr);
+                        this.classes = s.classes;
+                        this.activeClassId = s.activeClassId;
+                    } catch (e) { }
+                }
+
+                if (!this.activeClassId) {
+                    const legacy = localStorage.getItem('e1_teampicker_names');
+                    this.classes = { class_1: { id: 'class_1', name: 'Class 1', names: legacy || '' } };
+                    this.activeClassId = 'class_1';
+                }
+
+                this.migrateClasses();
+                this.updateDisplay();
+                
+                // Load from cloud but don't let it destroy newer local data
+                if (!isSandbox()) {
+                    await this.loadFromCloud();
+                }
+                
+                this.renderClassSelector();
+                this.renderRoster();
+                this.setGenderMode(this.genderMode);
+            },
+
+            /* ── Migration ── */
+            migrateClasses() {
+                for (let id in this.classes) {
+                    let cls = this.classes[id];
+                    if (cls.names !== undefined && !cls.roster) {
+                        cls.roster = cls.names.split('\n').map(n => n.trim()).filter(n => n).map(line => {
+                            let p = this.parseGender(line);
+                            return { id: this._uid(), name: p.name, gender: p.gender, present: true };
+                        });
+                        delete cls.names;
+                    }
+                    if (!cls.roster) cls.roster = [];
+                    cls.roster.forEach(s => {
+                        if (!s.id) s.id = this._uid();
+                        if (s.present === undefined) s.present = true;
+                        if (!s.gender) s.gender = 'U';
+                        s.gender = s.gender.toUpperCase();
+                    });
+                }
+            },
+
+            _uid() { return Math.random().toString(36).substr(2, 9); },
+
+            /* ── Persistence ── */
+            saveStateLocal() {
+                const state = {
+                    classes: this.classes,
+                    activeClassId: this.activeClassId,
+                    updatedAt: Date.now()
+                };
+                localStorage.setItem('e1_teampicker_state', JSON.stringify(state));
+                return state;
+            },
+
+            async saveToCloud() {
+                try {
+                    await saveProgress('team_picker_data', {
+                        classes: this.classes,
+                        activeClassId: this.activeClassId,
+                        updatedAt: Date.now()
+                    });
+                } catch (e) { console.error('Cloud save failed', e); }
+            },
+
+            async loadFromCloud() {
+                try {
+                    const data = await loadProgress('team_picker_data');
+                    if (!data) return;
+
+                    // 1. Resolve timestamps
+                    const stateStr = localStorage.getItem('e1_teampicker_state');
+                    let localUpdatedAt = 0;
+                    if (stateStr) {
+                        try { localUpdatedAt = JSON.parse(stateStr).updatedAt || 0; } catch(e){}
+                    }
+                    const cloudUpdatedAt = data.updatedAt || 0;
+
+                    // 2. If local is newer, don't overwrite
+                    if (localUpdatedAt > cloudUpdatedAt && Object.keys(this.classes).length > 0) {
+                        console.log("[Sync] Local data is newer. Skipping cloud load.");
+                        return;
+                    }
+
+                    // 3. Handle data structures
+                    if (data.classes && Object.keys(data.classes).length > 0) {
+                        // Merge or overwrite classes
+                        this.classes = data.classes;
+                        this.activeClassId = data.activeClassId || Object.keys(data.classes)[0];
+                    } else if (data.names !== undefined && Object.keys(this.classes).length <= 1) {
+                        // Only migrate legacy names if we don't already have complex classes
+                        this.classes = {
+                            class_1: {
+                                id: 'class_1', name: 'Class 1',
+                                roster: data.names.split('\n').map(n => n.trim()).filter(n => n).map(name => {
+                                    let p = this.parseGender(name);
+                                    return { id: this._uid(), name: p.name, gender: p.gender, present: true };
+                                })
+                            }
+                        };
+                        this.activeClassId = 'class_1';
+                    }
+
+                    this.migrateClasses();
+                    this.saveStateLocal();
+                    this.renderClassSelector();
+                    this.renderRoster();
+                } catch (e) { console.error('Cloud load failed', e); }
+            },
+
+            /* ── Class Selector ── */
+            renderClassSelector() {
+                const select = document.getElementById('class-select');
+                if (!select) return;
+                select.innerHTML = '';
+                for (let id in this.classes) {
+                    let o = document.createElement('option');
+                    o.value = id;
+                    o.textContent = this.classes[id].name;
+                    if (id === this.activeClassId) o.selected = true;
+                    select.appendChild(o);
+                }
+            },
+
+            switchClass(id) {
+                if (this.classes[id]) {
+                    this.activeClassId = id;
+                    this.saveStateLocal();
+                    this.saveToCloud();
+                    this.renderRoster();
+                    this._clearResults();
+                }
+            },
+
+            addClass() {
+                const name = prompt('Enter a name for the new class:');
+                if (!name?.trim()) return;
+                const id = 'class_' + Date.now();
+                this.classes[id] = { id, name: name.trim(), roster: [] };
+                this.activeClassId = id;
+                this.saveStateLocal();
+                this.saveToCloud();
+                this.renderClassSelector();
+                this.renderRoster();
+                this._clearResults();
+                this.showToast(`Created "${name.trim()}"`, 'success');
+            },
+
+            renameClass() {
+                const cls = this.classes[this.activeClassId];
+                if (!cls) return;
+                const name = prompt('Rename class:', cls.name);
+                if (!name?.trim()) return;
+                cls.name = name.trim();
+                this.saveStateLocal();
+                this.saveToCloud();
+                this.renderClassSelector();
+            },
+
+            requestDeleteClass() {
+                if (Object.keys(this.classes).length <= 1) {
+                    this.showToast('Cannot delete your only class.', 'error');
+                    return;
+                }
+                document.getElementById('delete-class-name').innerText = this.classes[this.activeClassId]?.name;
+                document.getElementById('delete-class-modal').classList.remove('hidden');
+            },
+
+            deleteClass() {
+                document.getElementById('delete-class-modal').classList.add('hidden');
+                delete this.classes[this.activeClassId];
+                this.activeClassId = Object.keys(this.classes)[0];
+                this.saveStateLocal();
+                this.saveToCloud();
+                this.renderClassSelector();
+                this.renderRoster();
+                this._clearResults();
+                this.showToast('Class deleted.');
+            },
+
+            /* ── Config ── */
+            setMode(newMode) {
+                this.mode = newMode;
+                const active = 'flex-1 py-1.5 text-[10px] font-bold rounded-md bg-blue text-white shadow-neo-sm';
+                const inactive = 'flex-1 py-1.5 text-[10px] font-bold rounded-md text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all';
+                document.getElementById('btn-mode-teams').className = newMode === 'teams' ? active : inactive;
+                document.getElementById('btn-mode-members').className = newMode === 'members' ? active : inactive;
+                document.getElementById('count-label').innerText = newMode === 'teams' ? 'Number of Teams' : 'Students Per Team';
+                this.updateDisplay();
+            },
+
+            adjustValue(delta) {
+                if (this.mode === 'teams') {
+                    this.teamCount = Math.min(20, Math.max(2, this.teamCount + delta));
+                } else {
+                    this.memberCount = Math.min(20, Math.max(2, this.memberCount + delta));
+                }
+                this.updateDisplay();
+            },
+
+            updateDisplay() {
+                document.getElementById('count-display').innerText = this.mode === 'teams' ? this.teamCount : this.memberCount;
+            },
+
+            setGenderMode(mode) {
+                this.genderMode = mode;
+                const active = 'flex-1 py-1.5 text-[10px] font-bold rounded-md bg-blue text-white shadow-neo-sm';
+                const inactive = 'flex-1 py-1.5 text-[10px] font-bold rounded-md text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all';
+                document.getElementById('btn-gender-none').className = mode === 'none' ? active : inactive;
+                document.getElementById('btn-gender-balance').className = mode === 'balance' ? active : inactive;
+                document.getElementById('btn-gender-separate').className = mode === 'separate' ? active : inactive;
+            },
+
+            toggleSound() {
+                this.soundEnabled = !this.soundEnabled;
+                const btn = document.getElementById('sound-toggle');
+                btn.innerHTML = this.soundEnabled
+                    ? `<i data-lucide="volume-2" class="w-5 h-5"></i>`
+                    : `<i data-lucide="volume-x" class="w-5 h-5 text-gray-400"></i>`;
+                lucide.createIcons();
+                this.showToast(this.soundEnabled ? 'Sound On' : 'Sound Off');
+            },
+
+            /* ── Roster ── */
+            importStudents() {
+                const input = document.getElementById('bulk-input');
+                const text = input.value.trim();
+                if (!text) return;
+
+                const names = text.split(/[,\n]+/).map(n => n.trim()).filter(n => n);
+                const cls = this.classes[this.activeClassId];
+                names.forEach(n => {
+                    const p = this.parseGender(n);
+                    cls.roster.push({ id: this._uid(), name: p.name, gender: p.gender, present: true });
+                });
+                input.value = '';
+                this.saveStateLocal();
+                this.saveToCloud();
+                this.renderRoster();
+                this.showToast(`Added ${names.length} student${names.length !== 1 ? 's' : ''}!`, 'success');
+            },
+
+            toggleGender(studentId) {
+                const s = this._getStudent(studentId);
+                if (!s) return;
+                if (s.gender === 'U') s.gender = 'M';
+                else if (s.gender === 'M') s.gender = 'F';
+                else s.gender = 'U';
+                this.saveStateLocal();
+                this.saveToCloud();
+                this.renderRoster();
+            },
+
+            toggleAttendance(studentId) {
+                const s = this._getStudent(studentId);
+                if (!s) return;
+                s.present = !s.present;
+                this.saveStateLocal();
+                this.saveToCloud();
+                this.renderRoster();
+            },
+
+            markAllPresent() {
+                const cls = this.classes[this.activeClassId];
+                if (!cls) return;
+                cls.roster.forEach(s => s.present = true);
+                this.saveStateLocal();
+                this.saveToCloud();
+                this.renderRoster();
+                this.showToast('All students marked present!', 'success');
+            },
+
+            markAllAbsent() {
+                const cls = this.classes[this.activeClassId];
+                if (!cls) return;
+                cls.roster.forEach(s => s.present = false);
+                this.saveStateLocal();
+                this.saveToCloud();
+                this.renderRoster();
+                this.showToast('All students marked absent.');
+            },
+
+            copyRoster(format = 'lines') {
+                const cls = this.classes[this.activeClassId];
+                if (!cls?.roster?.length) { this.showToast('Roster is empty.', 'error'); return; }
+
+                const present = cls.roster.filter(s => s.present !== false);
+                const absent  = cls.roster.filter(s => s.present === false);
+
+                let text = '';
+                if (format === 'csv') {
+                    text += 'Name,Gender,Status\n';
+                    cls.roster.forEach(s => {
+                        const g = s.gender === 'U' ? '' : s.gender;
+                        const status = s.present !== false ? 'Present' : 'Absent';
+                        text += `${s.name},${g},${status}\n`;
+                    });
+                } else {
+                    if (present.length) {
+                        text += `--- Present (${present.length}) ---\n`;
+                        text += present.map(s => s.name).join('\n') + '\n';
+                    }
+                    if (absent.length) {
+                        text += `\n--- Absent (${absent.length}) ---\n`;
+                        text += absent.map(s => s.name).join('\n') + '\n';
+                    }
+                }
+
+                navigator.clipboard.writeText(text.trim()).then(() => {
+                    const label = format === 'csv' ? 'CSV' : 'Line list';
+                    this.showToast(`${label} copied! ✅`, 'success');
+                }).catch(() => this.showToast('Copy failed.', 'error'));
+            },
+
+            removeStudent(studentId) {
+                const cls = this.classes[this.activeClassId];
+                cls.roster = cls.roster.filter(s => s.id !== studentId);
+                this.saveStateLocal();
+                this.saveToCloud();
+                this.renderRoster();
+            },
+
+            _getStudent(id) {
+                const cls = this.classes[this.activeClassId];
+                return cls?.roster.find(s => s.id === id);
+            },
+
+            renderRoster() {
+                const list = document.getElementById('roster-list');
+                const empty = document.getElementById('roster-empty');
+                const count = document.getElementById('name-count');
+                const badge = document.getElementById('attendance-badge');
+                if (!list) return;
+                list.innerHTML = '';
+
+                const cls = this.classes[this.activeClassId];
+                if (!cls?.roster?.length) {
+                    if (empty) empty.classList.remove('hidden');
+                    if (count) count.innerText = '0';
+                    if (badge) {
+                        badge.innerText = '0 / 0';
+                        badge.className = 'text-[10px] font-bold bg-slate-200 text-slate-500 px-3 py-1 rounded-full border border-slate-300';
+                    }
+                    return;
+                }
+
+                if (empty) empty.classList.add('hidden');
+                if (count) count.innerText = cls.roster.length;
+
+                const presentCount = cls.roster.filter(s => s.present !== false).length;
+                const total = cls.roster.length;
+                if (badge) {
+                    badge.innerText = `${presentCount} / ${total}`;
+                    if (presentCount === 0) badge.className = 'text-[10px] font-bold bg-pink/20 text-pink px-2 py-0.5 rounded-full border border-pink/30';
+                    else if (presentCount < total) badge.className = 'text-[10px] font-bold bg-orange/20 text-orange-600 px-2 py-0.5 rounded-full border border-orange/30';
+                    else badge.className = 'text-[10px] font-bold bg-green/20 text-green-600 px-2 py-0.5 rounded-full border border-green/30';
+                }
+
+                cls.roster.forEach(student => {
+                    const isPresent = student.present !== false;
+                    const li = document.createElement('li');
+                    li.className = `student-row flex items-center gap-3 px-2 py-2 group transition-all rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800/50 ${isPresent ? '' : 'is-absent opacity-40'}`;
+
+                    const attClass = isPresent
+                        ? 'w-7 h-7 flex-none rounded-full bg-green text-dark flex items-center justify-center shadow-sm cursor-pointer hover:scale-110 transition-transform'
+                        : 'w-7 h-7 flex-none rounded-full bg-slate-200 dark:bg-slate-700 text-slate-400 flex items-center justify-center cursor-pointer hover:bg-slate-300 transition-colors';
+                    const attIcon = isPresent ? 'check' : 'x';
+
+                    let gClass, gIcon;
+                    if (student.gender === 'M') {
+                        gClass = 'w-6 h-6 flex-none rounded-md bg-blue/10 text-blue flex items-center justify-center cursor-pointer hover:bg-blue/20';
+                        gIcon = 'user';
+                    } else if (student.gender === 'F') {
+                        gClass = 'w-6 h-6 flex-none rounded-md bg-pink/10 text-pink flex items-center justify-center cursor-pointer hover:bg-pink/20';
+                        gIcon = 'user';
+                    } else {
+                        gClass = 'w-6 h-6 flex-none rounded-md bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center cursor-pointer hover:bg-slate-200';
+                        gIcon = 'minus';
+                    }
+
+                    li.innerHTML = `
+                        <button onclick="app.toggleAttendance('${student.id}')" class="${attClass}" title="${isPresent ? 'Mark Absent' : 'Mark Present'}">
+                            <i data-lucide="${attIcon}" class="w-3.5 h-3.5 ${isPresent ? 'font-bold' : ''}"></i>
+                        </button>
+                        <button onclick="app.toggleGender('${student.id}')" class="${gClass}" title="Toggle Gender">
+                            <i data-lucide="${gIcon}" class="w-3 h-3"></i>
+                        </button>
+                        <span class="flex-grow font-bold text-sm text-slate-700 dark:text-slate-200 truncate select-none ${isPresent ? '' : 'line-through decoration-slate-400'}">${student.name}</span>
+                        <button onclick="app.removeStudent('${student.id}')"
+                            class="p-1.5 text-slate-300 hover:text-pink hover:bg-pink/10 rounded-lg transition-all opacity-0 group-hover:opacity-100">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        </button>
+                    `;
+                    list.appendChild(li);
+                });
+                lucide.createIcons();
+            },
+
+            /* ── Reset ── */
+            reset() {
+                if (this.isGenerating) return;
+                document.getElementById('confirm-modal').classList.remove('hidden');
+            },
+
+            executeReset() {
+                document.getElementById('confirm-modal').classList.add('hidden');
+                const cls = this.classes[this.activeClassId];
+                if (cls) cls.roster = [];
+                this.saveStateLocal();
+                this.saveToCloud();
+                this.renderRoster();
+                this._clearResults();
+                this.showToast('Roster cleared.');
+            },
+
+            _clearResults() {
+                document.getElementById('results-grid').innerHTML = '';
+                document.getElementById('empty-state').classList.remove('hidden');
+            },
+
+            setControlsState(enabled) {
+                ['btn-generate'].forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        el.disabled = !enabled;
+                        el.classList.toggle('opacity-50', !enabled);
+                    }
+                });
+                const input = document.getElementById('bulk-input');
+                if (input) input.disabled = !enabled;
+            },
+
+            /* ── Generation ── */
+            startGeneration() {
+                if (this.isGenerating) return;
+                const cls = this.classes[this.activeClassId];
+                if (!cls?.roster?.length) { this.showToast('Add some students first!', 'error'); return; }
+                const presentNames = cls.roster.filter(s => s.present !== false);
+                if (presentNames.length === 0) { this.showToast('No students are present!', 'error'); return; }
+                
+                if (this.mode === 'teams' && presentNames.length < this.teamCount) {
+                    this.showToast(`Need at least ${this.teamCount} students for ${this.teamCount} teams.`, 'error'); return;
+                }
+                if (this.mode === 'members' && presentNames.length < this.memberCount) {
+                    this.showToast(`Need at least ${this.memberCount} students for teams of ${this.memberCount}.`, 'error'); return;
+                }
+
+                this.isGenerating = true;
+                this.setControlsState(false);
+                const distribution = [];
+                let males = presentNames.filter(n => n.gender === 'M').sort(() => Math.random() - 0.5);
+                let females = presentNames.filter(n => n.gender === 'F').sort(() => Math.random() - 0.5);
+                let unspec = presentNames.filter(n => n.gender === 'U').sort(() => Math.random() - 0.5);
+
+                if (this.genderMode === 'balance') {
+                    const tokens = [...females, ...males, ...unspec];
+                    this.calculatedTeamCount = this.mode === 'teams' ? this.teamCount : Math.ceil(presentNames.length / this.memberCount);
+                    tokens.forEach((item, i) => distribution.push({ ...item, teamIndex: i % this.calculatedTeamCount }));
+                } else if (this.genderMode === 'separate') {
+                    // Simple separation
+                    if (this.mode === 'teams') {
+                        const total = presentNames.length;
+                        const fT = females.length > 0 ? Math.max(1, Math.round((females.length / total) * this.teamCount)) : 0;
+                        const mT = males.length > 0 ? Math.max(1, Math.round((males.length / total) * this.teamCount)) : 0;
+                        let off = 0;
+                        females.forEach((item, i) => distribution.push({ ...item, teamIndex: off + (i % fT) })); off += fT;
+                        males.forEach((item, i) => distribution.push({ ...item, teamIndex: off + (i % mT) })); off += mT;
+                        unspec.forEach((item, i) => distribution.push({ ...item, teamIndex: off })); 
+                        this.calculatedTeamCount = Math.max(1, off);
+                    } else {
+                        let off = 0, cnt = 0;
+                        const push = (item) => {
+                            if (cnt >= this.memberCount) { off++; cnt = 0; }
+                            distribution.push({ ...item, teamIndex: off }); cnt++;
+                        };
+                        females.forEach(push); if (cnt > 0) { off++; cnt = 0; }
+                        males.forEach(push); if (cnt > 0) { off++; cnt = 0; }
+                        unspec.forEach(push); if (cnt > 0) off++;
+                        this.calculatedTeamCount = Math.max(1, off);
+                    }
+                } else {
+                    const shuffled = [...presentNames].sort(() => Math.random() - 0.5);
+                    this.calculatedTeamCount = this.mode === 'teams' ? this.teamCount : Math.ceil(presentNames.length / this.memberCount);
+                    shuffled.forEach((item, i) => distribution.push({ ...item, teamIndex: this.mode === 'teams' ? i % this.calculatedTeamCount : Math.floor(i / this.memberCount) }));
+                }
+
+                document.getElementById('empty-state').classList.add('hidden');
+                document.getElementById('results-grid').innerHTML = '';
+                document.getElementById('sorting-state').classList.remove('hidden');
+                this.playSound('shuffle');
+
+                setTimeout(() => {
+                    document.getElementById('sorting-state').classList.add('hidden');
+                    this.animateDealing(distribution);
+                }, 1000);
+            },
+
+            createTeamBuckets() {
+                const container = document.getElementById('results-grid');
+                container.innerHTML = '';
+                for (let i = 0; i < this.calculatedTeamCount; i++) {
+                    const color = this.hexColors[i % this.hexColors.length];
+                    const card = document.createElement('div');
+                    card.className = 'card-enter glass-panel border-[1px] border-slate-300 dark:border-white/10 rounded-3xl overflow-hidden shadow-neo-sm flex flex-col';
+                    card.style.animationDelay = `${i * 0.05}s`;
+                    card.innerHTML = `
+                        <div class="px-5 py-3 border-b-[1px] border-black/5 flex justify-between items-center shrink-0" style="background-color:${color}22">
+                            <h3 class="font-heading font-bold text-dark dark:text-white text-lg tracking-wide" style="color:${color}">Team ${i + 1}</h3>
+                            <span class="bg-white/50 dark:bg-black/20 text-dark dark:text-white text-xs font-black px-3 py-1 rounded-full border border-black/5" id="count-${i}">0</span>
+                        </div>
+                        <div class="p-4 flex-1"><ul class="space-y-2 min-h-[40px]" id="list-${i}"></ul></div>
+                    `;
+                    container.appendChild(card);
+                }
+            },
+
+            animateDealing(distribution) {
+                this.createTeamBuckets();
+                let idx = 0;
+                const total = distribution.length;
+                const dealNext = () => {
+                    if (idx >= total) { this.finishGeneration(); return; }
+                    const item = distribution[idx];
+                    const list = document.getElementById(`list-${item.teamIndex}`);
+                    const cntBadge = document.getElementById(`count-${item.teamIndex}`);
+                    if (!list) { idx++; dealNext(); return; }
+                    const li = document.createElement('li');
+                    li.className = 'name-enter flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 border-[1px] border-slate-200 dark:border-white/5 group hover:scale-[1.02] transition-transform';
+                    let gBadge = '';
+                    if (this.genderMode !== 'none' && item.gender !== 'U') {
+                        const bg = item.gender === 'F' ? 'bg-pink/10 text-pink' : 'bg-blue/10 text-blue';
+                        gBadge = `<span class="text-[10px] font-black ${bg} px-2 py-0.5 rounded-md border border-current/20 shrink-0 uppercase">${item.gender}</span>`;
+                    }
+                    li.innerHTML = `
+                        <div class="flex items-center gap-2 min-w-0">
+                            <div class="w-6 h-6 rounded-lg bg-white dark:bg-slate-700 flex items-center justify-center shadow-sm">
+                                <i data-lucide="user" class="w-3 h-3 text-slate-400"></i>
+                            </div>
+                            <span class="truncate font-bold text-slate-700 dark:text-slate-200 text-sm student-name" title="${item.name}">${item.name}</span>
+                        </div>
+                        ${gBadge}
+                    `;
+                    list.appendChild(li);
+                    lucide.createIcons();
+                    cntBadge.innerText = list.children.length;
+                    this.playSound('deal', idx / total);
+                    idx++;
+                    setTimeout(dealNext, total > 20 ? 100 : 200);
+                };
+                setTimeout(dealNext, 300);
+            },
+
+            finishGeneration() {
+                this.isGenerating = false;
+                this.setControlsState(true);
+                this.playSound('success');
+                this.showToast('Teams Created! 🎉', 'success');
+                confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: this.hexColors });
+            },
+
+            copyToClipboard() {
+                const grid = document.getElementById('results-grid');
+                if (!grid.children.length) { this.showToast('Nothing to copy yet.', 'error'); return; }
+                let text = '';
+                grid.querySelectorAll('.card-enter').forEach(card => {
+                    const title = card.querySelector('h3').innerText;
+                    const names = Array.from(card.querySelectorAll('.student-name')).map(s => s.innerText.trim());
+                    text += `${title}: ${names.join(', ')}\n`;
+                });
+                navigator.clipboard.writeText(text).then(() => {
+                    this.showToast('Copied to Clipboard!', 'success');
+                }).catch(() => this.showToast('Copy failed.', 'error'));
+            },
+
+            showToast(message, type = 'info') {
+                const container = document.getElementById('toast-container');
+                const toast = document.createElement('div');
+                const bg = type === 'error' ? 'bg-red-500 text-white' : type === 'success' ? 'bg-green text-dark' : 'bg-dark text-white';
+                const icon = type === 'error' ? 'alert-circle' : type === 'success' ? 'check-circle' : 'info';
+                toast.className = `${bg} px-6 py-4 rounded-2xl shadow-neo-lg border-[1px] border-white/10 font-bold text-sm flex items-center gap-3 animate-slide-up-fade`;
+                toast.innerHTML = `<i data-lucide="${icon}" class="w-4 h-4"></i> ${message}`;
+                container.appendChild(toast);
+                lucide.createIcons();
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateY(10px)';
+                    toast.style.transition = 'opacity 0.3s, transform 0.3s';
+                    setTimeout(() => toast.remove(), 300);
+                }, 3000);
+            },
+
+            async playSound(type, progress = 0) {
+                if (!this.soundEnabled) return;
+                try {
+                    await Tone.start();
+                    if (type === 'deal') this.synth.triggerAttackRelease(200 + progress * 300, '32n');
+                    else if (type === 'success') this.polySynth.triggerAttackRelease(['C4', 'E4', 'G4', 'C5'], '4n');
+                    else if (type === 'shuffle') this.synth.triggerAttackRelease('G2', '16n');
+                } catch (e) { }
+            },
+
+            parseGender(line) {
+                const m = line.match(/(.*?)(?:(?:\(|,\s*)([MFmf])\)?)$/);
+                if (m) return { name: m[1].trim(), gender: m[2].toUpperCase() };
+                return { name: line.trim(), gender: 'U' };
+            }
+        };
+
+        window.onload = async () => {
+            await requireAuth();
+            app.init();
+        };
+    </script>
+</body>
+
+</html>

@@ -102,6 +102,9 @@ const State = {
         
         // Privilege Check: Hide pro games if user is not pro
         if (game.pro && !this.isPro()) return false;
+        
+        // Admin Check: Hide admin-only games if user is not admin
+        if (game.adminOnly && this.userProfile?.role !== 'admin') return false;
 
         const matchesCategory = category === 'all' ||
           (category === 'featured' ? game.featured === true : game.category === category);
@@ -429,9 +432,11 @@ const UI = {
     if (loggedIn) loggedIn.classList.remove('hidden');
     if (signinLink) signinLink.classList.add('hidden');
 
-    // Show Admin Link
-    if (adminLink && profile.role === 'admin') {
-      adminLink.classList.remove('hidden');
+    // Show Admin Link and WIP apps
+    if (profile.role === 'admin') {
+      if (adminLink) adminLink.classList.remove('hidden');
+      const wipBtn = document.getElementById('nav-wip-btn');
+      if (wipBtn) wipBtn.classList.remove('hidden');
     }
 
     // Add Pro Badge to Name if Pro/Admin

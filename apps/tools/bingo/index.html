@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <!-- Supabase Auth -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/supabase.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bingo Maker</title>
+    <link rel="icon" type="image/x-icon" href="../../../media/icon.ico" />
+    <link rel="icon" type="image/webp" href="../../../media/icon.webp" />
+
+    <!-- Global Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;800&display=swap">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Global Styles -->
+    <link rel="stylesheet" href="../../../css/base.css">
+    <link rel="stylesheet" href="../../../css/components.css">
+
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            pink: '#ff4785',
+                            orange: '#ff7e33',
+                            green: '#00d063',
+                            blue: '#1ea7fd',
+                            dark: '#1e293b',
+                            chalk: '#f8fafc'
+                        }
+                    },
+                    fontFamily: {
+                        heading: ['Fredoka', 'sans-serif'],
+                        body: ['Nunito', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'neo-sm': 'var(--shadow-hard-sm)',
+                        'neo': 'var(--shadow-hard-md)',
+                        'neo-lg': 'var(--shadow-hard-lg)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Local specific overrides if necessary */
+
+        /* Hide scrollbar for cleaner UI */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        @keyframes bounce-short {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        .animate-bounce-short {
+            animation: bounce-short 0.3s ease-in-out;
+        }
+
+        @keyframes fade-in {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-fade-in {
+            animation: fade-in 0.3s ease-out forwards;
+        }
+
+        /* Print Styling for A4 Landscape / A5 Cards */
+        @media print {
+            @page {
+                size: A4 landscape;
+                margin: 1cm;
+            }
+
+            body {
+                background: white !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+
+            nav,
+            #view-setup,
+            #view-caller,
+            #modal {
+                display: none !important;
+            }
+
+            #view-print {
+                display: block !important;
+                border: none !important;
+                box-shadow: none !important;
+            }
+
+            main {
+                padding: 0 !important;
+                margin: 0 !important;
+                max-width: none !important;
+            }
+
+            /* Print grid styles are generated dynamically */
+
+            .hub-card {
+                box-shadow: none !important;
+            }
+        }
+    </style>
+    <!-- Vercel Web Analytics -->
+    <script>
+        window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
+</head>
+
+<body class="font-body text-brand-dark dark:text-white min-h-screen flex flex-col transition-colors duration-300">
+
+    <!-- Navbar -->
+    <nav class="sticky top-0 z-50 glass-panel border-b-4 border-brand-dark px-4 py-3 no-print">
+        <div class="max-w-6xl mx-auto flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div
+                    class="w-10 h-10 bg-brand-pink rounded-lg border-2 border-brand-dark flex items-center justify-center shadow-neo">
+                    <i data-lucide="grid-3x3" class="text-brand-dark"></i>
+                </div>
+                <h1 class="font-heading text-2xl font-bold text-brand-dark dark:text-white tracking-wide">Bingo Maker
+                </h1>
+            </div>
+
+            <div
+                class="flex gap-2 bg-white dark:bg-slate-800 border-2 border-brand-dark rounded-xl p-1 shadow-neo overflow-x-auto">
+                <button onclick="switchTab('setup')" id="tab-setup"
+                    class="tab-btn px-4 py-2 rounded-lg font-heading font-bold transition-all border-2 border-transparent hover:bg-slate-100 dark:hover:bg-slate-700">
+                    Setup
+                </button>
+                <button onclick="switchTab('print')" id="tab-print"
+                    class="tab-btn px-4 py-2 rounded-lg font-heading font-bold transition-all border-2 border-transparent hover:bg-slate-100 dark:hover:bg-slate-700">
+                    Print Cards
+                </button>
+                <button onclick="switchTab('caller')" id="tab-caller"
+                    class="tab-btn px-4 py-2 rounded-lg font-heading font-bold transition-all border-2 border-transparent hover:bg-slate-100 dark:hover:bg-slate-700">
+                    Caller Mode
+            </div>
+
+            <button onclick="toggleTheme()"
+                class="stick-btn bg-white dark:bg-slate-800 text-brand-dark dark:text-white group">
+                <i data-lucide="moon" class="w-5 h-5 dark:hidden group-hover:rotate-12 transition-transform"></i>
+                <i data-lucide="sun" class="w-5 h-5 hidden dark:block group-hover:rotate-90 transition-transform"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-grow p-4 md:p-8 max-w-6xl mx-auto w-full">
+
+        <!-- SETUP VIEW -->
+        <section id="view-setup" class="view-section animate-fade-in block lg:h-[calc(100vh-160px)]">
+            <div class="grid lg:grid-cols-3 gap-6 h-full">
+
+                <!-- Col 1: Content -->
+                <div class="hub-card bg-white dark:bg-slate-800 p-6 relative flex flex-col h-full">
+                    <div
+                        class="absolute top-0 right-0 bg-brand-orange text-white font-heading font-bold px-4 py-1 rounded-bl-xl border-b-2 border-l-2 border-brand-dark z-10 shadow-neo-sm">
+                        Step 1: Content
+                    </div>
+
+                    <h2 class="font-heading text-xl font-bold mb-4 flex items-center gap-2 mt-4 lg:mt-0">
+                        <i data-lucide="pencil" class="text-brand-blue"></i> Words / Terms
+                    </h2>
+
+                    <!-- Preset Selection UI -->
+                    <div
+                        class="mb-4 bg-brand-chalk dark:bg-slate-700 p-3 rounded-2xl border-4 border-brand-dark shadow-neo-sm flex flex-col gap-3 shrink-0">
+                        <div class="flex items-center gap-3">
+                            <div
+                                class="w-8 h-8 bg-brand-blue rounded-xl border-2 border-brand-dark flex items-center justify-center shadow-neo-sm shrink-0">
+                                <i data-lucide="save" class="text-white w-4 h-4"></i>
+                            </div>
+                            <div class="flex-grow">
+                                <label
+                                    class="block text-[10px] font-black mb-1 text-slate-500 uppercase tracking-widest hidden md:block">Current
+                                    Preset</label>
+                                <select id="presetSelect"
+                                    class="input-chunky w-full px-2 py-1.5 text-sm font-heading font-bold text-brand-dark dark:text-white bg-white dark:bg-slate-800 transition-colors">
+                                    <!-- Options generated by JS -->
+                                </select>
+                            </div>
+                        </div>
+                        <div class="flex gap-2 w-full">
+                            <button onclick="createNewPreset()"
+                                class="btn-chunky bg-brand-green text-brand-dark px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 flex-1"
+                                title="Create New Preset">
+                                <i data-lucide="plus"
+                                    class="w-3 h-3 text-brand-dark border-2 border-brand-dark rounded-full bg-white/50"></i>
+                                New
+                            </button>
+                            <button onclick="deleteCurrentPreset()"
+                                class="btn-chunky bg-brand-pink text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 flex-1"
+                                title="Delete Preset">
+                                <i data-lucide="trash-2" class="w-3 h-3"></i> Delete
+                            </button>
+                        </div>
+                    </div>
+
+                    <label class="block text-sm font-bold mb-1 shrink-0">Bingo Title</label>
+                    <input type="text" id="bingoTitle" value="Bingo Maker"
+                        class="input-chunky w-full mb-4 px-3 py-2 font-heading text-brand-dark dark:text-white text-sm shrink-0">
+
+                    <label class="block text-sm font-bold mb-1 shrink-0">Word List (Separate by comma or new
+                        line)</label>
+                    <textarea id="wordInput"
+                        class="input-chunky w-full flex-grow px-3 py-2 font-body font-bold resize-none custom-scrollbar text-brand-dark dark:text-white text-sm min-h-[120px]"
+                        placeholder="Apple, Banana, Cat, Dog...">Apple, Banana, Cherry, Date, Elderberry, Fig, Grape, Honeydew, Kiwi, Lemon, Mango, Nectarine, Orange, Papaya, Quince, Raspberry, Strawberry, Tangerine, Ugli Fruit, Vanilla, Watermelon, Xigua, Yam, Zucchini</textarea>
+                    <p class="text-xs text-slate-500 mt-2 font-bold flex justify-between shrink-0">
+                        <span>Separate with commas/newlines.</span>
+                        <span id="wordCount" class="text-brand-pink">24 words</span>
+                    </p>
+                </div>
+
+                <!-- Col 2: Settings -->
+                <div
+                    class="hub-card bg-brand-chalk dark:bg-slate-800 p-6 relative flex flex-col h-full justify-between">
+                    <div
+                        class="absolute top-0 right-0 bg-brand-green text-white font-heading font-bold px-4 py-1 rounded-bl-xl border-b-2 border-l-2 border-brand-dark shadow-neo-sm z-10">
+                        Step 2: Settings
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between items-center mb-6 mt-4 lg:mt-0">
+                            <h2 class="font-heading text-xl font-bold flex items-center gap-2">
+                                <i data-lucide="settings" class="text-brand-green"></i> Grid Settings
+                            </h2>
+                            <button onclick="resetSettings()"
+                                class="btn-chunky bg-slate-200 dark:bg-slate-700 text-slate-500 hover:text-brand-dark px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-colors"
+                                title="Revert to default settings">
+                                <i data-lucide="rotate-ccw" class="w-3 h-3"></i> Reset
+                            </button>
+                        </div>
+
+                        <div class="flex flex-col gap-4 mb-6">
+                            <div
+                                class="bg-white dark:bg-slate-700 p-4 rounded-xl border-2 border-brand-dark shadow-neo-sm">
+                                <label
+                                    class="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-2">Grid
+                                    Size</label>
+                                <select id="gridSize"
+                                    class="input-chunky w-full px-3 py-2 font-heading text-brand-dark dark:text-white bg-slate-50 dark:bg-slate-800 text-sm">
+                                    <option value="3">3 x 3 (9 items)</option>
+                                    <option value="4">4 x 4 (16 items)</option>
+                                    <option value="5" selected>5 x 5 (25 items)</option>
+                                </select>
+                            </div>
+
+                            <div
+                                class="bg-white dark:bg-slate-700 p-4 rounded-xl border-2 border-brand-dark shadow-neo-sm">
+                                <label
+                                    class="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-2">Free
+                                    Space</label>
+                                <select id="freeSpace"
+                                    class="input-chunky w-full px-3 py-2 font-heading text-brand-dark dark:text-white bg-slate-50 dark:bg-slate-800 text-sm">
+                                    <option value="center">Center (Text)</option>
+                                    <option value="none">None</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white dark:bg-slate-700 p-4 rounded-xl border-2 border-brand-dark shadow-neo-sm">
+                        <label class="block text-sm font-bold text-slate-500 uppercase tracking-widest mb-3">Theme
+                            Color</label>
+                        <div class="flex gap-2 justify-between">
+                            <button onclick="setTheme('pink')"
+                                class="w-12 h-12 rounded-2xl bg-brand-pink border-4 border-brand-dark shadow-neo hover:-translate-y-1 transition-transform active:translate-y-1 active:shadow-none focus-ring focus-visible"></button>
+                            <button onclick="setTheme('orange')"
+                                class="w-12 h-12 rounded-2xl bg-brand-orange border-4 border-brand-dark shadow-neo hover:-translate-y-1 transition-transform active:translate-y-1 active:shadow-none focus-ring focus-visible"></button>
+                            <button onclick="setTheme('green')"
+                                class="w-12 h-12 rounded-2xl bg-brand-green border-4 border-brand-dark shadow-neo hover:-translate-y-1 transition-transform active:translate-y-1 active:shadow-none focus-ring focus-visible"></button>
+                            <button onclick="setTheme('blue')"
+                                class="w-12 h-12 rounded-2xl bg-brand-blue border-4 border-brand-dark shadow-neo hover:-translate-y-1 transition-transform active:translate-y-1 active:shadow-none focus-ring focus-visible"></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Col 3: Preview -->
+                <div class="flex flex-col items-center h-full pt-4 lg:pt-0">
+                    <div class="mb-2 font-heading font-bold text-lg text-slate-500">Live Preview</div>
+                    <div class="flex-grow flex items-center justify-center w-full max-w-sm">
+                        <div id="previewCard" class="w-full transition-all duration-300">
+                            <!-- Card generates here -->
+                        </div>
+                    </div>
+                    <div class="mt-4 flex gap-3 w-full px-4 max-w-sm justify-center shrink-0 pb-4 lg:pb-0">
+                        <button onclick="updatePreview()"
+                            class="btn-chunky bg-white dark:bg-slate-700 text-brand-dark dark:text-white px-4 py-3 rounded-xl flex-1 items-center justify-center gap-2 group text-sm">
+                            <i data-lucide="refresh-cw"
+                                class="w-4 h-4 group-hover:rotate-180 transition-transform duration-500"></i> Refresh
+                        </button>
+                        <button onclick="switchTab('print')"
+                            class="btn-chunky bg-brand-blue text-white px-4 py-3 rounded-xl flex-1 items-center justify-center gap-2 group text-sm">
+                            Print <i data-lucide="arrow-right"
+                                class="w-4 h-4 group-hover:translate-x-1 transition-transform"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- PRINT VIEW -->
+        <section id="view-print" class="view-section hidden">
+            <div class="hub-card bg-white dark:bg-slate-800 p-6 mb-8 no-print">
+                <div
+                    class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 border-b-2 border-slate-100 dark:border-slate-700 pb-4">
+                    <div>
+                        <h2 class="font-heading text-2xl font-bold mb-1">Print Center</h2>
+                        <p class="text-slate-500 font-bold text-sm">Generate cards for the whole class.</p>
+                    </div>
+                    <div class="flex gap-2 w-full md:w-auto">
+                        <button onclick="resetPrintSettings()"
+                            class="btn-chunky flex-none bg-slate-200 dark:bg-slate-700 text-slate-500 hover:text-brand-dark px-4 py-3 rounded-xl text-sm gap-2 flex justify-center items-center transition-colors" title="Revert to default settings">
+                            <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Reset
+                        </button>
+                        <button onclick="generatePrintCards()"
+                            class="btn-chunky flex-1 md:flex-none bg-brand-green text-brand-dark px-6 py-3 rounded-xl text-sm gap-2 flex justify-center items-center">
+                            <i data-lucide="layers" class="w-5 h-5"></i> Generate
+                        </button>
+                        <button onclick="window.print()"
+                            class="btn-chunky flex-1 md:flex-none bg-brand-dark text-white px-6 py-3 rounded-xl text-sm gap-2 flex justify-center items-center">
+                            <i data-lucide="printer" class="w-5 h-5"></i> Print Now
+                        </button>
+                    </div>
+                </div>
+
+                <div
+                    class="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-slate-50 dark:bg-slate-700 p-4 rounded-xl border-2 border-slate-200 dark:border-slate-600">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Paper
+                            Size</label>
+                        <select id="printPaperSize"
+                            class="input-chunky w-full px-3 py-2 text-brand-dark dark:text-white text-sm"
+                            onchange="updatePrintPreviewLayout()">
+                            <option value="A4 portrait">A4 Portrait</option>
+                            <option value="A4 landscape" selected>A4 Landscape</option>
+                            <option value="Letter portrait">Letter Portrait</option>
+                            <option value="Letter landscape">Letter Landscape</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Cards /
+                            Page</label>
+                        <select id="printCardsPerPage"
+                            class="input-chunky w-full px-3 py-2 text-brand-dark dark:text-white text-sm"
+                            onchange="updatePrintPreviewLayout()">
+                            <option value="1">1 Card</option>
+                            <option value="2" selected>2 Cards</option>
+                            <option value="4">4 Cards</option>
+                            <option value="6">6 Cards</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Total
+                            Cards</label>
+                        <input type="number" id="printCount" value="20" min="1" max="100"
+                            class="input-chunky w-full px-3 py-2 text-brand-dark dark:text-white text-sm">
+                    </div>
+                </div>
+            </div>
+
+            <div id="printGrid"
+                class="w-full print:bg-white flex flex-col gap-8 items-center bg-slate-200 dark:bg-slate-900 p-8 rounded-2xl print:p-0 print:bg-transparent">
+                <!-- Generated cards go here -->
+                <div
+                    class="flex items-center justify-center p-12 text-slate-400 font-heading text-xl border-4 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl w-full">
+                    Click "Generate" to see layout
+                </div>
+            </div>
+        </section>
+
+        <!-- CALLER MODE -->
+        <section id="view-caller" class="view-section hidden">
+            <div class="grid lg:grid-cols-3 gap-8 h-[calc(100vh-140px)]">
+                <!-- Main Caller Area -->
+                <div class="lg:col-span-2 flex flex-col gap-6">
+                    <div
+                        class="flex-grow hub-card bg-white dark:bg-slate-800 flex flex-col items-center justify-center p-8 relative overflow-hidden group">
+                        <!-- Decorative bg circles -->
+                        <div
+                            class="absolute -top-10 -right-10 w-40 h-40 bg-brand-pink rounded-full opacity-20 group-hover:scale-110 transition-transform duration-700">
+                        </div>
+                        <div
+                            class="absolute -bottom-10 -left-10 w-40 h-40 bg-brand-blue rounded-full opacity-20 group-hover:scale-110 transition-transform duration-700">
+                        </div>
+
+                        <div class="font-heading text-2xl text-slate-400 mb-4 uppercase tracking-widest">Current Word
+                        </div>
+                        <div id="currentCall"
+                            class="font-heading text-5xl md:text-7xl lg:text-8xl font-black text-center text-brand-dark dark:text-white break-words max-w-full z-10 animate-bounce-short">
+                            Ready?
+                        </div>
+                        <div id="itemsRemaining"
+                            class="mt-4 px-3 py-1 bg-slate-100 dark:bg-slate-700/50 rounded-full text-sm font-bold border-2 border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400">
+                            0 / 0 Called
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4 h-24">
+                        <button onclick="callNext()" id="btnCallNext"
+                            class="btn-chunky flex-grow bg-brand-green text-brand-dark rounded-2xl h-full flex items-center justify-center gap-3 text-2xl">
+                            <i data-lucide="play" class="w-8 h-8"></i> Next Word
+                        </button>
+                        <button onclick="resetCaller()"
+                            class="btn-chunky w-24 bg-brand-orange rounded-2xl h-full flex items-center justify-center p-0"
+                            title="Reset Game">
+                            <i data-lucide="rotate-ccw" class="w-8 h-8 text-white"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- History -->
+                <div class="hub-card bg-brand-chalk dark:bg-slate-800 flex flex-col overflow-hidden max-h-[600px]">
+                    <div
+                        class="p-4 bg-brand-dark text-white font-heading font-bold text-lg flex justify-between items-center">
+                        <span>Call History</span>
+                        <i data-lucide="history" class="w-5 h-5"></i>
+                    </div>
+                    <div id="callHistory" class="flex-grow overflow-y-auto custom-scrollbar p-4 space-y-2">
+                        <div class="text-center text-slate-400 italic mt-4 font-bold text-sm">No words called yet.</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Modal for Winner/Alert -->
+    <div id="modal"
+        class="fixed inset-0 z-[100] flex items-center justify-center glass-panel hidden opacity-0 transition-opacity duration-300">
+        <div class="hub-card bg-white dark:bg-slate-800 p-8 max-w-sm w-full text-center transform scale-95 transition-transform duration-300 m-4"
+            id="modalContent">
+            <div
+                class="w-20 h-20 bg-brand-green rounded-full border-4 border-brand-dark mx-auto mb-4 flex items-center justify-center shadow-neo-sm">
+                <i id="modalIcon" data-lucide="trophy" class="w-10 h-10 text-brand-dark"></i>
+            </div>
+            <h3 id="modalTitle" class="font-heading text-3xl font-black mb-2 text-brand-dark dark:text-white">Winner!
+            </h3>
+            <p id="modalMsg" class="font-body font-bold text-slate-600 dark:text-slate-400 mb-6 text-lg">You have a
+                valid Bingo!</p>
+            <button onclick="closeModal()" class="btn-chunky w-full py-3 bg-brand-dark text-white rounded-xl">
+                Awesome!
+            </button>
+        </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div id="confirmModal"
+        class="fixed inset-0 z-[110] flex items-center justify-center glass-panel hidden opacity-0 transition-opacity duration-300">
+        <div class="hub-card bg-white dark:bg-slate-800 p-8 max-w-sm w-full text-center transform scale-95 transition-transform duration-300 m-4"
+            id="confirmModalContent">
+            <div
+                class="w-20 h-20 bg-brand-pink rounded-full border-4 border-brand-dark mx-auto mb-4 flex items-center justify-center shadow-neo-sm">
+                <i data-lucide="trash-2" class="w-10 h-10 text-white"></i>
+            </div>
+            <h3 class="font-heading text-2xl font-black mb-2 text-brand-dark dark:text-white">Delete Preset?</h3>
+            <p class="font-body font-bold text-slate-500 mb-6">Are you sure you want to delete this preset? This cannot
+                be undone.</p>
+            <div class="flex gap-4">
+                <button onclick="closeConfirmModal(false)"
+                    class="btn-chunky flex-1 py-3 bg-slate-200 dark:bg-slate-700 text-brand-dark dark:text-white rounded-xl">Cancel</button>
+                <button onclick="closeConfirmModal(true)"
+                    class="btn-chunky flex-1 py-3 bg-brand-pink text-white rounded-xl">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast"
+        class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-[200] flex items-center gap-3 px-6 py-3 bg-brand-dark text-white rounded-2xl shadow-neo font-body font-bold transition-all duration-300 translate-y-20 opacity-0 pointer-events-none">
+        <i data-lucide="info" id="toastIcon" class="w-5 h-5 text-brand-blue"></i>
+        <span id="toastMsg">Notification</span>
+    </div>
+
+    <script>
+        // --- STATE MANAGEMENT ---
+        const state = {
+            activePresetId: null,
+            presetsList: [],
+            words: [],
+            title: "Bingo",
+            gridSize: 5,
+            freeSpace: 'center',
+            theme: 'pink',
+            callerQueue: [],
+            calledHistory: []
+        };
+
+        const themeColors = {
+            pink: 'bg-brand-pink',
+            orange: 'bg-brand-orange',
+            green: 'bg-brand-green',
+            blue: 'bg-brand-blue'
+        };
+
+        // --- INDEXEDDB FUNCTIONS ---
+        const DB_NAME = 'KlassKitBingoDB';
+        const DB_VERSION = 1;
+        const STORE_NAME = 'presets';
+
+        function openDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onerror = (event) => reject(event.target.error);
+                request.onsuccess = (event) => resolve(event.target.result);
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+                    }
+                };
+            });
+        }
+
+        async function getAllPresets() {
+            try {
+                const db = await openDB();
+                return new Promise((resolve, reject) => {
+                    const transaction = db.transaction([STORE_NAME], 'readonly');
+                    const store = transaction.objectStore(STORE_NAME);
+                    const request = store.getAll();
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            } catch (error) {
+                console.error("Failed to get presets", error);
+                return [];
+            }
+        }
+
+        async function savePreset(preset) {
+            try {
+                const db = await openDB();
+                return new Promise((resolve, reject) => {
+                    const transaction = db.transaction([STORE_NAME], 'readwrite');
+                    const store = transaction.objectStore(STORE_NAME);
+                    const request = store.put(preset);
+                    request.onsuccess = async () => {
+                        await saveToCloud();
+                        resolve();
+                    };
+                    request.onerror = () => reject(request.error);
+                });
+            } catch (error) {
+                console.error("Failed to save preset", error);
+            }
+        }
+
+        async function deletePresetFromDB(id) {
+            try {
+                const db = await openDB();
+                return new Promise((resolve, reject) => {
+                    const transaction = db.transaction([STORE_NAME], 'readwrite');
+                    const store = transaction.objectStore(STORE_NAME);
+                    const request = store.delete(id);
+                    request.onsuccess = async () => {
+                        await saveToCloud();
+                        resolve();
+                    };
+                    request.onerror = () => reject(request.error);
+                });
+            } catch (error) {
+                console.error("Failed to delete preset", error);
+            }
+        }
+
+        async function saveToCloud() {
+            try {
+                const presets = await getAllPresets();
+                await saveProgress('bingo_presets_data', { presets, updatedAt: Date.now() });
+            } catch (e) {
+                console.error("Cloud save failed", e);
+            }
+        }
+
+        async function loadFromCloud() {
+            try {
+                const data = await loadProgress('bingo_presets_data');
+                if (data && data.presets) {
+                    const db = await openDB();
+                    for (const preset of data.presets) {
+                        await new Promise((resolve, reject) => {
+                            const transaction = db.transaction([STORE_NAME], 'readwrite');
+                            const store = transaction.objectStore(STORE_NAME);
+                            const request = store.put(preset);
+                            request.onsuccess = () => resolve();
+                            request.onerror = () => reject(request.error);
+                        });
+                    }
+                    // Refresh local state
+                    state.presetsList = await getAllPresets();
+                    renderPresetDropdown();
+                    if (state.presetsList.length > 0) {
+                        const mostRecent = [...state.presetsList].sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0))[0];
+                        await loadPreset(mostRecent.id);
+                    }
+                }
+            } catch (e) {
+                console.error("Cloud load failed", e);
+            }
+        }
+
+        async function createNewPreset() {
+            const id = 'preset_' + Date.now();
+            const newPreset = {
+                id: id,
+                title: "New Bingo " + (state.presetsList.length + 1),
+                words: "Apple, Banana, Cherry",
+                gridSize: 5,
+                freeSpace: 'center',
+                theme: 'pink',
+                lastAccessed: Date.now()
+            };
+            await savePreset(newPreset);
+            state.presetsList.push(newPreset);
+            await loadPreset(id);
+            renderPresetDropdown();
+            showToast("New preset created!", "success");
+        }
+
+        let presetToDeleteCallback = null;
+
+        function showConfirmModal(callback) {
+            presetToDeleteCallback = callback;
+            const modal = document.getElementById('confirmModal');
+            const content = document.getElementById('confirmModalContent');
+            modal.classList.remove('hidden');
+            // small delay to allow display:block to apply before transition
+            requestAnimationFrame(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.add('scale-100');
+                content.classList.remove('scale-95');
+            });
+        }
+
+        function closeConfirmModal(confirmed) {
+            const modal = document.getElementById('confirmModal');
+            const content = document.getElementById('confirmModalContent');
+            modal.classList.add('opacity-0');
+            content.classList.remove('scale-100');
+            content.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+
+            if (confirmed && presetToDeleteCallback) {
+                presetToDeleteCallback();
+            }
+            presetToDeleteCallback = null;
+        }
+
+        async function executeDeletePreset() {
+            await deletePresetFromDB(state.activePresetId);
+            state.presetsList = state.presetsList.filter(p => p.id !== state.activePresetId);
+            await loadPreset(state.presetsList[0].id);
+            renderPresetDropdown();
+            showToast("Preset deleted", "success");
+        }
+
+        async function deleteCurrentPreset() {
+            if (state.presetsList.length <= 1) {
+                showModal("Cannot Delete", "You must have at least one preset.", "alert-circle");
+                return;
+            }
+            showConfirmModal(executeDeletePreset);
+        }
+
+        function renderPresetDropdown() {
+            const select = document.getElementById('presetSelect');
+            select.innerHTML = '';
+
+            // Sort to put last accessed first
+            const sortedPresets = [...state.presetsList].sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0));
+
+            sortedPresets.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = p.title;
+                if (p.id === state.activePresetId) {
+                    opt.selected = true;
+                }
+                select.appendChild(opt);
+            });
+        }
+
+        async function loadPreset(id) {
+            const preset = state.presetsList.find(p => p.id === id);
+            if (!preset) return;
+
+            state.activePresetId = id;
+            document.getElementById('bingoTitle').value = preset.title;
+            document.getElementById('wordInput').value = preset.words;
+            document.getElementById('gridSize').value = preset.gridSize;
+            document.getElementById('freeSpace').value = preset.freeSpace;
+            state.theme = preset.theme;
+
+            // Update last accessed
+            preset.lastAccessed = Date.now();
+            await savePreset(preset);
+
+            updateStateFromInputs(false); // don't auto-save again during load
+        }
+
+        // --- INIT ---
+        document.addEventListener('DOMContentLoaded', async () => {
+            await requireAuth();
+            lucide.createIcons();
+
+            // 1. Load data from IndexedDB
+            state.presetsList = await getAllPresets();
+
+            if (state.presetsList.length === 0) {
+                // Migrate from localStorage if exists, or create default
+                const oldTitle = localStorage.getItem('e1_bingo_title');
+                const oldWords = localStorage.getItem('e1_bingo_words');
+
+                const defaultPreset = {
+                    id: 'preset_default',
+                    title: oldTitle || "English Vocab Bingo",
+                    words: oldWords || "Apple, Banana, Cherry, Date, Elderberry, Fig, Grape, Honeydew, Kiwi, Lemon, Mango, Nectarine, Orange, Papaya, Quince, Raspberry, Strawberry, Tangerine, Ugli Fruit, Vanilla, Watermelon, Xigua, Yam, Zucchini",
+                    gridSize: 5,
+                    freeSpace: 'center',
+                    theme: 'pink',
+                    lastAccessed: Date.now()
+                };
+                await savePreset(defaultPreset);
+                state.presetsList.push(defaultPreset);
+            }
+
+            // Sync from cloud
+            await loadFromCloud();
+
+            // Load the most recently used preset
+            const mostRecent = [...state.presetsList].sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0))[0];
+            if (mostRecent) {
+                await loadPreset(mostRecent.id);
+            }
+            renderPresetDropdown();
+
+            // 2. Add Listeners
+            document.getElementById('presetSelect').addEventListener('change', async (e) => {
+                await loadPreset(e.target.value);
+            });
+
+            document.getElementById('wordInput').addEventListener('input', () => updateStateFromInputs(true));
+            document.getElementById('bingoTitle').addEventListener('input', () => updateStateFromInputs(true));
+            document.getElementById('gridSize').addEventListener('change', () => updateStateFromInputs(true));
+            document.getElementById('freeSpace').addEventListener('change', () => updateStateFromInputs(true));
+
+            // 3. Initialize UI
+            switchTab('setup');
+        });
+
+        async function updateStateFromInputs(shouldSave = true) {
+            const rawText = document.getElementById('wordInput').value;
+            // Split by comma or new line, filter empty
+            state.words = rawText.split(/[\n,]+/).map(w => w.trim()).filter(w => w.length > 0);
+            state.title = document.getElementById('bingoTitle').value || "Bingo";
+            state.gridSize = parseInt(document.getElementById('gridSize').value);
+            state.freeSpace = document.getElementById('freeSpace').value;
+
+            // Update word count UI
+            const countEl = document.getElementById('wordCount');
+            const minWords = state.gridSize * state.gridSize - (state.freeSpace === 'center' && state.gridSize % 2 !== 0 ? 1 : 0);
+            countEl.textContent = `${state.words.length} words (Need ${minWords})`;
+            countEl.className = state.words.length >= minWords ? 'text-brand-green font-bold' : 'text-brand-pink font-bold';
+
+            updatePreview();
+
+            // Auto-save to IndexedDB if flagged
+            if (shouldSave && state.activePresetId) {
+                const currentPreset = state.presetsList.find(p => p.id === state.activePresetId);
+                if (currentPreset) {
+                    currentPreset.title = state.title;
+                    currentPreset.words = rawText;
+                    currentPreset.gridSize = state.gridSize;
+                    currentPreset.freeSpace = state.freeSpace;
+                    currentPreset.theme = state.theme;
+                    currentPreset.lastAccessed = Date.now();
+                    await savePreset(currentPreset);
+                    // Rerender dropdown to update title if changed
+                    renderPresetDropdown();
+                }
+            }
+        }
+
+        function setTheme(color) {
+            state.theme = color;
+            updatePreview();
+            updateStateFromInputs(true);
+        }
+
+        function resetSettings() {
+            document.getElementById('gridSize').value = "5";
+            document.getElementById('freeSpace').value = "center";
+            state.theme = 'pink';
+            updateStateFromInputs(true);
+            showToast("Settings reverted to defaults", "info");
+        }
+
+        function resetPrintSettings() {
+            document.getElementById('printPaperSize').value = "A4 landscape";
+            document.getElementById('printCardsPerPage').value = "2";
+            document.getElementById('printCount').value = "20";
+            updatePrintPreviewLayout();
+            showToast("Print settings reverted to defaults", "info");
+        }
+
+        function switchTab(tabId) {
+            // Hide all views
+            document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+            // Show target
+            document.getElementById(`view-${tabId}`).classList.remove('hidden');
+            document.getElementById(`view-${tabId}`).classList.add('animate-fade-in');
+
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('bg-brand-pink', 'bg-brand-orange', 'bg-brand-green', 'bg-brand-blue', 'text-brand-dark', 'text-white', 'border-brand-dark', 'shadow-neo');
+                btn.classList.add('border-transparent');
+            });
+
+            const activeBtn = document.getElementById(`tab-${tabId}`);
+            activeBtn.classList.remove('border-transparent');
+            activeBtn.classList.add(themeColors[state.theme], 'text-white', 'border-brand-dark', 'shadow-neo');
+
+            if (tabId === 'caller') {
+                resetCaller();
+            }
+        }
+
+        // --- CARD GENERATION LOGIC ---
+
+        function generateCardHTML() {
+            const size = state.gridSize;
+            const totalCells = size * size;
+
+            // Deep copy and shuffle words
+            let pool = [...state.words];
+
+            // FIX: If input is empty, provide placeholder to prevent infinite loop
+            if (pool.length === 0) {
+                pool = ["Add Words"];
+            }
+
+            if (pool.length < totalCells) {
+                const source = state.words.length > 0 ? state.words : ["Add Words"];
+                while (pool.length < totalCells) {
+                    pool = pool.concat(source);
+                }
+            }
+            pool = pool.sort(() => 0.5 - Math.random()).slice(0, totalCells);
+
+            const centerIndex = Math.floor(totalCells / 2);
+            const hasFreeSpace = state.freeSpace === 'center' && size % 2 !== 0;
+
+            let gridHTML = `
+                <div class="hub-card bg-white rounded-2xl overflow-hidden aspect-[4/5] flex flex-col w-full max-w-[400px] mx-auto break-inside-avoid">
+                    <div class="${themeColors[state.theme]} border-b-4 border-brand-dark p-3 text-center">
+                        <h1 class="font-heading font-black text-4xl tracking-[0.2em] text-brand-dark uppercase drop-shadow-sm">BINGO</h1>
+                    </div>
+                    <div class="grid grid-cols-${size} grid-rows-${size} flex-grow bg-brand-dark gap-0.5 border-b-2 border-brand-dark">
+            `;
+
+            const currentCardValues = [];
+
+            for (let i = 0; i < totalCells; i++) {
+                let content = pool[i];
+                let isFree = false;
+
+                if (hasFreeSpace && i === centerIndex) {
+                    content = "FREE";
+                    isFree = true;
+                }
+
+                currentCardValues.push(content);
+
+                // Simple heuristic to autofit wrapped text using container queries
+                let lengthFactor = 18;
+                if (content.length > 20) lengthFactor = 12;
+                else if (content.length > 12) lengthFactor = 15;
+
+                gridHTML += `
+                    <div class="bg-white flex items-center justify-center p-1 md:p-2 text-center font-body font-bold leading-tight border border-slate-200 aspect-square break-words overflow-hidden" style="container-type: inline-size;">
+                        <span class="${isFree ? 'font-black text-brand-pink' : 'text-brand-dark'}" style="font-size: clamp(0.5rem, ${lengthFactor}cqw, 2rem); hyphens: auto;">${content}</span>
+                    </div>
+                `;
+            }
+
+            gridHTML += `
+                    </div>
+                    <div class="p-2 bg-brand-chalk text-center text-xs font-bold text-slate-400 border-t-2 border-slate-200">
+                        ${state.title}
+                    </div>
+                </div>
+            `;
+
+            return gridHTML;
+        }
+
+        function updatePreview() {
+            document.getElementById('previewCard').innerHTML = generateCardHTML();
+        }
+
+        function updatePrintPreviewLayout() {
+            const container = document.getElementById('printGrid');
+            if (container.querySelector('.print-page')) {
+                generatePrintCards();
+            }
+        }
+
+        function generatePrintCards() {
+            const count = parseInt(document.getElementById('printCount').value);
+            const container = document.getElementById('printGrid');
+            const cardsPerPage = parseInt(document.getElementById('printCardsPerPage').value);
+            const paperSize = document.getElementById('printPaperSize').value;
+
+            container.innerHTML = '';
+
+            let columns = 1;
+            let rows = 1;
+            if (cardsPerPage === 2) {
+                columns = paperSize.includes('portrait') ? 1 : 2;
+                rows = paperSize.includes('portrait') ? 2 : 1;
+            } else if (cardsPerPage === 4) {
+                columns = 2; rows = 2;
+            } else if (cardsPerPage === 6) {
+                columns = paperSize.includes('landscape') ? 3 : 2;
+                rows = paperSize.includes('landscape') ? 2 : 3;
+            }
+
+            let paperWidth = "210mm";
+            let paperHeight = "297mm";
+            if (paperSize === "A4 landscape") { paperWidth = "297mm"; paperHeight = "210mm"; }
+            else if (paperSize === "Letter portrait") { paperWidth = "8.5in"; paperHeight = "11in"; }
+            else if (paperSize === "Letter landscape") { paperWidth = "11in"; paperHeight = "8.5in"; }
+
+            let currentCards = [];
+
+            for (let i = 0; i < count; i++) {
+                currentCards.push(generateCardHTML());
+
+                if (currentCards.length === cardsPerPage || i === count - 1) {
+                    const page = document.createElement('div');
+                    page.className = 'print-page bg-white shadow-xl flex shrink-0 box-border mx-auto print:shadow-none print:m-0 print:p-0 print:w-auto print:h-auto overflow-hidden relative';
+
+                    page.style.cssText = `
+                        width: ${paperWidth};
+                        height: ${paperHeight};
+                        padding: 1cm;
+                        display: grid;
+                        grid-template-columns: repeat(${columns}, 1fr);
+                        grid-template-rows: repeat(${rows}, 1fr);
+                        gap: 1cm;
+                        page-break-after: always;
+                        break-after: page;
+                    `;
+
+                    currentCards.forEach(cardHTML => {
+                        const wrapper = document.createElement('div');
+                        wrapper.innerHTML = cardHTML;
+                        wrapper.className = 'flex w-full h-full justify-center items-center overflow-hidden';
+                        const cardNode = wrapper.firstElementChild;
+                        cardNode.classList.remove('max-w-[400px]', 'mx-auto');
+                        cardNode.classList.add('w-full', 'h-full', 'max-h-[100%]');
+                        page.appendChild(cardNode);
+                    });
+
+                    container.appendChild(page);
+                    currentCards = [];
+                }
+            }
+
+            let styleEl = document.getElementById('dynamicPrintStyles');
+            if (!styleEl) {
+                styleEl = document.createElement('style');
+                styleEl.id = 'dynamicPrintStyles';
+                document.head.appendChild(styleEl);
+            }
+
+            styleEl.innerHTML = `
+                @media print {
+                    @page {
+                        size: ${paperSize};
+                        margin: 0; 
+                    }
+                    body {
+                        background: white !important;
+                    }
+                    .print-page {
+                        width: 100vw !important;
+                        height: 100vh !important;
+                        box-shadow: none !important;
+                        margin: 0 !important;
+                    }
+                    #printGrid {
+                        background: transparent !important;
+                        padding: 0 !important;
+                        gap: 0 !important;
+                        display: block !important;
+                    }
+                }
+            `;
+        }
+
+        // --- CALLER LOGIC ---
+
+        function resetCaller() {
+            state.callerQueue = [...state.words].sort(() => 0.5 - Math.random());
+            state.calledHistory = [];
+            document.getElementById('currentCall').textContent = "Ready?";
+            document.getElementById('callHistory').innerHTML = '<div class="text-center text-slate-400 italic mt-4">No words called yet.</div>';
+            document.getElementById('btnCallNext').disabled = false;
+            document.getElementById('itemsRemaining').textContent = `0 / ${state.words.length} Called`;
+        }
+
+        function callNext() {
+            if (state.callerQueue.length === 0) {
+                document.getElementById('currentCall').textContent = "All Done!";
+                document.getElementById('btnCallNext').disabled = true;
+                return;
+            }
+
+            const word = state.callerQueue.pop();
+            state.calledHistory.unshift(word);
+
+            // Update Main Display
+            const display = document.getElementById('currentCall');
+            display.classList.remove('animate-bounce-short');
+            void display.offsetWidth; // trigger reflow
+            display.textContent = word;
+            display.classList.add('animate-bounce-short');
+
+            // Update Counts
+            const total = state.words.length;
+            const called = state.calledHistory.length;
+            document.getElementById('itemsRemaining').textContent = `${called} / ${total} Called`;
+
+            // Update History
+            const historyEl = document.getElementById('callHistory');
+            const newEntry = document.createElement('div');
+            newEntry.className = "p-3 bg-white border-2 border-kkdark rounded-xl shadow-sm font-bold text-kkdark animate-fade-in flex items-center justify-between";
+            newEntry.innerHTML = `<span>${word}</span> <span class="text-xs text-slate-400">#${called}</span>`;
+
+            if (called === 1) historyEl.innerHTML = '';
+            historyEl.prepend(newEntry);
+        }
+
+
+        // --- UI UTILS ---
+        function showModal(title, msg, icon = 'trophy') {
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalMsg').textContent = msg;
+
+            const iconEl = document.getElementById('modalIcon');
+            iconEl.setAttribute('data-lucide', icon);
+
+            document.getElementById('modal').classList.remove('hidden');
+            // Allow display chunk to apply
+            requestAnimationFrame(() => {
+                document.getElementById('modal').classList.remove('opacity-0');
+                document.getElementById('modalContent').classList.add('scale-100');
+                document.getElementById('modalContent').classList.remove('scale-95');
+                lucide.createIcons();
+            });
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.add('opacity-0');
+            document.getElementById('modalContent').classList.remove('scale-100');
+            document.getElementById('modalContent').classList.add('scale-95');
+            setTimeout(() => {
+                document.getElementById('modal').classList.add('hidden');
+            }, 300);
+        }
+
+        function showToast(msg, type = 'info') {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').textContent = msg;
+            const icon = document.getElementById('toastIcon');
+
+            if (type === 'success') {
+                icon.setAttribute('data-lucide', 'check-circle');
+                icon.className = 'w-5 h-5 text-brand-green';
+            } else if (type === 'error') {
+                icon.setAttribute('data-lucide', 'alert-circle');
+                icon.className = 'w-5 h-5 text-brand-pink';
+            } else {
+                icon.setAttribute('data-lucide', 'info');
+                icon.className = 'w-5 h-5 text-brand-blue';
+            }
+            lucide.createIcons();
+
+            toast.classList.remove('pointer-events-none'); // Optional, but usually toasts are pass-through
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+        }
+
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes bounce-short {
+                0%, 100% { transform: translateY(0); }
+                50% { transform: translateY(-10px); }
+            }
+            .animate-bounce-short { animation: bounce-short 0.3s ease-in-out; }
+            
+            @keyframes fade-in {
+                from { opacity: 0; transform: translateY(10px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+
+</html>
