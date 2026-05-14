@@ -355,9 +355,28 @@
         }
 
         /* Chromebook / Low height */
+        /* Explanation panel */
+        .explanation-panel {
+            max-height: 0;
+            overflow: hidden;
+            opacity: 0;
+            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease, margin 0.3s ease;
+            margin-top: 0;
+        }
+
+        .explanation-panel.visible {
+            max-height: 220px;
+            opacity: 1;
+            margin-top: 12px;
+        }
+
         @media (max-height: 780px) {
             .setup-header {
                 display: none;
+            }
+
+            .explanation-panel.visible {
+                max-height: 120px;
             }
 
             main {
@@ -594,6 +613,19 @@
                         <!-- Options injected here -->
                     </div>
 
+                    <!-- Explanation Panel -->
+                    <div id="explanation-panel" class="explanation-panel">
+                        <div class="bg-blue/10 dark:bg-blue/10 border-2 border-blue/30 dark:border-blue/40 rounded-xl px-5 py-3 flex items-start gap-3">
+                            <div class="w-7 h-7 rounded-lg bg-blue flex items-center justify-center border-2 border-dark dark:border-blue shadow-hard-sm shrink-0 mt-0.5">
+                                <i data-lucide="lightbulb" class="w-3.5 h-3.5 text-white"></i>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-[9px] font-black text-blue uppercase tracking-[0.2em] mb-1">Explanation</p>
+                                <p id="explanation-text" class="text-sm font-bold text-dark dark:text-slate-200 leading-relaxed"></p>
+                            </div>
+                        </div>
+                    </div>
+
                     <div
                         class="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 shrink-0 mt-4 pt-3 border-t-2 border-dark/10 dark:border-slate-700">
                         <button id="main-reveal-btn" onclick="revealAnswer()"
@@ -729,7 +761,7 @@
 
         function createNewCollection() {
             const id = 'quiz_' + Date.now();
-            const newQuiz = { id, name: "New Classroom Battle", questions: [{ q: "", o: ["", "", "", ""], a: 0 }], timestamp: Date.now() };
+            const newQuiz = { id, name: "New Classroom Battle", questions: [{ q: "", o: ["", "", "", ""], a: 0, e: "" }], timestamp: Date.now() };
             collections.push(newQuiz);
             currentCollectionId = id;
             currentQuestions = newQuiz.questions;
@@ -798,7 +830,7 @@
         }
 
         function addQuestion() {
-            currentQuestions.push({ q: "", o: ["", "", "", ""], a: 0 });
+            currentQuestions.push({ q: "", o: ["", "", "", ""], a: 0, e: "" });
             saveData();
             renderEditor();
             setTimeout(() => { const editor = document.getElementById('questions-editor'); editor.scrollTop = editor.scrollHeight; }, 50);
@@ -827,7 +859,7 @@
                 const optionLetters = ['A', 'B', 'C', 'D'];
                 const card = document.createElement('div');
                 card.className = 'bg-chalk dark:bg-slate-800 border-2 border-dark dark:border-slate-600 rounded-xl shadow-hard-sm relative group';
-                card.innerHTML = `<div class="flex items-center gap-3 px-5 pt-4 pb-3 border-b-2 border-dark/10 dark:border-slate-700"><span class="w-8 h-8 rounded-lg bg-blue text-white flex items-center justify-center font-heading text-base border-2 border-dark shadow-hard-sm shrink-0">${idx + 1}</span><span class="text-xs font-black text-slate-400 uppercase tracking-widest flex-1">Question</span><div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onclick="duplicateQuestion(${idx})" class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue hover:bg-blue/10 shrink-0" title="Duplicate Question"><i data-lucide="copy" class="w-4 h-4"></i></button><button onclick="removeQuestion(${idx})" class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-pink hover:bg-pink/10 shrink-0" title="Remove Question"><i data-lucide="x" class="w-4 h-4"></i></button></div></div><div class="px-5 pt-3 pb-2"><textarea oninput="updateQuestion(${idx}, 'q', this.value)" placeholder="Type your question here…" class="w-full bg-white dark:bg-slate-900 border-2 border-dark/20 dark:border-slate-600 rounded-xl px-4 py-3 font-bold text-base text-dark dark:text-white focus:outline-none focus:border-blue dark:focus:border-blue shadow-inner resize-none transition-colors" rows="2">${q.q}</textarea></div><div class="grid grid-cols-1 md:grid-cols-2 gap-2 px-5 pb-4">${q.o.map((opt, oIdx) => `<label class="answer-strip ${q.a === oIdx ? 'is-correct' : ''} cursor-pointer"><input type="radio" name="correct-${idx}" ${q.a === oIdx ? 'checked' : ''} onchange="updateQuestion(${idx}, 'a', ${oIdx}); renderEditor();" class="w-4 h-4 accent-green cursor-pointer shrink-0"><span class="text-xs font-black ${optionColors[oIdx]} shrink-0 w-5 text-center">${optionLetters[oIdx]}</span><input type="text" value="${opt}" oninput="updateOption(${idx}, ${oIdx}, this.value)" placeholder="Choice ${optionLetters[oIdx]}…" class="flex-1 bg-transparent border-none outline-none font-bold text-sm text-dark dark:text-slate-200 placeholder-slate-300 min-w-0"></label>`).join('')}</div>`;
+                card.innerHTML = `<div class="flex items-center gap-3 px-5 pt-4 pb-3 border-b-2 border-dark/10 dark:border-slate-700"><span class="w-8 h-8 rounded-lg bg-blue text-white flex items-center justify-center font-heading text-base border-2 border-dark shadow-hard-sm shrink-0">${idx + 1}</span><span class="text-xs font-black text-slate-400 uppercase tracking-widest flex-1">Question</span><div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onclick="duplicateQuestion(${idx})" class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue hover:bg-blue/10 shrink-0" title="Duplicate Question"><i data-lucide="copy" class="w-4 h-4"></i></button><button onclick="removeQuestion(${idx})" class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-pink hover:bg-pink/10 shrink-0" title="Remove Question"><i data-lucide="x" class="w-4 h-4"></i></button></div></div><div class="px-5 pt-3 pb-2"><textarea oninput="updateQuestion(${idx}, 'q', this.value)" placeholder="Type your question here…" class="w-full bg-white dark:bg-slate-900 border-2 border-dark/20 dark:border-slate-600 rounded-xl px-4 py-3 font-bold text-base text-dark dark:text-white focus:outline-none focus:border-blue dark:focus:border-blue shadow-inner resize-none transition-colors" rows="2">${q.q}</textarea></div><div class="grid grid-cols-1 md:grid-cols-2 gap-2 px-5 pb-2">${q.o.map((opt, oIdx) => `<label class="answer-strip ${q.a === oIdx ? 'is-correct' : ''} cursor-pointer"><input type="radio" name="correct-${idx}" ${q.a === oIdx ? 'checked' : ''} onchange="updateQuestion(${idx}, 'a', ${oIdx}); renderEditor();" class="w-4 h-4 accent-green cursor-pointer shrink-0"><span class="text-xs font-black ${optionColors[oIdx]} shrink-0 w-5 text-center">${optionLetters[oIdx]}</span><input type="text" value="${opt}" oninput="updateOption(${idx}, ${oIdx}, this.value)" placeholder="Choice ${optionLetters[oIdx]}…" class="flex-1 bg-transparent border-none outline-none font-bold text-sm text-dark dark:text-slate-200 placeholder-slate-300 min-w-0"></label>`).join('')}</div><div class="px-5 pb-4"><div class="flex items-center gap-2 mb-1.5 cursor-pointer select-none" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('[data-lucide]').setAttribute('data-lucide', this.nextElementSibling.classList.contains('hidden') ? 'chevron-right' : 'chevron-down'); lucide.createIcons();"><i data-lucide="${q.e ? 'chevron-down' : 'chevron-right'}" class="w-3.5 h-3.5 text-blue"></i><span class="text-[10px] font-black text-blue uppercase tracking-[0.2em]">Explanation (optional)</span></div><textarea oninput="updateQuestion(${idx}, 'e', this.value)" placeholder="Why is this the correct answer? Add context for students…" class="${q.e ? '' : 'hidden '}w-full bg-blue/5 dark:bg-blue/5 border-2 border-blue/20 dark:border-blue/30 rounded-xl px-4 py-2.5 font-semibold text-sm text-dark dark:text-slate-200 focus:outline-none focus:border-blue dark:focus:border-blue resize-none transition-colors placeholder-slate-400" rows="2">${q.e || ''}</textarea></div>`;
                 container.appendChild(card);
             });
             lucide.createIcons();
@@ -946,6 +978,7 @@
             document.getElementById('score-text').textContent = score;
             document.getElementById('feedback-controls').classList.add('hidden');
             document.getElementById('main-reveal-btn').classList.remove('hidden');
+            hideExplanation();
             document.getElementById('question-tag').textContent = `QUESTION #${currentStep + 1}`;
             updateDots();
 
@@ -992,6 +1025,7 @@
             document.getElementById('score-text').textContent = score;
             document.getElementById('feedback-controls').classList.remove('hidden');
             document.getElementById('main-reveal-btn').classList.add('hidden');
+            showExplanation(q);
             lucide.createIcons();
         }
 
@@ -1011,7 +1045,23 @@
             AudioEngine.playTone(440, 'sine', 0.25, 0.15);
             document.getElementById('feedback-controls').classList.remove('hidden');
             document.getElementById('main-reveal-btn').classList.add('hidden');
+            showExplanation(q);
             lucide.createIcons();
+        }
+
+        function showExplanation(q) {
+            const panel = document.getElementById('explanation-panel');
+            const textEl = document.getElementById('explanation-text');
+            if (q.e && q.e.trim()) {
+                textEl.textContent = q.e;
+                requestAnimationFrame(() => panel.classList.add('visible'));
+                lucide.createIcons();
+            }
+        }
+
+        function hideExplanation() {
+            const panel = document.getElementById('explanation-panel');
+            panel.classList.remove('visible');
         }
 
         function nextQuestion() { currentStep++; if (currentStep < currentQuestions.length) showQuestion(); else showResult(); }
