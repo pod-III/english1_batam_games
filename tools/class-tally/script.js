@@ -1358,7 +1358,8 @@ const ClassTallyApp = (function () {
 
                 if (State.viewMode === 'list') {
                     return `
-                    <div id="card-${s.id}" class="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-2xl p-2 px-4 flex items-center gap-4 transition-all hover:border-brand-blue group relative overflow-hidden ${pickedClass} ${absentClass} ${animationClass}" style="${animationStyle}">
+                    <div id="card-${s.id}" 
+                        class="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-2xl p-2 px-4 flex items-center gap-4 transition-all hover:border-brand-blue group relative overflow-hidden ${pickedClass} ${absentClass} ${animationClass}" style="${animationStyle}">
                         <!-- Color Accent -->
                         <div class="absolute left-0 top-0 bottom-0 w-2" style="background-color: ${s.cardColor}"></div>
                         
@@ -1375,7 +1376,7 @@ const ClassTallyApp = (function () {
                             <div class="tally-log-container flex flex-wrap gap-0.5 mt-0.5">
                                 ${s.goodLogs.slice(0, 20).map(e => `<span onclick="event.stopPropagation(); ClassTallyApp.Student.removeLastPoint(${s.id},'good')" class="tally-item select-none cursor-pointer hover:opacity-50">${e}</span>`).join('')}
                                 ${s.badLogs.slice(0, 20).map(e => `<span onclick="event.stopPropagation(); ClassTallyApp.Student.removeLastPoint(${s.id},'bad')" class="tally-item select-none cursor-pointer hover:opacity-50 grayscale opacity-80 hover:opacity-100">${e}</span>`).join('')}
-                                ${goodCount + badCount > 40 ? '<span class="text-[8px] text-slate-400 font-bold ml-1">...</span>' : ''}
+                                ${goodCount + badCount > 40 ? '<span class="text-[8px] text-slate-400 font-black ml-1">...</span>' : ''}
                             </div>
                         </div>
 
@@ -1387,14 +1388,24 @@ const ClassTallyApp = (function () {
                              </div>
 
                              <div class="flex items-center gap-1.5">
-                                <button onclick="ClassTallyApp.Student.addPoint(${s.id}, 'good')" class="w-10 h-10 rounded-xl border-2 border-brand-green/20 text-brand-green hover:bg-brand-green hover:text-white transition-all flex items-center justify-center font-bold btn-chunky shadow-sm hover:shadow-brand-green/20 text-lg">${State.currentGood}</button>
-                                <button onclick="ClassTallyApp.Student.addPoint(${s.id}, 'bad')" class="w-10 h-10 rounded-xl border-2 border-brand-pink/20 text-brand-pink hover:bg-brand-pink hover:text-white transition-all flex items-center justify-center font-bold btn-chunky shadow-sm hover:shadow-brand-pink/20 text-lg">${State.currentBad}</button>
+                                <button onclick="ClassTallyApp.Student.addPoint(${s.id}, 'good')" 
+                                    data-tooltip="Add ${State.currentGood}"
+                                    class="w-10 h-10 rounded-xl border-2 border-brand-green/20 text-brand-green hover:bg-brand-green hover:text-white transition-all flex items-center justify-center font-bold btn-chunky shadow-sm hover:shadow-brand-green/20 text-lg">${State.currentGood}</button>
+                                <button onclick="ClassTallyApp.Student.addPoint(${s.id}, 'bad')" 
+                                    data-tooltip="Add ${State.currentBad}"
+                                    class="w-10 h-10 rounded-xl border-2 border-brand-pink/20 text-brand-pink hover:bg-brand-pink hover:text-white transition-all flex items-center justify-center font-bold btn-chunky shadow-sm hover:shadow-brand-pink/20 text-lg">${State.currentBad}</button>
                              </div>
 
                              <div class="flex items-center gap-0.5 ml-1">
-                                <button onclick="ClassTallyApp.Student.toggleAbsent(${s.id})" title="Hide" class="p-1.5 text-slate-300 hover:text-brand-orange transition-colors"><i data-lucide="${s.isAbsent ? 'eye' : 'eye-off'}" class="w-4 h-4"></i></button>
-                                <button onclick="ClassTallyApp.Student.editStudent(${s.id})" title="Edit" class="p-1.5 text-slate-300 hover:text-brand-blue transition-colors"><i data-lucide="pencil" class="w-4 h-4"></i></button>
-                                <button onclick="ClassTallyApp.Student.remove(${s.id})" title="Delete" class="p-1.5 text-slate-300 hover:text-red-400 transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
+                                <button onclick="ClassTallyApp.Student.toggleAbsent(${s.id})" 
+                                    data-tooltip="${s.isAbsent ? 'Show Student' : 'Hide Student'}"
+                                    class="p-1.5 text-slate-300 hover:text-brand-orange transition-colors"><i data-lucide="${s.isAbsent ? 'eye' : 'eye-off'}" class="w-4 h-4"></i></button>
+                                <button onclick="ClassTallyApp.Student.editStudent(${s.id})" 
+                                    data-tooltip="Edit Student"
+                                    class="p-1.5 text-slate-300 hover:text-brand-blue transition-colors"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+                                <button onclick="ClassTallyApp.Student.remove(${s.id})" 
+                                    data-tooltip="Delete Student"
+                                    class="p-1.5 text-slate-300 hover:text-red-400 transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
                              </div>
                         </div>
                     </div>`;
@@ -1402,7 +1413,8 @@ const ClassTallyApp = (function () {
 
                 // Default: Grid (Normal) View
                 return `
-                <div id="card-${s.id}" class="app-panel rounded-[2rem] flex flex-row relative overflow-hidden bg-white hover:border-slate-200 group transition-all duration-300 ${pickedClass} ${absentClass} ${animationClass}" style="${animationStyle}">
+                <div id="card-${s.id}" 
+                    class="app-panel rounded-[2rem] flex flex-row relative overflow-hidden bg-white hover:border-slate-200 group transition-all duration-300 ${pickedClass} ${absentClass} ${animationClass}" style="${animationStyle}">
                     ${rankBadge}
                     
                     <div class="w-32 sm:w-40 flex-none relative flex flex-col items-center justify-center p-2 transition-colors duration-300 border-r border-black/5" style="background-color: ${s.cardColor}; background-image: radial-gradient(circle, rgba(255,255,255,0.15) 2px, transparent 2.5px); background-size: 14px 14px;">
@@ -1434,16 +1446,24 @@ const ClassTallyApp = (function () {
                     }
                             </div>
                             <div class="flex gap-1 -mt-2 -mr-2">
-                                <button onclick="ClassTallyApp.Student.toggleAbsent(${s.id})" title="${s.isAbsent ? 'Mark Present' : 'Mark Absent'}" class="${s.isAbsent ? 'text-brand-orange' : 'text-slate-300'} hover:text-brand-orange p-2 rounded-xl hover:bg-orange-50 transition-colors">
+                                <button onclick="ClassTallyApp.Student.toggleAbsent(${s.id})" 
+                                    data-tooltip="${s.isAbsent ? 'Mark Present' : 'Mark Absent'}"
+                                    class="${s.isAbsent ? 'text-brand-orange' : 'text-slate-300'} hover:text-brand-orange p-2 rounded-xl hover:bg-orange-50 transition-colors">
                                     <i data-lucide="${s.isAbsent ? 'eye' : 'eye-off'}" class="w-4 h-4"></i>
                                 </button>
-                                <button onclick="ClassTallyApp.Student.editStudent(${s.id})" title="Edit Name" class="text-slate-300 hover:text-brand-blue p-2 rounded-xl hover:bg-blue-50 transition-colors">
+                                <button onclick="ClassTallyApp.Student.editStudent(${s.id})" 
+                                    data-tooltip="Edit Name"
+                                    class="text-slate-300 hover:text-brand-blue p-2 rounded-xl hover:bg-blue-50 transition-colors">
                                     <i data-lucide="pencil" class="w-4 h-4"></i>
                                 </button>
-                                <button onclick="ClassTallyApp.Student.emptyScore(${s.id})" title="Reset Score" class="text-slate-300 hover:text-brand-orange p-2 rounded-xl hover:bg-orange-50 transition-colors">
+                                <button onclick="ClassTallyApp.Student.emptyScore(${s.id})" 
+                                    data-tooltip="Reset Score"
+                                    class="text-slate-300 hover:text-brand-orange p-2 rounded-xl hover:bg-orange-50 transition-colors">
                                     <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
                                 </button>
-                                <button onclick="ClassTallyApp.Student.remove(${s.id})" title="Delete Student" class="text-slate-300 hover:text-red-400 p-2 rounded-xl hover:bg-red-50 transition-colors">
+                                <button onclick="ClassTallyApp.Student.remove(${s.id})" 
+                                    data-tooltip="Delete Student"
+                                    class="text-slate-300 hover:text-red-400 p-2 rounded-xl hover:bg-red-50 transition-colors">
                                     <i data-lucide="x" class="w-5 h-5"></i>
                                 </button>
                             </div>
@@ -1578,6 +1598,48 @@ const ClassTallyApp = (function () {
         }
     };
 
+    // --- Tooltip Module ---
+    const Tooltip = {
+        init: () => {
+            const el = document.getElementById('tooltip');
+            if (!el) return;
+
+            document.addEventListener('mouseover', (e) => {
+                const target = e.target.closest('[data-tooltip]');
+                if (target) {
+                    const content = target.getAttribute('data-tooltip');
+                    el.textContent = content;
+                    el.classList.remove('opacity-0', 'scale-95');
+                    el.classList.add('opacity-100', 'scale-100');
+                    
+                    const rect = target.getBoundingClientRect();
+                    const tooltipRect = el.getBoundingClientRect();
+                    
+                    let top = rect.top - tooltipRect.height - 10;
+                    let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+                    
+                    // Keep within screen
+                    if (top < 10) top = rect.bottom + 10;
+                    if (left < 10) left = 10;
+                    if (left + tooltipRect.width > window.innerWidth - 10) {
+                        left = window.innerWidth - tooltipRect.width - 10;
+                    }
+                    
+                    el.style.top = `${top}px`;
+                    el.style.left = `${left}px`;
+                }
+            });
+
+            document.addEventListener('mouseout', (e) => {
+                const target = e.target.closest('[data-tooltip]');
+                if (target) {
+                    el.classList.add('opacity-0', 'scale-95');
+                    el.classList.remove('opacity-100', 'scale-100');
+                }
+            });
+        }
+    };
+
     return {
         init: async () => {
             UI.initTheme();
@@ -1585,6 +1647,7 @@ const ClassTallyApp = (function () {
             CanvasDraw.init('signature-canvas');
             UI.initEmojiPickers();
             Keyboard.init();
+            Tooltip.init();
             UI.render();
             UI.updateViewModeUI();
             UI.updateAutoFitUI();
@@ -1608,7 +1671,7 @@ const ClassTallyApp = (function () {
             UI.updateActiveIndicator();
             UI.updateShowAbsentUI();
         },
-        Student, Teams, UI, Timer, CanvasDraw, Keyboard
+        Student, Teams, UI, Timer, CanvasDraw, Keyboard, Tooltip
     };
 })();
 
