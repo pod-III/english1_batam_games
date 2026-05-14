@@ -4,6 +4,7 @@ let debugLines = [];
 
 // ── Initialization ────────────────────────────────────────────────────────────
 window.addEventListener('load', async () => {
+    if (typeof requirePro === 'function') await requirePro();
     initQuill();
     await initDB();
     lucide.createIcons();

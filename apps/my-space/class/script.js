@@ -12,7 +12,7 @@ const ClassManager = {
   },
 
   async init() {
-    if (typeof requireAuth === 'function') await requireAuth();
+    if (typeof requirePro === 'function') await requirePro();
 
     // 1. Fetch Cloud Data if applicable
     if (window.Sync && !isSandbox()) {
