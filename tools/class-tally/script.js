@@ -1190,8 +1190,8 @@ const ClassTallyApp = (function () {
 
             // Base dimensions
             const cardBaseWidth = 360;
-            const cardBaseHeight = 256;
-            const gapBase = 24;
+            const cardBaseHeight = 320; // Increased from 256 for "longer" cards
+            const gapBase = 24; 
             const padding = 48; // generous padding for safe containment
 
             const availableWidth = appBody.clientWidth - padding;
@@ -1236,7 +1236,7 @@ const ClassTallyApp = (function () {
             const s = State.students.find(x => x.id === id); if (!s) return;
             const cardEl = document.getElementById(`card-${id}`);
             if (!cardEl) return;
-            const logContainer = cardEl.querySelector(`.custom-scrollbar`);
+            const logContainer = cardEl.querySelector(`.tally-log-container`);
             const goodCounter = cardEl.querySelector(`.good-count`);
             const badCounter = cardEl.querySelector(`.bad-count`);
 
@@ -1285,24 +1285,44 @@ const ClassTallyApp = (function () {
 
                 if (State.viewMode === 'list') {
                     return `
-                    <div id="card-${s.id}" class="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-2xl p-3 flex items-center gap-4 transition-all hover:border-brand-blue group ${pickedClass} ${absentClass} ${animationClass}" style="${animationStyle}">
-                        <div class="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-3xl shrink-0 border border-black/5" style="background-color: ${s.cardColor}20">
+                    <div id="card-${s.id}" class="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-2xl p-2 px-4 flex items-center gap-4 transition-all hover:border-brand-blue group relative overflow-hidden ${pickedClass} ${absentClass} ${animationClass}" style="${animationStyle}">
+                        <!-- Color Accent -->
+                        <div class="absolute left-0 top-0 bottom-0 w-2" style="background-color: ${s.cardColor}"></div>
+                        
+                        <!-- Avatar -->
+                        <div class="w-10 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-2xl shrink-0 border border-black/5 shadow-inner" style="background-color: ${s.cardColor}15">
                             ${s.avatar || '😀'}
                         </div>
-                        <div class="flex-1 min-w-0">
-                            <h3 class="text-xl font-black text-slate-800 dark:text-white truncate leading-none mb-1">${s.name}</h3>
-                            <div class="flex gap-2">
-                                <span class="text-xs font-bold text-brand-green uppercase flex items-center gap-1">${State.currentGood} <span class="good-count">${goodCount}</span></span>
-                                <span class="text-xs font-bold text-brand-pink uppercase flex items-center gap-1">${State.currentBad} <span class="bad-count">${badCount}</span></span>
+
+                        <!-- Name & Logs -->
+                        <div class="flex-1 min-w-0 flex flex-col justify-center">
+                            <h3 class="text-base font-black text-slate-800 dark:text-white truncate leading-tight">${s.name}</h3>
+                            
+                            <!-- Logs Display (Compact + Interactive) -->
+                            <div class="tally-log-container flex flex-wrap gap-0.5 mt-0.5">
+                                ${s.goodLogs.slice(0, 20).map(e => `<span onclick="event.stopPropagation(); ClassTallyApp.Student.removeLastPoint(${s.id},'good')" class="tally-item select-none cursor-pointer hover:opacity-50">${e}</span>`).join('')}
+                                ${s.badLogs.slice(0, 20).map(e => `<span onclick="event.stopPropagation(); ClassTallyApp.Student.removeLastPoint(${s.id},'bad')" class="tally-item select-none cursor-pointer hover:opacity-50 grayscale opacity-80 hover:opacity-100">${e}</span>`).join('')}
+                                ${goodCount + badCount > 40 ? '<span class="text-[8px] text-slate-400 font-bold ml-1">...</span>' : ''}
                             </div>
                         </div>
-                        <div class="flex items-center gap-2">
-                             <button onclick="ClassTallyApp.Student.addPoint(${s.id}, 'good')" class="w-12 h-12 rounded-xl border-2 border-brand-green/20 text-brand-green hover:bg-brand-green hover:text-white transition-all flex items-center justify-center font-bold btn-chunky shadow-sm hover:shadow-brand-green/20 text-xl">${State.currentGood}</button>
-                             <button onclick="ClassTallyApp.Student.addPoint(${s.id}, 'bad')" class="w-12 h-12 rounded-xl border-2 border-brand-pink/20 text-brand-pink hover:bg-brand-pink hover:text-white transition-all flex items-center justify-center font-bold btn-chunky shadow-sm hover:shadow-brand-pink/20 text-xl">${State.currentBad}</button>
-                             <div class="h-8 w-[1px] bg-slate-100 dark:bg-slate-800 mx-1"></div>
-                             <button onclick="ClassTallyApp.Student.toggleAbsent(${s.id})" title="Toggle Attendance" class="p-2.5 text-slate-300 hover:text-brand-orange transition-colors"><i data-lucide="${s.isAbsent ? 'eye' : 'eye-off'}" class="w-5 h-5"></i></button>
-                             <button onclick="ClassTallyApp.Student.editStudent(${s.id})" title="Edit" class="p-2.5 text-slate-300 hover:text-brand-blue transition-colors"><i data-lucide="pencil" class="w-5 h-5"></i></button>
-                             <button onclick="ClassTallyApp.Student.remove(${s.id})" title="Delete" class="p-2.5 text-slate-300 hover:text-red-400 transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+
+                        <!-- Counters & Actions -->
+                        <div class="flex items-center gap-3">
+                             <div class="hidden sm:flex items-center gap-2 px-3 border-r border-slate-100 dark:border-slate-800">
+                                <span class="text-[10px] font-black text-brand-green uppercase">${State.currentGood} ${goodCount}</span>
+                                <span class="text-[10px] font-black text-brand-pink uppercase">${State.currentBad} ${badCount}</span>
+                             </div>
+
+                             <div class="flex items-center gap-1.5">
+                                <button onclick="ClassTallyApp.Student.addPoint(${s.id}, 'good')" class="w-10 h-10 rounded-xl border-2 border-brand-green/20 text-brand-green hover:bg-brand-green hover:text-white transition-all flex items-center justify-center font-bold btn-chunky shadow-sm hover:shadow-brand-green/20 text-lg">${State.currentGood}</button>
+                                <button onclick="ClassTallyApp.Student.addPoint(${s.id}, 'bad')" class="w-10 h-10 rounded-xl border-2 border-brand-pink/20 text-brand-pink hover:bg-brand-pink hover:text-white transition-all flex items-center justify-center font-bold btn-chunky shadow-sm hover:shadow-brand-pink/20 text-lg">${State.currentBad}</button>
+                             </div>
+
+                             <div class="flex items-center gap-0.5 ml-1">
+                                <button onclick="ClassTallyApp.Student.toggleAbsent(${s.id})" title="Hide" class="p-1.5 text-slate-300 hover:text-brand-orange transition-colors"><i data-lucide="${s.isAbsent ? 'eye' : 'eye-off'}" class="w-4 h-4"></i></button>
+                                <button onclick="ClassTallyApp.Student.editStudent(${s.id})" title="Edit" class="p-1.5 text-slate-300 hover:text-brand-blue transition-colors"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+                                <button onclick="ClassTallyApp.Student.remove(${s.id})" title="Delete" class="p-1.5 text-slate-300 hover:text-red-400 transition-colors"><i data-lucide="x" class="w-4 h-4"></i></button>
+                             </div>
                         </div>
                     </div>`;
                 }
@@ -1357,7 +1377,7 @@ const ClassTallyApp = (function () {
                         </div>
 
                         <div class="flex-grow bg-white rounded-xl border border-slate-100 p-2.5 mb-4 relative group/logs overflow-hidden shadow-inner">
-                             <div class="custom-scrollbar flex flex-wrap content-start gap-1.5 h-full overflow-y-auto w-full">
+                             <div class="custom-scrollbar tally-log-container flex flex-wrap content-start gap-1.5 h-full overflow-y-auto w-full">
                                 ${s.goodLogs.map((e, i) => `<span onclick="event.stopPropagation(); ClassTallyApp.Student.removeLastPoint(${s.id},'good')" class="tally-item text-xl select-none hover:opacity-50 drop-shadow-sm cursor-pointer">${e}</span>`).join('')}
                                 ${s.badLogs.map(e => `<span onclick="event.stopPropagation(); ClassTallyApp.Student.removeLastPoint(${s.id},'bad')" class="tally-item text-lg grayscale opacity-80 hover:opacity-100 drop-shadow-sm cursor-pointer">${e}</span>`).join('')}
                                 ${s.goodLogs.length === 0 && s.badLogs.length === 0 ? '<span class="text-xs text-slate-300 font-bold self-center w-full text-center mt-2 uppercase tracking-wide opacity-50">Empty</span>' : ''}
