@@ -11,25 +11,62 @@ KlassKit is a curated, **high-performance ecosystem of 50+ interactive tools and
 
 ---
 
-## 🌟 Why KlassKit?
+## 🌟 The KlassKit Experience
 
-In a world of fragmented educational tools, KlassKit offers a unified, **projector-optimized** experience. Whether you need a quick brain break, a deep-dive grammar session, or a professional weekly planner, KlassKit has you covered.
+KlassKit isn't just a collection of apps; it's a unified environment designed to reduce "teacher friction" during live lessons.
 
-- **⚡ Zero Friction**: No accounts required for the local "Sandbox" experience.
-- **🎨 Stunning Aesthetics**: A unique "Soft Brutalism" design that is both friendly and professional.
-- **🛠 Teacher-First UX**: Large interaction targets, high-contrast OLED dark mode, and seamless offline persistence.
-- **💾 Dual-Path Persistence**: Choose between **KlassKit Sandbox** (100% local privacy) or **KlassKit Cloud** (Pro-grade cross-device synchronization).
+### ⚡ Core Features
+- **📌 Smart Pinning**: Keep your most-used tools pinned to the top of your dashboard for instant access.
+- **🔍 Global Instant Search**: Find any game, tool, or workshop utility in milliseconds with our fuzzy-search engine.
+- **📑 Multi-App Tabbing**: Open multiple activities in persistent tabs and switch between them without losing your score or progress.
+- **🌓 OLED-Ready Dark Mode**: A deep slate theme designed to maximize contrast on classroom projectors while reducing eye strain.
+- **🔊 Haptic & Audio Feedback**: Every interaction is backed by subtle, high-quality synthesized sound effects for a more tactile experience.
+- **📱 Ultra-Responsive**: Designed for the big screen, but fully optimized for teacher tablets and laptops.
+
+---
+
+## 📽️ Built for the Projector
+
+Most educational tools are built for the individual student. KlassKit is built for the **entire class**.
+
+- **High-Visibility Typography**: We use large, clear fonts that remain legible even on older projectors.
+- **Chunky Interaction Zones**: Buttons and inputs are oversized to ensure they are easy to click with a wireless presenter or from across the room.
+- **Contrast First**: Our color palette is specifically tuned to be vibrant without being washed out by high-ambient classroom lighting.
+
+---
+
+## 🛡️ Choose Your Path: Privacy or Sync?
+
+KlassKit offers two distinct modes of operation to suit your specific classroom environment.
+
+| Feature | 🧪 KlassKit Sandbox (Local) | ☁️ KlassKit Cloud (Pro) |
+| :--- | :--- | :--- |
+| **Setup** | Instant / No Account | Google or Email Login |
+| **Privacy** | 100% On-Device | Secure Cloud Storage |
+| **Connectivity** | Works Offline (after load) | Requires Internet |
+| **Persistence** | Browser Cache (Local) | Multi-Device Sync |
+| **Best For** | Quick lessons & privacy | Long-term tracking & planning |
+
+---
+
+## 🏗️ System Architecture
+
+KlassKit is a modern SPA (Single Page Application) built with a focus on speed and modularity.
+
+- **Modular Design**: Each activity is a self-contained HTML/JS module that communicates with the Hub via a standardized postMessage API (for state sync).
+- **Persistent State Engine**: Uses a hybrid of `localStorage` and `IndexedDB` to ensure that even in Sandbox mode, your data survives browser restarts.
+- **Theming Engine**: A centralized CSS variable system allows for instant switching between light and dark modes across all 50+ activities.
 
 ---
 
 ## 🎨 Our Design Signature: Soft Brutalism
 
-KlassKit isn't just functional; it's **premium**. We follow a strict design system to ensure every tool feels alive and engaging:
+We believe that educational software should be as beautiful as it is functional. KlassKit follows a strict design system called **Soft Brutalism**:
 
-- **Typography**: `Fredoka` for punchy headings and `Nunito` for elegant, readable body text.
-- **Soft Brutalism**: Bold 4px borders, hard block shadows, and vibrant accent colors (Pink, Orange, Green, Blue).
-- **Glassmorphism**: Sophisticated frosted-glass panels and floating sidebars.
-- **Micro-Interactions**: Every card, button, and modal features smooth, high-frame-rate animations.
+- **Typography**: `Fredoka` for punchy, energetic headings and `Nunito` for elegant, readable body text.
+- **Tactile UI**: Bold 4px borders and "Hard Shadows" that give every element an extruded, physical feel.
+- **Glassmorphism**: Sophisticated frosted-glass panels (`backdrop-filter: blur`) for overlays and sidebars.
+- **Micro-Interactions**: Every card, button, and modal features smooth, high-frame-rate animations and satisfying hover states.
 
 ---
 
