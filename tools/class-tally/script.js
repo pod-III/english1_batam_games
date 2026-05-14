@@ -1371,15 +1371,15 @@ const ClassTallyApp = (function () {
                         <!-- Name & Logs -->
                         <div class="flex-1 min-w-0 flex flex-col justify-center">
                             <div class="flex items-center gap-4 flex-wrap">
-                                <h3 class="text-2xl font-black text-slate-800 dark:text-white shrink-0 leading-tight">${s.name}</h3>
+                                <h3 class="text-4xl font-black text-slate-800 dark:text-white shrink-0 leading-tight">${s.name}</h3>
                                 
-                                <div class="h-10 w-1 bg-slate-100 dark:bg-slate-800 rounded-full shrink-0 mx-1"></div>
+                                <div class="flex-1"></div>
 
-                                <!-- Logs Display -->
-                                <div class="tally-log-container flex flex-wrap items-center gap-2">
-                                    ${s.goodLogs.slice(0, 25).map(e => `<span onclick="event.stopPropagation(); ClassTallyApp.Student.removeLastPoint(${s.id},'good')" class="tally-item select-none cursor-pointer hover:opacity-50 text-7xl leading-none">${e}</span>`).join('')}
-                                    ${s.badLogs.slice(0, 10).map(e => `<span onclick="event.stopPropagation(); ClassTallyApp.Student.removeLastPoint(${s.id},'bad')" class="tally-item select-none cursor-pointer hover:opacity-50 grayscale opacity-80 hover:opacity-100 text-7xl leading-none">${e}</span>`).join('')}
-                                    ${goodCount + badCount > 35 ? '<span class="text-sm text-slate-400 font-black ml-1">...</span>' : ''}
+                                <!-- Logs Display (RTL) -->
+                                <div class="tally-log-container flex flex-row-reverse flex-wrap items-center justify-start gap-2 pr-4">
+                                    ${s.badLogs.slice(0, 10).map(e => `<span onclick="event.stopPropagation(); ClassTallyApp.Student.removeLastPoint(${s.id},'bad')" class="tally-item select-none cursor-pointer hover:opacity-50 grayscale opacity-80 hover:opacity-100 text-9xl leading-none">${e}</span>`).join('')}
+                                    ${s.goodLogs.slice(0, 25).map(e => `<span onclick="event.stopPropagation(); ClassTallyApp.Student.removeLastPoint(${s.id},'good')" class="tally-item select-none cursor-pointer hover:opacity-50 text-9xl leading-none">${e}</span>`).join('')}
+                                    ${goodCount + badCount > 35 ? '<span class="text-sm text-slate-400 font-black mr-2">...</span>' : ''}
                                 </div>
                             </div>
                         </div>
