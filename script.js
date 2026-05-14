@@ -636,18 +636,16 @@ const Hero = {
 
   updateStats() {
     const active = State.games.filter(g => g.active !== false && (!g.pro || State.isPro()));
-    const myspace = active.filter(g => g.category === 'myspace').length;
     const tools = active.filter(g => g.category === 'tool').length;
     const games = active.filter(g => g.category === 'game').length;
     const workshop = active.filter(g => g.category === 'workshop').length;
     const pinned = PinnedGames.get().length;
 
-    const myspaceEl = document.getElementById('stat-myspace');
     const toolsEl = document.getElementById('stat-tools');
     const gamesEl = document.getElementById('stat-games');
     const workshopEl = document.getElementById('stat-workshop');
     const pinnedEl = document.getElementById('stat-pinned');
-    if (myspaceEl) myspaceEl.textContent = myspace;
+
     if (toolsEl) toolsEl.textContent = tools;
     if (gamesEl) gamesEl.textContent = games;
     if (workshopEl) workshopEl.textContent = workshop;
@@ -1152,7 +1150,6 @@ const GameGrid = {
     }
 
     // Group by category
-    const myspace = gamesToRender.filter(g => g.category === 'myspace');
     const tools = gamesToRender.filter(g => g.category === 'tool');
     const gamesList = gamesToRender.filter(g => g.category === 'game');
     const workshop = gamesToRender.filter(g => g.category === 'workshop');
@@ -1160,9 +1157,6 @@ const GameGrid = {
 
     let html = '';
 
-    if (myspace.length > 0) {
-      html += this.renderCategorySection('myspace', 'user-round', 'var(--color-orange)', 'My Space', myspace);
-    }
     if (tools.length > 0) {
       html += this.renderCategorySection('tools', 'wrench', 'var(--color-blue)', 'Teaching Tools', tools);
     }
@@ -1570,7 +1564,6 @@ const Filters = {
     // Update Bottom Nav items
     const bnavItems = {
       all: 'bnav-library',
-      myspace: 'bnav-myspace',
       tool: 'bnav-tools',
       workshop: 'bnav-workshop'
     };
@@ -3755,13 +3748,6 @@ async function initAuthIndicator() {
   }
 }
 
-// --- EXPORTS & INITIALIZATION ---
-window.App = App;
-window.AudioEngine = AudioEngine;
-window.TabManager = TabManager;
-window.Timer = Timer;
-window.filterGames = (category) => Filters.setCategory(category);
-
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
     App.init();
@@ -3794,3 +3780,13 @@ const MobileUI = {
     }
   }
 };
+
+// --- EXPORTS ---
+window.App = App;
+window.AudioEngine = AudioEngine;
+window.TabManager = TabManager;
+window.Timer = Timer;
+window.LandingPage = LandingPage;
+window.MySpace = MySpace;
+window.MobileUI = MobileUI;
+window.filterGames = (category) => Filters.setCategory(category);
