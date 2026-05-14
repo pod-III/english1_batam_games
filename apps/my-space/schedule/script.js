@@ -14,6 +14,28 @@ let tempRedDays = []; // Draft holidays
 let isHolidayModalDirty = false; // Track if holiday modal has unsaved changes
 let isDetailPanelDirty = false; // Track if current event detail has unsaved changes
 
+/**
+ * Utility for safe local storage operations.
+ */
+const StorageUtil = {
+  load(key, fallback = null) {
+    try {
+      const data = localStorage.getItem(key);
+      return data ? JSON.parse(data) : fallback;
+    } catch (e) {
+      console.warn(`[Schedule] Error loading ${key}:`, e);
+      return fallback;
+    }
+  },
+  save(key, value) {
+    try {
+      localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
+    } catch (e) {
+      console.error(`[Schedule] Error saving ${key}:`, e);
+    }
+  }
+};
+
 // Initialize Lucide Icons
 lucide.createIcons();
 
@@ -202,39 +224,26 @@ function scrollToCurrentTime() {
   });
 }
 
+/**
+ * Loads all initial schedule state from local storage.
+ */
 function loadData() {
-  const saved = localStorage.getItem('schedule_events');
-  let masters = [];
-  if (saved) {
-    try {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed)) masters = parsed;
-    } catch(e) {}
-  }
-  
-  // Start with masters
+  const masters = StorageUtil.load('schedule_events', []);
   events = [...masters];
   
-  // Generate clones for each master
+  // Generate clones for each master up to 6 months in the future
   masters.forEach(m => {
     if (m.recurrence && m.recurrence !== 'none') {
       const rangeStart = new Date(m.date);
       const rangeEnd = new Date(rangeStart);
       rangeEnd.setMonth(rangeEnd.getMonth() + 6);
       const clones = generateRecurrences(m, rangeStart, rangeEnd);
-      events = [...events, ...clones];
+      events.push(...clones);
     }
   });
   
-  const savedWeekDayCount = localStorage.getItem('schedule_week_day_count');
-  if (savedWeekDayCount) {
-    weekDayCount = parseInt(savedWeekDayCount);
-  }
-  
-  const savedViewMode = localStorage.getItem('schedule_view_mode');
-  if (savedViewMode) {
-    viewMode = savedViewMode;
-  }
+  weekDayCount = parseInt(localStorage.getItem('schedule_week_day_count')) || weekDayCount;
+  viewMode = localStorage.getItem('schedule_view_mode') || viewMode;
   
   const savedStart = localStorage.getItem('schedule_start_hour');
   const savedEnd = localStorage.getItem('schedule_end_hour');
@@ -242,42 +251,48 @@ function loadData() {
     updateScheduleRange(savedStart, savedEnd);
   }
 
-  const savedRedDays = localStorage.getItem('schedule_red_days');
-  if (savedRedDays) {
-    redDays = JSON.parse(savedRedDays);
+  redDays = StorageUtil.load('schedule_red_days', []);
+}
+
+/**
+ * Loads the administrator's planning tracking state.
+ */
+function loadClassAdmin() {
+  return StorageUtil.load('schedule_class_admin', {});
+}
+
+/**
+ * Saves the administrator's planning tracking state and pushes to cloud.
+ */
+function saveClassAdmin(data) {
+  StorageUtil.save('schedule_class_admin', data);
+  if (window.Sync) {
+    Sync.fireCloudSave(userId => Sync.cloudSaveClassAdmin(userId, data));
   }
 }
 
-function loadClassAdmin() {
-  const raw = localStorage.getItem('schedule_class_admin');
-  if (!raw) return {};
-  try { return JSON.parse(raw); } catch { return {}; }
-}
-
-function saveClassAdmin(data) {
-  localStorage.setItem('schedule_class_admin', JSON.stringify(data));
-  // Non-blocking cloud save
-  if (window.Sync) Sync.fireCloudSave(userId =>
-    Sync.cloudSaveClassAdmin(userId, data)
-  );
-}
-
+/**
+ * Loads unit progressions for classes.
+ */
 function loadClassUnits() {
-  const raw = localStorage.getItem('schedule_class_units');
-  if (!raw) return {};
-  try { return JSON.parse(raw); } catch { return {}; }
+  return StorageUtil.load('schedule_class_units', {});
 }
 
 
+/**
+ * Persists current schedule configuration and events to local storage.
+ * Fires a background cloud sync if enabled.
+ */
 function saveData() {
   const masters = events.filter(e => !e.isRecurrence);
   const promoted = events.filter(e => e.isRecurrence && (window.Sync ? Sync.isPromoted(e) : false));
 
-  localStorage.setItem('schedule_events', JSON.stringify(masters));
-  localStorage.setItem('schedule_promoted_instances', JSON.stringify(promoted));
+  StorageUtil.save('schedule_events', masters);
+  StorageUtil.save('schedule_promoted_instances', promoted);
+  StorageUtil.save('schedule_red_days', redDays);
   localStorage.setItem('schedule_week_day_count', weekDayCount);
   localStorage.setItem('schedule_view_mode', viewMode);
-  localStorage.setItem('schedule_red_days', JSON.stringify(redDays));
+  
   updateStats();
   updateTodayList();
   
@@ -390,6 +405,10 @@ function renderSidebar() {
   updateTodayList();
 }
 
+/**
+ * Updates the sidebar statistics (event counts, tasks, covered classes)
+ * based on the currently displayed week.
+ */
 function updateStats() {
   const start = new Date(currentWeekStart);
   start.setHours(0, 0, 0, 0);
@@ -400,11 +419,11 @@ function updateStats() {
   let weekEvents = 0;
   let totalTasks = 0;
   let doneTasks = 0;
-  
   const coveredClasses = [];
 
   events.forEach(evt => {
-    const evtDate = new Date(evt.date + 'T00:00:00');
+    const evtDate = new Date(`${evt.date}T00:00:00`);
+    
     if (evtDate >= start && evtDate <= end) {
       if (evt.isRecurrence && redDays.includes(evt.date)) return;
       
@@ -438,11 +457,13 @@ function updateStats() {
     if (coveredClasses.length === 0) {
       coveredContainer.innerHTML = '<p class="text-[10px] text-slate-400 italic px-1">No covered classes.</p>';
     } else {
-      // Sort by date
+      // Sort chronologically
       coveredClasses.sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
+      
       coveredContainer.innerHTML = coveredClasses.map(evt => {
-        const evtDate = new Date(evt.date + 'T00:00:00');
+        const evtDate = new Date(`${evt.date}T00:00:00`);
         const dateLabel = evtDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        
         return `
           <div class="flex items-start gap-2 p-2 rounded-xl border border-amber-200/50 dark:border-amber-700/30 bg-white/60 dark:bg-slate-800/40 hover:border-amber-400/50 transition-all group/cov">
             <div class="min-w-0 flex-1">
@@ -464,6 +485,7 @@ function updateStats() {
           </div>
         `;
       }).join('');
+      
       if (window.lucide) lucide.createIcons({ root: coveredContainer });
     }
   }
@@ -471,13 +493,18 @@ function updateStats() {
 
 
 
+/**
+ * Updates the 'Today's Events' sidebar list.
+ */
 function updateTodayList() {
   const container = document.getElementById('today-events-list');
   if (!container) return;
+  
   container.innerHTML = '';
   
   const todayStr = getDayString(new Date());
   const isTodayRed = redDays.includes(todayStr);
+  
   const todayEvents = events
     .filter(e => e.date === todayStr)
     .filter(e => !(isTodayRed && e.isRecurrence))
@@ -489,13 +516,17 @@ function updateTodayList() {
     return;
   }
   
+  // Use fragment to reduce DOM reflows
+  const fragment = document.createDocumentFragment();
+  
   todayEvents.forEach(evt => {
     const div = document.createElement('div');
     div.className = 'p-2 rounded-lg bg-white dark:bg-slate-800 border-l-4 shadow-sm flex flex-col gap-0.5 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors mb-1.5';
     div.style.borderColor = evt.color;
+    
     div.onclick = () => {
-      // If event is on another week (shouldn't happen for today list but good for safety)
-      const evtDate = new Date(evt.date);
+      // Navigate to the correct week if not already there
+      const evtDate = new Date(`${evt.date}T00:00:00`);
       const weekStart = getMonday(evtDate);
       if (currentWeekStart.getTime() !== weekStart.getTime()) {
         currentWeekStart = weekStart;
@@ -510,8 +541,10 @@ function updateTodayList() {
         ${formatTimeDisplay(evt.startTime)} • ${evt.room || 'No Room'}
       </div>
     `;
-    container.appendChild(div);
+    fragment.appendChild(div);
   });
+  
+  container.appendChild(fragment);
 }
 
 /* ============================================
@@ -1080,7 +1113,7 @@ function openDetailPanel(eventId, keepDirty = false) {
       </div>
       <div class="flex gap-2 mt-2">
         <input type="text" id="new-checklist-input" class="panel-input flex-1 text-[11px] py-1.5" placeholder="Add task..." onkeypress="if(event.key==='Enter') addChecklistItem('${eventId}')">
-        <button onclick="addChecklistItem('${eventId}')" class="neo-btn-sm bg-blue text-white px-3 py-1.5 rounded-lg"><i data-lucide="plus" class="w-4 h-4"></i></button>
+        <button onclick="addChecklistItem('${eventId}')" class="btn-chunky bg-blue text-white px-3 py-1.5 rounded-lg"><i data-lucide="plus" class="w-4 h-4"></i></button>
       </div>
     </div>
 
@@ -1099,7 +1132,7 @@ function openDetailPanel(eventId, keepDirty = false) {
         <i data-lucide="layout-dashboard" class="w-6 h-6 text-pink"></i>
         <h4 class="text-sm font-bold text-pink">Class Admin & Syllabus</h4>
         <p class="text-xs text-slate-500 mb-2">Manage syllabus units, lessons, and class-wide tasks in the Admin Tracker.</p>
-        <a href="../admin-tracker/index.html" class="neo-btn-sm bg-pink text-white px-4 py-2 rounded-lg text-xs font-bold inline-flex items-center gap-2 transition-all shadow-pink/20">
+        <a href="../admin-tracker/index.html" class="btn-chunky bg-pink text-white px-4 py-2 rounded-lg text-xs font-bold inline-flex items-center gap-2 transition-all shadow-pink/20">
           Open Admin Tracker <i data-lucide="external-link" class="w-3 h-3"></i>
         </a>
       </div>
@@ -1109,14 +1142,14 @@ function openDetailPanel(eventId, keepDirty = false) {
   
   const footer = document.getElementById('detail-footer');
   footer.innerHTML = `
-    <button onclick="deleteEvent('${eventId}')" class="neo-btn-sm bg-white dark:bg-slate-800 text-pink hover:bg-pink hover:text-white px-3 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors" title="Delete">
+    <button onclick="deleteEvent('${eventId}')" class="btn-chunky bg-white dark:bg-slate-800 text-pink hover:bg-pink hover:text-white px-3 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors" title="Delete">
       <i data-lucide="trash-2" class="w-4 h-4"></i>
     </button>
-    <button onclick="duplicateEvent('${eventId}')" class="neo-btn-sm bg-white dark:bg-slate-800 text-dark dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 px-3 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors" title="Clone">
+    <button onclick="duplicateEvent('${eventId}')" class="btn-chunky bg-white dark:bg-slate-800 text-dark dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 px-3 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-colors" title="Clone">
       <i data-lucide="copy" class="w-4 h-4"></i>
     </button>
-    <button id="save-close-btn" onclick="closeDetailPanel()" class="neo-btn bg-blue text-white flex-1 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-blue/20">
-      <i data-lucide="check-circle" class="w-4 h-4"></i> Save & Close
+    <button id="save-close-btn" onclick="closeDetailPanel()" class="btn-chunky bg-blue text-white flex-1 py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-blue/20">
+      <i data-lucide="check" class="w-4 h-4"></i> Done
     </button>
   `;
   
@@ -1439,8 +1472,10 @@ function openEventModal(eventObj = null, dateStr = null, timeStr = null, typeId 
         </div>
         
         <div class="p-5 border-t border-slate-200 dark:border-slate-700 flex justify-end gap-3 bg-slate-50 dark:bg-slate-800/50 rounded-b-[1.5rem]">
-          <button onclick="closeEventModal()" class="neo-btn bg-white dark:bg-slate-800 text-dark dark:text-white px-6 py-2 rounded-xl">Cancel</button>
-          <button onclick="saveEventFromModal()" class="neo-btn bg-blue text-white px-6 py-2 rounded-xl">Save</button>
+          <div class="flex gap-2">
+            <button onclick="closeEventModal()" class="btn-chunky bg-white dark:bg-slate-800 text-dark dark:text-white px-6 py-2 rounded-xl">Cancel</button>
+            <button onclick="saveEventFromModal()" class="btn-chunky bg-blue text-white px-6 py-2 rounded-xl">Save</button>
+          </div>
         </div>
       </div>
     </div>
