@@ -405,8 +405,9 @@ const UI = {
     else if (hour < 18) greeting = "Almost the weekend? 🍎";
     else greeting = "Good Evening! 🌙";
 
-    const greetingEl = document.getElementById("greeting-display");
-    if (greetingEl) greetingEl.textContent = greeting;
+    document.querySelectorAll(".greeting-display").forEach(el => {
+      el.textContent = greeting;
+    });
 
     const dateEl = document.getElementById("date-display");
     if (dateEl) {
@@ -1375,8 +1376,7 @@ const ViewManager = {
       // Refresh Home Page Content
       if (window.PinnedGames) PinnedGames.render();
       if (window.RecentGames) RecentGames.render();
-      if (window.GameGrid) GameGrid.render();
-      if (UI && UI.updateGreeting) UI.updateGreeting();
+      if (window.UI && UI.updateGreeting) UI.updateGreeting();
     }
 
     this.updateNavUI();
@@ -1442,6 +1442,14 @@ const ViewManager = {
       <div class="hero-banner rounded-[2rem] p-6 md:p-8 mb-6 border-[3px] border-dark dark:border-slate-600 shadow-hard dark:shadow-neon relative overflow-hidden flex flex-col justify-center min-h-[160px] mt-4">
         <div class="hero-gradient-bg"></div>
         <div class="hero-dot-overlay"></div>
+        
+        <!-- Floating geometric shapes -->
+        <div class="hero-shape hero-shape--circle" style="top: 10%; right: 15%;"></div>
+        <div class="hero-shape hero-shape--ring" style="bottom: 15%; right: 30%;"></div>
+        <div class="hero-shape hero-shape--square" style="top: 20%; right: 40%;"></div>
+        <div class="hero-shape hero-shape--dot" style="top: 60%; right: 10%;"></div>
+        <div class="hero-shape hero-shape--dot" style="top: 30%; right: 55%;"></div>
+
         <div class="absolute right-4 bottom-[-10%] md:right-12 md:bottom-[-15%] opacity-10 dark:opacity-[0.08] pointer-events-none">
           <i data-lucide="${icon}" class="w-40 h-40 md:w-56 md:h-56 text-slate-800 dark:text-white transform -rotate-12 scale-110"></i>
         </div>
@@ -1451,7 +1459,7 @@ const ViewManager = {
               <span class="hero-pill clock-pill"><i data-lucide="calendar" class="w-3.5 h-3.5"></i> <span class="date-text">...</span></span>
               <span class="hero-pill">Hello!</span>
             </div>
-            <h2 id="greeting-display" class="text-3xl md:text-5xl font-heading font-black mb-1 leading-tight tracking-tight text-slate-900 dark:text-white">
+            <h2 class="greeting-display text-3xl md:text-5xl font-heading font-black mb-1 leading-tight tracking-tight text-slate-900 dark:text-white">
               ${title}
             </h2>
             ${statsHtml}
@@ -1466,6 +1474,12 @@ const ViewManager = {
                   <i data-lucide="play" class="w-4 h-4 fill-white"></i>
                   <span class="font-heading font-bold text-xs uppercase tracking-tight whitespace-nowrap continue-label">Continue</span>
                 </button>
+             </div>
+             <!-- Tip Box -->
+             <div class="hero-tip-box inline-flex items-center gap-3 px-5 py-2.5 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30">
+               <p id="daily-tip" class="font-bold text-sm text-slate-700 dark:text-white/95 flex items-center gap-3 m-0">
+                 <i data-lucide="sparkles" class="w-4 h-4 text-yellow-300"></i> Tip: Use shortcut '/' to quickly search the library!
+               </p>
              </div>
           </div>
         </div>
@@ -1527,7 +1541,19 @@ const ViewManager = {
         </div>
       `;
     } else {
-      grid.innerHTML = games.map(game => GameGrid.createCard(game)).join('');
+      if (category === 'all') {
+        const tools = games.filter(g => g.category === 'tool');
+        const gamesList = games.filter(g => g.category === 'game');
+        const workshop = games.filter(g => g.category === 'workshop');
+        
+        let html = '';
+        if (tools.length > 0) html += GameGrid.renderCategorySection('tools', 'wrench', 'var(--color-blue)', 'Teaching Tools', tools);
+        if (workshop.length > 0) html += GameGrid.renderCategorySection('workshop', 'hammer', 'var(--color-pink)', 'Workshop Tools', workshop);
+        if (gamesList.length > 0) html += GameGrid.renderCategorySection('games', 'gamepad-2', 'var(--color-green)', 'Classroom Games', gamesList);
+        grid.innerHTML = html;
+      } else {
+        grid.innerHTML = `<div class="category-grid">${games.map(game => GameGrid.createCard(game)).join('')}</div>`;
+      }
     }
     
     Utils.refreshIcons(grid);
