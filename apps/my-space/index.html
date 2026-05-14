@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <!-- Supabase Auth -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/supabase.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>My Space Dashboard — KlassKit</title>
+  <link rel="icon" type="image/x-icon" href="../../media/icon.ico" />
+  <link rel="icon" type="image/webp" href="../../media/icon.webp" />
+  
+  <script>
+    if (localStorage.getItem("theme_myspace-home") === "dark" || (!localStorage.getItem("theme_myspace-home") && window.matchMedia("(prefers-color-scheme:dark)").matches)) {
+      document.documentElement.classList.add("dark")
+    }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            pink: '#ff4785', orange: '#ff7e33', green: '#00d063',
+            blue: '#1ea7fd', dark: '#0f172a', chalk: '#f8fafc',
+          },
+          fontFamily: {
+            heading: ['Fredoka', 'sans-serif'],
+            body: ['Nunito', 'sans-serif'],
+          },
+          boxShadow: {
+            'neo': '4px 4px 0px 0px rgba(15, 23, 42, 1)',
+            'neo-sm': '2px 2px 0px 0px rgba(15, 23, 42, 1)',
+            'neo-pink': '4px 4px 0px 0px #ff4785',
+            'neo-orange': '4px 4px 0px 0px #ff7e33',
+            'neo-green': '4px 4px 0px 0px #00d063',
+            'neo-blue': '4px 4px 0px 0px #1ea7fd',
+          },
+        }
+      }
+    }
+  </script>
+
+  <link rel="stylesheet" href="../../css/base.css" />
+  <link rel="stylesheet" href="../../css/components.css" />
+  <link rel="stylesheet" href="styles.css">
+
+</head>
+
+<body class="min-h-screen bg-chalk dark:bg-slate-950 text-dark dark:text-white p-4 md:p-8 custom-scrollbar">
+
+  <!-- ====== HEADER ====== -->
+  <header class="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4 animate-pop-in">
+    <div>
+      <div class="flex items-center gap-3 mb-2">
+        <div class="w-10 h-10 bg-blue rounded-xl border-[3px] border-dark dark:border-slate-700 flex items-center justify-center text-white shadow-neo-sm">
+          <i data-lucide="layout-dashboard" class="w-6 h-6 stroke-[2.5px]"></i>
+        </div>
+        <h1 class="font-heading font-black text-3xl md:text-4xl tracking-tight leading-none">My Space Dashboard</h1>
+      </div>
+      <p class="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em] leading-none ml-13">Welcome back, Teacher! Here's your overview.</p>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <div id="sync-badge" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-2 border-dark dark:border-slate-700 bg-white dark:bg-slate-800 text-[10px] font-extrabold uppercase tracking-widest text-slate-500">
+        <i data-lucide="hard-drive" class="w-3.5 h-3.5"></i> Local
+      </div>
+      <button onclick="toggleDarkMode()" class="w-10 h-10 bg-white dark:bg-slate-800 rounded-xl border-2 border-dark dark:border-slate-700 flex items-center justify-center shadow-neo-sm hover:translate-y-[-2px] active:translate-y-[2px] transition-all">
+        <i id="darkModeIcon" data-lucide="moon" class="w-5 h-5"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- ====== QUICK ACTIONS ====== -->
+  <section class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 animate-pop-in" style="animation-delay: 0.1s;">
+    <button onclick="window.parent.MySpace.loadApp('schedule')" class="dashboard-shortcut-card border-orange text-orange hover:bg-orange/5 group">
+      <div class="shortcut-icon bg-orange text-white shadow-neo-orange group-hover:scale-110 transition-transform">
+        <i data-lucide="calendar-days" class="w-6 h-6"></i>
+      </div>
+      <span class="font-heading font-black text-sm uppercase tracking-tight">Schedule</span>
+    </button>
+
+    <button onclick="window.parent.MySpace.loadApp('admin-tracker')" class="dashboard-shortcut-card border-blue text-blue hover:bg-blue/5 group">
+      <div class="shortcut-icon bg-blue text-white shadow-neo-blue group-hover:scale-110 transition-transform">
+        <i data-lucide="clipboard-check" class="w-6 h-6"></i>
+      </div>
+      <span class="font-heading font-black text-sm uppercase tracking-tight">Admin</span>
+    </button>
+
+    <button onclick="window.parent.MySpace.loadApp('my-class')" class="dashboard-shortcut-card border-green text-green hover:bg-green/5 group">
+      <div class="shortcut-icon bg-green text-white shadow-neo-green group-hover:scale-110 transition-transform">
+        <i data-lucide="users" class="w-6 h-6"></i>
+      </div>
+      <span class="font-heading font-black text-sm uppercase tracking-tight">Class</span>
+    </button>
+
+    <button onclick="window.parent.MySpace.loadApp('tasks')" class="dashboard-shortcut-card border-pink text-pink hover:bg-pink/5 group">
+      <div class="shortcut-icon bg-pink text-white shadow-neo-pink group-hover:scale-110 transition-transform">
+        <i data-lucide="check-square" class="w-6 h-6"></i>
+      </div>
+      <span class="font-heading font-black text-sm uppercase tracking-tight">Tasks</span>
+    </button>
+  </section>
+
+  <!-- ====== WIDGETS GRID ====== -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-pop-in" style="animation-delay: 0.2s;">
+    
+    <!-- Left Column: Schedule & Admin -->
+    <div class="lg:col-span-8 flex flex-col gap-6">
+      
+      <!-- Schedule Widget -->
+      <div class="dashboard-widget flex flex-col h-full min-h-[400px]">
+        <div class="widget-header">
+          <div class="flex items-center gap-2">
+            <i data-lucide="calendar" class="w-5 h-5 text-orange"></i>
+            <h2 class="widget-title">Today's Schedule</h2>
+          </div>
+          <span id="widget-date" class="text-[10px] font-black text-slate-400 uppercase tracking-widest">May 14, 2026</span>
+        </div>
+        <div id="schedule-widget-content" class="flex-1 overflow-y-auto custom-scrollbar p-1">
+          <!-- Loading State -->
+          <div class="flex flex-col items-center justify-center h-full py-12 text-slate-400">
+            <div class="w-8 h-8 border-3 border-orange border-t-transparent rounded-full animate-spin mb-3"></div>
+            <p class="font-bold text-xs uppercase tracking-widest">Fetching schedule...</p>
+          </div>
+        </div>
+        <div class="widget-footer">
+          <button onclick="window.parent.MySpace.loadApp('schedule')" class="text-xs font-black text-orange hover:underline uppercase tracking-widest flex items-center gap-1">
+            Open Full Planner <i data-lucide="arrow-right" class="w-3 h-3"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Admin Tracker Widget -->
+      <div class="dashboard-widget">
+        <div class="widget-header">
+          <div class="flex items-center gap-2">
+            <i data-lucide="alert-circle" class="w-5 h-5 text-blue"></i>
+            <h2 class="widget-title">Admin Alerts</h2>
+          </div>
+          <span class="widget-badge bg-blue/10 text-blue border-blue/20">Planning Needed</span>
+        </div>
+        <div id="admin-widget-content" class="p-1">
+           <!-- Populated by JS -->
+           <div class="flex items-center gap-4 p-4 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 text-slate-400">
+              <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+              <p class="text-sm font-bold">All class planning is up to date!</p>
+           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Tasks & Class -->
+    <div class="lg:col-span-4 flex flex-col gap-6">
+      
+      <!-- Tasks Widget -->
+      <div class="dashboard-widget flex flex-col h-full">
+        <div class="widget-header">
+          <div class="flex items-center gap-2">
+            <i data-lucide="list-todo" class="w-5 h-5 text-pink"></i>
+            <h2 class="widget-title">Priority Tasks</h2>
+          </div>
+          <button onclick="window.parent.MySpace.loadApp('tasks')" class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+            <i data-lucide="plus" class="w-4 h-4 text-pink"></i>
+          </button>
+        </div>
+        <div id="tasks-widget-content" class="flex-1 space-y-3 p-1">
+          <!-- Populated by JS -->
+        </div>
+        <div class="widget-footer">
+          <button onclick="window.parent.MySpace.loadApp('tasks')" class="w-full text-center py-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-[10px] font-black text-slate-500 uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+            View All Tasks
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Class Summary -->
+      <div class="dashboard-widget">
+        <div class="widget-header">
+          <div class="flex items-center gap-2">
+            <i data-lucide="users" class="w-5 h-5 text-green"></i>
+            <h2 class="widget-title">Class Insights</h2>
+          </div>
+        </div>
+        <div id="class-widget-content" class="p-1 space-y-4">
+          <!-- Populated by JS -->
+          <div class="p-4 rounded-xl bg-green/5 border-2 border-green/20">
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-xs font-black text-green uppercase tracking-widest">Recent Activity</span>
+              <span class="text-[9px] font-bold text-slate-400">2 hours ago</span>
+            </div>
+            <p class="text-sm font-bold text-slate-700 dark:text-slate-300">Updated attendance for <span class="text-green">Class 10A</span></p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="shared/sync.js"></script>
+  <script src="script.js"></script>
+</body>
+
+</html>
