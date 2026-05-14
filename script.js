@@ -1303,7 +1303,6 @@ const ViewMode = {
   init() {
     this.current = Storage.get(CONFIG.storageKeys.viewMode, 'cards') || 'cards';
     this.updateToggleUI();
-    this.apply(); // Actually apply the CSS classes on load
   },
 
   set(mode) {
@@ -1316,97 +1315,265 @@ const ViewMode = {
   },
 
   apply() {
-    const gridContainer = document.getElementById('games-grid');
-    if (!gridContainer) return;
-    gridContainer.classList.remove('view-list', 'view-icons');
-    if (this.current === 'list') gridContainer.classList.add('view-list');
-    if (this.current === 'icons') gridContainer.classList.add('view-icons');
+    document.querySelectorAll('.games-grid').forEach(grid => {
+      grid.classList.remove('view-list', 'view-icons');
+      if (this.current === 'list') grid.classList.add('view-list');
+      if (this.current === 'icons') grid.classList.add('view-icons');
+    });
   },
 
   updateToggleUI() {
-    const container = document.getElementById('view-toggle');
-    if (!container) return;
-    container.querySelectorAll('.view-toggle-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.param === this.current);
+    document.querySelectorAll('.view-toggle-group').forEach(group => {
+      group.querySelectorAll('.view-toggle-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.param === this.current);
+      });
     });
   }
 };
 
-// --- LANDING PAGE ---
-const LandingPage = {
-  currentView: 'landing', // 'landing' or 'library'
+// --- VIEW MANAGER (formerly LandingPage & Filters) ---
+const ViewManager = {
+  currentView: 'landing', // 'landing', 'myspace', 'library-all', 'library-tool', 'library-game', 'library-workshop'
+  renderedViews: new Set(['landing', 'myspace']),
 
   init() {
     const saved = Storage.get(CONFIG.storageKeys.homeView);
-    if (saved === 'library') {
-      this.showLibrary(true);
-    } else if (saved === 'myspace') {
-      MySpace.show(true);
+    if (saved) {
+      this.show(saved, true);
     } else {
-      // Default behavior: check if My Space is populated
-      if (MySpace.isPopulated()) {
-        MySpace.show(true);
+      // Default behavior
+      if (MySpace && MySpace.isPopulated && MySpace.isPopulated()) {
+        this.show('myspace', true);
       } else {
-        this.showLanding(true);
+        this.show('landing', true);
       }
     }
   },
 
-  showLanding(silent = false) {
-    const landingView = document.getElementById('landing-view');
-    const libraryView = document.getElementById('library-view');
-    const myspaceView = document.getElementById('myspace-view');
-    const homeBtn = document.getElementById('nav-home-btn');
-    if (!landingView || !libraryView) return;
+  show(viewId, silent = false) {
+    const prevView = this.currentView;
+    
+    // Hide all views first
+    document.querySelectorAll('.section-view').forEach(v => v.style.display = 'none');
 
-    // Reset state to original
-    State.filters = { category: 'all', searchTerm: '', difficulty: 'all', tags: [] };
-    const searchInput = document.getElementById('search-input');
-    if (searchInput) searchInput.value = '';
+    this.currentView = viewId;
+    this.ensureRendered(viewId);
 
-    this.currentView = 'landing';
-    landingView.style.display = '';
-    libraryView.style.display = 'none';
-    if (myspaceView) myspaceView.style.display = 'none';
+    const target = document.getElementById(`${viewId}-view`);
+    if (target) {
+      target.style.display = '';
+      // Trigger entrance animation
+      target.classList.remove('animate-pop-in');
+      void target.offsetWidth;
+      target.classList.add('animate-pop-in');
+    }
 
-    // Re-trigger entrance animation
-    landingView.style.animation = 'none';
-    landingView.offsetHeight; // force reflow
-    landingView.style.animation = '';
+    // Special logic for specific views
+    if (viewId === 'myspace' && window.MySpace) {
+      window.MySpace.onShow?.();
+    } else if (viewId === 'landing') {
+      // Refresh Home Page Content
+      if (window.PinnedGames) PinnedGames.render();
+      if (window.RecentGames) RecentGames.render();
+      if (window.GameGrid) GameGrid.render();
+      if (UI && UI.updateGreeting) UI.updateGreeting();
+    }
 
-    // Update sidebar active states
-    Filters.updateUI();
-
-    Storage.set(CONFIG.storageKeys.homeView, 'landing');
+    this.updateNavUI();
+    Storage.set(CONFIG.storageKeys.homeView, viewId);
+    
     if (!silent) AudioEngine.click();
     Utils.refreshIcons();
+
+    // Scroll to top if switching views
+    if (prevView !== viewId) {
+      const mainContent = document.querySelector('main');
+      if (mainContent) mainContent.scrollTop = 0;
+    }
   },
 
-  showLibrary(silent = false) {
-    const landingView = document.getElementById('landing-view');
-    const libraryView = document.getElementById('library-view');
-    const myspaceView = document.getElementById('myspace-view');
+  ensureRendered(viewId) {
+    if (this.renderedViews.has(viewId)) return;
+    
+    const container = document.getElementById(`${viewId}-view`);
+    if (!container) return;
+
+    if (viewId.startsWith('library-')) {
+      const category = viewId.replace('library-', '');
+      this.renderLibraryTemplate(container, viewId, category);
+      // Initial render of games for this category
+      this.renderGrid(viewId, category);
+    }
+    
+    this.renderedViews.add(viewId);
+  },
+
+  renderLibraryTemplate(container, viewId, category) {
+    const titles = {
+      all: "Let's start teaching",
+      tool: "Teaching Tools",
+      game: "Classroom Games",
+      workshop: "Workshop Tools"
+    };
+    const title = titles[category] || "Activity Library";
+
+    const statsHtml = category === 'all' ? `
+      <div class="flex items-center gap-2 mt-2 flex-wrap opacity-80">
+        <span class="hero-stat"><i data-lucide="wrench" class="w-3.5 h-3.5"></i> <strong id="stat-tools">0</strong> Tools</span>
+        <span class="hero-stat-dot"></span>
+        <span class="hero-stat"><i data-lucide="gamepad-2" class="w-3.5 h-3.5"></i> <strong id="stat-games">0</strong> Games</span>
+        <span class="hero-stat-dot"></span>
+        <span class="hero-stat"><i data-lucide="hammer" class="w-3.5 h-3.5"></i> <strong id="stat-workshop">0</strong> Workshop</span>
+        <span class="hero-stat-dot"></span>
+        <span class="hero-stat"><i data-lucide="pin" class="w-3.5 h-3.5"></i> <strong id="stat-pinned">0</strong> Pinned</span>
+      </div>
+    ` : '';
+
+    const icons = {
+      all: "graduation-cap",
+      tool: "wrench",
+      game: "gamepad-2",
+      workshop: "hammer"
+    };
+    const icon = icons[category] || "layout-grid";
+
+    container.innerHTML = `
+      <!-- Dashboard Title Widget -->
+      <div class="hero-banner rounded-[2rem] p-6 md:p-8 mb-6 border-[3px] border-dark dark:border-slate-600 shadow-hard dark:shadow-neon relative overflow-hidden flex flex-col justify-center min-h-[160px] mt-4">
+        <div class="hero-gradient-bg"></div>
+        <div class="hero-dot-overlay"></div>
+        <div class="absolute right-4 bottom-[-10%] md:right-12 md:bottom-[-15%] opacity-10 dark:opacity-[0.08] pointer-events-none">
+          <i data-lucide="${icon}" class="w-40 h-40 md:w-56 md:h-56 text-slate-800 dark:text-white transform -rotate-12 scale-110"></i>
+        </div>
+        <div class="relative z-10 flex flex-col lg:flex-row lg:items-end lg:justify-between w-full gap-6">
+          <div class="flex flex-col items-start">
+            <div class="hero-meta-tags mb-3 flex gap-3 flex-wrap">
+              <span class="hero-pill clock-pill"><i data-lucide="calendar" class="w-3.5 h-3.5"></i> <span class="date-text">...</span></span>
+              <span class="hero-pill">Hello!</span>
+            </div>
+            <h2 id="greeting-display" class="text-3xl md:text-5xl font-heading font-black mb-1 leading-tight tracking-tight text-slate-900 dark:text-white">
+              ${title}
+            </h2>
+            ${statsHtml}
+          </div>
+          <div class="flex flex-col items-start lg:items-end gap-3 mt-4 lg:mt-0">
+             <div class="hero-actions flex flex-wrap gap-3">
+                <button data-action="surpriseMe" class="btn-chunky bg-pink text-white border-3 border-dark px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-hard hover:translate-y-[-2px] active:translate-y-[2px] transition-all">
+                  <i data-lucide="shuffle" class="w-4 h-4"></i>
+                  <span class="font-heading font-bold text-xs uppercase tracking-tight">Surprise Me</span>
+                </button>
+                <button data-action="continueGame" class="btn-chunky continue-btn bg-blue text-white border-3 border-dark px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-hard hover:translate-y-[-2px] active:translate-y-[2px] transition-all hidden">
+                  <i data-lucide="play" class="w-4 h-4 fill-white"></i>
+                  <span class="font-heading font-bold text-xs uppercase tracking-tight whitespace-nowrap continue-label">Continue</span>
+                </button>
+             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Grid Header -->
+      <div class="flex items-center justify-between mb-6">
+        <h3 class="text-2xl font-heading font-black text-dark dark:text-white uppercase tracking-tight">${category === 'all' ? 'Library' : category + 's'}</h3>
+        <div class="view-toggle-group">
+          <button data-action="setViewMode" data-param="cards" class="view-toggle-btn ${ViewMode.current === 'cards' ? 'active' : ''}"><i data-lucide="layout-grid" class="w-4 h-4"></i></button>
+          <button data-action="setViewMode" data-param="icons" class="view-toggle-btn ${ViewMode.current === 'icons' ? 'active' : ''}"><i data-lucide="grip" class="w-4 h-4"></i></button>
+          <button data-action="setViewMode" data-param="list" class="view-toggle-btn ${ViewMode.current === 'list' ? 'active' : ''}"><i data-lucide="list" class="w-4 h-4"></i></button>
+        </div>
+      </div>
+
+      <div id="grid-${viewId}" class="games-grid ${ViewMode.current === 'list' ? 'view-list' : ''} ${ViewMode.current === 'icons' ? 'view-icons' : ''}">
+        <!-- Items injected here -->
+      </div>
+    `;
+    
+    this.updateClock(container);
+    if (category === 'all') {
+      Hero.updateStats();
+      Hero.updateContinueBtn();
+    }
+  },
+
+  updateClock(container) {
+    const el = container.querySelector('.date-text');
+    if (!el) return;
+    const now = new Date();
+    el.textContent = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  },
+
+  renderGrid(viewId, category) {
+    const grid = document.getElementById(`grid-${viewId}`);
+    if (!grid) return;
+
+    const searchTerm = State.filters.searchTerm;
+    let games = State.games;
+    
+    if (category !== 'all') {
+      games = games.filter(g => g.category === category);
+    }
+    
+    if (searchTerm) {
+      games = games.filter(g => 
+        g.title.toLowerCase().includes(searchTerm) || 
+        g.description.toLowerCase().includes(searchTerm) ||
+        g.tags?.some(t => t.toLowerCase().includes(searchTerm))
+      );
+    }
+
+    if (games.length === 0) {
+      grid.innerHTML = `
+        <div class="empty-state py-20 opacity-50 flex flex-col items-center">
+          <i data-lucide="search-x" class="w-16 h-16 mb-4"></i>
+          <p class="font-heading font-bold text-xl uppercase">No matches found</p>
+        </div>
+      `;
+    } else {
+      grid.innerHTML = games.map(game => GameGrid.createCard(game)).join('');
+    }
+    
+    Utils.refreshIcons(grid);
+  },
+
+  renderAllGrids() {
+    this.renderedViews.forEach(viewId => {
+      if (viewId.startsWith('library-')) {
+        this.renderGrid(viewId, viewId.replace('library-', ''));
+      }
+    });
+  },
+
+  updateNavUI() {
     const homeBtn = document.getElementById('nav-home-btn');
-    if (!landingView || !libraryView) return;
+    const myspaceBtn = document.getElementById('nav-myspace-btn');
+    
+    if (homeBtn) homeBtn.classList.toggle('active', this.currentView === 'landing');
+    if (myspaceBtn) myspaceBtn.classList.toggle('active', this.currentView === 'myspace');
 
-    this.currentView = 'library';
-    landingView.style.display = 'none';
-    libraryView.style.display = '';
-    if (myspaceView) myspaceView.style.display = 'none';
-
-    // Re-trigger entrance animation
-    libraryView.style.animation = 'none';
-    libraryView.offsetHeight; // force reflow
-    libraryView.style.animation = '';
-
-    // Update sidebar active states
-    if (homeBtn) homeBtn.classList.remove('active');
-    Filters.updateUI();
-
-    Storage.set(CONFIG.storageKeys.homeView, 'library');
-    if (!silent) AudioEngine.click();
-    Utils.refreshIcons();
+    document.querySelectorAll('.filter-btn[data-category]').forEach(btn => {
+      const cat = btn.dataset.category;
+      const isActive = this.currentView === `library-${cat}`;
+      btn.classList.toggle('active', isActive);
+      btn.setAttribute('aria-pressed', String(isActive));
+    });
   }
+};
+
+// Compatibility shim for old calls
+const LandingPage = {
+  showLanding: () => ViewManager.show('landing'),
+  showLibrary: () => ViewManager.show('library-all'),
+  init: () => ViewManager.init()
+};
+
+const Filters = {
+  setCategory: (cat) => ViewManager.show(`library-${cat}`),
+  setSearch: Utils.debounce(function(term) {
+    State.filters.searchTerm = term.toLowerCase();
+    ViewManager.renderAllGrids();
+    if (ViewManager.currentView === 'landing') {
+      ViewManager.show('library-all', true);
+    }
+  }, CONFIG.debounceDelay),
+  updateUI: () => ViewManager.updateNavUI()
 };
 
 // --- MY SPACE ---
@@ -1438,38 +1605,14 @@ const MySpace = {
   },
 
   show(silent = false) {
-    const landingView = document.getElementById('landing-view');
-    const libraryView = document.getElementById('library-view');
-    const myspaceView = document.getElementById('myspace-view');
-    const homeBtn = document.getElementById('nav-home-btn');
-    const myspaceBtn = document.getElementById('nav-myspace-btn');
-    
-    if (!landingView || !libraryView || !myspaceView) return;
+    ViewManager.show('myspace', silent);
+  },
 
-    // Reset library state
-    State.filters = { category: 'all', searchTerm: '', difficulty: 'all', tags: [] };
-    const searchInput = document.getElementById('search-input');
-    if (searchInput) searchInput.value = '';
-
-    LandingPage.currentView = 'myspace';
-    landingView.style.display = 'none';
-    libraryView.style.display = 'none';
-    myspaceView.style.display = '';
-
-    // Update sidebar active states
-    if (homeBtn) homeBtn.classList.remove('active');
-    if (myspaceBtn) myspaceBtn.classList.add('active');
-    Filters.updateUI();
-
-    Storage.set(CONFIG.storageKeys.homeView, 'myspace');
-    
+  onShow() {
     // Load default app if none active
     if (!this.currentApp) {
       this.loadApp('myspace-home', true);
     }
-
-    if (!silent) AudioEngine.click();
-    Utils.refreshIcons();
 
     // Show Pro-only apps if user is Pro
     if (State.isPro()) {
@@ -1508,75 +1651,6 @@ const MySpace = {
   }
 };
 window.MySpace = MySpace;
-
-// --- FILTERS ---
-const Filters = {
-  setCategory(category) {
-    AudioEngine.click();
-    State.filters.category = category;
-    this.updateUI();
-    GameGrid.render();
-
-    // Auto-switch to library view when a filter is selected
-    if (LandingPage.currentView !== 'library') {
-      LandingPage.showLibrary(true);
-    }
-  },
-
-  setSearch: Utils.debounce(function (term) {
-    State.filters.searchTerm = term.toLowerCase();
-    GameGrid.render();
-
-    // Auto-switch to library view when searching
-    if (term.trim() !== '' && LandingPage.currentView !== 'library') {
-      LandingPage.showLibrary(true);
-    }
-
-    // Toggle clear search button visibility
-    const clearBtn = document.getElementById('clear-search-btn');
-    if (clearBtn) {
-      if (term.trim() !== '') {
-        clearBtn.classList.remove('hidden');
-      } else {
-        clearBtn.classList.add('hidden');
-      }
-    }
-  }, CONFIG.debounceDelay),
-
-  updateUI() {
-    const homeBtn = document.getElementById('nav-home-btn');
-    const myspaceBtn = document.getElementById('nav-myspace-btn');
-    const bnavHome = document.getElementById('bnav-home');
-    const isLanding = LandingPage.currentView === 'landing';
-    const isLibrary = LandingPage.currentView === 'library';
-    const isMySpace = LandingPage.currentView === 'myspace';
-
-    if (homeBtn) homeBtn.classList.toggle('active', isLanding || isLibrary);
-    if (myspaceBtn) myspaceBtn.classList.toggle('active', isMySpace);
-    if (bnavHome) bnavHome.classList.toggle('active', isLanding || isLibrary || isMySpace);
-
-    document.querySelectorAll('.filter-btn[data-category]').forEach(btn => {
-      const isActive = btn.dataset.category === State.filters.category && LandingPage.currentView === 'library';
-      btn.classList.toggle('active', isActive);
-      btn.setAttribute('aria-pressed', String(isActive));
-    });
-
-    // Update Bottom Nav items
-    const bnavItems = {
-      all: 'bnav-library',
-      tool: 'bnav-tools',
-      workshop: 'bnav-workshop'
-    };
-
-    Object.keys(bnavItems).forEach(cat => {
-      const el = document.getElementById(bnavItems[cat]);
-      if (el) {
-        const isActive = State.filters.category === cat && LandingPage.currentView === 'library';
-        el.classList.toggle('active', isActive);
-      }
-    });
-  }
-};
 
 // --- TAB MANAGER ---
 const TabManager = {
@@ -3585,6 +3659,7 @@ const App = {
       },
 
       toggleSidePanelMobile: () => TabManager.toggleSidePanelMobile(),
+      toggleRecentCollapse: () => RecentGames.toggleCollapse(),
       filterGames: (param) => Filters.setCategory(param),
       clearRecent: () => RecentGames.clear(),
       clearSearch: () => Search.clear(),
