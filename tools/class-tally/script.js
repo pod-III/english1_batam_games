@@ -91,7 +91,8 @@ const ClassTallyApp = (function () {
         editingStudentId: null,
         activeSetId: null,
         showAbsent: false,
-        viewMode: 'grid', // grid, compact, list, counter
+        viewMode: 'grid', // grid, list
+        isLiveRanking: false,
 
         // NEW STATE PROPERTY FOR NON-REPEATING PICKER
         pickedQueue: [],
@@ -512,7 +513,11 @@ const ClassTallyApp = (function () {
                 if (card) { card.classList.remove('animate-shake'); void card.offsetWidth; card.classList.add('animate-shake'); }
             }
             Persistence.save();
-            UI.updateCardLogs(id);
+            if (State.viewMode === 'list' && State.isLiveRanking) {
+                UI.render();
+            } else {
+                UI.updateCardLogs(id);
+            }
         },
 
         removeLastPoint: (id, type) => {
@@ -520,7 +525,11 @@ const ClassTallyApp = (function () {
             if (type === 'good' && s.goodLogs.length > 0) s.goodLogs.pop();
             else if (type === 'bad' && s.badLogs.length > 0) s.badLogs.pop();
             Persistence.save();
-            UI.updateCardLogs(id);
+            if (State.viewMode === 'list' && State.isLiveRanking) {
+                UI.render();
+            } else {
+                UI.updateCardLogs(id);
+            }
         },
 
         emptyScore: (id) => {
@@ -536,7 +545,11 @@ const ClassTallyApp = (function () {
                         s.goodLogs = [];
                         s.badLogs = [];
                         Persistence.save();
-                        UI.updateCardLogs(id);
+                        if (State.viewMode === 'list' && State.isLiveRanking) {
+                            UI.render();
+                        } else {
+                            UI.updateCardLogs(id);
+                        }
                         Audio.playTick();
                     }
                 }
@@ -1141,6 +1154,34 @@ const ClassTallyApp = (function () {
                 container.classList.remove('view-grid', 'view-list');
                 container.classList.add(`view-${State.viewMode}`);
             }
+
+            // Show/Hide Live Ranking button
+            const rankingBtn = document.getElementById('btn-live-ranking');
+            if (rankingBtn) {
+                if (State.viewMode === 'list') {
+                    rankingBtn.classList.remove('hidden');
+                    const icon = rankingBtn.querySelector('.ranking-icon');
+                    const label = rankingBtn.querySelector('.ranking-label');
+                    
+                    if (State.isLiveRanking) {
+                        rankingBtn.classList.add('border-brand-blue', 'ring-2', 'ring-brand-blue/10');
+                        if (icon) icon.classList.replace('text-slate-400', 'text-brand-blue');
+                        if (label) label.classList.replace('text-slate-500', 'text-brand-blue');
+                    } else {
+                        rankingBtn.classList.remove('border-brand-blue', 'ring-2', 'ring-brand-blue/10');
+                        if (icon) icon.classList.replace('text-brand-blue', 'text-slate-400');
+                        if (label) label.classList.replace('text-brand-blue', 'text-slate-500');
+                    }
+                } else {
+                    rankingBtn.classList.add('hidden');
+                }
+            }
+        },
+        toggleLiveRanking: () => {
+            State.isLiveRanking = !State.isLiveRanking;
+            UI.updateViewModeUI();
+            UI.render();
+            Storage.save();
         },
         celebrate: (id) => {
             const el = document.getElementById(`card-${id}`);
@@ -1256,8 +1297,20 @@ const ClassTallyApp = (function () {
             const animate = options.animate || false;
             const container = document.getElementById('grid-container');
 
+            // Sorting logic
+            let studentsToRender = [...State.students];
+            
+            if (State.viewMode === 'list' && State.isLiveRanking) {
+                // Sort by good logs count (descending), then by name
+                studentsToRender.sort((a, b) => {
+                    const diff = b.goodLogs.length - a.goodLogs.length;
+                    if (diff !== 0) return diff;
+                    return a.name.localeCompare(b.name);
+                });
+            }
+
             // Filter students based on showAbsent setting
-            const visibleStudents = State.students.filter(s => !s.isAbsent || State.showAbsent);
+            const visibleStudents = studentsToRender.filter(s => !s.isAbsent || State.showAbsent);
 
             if (visibleStudents.length === 0) {
                 document.getElementById('empty-state').style.display = 'flex';
