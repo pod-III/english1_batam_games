@@ -2,6 +2,9 @@
    DASHBOARD SCRIPT — My Space Landing Page
    ============================================ */
 
+/**
+ * Global application state representing data loaded from localStorage.
+ */
 const State = {
   isPro: false,
   schedule: [],
@@ -11,13 +14,37 @@ const State = {
   redDays: []
 };
 
+/**
+ * Utility for safe local storage operations.
+ */
+const StorageUtil = {
+  /**
+   * Safely loads and parses JSON from local storage.
+   * @param {string} key - The local storage key.
+   * @param {*} fallback - Fallback value if the key is missing or parsing fails.
+   * @returns {*} The parsed data or fallback.
+   */
+  load(key, fallback = null) {
+    try {
+      const data = localStorage.getItem(key);
+      return data ? JSON.parse(data) : fallback;
+    } catch (e) {
+      console.warn(`[MySpace] Error loading ${key}:`, e);
+      return fallback;
+    }
+  }
+};
+
+/**
+ * Initializes the dashboard, loads data, and triggers initial rendering.
+ */
 function init() {
   checkPro();
   loadData();
   renderAll();
   lucide.createIcons();
   
-  // Update current date display
+  // Update the current date display in the widget header
   const dateEl = document.getElementById('widget-date');
   if (dateEl) {
     const now = new Date();
@@ -27,98 +54,84 @@ function init() {
   }
 }
 
+/**
+ * Validates whether the current user has Pro or Admin privileges.
+ */
 function checkPro() {
-  // Try to get pro status from parent
+  // Check for pro status from the parent window if nested in an iframe
   if (window.parent && window.parent.State) {
     State.isPro = window.parent.State.isPro();
   } else {
-    // Fallback/Sandbox check
-    const user = JSON.parse(localStorage.getItem('kk_user_profile') || '{}');
+    // Fallback/Sandbox check based on local storage profile
+    const user = StorageUtil.load('kk_user_profile', {});
     State.isPro = user.role === 'pro' || user.role === 'admin';
   }
-
-  // NOTE: We used to hide things here, but now we keep them visible as requested.
-  // document.querySelectorAll('.pro-only-btn, .pro-only-widget').forEach(el => el.classList.remove('hidden'));
 }
 
+/**
+ * Loads all required widget data from local storage into the State object.
+ */
 function loadData() {
-  // Load Schedule
-  const scheduleRaw = localStorage.getItem('schedule_events');
-  if (scheduleRaw) {
-    try {
-      const masters = JSON.parse(scheduleRaw);
-      // We need to generate recurrences to find today's classes
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const rangeStart = new Date(today);
-      const rangeEnd = new Date(today);
-      rangeEnd.setDate(today.getDate() + 1);
+  // 1. Load the raw schedule events
+  const masters = StorageUtil.load('schedule_events', []);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-      let allEvents = [...masters];
-      masters.forEach(m => {
-        if (m.recurrence && m.recurrence !== 'none') {
-          // Simplistic recurrence generation for the dashboard
-          const clones = generateBasicRecurrences(m, today);
-          allEvents = [...allEvents, ...clones];
-        }
-      });
-      State.schedule = allEvents;
-    } catch (e) { console.error('Schedule load error', e); }
-  }
+  // 2. Compute the full schedule including generated recurrences
+  let allEvents = [...masters];
+  masters.forEach(m => {
+    if (m.recurrence && m.recurrence !== 'none') {
+      allEvents.push(...generateBasicRecurrences(m, today));
+    }
+  });
+  State.schedule = allEvents;
 
-  // Load Red Days
-  const redDaysRaw = localStorage.getItem('schedule_red_days');
-  if (redDaysRaw) {
-    try { State.redDays = JSON.parse(redDaysRaw); } catch(e) {}
-  }
-
-  // Load Tasks
-  const tasksRaw = localStorage.getItem('klasskit_tasks');
-  if (tasksRaw) {
-    try { State.tasks = JSON.parse(tasksRaw); } catch(e) {}
-  }
-
-  // Load Admin
-  const adminRaw = localStorage.getItem('schedule_class_admin');
-  if (adminRaw) {
-    try { State.admin = JSON.parse(adminRaw); } catch(e) {}
-  }
-
-  // Load Class Data
-  const classRaw = localStorage.getItem('prog_my-class');
-  if (classRaw) {
-    try { State.classData = JSON.parse(classRaw); } catch(e) {}
-  }
+  // 3. Load other dependencies
+  State.redDays = StorageUtil.load('schedule_red_days', []);
+  State.tasks = StorageUtil.load('klasskit_tasks', []);
+  State.admin = StorageUtil.load('schedule_class_admin', {});
+  State.classData = StorageUtil.load('prog_my-class', {});
 }
 
+/**
+ * Generates recurrence events for a given master event, constrained to 'today'.
+ * @param {Object} m - The master event object.
+ * @param {Date} today - Today's date reference.
+ * @returns {Array} An array of generated recurrence events.
+ */
 function generateBasicRecurrences(m, today) {
   const mDate = new Date(m.date + 'T00:00:00');
-  if (mDate > today) return []; // Master is in the future
+  
+  // Ignore masters that originate in the future
+  if (mDate > today) return [];
 
   const todayStr = getDayStr(today);
-  if (m.date === todayStr) return []; // Master is already for today
+  
+  // Ignore recurrences if the master itself is scheduled for today
+  if (m.date === todayStr) return [];
 
-  if (m.recurrence === 'weekly') {
-    if (mDate.getDay() === today.getDay()) {
-      return [{ ...m, date: todayStr, isRecurrence: true }];
-    }
+  const isWeeklyMatch = m.recurrence === 'weekly' && mDate.getDay() === today.getDay();
+  const isDailyMatch = m.recurrence === 'daily';
+  
+  // Custom days check
+  let isCustomMatch = false;
+  if (m.recurrence === 'custom-days' && m.recurrenceDays) {
+    const day = today.getDay();
+    const dayIndex = day === 0 ? 6 : day - 1; // Align to Mon=0, Sun=6
+    isCustomMatch = m.recurrenceDays.includes(dayIndex);
   }
   
-  if (m.recurrence === 'daily') {
+  // Return a cloned event marked as a recurrence if any rule matches
+  if (isWeeklyMatch || isDailyMatch || isCustomMatch) {
     return [{ ...m, date: todayStr, isRecurrence: true }];
   }
 
-  if (m.recurrence === 'custom-days' && m.recurrenceDays) {
-    const day = today.getDay();
-    const dayIndex = day === 0 ? 6 : day - 1; // Mon=0, Sun=6
-    if (m.recurrenceDays.includes(dayIndex)) {
-      return [{ ...m, date: todayStr, isRecurrence: true }];
-    }
-  }
-  
   return [];
 }
 
+/**
+ * Helper to get a 'YYYY-MM-DD' formatted date string.
+ */
 function getDayStr(date) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -126,6 +139,9 @@ function getDayStr(date) {
   return `${y}-${m}-${d}`;
 }
 
+/**
+ * Triggers re-rendering of all dashboard widgets.
+ */
 function renderAll() {
   renderSchedule();
   renderTasks();
@@ -133,6 +149,9 @@ function renderAll() {
   renderClass();
 }
 
+/**
+ * Renders the daily schedule widget.
+ */
 function renderSchedule() {
   const container = document.getElementById('schedule-widget-content');
   if (!container) return;
@@ -140,9 +159,10 @@ function renderSchedule() {
   const todayStr = getDayStr(new Date());
   const isRedDay = State.redDays.includes(todayStr);
 
+  // Filter events to today and ignore recurrences on red (holiday) days
   const todayEvents = State.schedule
     .filter(e => e.date === todayStr)
-    .filter(e => !(isRedDay && e.isRecurrence)) // Skip recurrences on holidays
+    .filter(e => !(isRedDay && e.isRecurrence))
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
   if (todayEvents.length === 0) {
@@ -175,19 +195,23 @@ function renderSchedule() {
       </div>
     `).join('');
   }
+  
   lucide.createIcons({ root: container });
 }
 
+/**
+ * Renders the top priority tasks widget.
+ */
 function renderTasks() {
   const container = document.getElementById('tasks-widget-content');
   if (!container) return;
 
+  const prioOrder = { high: 0, medium: 1, low: 2 };
+  
+  // Get top 5 uncompleted tasks, sorted by priority (high > medium > low)
   const incompleteTasks = State.tasks
     .filter(t => !t.completed)
-    .sort((a, b) => {
-      const prioOrder = { high: 0, medium: 1, low: 2 };
-      return (prioOrder[a.priority] || 1) - (prioOrder[b.priority] || 1);
-    })
+    .sort((a, b) => (prioOrder[a.priority] ?? 2) - (prioOrder[b.priority] ?? 2))
     .slice(0, 5);
 
   if (incompleteTasks.length === 0) {
@@ -201,6 +225,7 @@ function renderTasks() {
     container.innerHTML = incompleteTasks.map(t => {
       const colors = { high: 'bg-pink', medium: 'bg-orange', low: 'bg-blue' };
       const textColors = { high: 'text-pink', medium: 'text-orange', low: 'text-blue' };
+      
       const dotColor = colors[t.priority] || 'bg-slate-400';
       const textColor = textColors[t.priority] || 'text-slate-400';
       
@@ -217,18 +242,20 @@ function renderTasks() {
   }
 }
 
+/**
+ * Renders the admin tracker alert widget.
+ */
 function renderAdmin() {
   const container = document.getElementById('admin-widget-content');
   if (!container) return;
 
-  // Find classes with incomplete tasks or planning
-  const alerts = [];
-  Object.entries(State.admin).forEach(([className, tasks]) => {
-    const pending = tasks.filter(t => !t.done).length;
-    if (pending > 0) {
-      alerts.push({ name: className, pending });
-    }
-  });
+  // Aggregate pending tasks per class
+  const alerts = Object.entries(State.admin)
+    .map(([className, tasks]) => {
+      const pending = tasks.filter(t => !t.done).length;
+      return { name: className, pending };
+    })
+    .filter(a => a.pending > 0);
 
   if (alerts.length === 0) {
     container.innerHTML = `
@@ -238,6 +265,7 @@ function renderAdmin() {
       </div>
     `;
   } else {
+    // Show only the top 3 alerts to save space
     container.innerHTML = alerts.slice(0, 3).map(a => `
       <div class="flex items-center justify-between p-3 mb-2 rounded-xl bg-blue/5 border-2 border-blue/10 hover:border-blue/30 transition-colors cursor-pointer" onclick="window.parent.MySpace.loadApp('admin-tracker')">
         <div class="flex items-center gap-3">
@@ -252,10 +280,14 @@ function renderAdmin() {
         <i data-lucide="chevron-right" class="w-4 h-4 text-blue"></i>
       </div>
     `).join('');
+    
     lucide.createIcons({ root: container });
   }
 }
 
+/**
+ * Renders the class insights widget.
+ */
 function renderClass() {
   const container = document.getElementById('class-widget-content');
   if (!container) return;
@@ -263,6 +295,7 @@ function renderClass() {
   const classes = State.classData.classes || {};
   const classList = Object.keys(classes);
 
+  // Empty state if no classes are defined
   if (classList.length === 0) {
      container.innerHTML = `
       <div class="p-8 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border-2 border-dashed border-slate-200 dark:border-slate-700 text-center flex flex-col items-center gap-3">
@@ -275,25 +308,29 @@ function renderClass() {
      return;
   }
 
-  // Find class with most reflections or students
+  // Aggregate metrics across all classes
   let totalStudents = 0;
   let totalReflections = 0;
-  let topStudent = null;
   let maxStars = -1;
+  let topStudent = null;
 
   classList.forEach(c => {
     const data = classes[c];
-    totalStudents += data.students?.length || 0;
+    const students = data.students || [];
+    
+    totalStudents += students.length;
     totalReflections += data.reflections?.length || 0;
     
-    (data.students || []).forEach(s => {
-      if ((s.stars || 0) > maxStars) {
-        maxStars = s.stars || 0;
+    students.forEach(s => {
+      const stars = s.stars || 0;
+      if (stars > maxStars) {
+        maxStars = stars;
         topStudent = { ...s, className: c };
       }
     });
   });
 
+  // Construct UI with aggregated stats
   container.innerHTML = `
     <div class="space-y-4">
       <div class="grid grid-cols-2 gap-3">
@@ -343,37 +380,48 @@ function renderClass() {
       </div>
     </div>
   `;
+  
   lucide.createIcons({ root: container });
 }
 
+/**
+ * Utility to format a 24-hour time string into AM/PM format.
+ * @param {string} timeStr - "HH:MM" format.
+ * @returns {string} Formatted time string, e.g. "2:30 PM".
+ */
 function formatTime(timeStr) {
   if (!timeStr) return '';
   const [h, m] = timeStr.split(':');
   let hours = parseInt(h);
   const ampm = hours >= 12 ? 'PM' : 'AM';
-  hours = hours % 12;
-  hours = hours ? hours : 12;
+  hours = hours % 12 || 12; // Handle 0 as 12
   return `${hours}:${m} ${ampm}`;
 }
 
+/**
+ * Toggles dark mode manually and syncs with the parent iframe.
+ */
 function toggleDarkMode() {
   const isDark = document.documentElement.classList.toggle('dark');
   localStorage.setItem("theme_myspace-home", isDark ? "dark" : "light");
+  
   const icon = document.getElementById('darkModeIcon');
   if (icon) {
     icon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
     lucide.createIcons({ nodes: [icon] });
   }
-  // Try to toggle parent theme too for consistency
+  
+  // Sync the theme change with the parent hub window
   if (window.parent && window.parent.Theme) {
-    const parentDark = document.documentElement.classList.contains('dark');
     const parentIsDark = window.parent.document.documentElement.classList.contains('dark');
-    if (parentDark !== parentIsDark) window.parent.Theme.toggle();
+    if (isDark !== parentIsDark) window.parent.Theme.toggle();
   }
 }
 
-// Initial Run
+// Initial Bootstrap
 window.addEventListener('load', init);
+
+// Listen for storage events (allows widgets to update automatically if edited in another tab)
 window.addEventListener('storage', () => {
   loadData();
   renderAll();
