@@ -1,155 +1,124 @@
-# KlassKit - Activity Hub for Teachers 🍎
+# 🍎 KlassKit: The Ultimate Classroom Command Center
 
-A curated collection of **50+ interactive classroom tools and games** for English Language Teaching. Built for teachers, by teachers — designed to run in any modern browser with zero installation.
+![Version](https://img.shields.io/badge/version-1.3.9-blue?style=for-the-badge)
+![Activities](https://img.shields.io/badge/activities-52+-green?style=for-the-badge)
+![Status](https://img.shields.io/badge/status-Active%20Development-orange?style=for-the-badge)
+![Aesthetic](https://img.shields.io/badge/aesthetic-Soft%20Brutalism-pink?style=for-the-badge)
 
-![Version](https://img.shields.io/badge/version-1.3.9-blue)
-![Activities](https://img.shields.io/badge/activities-54-green)
-![Status](https://img.shields.io/badge/status-Early%20Development-orange)
-![Price](https://img.shields.io/badge/price-100%25%20Free-pink)
+KlassKit is a curated, **high-performance ecosystem of 50+ interactive tools and games** designed specifically for the modern classroom. Built by educators for educators, it transforms any browser into a professional teaching dashboard with zero installation.
 
-> **Live Demo:** [Open Activity Hub](https://klasskit.fun)
-
----
-
-## 🚀 Choose Your Path
-
-KlassKit now offers two distinct ways to experience the hub, allowing you to choose between professional synchronization or instant privacy.
-
-### 🏠 KlassKit Cloud (Professional)
-*   **Authentication**: Sign in via Supabase to keep your data safe.
-*   **Cloud Sync**: Your tools, games, and lesson progress are synchronized across all your devices.
-*   **Persistence**: Return tomorrow, and your dashboard will be exactly as you left it.
-
-### 🧪 KlassKit Sandbox (Local)
-*   **Zero Friction**: No account, no login, no waiting.
-*   **100% Private**: Your data stays strictly on your browser's local storage.
-*   **Safe Isolation**: No network requests are made to Supabase, keeping your experience air-gapped and fast.
+> **Explore the Hub:** [klasskit.fun](https://klasskit.fun)
 
 ---
 
-## 🛠 What This Is
+## 🌟 Why KlassKit?
 
-This hub is a **desktop-first, projector-optimized** teaching companion. It turns any browser into an interactive classroom command center — no downloads, no accounts (unless you want Cloud Sync), and zero friction. 
+In a world of fragmented educational tools, KlassKit offers a unified, **projector-optimized** experience. Whether you need a quick brain break, a deep-dive grammar session, or a professional weekly planner, KlassKit has you covered.
 
-**Built for the real classroom:**
-- **Large Interaction Targets**: Easy clicking from across the room using a remote or mouse.
-- **OLED Dark Mode**: High-contrast, deep slate theme for dim projector environments.
-- **Persistent State**: Lesson notes, scores, and configurations survive refreshes via `localStorage` and `IndexedDB`.
-
----
-
-## 🎨 Design Philosophy: Soft Brutalism
-
-Built using the **KlassKit Signature Palette**, the UI ensures branding consistency and a friendly, energetic atmosphere:
-
-*   **Aesthetic**: Soft Brutalism meets glassmorphism.
-*   **Chunky UI**: Bold borders (4px), hard block shadows, and pronounced rounded corners.
-*   **Micro-Interactions**: Engaging entrance animations and subtle transitions.
-*   **Fonts**: Fredoka (Headings) and Nunito (Body).
+- **⚡ Zero Friction**: No accounts required for the local "Sandbox" experience.
+- **🎨 Stunning Aesthetics**: A unique "Soft Brutalism" design that is both friendly and professional.
+- **🛠 Teacher-First UX**: Large interaction targets, high-contrast OLED dark mode, and seamless offline persistence.
+- **💾 Dual-Path Persistence**: Choose between **KlassKit Sandbox** (100% local privacy) or **KlassKit Cloud** (Pro-grade cross-device synchronization).
 
 ---
 
-## 🧩 Activity Highlights
+## 🎨 Our Design Signature: Soft Brutalism
 
-### 🏡 My Space (Personal Dashboard)
-| App | Purpose |
-|------|--------------|
-| **My Schedule** | Weekly drag-and-drop lesson planner with automatic tracking |
-| **Admin Tracker** | Track unit planning status and administrative deadlines |
-| **My Task** | Personal teacher task manager with priority tracking |
+KlassKit isn't just functional; it's **premium**. We follow a strict design system to ensure every tool feels alive and engaging:
 
-### Classroom Tools
-| Tool | What It Does |
-|------|--------------|
-| **Scoreboard** | Track team points with satisfying chunky buttons |
-| **Class Tally** | Behavior tracking with stars & warnings |
-| **Clock** | Multi-mode: clock, timer, stopwatch, calendar |
-| **Flashcard Maker** | Design & print A4 flashcards with cut guides |
-| **Bingo Maker** | Generate cards + digital caller mode |
-| **Lesson Notes** | Auto-saving notepad for quick plans |
-
-### 🛠 Workshop Tools
-| Tool | What It Does |
-|------|--------------|
-| **Text Workshop** | General purpose text processing tools |
-| **Image Workshop** | General purpose image processing tools |
-
-### Learning Games
-| Game | Skill Focus |
-|------|-------------|
-| **Hot Seat** | Speaking — guess vocab from clues |
-| **Hangman** | Spelling — classic word guessing |
-| **Card Match** | Memory — picture/word pairs |
-| **Secret Code** | Spelling — encode/decode messages |
-| **Story Dice** | Creative — random story prompts |
-| **Connect Four** | Strategy — vertical battle for teams |
-
-*Plus 50+ more — [see full library](#activities)*
+- **Typography**: `Fredoka` for punchy headings and `Nunito` for elegant, readable body text.
+- **Soft Brutalism**: Bold 4px borders, hard block shadows, and vibrant accent colors (Pink, Orange, Green, Blue).
+- **Glassmorphism**: Sophisticated frosted-glass panels and floating sidebars.
+- **Micro-Interactions**: Every card, button, and modal features smooth, high-frame-rate animations.
 
 ---
 
-## 🛠 Tech Stack
+## 🧩 The KlassKit Library
 
-| Feature | Implementation |
-|---------|----------------|
-| **Core** | Vanilla ES6+ Javascript |
-| **Styling** | Tailwind CSS (CDN) + Custom CSS Variables |
-| **Database** | Supabase (Postgres with RLS) |
-| **Auth** | Supabase Auth (Google & Email) |
-| **Storage** | localStorage & IndexedDB |
-| **Icons** | Lucide Icons (Auto-rendered) |
-| **Audio** | Web Audio API (Synthesized) |
+The ecosystem is divided into four specialized zones, each designed for a specific part of your teaching day.
+
+### 🏡 My Space: The Productivity Hub
+*Your personal administrative command center.*
+
+| App | Description |
+|:--- |:--- |
+| **Professional Weekly Planner** | Master your schedule with drag-and-drop planning and integrated task tracking. |
+| **Advanced Classroom Manager** | A comprehensive hub for student success tracking and pedagogical reflection. |
+| **Smart Productivity Hub** | Stay ahead of your workload with a sleek, personalized task management system. |
+| **Strategic Admin Tracker** | Track unit readiness and planning status across all your scheduled classes. |
+
+### 🛠 Classroom Workshop
+*Powerful utilities for prepping and optimizing educational assets.*
+
+| Tool | Description |
+|:--- |:--- |
+| **Pro Text Processing Suite** | A powerful suite of utilities for transforming and analyzing educational text. |
+| **Advanced Image Utility Lab** | A professional lab for prepping and optimizing classroom visual assets. |
+| **Progress Update Comment Engine** | Generate highly personalized, professional progress comments in seconds. |
+| **Smart Lesson Content Parser** | Automatically extract core vocabulary and grammar from any lesson plan text. |
+
+### 🎮 Learning Games
+*High-engagement battles and logic challenges for the classroom.*
+
+| Game | Description |
+|:--- |:--- |
+| **Pro Quiz Creation Engine** | The ultimate tool for building and hosting epic classroom quiz battles. |
+| **The Ultimate Word Rescue** | A classic race against time to rescue the word through spelling (Hangman). |
+| **Strategic Team Battle** | A classic vertical strategy showdown for two competing teams (Connect Four). |
+| **Visual Memory Challenge** | A high-stakes memory matching game to reinforce vocabulary recognition. |
+| **Social Deduction Mystery** | A thrilling game of undercover roles and linguistic deception. |
+
+### 🧰 Teacher Tools
+*Essential utilities for real-time classroom management.*
+
+| Tool | Description |
+|:--- |:--- |
+| **Interactive Bingo Studio** | Design and host professional Bingo sessions for vocabulary and concept review. |
+| **Positive Engagement Tracker** | Boost classroom morale by tracking positive behaviors and participation. |
+| **Precision Time Management** | Keep your lessons on track with a multi-functional clock and timer suite. |
+| **High-Impact Visual Gallery** | A digital gallery for displaying vocabulary banks and high-quality posters. |
+| **Flashcard Generator** | Create stunning, ready-to-print flashcards with customizable layouts. |
 
 ---
 
-## 🚀 Quick Start (Local Development)
+## 🛠 Technology Stack
+
+We believe in modern, standard-compliant tech that runs everywhere.
+
+- **Engine**: Vanilla ES6+ JavaScript
+- **Styling**: Tailwind CSS + Custom CSS Variables for the "Soft Brutalism" system
+- **Backend**: Supabase (PostgreSQL with RLS) for Cloud Persistence
+- **Storage**: Hybrid LocalStorage & IndexedDB for instant Sandbox performance
+- **Visuals**: Lucide Icons & CSS-native animations
+
+---
+
+## 🚀 Get Started
+
+### Developers
+KlassKit is designed with a **no-build** philosophy. You can run the entire repository by simply opening `index.html` in a modern browser.
 
 ```bash
-# Clone the repo
+# Clone the repository
 git clone https://github.com/pod-III/klasskit.git
 
-# Open in browser (no build step!)
+# Navigate to the directory
 cd klasskit
-open index.html
-```
-No `npm install`. No webpack. Just host the files on any static server or open `index.html` directly.
 
----
-
-## 📂 Project Structure
-
-```bash
-klasskit/
-├── index.html          # Entry Lander (Choice Path)
-├── hub.html            # Main Activity Center (Hub)
-├── supabase.js         # Auth & Cloud Persistence Bridge
-├── script.js           # Hub Orchestration Logic
-├── games.json          # Global Activity Registry
-├── css/
-│   ├── base.css        # Design tokens & dark mode
-│   ├── components.css  # Buttons, cards, inputs
-│   └── home.css        # Landing & Hub views
-├── my-space/           # Personal Planning & Admin Tools
-├── workshop/           # General Text & Image Utilities
-├── games/              # Interactive Game Modules
-└── tools/              # Classroom Utility Tools
+# No npm install needed! Simply host with any static server (like Live Server) or open directly.
 ```
 
----
-
-## 🧩 Adding Your Own Activities
-
-Each activity is a self-contained module. To add a new one:
-
-1. Create your activity folder in `my-space/`, `workshop/`, `games/`, or `tools/`.
-2. Add an entry to `games.json` using the standard schema.
-3. Refresh the web app — your activity appears instantly and supports all system features (Tabs, Pins, Dark Mode).
+### Contributing a New Activity
+Adding to the hub is as simple as adding an entry to `games.json`:
+1. Create your self-contained module in the appropriate directory.
+2. Register your app in `games.json` using the standard schema.
+3. Your app will automatically inherit system-wide features like **Tabs, Pins, Search, and Dark Mode**.
 
 ---
 
-## 🙏 Credits
+## 🙏 Credits & Vision
 
-Built with ❤️ by **Fahrul Ahyan** for the global community of English teachers.
-KlassKit is a **Passion Project** and will remain **100% Free** forever.
+Built with ❤️ by **Fahrul Ahyan**.
+KlassKit is a passion project dedicated to the global community of teachers. It is, and always will be, **100% Free**.
 
-*Current Version: 1.3.1 — Early Development. Changes occur frequently.*
+*Current Version: 1.3.9 — Active Development.*
