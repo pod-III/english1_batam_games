@@ -1493,17 +1493,6 @@ const MySpace = {
 
     this.currentApp = appId;
     
-    // Update nav buttons
-    document.querySelectorAll('.myspace-nav-btn').forEach(btn => {
-      const isActive = btn.dataset.myspaceApp === appId;
-      btn.classList.toggle('active', isActive);
-      btn.classList.toggle('bg-blue', isActive);
-      btn.classList.toggle('text-white', isActive);
-      btn.classList.toggle('bg-white', !isActive);
-      btn.classList.toggle('dark:bg-slate-700', !isActive);
-      btn.classList.toggle('text-slate-500', !isActive);
-    });
-
     // Handle Pro check
     if (game.pro && !State.isPro()) {
       UI.showToast("This app is exclusive to PRO users", "warning");
