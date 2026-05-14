@@ -89,7 +89,32 @@ async function requireAdmin() {
 
   if (profile?.role !== 'admin') {
     console.warn('[AdminGuard] Access Denied.')
-    location.href = '/hub.html'
+    location.href = '/api/unauthorized.html'
+    return new Promise(() => { })
+  }
+
+  return { user, profile }
+}
+
+async function requirePro() {
+  if (isSandbox()) {
+    return { id: 'sandbox_user', is_sandbox: true };
+  }
+  const user = await getUser()
+  if (!user) {
+    location.href = '/login.html'
+    return new Promise(() => { })
+  }
+
+  const { data: profile, error } = await db
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (profile?.role !== 'admin' && profile?.role !== 'pro') {
+    console.warn('[ProGuard] Access Denied. User requires Pro tier.')
+    location.href = '/api/unauthorized.html'
     return new Promise(() => { })
   }
 
