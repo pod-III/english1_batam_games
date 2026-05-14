@@ -5,575 +5,677 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>KlassKit: Quiz Maker</title>
-    <link rel="icon" type="image/x-icon" href="../../../media/icon.ico" />
-    <link rel="icon" type="image/webp" href="../../../media/icon.webp" />
-
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300..700&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap"
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@700&family=Nunito:wght@400;600;800&display=swap"
         rel="stylesheet">
-
-    <!-- Tailwind & Lucide -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-
-    <!-- Confetti & Supabase -->
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Confetti -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Supabase Auth -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="/supabase.js"></script>
-
     <script>
         tailwind.config = {
             darkMode: 'class',
             theme: {
                 extend: {
+                    colors: {
+                        pink: '#FF6B95',
+                        orange: '#FF8C42',
+                        green: '#00E676',
+                        blue: '#2979FF',
+                        dark: '#1e293b',
+                        chalk: '#f8fafc',
+                    },
                     fontFamily: {
                         sans: ['Nunito', 'sans-serif'],
                         heading: ['Fredoka', 'sans-serif'],
-                    },
-                    colors: {
-                        brand: {
-                            pink: '#FF6B95',
-                            orange: '#FF8C42',
-                            green: '#00E676',
-                            blue: '#2979FF',
-                            dark: '#1e293b',
-                            chalk: '#f8fafc',
-                            yellow: '#FFD700'
-                        }
-                    },
-                    boxShadow: {
-                        'hard': '4px 4px 0px 0px rgba(30, 41, 59, 1)',
-                        'hard-lg': '6px 6px 0px 0px rgba(30, 41, 59, 1)',
-                        'hard-sm': '2px 2px 0px 0px rgba(30, 41, 59, 1)',
-                        'inner-hard': 'inset 2px 2px 0px 0px rgba(30, 41, 59, 0.1)',
-                    },
-                    animation: {
-                        'bounce-in': 'bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
-                        'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
-                        'pop-in': 'pop-in 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards'
-                    },
-                    keyframes: {
-                        bounceIn: {
-                            '0%': { transform: 'scale(0.8)', opacity: '0' },
-                            '100%': { transform: 'scale(1)', opacity: '1' },
-                        },
-                        shake: {
-                            '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
-                            '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
-                            '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
-                            '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
-                        },
-                        'pop-in': {
-                            '0%': { transform: 'scale(0.92)', opacity: '0' },
-                            '100%': { transform: 'scale(1)', opacity: '1' }
-                        }
                     }
                 }
             }
         }
     </script>
-
     <style>
         :root {
             --bg-primary: #f8fafc;
             --text-primary: #1e293b;
+            --border-primary: #1e293b;
         }
 
         .dark {
             --bg-primary: #0f172a;
             --text-primary: #f8fafc;
+            --border-primary: #334155;
         }
 
         body {
+            font-family: 'Nunito', sans-serif;
             background-color: var(--bg-primary);
             color: var(--text-primary);
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
             background-image:
-                linear-gradient(rgba(30, 41, 59, 0.05) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(30, 41, 59, 0.05) 1px, transparent 1px);
-            background-size: 24px 24px;
+                linear-gradient(rgba(30, 41, 59, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(30, 41, 59, 0.04) 1px, transparent 1px);
+            background-size: 36px 36px;
+            overflow: hidden;
         }
 
         .dark body {
             background-image:
-                linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+                linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
         }
 
-        .dark .bg-white {
-            background-color: #1e293b;
+        .font-heading {
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
         }
 
-        .dark .border-brand-dark {
-            border-color: #334155;
+        .shadow-hard-sm {
+            box-shadow: 2px 2px 0px 0px rgba(30, 41, 59, 1);
         }
 
-        .dark .text-brand-dark {
-            color: #f8fafc;
-        }
-
-        .dark .shadow-hard,
-        .dark .shadow-hard-sm,
-        .dark .shadow-hard-lg {
-            box-shadow-color: rgba(0, 0, 0, 0.8);
-        }
-
-        .neo-btn {
-            transition: all 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            transform: translate(0, 0);
-        }
-
-        .neo-btn:hover:not(:disabled) {
-            transform: translate(-2px, -2px);
-            box-shadow: 4px 4px 0px 0px var(--border-primary, rgba(30, 41, 59, 1));
-        }
-
-        .neo-btn:active:not(:disabled) {
-            transform: translate(2px, 2px);
-            box-shadow: 0px 0px 0px 0px var(--border-primary, rgba(30, 41, 59, 1));
-        }
-
-        .neo-btn:disabled {
-            opacity: 0.7;
-            cursor: not-allowed;
-            filter: grayscale(100%);
-        }
-
-        .dark .neo-btn:hover:not(:disabled) {
-            box-shadow: 4px 4px 0px 0px rgba(0, 0, 0, 0.8);
-        }
-
-        .neo-card {
-            transition: all 0.2s ease;
-        }
-
-        .neo-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 6px 6px 0px 0px var(--border-primary, rgba(30, 41, 59, 1));
-        }
-
-        .dark .neo-card:hover {
-            box-shadow: 6px 6px 0px 0px rgba(0, 0, 0, 0.8);
-        }
-
-        .option-btn {
-            transition: transform 0.1s;
-        }
-
-        .option-btn:active {
-            transform: scale(0.98);
-        }
-
-        /* Setup Editor Styles */
-        .neo-field {
-            display: flex;
-            align-items: stretch;
-            background: white;
-            border: 4px solid #1e293b;
-            border-radius: 12px;
-            overflow: hidden;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .dark .neo-field {
-            background: #0f172a;
-            border-color: #334155;
-        }
-
-        .neo-field:focus-within {
-            transform: translate(-2px, -2px);
+        .shadow-hard {
             box-shadow: 4px 4px 0px 0px rgba(30, 41, 59, 1);
         }
 
-        .dark .neo-field:focus-within {
-            box-shadow: 4px 4px 0px 0px rgba(0, 0, 0, 0.8);
+        .shadow-hard-md {
+            box-shadow: 6px 6px 0px 0px rgba(30, 41, 59, 1);
         }
 
-        .neo-icon-box {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 3.5rem;
-            flex-shrink: 0;
-            border-right: 4px solid #1e293b;
-            font-weight: 800;
+        .shadow-hard-lg {
+            box-shadow: 8px 8px 0px 0px rgba(30, 41, 59, 1);
         }
 
-        .dark .neo-icon-box {
-            border-color: #334155;
-            background: #1e293b;
-            color: #f8fafc;
+        .dark .shadow-hard-sm {
+            box-shadow: 2px 2px 0px 0px rgba(0, 0, 0, 0.6);
         }
 
-        .neo-input-text {
-            width: 100%;
-            padding: 12px 16px;
-            font-family: 'Nunito', sans-serif;
-            font-weight: 700;
-            color: #1e293b;
-            border: none;
-            outline: none;
-            background: transparent;
+        .dark .shadow-hard {
+            box-shadow: 4px 4px 0px 0px rgba(0, 0, 0, 0.6);
         }
 
-        .dark .neo-input-text {
-            color: #f8fafc;
+        .dark .shadow-hard-md {
+            box-shadow: 6px 6px 0px 0px rgba(0, 0, 0, 0.6);
         }
 
-        .set-item.active {
-            @apply bg-brand-blue text-white translate-x-1 translate-y-1 shadow-none border-brand-dark ring-2 ring-offset-2 ring-brand-blue;
+        .dark .shadow-hard-lg {
+            box-shadow: 8px 8px 0px 0px rgba(0, 0, 0, 0.6);
         }
 
-        ::-webkit-scrollbar {
+        .btn-chunky {
+            transition: all 0.1s ease;
+            cursor: pointer;
+            user-select: none;
+            border-width: 3px;
+            border-color: #1e293b;
+        }
+
+        .btn-chunky:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0px 0px rgba(30, 41, 59, 1);
+        }
+
+        .btn-chunky:active {
+            transform: translate(2px, 2px);
+            box-shadow: 0px 0px 0px 0px rgba(30, 41, 59, 1);
+        }
+
+        .dark .btn-chunky {
+            border-color: #475569;
+        }
+
+        .dark .btn-chunky:hover {
+            box-shadow: 6px 6px 0px 0px rgba(0, 0, 0, 0.6);
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(16px);
+            border: 3px solid #1e293b;
+        }
+
+        .dark .glass-panel {
+            background: rgba(15, 23, 42, 0.92);
+            border: 3px solid #334155;
+        }
+
+        .animate-pop-in {
+            animation: pop-in 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes pop-in {
+            0% {
+                transform: scale(0.92);
+                opacity: 0;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        /* Option Feedback */
+        .option-btn {
+            position: relative;
+            overflow: hidden;
+            transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .option-btn.correct {
+            background-color: #00E676 !important;
+            border-color: #1e293b;
+            color: white;
+            transform: scale(1.04);
+            z-index: 10;
+        }
+
+        .option-btn.wrong {
+            background-color: #FF6B95 !important;
+            border-color: #1e293b;
+            color: white;
+            opacity: 0.85;
+        }
+
+        .option-btn.dimmed {
+            opacity: 0.25;
+            filter: grayscale(0.6);
+            pointer-events: none;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
             width: 8px;
         }
 
-        ::-webkit-scrollbar-track {
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #2979FF;
+            border-radius: 8px;
+            border: 2px solid transparent;
+            background-clip: content-box;
+        }
+
+        /* Progress dots */
+        .dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            border: 2px solid var(--border-primary);
+            background: transparent;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            flex-shrink: 0;
+        }
+
+        .dot.active {
+            background: #2979FF;
+            transform: scale(1.4);
+            border-color: #2979FF;
+        }
+
+        .dot.completed {
+            background: #00E676;
+            border-color: #00E676;
+        }
+
+        /* Artsy tag */
+        .artsy-tag {
+            position: absolute;
+            top: -18px;
+            left: 32px;
+            background: #FF6B95;
+            color: white;
+            padding: 4px 20px;
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
+            font-size: 0.85rem;
+            border: 3px solid #1e293b;
+            border-radius: 10px;
+            transform: rotate(-2deg);
+            box-shadow: 3px 3px 0px #1e293b;
+            z-index: 20;
+            white-space: nowrap;
+        }
+
+        /* Shape indicator */
+        .shape-indicator {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.22);
+            border: 2px solid rgba(255, 255, 255, 0.35);
+            border-radius: 10px;
+            margin-right: 14px;
+            flex-shrink: 0;
+        }
+
+        /* Kbd label */
+        .kbd-label {
+            position: absolute;
+            bottom: 5px;
+            right: 10px;
+            font-size: 9px;
+            font-weight: 900;
+            opacity: 0.45;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Collection active stripe */
+        .collection-active-stripe {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 5px;
+            background: white;
+            border-radius: 4px 0 0 4px;
+            opacity: 0.5;
+        }
+
+        /* Editor answer option strip */
+        .answer-strip {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 12px;
+            border: 2px solid #e2e8f0;
+            transition: all 0.15s;
+            cursor: pointer;
+        }
+
+        .answer-strip:hover {
+            border-color: #00E676;
+            background: #f0fdf4;
+        }
+
+        .dark .answer-strip {
+            border-color: #334155;
             background: transparent;
         }
 
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 4px;
+        .dark .answer-strip:hover {
+            border-color: #00E676;
+            background: rgba(0, 230, 118, 0.06);
         }
 
-        .dark ::-webkit-scrollbar-thumb {
-            background: #475569;
+        .answer-strip.is-correct {
+            border-color: #00E676;
+            background: rgba(0, 230, 118, 0.1);
+        }
+
+        .dark .answer-strip.is-correct {
+            background: rgba(0, 230, 118, 0.08);
+        }
+
+        /* Rank colors */
+        .rank-s {
+            color: #FF8C42;
+        }
+
+        .rank-a {
+            color: #2979FF;
+        }
+
+        .rank-b {
+            color: #00E676;
+        }
+
+        .rank-c {
+            color: #FF6B95;
+        }
+
+        .rank-f {
+            color: #94a3b8;
+        }
+
+        /* Autofit Helper */
+        .autofit-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        /* Chromebook / Low height */
+        @media (max-height: 780px) {
+            .setup-header {
+                display: none;
+            }
+
+            main {
+                margin-top: 0.25rem !important;
+            }
+
+            .glass-panel {
+                padding: 0.5rem !important;
+            }
+
+            .option-btn {
+                padding: 0.3rem 0.75rem !important;
+                border-width: 2px !important;
+            }
+
+            .shape-indicator {
+                width: 26px;
+                height: 26px;
+                margin-right: 8px;
+            }
+
+            .shape-indicator svg {
+                width: 12px;
+                height: 12px;
+            }
+
+            .artsy-tag {
+                top: -14px;
+                left: 18px;
+                font-size: 0.65rem;
+                padding: 2px 10px;
+            }
+
+            footer#app-footer {
+                display: none;
+            }
         }
     </style>
 </head>
 
-<body class="min-h-screen flex flex-col font-sans selection:bg-brand-pink selection:text-white">
+<body class="selection:bg-pink selection:text-white">
 
     <!-- Header -->
-    <header
-        class="w-full bg-white dark:bg-slate-900 border-b-4 border-brand-dark dark:border-slate-700 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-            <div class="flex items-center gap-4 cursor-pointer group" onclick="goHome()">
+    <header id="main-header" class="max-w-7xl mx-auto w-full mt-5 px-4 z-50 shrink-0">
+        <div class="glass-panel rounded-2xl shadow-hard flex justify-between items-center gap-4 overflow-hidden">
+            <div class="w-2 self-stretch bg-pink shrink-0"></div>
+            <div class="flex items-center gap-4 py-3 pl-2">
                 <div
-                    class="w-12 h-12 bg-brand-orange border-2 border-brand-dark dark:border-slate-600 rounded-xl flex items-center justify-center shadow-hard-sm group-hover:rotate-12 transition-transform">
+                    class="w-11 h-11 rounded-xl bg-white dark:bg-slate-800 border-2 border-dark dark:border-slate-600 flex items-center justify-center shadow-hard-sm shrink-0">
                     <img src="../../../media/icon.webp" alt="KlassKit Logo" class="w-7 h-7 object-contain">
                 </div>
                 <div>
-                    <h1
-                        class="font-heading font-bold text-3xl leading-none tracking-tight text-brand-dark dark:text-white">
+                    <h1 class="text-2xl font-heading text-dark dark:text-white leading-none tracking-tight uppercase">
                         QUIZ MAKER</h1>
-                    <span
-                        class="text-[10px] font-black text-brand-orange dark:text-brand-green uppercase tracking-[0.25em]">Classroom
-                        Battle</span>
+                    <p class="text-[9px] font-black text-orange dark:text-green tracking-[0.25em] uppercase mt-0.5">
+                        Classroom Battle Edition</p>
                 </div>
             </div>
-
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3 py-3 pr-4 ml-auto">
                 <button onclick="toggleTheme()" title="Toggle dark mode"
-                    class="neo-btn bg-brand-chalk dark:bg-slate-800 w-12 h-12 flex items-center justify-center rounded-xl shadow-hard-sm border-2 border-brand-dark dark:border-slate-600 text-brand-dark dark:text-white">
-                    <i data-lucide="moon" id="theme-icon" class="w-5 h-5"></i>
+                    class="btn-chunky bg-chalk dark:bg-slate-800 w-10 h-10 flex items-center justify-center rounded-xl shadow-hard-sm text-dark dark:text-white">
+                    <i data-lucide="moon" id="theme-icon" class="w-4 h-4"></i>
                 </button>
                 <button id="setup-toggle" onclick="toggleMode()"
-                    class="neo-btn bg-brand-blue text-white px-5 py-3 rounded-xl border-2 border-brand-dark dark:border-slate-600 shadow-hard-sm font-heading text-lg flex items-center gap-2">
-                    <i data-lucide="settings" class="w-5 h-5"></i>
+                    class="btn-chunky bg-blue text-white px-5 py-2 rounded-xl shadow-hard font-heading text-lg flex items-center gap-2">
+                    <i data-lucide="settings" class="w-4 h-4"></i>
                     <span>SETUP</span>
                 </button>
             </div>
         </div>
     </header>
 
-    <!-- Main Content Area -->
-    <main class="flex-grow flex flex-col items-center justify-start pt-8 pb-12 px-4 w-full max-w-7xl mx-auto">
+    <main class="max-w-7xl mx-auto w-full mt-6 px-4 flex-1 overflow-hidden flex flex-col pb-4">
 
-        <!-- SECTION: HOME / SET SELECTION -->
-        <section id="view-home" class="w-full animate-bounce-in max-w-6xl">
-            <div class="text-center mb-10">
-                <h2 class="font-heading text-5xl font-bold mb-4 text-brand-dark dark:text-white">Choose Your Challenge
-                </h2>
+        <!-- Setup Mode -->
+        <div id="setup-mode" class="hidden animate-pop-in lg:grid-cols-12 gap-6 flex-1 overflow-hidden">
+            <div class="lg:col-span-4 flex flex-col gap-4 overflow-hidden">
                 <div
-                    class="inline-block bg-white dark:bg-slate-800 px-8 py-3 rounded-full border-2 border-brand-dark dark:border-slate-600 shadow-hard-sm">
-                    <p class="font-bold text-slate-600 dark:text-slate-300 text-lg">Select a battle to begin your
-                        training</p>
-                </div>
-            </div>
-
-            <!-- Loading Spinner -->
-            <div id="loading-indicator" class="flex flex-col items-center justify-center py-12">
-                <i data-lucide="loader-2" class="w-12 h-12 animate-spin text-brand-blue mb-4"></i>
-                <p class="font-heading font-bold text-xl dark:text-white">Loading Battles...</p>
-            </div>
-
-            <div id="sets-grid" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <!-- Cards injected here -->
-            </div>
-        </section>
-
-        <!-- SECTION: QUIZ INTERFACE -->
-        <section id="view-quiz" class="w-full max-w-4xl hidden flex-col">
-            <!-- Top Bar: Progress & Exit -->
-            <div
-                class="flex items-center gap-6 mb-6 bg-white dark:bg-slate-800 p-5 rounded-2xl border-4 border-brand-dark dark:border-slate-600 shadow-hard">
-                <button onclick="goHome()"
-                    class="neo-btn p-3 bg-slate-100 dark:bg-slate-700 rounded-xl border-2 border-brand-dark dark:border-slate-500 hover:bg-slate-200 dark:text-white">
-                    <i data-lucide="arrow-left" class="w-6 h-6"></i>
-                </button>
-
-                <div class="flex-grow">
+                    class="glass-panel rounded-2xl shadow-hard bg-white dark:bg-slate-900 flex flex-col min-h-0 overflow-hidden flex-1">
                     <div
-                        class="flex justify-between text-xs font-black mb-2 uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                        <span>Progress</span>
-                        <span id="progress-text">0%</span>
-                    </div>
-                    <div
-                        class="h-6 bg-slate-200 dark:bg-slate-700 rounded-full border-2 border-brand-dark dark:border-slate-500 overflow-hidden relative">
-                        <div id="progress-bar"
-                            class="h-full bg-brand-green transition-all duration-500 ease-out w-0 relative">
-                            <div
-                                class="absolute inset-0 opacity-20 bg-[linear-gradient(45deg,rgba(255,255,255,.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,.15)_50%,rgba(255,255,255,.15)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem]">
-                            </div>
+                        class="flex items-center gap-3 px-5 pt-5 pb-3 shrink-0 border-b-2 border-dark/10 dark:border-slate-700">
+                        <div
+                            class="w-8 h-8 rounded-lg bg-pink flex items-center justify-center border-2 border-dark shadow-hard-sm">
+                            <i data-lucide="library" class="w-4 h-4 text-white"></i>
                         </div>
+                        <h3 class="text-lg font-heading uppercase text-dark dark:text-white">Collections</h3>
                     </div>
-                </div>
-
-                <div
-                    class="bg-brand-blue/10 dark:bg-brand-blue/20 px-4 py-2 rounded-xl border-2 border-brand-blue text-brand-blue dark:text-blue-400 font-heading font-bold text-lg min-w-[80px] text-center">
-                    <span id="q-current">1</span> / <span id="q-total">10</span>
-                </div>
-            </div>
-
-            <!-- Question Card -->
-            <div
-                class="bg-white dark:bg-slate-800 border-4 border-brand-dark dark:border-slate-600 rounded-2xl p-8 md:p-12 shadow-hard-lg mb-6 relative overflow-hidden flex items-center justify-center min-h-[200px]">
-                <div
-                    class="absolute -top-12 -right-12 w-40 h-40 bg-brand-yellow/20 rounded-full blur-3xl pointer-events-none">
-                </div>
-                <div class="absolute bottom-0 left-0 w-full h-2 bg-brand-dark dark:bg-slate-600"></div>
-
-                <h3 id="question-text"
-                    class="relative z-10 font-heading text-3xl md:text-5xl font-bold leading-tight text-center text-brand-dark dark:text-white">
-                    <!-- Question goes here -->
-                </h3>
-            </div>
-
-            <!-- Options Grid -->
-            <div id="options-container" class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
-                <!-- Buttons injected here -->
-            </div>
-
-            <!-- Controls Panel -->
-            <div class="flex justify-center mb-8">
-                <button id="reveal-btn" onclick="revealAnswer()"
-                    class="neo-btn bg-white dark:bg-slate-700 text-brand-dark dark:text-white border-4 border-brand-dark dark:border-slate-500 px-8 py-4 rounded-xl font-heading font-bold text-xl shadow-hard flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-600 uppercase">
-                    <i data-lucide="eye" class="w-6 h-6"></i> Reveal Answer
-                </button>
-            </div>
-
-            <!-- Feedback Panel (Slide in) -->
-            <div id="feedback-panel"
-                class="hidden bg-white dark:bg-slate-800 border-4 border-brand-dark dark:border-slate-600 rounded-2xl p-6 shadow-hard animate-bounce-in mb-8">
-                <div class="flex gap-5 items-start">
-                    <div id="feedback-icon-box"
-                        class="w-14 h-14 flex-shrink-0 flex items-center justify-center rounded-2xl border-2 border-brand-dark shadow-hard-sm transition-colors">
-                        <i id="feedback-icon" class="w-8 h-8"></i>
-                    </div>
-                    <div class="flex-grow pt-1">
-                        <h4 id="feedback-title" class="font-heading text-2xl font-bold mb-2"></h4>
-                        <p id="feedback-desc"
-                            class="text-slate-700 dark:text-slate-300 text-lg leading-relaxed font-medium"></p>
-                    </div>
-                </div>
-                <div class="mt-6 flex justify-end">
-                    <button id="next-btn" onclick="nextQuestion()"
-                        class="neo-btn bg-brand-dark dark:bg-slate-600 text-white px-10 py-4 rounded-xl border-2 border-transparent font-heading font-bold text-xl shadow-hard flex items-center gap-2 hover:bg-slate-800">
-                        Next <i data-lucide="arrow-right" class="w-6 h-6"></i>
-                    </button>
-                </div>
-            </div>
-        </section>
-
-        <!-- SECTION: RESULTS -->
-        <section id="view-results" class="w-full max-w-2xl hidden flex-col items-center animate-bounce-in">
-            <div
-                class="w-full bg-white dark:bg-slate-800 border-4 border-brand-dark dark:border-slate-600 rounded-3xl p-10 md:p-14 text-center shadow-hard-lg relative overflow-hidden">
-
-                <div class="absolute top-0 left-0 w-full h-6 bg-brand-dark dark:bg-slate-600"></div>
-
-                <div
-                    class="mb-8 inline-flex items-center justify-center w-32 h-32 rounded-full bg-slate-50 dark:bg-slate-700 border-4 border-brand-dark dark:border-slate-500 shadow-hard relative">
-                    <i id="result-icon" class="w-16 h-16 text-brand-dark dark:text-white"></i>
-                    <div id="stars-container" class="absolute -top-2 -right-6 flex gap-1"></div>
-                </div>
-
-                <h2 id="result-title"
-                    class="font-heading text-5xl md:text-6xl font-bold mb-3 text-brand-dark dark:text-white">Battle
-                    Complete!</h2>
-                <p id="result-subtitle" class="text-slate-500 dark:text-slate-400 font-bold text-xl mb-10">Let's see how
-                    you did.</p>
-
-                <div class="grid grid-cols-2 gap-6 mb-10">
-                    <div
-                        class="bg-brand-chalk dark:bg-slate-900 p-6 rounded-2xl border-2 border-brand-dark dark:border-slate-600 shadow-inner-hard">
-                        <span
-                            class="block text-slate-500 text-sm font-black uppercase tracking-widest mb-1">Score</span>
-                        <span id="final-score" class="font-heading text-4xl font-bold text-brand-blue">0/0</span>
-                    </div>
-                    <div
-                        class="bg-brand-chalk dark:bg-slate-900 p-6 rounded-2xl border-2 border-brand-dark dark:border-slate-600 shadow-inner-hard">
-                        <span
-                            class="block text-slate-500 text-sm font-black uppercase tracking-widest mb-1">Accuracy</span>
-                        <span id="final-percent" class="font-heading text-4xl font-bold text-brand-green">0%</span>
-                    </div>
-                </div>
-
-                <div class="flex flex-col md:flex-row gap-5 justify-center w-full">
-                    <button onclick="goHome()"
-                        class="neo-btn bg-white dark:bg-slate-700 text-brand-dark dark:text-white border-4 border-brand-dark dark:border-slate-500 px-8 py-4 rounded-xl font-heading font-bold text-xl shadow-hard w-full hover:bg-slate-50">
-                        Menu
-                    </button>
-                    <button onclick="restartSet()"
-                        class="neo-btn bg-brand-orange text-white border-4 border-brand-dark dark:border-slate-500 px-8 py-4 rounded-xl font-heading font-bold text-xl shadow-hard w-full hover:bg-orange-500">
-                        Play Again
-                    </button>
-                </div>
-            </div>
-        </section>
-
-        <!-- SECTION: SETUP MODE -->
-        <section id="view-setup" class="hidden w-full flex-col lg:flex-row gap-8 items-start animate-pop-in">
-            <!-- Sidebar / List of Collections -->
-            <aside class="w-full lg:w-80 flex flex-col gap-6 shrink-0 lg:sticky lg:top-28">
-                <div
-                    class="bg-white dark:bg-slate-800 border-4 border-brand-dark dark:border-slate-600 rounded-2xl p-6 shadow-hard flex flex-col">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="font-heading text-2xl font-bold dark:text-white">Battles</h2>
-                        <button onclick="addNewSet()"
-                            class="w-10 h-10 bg-brand-orange text-white border-4 border-brand-dark dark:border-slate-500 rounded-xl shadow-hard-sm neo-btn flex items-center justify-center">
-                            <i data-lucide="plus" class="w-6 h-6"></i>
+                    <div id="collections-list" class="space-y-2 overflow-y-auto p-4 custom-scrollbar flex-1"></div>
+                    <div class="px-4 pb-4 shrink-0">
+                        <button onclick="createNewCollection()"
+                            class="btn-chunky w-full bg-green text-dark py-3 rounded-xl shadow-hard font-heading text-base flex items-center justify-center gap-2">
+                            <i data-lucide="plus-circle" class="w-4 h-4"></i> NEW QUIZ
                         </button>
                     </div>
-                    <div id="set-list" class="flex flex-col gap-3 overflow-y-auto max-h-[60vh] pr-2 custom-scrollbar">
-                    </div>
                 </div>
-            </aside>
-
-            <!-- Editor Content -->
-            <div class="flex-grow w-full">
-                <div id="editor-placeholder"
-                    class="bg-white dark:bg-slate-800 border-4 border-brand-dark dark:border-slate-600 border-dashed rounded-[2rem] p-20 text-center shadow-hard flex flex-col items-center justify-center h-full">
-                    <i data-lucide="mouse-pointer-click" class="w-16 h-16 text-slate-300 mb-4"></i>
-                    <h3 class="font-heading text-3xl font-bold text-brand-dark dark:text-white">Select a Battle</h3>
-                    <p class="text-slate-500 font-bold">Create a new set or select one from the list to start editing.
-                    </p>
-                </div>
-
-                <div id="editor-content" class="hidden space-y-8">
-                    <!-- Title & Topic Edit -->
-                    <div
-                        class="bg-white dark:bg-slate-800 border-4 border-brand-dark dark:border-slate-600 rounded-2xl p-8 shadow-hard space-y-6">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                            <div class="flex flex-col gap-1.5">
-                                <label
-                                    class="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Battle
-                                    Title</label>
-                                <div class="neo-field">
-                                    <div class="neo-icon-box bg-blue-100 text-brand-blue"><i data-lucide="type"
-                                            class="w-5 h-5"></i></div>
-                                    <input type="text" id="edit-title"
-                                        class="neo-input-text dark:bg-slate-800 dark:text-white"
-                                        oninput="updateActiveSet('title', this.value)">
-                                </div>
-                            </div>
-                            <div class="flex flex-col gap-1.5">
-                                <label
-                                    class="text-[10px] font-black uppercase text-slate-400 tracking-widest ml-1">Topic</label>
-                                <div class="neo-field">
-                                    <div class="neo-icon-box bg-orange-100 text-brand-orange"><i data-lucide="tag"
-                                            class="w-5 h-5"></i></div>
-                                    <input type="text" id="edit-topic"
-                                        class="neo-input-text dark:bg-slate-800 dark:text-white"
-                                        oninput="updateActiveSet('topic', this.value)">
-                                </div>
-                            </div>
+                <div class="glass-panel rounded-2xl shadow-hard bg-orange/5 dark:bg-slate-900 border-orange shrink-0">
+                    <div class="flex items-center gap-3 px-5 pt-4 pb-3">
+                        <div
+                            class="w-7 h-7 rounded-lg bg-orange flex items-center justify-center border-2 border-dark shadow-hard-sm">
+                            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-white"></i>
                         </div>
+                        <h3 class="text-base font-heading uppercase text-orange">Presets</h3>
                     </div>
-
-                    <!-- Questions List -->
-                    <div
-                        class="bg-white dark:bg-slate-800 border-4 border-brand-dark dark:border-slate-600 rounded-2xl p-8 shadow-hard">
-                        <div class="flex justify-between items-center mb-8">
-                            <h3 class="font-heading text-2xl font-bold dark:text-white">Questions (<span
-                                    id="q-count">0</span>)</h3>
-                            <button onclick="addQuestion()"
-                                class="neo-btn bg-brand-green text-brand-dark border-4 border-brand-dark dark:border-slate-500 px-6 py-2 rounded-xl font-heading font-bold shadow-hard flex items-center gap-2">
-                                <i data-lucide="plus-circle" class="w-5 h-5"></i> Add Question
-                            </button>
-                        </div>
-                        <div id="questions-container" class="space-y-8"></div>
+                    <div class="grid grid-cols-1 gap-2 px-4 pb-4">
+                        <button onclick="loadPreset('b1_english')"
+                            class="btn-chunky bg-white dark:bg-slate-800 p-3 rounded-xl shadow-hard-sm text-left font-black text-sm hover:bg-orange hover:text-white transition-colors group flex items-center gap-3">
+                            <i data-lucide="book-open"
+                                class="w-4 h-4 text-orange group-hover:text-white transition-colors"></i> B1 English
+                            Mastery
+                        </button>
+                        <button onclick="loadPreset('math_basics')"
+                            class="btn-chunky bg-white dark:bg-slate-800 p-3 rounded-xl shadow-hard-sm text-left font-black text-sm hover:bg-orange hover:text-white transition-colors group flex items-center gap-3">
+                            <i data-lucide="calculator"
+                                class="w-4 h-4 text-orange group-hover:text-white transition-colors"></i> Math
+                            Foundations
+                        </button>
                     </div>
                 </div>
             </div>
-        </section>
 
+            <div class="lg:col-span-8 flex flex-col overflow-hidden">
+                <div
+                    class="glass-panel rounded-2xl shadow-hard-md bg-white dark:bg-slate-900 relative flex flex-col flex-1 min-h-0 overflow-hidden">
+                    <div class="w-full h-1.5 bg-blue shrink-0"></div>
+                    <div
+                        class="flex items-center gap-4 px-6 pt-5 pb-4 border-b-2 border-dark/10 dark:border-slate-700 shrink-0">
+                        <div class="flex-1 min-w-0">
+                            <label
+                                class="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em] mb-1 block">Quiz
+                                Title</label>
+                            <input type="text" id="quiz-name-input" oninput="updateCollectionName(this.value)"
+                                class="text-xl font-heading uppercase tracking-tight bg-transparent border-b-2 border-slate-200 dark:border-slate-600 focus:border-blue outline-none w-full pb-1 text-dark dark:text-white placeholder-slate-300"
+                                placeholder="UNTITLED QUIZ">
+                        </div>
+                        <button onclick="deleteCurrentCollection()"
+                            class="btn-chunky bg-pink/10 hover:bg-pink text-pink hover:text-white w-10 h-10 rounded-xl shadow-hard-sm flex items-center justify-center shrink-0 transition-colors"
+                            title="Delete Quiz">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                    <div id="questions-editor" class="space-y-4 overflow-y-auto px-6 py-4 custom-scrollbar flex-1">
+                    </div>
+                    <div
+                        class="px-6 py-4 border-t-2 border-dark/10 dark:border-slate-700 flex justify-between items-center gap-4 shrink-0 bg-slate-50 dark:bg-slate-800/50">
+                        <button onclick="addQuestion()"
+                            class="btn-chunky bg-blue text-white px-5 py-2.5 rounded-xl shadow-hard font-heading text-base flex items-center gap-2">
+                            <i data-lucide="plus" class="w-4 h-4"></i> ADD QUESTION
+                        </button>
+                        <button onclick="saveAndPlay()"
+                            class="btn-chunky bg-green text-dark px-8 py-3 rounded-xl shadow-hard font-heading text-xl uppercase flex items-center gap-2">
+                            <i data-lucide="swords" class="w-5 h-5"></i> START BATTLE!
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Play Mode -->
+        <div id="play-mode"
+            class="animate-pop-in max-w-4xl mx-auto w-full flex-1 flex flex-col justify-center overflow-hidden">
+            <div id="landing-screen"
+                class="glass-panel rounded-2xl shadow-hard-lg text-center relative overflow-hidden py-10 px-8">
+                <div class="absolute -top-8 -right-8 w-32 h-32 bg-blue/10 rounded-full border-2 border-blue/20"></div>
+                <div class="absolute -bottom-8 -left-8 w-24 h-24 bg-pink/10 rounded-full border-2 border-pink/20"></div>
+                <div class="relative z-10">
+                    <div
+                        class="w-20 h-20 bg-blue text-white rounded-2xl border-3 border-dark shadow-hard-md flex items-center justify-center mx-auto mb-6 transform rotate-6">
+                        <i data-lucide="swords" class="w-9 h-9 fill-current"></i>
+                    </div>
+                    <h2 id="landing-title"
+                        class="text-4xl md:text-5xl font-heading uppercase tracking-tight mb-3 text-dark dark:text-white">
+                        QUIZ READY</h2>
+                    <p id="landing-desc"
+                        class="text-base text-slate-500 dark:text-slate-400 font-bold mb-8 max-w-md mx-auto">Prepare
+                        your brains! The classroom challenge is about to begin.</p>
+                    <button id="start-btn" onclick="startQuiz()"
+                        class="btn-chunky bg-green text-dark px-14 py-5 rounded-2xl border-3 border-dark shadow-hard-lg font-heading text-4xl uppercase tracking-tight disabled:grayscale disabled:opacity-50">LET'S
+                        GO! 🎯</button>
+                </div>
+            </div>
+
+            <div id="quiz-screen" class="hidden flex-1 flex flex-col overflow-hidden space-y-3">
+                <div class="glass-panel rounded-xl shadow-hard px-4 py-3 flex items-center gap-4 shrink-0">
+                    <div class="bg-blue text-white rounded-lg px-3 py-1 font-heading text-base shadow-hard-sm border-2 border-dark shrink-0"
+                        id="progress-text">1/10</div>
+                    <div id="dots-container" class="flex gap-1.5 flex-wrap flex-1 items-center"></div>
+                    <div
+                        class="bg-white dark:bg-slate-800 border-2 border-dark rounded-lg px-3 py-1 shadow-hard-sm font-heading text-base flex items-center gap-1.5 shrink-0">
+                        <i data-lucide="trophy" class="w-4 h-4 text-orange"></i>
+                        <span id="score-text">0</span>
+                    </div>
+                </div>
+
+                <div
+                    class="glass-panel rounded-2xl shadow-hard flex-1 flex flex-col min-h-0 relative pt-10 pb-4 px-6 md:px-10">
+                    <div class="artsy-tag" id="question-tag">QUESTION #1</div>
+
+                    <!-- Question Area - Bigger proportion -->
+                    <div class="flex-[2] flex items-center justify-center min-h-0 py-4">
+                        <div class="autofit-container" id="question-fit-container">
+                            <h3 id="question-text"
+                                class="font-heading leading-tight tracking-normal text-dark dark:text-white text-center w-full">
+                                Loading question...</h3>
+                        </div>
+                    </div>
+
+                    <!-- Options Grid - Smaller proportion -->
+                    <div id="options-container"
+                        class="flex-[1.5] grid grid-cols-1 md:grid-cols-2 gap-3 min-h-0 pb-1 pr-1 overflow-hidden">
+                        <!-- Options injected here -->
+                    </div>
+
+                    <div
+                        class="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-3 shrink-0 mt-4 pt-3 border-t-2 border-dark/10 dark:border-slate-700">
+                        <button id="main-reveal-btn" onclick="revealAnswer()"
+                            class="btn-chunky bg-white dark:bg-slate-800 text-dark dark:text-white px-8 py-3 rounded-xl shadow-hard font-heading text-lg flex items-center justify-center gap-2 uppercase">
+                            <i data-lucide="eye" class="w-5 h-5"></i> REVEAL ANSWER
+                        </button>
+                        <div id="feedback-controls" class="hidden animate-pop-in">
+                            <button onclick="nextQuestion()"
+                                class="btn-chunky bg-dark dark:bg-slate-600 text-white px-12 py-3 rounded-xl shadow-hard font-heading text-2xl flex items-center justify-center gap-3 uppercase w-full">
+                                NEXT <i data-lucide="arrow-right" class="w-6 h-6"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="result-screen"
+                class="hidden glass-panel rounded-2xl shadow-hard-lg text-center relative overflow-hidden py-10 px-8">
+                <div class="absolute -top-6 -left-6 w-24 h-24 bg-green/10 rounded-full border-2 border-green/20"></div>
+                <div class="absolute -bottom-6 -right-6 w-32 h-32 bg-orange/10 rounded-full border-2 border-orange/20">
+                </div>
+                <div class="relative z-10">
+                    <div
+                        class="w-20 h-20 bg-green text-dark rounded-2xl border-3 border-dark shadow-hard-md flex items-center justify-center mx-auto mb-5 transform -rotate-6">
+                        <i data-lucide="award" class="w-10 h-10"></i>
+                    </div>
+                    <h2 id="final-message"
+                        class="text-4xl md:text-5xl font-heading uppercase tracking-tight mb-2 text-dark dark:text-white">
+                        VICTORY!</h2>
+                    <p class="text-sm text-slate-400 font-bold uppercase tracking-widest mb-8">Battle Complete</p>
+                    <div class="grid grid-cols-2 gap-4 max-w-sm mx-auto mb-8">
+                        <div class="bg-white dark:bg-slate-800 border-2 border-dark rounded-xl p-5 shadow-hard">
+                            <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Score</p>
+                            <p id="final-score" class="text-4xl font-heading text-dark dark:text-white">0/10</p>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 border-2 border-dark rounded-xl p-5 shadow-hard">
+                            <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Rank</p>
+                            <p id="final-rank" class="text-4xl font-heading rank-a">A</p>
+                        </div>
+                    </div>
+                    <div class="flex flex-col sm:flex-row gap-3 justify-center">
+                        <button onclick="startQuiz()"
+                            class="btn-chunky bg-green text-dark px-8 py-3 rounded-xl shadow-hard font-heading text-xl uppercase flex items-center justify-center gap-2">
+                            <i data-lucide="rotate-ccw" class="w-5 h-5"></i> REPLAY
+                        </button>
+                        <button onclick="toggleMode('setup')"
+                            class="btn-chunky bg-white dark:bg-slate-800 text-dark dark:text-white px-8 py-3 rounded-xl shadow-hard font-heading text-xl uppercase flex items-center justify-center gap-2">
+                            <i data-lucide="pencil" class="w-5 h-5"></i> EDIT
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </main>
 
+    <footer id="app-footer" class="shrink-0 pb-3 text-center">
+        <p class="text-[9px] text-slate-400 dark:text-slate-600 font-black uppercase tracking-[0.2em]">
+            KlassKit · Quiz Maker · Press <kbd
+                class="font-mono bg-slate-100 dark:bg-slate-800 px-1 rounded border border-slate-300 dark:border-slate-600 text-[8px]">1–4</kbd>
+            to answer · <kbd
+                class="font-mono bg-slate-100 dark:bg-slate-800 px-1 rounded border border-slate-300 dark:border-slate-600 text-[8px]">R</kbd>
+            to reveal · <kbd
+                class="font-mono bg-slate-100 dark:bg-slate-800 px-1 rounded border border-slate-300 dark:border-slate-600 text-[8px]">Enter</kbd>
+            to advance
+        </p>
+    </footer>
+
     <script>
-        const PRESETS = [
-            {
-                id: "preset_1",
-                title: "B1 English Mastery",
-                topic: "Grammar",
-                icon: "book-open",
-                color: "bg-brand-pink",
-                questions: [
-                    { q: "If I _____ you, I would go to the doctor.", opts: ["am", "was", "were", "be"], a: 2, exp: "Second conditional requires 'were'." },
-                    { q: "She has been working here _____ 2015.", opts: ["for", "since", "from", "during"], a: 1, exp: "'Since' is used with a point in time." },
-                    { q: "Which of these is NOT a past participle?", opts: ["Gone", "Done", "Been", "Going"], a: 3, exp: "'Going' is a present participle/gerund." },
-                    { q: "By the time we arrived, the film _____.", opts: ["started", "was starting", "had started", "has started"], a: 2, exp: "Past perfect is used for an action before another action in the past." },
-                    { q: "I'm looking forward _____ you next week.", opts: ["to see", "to seeing", "seeing", "for seeing"], a: 1, exp: "'Look forward to' is followed by a gerund (-ing)." },
-                    { q: "He suggested _____ to the park.", opts: ["go", "to go", "going", "goes"], a: 2, exp: "'Suggest' is followed by a gerund (-ing)." },
-                    { q: "That is the man _____ car was stolen.", opts: ["who", "whom", "whose", "which"], a: 2, exp: "'Whose' indicates possession." },
-                    { q: "You _____ better hurry or you'll be late.", opts: ["would", "had", "should", "will"], a: 1, exp: "'Had better' is used for strong advice." },
-                    { q: "I wish I _____ more time to study.", opts: ["have", "had", "would have", "was having"], a: 1, exp: "'Wish' for a present unreality uses the past simple." },
-                    { q: "The bridge _____ by next Christmas.", opts: ["will build", "will be building", "will have been built", "is built"], a: 2, exp: "Future perfect passive describes an action completed before a future time." }
-                ]
-            },
-            {
-                id: "preset_2",
-                title: "Math Foundations",
-                topic: "Math",
-                icon: "calculator",
-                color: "bg-brand-orange",
-                questions: [
-                    { q: "What is 15 x 6?", opts: ["80", "90", "75", "95"], a: 1, exp: "15 * 6 = 90" },
-                    { q: "Square root of 144?", opts: ["10", "11", "12", "14"], a: 2, exp: "12 * 12 = 144" },
-                    { q: "What is 25% of 200?", opts: ["40", "50", "60", "25"], a: 1, exp: "1/4 of 200 is 50." },
-                    { q: "Sum of angles in a triangle?", opts: ["90°", "180°", "270°", "360°"], a: 1, exp: "The angles of any triangle always add up to 180 degrees." },
-                    { q: "Which is a prime number?", opts: ["9", "15", "21", "17"], a: 3, exp: "17 is only divisible by 1 and itself." },
-                    { q: "Value of Pi (approx)?", opts: ["3.12", "3.14", "3.16", "3.18"], a: 1, exp: "Pi is approximately 3.14159..." },
-                    { q: "1/2 + 1/4 = ?", opts: ["1/6", "2/6", "3/4", "2/4"], a: 2, exp: "2/4 + 1/4 = 3/4" },
-                    { q: "What is 7 squared?", opts: ["14", "47", "49", "56"], a: 2, exp: "7 * 7 = 49" },
-                    { q: "Sides in a hexagon?", opts: ["5", "6", "7", "8"], a: 1, exp: "Hex = 6" },
-                    { q: "100 / 4 x 2 = ?", opts: ["12.5", "50", "25", "200"], a: 1, exp: "Division and multiplication have same precedence, go left-to-right: 25 x 2 = 50." }
-                ]
-            }
-        ];
+        const PRESETS = {
+            b1_english: [
+                { q: "If I _____ you, I would go to the doctor.", o: ["am", "was", "were", "be"], a: 2 },
+                { q: "She has been working here _____ 2015.", o: ["for", "since", "from", "during"], a: 1 },
+                { q: "Which of these is NOT a past participle?", o: ["Gone", "Done", "Been", "Going"], a: 3 },
+                { q: "By the time we arrived, the film _____.", o: ["started", "was starting", "had started", "has started"], a: 2 },
+                { q: "I'm looking forward _____ you next week.", o: ["to see", "to seeing", "seeing", "for seeing"], a: 1 },
+                { q: "He suggested _____ to the park.", o: ["go", "to go", "going", "goes"], a: 2 },
+                { q: "That is the man _____ car was stolen.", o: ["who", "whom", "whose", "which"], a: 2 },
+                { q: "You _____ better hurry or you'll be late.", o: ["would", "had", "should", "will"], a: 1 },
+                { q: "I wish I _____ more time to study.", o: ["have", "had", "would have", "was having"], a: 1 },
+                { q: "The bridge _____ by next Christmas.", o: ["will build", "will be building", "will have been built", "is built"], a: 2 }
+            ],
+            math_basics: [
+                { q: "What is 15 x 6?", o: ["80", "90", "75", "95"], a: 1 },
+                { q: "Square root of 144?", o: ["10", "11", "12", "14"], a: 2 },
+                { q: "What is 25% of 200?", o: ["40", "50", "60", "25"], a: 1 },
+                { q: "Sum of angles in a triangle?", o: ["90°", "180°", "270°", "360°"], a: 1 },
+                { q: "Which is a prime number?", o: ["9", "15", "21", "17"], a: 3 },
+                { q: "Value of Pi (approx)?", o: ["3.12", "3.14", "3.16", "3.18"], a: 1 },
+                { q: "1/2 + 1/4 = ?", o: ["1/6", "2/6", "3/4", "2/4"], a: 2 },
+                { q: "What is 7 squared?", o: ["14", "47", "49", "56"], a: 2 },
+                { q: "Sides in a hexagon?", o: ["5", "6", "7", "8"], a: 1 },
+                { q: "100 / 4 x 2 = ?", o: ["12.5", "50", "25", "200"], a: 1 }
+            ]
+        };
+
+        const OPTION_SHAPES = ['triangle', 'diamond', 'circle', 'square'];
+        const OPTION_COLORS = ['bg-pink', 'bg-orange', 'bg-blue', 'bg-green'];
 
         let collections = [];
-        let activeSetIndex = -1;
+        let currentCollectionId = null;
+        let isAnswering = false;
+        let currentQuestions = [];
+        let currentStep = 0;
+        let score = 0;
         let isSetupMode = false;
 
-        let currentQIndex = 0;
-        let score = 0;
-        let isProcessing = false;
-        let syncTimeout = null;
-
-        // --- INITIALIZATION ---
-        document.addEventListener('DOMContentLoaded', () => {
-            lucide.createIcons();
-            initTheme();
-            loadData();
-        });
-
-        // --- THEME & SETUP TOGGLE ---
         function initTheme() {
             const saved = localStorage.getItem('theme_hub');
             if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -597,488 +699,375 @@
             }
         }
 
-        function toggleMode() {
-            isSetupMode = !isSetupMode;
+        function toggleMode(target) {
+            isSetupMode = target === 'setup' ? true : (target === 'play' ? false : !isSetupMode);
+            const setup = document.getElementById('setup-mode');
+            const play = document.getElementById('play-mode');
             const toggleBtn = document.getElementById('setup-toggle');
+            const header = document.getElementById('main-header');
             const icon = toggleBtn.querySelector('[data-lucide]');
 
             if (isSetupMode) {
-                switchView('view-setup');
+                setup.classList.remove('hidden');
+                setup.classList.add('grid');
+                play.classList.add('hidden');
                 toggleBtn.querySelector('span').textContent = 'PLAY';
                 if (icon) icon.setAttribute('data-lucide', 'play');
-                toggleBtn.classList.replace('bg-brand-blue', 'bg-brand-green');
-                toggleBtn.classList.replace('text-white', 'text-brand-dark');
-                renderSetList();
+                header.classList.add('setup-header');
+                renderCollections();
+                renderEditor();
             } else {
-                switchView('view-home');
+                setup.classList.add('hidden');
+                setup.classList.remove('grid');
+                play.classList.remove('hidden');
                 toggleBtn.querySelector('span').textContent = 'SETUP';
                 if (icon) icon.setAttribute('data-lucide', 'settings');
-                toggleBtn.classList.replace('bg-brand-green', 'bg-brand-blue');
-                toggleBtn.classList.replace('text-brand-dark', 'text-white');
-                renderHome();
+                header.classList.remove('setup-header');
+                resetQuizState();
             }
             lucide.createIcons();
         }
 
-        function switchView(viewId) {
-            ['view-home', 'view-quiz', 'view-results', 'view-setup'].forEach(id => {
-                const el = document.getElementById(id);
-                if (id === viewId) {
-                    el.classList.remove('hidden');
-                    if (id !== 'view-home') el.classList.add('flex');
-                    else el.classList.add('block');
-                } else {
-                    el.classList.add('hidden');
-                    el.classList.remove('flex', 'block');
-                }
-            });
-            window.scrollTo(0, 0);
+        function createNewCollection() {
+            const id = 'quiz_' + Date.now();
+            const newQuiz = { id, name: "New Classroom Battle", questions: [{ q: "", o: ["", "", "", ""], a: 0 }], timestamp: Date.now() };
+            collections.push(newQuiz);
+            currentCollectionId = id;
+            currentQuestions = newQuiz.questions;
+            saveData();
+            renderCollections();
+            renderEditor();
         }
 
-        function goHome() {
-            if (isSetupMode) toggleMode();
-            else switchView('view-home');
-        }
-
-        // --- DATA SYNC ---
-        async function loadData() {
-            const indicator = document.getElementById('loading-indicator');
-            const grid = document.getElementById('sets-grid');
-
-            const local = localStorage.getItem('quiz_maker_collections_v3');
-            if (local) {
-                collections = JSON.parse(local);
+        function selectCollection(id) {
+            const quiz = collections.find(c => c.id === id);
+            if (quiz) {
+                currentCollectionId = id;
+                currentQuestions = quiz.questions;
+                renderCollections();
+                renderEditor();
+                AudioEngine.playTone(600, 'sine', 0.1);
             }
-            try {
-                if (typeof loadProgress === 'function') {
-                    const cloud = await loadProgress('quiz_maker_v3');
-                    if (cloud && cloud.collections) {
-                        collections = cloud.collections;
-                        localStorage.setItem('quiz_maker_collections_v3', JSON.stringify(collections));
-                    }
-                }
-            } catch (e) { console.warn(e); }
+        }
 
-            if (collections.length === 0) {
-                collections = JSON.parse(JSON.stringify(PRESETS));
+        function deleteCurrentCollection() {
+            if (collections.length <= 1) { alert("You must have at least one quiz!"); return; }
+            if (confirm("Permanently delete this battle set?")) {
+                collections = collections.filter(c => c.id !== currentCollectionId);
+                currentCollectionId = collections[0].id;
+                currentQuestions = collections[0].questions;
                 saveData();
+                renderCollections();
+                renderEditor();
             }
-
-            indicator.classList.add('hidden');
-            grid.classList.remove('hidden');
-
-            if (isSetupMode) renderSetList();
-            else renderHome();
         }
 
-        async function saveData() {
-            localStorage.setItem('quiz_maker_collections_v3', JSON.stringify(collections));
-            if (syncTimeout) clearTimeout(syncTimeout);
-            syncTimeout = setTimeout(async () => {
-                try {
-                    if (typeof saveProgress === 'function') {
-                        await saveProgress('quiz_maker_v3', { collections });
-                    }
-                } catch (e) { console.warn(e); }
-            }, 2000);
+        function updateCollectionName(name) {
+            const quiz = collections.find(c => c.id === currentCollectionId);
+            if (quiz) { quiz.name = name; saveData(); renderCollections(); }
         }
 
-        // --- HOME SCREEN RENDER ---
-        function renderHome() {
-            const grid = document.getElementById('sets-grid');
-            grid.innerHTML = '';
-
-            collections.forEach((set, idx) => {
-                const validQs = set.questions.filter(q => q.q.trim() !== "" && q.opts.some(o => o.trim() !== ""));
-                if (validQs.length === 0) return; // Hide empty sets in play mode
-
-                const card = document.createElement('div');
-                const color = set.color || 'bg-brand-pink';
-                const icon = set.icon || 'swords';
-
-                card.className = `neo-card group relative bg-white dark:bg-slate-800 border-4 border-brand-dark dark:border-slate-600 rounded-2xl p-6 shadow-hard flex flex-col justify-between h-full cursor-pointer overflow-hidden`;
-                card.onclick = () => startQuiz(idx);
-
-                const stripe = document.createElement('div');
-                stripe.className = `absolute top-0 left-0 w-full h-3 ${color}`;
-                card.appendChild(stripe);
-
-                card.innerHTML += `
-                    <div class="pt-4">
-                        <div class="flex justify-between items-start mb-5">
-                            <div class="${color} w-16 h-16 rounded-2xl border-2 border-brand-dark flex items-center justify-center text-white shadow-hard-sm group-hover:rotate-6 transition-transform">
-                                <i data-lucide="${icon}" class="w-9 h-9"></i>
-                            </div>
-                            <span class="bg-brand-dark dark:bg-slate-900 text-white text-xs font-black px-3 py-1 rounded-lg uppercase tracking-wider border-2 border-transparent group-hover:border-white/20">${set.topic || 'Quiz'}</span>
-                        </div>
-                        <h3 class="font-heading text-3xl font-bold mb-3 text-brand-dark dark:text-white group-hover:text-brand-blue transition-colors leading-tight">${set.title || 'Untitled Battle'}</h3>
-                    </div>
-                    <div class="mt-8 pt-4 border-t-2 border-slate-100 dark:border-slate-700 flex items-center justify-between">
-                        <span class="text-sm font-bold text-slate-400 flex items-center gap-2">
-                            <i data-lucide="layers" class="w-4 h-4"></i> ${validQs.length} Qs
-                        </span>
-                        <span class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center border-2 border-brand-dark group-hover:bg-brand-green group-hover:text-brand-dark transition-colors">
-                            <i data-lucide="play" class="w-5 h-5 fill-current ml-0.5 dark:text-white"></i>
-                        </span>
-                    </div>
-                `;
-                grid.appendChild(card);
-            });
-            lucide.createIcons();
-        }
-
-        // --- QUIZ PLAY LOGIC ---
-        function startQuiz(idx) {
-            activeSetIndex = idx;
-            const set = collections[idx];
-            // Filter valid questions only
-            set.validQuestions = set.questions.filter(q => q.q.trim() !== "" && q.opts.some(o => o.trim() !== ""));
-
-            if (set.validQuestions.length === 0) return;
-
-            currentQIndex = 0;
-            score = 0;
-            isProcessing = false;
-
-            document.getElementById('q-total').innerText = set.validQuestions.length;
-            switchView('view-quiz');
-            loadQuestion();
-        }
-
-        function loadQuestion() {
-            isProcessing = false;
-            const set = collections[activeSetIndex];
-            const q = set.validQuestions[currentQIndex];
-
-            document.getElementById('feedback-panel').classList.add('hidden');
-            document.getElementById('reveal-btn').classList.remove('hidden');
-
-            document.getElementById('q-current').innerText = currentQIndex + 1;
-            document.getElementById('question-text').innerText = q.q;
-
-            const progress = (currentQIndex / set.validQuestions.length) * 100;
-            document.getElementById('progress-bar').style.width = `${progress}%`;
-            document.getElementById('progress-text').innerText = `${Math.round(progress)}%`;
-
-            const container = document.getElementById('options-container');
-            container.innerHTML = '';
-
-            const validOpts = q.opts.map((opt, i) => ({ text: opt, originalIndex: i })).filter(o => o.text.trim() !== "");
-
-            validOpts.forEach((optObj, idx) => {
+        function renderCollections() {
+            const list = document.getElementById('collections-list');
+            list.innerHTML = '';
+            collections.sort((a, b) => b.timestamp - a.timestamp).forEach(quiz => {
+                const isActive = quiz.id === currentCollectionId;
+                const qCount = quiz.questions.filter(q => q.q).length;
                 const btn = document.createElement('button');
-                btn.className = `option-btn neo-btn w-full text-left p-6 rounded-xl border-4 border-brand-dark dark:border-slate-600 bg-white dark:bg-slate-700 shadow-hard-sm hover:bg-slate-50 dark:hover:bg-slate-600 font-bold text-xl text-slate-700 dark:text-slate-200 flex items-center gap-4`;
-
-                const letter = String.fromCharCode(65 + idx);
-
-                btn.innerHTML = `
-                    <span class="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-800 border-2 border-slate-300 dark:border-slate-500 flex items-center justify-center text-sm font-black text-slate-500 dark:text-slate-400 shrink-0">${letter}</span>
-                    <span class="leading-snug flex-grow text-center pr-10">${optObj.text}</span>
-                `;
-
-                btn.onclick = () => checkAnswer(optObj.originalIndex, btn);
-                container.appendChild(btn);
+                btn.className = `collection-item w-full px-4 py-3 rounded-xl border-2 font-black text-left flex items-center gap-3 shadow-hard-sm transition-all relative overflow-hidden ${isActive ? 'bg-pink text-white border-dark scale-[1.01]' : 'bg-chalk dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-pink hover:text-pink dark:hover:text-pink'}`;
+                btn.innerHTML = `${isActive ? '<div class="collection-active-stripe"></div>' : ''}<div class="w-8 h-8 rounded-lg ${isActive ? 'bg-white/20' : 'bg-slate-100 dark:bg-slate-700'} flex items-center justify-center shrink-0 border border-dark/10"><i data-lucide="scroll-text" class="w-4 h-4 ${isActive ? 'text-white' : ''}"></i></div><span class="flex-1 truncate text-sm">${quiz.name || 'Untitled Battle'}</span><span class="text-xs font-black opacity-60 shrink-0">${qCount}Q</span>`;
+                btn.onclick = () => selectCollection(quiz.id);
+                list.appendChild(btn);
             });
-        }
-
-        function revealAnswer() {
-            if (isProcessing) return;
-            // Similar to clicking the correct answer but without increasing score
-            const set = collections[activeSetIndex];
-            const q = set.validQuestions[currentQIndex];
-
-            // Find the correct button
-            const validOpts = q.opts.map((opt, i) => ({ text: opt, originalIndex: i })).filter(o => o.text.trim() !== "");
-            const correctDisplayIdx = validOpts.findIndex(o => o.originalIndex === q.a);
-
-            const allBtns = document.getElementById('options-container').children;
-            const correctBtn = allBtns[correctDisplayIdx];
-
-            checkAnswer(q.a, correctBtn, true); // true = forced reveal
-        }
-
-        function checkAnswer(selectedOriginalIdx, btnElement, forcedReveal = false) {
-            if (isProcessing) return;
-            isProcessing = true;
-
-            document.getElementById('reveal-btn').classList.add('hidden');
-
-            const set = collections[activeSetIndex];
-            const q = set.validQuestions[currentQIndex];
-            const isCorrect = selectedOriginalIdx === q.a;
-
-            const validOpts = q.opts.map((opt, i) => ({ text: opt, originalIndex: i })).filter(o => o.text.trim() !== "");
-            const correctDisplayIdx = validOpts.findIndex(o => o.originalIndex === q.a);
-
-            const allBtns = document.getElementById('options-container').children;
-
-            Array.from(allBtns).forEach((btn, idx) => {
-                btn.disabled = true;
-                btn.classList.remove('neo-btn', 'hover:bg-slate-50', 'dark:hover:bg-slate-600');
-                btn.classList.add('opacity-50', 'grayscale');
-
-                if (idx === correctDisplayIdx) {
-                    btn.classList.remove('bg-white', 'dark:bg-slate-700', 'opacity-50', 'grayscale', 'shadow-hard-sm', 'dark:border-slate-600');
-                    btn.classList.add('bg-brand-green', 'text-brand-dark', 'border-brand-dark', 'shadow-none', 'translate-y-[2px]', 'translate-x-[2px]');
-                    const badge = btn.querySelector('span:first-child');
-                    badge.classList.remove('bg-slate-100', 'border-slate-300', 'text-slate-500', 'dark:bg-slate-800', 'dark:border-slate-500', 'dark:text-slate-400');
-                    badge.classList.add('bg-white/30', 'border-transparent', 'text-brand-dark');
-                }
-            });
-
-            if (!forcedReveal) {
-                if (isCorrect) {
-                    score++;
-                    confetti({ particleCount: 80, spread: 80, origin: { y: 0.65 }, colors: ['#00E676', '#2979FF', '#FF6B95', '#FF8C42'] });
-                } else if (btnElement) {
-                    btnElement.classList.remove('bg-white', 'dark:bg-slate-700', 'opacity-50', 'grayscale', 'dark:border-slate-600');
-                    btnElement.classList.add('bg-brand-pink', 'text-white', 'border-brand-dark', 'animate-shake');
-                    const badge = btnElement.querySelector('span:first-child');
-                    badge.classList.remove('bg-slate-100', 'border-slate-300', 'text-slate-500', 'dark:bg-slate-800', 'dark:border-slate-500', 'dark:text-slate-400');
-                    badge.classList.add('bg-white/30', 'border-transparent', 'text-white');
-                }
-            }
-
-            showFeedback(isCorrect && !forcedReveal, q.exp || (forcedReveal ? "Answer Revealed" : ""));
-        }
-
-        function showFeedback(isCorrect, explanation) {
-            const panel = document.getElementById('feedback-panel');
-            const iconBox = document.getElementById('feedback-icon-box');
-            const icon = document.getElementById('feedback-icon');
-            const title = document.getElementById('feedback-title');
-            const desc = document.getElementById('feedback-desc');
-            const nextBtn = document.getElementById('next-btn');
-
-            panel.classList.remove('hidden');
-
-            if (isCorrect) {
-                iconBox.className = "w-14 h-14 flex-shrink-0 flex items-center justify-center rounded-2xl border-2 border-brand-dark shadow-hard-sm bg-brand-green text-brand-dark";
-                icon.setAttribute('data-lucide', 'check-circle-2');
-                title.innerText = "Brilliant!";
-                title.className = "font-heading text-2xl font-bold mb-2 text-green-600 dark:text-green-400";
+            const activeQuiz = collections.find(c => c.id === currentCollectionId);
+            const nameInput = document.getElementById('quiz-name-input');
+            if (nameInput) nameInput.value = activeQuiz ? activeQuiz.name : "";
+            const landingTitle = document.getElementById('landing-title');
+            const landingDesc = document.getElementById('landing-desc');
+            const startBtn = document.getElementById('start-btn');
+            if (activeQuiz) {
+                landingTitle.textContent = activeQuiz.name.toUpperCase();
+                const cnt = activeQuiz.questions.filter(q => q.q).length;
+                landingDesc.textContent = `${cnt} question${cnt !== 1 ? 's' : ''} ready for battle. Are you?`;
+                startBtn.disabled = cnt === 0;
             } else {
-                iconBox.className = "w-14 h-14 flex-shrink-0 flex items-center justify-center rounded-2xl border-2 border-brand-dark shadow-hard-sm bg-brand-pink text-white";
-                icon.setAttribute('data-lucide', 'x-circle');
-                title.innerText = "Feedback";
-                title.className = "font-heading text-2xl font-bold mb-2 text-pink-600 dark:text-pink-400";
-            }
-
-            desc.innerText = explanation || (isCorrect ? "Great job!" : "Let's move to the next one.");
-
-            const set = collections[activeSetIndex];
-            if (currentQIndex === set.validQuestions.length - 1) {
-                nextBtn.innerHTML = `Finish Quiz <i data-lucide="flag" class="w-6 h-6"></i>`;
-                nextBtn.className = "neo-btn bg-brand-blue text-white px-10 py-4 rounded-xl border-2 border-transparent font-heading font-bold text-xl shadow-hard flex items-center gap-2 hover:bg-blue-600";
-            } else {
-                nextBtn.innerHTML = `Next <i data-lucide="arrow-right" class="w-6 h-6"></i>`;
-                nextBtn.className = "neo-btn bg-brand-dark dark:bg-slate-600 text-white px-10 py-4 rounded-xl border-2 border-transparent font-heading font-bold text-xl shadow-hard flex items-center gap-2 hover:bg-slate-800 dark:hover:bg-slate-500";
-            }
-
-            lucide.createIcons();
-            setTimeout(() => { panel.scrollIntoView({ behavior: 'smooth', block: 'end' }); }, 100);
-        }
-
-        function nextQuestion() {
-            currentQIndex++;
-            const set = collections[activeSetIndex];
-            if (currentQIndex < set.validQuestions.length) {
-                loadQuestion();
-            } else {
-                showResults();
-            }
-        }
-
-        function restartSet() {
-            startQuiz(activeSetIndex);
-        }
-
-        // --- RESULTS SCREEN ---
-        function showResults() {
-            switchView('view-results');
-
-            const set = collections[activeSetIndex];
-            const total = set.validQuestions.length;
-            const percentage = Math.round((score / total) * 100);
-
-            document.getElementById('final-score').innerText = `${score}/${total}`;
-            document.getElementById('final-percent').innerText = `${percentage}%`;
-
-            const title = document.getElementById('result-title');
-            const subtitle = document.getElementById('result-subtitle');
-            const icon = document.getElementById('result-icon');
-            const starContainer = document.getElementById('stars-container');
-
-            starContainer.innerHTML = '';
-
-            let stars = 1;
-            if (percentage >= 50) stars = 2;
-            if (percentage >= 90) stars = 3;
-
-            for (let i = 0; i < 3; i++) {
-                const isFilled = i < stars;
-                const star = document.createElement('i');
-                star.setAttribute('data-lucide', 'star');
-                star.className = `w-10 h-10 ${isFilled ? 'text-brand-yellow fill-brand-yellow drop-shadow-md' : 'text-slate-200 dark:text-slate-600 fill-slate-100 dark:fill-slate-700'} transform ${isFilled ? 'scale-110' : 'scale-90'}`;
-                starContainer.appendChild(star);
-            }
-
-            if (percentage === 100) {
-                title.innerText = "Perfect Score!";
-                subtitle.innerText = "Legendary performance!";
-                icon.setAttribute('data-lucide', 'trophy');
-                icon.className = "w-16 h-16 text-brand-yellow fill-brand-yellow";
-                confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
-            } else if (percentage >= 70) {
-                title.innerText = "Great Job!";
-                subtitle.innerText = "You're getting really good at this.";
-                icon.setAttribute('data-lucide', 'thumbs-up');
-                icon.className = "w-16 h-16 text-brand-green";
-            } else {
-                title.innerText = "Good Effort";
-                subtitle.innerText = "Keep practicing!";
-                icon.setAttribute('data-lucide', 'target');
-                icon.className = "w-16 h-16 text-brand-orange";
+                landingTitle.textContent = "NO BATTLE LOADED";
+                landingDesc.textContent = "Please create or select a quiz in SETUP.";
+                startBtn.disabled = true;
             }
             lucide.createIcons();
         }
 
-        // --- SETUP MODE LOGIC ---
-        function renderSetList() {
-            const list = document.getElementById('set-list');
-            list.innerHTML = collections.length ? '' : '<p class="text-center py-4 text-slate-400 font-bold">No battles found.</p>';
-
-            collections.forEach((set, idx) => {
-                const item = document.createElement('div');
-                const isActive = activeSetIndex === idx;
-                item.className = `set-item p-4 border-4 border-brand-dark dark:border-slate-500 rounded-xl cursor-pointer transition-all flex justify-between items-center ${isActive ? 'active dark:bg-brand-blue dark:border-transparent' : 'bg-white dark:bg-slate-700 shadow-hard-sm dark:shadow-none'}`;
-                item.innerHTML = `
-                    <div class="flex-grow font-heading font-bold truncate dark:text-white" onclick="selectSet(${idx})">${set.title || 'Untitled'}</div>
-                    <button onclick="deleteSet(${idx})" class="${isActive ? 'text-white' : 'text-slate-400'} hover:text-brand-pink"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                `;
-                list.appendChild(item);
-            });
-            lucide.createIcons();
+        function addQuestion() {
+            currentQuestions.push({ q: "", o: ["", "", "", ""], a: 0 });
+            saveData();
+            renderEditor();
+            setTimeout(() => { const editor = document.getElementById('questions-editor'); editor.scrollTop = editor.scrollHeight; }, 50);
         }
 
-        function selectSet(idx) {
-            activeSetIndex = idx;
-            const set = collections[idx];
-            document.getElementById('editor-placeholder').classList.add('hidden');
-            document.getElementById('editor-content').classList.remove('hidden');
-            document.getElementById('edit-title').value = set.title || '';
-            document.getElementById('edit-topic').value = set.topic || '';
-            renderSetList();
-            renderQuestions();
+        function removeQuestion(idx) {
+            if (currentQuestions.length <= 1) return;
+            currentQuestions.splice(idx, 1);
+            saveData();
+            renderEditor();
         }
 
-        function renderQuestions() {
-            const container = document.getElementById('questions-container');
-            const questions = collections[activeSetIndex].questions;
-            document.getElementById('q-count').innerText = questions.length;
+        function duplicateQuestion(idx) {
+            const q = currentQuestions[idx];
+            const copy = JSON.parse(JSON.stringify(q));
+            currentQuestions.splice(idx + 1, 0, copy);
+            saveData();
+            renderEditor();
+        }
+
+        function renderEditor() {
+            const container = document.getElementById('questions-editor');
             container.innerHTML = '';
-
-            questions.forEach((q, qIdx) => {
+            currentQuestions.forEach((q, idx) => {
+                const optionColors = ['text-pink', 'text-orange', 'text-blue', 'text-green'];
+                const optionLetters = ['A', 'B', 'C', 'D'];
                 const card = document.createElement('div');
-                card.className = "p-6 border-4 border-brand-dark dark:border-slate-500 rounded-2xl bg-brand-chalk dark:bg-slate-700 space-y-4 shadow-hard-sm";
-                card.innerHTML = `
-                    <div class="flex justify-between items-center">
-                        <span class="bg-brand-dark dark:bg-slate-900 text-white px-3 py-1 rounded-lg font-bold">Q${qIdx + 1}</span>
-                        <div class="flex gap-2">
-                            <button onclick="duplicateQuestion(${qIdx})" class="text-slate-400 hover:text-brand-blue"><i data-lucide="copy" class="w-5 h-5"></i></button>
-                            <button onclick="deleteQuestion(${qIdx})" class="text-slate-400 hover:text-brand-pink"><i data-lucide="x" class="w-5 h-5"></i></button>
-                        </div>
-                    </div>
-                    <div class="neo-field dark:bg-slate-800">
-                        <div class="neo-icon-box bg-white dark:bg-slate-900"><i data-lucide="help-circle" class="w-5 h-5 text-brand-orange"></i></div>
-                        <input type="text" class="neo-input-text dark:text-white" value="${escapeHtml(q.q)}" oninput="updateQuestion(${qIdx}, 'q', this.value)" placeholder="Enter question text...">
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        ${q.opts.map((opt, oIdx) => `
-                            <div class="flex items-center gap-3">
-                                <label class="cursor-pointer group">
-                                    <input type="radio" name="correct-${qIdx}" class="peer hidden" ${q.a === oIdx ? 'checked' : ''} onchange="updateQuestion(${qIdx}, 'a', ${oIdx})">
-                                    <div class="w-10 h-10 border-4 border-brand-dark dark:border-slate-500 rounded-xl bg-white dark:bg-slate-800 peer-checked:bg-brand-green flex items-center justify-center shadow-hard-sm transition-all group-active:translate-y-0.5">
-                                        <i data-lucide="check" class="text-white opacity-0 peer-checked:opacity-100 w-6 h-6 stroke-[4]"></i>
-                                    </div>
-                                </label>
-                                <div class="neo-field flex-grow dark:bg-slate-800">
-                                    <div class="neo-icon-box w-10 text-xs bg-slate-50 dark:bg-slate-900">${String.fromCharCode(65 + oIdx)}</div>
-                                    <input type="text" class="neo-input-text py-2 dark:text-white" value="${escapeHtml(opt)}" oninput="updateOption(${qIdx}, ${oIdx}, this.value)" placeholder="Option ${oIdx + 1}">
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                    <div class="neo-field bg-white/50 dark:bg-slate-800">
-                        <div class="neo-icon-box"><i data-lucide="info" class="w-5 h-5 text-brand-blue"></i></div>
-                        <input type="text" class="neo-input-text dark:text-white" value="${escapeHtml(q.exp || '')}" oninput="updateQuestion(${qIdx}, 'exp', this.value)" placeholder="Explanation (optional)">
-                    </div>
-                `;
+                card.className = 'bg-chalk dark:bg-slate-800 border-2 border-dark dark:border-slate-600 rounded-xl shadow-hard-sm relative group';
+                card.innerHTML = `<div class="flex items-center gap-3 px-5 pt-4 pb-3 border-b-2 border-dark/10 dark:border-slate-700"><span class="w-8 h-8 rounded-lg bg-blue text-white flex items-center justify-center font-heading text-base border-2 border-dark shadow-hard-sm shrink-0">${idx + 1}</span><span class="text-xs font-black text-slate-400 uppercase tracking-widest flex-1">Question</span><div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"><button onclick="duplicateQuestion(${idx})" class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue hover:bg-blue/10 shrink-0" title="Duplicate Question"><i data-lucide="copy" class="w-4 h-4"></i></button><button onclick="removeQuestion(${idx})" class="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-pink hover:bg-pink/10 shrink-0" title="Remove Question"><i data-lucide="x" class="w-4 h-4"></i></button></div></div><div class="px-5 pt-3 pb-2"><textarea oninput="updateQuestion(${idx}, 'q', this.value)" placeholder="Type your question here…" class="w-full bg-white dark:bg-slate-900 border-2 border-dark/20 dark:border-slate-600 rounded-xl px-4 py-3 font-bold text-base text-dark dark:text-white focus:outline-none focus:border-blue dark:focus:border-blue shadow-inner resize-none transition-colors" rows="2">${q.q}</textarea></div><div class="grid grid-cols-1 md:grid-cols-2 gap-2 px-5 pb-4">${q.o.map((opt, oIdx) => `<label class="answer-strip ${q.a === oIdx ? 'is-correct' : ''} cursor-pointer"><input type="radio" name="correct-${idx}" ${q.a === oIdx ? 'checked' : ''} onchange="updateQuestion(${idx}, 'a', ${oIdx}); renderEditor();" class="w-4 h-4 accent-green cursor-pointer shrink-0"><span class="text-xs font-black ${optionColors[oIdx]} shrink-0 w-5 text-center">${optionLetters[oIdx]}</span><input type="text" value="${opt}" oninput="updateOption(${idx}, ${oIdx}, this.value)" placeholder="Choice ${optionLetters[oIdx]}…" class="flex-1 bg-transparent border-none outline-none font-bold text-sm text-dark dark:text-slate-200 placeholder-slate-300 min-w-0"></label>`).join('')}</div>`;
                 container.appendChild(card);
             });
             lucide.createIcons();
         }
 
-        function updateActiveSet(key, val) {
-            collections[activeSetIndex][key] = val;
-            saveData();
-            renderSetList();
-        }
-        function updateQuestion(qIdx, key, val) {
-            collections[activeSetIndex].questions[qIdx][key] = val;
-            saveData();
-        }
-        function updateOption(qIdx, oIdx, val) {
-            collections[activeSetIndex].questions[qIdx].opts[oIdx] = val;
-            saveData();
+        function updateQuestion(idx, field, val) { currentQuestions[idx][field] = val; saveData(); }
+        function updateOption(qIdx, oIdx, val) { currentQuestions[qIdx].o[oIdx] = val; saveData(); }
+
+        async function saveData() {
+            localStorage.setItem('quiz_maker_collections', JSON.stringify(collections));
+            localStorage.setItem('quiz_maker_last_id', currentCollectionId);
+            if (syncTimeout) clearTimeout(syncTimeout);
+            syncTimeout = setTimeout(async () => { try { await saveProgress('quiz_maker', { collections, lastId: currentCollectionId }); } catch (e) { } }, 2000);
         }
 
-        function addNewSet() {
-            collections.push({ id: "set_" + Date.now(), title: "New Battle", topic: "General", questions: [] });
-            saveData();
-            selectSet(collections.length - 1);
+        async function loadData() {
+            const local = localStorage.getItem('quiz_maker_collections');
+            const lastId = localStorage.getItem('quiz_maker_last_id');
+            if (local) {
+                collections = JSON.parse(local);
+                currentCollectionId = lastId || (collections[0] ? collections[0].id : null);
+                if (currentCollectionId) { currentQuestions = collections.find(c => c.id === currentCollectionId)?.questions || []; }
+            }
+            try {
+                const cloud = await loadProgress('quiz_maker');
+                if (cloud && cloud.collections) {
+                    collections = cloud.collections;
+                    currentCollectionId = cloud.lastId || collections[0].id;
+                    currentQuestions = collections.find(c => c.id === currentCollectionId).questions;
+                    localStorage.setItem('quiz_maker_collections', JSON.stringify(collections));
+                    if (isSetupMode) { renderCollections(); renderEditor(); }
+                }
+            } catch (e) { }
+            if (collections.length === 0) createNewCollection();
         }
 
-        function addQuestion() {
-            collections[activeSetIndex].questions.push({ q: "", opts: ["", "", "", ""], a: 0, exp: "" });
-            saveData();
-            renderQuestions();
-            setTimeout(() => { window.scrollTo(0, document.body.scrollHeight); }, 50);
-        }
-
-        function duplicateQuestion(idx) {
-            const copy = JSON.parse(JSON.stringify(collections[activeSetIndex].questions[idx]));
-            collections[activeSetIndex].questions.splice(idx + 1, 0, copy);
-            saveData();
-            renderQuestions();
-        }
-
-        function deleteQuestion(idx) {
-            collections[activeSetIndex].questions.splice(idx, 1);
-            saveData();
-            renderQuestions();
-        }
-
-        function deleteSet(idx) {
-            if (confirm("Delete this battle?")) {
-                collections.splice(idx, 1);
+        function loadPreset(key) {
+            if (PRESETS[key]) {
+                const id = 'quiz_preset_' + key + '_' + Date.now();
+                const newQuiz = { id, name: key === 'b1_english' ? "B1 English Mastery" : "Math Foundations", questions: JSON.parse(JSON.stringify(PRESETS[key])), timestamp: Date.now() };
+                collections.push(newQuiz);
+                currentCollectionId = id;
+                currentQuestions = newQuiz.questions;
                 saveData();
-                activeSetIndex = -1;
-                document.getElementById('editor-content').classList.add('hidden');
-                document.getElementById('editor-placeholder').classList.remove('hidden');
-                renderSetList();
+                renderCollections();
+                renderEditor();
+                AudioEngine.playTone(800, 'sine', 0.1);
             }
         }
 
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
+        function saveAndPlay() { saveData(); toggleMode('play'); }
+
+        function resetQuizState() {
+            currentStep = 0; score = 0; isAnswering = false;
+            document.getElementById('landing-screen').classList.remove('hidden');
+            document.getElementById('quiz-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('feedback-controls').classList.add('hidden');
+            document.getElementById('main-reveal-btn').classList.remove('hidden');
         }
+
+        function startQuiz() {
+            const validQ = currentQuestions.filter(q => q.q.trim() !== "");
+            if (validQ.length === 0) { alert("Please add some questions in SETUP before starting!"); toggleMode('setup'); return; }
+            currentQuestions = validQ;
+            currentStep = 0; score = 0; isAnswering = false;
+            document.getElementById('landing-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('quiz-screen').classList.remove('hidden');
+            renderDots();
+            showQuestion();
+        }
+
+        function renderDots() {
+            const container = document.getElementById('dots-container');
+            container.innerHTML = '';
+            currentQuestions.forEach((_, idx) => {
+                const dot = document.createElement('div');
+                dot.className = 'dot';
+                dot.id = `dot-${idx}`;
+                container.appendChild(dot);
+            });
+        }
+
+        function updateDots() {
+            currentQuestions.forEach((_, idx) => {
+                const dot = document.getElementById(`dot-${idx}`);
+                if (!dot) return;
+                if (idx < currentStep) dot.className = 'dot completed';
+                else if (idx === currentStep) dot.className = 'dot active';
+                else dot.className = 'dot';
+            });
+        }
+
+        function fitText(el, container, max, min) {
+            if (!el || !container) return;
+            let size = max;
+            el.style.fontSize = size + 'px';
+
+            const isOverflowing = () => {
+                return el.scrollHeight > container.clientHeight || el.scrollWidth > container.clientWidth;
+            };
+
+            while (isOverflowing() && size > min) {
+                size -= 1;
+                el.style.fontSize = size + 'px';
+            }
+        }
+
+        function showQuestion() {
+            isAnswering = false;
+            const q = currentQuestions[currentStep];
+            const qText = document.getElementById('question-text');
+            qText.textContent = q.q || "Battle Ready?";
+            document.getElementById('progress-text').textContent = `${currentStep + 1}/${currentQuestions.length}`;
+            document.getElementById('score-text').textContent = score;
+            document.getElementById('feedback-controls').classList.add('hidden');
+            document.getElementById('main-reveal-btn').classList.remove('hidden');
+            document.getElementById('question-tag').textContent = `QUESTION #${currentStep + 1}`;
+            updateDots();
+
+            // Autofit Question
+            fitText(qText, document.getElementById('question-fit-container'), 72, 18);
+
+            const container = document.getElementById('options-container');
+            container.innerHTML = '';
+            const validOptions = q.o.map((opt, i) => ({ text: opt, index: i })).filter(o => o.text.trim() !== "");
+
+            validOptions.forEach((optObj, displayIdx) => {
+                const btn = document.createElement('button');
+                const color = OPTION_COLORS[displayIdx % 4];
+                const shape = OPTION_SHAPES[displayIdx % 4];
+                btn.className = `option-btn btn-chunky ${color} text-white px-5 py-3 rounded-xl shadow-hard font-heading transition-all w-full flex items-center text-left relative min-h-0 h-full`;
+                btn.innerHTML = `<div class="shape-indicator"><i data-lucide="${shape}" class="w-5 h-5 text-white fill-current"></i></div><div class="flex-1 h-full flex items-center overflow-hidden opt-text-container"><span class="leading-tight w-full">${optObj.text}</span></div><span class="kbd-label">Key ${displayIdx + 1}</span>`;
+                btn.onclick = () => selectOption(optObj.index);
+                container.appendChild(btn);
+
+                // Autofit Option
+                const optText = btn.querySelector('span');
+                const optContainer = btn.querySelector('.opt-text-container');
+                fitText(optText, optContainer, 32, 12);
+            });
+            lucide.createIcons();
+        }
+
+        function selectOption(idx) {
+            if (isAnswering) return;
+            isAnswering = true;
+            const q = currentQuestions[currentStep];
+            const correct = q.a;
+            const container = document.getElementById('options-container');
+            const btns = container.querySelectorAll('.option-btn');
+            const validOptions = q.o.map((opt, i) => ({ text: opt, index: i })).filter(o => o.text.trim() !== "");
+            btns.forEach((btn, dIdx) => {
+                const originalIdx = validOptions[dIdx].index;
+                btn.classList.add('dimmed');
+                if (originalIdx === correct) { btn.classList.remove('dimmed'); btn.classList.add('correct'); }
+                else if (originalIdx === idx) { btn.classList.remove('dimmed'); btn.classList.add('wrong'); }
+            });
+            if (idx === correct) { score++; AudioEngine.correct(); confetti({ particleCount: 60, spread: 60, origin: { y: 0.8 }, colors: ['#00E676', '#2979FF', '#FF8C42'] }); }
+            else { AudioEngine.wrong(); }
+            document.getElementById('score-text').textContent = score;
+            document.getElementById('feedback-controls').classList.remove('hidden');
+            document.getElementById('main-reveal-btn').classList.add('hidden');
+            lucide.createIcons();
+        }
+
+        function revealAnswer() {
+            if (isAnswering) return;
+            isAnswering = true;
+            const q = currentQuestions[currentStep];
+            const correct = q.a;
+            const container = document.getElementById('options-container');
+            const btns = container.querySelectorAll('.option-btn');
+            const validOptions = q.o.map((opt, i) => ({ text: opt, index: i })).filter(o => o.text.trim() !== "");
+            btns.forEach((btn, dIdx) => {
+                const originalIdx = validOptions[dIdx].index;
+                btn.classList.add('dimmed');
+                if (originalIdx === correct) { btn.classList.remove('dimmed'); btn.classList.add('correct'); }
+            });
+            AudioEngine.playTone(440, 'sine', 0.25, 0.15);
+            document.getElementById('feedback-controls').classList.remove('hidden');
+            document.getElementById('main-reveal-btn').classList.add('hidden');
+            lucide.createIcons();
+        }
+
+        function nextQuestion() { currentStep++; if (currentStep < currentQuestions.length) showQuestion(); else showResult(); }
+
+        function showResult() {
+            document.getElementById('quiz-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+            document.getElementById('final-score').textContent = `${score}/${currentQuestions.length}`;
+            const ratio = score / (currentQuestions.length || 1);
+            let rank = "F", msg = "Keep Training! 💪";
+            if (ratio >= 0.9) { rank = "S"; msg = "LEGENDARY! 🏆"; }
+            else if (ratio >= 0.8) { rank = "A"; msg = "EXCELLENT! ⭐"; }
+            else if (ratio >= 0.6) { rank = "B"; msg = "GREAT JOB! 👍"; }
+            else if (ratio >= 0.4) { rank = "C"; msg = "NOT BAD! 🎯"; }
+            const rankEl = document.getElementById('final-rank');
+            rankEl.textContent = rank; rankEl.className = 'text-4xl font-heading rank-' + rank.toLowerCase();
+            document.getElementById('final-message').textContent = msg;
+            if (ratio >= 0.8) confetti({ particleCount: 200, spread: 80, origin: { y: 0.6 } });
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (isSetupMode) return;
+            const quizScreen = document.getElementById('quiz-screen');
+            if (quizScreen.classList.contains('hidden')) return;
+            if (!isAnswering && ['1', '2', '3', '4'].includes(e.key)) {
+                const btns = document.querySelectorAll('.option-btn');
+                if (btns[parseInt(e.key) - 1]) btns[parseInt(e.key) - 1].click();
+            }
+            if ((e.key === 'Enter' || e.key === ' ') && !document.getElementById('feedback-controls').classList.contains('hidden')) { e.preventDefault(); nextQuestion(); }
+            if (e.key.toLowerCase() === 'r' && !isAnswering) revealAnswer();
+        });
+
+        const AudioEngine = {
+            playTone(freq, type, duration, vol = 0.1) {
+                try {
+                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = type; osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                    gain.gain.setValueAtTime(vol, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+                    osc.connect(gain); gain.connect(ctx.destination);
+                    osc.start(); osc.stop(ctx.currentTime + duration);
+                } catch (e) { }
+            },
+            correct() { this.playTone(600, 'sine', 0.2); setTimeout(() => this.playTone(900, 'sine', 0.3), 100); },
+            wrong() { this.playTone(250, 'sawtooth', 0.3); }
+        };
+
+        window.onload = async () => {
+            await requireAuth();
+            initTheme();
+            await loadData();
+            lucide.createIcons();
+        };
     </script>
 </body>
 
-</html>`;
-
-fs.writeFileSync('apps/games/quiz/index.html', htmlContent);
-console.log('Successfully wrote to index.html');
+</html>
