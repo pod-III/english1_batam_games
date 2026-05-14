@@ -1,3 +1,18 @@
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    const icon = type === 'success' ? 'check-circle' : type === 'warning' ? 'alert-circle' : 'x-circle';
+    toast.innerHTML = `<i data-lucide="${icon}" class="w-4 h-4"></i><span>${message}</span>`;
+    container.appendChild(toast);
+    lucide.createIcons();
+    setTimeout(() => {
+        toast.style.animation = 'toast-out 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards';
+        setTimeout(() => toast.remove(), 400);
+    }, 3000);
+}
+
 const ClassTallyApp = (function () {
     let modalCallback = null;
     let timerInterval = null;
@@ -10,12 +25,31 @@ const ClassTallyApp = (function () {
 
     async function getAllClassSets() {
         const saved = await loadProgress('class_tally_sets')
-        return saved?.sets || []
+        let sets = saved?.sets || []
+        // Backwards compatibility for legacy sets
+        let needsUpdate = false;
+        sets = sets.map(s => {
+            if (s.usageCount === undefined || s.lastUsed === undefined) {
+                s.usageCount = s.usageCount || 0;
+                s.lastUsed = s.lastUsed || s.createdAt || Date.now();
+                needsUpdate = true;
+            }
+            return s;
+        });
+        if (needsUpdate) saveProgress('class_tally_sets', { sets });
+        return sets;
     }
 
     async function saveClassSetToDB(name, data) {
         const sets = await getAllClassSets()
-        sets.push({ id: Date.now(), name, data, createdAt: Date.now() })
+        sets.push({ 
+            id: Date.now(), 
+            name, 
+            data, 
+            createdAt: Date.now(),
+            lastUsed: Date.now(),
+            usageCount: 1 
+        })
         await saveProgress('class_tally_sets', { sets })
     }
 
@@ -56,6 +90,7 @@ const ClassTallyApp = (function () {
         showRankings: false,
         editingStudentId: null,
         activeSetId: null,
+        showAbsent: false,
 
         // NEW STATE PROPERTY FOR NON-REPEATING PICKER
         pickedQueue: [],
@@ -341,7 +376,8 @@ const ClassTallyApp = (function () {
                 pickedQueue: State.pickedQueue,
                 cardSize: State.cardSize,
                 isAutoFit: State.isAutoFit,
-                activeSetId: State.activeSetId
+                activeSetId: State.activeSetId,
+                showAbsent: State.showAbsent
             };
             saveProgress('class_tally', dataToSave)
             
@@ -371,6 +407,7 @@ const ClassTallyApp = (function () {
                     State.cardSize = o.cardSize || 1
                     State.isAutoFit = o.isAutoFit || false
                     State.activeSetId = o.activeSetId || null
+                    State.showAbsent = o.showAbsent || false
                 } catch (e) {
                     console.error('Error loading saved state:', e)
                     State.students = []
@@ -382,7 +419,8 @@ const ClassTallyApp = (function () {
                 cardColor: s.cardColor || '#3B82F6',
                 avatar: s.avatar || '😀',
                 goodLogs: s.goodLogs || [],
-                badLogs: s.badLogs || []
+                badLogs: s.badLogs || [],
+                isAbsent: s.isAbsent || false
             }))
             const studentIds = State.students.map(s => s.id)
             State.pickedQueue = State.pickedQueue.filter(id => studentIds.includes(id))
@@ -437,7 +475,8 @@ const ClassTallyApp = (function () {
                 signatureData: view === 'draw' ? CanvasDraw.getSignature() : null,
                 avatar: State.currentAvatar,
                 goodLogs: [], badLogs: [],
-                cardColor: State.currentCardColor
+                cardColor: State.currentCardColor,
+                isAbsent: false
             };
             State.students.push(newStudent);
             State.showRankings = false;
@@ -520,7 +559,8 @@ const ClassTallyApp = (function () {
                      signatureData: null,
                      avatar: State.AVATARS[Math.floor(Math.random() * State.AVATARS.length)], // Random avatar
                      goodLogs: [], badLogs: [],
-                     cardColor: State.CARD_COLORS[Math.floor(Math.random() * State.CARD_COLORS.length)].hex // Random color
+                     cardColor: State.CARD_COLORS[Math.floor(Math.random() * State.CARD_COLORS.length)].hex, // Random color
+                     isAbsent: false
                  });
              });
              
@@ -542,19 +582,36 @@ const ClassTallyApp = (function () {
             await updateClassSetInDB(State.activeSetId, clone);
         },
         
+        toggleAbsent: (id) => {
+            const s = State.students.find(x => x.id === id);
+            if (!s) return;
+            s.isAbsent = !s.isAbsent;
+            Persistence.save();
+            UI.render();
+            Audio.playTick();
+        },
+
         // MODIFIED: NON-REPEATING PICK RANDOM LOGIC
         pickRandom: () => {
             if (State.students.length === 0) return console.error("Class is empty. Add students first.");
+            
+            // Filter available students (NOT absent)
+            const activeStudents = State.students.filter(s => !s.isAbsent);
+            if (activeStudents.length === 0) {
+                showToast("No active students to pick!", "warning");
+                return;
+            }
+
             if (State.isPicking) return;
 
-            // 1. Reset queue if all students have been picked
-            if (State.pickedQueue.length >= State.students.length) {
-                console.log("All students picked. Resetting queue.");
+            // 1. Reset queue if all active students have been picked
+            if (State.pickedQueue.length >= activeStudents.length) {
+                console.log("All active students picked. Resetting queue.");
                 State.pickedQueue = [];
             }
 
-            // 2. Identify available students (those not in the current queue)
-            const availableStudents = State.students.filter(
+            // 2. Identify available students (those not in the current queue AND not absent)
+            const availableStudents = activeStudents.filter(
                 s => !State.pickedQueue.includes(s.id)
             );
 
@@ -1031,6 +1088,31 @@ const ClassTallyApp = (function () {
             lucide.createIcons();
         },
         toggleSettings: () => { document.getElementById('toolbar').classList.toggle('hidden'); document.getElementById('toolbar').classList.toggle('flex'); },
+        toggleShowAbsent: () => {
+            State.showAbsent = !State.showAbsent;
+            const btn = document.getElementById('btn-show-absent');
+            if (btn) {
+                btn.classList.toggle('text-brand-orange', State.showAbsent);
+                btn.classList.toggle('text-slate-400', !State.showAbsent);
+                btn.innerHTML = State.showAbsent 
+                    ? '<i data-lucide="eye-off" class="w-5 h-5"></i>' 
+                    : '<i data-lucide="eye" class="w-5 h-5"></i>';
+            }
+            Persistence.save();
+            UI.render();
+            lucide.createIcons();
+        },
+        updateShowAbsentUI: () => {
+            const btn = document.getElementById('btn-show-absent');
+            if (btn) {
+                btn.classList.toggle('text-brand-orange', State.showAbsent);
+                btn.classList.toggle('text-slate-400', !State.showAbsent);
+                btn.innerHTML = State.showAbsent 
+                    ? '<i data-lucide="eye-off" class="w-5 h-5"></i>' 
+                    : '<i data-lucide="eye" class="w-5 h-5"></i>';
+            }
+            lucide.createIcons();
+        },
         celebrate: (id) => {
             const el = document.getElementById(`card-${id}`);
             if (!el) return;
@@ -1144,19 +1226,24 @@ const ClassTallyApp = (function () {
         render: (options = {}) => {
             const animate = options.animate || false;
             const container = document.getElementById('grid-container');
-            if (State.students.length === 0) {
+            
+            // Filter students based on showAbsent setting
+            const visibleStudents = State.students.filter(s => !s.isAbsent || State.showAbsent);
+
+            if (visibleStudents.length === 0) {
                 document.getElementById('empty-state').style.display = 'flex';
                 container.innerHTML = '';
                 return;
             }
             document.getElementById('empty-state').style.display = 'none';
 
-            container.innerHTML = State.students.map((s, index) => {
+            container.innerHTML = visibleStudents.map((s, index) => {
                 const goodCount = s.goodLogs.length;
                 const badCount = s.badLogs.length;
 
                 // Add a class if the student has been picked in the current cycle
                 const pickedClass = State.pickedQueue.includes(s.id) ? 'opacity-70 border-b-4 border-slate-300' : '';
+                const absentClass = s.isAbsent ? 'opacity-40 grayscale blur-[1px]' : '';
                 const animationClass = animate ? 'animate-pop-in' : '';
                 const animationStyle = animate ? `animation-delay: ${index * 0.05}s; animation-fill-mode: both;` : '';
 
@@ -1181,7 +1268,7 @@ const ClassTallyApp = (function () {
                 ` : '';
 
                 return `
-                <div id="card-${s.id}" class="app-panel rounded-[2rem] flex flex-row relative overflow-hidden bg-white hover:border-slate-200 group transition-all duration-300 ${pickedClass} ${animationClass}" style="${animationStyle}">
+                <div id="card-${s.id}" class="app-panel rounded-[2rem] flex flex-row relative overflow-hidden bg-white hover:border-slate-200 group transition-all duration-300 ${pickedClass} ${absentClass} ${animationClass}" style="${animationStyle}">
                     ${rankBadge}
                     
                     <div class="w-32 sm:w-40 flex-none relative flex flex-col items-center justify-center p-2 transition-colors duration-300 border-r border-black/5" style="background-color: ${s.cardColor}; background-image: radial-gradient(circle, rgba(255,255,255,0.15) 2px, transparent 2.5px); background-size: 14px 14px;">
@@ -1213,6 +1300,9 @@ const ClassTallyApp = (function () {
                     }
                             </div>
                             <div class="flex gap-1 -mt-2 -mr-2">
+                                <button onclick="ClassTallyApp.Student.toggleAbsent(${s.id})" title="${s.isAbsent ? 'Mark Present' : 'Mark Absent'}" class="${s.isAbsent ? 'text-brand-orange' : 'text-slate-300'} hover:text-brand-orange p-2 rounded-xl hover:bg-orange-50 transition-colors">
+                                    <i data-lucide="${s.isAbsent ? 'eye' : 'eye-off'}" class="w-4 h-4"></i>
+                                </button>
                                 <button onclick="ClassTallyApp.Student.editStudent(${s.id})" title="Edit Name" class="text-slate-300 hover:text-brand-blue p-2 rounded-xl hover:bg-blue-50 transition-colors">
                                     <i data-lucide="pencil" class="w-4 h-4"></i>
                                 </button>
@@ -1347,6 +1437,7 @@ const ClassTallyApp = (function () {
             document.getElementById('btn-sound').innerHTML = State.soundEnabled ? '<i data-lucide="volume-2" class="w-5 h-5"></i>' : '<i data-lucide="volume-x" class="w-5 h-5 text-red-400"></i>';
             lucide.createIcons();
             UI.updateActiveIndicator();
+            UI.updateShowAbsentUI();
         },
         Student, Teams, UI, Timer, CanvasDraw, Keyboard
     };
