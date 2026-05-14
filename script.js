@@ -1346,14 +1346,22 @@ const LandingPage = {
     const saved = Storage.get(CONFIG.storageKeys.homeView);
     if (saved === 'library') {
       this.showLibrary(true);
+    } else if (saved === 'myspace') {
+      MySpace.show(true);
     } else {
-      this.showLanding(true);
+      // Default behavior: check if My Space is populated
+      if (MySpace.isPopulated()) {
+        MySpace.show(true);
+      } else {
+        this.showLanding(true);
+      }
     }
   },
 
   showLanding(silent = false) {
     const landingView = document.getElementById('landing-view');
     const libraryView = document.getElementById('library-view');
+    const myspaceView = document.getElementById('myspace-view');
     const homeBtn = document.getElementById('nav-home-btn');
     if (!landingView || !libraryView) return;
 
@@ -1365,6 +1373,7 @@ const LandingPage = {
     this.currentView = 'landing';
     landingView.style.display = '';
     libraryView.style.display = 'none';
+    if (myspaceView) myspaceView.style.display = 'none';
 
     // Re-trigger entrance animation
     landingView.style.animation = 'none';
@@ -1382,12 +1391,14 @@ const LandingPage = {
   showLibrary(silent = false) {
     const landingView = document.getElementById('landing-view');
     const libraryView = document.getElementById('library-view');
+    const myspaceView = document.getElementById('myspace-view');
     const homeBtn = document.getElementById('nav-home-btn');
     if (!landingView || !libraryView) return;
 
     this.currentView = 'library';
     landingView.style.display = 'none';
     libraryView.style.display = '';
+    if (myspaceView) myspaceView.style.display = 'none';
 
     // Re-trigger entrance animation
     libraryView.style.animation = 'none';
@@ -1403,6 +1414,117 @@ const LandingPage = {
     Utils.refreshIcons();
   }
 };
+
+// --- MY SPACE ---
+const MySpace = {
+  currentApp: null,
+  
+  isPopulated() {
+    const keys = [
+      'klasskit_tasks',
+      'schedule_events',
+      'schedule_class_admin',
+      'schedule_class_units',
+      'admin_tracker_data'
+    ];
+    
+    for (const key of keys) {
+      const data = localStorage.getItem(key);
+      if (data) {
+        try {
+          const parsed = JSON.parse(data);
+          if (Array.isArray(parsed) && parsed.length > 0) return true;
+          if (typeof parsed === 'object' && Object.keys(parsed).length > 0) return true;
+        } catch (e) {
+          if (data && data.length > 10) return true; // Fallback for non-JSON or large strings
+        }
+      }
+    }
+    return false;
+  },
+
+  show(silent = false) {
+    const landingView = document.getElementById('landing-view');
+    const libraryView = document.getElementById('library-view');
+    const myspaceView = document.getElementById('myspace-view');
+    const homeBtn = document.getElementById('nav-home-btn');
+    const myspaceBtn = document.getElementById('nav-myspace-btn');
+    
+    if (!landingView || !libraryView || !myspaceView) return;
+
+    // Reset library state
+    State.filters = { category: 'all', searchTerm: '', difficulty: 'all', tags: [] };
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) searchInput.value = '';
+
+    LandingPage.currentView = 'myspace';
+    landingView.style.display = 'none';
+    libraryView.style.display = 'none';
+    myspaceView.style.display = '';
+
+    // Update sidebar active states
+    if (homeBtn) homeBtn.classList.remove('active');
+    if (myspaceBtn) myspaceBtn.classList.add('active');
+    Filters.updateUI();
+
+    Storage.set(CONFIG.storageKeys.homeView, 'myspace');
+    
+    // Load default app if none active
+    if (!this.currentApp) {
+      this.loadApp('tasks', true);
+    }
+
+    if (!silent) AudioEngine.click();
+    Utils.refreshIcons();
+
+    // Show Pro-only apps if user is Pro
+    if (State.isPro()) {
+      document.querySelectorAll('.pro-only-btn').forEach(btn => btn.classList.remove('hidden'));
+    }
+  },
+
+  loadApp(appId, silent = false) {
+    const iframe = document.getElementById('myspace-iframe');
+    const loader = document.getElementById('myspace-loader');
+    if (!iframe || !loader) return;
+
+    const game = State.getGameById(appId);
+    if (!game) return;
+
+    this.currentApp = appId;
+    
+    // Update nav buttons
+    document.querySelectorAll('.myspace-nav-btn').forEach(btn => {
+      const isActive = btn.dataset.myspaceApp === appId;
+      btn.classList.toggle('active', isActive);
+      btn.classList.toggle('bg-blue', isActive);
+      btn.classList.toggle('text-white', isActive);
+      btn.classList.toggle('bg-white', !isActive);
+      btn.classList.toggle('dark:bg-slate-700', !isActive);
+      btn.classList.toggle('text-slate-500', !isActive);
+    });
+
+    // Handle Pro check
+    if (game.pro && !State.isPro()) {
+      UI.showToast("This app is exclusive to PRO users", "warning");
+      return;
+    }
+
+    // Show loader
+    loader.classList.remove('opacity-0', 'pointer-events-none');
+    iframe.classList.add('opacity-0');
+
+    // Load iframe
+    iframe.onload = () => {
+      loader.classList.add('opacity-0', 'pointer-events-none');
+      iframe.classList.remove('opacity-0');
+    };
+    iframe.src = game.path;
+
+    if (!silent) AudioEngine.click();
+  }
+};
+window.MySpace = MySpace;
 
 // --- FILTERS ---
 const Filters = {
@@ -1440,11 +1562,15 @@ const Filters = {
 
   updateUI() {
     const homeBtn = document.getElementById('nav-home-btn');
+    const myspaceBtn = document.getElementById('nav-myspace-btn');
     const bnavHome = document.getElementById('bnav-home');
     const isLanding = LandingPage.currentView === 'landing';
+    const isLibrary = LandingPage.currentView === 'library';
+    const isMySpace = LandingPage.currentView === 'myspace';
 
-    if (homeBtn) homeBtn.classList.toggle('active', isLanding);
-    if (bnavHome) bnavHome.classList.toggle('active', isLanding);
+    if (homeBtn) homeBtn.classList.toggle('active', isLanding || isLibrary);
+    if (myspaceBtn) myspaceBtn.classList.toggle('active', isMySpace);
+    if (bnavHome) bnavHome.classList.toggle('active', isLanding || isLibrary || isMySpace);
 
     document.querySelectorAll('.filter-btn[data-category]').forEach(btn => {
       const isActive = btn.dataset.category === State.filters.category && LandingPage.currentView === 'library';
