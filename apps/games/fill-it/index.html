@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <!-- Supabase Auth -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/supabase.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fill in The Blank</title>
+    <link rel="icon" type="image/x-icon" href="../../../media/icon.ico" />
+    <link rel="icon" type="image/webp" href="../../../media/icon.webp" />
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        pink: "#ff4785",
+                        orange: "#ff7e33",
+                        green: "#00d063",
+                        blue: "#1ea7fd",
+                        dark: "#111827",
+                        chalk: "#f8fafc",
+                    },
+                    fontFamily: {
+                        heading: ["Fredoka", "sans-serif"],
+                        body: ["Nunito", "sans-serif"],
+                    },
+                    animation: {
+                        pop: "pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)",
+                        shake: "shake 0.4s cubic-bezier(.36,.07,.19,.97) both",
+                        "bounce-subtle": "bounce-subtle 3s ease-in-out infinite",
+                    },
+                    boxShadow: {
+                        hard: "0 4px 0 0 rgba(17, 24, 39, 1)",
+                        "hard-lg": "0 8px 0 0 rgba(17, 24, 39, 1)",
+                    },
+                    keyframes: {
+                        pop: {
+                            "0%": { transform: "scale(0.8)", opacity: "0" },
+                            "100%": { transform: "scale(1)", opacity: "1" },
+                        },
+                        "bounce-subtle": {
+                            "0%, 100%": { transform: "translateY(0) rotate(-2deg)" },
+                            "50%": { transform: "translateY(-5px) rotate(-2deg)" },
+                        },
+                        shake: {
+                            "10%, 90%": {
+                                transform: "translate3d(-1px, 0, 0)",
+                            },
+                            "20%, 80%": {
+                                transform: "translate3d(2px, 0, 0)",
+                            },
+                            "30%, 50%, 70%": {
+                                transform: "translate3d(-4px, 0, 0)",
+                            },
+                            "40%, 60%": {
+                                transform: "translate3d(4px, 0, 0)",
+                            },
+                        },
+                    },
+                },
+            },
+        };
+    </script>
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="../../../css/base.css" />
+    <link rel="stylesheet" href="../../../css/components.css" />
+    <link rel="stylesheet" href="./style.css" />
+
+    <!-- Vercel Web Analytics -->
+    <script>
+        window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
+</head>
+
+<body class="flex flex-col min-h-screen">
+
+    <input type="file" id="import-file" accept=".json" class="hidden" onchange="importJSON(event)">
+
+    <!-- HEADER -->
+    <header
+        class="w-full bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b-4 border-dark dark:border-slate-500 sticky top-0 z-50 transition-colors duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div
+                    class="bg-pink w-12 h-12 rounded-xl border-4 border-dark dark:border-slate-500 flex items-center justify-center text-dark text-2xl shadow-hard">
+                    <i data-lucide="pen-tool" class="w-7 h-7"></i>
+                </div>
+                <div>
+                    <h1
+                        class="text-2xl sm:text-3xl font-heading text-dark dark:text-chalk leading-none mt-1 uppercase tracking-tight">
+                        FILL IN THE BLANK</h1>
+                    <div
+                        class="text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
+                        KlassKit PRO</div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 sm:gap-4">
+                <button onclick="toggleDarkMode()"
+                    class="p-2 rounded-xl border-2 border-transparent transition-all text-dark dark:text-chalk"
+                    title="Toggle Theme">
+                    <i data-lucide="moon" id="theme-icon" class="w-6 h-6"></i>
+                </button>
+                <div
+                    class="bg-white dark:bg-slate-800 border-4 border-dark dark:border-slate-500 shadow-hard rounded-2xl flex justify-center text-center px-4 py-2 font-heading text-xl flex items-center gap-2">
+                    <i data-lucide="star" class="text-orange w-5 h-5 fill-current"></i>
+                    <span id="score-display" class="text-dark dark:text-chalk font-black">0</span>
+                </div>
+                <button onclick="openManageModal()"
+                    class="btn-chunky bg-orange text-dark px-4 sm:px-6 py-2 rounded-xl text-base sm:text-lg tracking-wide flex items-center gap-2">
+                    <i data-lucide="settings" class="w-5 h-5"></i> <span class="hidden sm:inline">MANAGE</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow flex flex-col items-center justify-center p-4 sm:p-8 w-full mx-auto max-w-7xl">
+
+        <div
+            class="w-full hub-card p-6 sm:p-10 md:p-12 relative animate-pop flex flex-col justify-between min-h-[60vh] max-h-[85vh] bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
+
+            <div class="relative flex-grow flex flex-col">
+                <div
+                    class="absolute -top-10 left-0 sm:left-4 bg-blue text-white border-4 border-dark dark:border-slate-400 px-6 py-2 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-widest shadow-hard rotate-[-2deg] z-10 animate-bounce-subtle">
+                    Type the missing word
+                </div>
+
+                <div class="mt-4 sm:mt-6">
+                    <h3
+                        class="text-xl md:text-2xl font-heading text-dark dark:text-chalk uppercase tracking-tight mb-1 text-left">
+                        The Challenge</h3>
+                    <div class="w-16 h-1.5 bg-pink rounded-full mb-4 md:mb-6"></div>
+
+                </div>
+
+                <div
+                    class="bg-chalk dark:bg-slate-800/40 border-4 border-dark dark:border-slate-500 rounded-2xl md:rounded-[2rem] p-6 sm:p-10 md:p-12 mb-6 flex-grow flex items-center shadow-[inset_0_10px_30px_rgba(0,0,0,0.05)] dark:shadow-[inset_0_10px_30px_rgba(0,0,0,0.3)] overflow-y-auto min-h-[200px]">
+                    <p id="sentence-container" class="w-full"></p>
+                </div>
+            </div>
+
+            <div class="flex gap-4 sm:gap-6 justify-between items-center w-full mt-2">
+                <div
+                    class="hidden sm:flex items-center gap-3 text-slate-500 font-bold uppercase text-[10px] md:text-xs tracking-widest">
+                    <i data-lucide="info" class="w-4 h-4"></i>
+                    Auto-check enabled
+                </div>
+                <button onclick="skipQuestion()"
+                    class="btn-chunky bg-chalk dark:bg-slate-800 text-dark dark:text-chalk px-8 py-3 md:px-12 md:py-4 rounded-xl md:rounded-2xl text-lg md:text-xl flex items-center justify-center gap-3 ml-auto">
+                    <i data-lucide="skip-forward" class="w-5 h-5"></i> SKIP QUESTION
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- MANAGE QUESTIONS MODAL -->
+    <div id="manage-modal"
+        class="fixed inset-0 bg-slate-900/40 backdrop-blur-[16px] hidden flex items-center justify-center z-[var(--z-modal)] p-4 animate-pop">
+        <div class="hub-card w-full max-w-6xl h-[85vh] flex flex-col">
+            <div
+                class="border-b-4 border-dark dark:border-slate-400 p-4 sm:p-6 flex justify-between items-center bg-chalk dark:bg-slate-900">
+                <div>
+                    <h2
+                        class="font-heading text-2xl sm:text-3xl text-blue flex items-center gap-3 uppercase tracking-tight">
+                        <i data-lucide="edit-3" class="w-8 h-8"></i> QUESTION EDITOR
+                    </h2>
+                    <p class="font-body text-sm mt-1 text-slate-600 dark:text-slate-400 font-bold">Type a sentence, then
+                        click on words to turn them into blanks.</p>
+                </div>
+                <div class="flex gap-2 sm:gap-4 flex-wrap justify-end items-center">
+                    <button onclick="exportJSON()"
+                        class="btn-chunky bg-blue text-white px-3 sm:px-4 py-2 flex items-center gap-2 rounded-lg text-sm sm:text-base">
+                        <i data-lucide="download" class="w-4 h-4 sm:w-5 sm:h-5"></i> <span
+                            class="hidden sm:inline">EXPORT JSON</span>
+                    </button>
+                    <button onclick="document.getElementById('import-file').click()"
+                        class="btn-chunky bg-pink text-dark px-3 sm:px-4 py-2 flex items-center gap-2 rounded-lg text-sm sm:text-base">
+                        <i data-lucide="upload" class="w-4 h-4 sm:w-5 sm:h-5"></i> <span class="hidden sm:inline">IMPORT
+                            JSON</span>
+                    </button>
+                    <button onclick="closeManageModal()" class="btn-chunky p-2 ml-2">
+                        <i data-lucide="x" class="w-6 h-6"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div id="editor-list"
+                class="flex-1 overflow-y-auto editor-scroll p-4 sm:p-6 space-y-4 bg-white dark:bg-slate-800">
+            </div>
+
+            <div
+                class="border-t-4 border-dark dark:border-slate-400 p-4 sm:p-6 flex gap-4 bg-chalk dark:bg-slate-900 flex-wrap sm:flex-nowrap">
+                <button onclick="addNewRow()"
+                    class="btn-chunky bg-orange text-dark px-4 sm:px-6 py-3 flex items-center gap-2 rounded-xl text-sm sm:text-lg w-full sm:w-auto justify-center">
+                    <i data-lucide="plus"></i> ADD NEW ROW
+                </button>
+                <div class="hidden sm:block flex-1"></div>
+                <button onclick="resetData()"
+                    class="btn-chunky bg-pink text-dark px-4 sm:px-6 py-3 flex items-center gap-2 rounded-xl text-sm sm:text-lg w-full sm:w-auto justify-center">
+                    <i data-lucide="trash-2"></i> RESET DATA
+                </button>
+                <button onclick="closeManageModal()"
+                    class="btn-chunky bg-white dark:bg-slate-800 text-dark dark:text-chalk px-4 sm:px-6 py-3 rounded-xl text-sm sm:text-lg w-full sm:w-auto justify-center">
+                    CANCEL
+                </button>
+                <button onclick="saveAllQuestions()"
+                    class="btn-chunky bg-green text-dark px-6 sm:px-8 py-3 flex items-center gap-2 rounded-xl text-sm sm:text-lg w-full sm:w-auto justify-center">
+                    <i data-lucide="save"></i> SAVE CHANGES
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ALERT MODAL -->
+    <div id="alert-modal"
+        class="fixed inset-0 bg-slate-900/40 backdrop-blur-[16px] hidden flex items-center justify-center z-[var(--z-modal)] p-4">
+        <div class="hub-card p-8 w-full max-w-md text-center transform transition-all animate-[pop-in_0.3s_ease-out]">
+            <div id="alert-icon" class="flex justify-center mb-6"></div>
+            <h2 id="alert-title" class="font-heading text-4xl mb-3 tracking-tight"></h2>
+            <p id="alert-message"
+                class="font-body text-xl mb-8 leading-relaxed font-bold text-slate-700 dark:text-slate-300"></p>
+            <button onclick="closeAlertAndNext()"
+                class="btn-chunky bg-pink text-dark text-2xl w-full px-4 py-4 rounded-xl">
+                GOT IT!
+            </button>
+        </div>
+    </div>
+
+    <script src="./script.js" defer></script>
+</body>
+
+</html>

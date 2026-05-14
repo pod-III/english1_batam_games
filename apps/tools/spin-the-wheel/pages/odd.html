@@ -1,0 +1,1443 @@
+<!doctype html>
+<html lang="en" class="light">
+    <head>
+    <!-- Supabase Auth -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/supabase.js"></script>
+    <meta charset="UTF-8" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+        />
+        <title>Spin Odds - KlassKit</title>
+    <link rel="icon" type="image/x-icon" href="../../../../media/icon.ico" />
+    <link rel="icon" type="image/webp" href="../../../../media/icon.webp" />
+
+        <!-- External Libraries -->
+        <script src="https://unpkg.com/lucide@latest"></script>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+        <!-- Fonts -->
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Nunito:wght@400;700;900&family=JetBrains+Mono:wght@500;700&display=swap"
+            rel="stylesheet"
+        />
+
+        <!-- Theme Configuration -->
+        <script>
+            tailwind.config = {
+                darkMode: "class",
+                theme: {
+                    extend: {
+                        colors: {
+                            pink: "#FF6B95",
+                            orange: "#FF8C42",
+                            green: "#00E676",
+                            blue: "#2979FF",
+                            purple: "#7C4DFF",
+                            dark: "#0f172a",
+                            chalk: "#f8fafc",
+                            surface: "rgba(255, 255, 255, 0.85)",
+                            border: "rgba(203, 213, 225, 0.6)",
+                        },
+                        fontFamily: {
+                            heading: ["Fredoka", "sans-serif"],
+                            body: ["Nunito", "sans-serif"],
+                            mono: ["JetBrains Mono", "monospace"],
+                        },
+                        boxShadow: {
+                            neo: "4px 4px 0px 0px rgba(51, 65, 85, 0.15)",
+                            "neo-sm": "2px 2px 0px 0px rgba(51, 65, 85, 0.15)",
+                            "neo-lg": "8px 8px 0px 0px rgba(51, 65, 85, 0.15)",
+                        },
+                    },
+                },
+            };
+        </script>
+
+        <style>
+            * {
+                box-sizing: border-box;
+            }
+
+            html,
+            body {
+                margin: 0;
+                padding: 0;
+                height: 100vh;
+                width: 100vw;
+                overflow: hidden;
+            }
+
+            body {
+                font-family: "Nunito", sans-serif;
+                background-color: #f8fafc;
+                background-image:
+                    linear-gradient(#e2e8f0 1.5px, transparent 1.5px),
+                    linear-gradient(90deg, #e2e8f0 1.5px, transparent 1.5px);
+                background-size: 30px 30px;
+                color: #1e293b;
+                user-select: none;
+                -webkit-tap-highlight-color: transparent;
+                transition:
+                    background-color 0.3s,
+                    color 0.3s;
+            }
+
+            html.dark body {
+                background-color: #020617;
+                background-image:
+                    linear-gradient(#0f172a 1.5px, transparent 1.5px),
+                    linear-gradient(90deg, #0f172a 1.5px, transparent 1.5px);
+                color: #e2e8f0;
+            }
+
+            .glass-panel {
+                background: rgba(255, 255, 255, 0.85);
+                backdrop-filter: blur(24px);
+                -webkit-backdrop-filter: blur(24px);
+            }
+
+            html.dark .glass-panel {
+                background: rgba(15, 23, 42, 0.8);
+                border-color: rgba(255, 255, 255, 0.1);
+            }
+
+            .console-frame {
+                background: rgba(255, 255, 255, 0.6);
+                backdrop-filter: blur(24px);
+                -webkit-backdrop-filter: blur(24px);
+                border: 1px solid rgba(203, 213, 225, 0.6);
+                border-radius: 1.5rem;
+                box-shadow: 8px 8px 0px rgba(51, 65, 85, 0.15);
+                overflow: hidden;
+                transition: all 0.3s ease;
+            }
+
+            html.dark .console-frame {
+                background: rgba(15, 23, 42, 0.8);
+                border-color: rgba(255, 255, 255, 0.1);
+                box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.4);
+            }
+
+            .btn-chunky {
+                transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                transform: translateY(0);
+                position: relative;
+                border: 1px solid rgba(203, 213, 225, 0.6);
+                box-shadow: 4px 4px 0 rgba(51, 65, 85, 0.15);
+                font-family: "Fredoka", sans-serif;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+            }
+
+            html.dark .btn-chunky {
+                border-color: rgba(255, 255, 255, 0.1);
+                box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.4);
+                background-color: rgba(30, 41, 59, 0.8);
+                color: #e2e8f0;
+            }
+
+            .btn-chunky:hover:not(:disabled) {
+                transform: translate(-2px, -2px);
+                box-shadow: 6px 6px 0 rgba(51, 65, 85, 0.15);
+                filter: brightness(105%);
+            }
+
+            html.dark .btn-chunky:hover:not(:disabled) {
+                box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.4);
+            }
+
+            .btn-chunky:active:not(:disabled) {
+                transform: translate(2px, 2px);
+                box-shadow: 2px 2px 0 rgba(51, 65, 85, 0.15) !important;
+            }
+
+            html.dark .btn-chunky:active:not(:disabled) {
+                box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.4) !important;
+            }
+
+            .btn-chunky:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+                transform: translateY(2px);
+                box-shadow: 0 0 0 rgba(51, 65, 85, 0.15);
+                filter: grayscale(100%);
+            }
+
+            .custom-scrollbar::-webkit-scrollbar {
+                width: 8px;
+                height: 8px;
+            }
+
+            .custom-scrollbar::-webkit-scrollbar-track {
+                background: transparent;
+            }
+
+            .custom-scrollbar::-webkit-scrollbar-thumb {
+                background: rgba(203, 213, 225, 0.6);
+                border-radius: 10px;
+                border: 2px solid transparent;
+                background-clip: content-box;
+            }
+
+            html.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+                background: rgba(255, 255, 255, 0.2);
+            }
+
+            input[type="range"] {
+                -webkit-appearance: none;
+                appearance: none;
+                background: transparent;
+            }
+
+            input[type="range"]::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                height: 24px;
+                width: 24px;
+                border-radius: 50%;
+                background: white;
+                border: 2px solid #2979ff;
+                margin-top: -8px;
+                cursor: pointer;
+                box-shadow: 2px 2px 0px rgba(51, 65, 85, 0.15);
+                transition: transform 0.1s;
+            }
+
+            html.dark input[type="range"]::-webkit-slider-thumb {
+                background: #0f172a;
+                border-color: #2979ff;
+                box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.4);
+            }
+
+            input[type="range"]::-webkit-slider-thumb:hover {
+                transform: scale(1.1);
+            }
+
+            input[type="range"]::-webkit-slider-runnable-track {
+                width: 100%;
+                height: 8px;
+                background: rgba(203, 213, 225, 0.6);
+                border: 1px solid rgba(203, 213, 225, 0.8);
+                border-radius: 99px;
+            }
+
+            html.dark input[type="range"]::-webkit-slider-runnable-track {
+                background: rgba(30, 41, 59, 0.8);
+                border-color: rgba(255, 255, 255, 0.1);
+            }
+
+            /* Wheel Styles */
+            .wheel-container {
+                position: relative;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+
+            #wheelCanvas {
+                border-radius: 50%;
+                box-shadow: 8px 8px 0px rgba(51, 65, 85, 0.2);
+                transition: transform 0.1s;
+            }
+
+            html.dark #wheelCanvas {
+                box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.5);
+            }
+
+            .wheel-pointer {
+                width: 0;
+                height: 0;
+                border-left: 16px solid transparent;
+                border-right: 16px solid transparent;
+                border-top: 32px solid #0f172a;
+                position: absolute;
+                top: 8px;
+                left: 50%;
+                transform: translateX(-50%);
+                z-index: 20;
+                filter: drop-shadow(0px 2px 0px rgba(255, 255, 255, 0.5));
+            }
+
+            html.dark .wheel-pointer {
+                border-top-color: #e2e8f0;
+                filter: drop-shadow(0px 2px 0px rgba(0, 0, 0, 0.5));
+            }
+
+            /* Weight Input */
+            .weight-input {
+                -moz-appearance: textfield;
+                appearance: textfield;
+                text-align: center;
+                width: 48px;
+                padding: 4px;
+                border-radius: 6px;
+                border: 1px solid rgba(203, 213, 225, 0.6);
+                background: rgba(255, 255, 255, 0.5);
+                font-family: "JetBrains Mono", monospace;
+                font-weight: 700;
+                font-size: 12px;
+            }
+
+            html.dark .weight-input {
+                background: rgba(30, 41, 59, 0.5);
+                border-color: rgba(255, 255, 255, 0.1);
+                color: #e2e8f0;
+            }
+
+            .weight-input:focus {
+                outline: none;
+                border-color: #2979ff;
+                background: rgba(41, 121, 255, 0.1);
+            }
+
+            .weight-input::-webkit-outer-spin-button,
+            .weight-input::-webkit-inner-spin-button {
+                -webkit-appearance: none;
+                margin: 0;
+            }
+
+            /* Odds Bar */
+            .odds-bar {
+                height: 4px;
+                border-radius: 2px;
+                background: rgba(203, 213, 225, 0.3);
+                overflow: hidden;
+            }
+
+            .odds-fill {
+                height: 100%;
+                border-radius: 2px;
+                transition: width 0.3s ease;
+            }
+
+            /* Deck/Set Selector */
+            .set-item {
+                transition: all 0.2s ease;
+            }
+
+            .set-item:hover {
+                background: rgba(41, 121, 255, 0.1);
+            }
+
+            .set-item.active {
+                background: rgba(41, 121, 255, 0.15);
+                border-color: #2979ff;
+            }
+
+            html.dark .set-item.active {
+                background: rgba(124, 77, 255, 0.15);
+                border-color: #7c4dff;
+            }
+
+            /* Winner Modal */
+            .winner-modal {
+                background: rgba(15, 23, 42, 0.7);
+                backdrop-filter: blur(8px);
+                transition: opacity 0.3s;
+            }
+
+            .winner-card {
+                background: #ffffff;
+                border: 2px solid #0f172a;
+                box-shadow: 12px 12px 0px rgba(0, 230, 118, 0.3);
+                transform: scale(0.9);
+                opacity: 0;
+                transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            }
+
+            html.dark .winner-card {
+                background: rgba(15, 23, 42, 0.95);
+                border-color: rgba(255, 255, 255, 0.2);
+            }
+
+            .winner-modal.active .winner-card {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            .winner-name {
+                background: linear-gradient(
+                    135deg,
+                    #ff6b95 0%,
+                    #ff8c42 50%,
+                    #00e676 100%
+                );
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+            }
+
+            /* Toggle Switch */
+            .switch {
+                position: relative;
+                display: inline-block;
+                width: 48px;
+                height: 24px;
+            }
+
+            .switch input {
+                opacity: 0;
+                width: 0;
+                height: 0;
+            }
+
+            .slider {
+                position: absolute;
+                cursor: pointer;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: rgba(203, 213, 225, 0.6);
+                border: 1px solid rgba(203, 213, 225, 0.8);
+                transition: 0.3s;
+                border-radius: 34px;
+            }
+
+            html.dark .slider {
+                background-color: rgba(30, 41, 59, 0.8);
+                border-color: rgba(255, 255, 255, 0.1);
+            }
+
+            .slider:before {
+                position: absolute;
+                content: "";
+                height: 16px;
+                width: 16px;
+                left: 3px;
+                bottom: 3px;
+                background-color: white;
+                box-shadow: 2px 2px 0px rgba(51, 65, 85, 0.15);
+                transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                border-radius: 50%;
+            }
+
+            html.dark .slider:before {
+                background-color: #94a3b8;
+                box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.4);
+            }
+
+            input:checked + .slider {
+                background-color: rgba(0, 230, 118, 0.3);
+                border-color: #00e676;
+            }
+
+            html.dark input:checked + .slider {
+                background-color: rgba(0, 230, 118, 0.2);
+                border-color: #00e676;
+            }
+
+            input:checked + .slider:before {
+                transform: translateX(24px);
+                background-color: #00e676;
+            }
+
+            /* Panel animations */
+            #controls {
+                transition:
+                    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                    width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+
+            #controls.collapsed {
+                transform: translateX(-100%);
+                width: 0;
+                min-width: 0;
+                padding: 0;
+                margin: 0;
+                border: none;
+                overflow: hidden;
+            }
+
+            @media (max-width: 768px) {
+                #controls {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    height: 100vh;
+                    z-index: 100;
+                    transform: translateX(-100%);
+                }
+
+                #controls.mobile-open {
+                    transform: translateX(0);
+                }
+
+                #controls.collapsed {
+                    transform: translateX(-100%);
+                    width: 85%;
+                    min-width: 300px;
+                }
+            }
+
+            /* Loading toast */
+            .loading-toast {
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                z-index: 10000;
+                pointer-events: none;
+            }
+
+            .loading-toast-inner {
+                background: rgba(15, 23, 42, 0.9);
+                backdrop-filter: blur(8px);
+                border-radius: 1rem;
+                padding: 1.5rem 2rem;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 0.75rem;
+                color: white;
+                opacity: 0;
+                transform: scale(0.9);
+                transition: all 0.3s ease;
+            }
+
+            .loading-toast.visible .loading-toast-inner {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            .spinner {
+                width: 40px;
+                height: 40px;
+                border: 4px solid rgba(255, 255, 255, 0.3);
+                border-top-color: #00e676;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+            }
+
+            @keyframes spin {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+        </style>
+    </head>
+    <body class="h-screen w-screen overflow-hidden">
+        <div
+            id="toast-container"
+            class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 pointer-events-none"
+        ></div>
+
+        <!-- Loading Toast -->
+        <div id="loading-toast" class="loading-toast">
+            <div class="loading-toast-inner">
+                <div class="spinner"></div>
+                <span class="font-heading font-bold text-lg">Spinning...</span>
+            </div>
+        </div>
+
+        <div
+            class="console-frame w-full h-full relative flex z-10 rounded-none md:rounded-2xl"
+        >
+            <!-- LEFT PANEL: CONTROLS -->
+            <aside id="controls"
+                class="w-80 glass-panel border-r-[1px] border-slate-300 dark:border-white/10 flex flex-col z-50 h-full shrink-0 transition-all duration-300">
+                <!-- Header -->
+                <div
+                    class="p-4 border-b-[1px] border-slate-300 dark:border-white/10 bg-slate-50/50 dark:bg-slate-800/50 flex justify-between items-center shrink-0">
+                    <div class="flex items-center gap-3 flex-1 min-w-0">
+                        <a href="../index.html"
+                            class="p-2 bg-white dark:bg-slate-700 border-[1px] border-slate-300 dark:border-white/10 rounded-lg text-slate-400 hover:text-blue transition-colors shadow-sm"
+                            title="Back to Home">
+                            <i data-lucide="home" class="w-4 h-4"></i>
+                        </a>
+                        <div class="flex-1 min-w-0">
+                            <h1
+                                class="text-xl font-heading text-dark dark:text-slate-100 tracking-wide leading-none truncate">
+                                SPIN<span class="text-pink">ODDS</span>
+                            </h1>
+                            <!-- Active Indicator -->
+                            <div id="active-indicator" class="flex items-center gap-1.5 mt-1 hidden">
+                                <span class="relative flex h-2 w-2">
+                                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green opacity-75"></span>
+                                    <span class="relative inline-flex rounded-full h-2 w-2 bg-green"></span>
+                                </span>
+                                <span id="active-set-name" class="text-[10px] font-bold text-slate-400 truncate max-w-[120px] uppercase tracking-wider"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="toggleTheme()"
+                        class="p-2 bg-white dark:bg-slate-700 border-[1px] border-slate-300 dark:border-white/10 rounded-lg text-slate-400 hover:text-blue transition-colors shadow-sm">
+                        <i data-lucide="moon" class="w-4 h-4 hidden dark:block"></i>
+                        <i data-lucide="sun" class="w-4 h-4 block dark:hidden"></i>
+                    </button>
+                </div>
+
+                <!-- Content -->
+                <div class="flex-1 p-4 overflow-y-auto custom-scrollbar space-y-4 bg-transparent relative">
+                    <!-- Action Grid -->
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="newSet()" class="btn-chunky bg-white dark:bg-slate-800 py-3 rounded-xl flex flex-col items-center justify-center gap-1 group">
+                            <div class="w-8 h-8 rounded-lg bg-blue/10 flex items-center justify-center text-blue group-hover:scale-110 transition-transform">
+                                <i data-lucide="file-plus-2" class="w-5 h-5"></i>
+                            </div>
+                            <span class="text-[10px] font-black uppercase tracking-widest text-slate-500">New List</span>
+                        </button>
+                        <button onclick="openSaveAsModal()" class="btn-chunky bg-white dark:bg-slate-800 py-3 rounded-xl flex flex-col items-center justify-center gap-1 group">
+                            <div class="w-8 h-8 rounded-lg bg-green/10 flex items-center justify-center text-green group-hover:scale-110 transition-transform">
+                                <i data-lucide="save" class="w-5 h-5"></i>
+                            </div>
+                            <span class="text-[10px] font-black uppercase tracking-widest text-slate-500">Save As</span>
+                        </button>
+                    </div>
+
+                    <!-- SPIN BUTTON -->
+                    <button id="spin-btn" onclick="spin()"
+                        class="w-full btn-chunky bg-gradient-to-r from-pink to-orange text-white dark:text-white py-5 rounded-xl text-lg tracking-widest flex items-center justify-center gap-3 hover:brightness-110 shadow-neo-lg disabled:opacity-50 disabled:grayscale animate-pop-in">
+                        <i data-lucide="dices" class="w-6 h-6"></i>
+                        SPIN
+                    </button>
+
+                    <!-- SETTINGS -->
+                    <div class="p-3 bg-slate-50/50 dark:bg-slate-800/50 border-[1px] border-slate-300 dark:border-white/10 rounded-xl shadow-sm space-y-3">
+                        <div class="flex justify-between items-center border-b-[1px] border-slate-200 dark:border-white/10 pb-2">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                <i data-lucide="settings" class="w-3.5 h-3.5 text-orange"></i>
+                                Spin Settings
+                            </label>
+                        </div>
+
+                        <div class="space-y-1">
+                            <div class="flex justify-between">
+                                <span class="text-[10px] font-black uppercase tracking-tight text-dark dark:text-slate-200">Duration</span>
+                                <span id="duration-display" class="text-[10px] font-mono font-bold text-blue bg-blue/10 px-2 py-0.5 rounded">5s</span>
+                            </div>
+                            <input type="range" id="duration-slider" min="2" max="10" step="0.5" value="5" oninput="updateDuration(this.value)" class="w-full accent-blue h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer" />
+                        </div>
+
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-black uppercase tracking-tight text-dark dark:text-slate-200">Sound FX</span>
+                            <label class="switch">
+                                <input type="checkbox" id="sound-toggle" checked onchange="toggleMute()" />
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Library Section -->
+                    <div class="p-3 bg-slate-50/50 dark:bg-slate-800/50 border-[1px] border-slate-300 dark:border-white/10 rounded-xl shadow-sm">
+                        <div class="flex items-center justify-between mb-3">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                <i data-lucide="library" class="w-3.5 h-3.5 text-blue"></i>
+                                Your Library
+                            </label>
+                            <select id="library-sort" onchange="renderLibrary()" class="bg-transparent text-[10px] font-bold text-slate-500 outline-none cursor-pointer hover:text-blue transition-colors">
+                                <option value="recent">Recent</option>
+                                <option value="alpha">A-Z</option>
+                                <option value="popular">Popular</option>
+                            </select>
+                        </div>
+                        <div id="library-list" class="space-y-1.5 max-h-[180px] overflow-y-auto custom-scrollbar pr-1">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+
+                    <!-- PLAYERS & WEIGHTS -->
+                    <div class="p-3 bg-slate-50/50 dark:bg-slate-800/50 border-[1px] border-slate-300 dark:border-white/10 rounded-xl shadow-sm space-y-2">
+                        <div class="flex justify-between items-center border-b-[1px] border-slate-200 dark:border-white/10 pb-2">
+                            <label class="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                <i data-lucide="users" class="w-4 h-4 text-purple"></i>
+                                Items & Odds
+                            </label>
+                            <button onclick="toggleBatch()" class="text-[10px] text-blue font-bold hover:underline uppercase tracking-tighter">
+                                Batch Edit
+                            </button>
+                        </div>
+
+                        <div class="flex gap-2">
+                            <input type="text" id="player-input" placeholder="Add item..."
+                                class="flex-1 border-[1px] border-slate-300 dark:border-white/10 rounded-lg px-3 py-2 font-bold text-dark dark:text-slate-200 text-sm bg-white/50 dark:bg-slate-900/50 focus:outline-none focus:border-blue focus:ring-1 focus:ring-blue"
+                                onkeydown="if (event.key === 'Enter') addPlayer();" />
+                            <button onclick="addPlayer()" class="btn-chunky bg-green text-dark dark:text-dark px-3 rounded-lg">
+                                <i data-lucide="plus" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+
+                        <!-- Batch Input -->
+                        <div id="batch-container" class="hidden animate-slide-down">
+                            <textarea id="batch-input" rows="3"
+                                class="w-full p-2 bg-white/50 dark:bg-slate-900/50 text-dark dark:text-slate-200 font-mono text-xs border-[1px] border-slate-300 dark:border-white/10 rounded-lg resize-none mb-2"
+                                placeholder="Item, weight (one per line)...&#10;e.g. Alice, 3"></textarea>
+                            <button onclick="saveBatch()" class="w-full btn-chunky bg-dark text-white py-2 rounded-lg text-xs">
+                                Update List
+                            </button>
+                        </div>
+
+                        <!-- Player List -->
+                        <div id="player-list" class="space-y-2 max-h-48 overflow-y-auto custom-scrollbar pt-1 pr-1">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="p-3 border-t-[1px] border-slate-300 dark:border-white/10 bg-slate-50/50 dark:bg-slate-800/50 flex justify-between items-center shrink-0">
+                    <div class="flex items-center gap-2">
+                        <button onclick="clearAll()"
+                            class="p-2 bg-white dark:bg-slate-700 border-[1px] border-slate-300 dark:border-white/10 rounded-lg text-slate-400 hover:text-pink transition-colors shadow-sm" title="Clear Deck">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                        <button onclick="resetWeights()"
+                            class="p-2 bg-white dark:bg-slate-700 border-[1px] border-slate-300 dark:border-white/10 rounded-lg text-slate-400 hover:text-blue transition-colors shadow-sm" title="Reset Weights">
+                            <i data-lucide="refresh-ccw" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                    <div class="font-heading font-black text-slate-400 text-[10px] uppercase tracking-wider">
+                        WEIGHT: <span id="total-weight" class="text-blue">0</span>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- MAIN WHEEL AREA -->
+            <main
+                id="main-area"
+                class="flex-1 relative h-full bg-slate-50/50 dark:bg-slate-900/50 flex flex-col overflow-hidden transition-colors duration-300"
+            >
+                <!-- Toggle Panel Button -->
+                <button
+                    id="panel-toggle"
+                    onclick="togglePanel()"
+                    class="absolute top-4 left-4 z-30 p-2 glass-panel border-[1px] border-slate-300 dark:border-white/10 rounded-xl shadow-neo-sm hover:translate-y-[-2px] transition-transform text-slate-500 hover:text-dark dark:hover:text-slate-200"
+                >
+                    <i data-lucide="panel-left-close" class="w-5 h-5"></i>
+                </button>
+
+                <!-- Show Panel Button (when collapsed) -->
+                <button
+                    id="show-panel-btn"
+                    onclick="togglePanel()"
+                    class="hidden absolute top-4 left-4 z-30 p-2 glass-panel border-[1px] border-slate-300 dark:border-white/10 rounded-xl shadow-neo-sm hover:translate-y-[-2px] transition-transform text-slate-500 hover:text-dark dark:hover:text-slate-200"
+                >
+                    <i data-lucide="panel-left-open" class="w-5 h-5"></i>
+                </button>
+
+                <!-- Wheel -->
+                <div class="flex-1 flex items-center justify-center p-4 md:p-8">
+                    <div
+                        class="wheel-container w-full max-w-[500px] aspect-square relative"
+                    >
+                        <div class="wheel-pointer"></div>
+                        <canvas
+                            id="wheel-canvas"
+                            width="800"
+                            height="800"
+                            class="w-full h-full"
+                        ></canvas>
+                        <div
+                            class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-14 h-14 bg-white dark:bg-slate-800 border-[1px] border-slate-300 dark:border-white/10 rounded-full shadow-neo flex items-center justify-center z-10"
+                        >
+                            <i
+                                data-lucide="star"
+                                class="w-6 h-6 text-orange fill-orange"
+                            ></i>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Winner Modal -->
+        <div
+            id="winner-modal"
+            class="winner-modal fixed inset-0 z-50 hidden flex items-center justify-center p-4"
+        >
+            <div
+                class="winner-card w-full max-w-md p-6 md:p-8 rounded-3xl text-center relative"
+            >
+                <button
+                    onclick="closeWinnerModal()"
+                    class="absolute top-4 right-4 text-slate-400 hover:text-dark dark:hover:text-slate-200"
+                >
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+
+                <div class="mb-6 flex justify-center">
+                    <div
+                        class="w-20 h-20 bg-green/10 rounded-full flex items-center justify-center border-4 border-green text-green animate-bounce"
+                    >
+                        <i data-lucide="trophy" class="w-10 h-10"></i>
+                    </div>
+                </div>
+
+                <h2
+                    class="text-xs font-black text-slate-400 uppercase tracking-widest mb-2"
+                >
+                    The Chosen One
+                </h2>
+                <h1
+                    id="winner-name"
+                    class="winner-name text-4xl md:text-5xl font-heading font-bold mb-2 break-words leading-tight"
+                >
+                    Name
+                </h1>
+                <p
+                    id="winner-odds"
+                    class="text-sm text-slate-500 dark:text-slate-400 font-bold mb-6"
+                >
+                    0% chance
+                </p>
+
+                <div class="flex gap-3">
+                    <button
+                        onclick="removeWinner()"
+                        class="flex-1 btn-chunky bg-white dark:bg-slate-700 text-dark dark:text-slate-200 border-[1px] border-slate-300 dark:border-white/10 py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:text-pink hover:border-pink"
+                    >
+                        <i data-lucide="user-x" class="w-4 h-4"></i> Remove
+                    </button>
+                    <button
+                        onclick="closeWinnerModal()"
+                        class="flex-1 btn-chunky bg-blue text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2"
+                    >
+                        <i data-lucide="check" class="w-4 h-4"></i> Keep
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+        // Universal Slides/Sets Management Pattern Implementation
+        const appState = {
+            data: {
+                name: "",
+                players: [
+                    { name: "Alice", weight: 3 },
+                    { name: "Bob", weight: 2 },
+                    { name: "Charlie", weight: 1 },
+                    { name: "Diana", weight: 2 }
+                ],
+                spinDuration: 5,
+                isMuted: false
+            },
+            activeId: null
+        };
+
+        const STORAGE_KEY = "weighted_odds_library_v2";
+        let isSpinning = false;
+        let audioInitialized = false;
+        let synth, winSynth;
+        let panelOpen = true;
+        let lastSegment = -1;
+        let currentWinner = -1;
+
+        // Persistence Helpers
+        function getLibrary() {
+            const data = localStorage.getItem(STORAGE_KEY);
+            return data ? JSON.parse(data) : [];
+        }
+
+        function saveLibrary(library) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(library));
+            saveProgress(STORAGE_KEY, library).catch(console.error);
+        }
+
+        function onContentChange() {
+            updateSessionPersistence();
+            
+            if (appState.activeId) {
+                const library = getLibrary();
+                const index = library.findIndex(item => item.id === appState.activeId);
+                if (index !== -1) {
+                    library[index] = {
+                        ...library[index],
+                        name: appState.data.name,
+                        players: [...appState.data.players],
+                        lastUsed: Date.now()
+                    };
+                    saveLibrary(library);
+                }
+            }
+        }
+
+        function updateSessionPersistence() {
+            localStorage.setItem('weighted_odds_session', JSON.stringify(appState.data));
+            localStorage.setItem('weighted_odds_activeId', appState.activeId);
+        }
+
+        // Lifecycle Workflows
+        function newSet() {
+            appState.data = {
+                name: "",
+                players: [],
+                spinDuration: appState.data.spinDuration,
+                isMuted: appState.data.isMuted
+            };
+            appState.activeId = null;
+            updateUI();
+            renderLibrary();
+            showToast("New list ready", "info");
+        }
+
+        function openSaveAsModal() {
+            const name = prompt("Enter a name for this list:", appState.data.name || "");
+            if (name === null) return;
+            if (!name.trim()) {
+                showToast("Name is required", "error");
+                return;
+            }
+            saveAsNew(name.trim());
+        }
+
+        function saveAsNew(name) {
+            const library = getLibrary();
+            const newId = Date.now();
+            const newEntry = {
+                id: newId,
+                name: name,
+                players: [...appState.data.players],
+                createdAt: Date.now(),
+                lastUsed: Date.now(),
+                usageCount: 1
+            };
+            library.push(newEntry);
+            saveLibrary(library);
+            
+            appState.activeId = newId;
+            appState.data.name = name;
+            
+            renderLibrary();
+            updateActiveIndicator();
+            showToast(`Saved as "${name}"`, "success");
+        }
+
+        function loadSet(id) {
+            const library = getLibrary();
+            const item = library.find(i => i.id === id);
+            if (!item) return;
+
+            item.usageCount = (item.usageCount || 0) + 1;
+            item.lastUsed = Date.now();
+            saveLibrary(library);
+
+            appState.activeId = id;
+            appState.data = {
+                name: item.name,
+                players: [...item.players],
+                spinDuration: appState.data.spinDuration,
+                isMuted: appState.data.isMuted
+            };
+
+            updateUI();
+            renderLibrary();
+            showToast(`Loaded ${item.name}`, "info");
+        }
+
+        function deleteLibraryItem(id, event) {
+            if (event) event.stopPropagation();
+            if (!confirm("Are you sure you want to delete this list?")) return;
+
+            let library = getLibrary();
+            library = library.filter(i => i.id !== id);
+            saveLibrary(library);
+
+            if (appState.activeId === id) {
+                newSet();
+            } else {
+                renderLibrary();
+            }
+            showToast("List deleted", "info");
+        }
+
+        // UI Updates
+        function updateUI() {
+            updateActiveIndicator();
+            renderPlayers();
+            drawWheel();
+            
+            document.getElementById("duration-slider").value = appState.data.spinDuration;
+            document.getElementById("duration-display").textContent = appState.data.spinDuration + "s";
+            document.getElementById("sound-toggle").checked = !appState.data.isMuted;
+        }
+
+        function updateActiveIndicator() {
+            const indicator = document.getElementById("active-indicator");
+            const nameEl = document.getElementById("active-set-name");
+            
+            if (appState.activeId) {
+                indicator.classList.remove("hidden");
+                nameEl.textContent = appState.data.name;
+            } else {
+                indicator.classList.add("hidden");
+            }
+        }
+
+        function renderLibrary() {
+            const list = document.getElementById("library-list");
+            const sortBy = document.getElementById("library-sort").value;
+            let library = getLibrary();
+
+            if (library.length === 0) {
+                list.innerHTML = '<p class="text-[10px] text-slate-400 text-center py-4 italic uppercase tracking-widest">Library is empty</p>';
+                return;
+            }
+
+            if (sortBy === "recent") library.sort((a, b) => b.lastUsed - a.lastUsed);
+            else if (sortBy === "alpha") library.sort((a, b) => a.name.localeCompare(b.name));
+            else if (sortBy === "popular") library.sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0));
+
+            list.innerHTML = library.map(item => `
+                <div onclick="loadSet(${item.id})" class="group flex items-center justify-between p-2 rounded-xl border-[1px] cursor-pointer transition-all ${appState.activeId === item.id ? 'bg-blue/10 border-blue/30' : 'border-transparent hover:bg-slate-100 dark:hover:bg-slate-800'}">
+                    <div class="flex items-center gap-2 overflow-hidden">
+                        <div class="w-7 h-7 rounded-lg bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-xs font-black text-slate-500 shrink-0">
+                            ${item.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div class="flex flex-col overflow-hidden">
+                            <span class="text-xs font-bold truncate text-dark dark:text-slate-200">${item.name}</span>
+                            <span class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">${item.players.length} Items</span>
+                        </div>
+                    </div>
+                    <button onclick="deleteLibraryItem(${item.id}, event)" class="p-1.5 text-slate-300 hover:text-pink opacity-0 group-hover:opacity-100 transition-all">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            `).join("");
+            
+            lucide.createIcons();
+        }
+
+        // Wheel Logic
+        function getTotalWeight() {
+            return appState.data.players.reduce((sum, p) => sum + (parseFloat(p.weight) || 0), 0);
+        }
+
+        function drawWheel() {
+            const canvas = document.getElementById("wheel-canvas");
+            const ctx = canvas.getContext("2d");
+            ctx.clearRect(0, 0, 800, 800);
+            const totalWeight = getTotalWeight();
+
+            if (appState.data.players.length === 0 || totalWeight === 0) {
+                ctx.beginPath();
+                ctx.arc(400, 400, 380, 0, 2 * Math.PI);
+                ctx.fillStyle = document.documentElement.classList.contains('dark') ? "#1e293b" : "#F1F5F9";
+                ctx.fill();
+                ctx.font = '700 30px "Fredoka"';
+                ctx.fillStyle = "#94A3B8";
+                ctx.textAlign = "center";
+                ctx.fillText("ADD ITEMS", 400, 400);
+                return;
+            }
+
+            let currentAngle = 0;
+            const colors = ["#FF6B95", "#FF8C42", "#00E676", "#2979FF"];
+
+            appState.data.players.forEach((p, i) => {
+                const weight = parseFloat(p.weight) || 0;
+                if (weight <= 0) return;
+                const sliceAngle = (weight / totalWeight) * 2 * Math.PI;
+
+                ctx.fillStyle = colors[i % 4];
+                ctx.beginPath();
+                ctx.moveTo(400, 400);
+                ctx.arc(400, 400, 380, currentAngle, currentAngle + sliceAngle);
+                ctx.lineTo(400, 400);
+                ctx.fill();
+
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = "#0F172A";
+                ctx.stroke();
+
+                ctx.save();
+                ctx.fillStyle = "#FFFFFF";
+                ctx.shadowColor = "#0F172A";
+                ctx.shadowOffsetX = 2;
+                ctx.shadowOffsetY = 2;
+                const midAngle = currentAngle + sliceAngle / 2;
+                const textRadius = 260;
+                ctx.translate(400 + Math.cos(midAngle) * textRadius, 400 + Math.sin(midAngle) * textRadius);
+                ctx.rotate(midAngle);
+                const text = p.name;
+                if (text.length > 15) ctx.font = '700 24px "Nunito"';
+                else if (text.length > 8) ctx.font = '700 32px "Nunito"';
+                else ctx.font = '700 48px "Nunito"';
+                if (sliceAngle < 0.2) ctx.font = '700 16px "Nunito"';
+                ctx.textAlign = "right";
+                ctx.fillText(text, 50, 10);
+                ctx.restore();
+                currentAngle += sliceAngle;
+            });
+        }
+
+        async function spin() {
+            if (isSpinning || appState.data.players.length === 0) return;
+            const totalWeight = getTotalWeight();
+            if (totalWeight === 0) return;
+
+            isSpinning = true;
+            await initAudio();
+            document.getElementById("loading-toast").classList.add("visible");
+            document.getElementById("spin-btn").disabled = true;
+
+            const tickInterval = setInterval(() => {
+                const idx = getCurrentIndex();
+                if (idx !== lastSegment) { playTick(); lastSegment = idx; }
+            }, 100);
+
+            const duration = appState.data.spinDuration * 1000;
+            const startTime = performance.now();
+            const startAngle = Math.random() * Math.PI * 2;
+            let currentRotation = startAngle;
+
+            const animate = (now) => {
+                const elapsed = now - startTime;
+                if (elapsed >= duration) {
+                    clearInterval(tickInterval);
+                    finishSpin();
+                    return;
+                }
+                const progress = elapsed / duration;
+                const easeOut = 1 - Math.pow(1 - progress, 3);
+                const spinAmount = appState.data.spinDuration * 2 * Math.PI * easeOut;
+                currentRotation = startAngle + spinAmount;
+                document.getElementById("wheel-canvas").style.transform = `rotate(${currentRotation}rad)`;
+                requestAnimationFrame(animate);
+            };
+            requestAnimationFrame(animate);
+        }
+
+        function getCurrentIndex() {
+            const canvas = document.getElementById("wheel-canvas");
+            const transform = canvas.style.transform;
+            const match = transform.match(/rotate\(([^)]+)rad\)/);
+            const rotation = match ? parseFloat(match[1]) : 0;
+            const normalized = (1.5 * Math.PI - rotation) % (2 * Math.PI);
+            const positive = normalized < 0 ? normalized + 2 * Math.PI : normalized;
+            const totalWeight = getTotalWeight();
+            let currentAngle = 0;
+
+            for (let i = 0; i < appState.data.players.length; i++) {
+                const weight = parseFloat(appState.data.players[i].weight) || 0;
+                if (weight <= 0) continue;
+                const sliceAngle = (weight / totalWeight) * 2 * Math.PI;
+                if (positive >= currentAngle && positive < currentAngle + sliceAngle) return i;
+                currentAngle += sliceAngle;
+            }
+            return -1;
+        }
+
+        function finishSpin() {
+            isSpinning = false;
+            lastSegment = -1;
+            document.getElementById("loading-toast").classList.remove("visible");
+            document.getElementById("spin-btn").disabled = false;
+            const winnerIdx = getCurrentIndex();
+            if (winnerIdx === -1) return;
+            currentWinner = winnerIdx;
+            const winner = appState.data.players[winnerIdx];
+            const totalWeight = getTotalWeight();
+            const percentage = ((winner.weight / totalWeight) * 100).toFixed(1);
+            document.getElementById("winner-name").textContent = winner.name;
+            document.getElementById("winner-odds").textContent = `${percentage}% chance`;
+            const modal = document.getElementById("winner-modal");
+            modal.classList.remove("hidden");
+            setTimeout(() => modal.classList.add("active"), 10);
+            playWin();
+            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors: ["#FF6B95", "#FF8C42", "#00E676", "#2979FF"] });
+        }
+
+        function closeWinnerModal() {
+            const modal = document.getElementById("winner-modal");
+            modal.classList.remove("active");
+            setTimeout(() => modal.classList.add("hidden"), 300);
+        }
+
+        function removeWinner() {
+            if (currentWinner === -1) return;
+            appState.data.players.splice(currentWinner, 1);
+            currentWinner = -1;
+            onContentChange();
+            renderPlayers();
+            drawWheel();
+            closeWinnerModal();
+        }
+
+        // Settings
+        function updateDuration(val) {
+            appState.data.spinDuration = parseFloat(val);
+            document.getElementById("duration-display").textContent = appState.data.spinDuration + "s";
+            onContentChange();
+        }
+
+        function toggleMute() {
+            appState.data.isMuted = !document.getElementById("sound-toggle").checked;
+            if (!appState.data.isMuted && !audioInitialized) initAudio();
+            onContentChange();
+        }
+
+        // Player Management
+        function renderPlayers() {
+            const list = document.getElementById("player-list");
+            const totalWeight = getTotalWeight();
+
+            list.innerHTML = appState.data.players.map((p, i) => {
+                const percentage = totalWeight > 0 ? ((p.weight / totalWeight) * 100).toFixed(1) : 0;
+                const colors = ["bg-pink", "bg-orange", "bg-green", "bg-blue"];
+                const color = colors[i % 4];
+
+                return `
+                    <div class="flex items-center gap-2 p-2 bg-white/50 dark:bg-slate-900/50 rounded-lg border-[1px] border-slate-200 dark:border-white/10 group transition-all">
+                        <div class="w-2.5 h-2.5 rounded-full ${color} shrink-0"></div>
+                        <div class="flex-1 min-w-0">
+                            <div class="font-black text-[10px] uppercase tracking-tight text-dark dark:text-slate-200 truncate">${p.name}</div>
+                            <div class="odds-bar mt-1">
+                                <div class="odds-fill ${color}" style="width: ${percentage}%"></div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            <input type="number" min="0" step="0.1" value="${p.weight}"
+                                onchange="updateWeight(${i}, this.value)"
+                                class="weight-input">
+                        </div>
+                        <button onclick="removePlayer(${i})" class="p-1 text-slate-300 hover:text-pink opacity-0 group-hover:opacity-100 transition-all">
+                            <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                `;
+            }).join("");
+
+            document.getElementById("total-weight").textContent = totalWeight.toFixed(1);
+            lucide.createIcons();
+        }
+
+        function addPlayer() {
+            const input = document.getElementById("player-input");
+            const val = input.value.trim();
+            if (!val) return;
+            appState.data.players.push({ name: val, weight: 1 });
+            input.value = "";
+            onContentChange();
+            renderPlayers();
+            drawWheel();
+        }
+
+        function updateWeight(index, newWeight) {
+            const w = parseFloat(newWeight);
+            if (w >= 0) {
+                appState.data.players[index].weight = w;
+                onContentChange();
+                renderPlayers();
+                drawWheel();
+            }
+        }
+
+        function removePlayer(index) {
+            appState.data.players.splice(index, 1);
+            onContentChange();
+            renderPlayers();
+            drawWheel();
+        }
+
+        function resetWeights() {
+            appState.data.players.forEach(p => p.weight = 1);
+            onContentChange();
+            renderPlayers();
+            drawWheel();
+            showToast("Weights reset to 1", "info");
+        }
+
+        function toggleBatch() {
+            const container = document.getElementById("batch-container");
+            const input = document.getElementById("batch-input");
+            if (container.classList.contains("hidden")) {
+                input.value = appState.data.players.map(p => `${p.name}, ${p.weight}`).join("\n");
+                container.classList.remove("hidden");
+            } else container.classList.add("hidden");
+        }
+
+        function saveBatch() {
+            const input = document.getElementById("batch-input");
+            const lines = input.value.split("\n").filter(l => l.trim());
+            appState.data.players = lines.map(line => {
+                const parts = line.split(",").map(s => s.trim());
+                return { name: parts[0], weight: parseFloat(parts[1]) || 1 };
+            }).filter(p => p.name);
+            onContentChange();
+            toggleBatch();
+            renderPlayers();
+            drawWheel();
+            showToast("List updated", "success");
+        }
+
+        function clearAll() {
+            if (!confirm("Clear current list?")) return;
+            appState.data.players = [];
+            onContentChange();
+            renderPlayers();
+            drawWheel();
+        }
+
+        // Audio
+        async function initAudio() {
+            if (audioInitialized || appState.data.isMuted) return;
+            await Tone.start();
+            synth = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 2, oscillator: { type: "sine" }, envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.01 }, volume: -10 }).toDestination();
+            winSynth = new Tone.PolySynth(Tone.Synth, { volume: -5, oscillator: { type: "triangle" }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 1 } }).toDestination();
+            audioInitialized = true;
+        }
+
+        function playTick() { try { if (!appState.data.isMuted && synth) synth.triggerAttackRelease("C2", "32n", Tone.now()); } catch (e) {} }
+        function playWin() {
+            if (!appState.data.isMuted && winSynth) {
+                try {
+                    const n = Tone.now() + 0.05;
+                    winSynth.triggerAttackRelease(["C4", "E4", "G4"], "8n", n);
+                    winSynth.triggerAttackRelease(["E4", "G4", "C5"], "8n", n + 0.1);
+                    winSynth.triggerAttackRelease(["G4", "C5", "E5"], "2n", n + 0.2);
+                } catch (e) {}
+            }
+        }
+
+        // Theme & Panel
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.toggle("dark");
+            localStorage.setItem("theme_spin-the-wheel", isDark ? "dark" : "light");
+            drawWheel();
+            lucide.createIcons();
+        }
+
+        function loadTheme() {
+            const saved = localStorage.getItem("theme_spin-the-wheel");
+            if (saved === "dark" || (!saved && window.matchMedia("(prefers-color-scheme: dark)").matches))
+                document.documentElement.classList.add("dark");
+        }
+
+        function togglePanel() {
+            const controls = document.getElementById("controls");
+            const panelToggle = document.getElementById("panel-toggle");
+            const showPanelBtn = document.getElementById("show-panel-btn");
+            panelOpen = !panelOpen;
+            if (window.innerWidth < 768) controls.classList.toggle("mobile-open", panelOpen);
+            else {
+                controls.classList.toggle("collapsed", !panelOpen);
+                panelToggle.classList.toggle("hidden", !panelOpen);
+                showPanelBtn.classList.toggle("hidden", panelOpen);
+            }
+            setTimeout(drawWheel, 300);
+        }
+
+        function showToast(message, type = "info") {
+            const container = document.getElementById("toast-container");
+            const toast = document.createElement("div");
+            const colors = { success: "bg-green text-dark border-green", error: "bg-pink text-white border-pink", info: "bg-blue text-white border-blue", warning: "bg-orange text-dark border-orange" };
+            toast.className = `${colors[type]} px-4 py-3 rounded-xl shadow-neo border-[1px] font-bold text-sm flex items-center gap-2 pointer-events-auto transform transition-all duration-300 translate-y-[-20px] opacity-0`;
+            toast.innerHTML = `<i data-lucide="${type === "success" ? "check-circle" : type === "error" ? "x-circle" : "info"}" class="w-4 h-4"></i> ${message}`;
+            container.appendChild(toast);
+            lucide.createIcons();
+            requestAnimationFrame(() => toast.classList.remove("translate-y-[-20px]", "opacity-0"));
+            setTimeout(() => { toast.classList.add("translate-y-[-20px]", "opacity-0"); setTimeout(() => toast.remove(), 300); }, 2500);
+        }
+
+        // Migration
+        async function migrateLegacyData() {
+            const MIGRATED_KEY = 'weighted_odds_migrated_v2';
+            if (localStorage.getItem(MIGRATED_KEY)) return;
+
+            const DB_NAME = "SpinOddsDB";
+            const STORE_NAME = "sets";
+
+            // Local Migration
+            try {
+                const request = indexedDB.open(DB_NAME);
+                request.onsuccess = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.close();
+                        checkCloudMigration();
+                        return;
+                    }
+
+                    const transaction = db.transaction(STORE_NAME, 'readonly');
+                    const store = transaction.objectStore(STORE_NAME);
+                    const getAll = store.getAll();
+
+                    getAll.onsuccess = () => {
+                        const legacyData = getAll.result;
+                        if (legacyData && legacyData.length > 0) {
+                            const library = getLibrary();
+                            legacyData.forEach(item => {
+                                if (!library.some(l => l.name === item.name)) {
+                                    library.push({
+                                        id: Date.now() + Math.random(),
+                                        name: item.name || 'Legacy Set',
+                                        players: item.players || [],
+                                        createdAt: item.updatedAt || Date.now(),
+                                        lastUsed: item.updatedAt || Date.now(),
+                                        usageCount: 1
+                                    });
+                                }
+                            });
+                            saveLibrary(library);
+                            renderLibrary();
+                        }
+                        db.close();
+                        checkCloudMigration();
+                    };
+                };
+                request.onerror = () => checkCloudMigration();
+            } catch (e) {
+                checkCloudMigration();
+            }
+
+            async function checkCloudMigration() {
+                try {
+                    const cloudData = await loadProgress('spin_odds_data');
+                    if (cloudData && Array.isArray(cloudData.sets)) {
+                        const library = getLibrary();
+                        cloudData.sets.forEach(item => {
+                            if (!library.some(l => l.name === item.name)) {
+                                library.push({
+                                    id: Date.now() + Math.random(),
+                                    name: item.name || 'Cloud Set',
+                                    players: item.players || [],
+                                    createdAt: item.updatedAt || Date.now(),
+                                    lastUsed: item.updatedAt || Date.now(),
+                                    usageCount: 1
+                                });
+                            }
+                        });
+                        saveLibrary(library);
+                        renderLibrary();
+                    }
+                } catch (e) {}
+                localStorage.setItem(MIGRATED_KEY, 'true');
+            }
+        }
+
+        // Init
+        async function init() {
+            await requireAuth();
+            loadTheme();
+
+            // Initial Cloud Sync
+            if (getLibrary().length === 0) {
+                const cloudLibrary = await loadProgress(STORAGE_KEY);
+                if (cloudLibrary) {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudLibrary));
+                }
+            }
+
+            await migrateLegacyData();
+            const savedActiveId = localStorage.getItem('weighted_odds_activeId');
+            if (savedActiveId && savedActiveId !== "null") loadSet(parseInt(savedActiveId));
+            else {
+                const session = localStorage.getItem('weighted_odds_session');
+                if (session) { appState.data = JSON.parse(session); updateUI(); }
+                else updateUI();
+            }
+            renderLibrary();
+            window.addEventListener("resize", drawWheel);
+        }
+
+        window.onload = init;
+        </script>
+    </body>
+</html>

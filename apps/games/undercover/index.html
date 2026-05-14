@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <!-- Supabase Auth -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="/supabase.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Undercover</title>
+    <link rel="icon" type="image/x-icon" href="../../../media/icon.ico" />
+    <link rel="icon" type="image/webp" href="../../../media/icon.webp" />
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@300..700&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        fredoka: ['Fredoka', 'sans-serif'],
+                        nunito: ['Nunito', 'sans-serif'],
+                    },
+                    colors: {
+                        pink: '#ff4785',
+                        orange: '#ff7e33',
+                        green: '#00d063',
+                        blue: '#1ea7fd',
+                    },
+                    borderWidth: {
+                        '3': '3px',
+                    },
+                    boxShadow: {
+                        'sm': 'var(--shadow-sm)',
+                        'md': 'var(--shadow-md)',
+                        'lg': 'var(--shadow-lg)',
+                        'xl': 'var(--shadow-xl)',
+                        'inner': 'inset 0 2px 4px 0 rgb(0 0 0 / 0.05)'
+                    },
+                    animation: {
+                        'slide-up': 'slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
+                        'pop-in': 'pop-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                        'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    },
+                    keyframes: {
+                        slideUp: {
+                            '0%': { transform: 'translateY(30px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <link rel="stylesheet" href="../../../css/base.css" />
+    <link rel="stylesheet" href="../../../css/components.css" />
+    <script>
+        window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    </script>
+    <script defer src="/_vercel/insights/script.js"></script>
+</head>
+
+<body class="font-nunito text-slate-800 min-h-screen flex flex-col selection:bg-pink selection:text-white dark:bg-slate-900 dark:text-white transition-colors duration-300">
+
+    <header class="bg-white dark:bg-slate-800 border-b-4 border-slate-800 dark:border-slate-500 px-6 py-4 sticky top-0 z-50 shadow-sm">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="initGame()">
+                <div class="bg-pink p-2 rounded-xl border-3 border-slate-800 dark:border-slate-500 shadow-sm transform -rotate-3">
+                    <i data-lucide="graduation-cap" class="text-white w-6 h-6"></i>
+                </div>
+                <span class="font-fredoka font-bold text-2xl tracking-wide hidden sm:block uppercase tracking-[0.05em]">KlassKit</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <button onclick="toggleTeacherView()" class="bg-orange text-white px-3 py-2 rounded-lg border-2 border-slate-800 dark:border-slate-500 shadow-sm btn-chunky" title="Teacher Eyes Only">
+                    <i data-lucide="eye" class="w-5 h-5"></i>
+                </button>
+                <button onclick="toggleTheme()" class="bg-slate-800 dark:bg-slate-700 text-white px-3 py-2 rounded-lg border-2 border-slate-800 dark:border-slate-500 shadow-sm btn-chunky" title="Toggle Dark Mode">
+                    <i data-lucide="moon" class="w-5 h-5 block dark:hidden"></i>
+                    <i data-lucide="sun" class="w-5 h-5 hidden dark:block"></i>
+                </button>
+                <button onclick="initGame()" class="font-fredoka font-bold text-sm bg-blue text-white px-4 py-2 rounded-lg border-2 border-slate-800 dark:border-slate-500 shadow-sm btn-chunky uppercase tracking-[0.05em]">
+                    <i data-lucide="home" class="w-4 h-4 inline mr-1"></i> Home
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main id="app" class="flex-grow container mx-auto px-4 py-8 flex flex-col items-center justify-start max-w-4xl"></main>
+
+    <div id="teacherModal" class="fixed inset-0 z-[60] hidden flex-col items-center justify-center bg-slate-800/90 backdrop-blur-md p-4">
+        <div class="bg-white border-4 border-slate-800 dark:border-slate-500 rounded-3xl shadow-lg max-w-2xl w-full flex flex-col max-h-[90vh]">
+            <div class="p-6 border-b-4 border-slate-800 dark:border-slate-500 bg-slate-50 rounded-t-3xl flex justify-between items-center">
+                <h2 class="font-fredoka text-3xl font-black text-slate-800 flex items-center gap-2 uppercase tracking-[0.05em]">
+                    <i data-lucide="glasses" class="text-blue"></i> Teacher View
+                </h2>
+                <button onclick="toggleTeacherView()" class="bg-pink text-white p-2 rounded-xl border-3 border-slate-800 dark:border-slate-500 shadow-sm hover:scale-95 transition">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <div class="p-8 overflow-y-auto">
+                <div class="bg-yellow-100 dark:bg-yellow-900/30 border-3 border-yellow-500 text-yellow-800 dark:text-yellow-200 p-4 rounded-xl mb-6 font-bold text-center">
+                    <i data-lucide="alert-triangle" class="inline w-5 h-5 mb-1 mr-1"></i>
+                    Hover over the blurred area below to reveal answers. <br>Ensure projector is FREEZE or OFF if mirroring screen!
+                </div>
+
+                <div class="blur-md transition-all cursor-pointer hover:blur-none active:blur-none bg-slate-100 dark:bg-slate-700 p-6 rounded-2xl border-3 border-dashed border-slate-400 dark:border-slate-500">
+                    <h3 class="font-black text-xl mb-4 text-center underline decoration-wavy decoration-pink">CURRENT GAME STATE</h3>
+                    <div id="teacherContent" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const WORD_PAIRS = [
+            // School & Education
+            ["School", "University"], ["Teacher", "Professor"], ["Student", "Pupil"],
+            ["Pen", "Pencil"], ["Notebook", "Textbook"], ["Library", "Bookstore"],
+            ["Eraser", "Whiteout"], ["Homework", "Assignment"], ["Recess", "Break"],
+            ["Math", "Physics"], ["Exam", "Quiz"], ["Desk", "Table"],
+            // Food & Drink
+            ["Apple", "Pear"], ["Coffee", "Tea"], ["Burger", "Sandwich"],
+            ["Pizza", "Pasta"], ["Cake", "Pie"], ["Cookie", "Biscuit"],
+            ["Chocolate", "Candy"], ["Lemon", "Lime"], ["Soup", "Stew"],
+            ["Breakfast", "Lunch"], ["Fork", "Spoon"], ["Water", "Soda"],
+            ["Rice", "Noodle"], ["Chicken", "Duck"], ["Milk", "Yogurt"],
+            ["Salt", "Sugar"], ["Ketchup", "Mustard"], ["Butter", "Cheese"],
+            ["Strawberry", "Raspberry"], ["Orange", "Tangerine"],
+            // Animals
+            ["Cat", "Dog"], ["Tiger", "Lion"], ["Horse", "Donkey"],
+            ["Eagle", "Falcon"], ["Shark", "Whale"], ["Frog", "Toad"],
+            ["Butterfly", "Moth"], ["Bee", "Wasp"], ["Rabbit", "Hare"],
+            ["Turtle", "Tortoise"], ["Crocodile", "Alligator"], ["Dolphin", "Porpoise"],
+            ["Monkey", "Gorilla"], ["Snake", "Lizard"], ["Wolf", "Fox"],
+            // Objects & Tech
+            ["Laptop", "Tablet"], ["iPhone", "Samsung"], ["Mouse", "Trackpad"],
+            ["Headphones", "Earbuds"], ["Facebook", "Instagram"], ["Youtube", "TikTok"],
+            ["Car", "Bus"], ["Motorcycle", "Bicycle"], ["Train", "Subway"],
+            ["Helicopter", "Airplane"], ["Boat", "Ship"], ["Clock", "Watch"],
+            ["Glass", "Cup"], ["Door", "Gate"], ["Key", "Password"],
+            ["Shoes", "Sandals"], ["Hat", "Cap"], ["Glasses", "Sunglasses"],
+            // Concepts & Feelings
+            ["Happy", "Excited"], ["Sad", "Depressed"], ["Angry", "Annoyed"],
+            ["Love", "Like"], ["Run", "Jog"], ["Walk", "Stroll"],
+            ["Sing", "Hum"], ["Laugh", "Smile"], ["Cry", "Sob"],
+            ["King", "President"], ["Queen", "Princess"], ["Ghost", "Zombie"],
+            ["Vampire", "Werewolf"], ["Angel", "Fairy"], ["Hero", "Villain"],
+            // Places & Nature
+            ["Beach", "Pool"], ["River", "Lake"], ["Ocean", "Sea"],
+            ["Mountain", "Hill"], ["Forest", "Jungle"], ["City", "Town"],
+            ["Sun", "Moon"], ["Star", "Planet"], ["Rain", "Snow"],
+            ["Summer", "Spring"], ["Winter", "Autumn"], ["Cinema", "Netflix"],
+            ["Park", "Garden"], ["Hotel", "Motel"], ["Kitchen", "Restaurant"],
+            // Sports & Hobbies
+            ["Soccer", "Basketball"], ["Tennis", "Badminton"], ["Swimming", "Diving"],
+            ["Guitar", "Violin"], ["Piano", "Keyboard"], ["Painting", "Drawing"],
+            ["Chess", "Checkers"], ["Video Game", "Board Game"], ["Running", "Hiking"]
+        ];
+
+        const savedConfig = localStorage.getItem('undercoverConfig');
+        const defaultConfig = {
+            playerNames: [],
+            spies: 1,
+            mrWhite: 0,
+            wordMode: 'random', // 'random', 'custom', 'multi'
+            customWord1: '',
+            customWord2: '',
+            multiCivWords: '',
+            multiSpyWord: ''
+        };
+
+        let parsedConfig = savedConfig ? JSON.parse(savedConfig) : defaultConfig;
+
+        // Migration from old setup structure
+        if (parsedConfig.useCustomWords !== undefined) {
+            parsedConfig.wordMode = parsedConfig.useCustomWords ? 'custom' : 'random';
+            delete parsedConfig.useCustomWords;
+        }
+        if (!parsedConfig.multiCivWords) parsedConfig.multiCivWords = '';
+        if (!parsedConfig.multiSpyWord) parsedConfig.multiSpyWord = '';
+
+        const state = {
+            screen: 'instructions',
+            lastScreen: null,
+            timer: null,
+            timeLeft: 0,
+            usedIndices: [],
+            config: parsedConfig,
+            game: {
+                players: [],
+                currentTurnIndex: 0,
+                civWord: '',
+                spyWord: '',
+                eliminatedPlayer: null,
+                winner: ''
+            }
+        };
+
+        async function initGame() {
+            await requireAuth();
+            
+            // Load Cloud Config
+            const cloudConfig = await loadProgress('undercover');
+            if (cloudConfig) {
+                state.config = { ...state.config, ...cloudConfig };
+                
+                // Keep localStorage in sync for fast loading/fallback
+                localStorage.setItem('undercoverConfig', JSON.stringify(state.config));
+            }
+            
+            setScreen('instructions');
+        }
+
+        function setScreen(screenName) {
+            state.lastScreen = state.screen;
+            state.screen = screenName;
+            render();
+        }
+
+        function toggleTeacherView() {
+            const modal = document.getElementById('teacherModal');
+            const content = document.getElementById('teacherContent');
+
+            if (modal.classList.contains('hidden')) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+
+                if (state.game.players.length === 0) {
+                    content.innerHTML = '<p class="col-span-2 text-center font-bold text-slate-400">Game has not started yet.</p>';
+                } else {
+                    let html = state.game.players.map(p => {
+                        let color = 'text-blue';
+                        if (p.role === 'Undercover') color = 'text-pink';
+                        if (p.role === 'Mr. White') color = 'text-orange';
+
+                        return `
+                            <div class="bg-white dark:bg-slate-700 border-2 border-slate-800 dark:border-slate-500 p-3 rounded-lg shadow-sm flex justify-between items-center">
+                                <span class="font-bold text-slate-800 dark:text-white">${p.name}</span>
+                                <div class="text-right">
+                                    <div class="text-xs font-black uppercase ${color}">${p.role}</div>
+                                    <div class="text-sm font-bold text-slate-500 dark:text-slate-300 break-words max-w-[150px]">${p.word}</div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+
+                    let displayCivWord = state.config.wordMode === 'multi' ? "Multiple Words" : state.game.civWord;
+                    
+                    content.innerHTML = `
+                        <div class="col-span-2 text-center mb-2 flex flex-col items-center gap-1">
+                            <span class="bg-blue text-white px-2 py-1 rounded text-xs font-bold max-w-full break-words">Civilian: ${displayCivWord}</span>
+                            <span class="bg-pink text-white px-2 py-1 rounded text-xs font-bold max-w-full break-words">Spy: ${state.game.spyWord}</span>
+                        </div>
+                        ${html}
+                    `;
+                }
+            } else {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
+        function startGame() {
+            let civWordsPool = [];
+            
+            if (state.config.wordMode === 'custom' && state.config.customWord1 && state.config.customWord2) {
+                state.game.civWord = state.config.customWord1;
+                state.game.spyWord = state.config.customWord2;
+                if (Math.random() > 0.5) {
+                    [state.game.civWord, state.game.spyWord] = [state.game.spyWord, state.game.civWord];
+                }
+            } else if (state.config.wordMode === 'multi') {
+                const allCivWords = state.config.multiCivWords.split(',').map(w => w.trim()).filter(w => w);
+                civWordsPool = [...allCivWords];
+                civWordsPool.sort(() => Math.random() - 0.5); 
+                state.game.spyWord = state.config.multiSpyWord;
+                state.game.civWord = allCivWords.join(', '); 
+            } else {
+                let availableIndices = WORD_PAIRS.map((_, i) => i).filter(i => !state.usedIndices.includes(i));
+                if (availableIndices.length === 0) {
+                    state.usedIndices = [];
+                    availableIndices = WORD_PAIRS.map((_, i) => i);
+                }
+                const randomIndex = Math.floor(Math.random() * availableIndices.length);
+                const selectedPairIndex = availableIndices[randomIndex];
+                state.usedIndices.push(selectedPairIndex);
+
+                const pair = WORD_PAIRS[selectedPairIndex];
+                const flip = Math.random() > 0.5;
+                state.game.civWord = flip ? pair[0] : pair[1];
+                state.game.spyWord = flip ? pair[1] : pair[0];
+            }
+
+            let total = state.config.playerNames.length;
+            let roles = Array(total).fill('Civilian');
+            let spyCount = state.config.spies;
+            let whiteCount = state.config.mrWhite;
+
+            let indices = Array.from({ length: total }, (_, i) => i);
+            indices.sort(() => Math.random() - 0.5); 
+
+            for (let i = 0; i < spyCount; i++) roles[indices.pop()] = 'Undercover';
+            for (let i = 0; i < whiteCount; i++) roles[indices.pop()] = 'Mr. White';
+
+            state.game.players = state.config.playerNames.map((name, idx) => {
+                let word = '???';
+                if (roles[idx] === 'Civilian') {
+                    if (state.config.wordMode === 'multi') {
+                        word = civWordsPool.length > 0 ? civWordsPool.shift() : 'No Word Assigned';
+                    } else {
+                        word = state.game.civWord;
+                    }
+                } else if (roles[idx] === 'Undercover') {
+                    word = state.game.spyWord;
+                }
+                return {
+                    id: idx,
+                    name: name,
+                    role: roles[idx],
+                    word: word,
+                    isAlive: true,
+                    avatarId: idx % 6
+                };
+            });
+
+            state.game.players.sort(() => Math.random() - 0.5);
+
+            state.game.currentTurnIndex = 0;
+            state.game.winner = null;
+            setScreen('pass');
+        }
+
+        function startTimer(seconds) {
+            clearInterval(state.timer);
+            state.timeLeft = seconds;
+            renderTimer();
+            state.timer = setInterval(() => {
+                state.timeLeft--;
+                renderTimer();
+                if (state.timeLeft <= 0) {
+                    clearInterval(state.timer);
+                    document.getElementById('timerDisplay').classList.add('animate-pulse-fast', 'text-red-500');
+                }
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(state.timer);
+            state.timeLeft = 0;
+            renderTimer();
+        }
+
+        function renderTimer() {
+            const el = document.getElementById('timerDisplay');
+            if (el) {
+                const mins = Math.floor(state.timeLeft / 60);
+                const secs = state.timeLeft % 60;
+                el.innerText = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+            }
+        }
+
+        function handleEliminate(playerIdx) {
+            stopTimer(); 
+            const player = state.game.players[playerIdx];
+            state.game.eliminatedPlayer = player;
+
+            if (player.role === 'Mr. White') {
+                setScreen('mrwhite');
+            } else {
+                finalizeElimination(player, false);
+            }
+        }
+
+        function finalizeElimination(player, mrWhiteGuessedCorrectly) {
+            const pIndex = state.game.players.findIndex(p => p.id === player.id);
+            state.game.players[pIndex].isAlive = false;
+
+            const alive = state.game.players.filter(p => p.isAlive);
+            const badGuys = alive.filter(p => p.role === 'Undercover' || p.role === 'Mr. White');
+
+            if (mrWhiteGuessedCorrectly) {
+                state.game.winner = "Mr. White Wins!";
+                setScreen('gameover');
+                return;
+            }
+
+            if (badGuys.length === 0) {
+                state.game.winner = "Civilians Win!";
+                setScreen('gameover');
+                return;
+            }
+
+            if (alive.length <= 2 && badGuys.length > 0) {
+                state.game.winner = "Spies / Mr. White Win!";
+                setScreen('gameover');
+                return;
+            }
+
+            setScreen('discussion');
+        }
+
+        function render() {
+            const app = document.getElementById('app');
+            app.innerHTML = '';
+
+            const wrapper = document.createElement('div');
+            const isTransition = state.screen !== state.lastScreen;
+            wrapper.className = `w-full ${isTransition ? 'animate-slide-up' : ''} flex flex-col items-center`;
+
+            if (state.screen === 'instructions') wrapper.innerHTML = getInstructionsHTML();
+            else if (state.screen === 'setup') wrapper.innerHTML = getSetupHTML();
+            else if (state.screen === 'pass') wrapper.innerHTML = getPassHTML();
+            else if (state.screen === 'reveal') wrapper.innerHTML = getRevealHTML();
+            else if (state.screen === 'discussion') wrapper.innerHTML = getDiscussionHTML();
+            else if (state.screen === 'mrwhite') wrapper.innerHTML = getMrWhiteHTML();
+            else if (state.screen === 'gameover') wrapper.innerHTML = getGameOverHTML();
+
+            app.appendChild(wrapper);
+            lucide.createIcons();
+
+            if (state.screen === 'setup') {
+                document.getElementById('playerNameInput')?.focus();
+            }
+
+            state.lastScreen = state.screen;
+        }
+
+        function getInstructionsHTML() {
+            return `
+                <div class="text-center mb-10">
+                    <h1 class="font-fredoka text-6xl font-black text-slate-800 dark:text-white mb-2 tracking-tight uppercase tracking-[0.05em]">Undercover</h1>
+                    <p class="text-slate-500 dark:text-slate-400 font-bold text-xl uppercase tracking-widest">Undercover Edition</p>
+                </div>
+                <div class="bg-white dark:bg-slate-800 border-4 border-slate-800 dark:border-slate-500 rounded-3xl shadow-md p-8 mb-10 w-full">
+                    <h2 class="font-fredoka text-3xl font-bold mb-6 flex items-center gap-3 uppercase tracking-[0.05em]">
+                        <i data-lucide="users" class="text-blue w-8 h-8"></i> The Roles
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="p-5 bg-blue-50 dark:bg-blue-900/20 border-3 border-slate-800 dark:border-slate-500 rounded-2xl">
+                            <div class="flex items-center gap-2 mb-2">
+                                <i data-lucide="user-check" class="text-blue w-5 h-5"></i>
+                                <h4 class="font-fredoka text-xl font-bold text-blue uppercase">Civilian</h4>
+                            </div>
+                            <p class="text-sm font-bold text-slate-600 dark:text-slate-300 leading-tight">Most players. You have the <span class="text-slate-800 dark:text-white underline decoration-2">true secret word</span>.</p>
+                        </div>
+                        <div class="p-5 bg-pink-50 dark:bg-pink-900/20 border-3 border-slate-800 dark:border-slate-500 rounded-2xl">
+                            <div class="flex items-center gap-2 mb-2">
+                                <i data-lucide="eye-off" class="text-pink w-5 h-5"></i>
+                                <h4 class="font-fredoka text-xl font-bold text-pink uppercase">Undercover</h4>
+                            </div>
+                            <p class="text-sm font-bold text-slate-600 dark:text-slate-300 leading-tight">You have a word that is <span class="text-slate-800 dark:text-white underline decoration-2">almost same</span> as Civilians. Blend in!</p>
+                        </div>
+                        <div class="p-5 bg-orange-50 dark:bg-orange-900/20 border-3 border-slate-800 dark:border-slate-500 rounded-2xl">
+                            <div class="flex items-center gap-2 mb-2">
+                                <i data-lucide="ghost" class="text-orange w-5 h-5"></i>
+                                <h4 class="font-fredoka text-xl font-bold text-orange uppercase">Mr. White</h4>
+                            </div>
+                            <p class="text-sm font-bold text-slate-600 dark:text-slate-300 leading-tight">You have <span class="text-slate-800 dark:text-white underline decoration-2">NO word</span>. Guess the topic!</p>
+                        </div>
+                    </div>
+                </div>
+                <button onclick="setScreen('setup')" class="w-full bg-green text-white font-fredoka font-bold text-3xl py-6 rounded-2xl border-4 border-slate-800 dark:border-slate-500 shadow-lg btn-chunky flex justify-center items-center gap-4 uppercase tracking-[0.05em]">
+                    Got it, Let's Setup! <i data-lucide="arrow-right" class="w-8 h-8"></i>
+                </button>
+            `;
+        }
+
+        function getSetupHTML() {
+            const namesList = state.config.playerNames.map((name, i) => `
+                <div class="flex items-center justify-between bg-white dark:bg-slate-700 border-3 hover:scale-105 transition-transform hover:-rotate-1 border-slate-800 dark:border-slate-500 rounded-xl px-4 py-2 shadow-sm animate-pop-in">
+                    <span class="font-bold text-slate-800 dark:text-white">${name}</span>
+                    <button onclick="removeName(${i})" class="bg-pink text-white p-1 rounded-lg border-2 border-slate-800 dark:border-slate-500 hover:bg-red-500 transition-colors">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            `).join('');
+
+            let canStart = state.config.playerNames.length >= 3;
+            let startMsg = "START LESSON!";
+            
+            if (!canStart) {
+                startMsg = "Need 3+ Players";
+            } else if (state.config.wordMode === 'multi') {
+                let civWordsList = state.config.multiCivWords.split(',').map(w => w.trim()).filter(w => w);
+                let civCount = state.config.playerNames.length - state.config.spies - state.config.mrWhite;
+                if (civWordsList.length < civCount) {
+                    canStart = false;
+                    startMsg = `Need ${civCount} Civ Words`;
+                } else if (!state.config.multiSpyWord.trim()) {
+                    canStart = false;
+                    startMsg = "Need Spy Word";
+                }
+            } else if (state.config.wordMode === 'custom') {
+                if (!state.config.customWord1.trim() || !state.config.customWord2.trim()) {
+                    canStart = false;
+                    startMsg = "Missing Words";
+                }
+            }
+
+            return `
+                <div class="text-center mb-8">
+                    <h1 class="font-fredoka text-5xl font-black text-slate-800 dark:text-white mb-2 uppercase tracking-[0.05em]">Class Setup</h1>
+                    <p class="text-slate-500 dark:text-slate-400 font-bold">Add students and choose words</p>
+                </div>
+                
+                <div class="bg-white dark:bg-slate-800 w-full border-4 border-slate-800 dark:border-slate-500 rounded-3xl shadow-md p-8 relative mb-8">
+                    <div class="mb-10">
+                        <label class="font-fredoka text-2xl font-bold mb-4 flex items-center gap-3 text-blue uppercase tracking-[0.05em]">
+                            <i data-lucide="user-plus" class="w-8 h-8"></i> Add Students
+                        </label>
+                        <div class="flex gap-4 mb-6">
+                            <input type="text" id="playerNameInput" placeholder="Name..." 
+                                onkeydown="if(event.key==='Enter') addName()"
+                                class="flex-grow bg-slate-50 dark:bg-slate-900 border-4 border-slate-800 dark:border-slate-500 rounded-2xl px-6 py-4 font-black text-xl text-slate-800 dark:text-white focus:outline-none focus:ring-4 focus:ring-blue/20 transition-all placeholder:text-slate-300 dark:placeholder:text-slate-600">
+                            <button onclick="addName()" class="bg-blue text-white px-8 rounded-2xl border-4 border-slate-800 dark:border-slate-500 shadow-sm btn-chunky font-fredoka font-bold text-xl uppercase tracking-[0.05em]">ADD</button>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-40 overflow-y-auto p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border-3 border-dashed border-slate-300 dark:border-slate-600 custom-scrollbar">
+                            ${namesList || '<p class="col-span-2 text-center py-6 text-slate-400 dark:text-slate-500 font-bold italic">No students joined yet...</p>'}
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="space-y-4">
+                            <div class="p-4 bg-pink-50 dark:bg-pink-900/20 rounded-2xl border-4 border-slate-800 dark:border-slate-500 shadow-sm">
+                                <div class="flex justify-between items-center mb-2">
+                                    <label class="font-fredoka font-bold flex items-center gap-2 uppercase tracking-[0.05em]"><i data-lucide="user-x" class="w-4 h-4"></i> Spies</label>
+                                    <span class="bg-pink text-white px-3 py-1 rounded-lg border-2 border-slate-800 dark:border-slate-500 font-black">${state.config.spies}</span>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button onclick="adjustConfig('spies', -1)" class="flex-1 bg-white dark:bg-slate-700 border-2 border-slate-800 dark:border-slate-500 rounded-lg py-1 font-black hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors">-</button>
+                                    <button onclick="adjustConfig('spies', 1)" class="flex-1 bg-white dark:bg-slate-700 border-2 border-slate-800 dark:border-slate-500 rounded-lg py-1 font-black hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors">+</button>
+                                </div>
+                            </div>
+                            <div class="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-2xl border-4 border-slate-800 dark:border-slate-500 shadow-sm">
+                                <div class="flex justify-between items-center mb-2">
+                                    <label class="font-fredoka font-bold flex items-center gap-2 uppercase tracking-[0.05em]"><i data-lucide="ghost" class="w-4 h-4"></i> Mr. White</label>
+                                    <span class="bg-orange text-white px-3 py-1 rounded-lg border-2 border-slate-800 dark:border-slate-500 font-black">${state.config.mrWhite}</span>
+                                </div>
+                                <div class="flex gap-2">
+                                    <button onclick="adjustConfig('mrWhite', -1)" class="flex-1 bg-white dark:bg-slate-700 border-2 border-slate-800 dark:border-slate-500 rounded-lg py-1 font-black hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors">-</button>
+                                    <button onclick="adjustConfig('mrWhite', 1)" class="flex-1 bg-white dark:bg-slate-700 border-2 border-slate-800 dark:border-slate-500 rounded-lg py-1 font-black hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors">+</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="p-5 bg-slate-50 dark:bg-slate-700 rounded-2xl border-4 border-slate-800 dark:border-slate-500 shadow-sm flex flex-col justify-center">
+                            <label class="font-fredoka text-xl font-bold mb-4 flex items-center gap-2 uppercase tracking-[0.05em]">
+                                <i data-lucide="book-open" class="text-green"></i> Word Source
+                            </label>
+                            
+                            <div class="flex bg-white dark:bg-slate-800 rounded-xl border-3 border-slate-800 dark:border-slate-500 p-1 mb-4 text-sm">
+                                <button onclick="setWordMode('random')" class="flex-1 py-2 rounded-lg font-bold transition-all ${state.config.wordMode === 'random' ? 'bg-green text-white shadow-sm' : 'text-slate-400 dark:text-slate-500 hover:text-slate-800 dark:hover:text-white'}">Random</button>
+                                <button onclick="setWordMode('custom')" class="flex-1 py-2 rounded-lg font-bold transition-all ${state.config.wordMode === 'custom' ? 'bg-blue text-white shadow-sm' : 'text-slate-400 dark:text-slate-500 hover:text-slate-800 dark:hover:text-white'}">Pair</button>
+                                <button onclick="setWordMode('multi')" class="flex-1 py-2 rounded-lg font-bold transition-all ${state.config.wordMode === 'multi' ? 'bg-orange text-white shadow-sm' : 'text-slate-400 dark:text-slate-500 hover:text-slate-800 dark:hover:text-white'}">Multi</button>
+                            </div>
+
+                            ${state.config.wordMode === 'custom' ? `
+                                <div class="flex flex-col gap-2 animate-pop-in">
+                                    <input type="text" id="customWord1" placeholder="Civilian Word (e.g. Tea)" onchange="state.config.customWord1 = this.value; saveConfig(); render();" value="${state.config.customWord1}" class="w-full bg-slate-50 dark:bg-slate-900 border-3 border-slate-800 dark:border-slate-500 rounded-xl px-3 py-2 font-bold focus:outline-none focus:border-blue dark:focus:border-blue text-slate-800 dark:text-white placeholder:text-slate-300 dark:placeholder:text-slate-600 transition-colors">
+                                    <input type="text" id="customWord2" placeholder="Spy Word (e.g. Coffee)" onchange="state.config.customWord2 = this.value; saveConfig(); render();" value="${state.config.customWord2}" class="w-full bg-slate-50 dark:bg-slate-900 border-3 border-slate-800 dark:border-slate-500 rounded-xl px-3 py-2 font-bold focus:outline-none focus:border-pink dark:focus:border-pink text-slate-800 dark:text-white placeholder:text-slate-300 dark:placeholder:text-slate-600 transition-colors">
+                                </div>
+                            ` : ''}
+
+                            ${state.config.wordMode === 'multi' ? `
+                                <div class="flex flex-col gap-2 animate-pop-in">
+                                    <textarea id="multiCivWords" placeholder="Civ Words (comma-separated: Apple, Pear)" onchange="state.config.multiCivWords = this.value; saveConfig(); render();" rows="2" class="w-full bg-slate-50 dark:bg-slate-900 border-3 border-slate-800 dark:border-slate-500 rounded-xl px-3 py-2 font-bold focus:outline-none focus:border-blue dark:focus:border-blue text-slate-800 dark:text-white placeholder:text-slate-300 dark:placeholder:text-slate-600 transition-colors custom-scrollbar">${state.config.multiCivWords}</textarea>
+                                    <input type="text" id="multiSpyWord" placeholder="Spy Word (e.g. Tomato)" onchange="state.config.multiSpyWord = this.value; saveConfig(); render();" value="${state.config.multiSpyWord}" class="w-full bg-slate-50 dark:bg-slate-900 border-3 border-slate-800 dark:border-slate-500 rounded-xl px-3 py-2 font-bold focus:outline-none focus:border-pink dark:focus:border-pink text-slate-800 dark:text-white placeholder:text-slate-300 dark:placeholder:text-slate-600 transition-colors">
+                                </div>
+                            ` : ''}
+
+                            ${state.config.wordMode === 'random' ? `
+                                <div class="text-center py-4 opacity-50 font-bold text-slate-500 dark:text-slate-300 animate-pop-in">
+                                    Words will be chosen randomly from category list.
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+
+                    <button onclick="startGame()" ${!canStart ? 'disabled' : ''} 
+                        class="w-full mt-8 bg-green text-white font-fredoka font-bold text-3xl py-6 rounded-2xl border-4 border-slate-800 dark:border-slate-500 shadow-md btn-chunky flex justify-center items-center gap-4 transition-all uppercase tracking-[0.05em] ${!canStart ? 'opacity-50 cursor-not-allowed' : ''}">
+                        ${startMsg}
+                        <i data-lucide="sparkles" class="w-8 h-8"></i>
+                    </button>
+                </div>
+            `;
+        }
+
+        function getPassHTML() {
+            const player = state.game.players[state.game.currentTurnIndex];
+            const colors = ['bg-blue', 'bg-pink', 'bg-orange', 'bg-green'];
+            const color = colors[state.game.currentTurnIndex % colors.length];
+
+            return `
+                <div class="flex flex-col items-center justify-center min-h-[50vh] gap-8 w-full">
+                    <div class="bg-white dark:bg-slate-800 border-4 border-slate-800 dark:border-slate-500 rounded-3xl shadow-lg p-12 text-center max-w-md w-full relative">
+                        <div class="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-slate-800 dark:bg-slate-700 text-white px-6 py-2 rounded-full font-bold text-sm border-4 border-white dark:border-slate-800">
+                            Turn ${state.game.currentTurnIndex + 1} / ${state.game.players.length}
+                        </div>
+                        
+                        <div class="w-32 h-32 ${color} border-4 border-slate-800 dark:border-slate-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-md">
+                            <i data-lucide="user" class="text-white w-16 h-16"></i>
+                        </div>
+                        
+                        <h2 class="font-fredoka text-3xl font-bold mb-2 text-slate-400 dark:text-slate-500 uppercase tracking-[0.05em]">Pass to...</h2>
+                        <h2 class="font-fredoka text-6xl font-black mb-10 text-blue tracking-tight uppercase tracking-[0.05em]">${player.name}</h2>
+                        
+                        <div class="bg-slate-100 dark:bg-slate-900/50 border-4 border-dashed border-slate-300 dark:border-slate-600 rounded-3xl p-6 mb-10">
+                             <p class="text-slate-500 dark:text-slate-400 font-black text-xl flex items-center justify-center gap-3">
+                                <i data-lucide="lock" class="w-6 h-6 text-green"></i> Privacy First!
+                             </p>
+                        </div>
+                        
+                        <button onclick="setScreen('reveal')" class="w-full bg-slate-800 dark:bg-slate-700 text-white font-fredoka font-bold text-2xl py-6 rounded-2xl border-4 border-slate-800 dark:border-slate-500 shadow-md hover:bg-slate-700 dark:hover:bg-slate-600 transition-colors btn-chunky flex justify-center items-center gap-4 uppercase tracking-[0.05em]">
+                            <i data-lucide="eye" class="w-8 h-8"></i> REVEAL WORD
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function getRevealHTML() {
+            const player = state.game.players[state.game.currentTurnIndex];
+            const isWhite = player.role === 'Mr. White';
+            const isSpy = player.role === 'Undercover';
+
+            let cardBg = 'bg-blue-50 dark:bg-blue-900/20', borderColor = 'border-blue dark:border-blue-400', icon = 'user-check', roleColor = 'text-blue dark:text-blue-400';
+
+            if (isSpy) { cardBg = 'bg-pink-50 dark:bg-pink-900/20'; borderColor = 'border-pink dark:border-pink-400'; icon = 'eye-off'; roleColor = 'text-pink dark:text-pink-400'; }
+            else if (isWhite) { cardBg = 'bg-orange-50 dark:bg-orange-900/20'; borderColor = 'border-orange dark:border-orange-400'; icon = 'ghost'; roleColor = 'text-orange dark:text-orange-400'; }
+
+            let content = '';
+            if (isWhite) {
+                content = `
+                    <div class="flex flex-col items-center gap-6 mb-10">
+                        <div class="w-32 h-32 bg-white dark:bg-slate-800 rounded-3xl border-4 border-orange flex items-center justify-center shadow-sm mb-4 transform -rotate-3">
+                            <i data-lucide="ghost" class="w-16 h-16 text-orange dark:text-orange-400"></i>
+                        </div>
+                        <h1 class="font-fredoka text-5xl font-black text-slate-800 dark:text-white leading-none uppercase tracking-[0.05em]">You are<br><span class="text-orange dark:text-orange-400">Mr. White</span></h1>
+                        <p class="text-lg font-black text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 p-6 rounded-2xl border-3 border-dashed border-orange dark:border-orange-400 shadow-sm">You have NO WORD! Blend in and guess the civilian word to win.</p>
+                    </div>
+                `;
+            } else {
+                let wordSize = player.word.length > 12 ? 'text-4xl sm:text-5xl' : 'text-5xl sm:text-6xl';
+                content = `
+                    <div class="flex flex-col items-center gap-6 mb-10">
+                        <p class="font-fredoka text-xl font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Secret Word</p>
+                        <div class="bg-white dark:bg-slate-800 border-6 ${borderColor} rounded-3xl px-8 py-10 shadow-lg transform -rotate-2 mb-4 w-full break-words">
+                            <h1 class="font-fredoka ${wordSize} font-black text-slate-800 dark:text-white tracking-tight uppercase tracking-[0.05em]">
+                                ${player.word}
+                            </h1>
+                        </div>
+                        <div class="flex items-center gap-3 px-6 py-3 bg-white dark:bg-slate-800 border-3 ${borderColor} rounded-full shadow-sm">
+                            <i data-lucide="${icon}" class="${roleColor} w-6 h-6"></i>
+                            <span class="font-black text-xl ${roleColor}">THE ${player.role.toUpperCase()}</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="flex flex-col items-center justify-center min-h-[50vh] gap-8 w-full animate-pop-in">
+                    <div class="${cardBg} border-4 border-slate-800 dark:border-slate-500 rounded-3xl shadow-lg p-12 text-center max-w-lg w-full relative overflow-hidden">
+                        <div class="absolute -top-10 -right-10 opacity-5"><i data-lucide="${icon}" class="w-64 h-64"></i></div>
+                        <h3 class="font-fredoka text-2xl text-slate-800 dark:text-white mb-10 opacity-30 font-black uppercase tracking-widest">${player.name}'s Identity</h3>
+                        ${content}
+                        <button onclick="nextTurn()" class="relative z-10 w-full bg-slate-800 dark:bg-slate-700 text-white font-fredoka font-bold text-2xl py-6 rounded-2xl border-4 border-slate-800 dark:border-slate-500 shadow-md hover:bg-slate-700 dark:hover:bg-slate-600 transition-colors btn-chunky uppercase tracking-[0.05em]">
+                            GOT IT!
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function getDiscussionHTML() {
+            let playersGrid = state.game.players.map((p, idx) => {
+                const isDead = !p.isAlive;
+                const colors = ['bg-blue', 'bg-pink', 'bg-orange', 'bg-green', 'bg-purple-500', 'bg-yellow-400'];
+                const color = colors[idx % colors.length];
+
+                return `
+                <div class="relative bg-white dark:bg-slate-700 border-4 border-slate-800 dark:border-slate-500 rounded-2xl p-4 flex flex-col items-center text-center transition-all ${isDead ? 'opacity-40 grayscale bg-slate-100 dark:bg-slate-800 scale-95' : 'hub-card hover:scale-[1.02] active:scale-95'}">
+                    ${isDead ? `<div class="absolute inset-0 z-20 flex items-center justify-center pointer-events-none rotate-12"><div class="border-4 border-slate-800 dark:border-slate-500 text-white bg-pink font-black text-sm px-4 py-2 shadow-sm">OUT!</div></div>` : ''}
+                    <div class="w-16 h-16 rounded-2xl border-3 border-slate-800 dark:border-slate-500 mb-3 flex items-center justify-center text-3xl font-black text-white ${color} shadow-sm">${p.name.charAt(0)}</div>
+                    <h3 class="font-black text-slate-800 dark:text-white text-lg break-words w-full font-fredoka tracking-tight mb-4 uppercase tracking-[0.05em]">${p.name}</h3>
+                    ${!isDead ? `<button onclick="handleEliminate(${idx})" class="mt-auto w-full bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-black py-2 rounded-xl border-3 border-slate-800 dark:border-slate-500 shadow-sm hover:bg-orange dark:hover:bg-orange hover:text-white dark:hover:text-white transition-all">ELIMINATE</button>` : `<div class="h-8"></div>`}
+                </div>
+            `}).join('');
+
+            return `
+                <div class="w-full">
+                    <div class="flex flex-col sm:flex-row justify-between items-center mb-8 gap-6">
+                        <div class="flex items-center gap-4">
+                            <div class="bg-orange text-white p-3 rounded-2xl border-4 border-slate-800 dark:border-slate-500 shadow-md transform rotate-6">
+                                <i data-lucide="message-circle" class="w-8 h-8"></i>
+                            </div>
+                            <div>
+                                <h2 class="font-fredoka text-5xl font-black text-slate-800 dark:text-white tracking-tight uppercase tracking-[0.05em]">The Debate</h2>
+                                <p class="font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-sm">Find the Spy!</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center gap-2 bg-white dark:bg-slate-800 border-3 border-slate-800 dark:border-slate-500 rounded-2xl p-2 shadow-sm">
+                             <div id="timerDisplay" class="font-fredoka font-black text-3xl w-24 text-center text-slate-800 dark:text-white uppercase tracking-[0.05em]">0:00</div>
+                             <div class="flex gap-1">
+                                <button onclick="startTimer(60)" class="bg-blue text-white p-2 rounded-lg border-2 border-slate-800 dark:border-slate-500 font-bold text-xs hover:bg-blue/90">1m</button>
+                                <button onclick="startTimer(180)" class="bg-blue text-white p-2 rounded-lg border-2 border-slate-800 dark:border-slate-500 font-bold text-xs hover:bg-blue/90">3m</button>
+                                <button onclick="stopTimer()" class="bg-red-400 text-white p-2 rounded-lg border-2 border-slate-800 dark:border-slate-500 hover:bg-red-500 transition-colors"><i data-lucide="square" class="w-4 h-4"></i></button>
+                             </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-6 mb-12">${playersGrid}</div>
+
+                    <div class="bg-slate-50 dark:bg-slate-800 border-4 border-slate-800 dark:border-slate-500 rounded-3xl p-8 shadow-md relative overflow-hidden">
+                        <div class="absolute -top-6 -right-6 opacity-10 rotate-12"><i data-lucide="lightbulb" class="w-32 h-32 text-blue"></i></div>
+                        <h3 class="font-fredoka text-2xl font-bold mb-4 flex items-center gap-3 text-blue dark:text-blue-400 underline decoration-4 uppercase tracking-[0.05em]">
+                            <i data-lucide="mic-2"></i> Teacher's Guide
+                        </h3>
+                        <p class="font-bold text-lg text-slate-600 dark:text-slate-300 leading-relaxed italic text-center relative z-10">Encourage students to use English to describe their word. Remember: Spies and Mr. White will try to echo the Civilians to survive!</p>
+                        <div class="mt-4 flex justify-center relative z-10">
+                            <button onclick="initGame()" class="bg-white dark:bg-slate-700 text-slate-800 dark:text-white px-6 py-2 rounded-xl border-3 border-slate-800 dark:border-slate-500 shadow-sm font-black text-xs hover:bg-slate-50 dark:hover:bg-slate-600 transition-colors">RESTART GAME</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function getMrWhiteHTML() {
+            let civWordSize = state.game.civWord.length > 20 ? 'text-3xl' : 'text-5xl';
+            return `
+                <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-800/80 p-6 backdrop-blur-lg animate-pop-in">
+                    <div class="bg-white dark:bg-slate-800 border-4 border-slate-800 dark:border-slate-500 rounded-3xl shadow-lg p-10 max-w-md w-full text-center relative mt-16">
+                        <div class="absolute -top-16 left-1/2 transform -translate-x-1/2">
+                            <div class="bg-orange text-white p-6 rounded-full border-4 border-slate-800 dark:border-slate-500 shadow-md transform rotate-12">
+                                <i data-lucide="ghost" class="w-12 h-12"></i>
+                            </div>
+                        </div>
+                        <h2 class="font-fredoka text-4xl font-black mt-8 mb-4 text-slate-800 dark:text-white uppercase tracking-[0.05em]">${state.game.eliminatedPlayer.name} caught!</h2>
+                        <p class="text-xl font-black text-orange dark:text-orange-400 mb-8 leading-tight italic uppercase tracking-wider text-center">Can they guess the word to steal the win?</p>
+                        <div class="p-8 bg-blue/5 dark:bg-blue-900/30 border-4 border-dashed border-blue dark:border-blue-400 rounded-3xl mb-10 shadow-inner">
+                            <p class="text-xs font-black text-blue dark:text-blue-400 uppercase mb-2 tracking-widest opacity-70">Civilian Word${state.config.wordMode === 'multi' ? 's' : ''} Was</p>
+                            <p class="${civWordSize} font-black text-blue dark:text-blue-400 tracking-tighter break-words">${state.game.civWord}</p>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <button onclick="finalizeElimination(state.game.eliminatedPlayer, true)" class="bg-green text-white font-fredoka font-bold py-6 rounded-2xl border-4 border-slate-800 dark:border-slate-500 shadow-md btn-chunky text-xl uppercase tracking-[0.05em]">THEY WON</button>
+                            <button onclick="finalizeElimination(state.game.eliminatedPlayer, false)" class="bg-pink text-white font-fredoka font-bold py-6 rounded-2xl border-4 border-slate-800 dark:border-slate-500 shadow-md btn-chunky text-xl uppercase tracking-[0.05em]">FAILED</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function getGameOverHTML() {
+            const playerReveal = state.game.players.map(p => {
+                let colorClass = p.role === 'Civilian' ? 'text-blue dark:text-blue-400' : (p.role === 'Undercover' ? 'text-pink dark:text-pink-400' : 'text-orange dark:text-orange-400');
+                return `<div class="p-4 bg-white dark:bg-slate-700 rounded-2xl border-3 border-slate-800 dark:border-slate-500 shadow-sm flex flex-col items-center"><span class="font-black text-sm break-words text-center w-full text-slate-800 dark:text-white">${p.name}</span><span class="text-[10px] font-black uppercase tracking-widest ${colorClass}">${p.role}</span></div>`;
+            }).join('');
+
+            let civWordSize = state.game.civWord.length > 20 ? 'text-xl' : 'text-3xl';
+
+            return `
+                <div class="flex flex-col items-center justify-center gap-10 w-full max-w-2xl mx-auto animate-pop-in">
+                    <div class="bg-white dark:bg-slate-800 w-full text-center border-4 border-slate-800 dark:border-slate-500 rounded-3xl shadow-md p-12 overflow-hidden relative">
+                        <div class="absolute top-0 left-0 w-full h-4 bg-gradient-to-r from-pink via-orange to-blue"></div>
+                        <div class="flex justify-center mb-6">
+                            <i data-lucide="crown" class="w-24 h-24 text-yellow-400 fill-yellow-400 drop-shadow-md"></i>
+                        </div>
+                        <h1 class="font-fredoka text-6xl font-black mb-10 text-slate-800 dark:text-white tracking-tighter uppercase tracking-[0.05em]">${state.game.winner}</h1>
+                        <div class="grid grid-cols-2 gap-6 mb-12 text-left">
+                            <div class="bg-blue-50 dark:bg-blue-900/30 p-6 rounded-2xl border-4 border-slate-800 dark:border-slate-500 shadow-sm"><span class="block text-xs font-black text-blue dark:text-blue-400 uppercase mb-2 tracking-widest">Civilians</span><span class="${civWordSize} font-black text-slate-800 dark:text-white break-words">${state.game.civWord}</span></div>
+                            <div class="bg-pink-50 dark:bg-pink-900/30 p-6 rounded-2xl border-4 border-slate-800 dark:border-slate-500 shadow-sm"><span class="block text-xs font-black text-pink dark:text-pink-400 uppercase mb-2 tracking-widest">Undercover</span><span class="text-3xl font-black text-slate-800 dark:text-white break-words">${state.game.spyWord}</span></div>
+                        </div>
+                        <div class="bg-slate-50 dark:bg-slate-900/50 rounded-3xl border-4 border-slate-800 dark:border-slate-500 p-8 mb-12">
+                            <h3 class="font-fredoka text-xl font-bold mb-6 text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center">Class Stats</h3>
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">${playerReveal}</div>
+                        </div>
+                        <button onclick="initGame()" class="w-full bg-blue text-white font-fredoka font-bold text-4xl py-8 rounded-2xl border-4 border-slate-800 dark:border-slate-500 shadow-lg btn-chunky uppercase tracking-[0.05em]">PLAY AGAIN!</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        let saveConfigTimeout = null;
+        function saveConfig() {
+            localStorage.setItem('undercoverConfig', JSON.stringify(state.config));
+            
+            if (saveConfigTimeout) clearTimeout(saveConfigTimeout);
+            saveConfigTimeout = setTimeout(() => {
+                saveProgress('undercover', state.config);
+            }, 1000);
+        }
+
+        function addName() {
+            const input = document.getElementById('playerNameInput');
+            const name = input.value.trim();
+            if (name && !state.config.playerNames.includes(name)) {
+                state.config.playerNames.push(name);
+                input.value = '';
+                updateSpiesLogic();
+                saveConfig();
+                render();
+            }
+        }
+
+        function removeName(index) {
+            state.config.playerNames.splice(index, 1);
+            updateSpiesLogic();
+            saveConfig();
+            render();
+        }
+
+        function setWordMode(mode) {
+            state.config.wordMode = mode;
+            saveConfig();
+            render();
+        }
+
+        function updateSpiesLogic() {
+            const total = state.config.playerNames.length;
+            if (state.config.spies > total - 2) {
+                state.config.spies = Math.max(1, total - 2);
+            }
+        }
+
+        function adjustConfig(key, delta) {
+            let newVal = state.config[key] + delta;
+            let total = state.config.playerNames.length;
+            if (key === 'spies') {
+                if (newVal < 1) newVal = 1;
+                if (newVal > total - 2) newVal = Math.max(1, total - 2);
+            }
+            if (key === 'mrWhite') {
+                if (newVal < 0) newVal = 0;
+                if (newVal > 1) newVal = 1;
+            }
+            state.config[key] = newVal;
+            saveConfig();
+            render();
+        }
+
+        function nextTurn() {
+            if (state.game.currentTurnIndex + 1 < state.game.players.length) {
+                state.game.currentTurnIndex++;
+                setScreen('pass');
+            } else {
+                setScreen('discussion');
+            }
+        }
+
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme_undercover', isDark ? 'dark' : 'light');
+        }
+
+        const savedTheme = localStorage.getItem('theme_undercover');
+        if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+
+        initGame();
+    </script>
+</body>
+
+</html>

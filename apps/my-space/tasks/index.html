@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <!-- Supabase Auth -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/supabase.js"></script>
+  <script src="../shared/sync.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tasks — KlassKit</title>
+  <link rel="icon" type="image/x-icon" href="../../../media/icon.ico" />
+  <link rel="icon" type="image/webp" href="../../../media/icon.webp" />
+
+  <script>
+    if (localStorage.getItem("theme_tasks") === "dark" || (!localStorage.getItem("theme_tasks") && window.matchMedia("(prefers-color-scheme:dark)").matches)) {
+      document.documentElement.classList.add("dark")
+    }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap"
+    rel="stylesheet">
+
+  <!-- Icons & Styling -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            heading: ['Fredoka', 'sans-serif'],
+            body: ['Nunito', 'sans-serif'],
+          },
+          colors: {
+            pink: '#ff4785',
+            orange: '#ff7e33',
+            green: '#00d063',
+            blue: '#1ea7fd',
+            dark: '#0f172a',
+            chalk: '#f8fafc'
+          },
+          boxShadow: {
+            'neo': '4px 4px 0px 0px rgba(51,65,85,0.15)',
+            'neo-sm': '2px 2px 0px 0px rgba(51,65,85,0.15)',
+          }
+        }
+      }
+    }
+  </script>
+
+  <link rel="stylesheet" href="../../../css/base.css" />
+  <link rel="stylesheet" href="../../../css/components.css" />
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body class="min-h-screen text-dark dark:text-white relative font-body pb-12">
+  <!-- Unified Header -->
+  <header class="glass-panel sticky top-0 z-30 h-14 flex items-center justify-between px-4 md:px-6 border-b-[3px] border-[var(--border-primary)]" style="border-radius: 0;">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 bg-orange rounded-xl border-[2px] border-white/40 flex items-center justify-center text-white shadow-neo-sm">
+        <i data-lucide="check-circle-2" class="w-5 h-5 stroke-[2.5px]"></i>
+      </div>
+      <div>
+        <h1 class="font-heading font-bold text-lg md:text-xl tracking-tight uppercase leading-none text-dark dark:text-white">Task Center</h1>
+        <p class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] leading-none mt-1">KlassKit Workspace</p>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex items-center gap-2">
+      <div id="sync-badge" class="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border-[2px] border-[var(--border-primary)] bg-slate-100 dark:bg-slate-800 text-[10px] font-extrabold uppercase tracking-widest text-slate-500">
+        <i data-lucide="hard-drive" class="w-3.5 h-3.5"></i> Local Storage
+      </div>
+      <div class="hidden md:flex flex-col items-end mr-1">
+        <span id="currentDateLabel" class="text-[9px] font-black uppercase text-slate-400 leading-none">Tuesday, May 5</span>
+        <span id="taskCountLabel" class="text-[10px] font-bold text-blue leading-none mt-0.5">0 Tasks Active</span>
+      </div>
+      <button onclick="toggleTheme()" class="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title="Toggle Theme">
+        <i data-lucide="sun" class="w-4 h-4 dark:hidden text-slate-500"></i>
+        <i data-lucide="moon" class="w-4 h-4 hidden dark:block text-slate-400"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 p-4 md:p-8">
+    
+    <!-- Left Column: Controls (Sticky on Desktop) -->
+    <div class="lg:col-span-4 space-y-6">
+      
+      <!-- Quick Status -->
+      <div class="task-panel">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-heading font-bold text-lg text-slate-900 dark:text-white uppercase tracking-tight">Productivity</h3>
+          <span id="progressPercent" class="text-xs font-black bg-green/20 text-green px-3 py-1 rounded-lg border border-green/30">0%</span>
+        </div>
+        <div class="relative w-full h-6 bg-[var(--bg-tertiary)] dark:bg-slate-800 border-[var(--border-width-medium)] border-[var(--border-primary)] rounded-xl overflow-hidden shadow-inner">
+          <div id="progressBar" class="absolute top-0 left-0 h-full bg-green transition-all duration-1000 ease-out" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- Add New Task Form -->
+      <div class="task-panel">
+        <h3 class="font-heading font-bold text-lg text-slate-900 dark:text-white uppercase tracking-tight mb-4 flex items-center gap-2">
+          <i data-lucide="plus-square" class="w-5 h-5 text-blue"></i> New Task
+        </h3>
+        
+        <div class="space-y-5">
+          <div class="space-y-1.5">
+            <label class="text-[10px] font-black uppercase text-slate-400 ml-1">What needs to be done?</label>
+            <input type="text" id="taskInput" placeholder="Write something productive..." 
+              class="input-chunky placeholder-slate-400">
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div class="space-y-1.5">
+              <label class="text-[10px] font-black uppercase text-slate-400 ml-1">Deadline</label>
+              <input type="date" id="taskDeadline" 
+                class="input-chunky text-xs">
+            </div>
+            <div class="space-y-1.5">
+              <label class="text-[10px] font-black uppercase text-slate-400 ml-1">Category</label>
+              <select id="taskCategorySelect" 
+                class="input-chunky text-xs appearance-none cursor-pointer">
+                <!-- Categories will be injected here -->
+              </select>
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <label class="text-[10px] font-black uppercase text-slate-400 ml-1">Priority Level</label>
+            <div class="grid grid-cols-3 gap-2">
+              <button onclick="setPriority('low')" id="prio-low" class="prio-btn">Low</button>
+              <button onclick="setPriority('medium')" id="prio-medium" class="prio-btn active-medium">Medium</button>
+              <button onclick="setPriority('high')" id="prio-high" class="prio-btn">High</button>
+            </div>
+          </div>
+
+          <button onclick="addTask()" class="btn-chunky w-full bg-blue text-white font-black uppercase py-4 rounded-xl flex items-center justify-center gap-2 text-sm mt-2">
+            <i data-lucide="plus-circle" class="w-5 h-5"></i> Create Task
+          </button>
+        </div>
+      </div>
+
+      <!-- Settings & Cleanup -->
+      <div class="task-panel space-y-4">
+        <h3 class="font-heading font-bold text-xs text-slate-400 uppercase tracking-[0.2em] mb-2">Options</h3>
+        
+        <div class="flex flex-col gap-2">
+          <select id="sortMode" onchange="updateSort(this.value)" class="input-chunky text-[11px] uppercase cursor-pointer">
+            <option value="newest">Newest First</option>
+            <option value="deadline">Closest Deadline</option>
+            <option value="priority">Priority Order</option>
+          </select>
+          
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="exportTasks()" class="flex items-center justify-center gap-2 py-2.5 bg-[var(--surface-card)] dark:bg-slate-800 border-[var(--border-width-medium)] border-[var(--border-primary)] rounded-xl font-black text-[9px] uppercase hover:bg-[var(--bg-tertiary)] transition-colors">
+              <i data-lucide="download" class="w-3.5 h-3.5"></i> Export
+            </button>
+            <button onclick="document.getElementById('importInput').click()" class="flex items-center justify-center gap-2 py-2.5 bg-[var(--surface-card)] dark:bg-slate-800 border-[var(--border-width-medium)] border-[var(--border-primary)] rounded-xl font-black text-[9px] uppercase hover:bg-[var(--bg-tertiary)] transition-colors">
+              <i data-lucide="upload" class="w-3.5 h-3.5"></i> Import
+            </button>
+            <input type="file" id="importInput" class="hidden" accept=".json" onchange="importTasks(this)">
+          </div>
+
+          <button onclick="clearDone()" class="w-full py-3 bg-pink/10 text-pink border-2 border-pink/30 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-pink hover:text-white transition-all">
+            Clear Finished Tasks
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Category Tabs and List -->
+    <div class="lg:col-span-8 flex flex-col gap-6">
+      
+      <!-- Category Tabs Bar -->
+      <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2">
+        <div id="categoryTabs" class="flex items-center gap-2">
+          <!-- Tabs injected here -->
+        </div>
+        <button onclick="promptAddCategory()" class="w-10 h-10 flex-shrink-0 bg-[var(--bg-tertiary)] dark:bg-slate-800 border-[var(--border-width-medium)] border-[var(--border-primary)] rounded-xl flex items-center justify-center text-slate-500 hover:text-blue hover:border-blue transition-all shadow-neo-sm">
+          <i data-lucide="plus" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Time Range Filter -->
+      <div class="flex items-center gap-1.5 bg-[var(--bg-tertiary)] dark:bg-slate-900/50 p-1 rounded-2xl border-[var(--border-width-medium)] border-[var(--border-primary)] w-fit">
+        <button onclick="updateTimeFilter('today')" id="tf-today" class="time-filter-btn px-4 py-2 rounded-xl font-black text-[10px] uppercase transition-all">Today</button>
+        <button onclick="updateTimeFilter('3days')" id="tf-3days" class="time-filter-btn px-4 py-2 rounded-xl font-black text-[10px] uppercase transition-all">3 Days</button>
+        <button onclick="updateTimeFilter('week')" id="tf-week" class="time-filter-btn px-4 py-2 rounded-xl font-black text-[10px] uppercase transition-all">Week</button>
+        <button onclick="updateTimeFilter('all')" id="tf-all" class="time-filter-btn px-4 py-2 rounded-xl font-black text-[10px] uppercase transition-all">All Time</button>
+      </div>
+
+      <!-- Tasks List -->
+      <div id="taskList" class="space-y-4 mt-2 relative z-10">
+        <!-- Tasks will be injected here -->
+      </div>
+
+      <!-- Empty State -->
+      <div id="emptyState" class="hidden empty-state p-20 flex flex-col items-center justify-center text-center">
+        <div class="w-20 h-20 bg-blue/10 rounded-3xl border-2 border-blue/20 flex items-center justify-center mb-6">
+          <i data-lucide="sparkles" class="w-10 h-10 text-blue"></i>
+        </div>
+        <h3 class="font-heading font-bold text-2xl text-slate-800 dark:text-white uppercase tracking-tight">No Tasks Found</h3>
+        <p class="font-body font-semibold text-slate-400 mt-2 max-w-xs">Your workspace is crystal clear. Time to relax or start something new!</p>
+        <button onclick="document.getElementById('taskInput').focus()" class="mt-8 font-black uppercase text-xs text-blue flex items-center gap-2 hover:gap-3 transition-all">
+          Create your first task <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Task Edit Modal (Overlay) -->
+  <div id="editModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onclick="closeEditModal()"></div>
+    <div class="task-modal w-full max-w-md p-8 relative z-10 animate-pop-in">
+       <h2 class="font-heading font-bold text-2xl text-slate-900 dark:text-white uppercase mb-6 flex items-center gap-3">
+         <i data-lucide="edit-3" class="w-6 h-6 text-orange"></i> Edit Task
+       </h2>
+       <div class="space-y-4">
+         <div class="space-y-1.5">
+           <label class="text-[10px] font-black uppercase text-slate-400">Task Title</label>
+           <input type="text" id="editTaskInput" class="input-chunky">
+         </div>
+         <div class="grid grid-cols-2 gap-4">
+           <div class="space-y-1.5">
+             <label class="text-[10px] font-black uppercase text-slate-400">Deadline</label>
+             <input type="date" id="editTaskDeadline" class="input-chunky text-xs">
+           </div>
+           <div class="space-y-1.5">
+             <label class="text-[10px] font-black uppercase text-slate-400">Category</label>
+             <select id="editTaskCategory" class="input-chunky text-xs appearance-none"></select>
+           </div>
+         </div>
+         <div class="flex gap-4 pt-4">
+           <button onclick="saveTaskEdit()" class="btn-chunky flex-1 bg-green text-white font-black uppercase py-3 rounded-xl">Save</button>
+           <button onclick="closeEditModal()" class="btn-chunky flex-1 bg-[var(--bg-tertiary)] text-[var(--text-secondary)] font-black uppercase py-3 rounded-xl">Cancel</button>
+         </div>
+       </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import autoAnimate from 'https://cdn.jsdelivr.net/npm/@formkit/auto-animate@0.8.0/index.mjs';
+    autoAnimate(document.getElementById('taskList'));
+    autoAnimate(document.getElementById('categoryTabs'));
+  </script>
+
+  <script>
+    // State Management
+    let tasks = JSON.parse(localStorage.getItem('klasskit_tasks')) || [];
+    let categories = JSON.parse(localStorage.getItem('klasskit_categories')) || ['General', 'Events', 'Classes', 'Work', 'Personal'];
+    let currentTab = localStorage.getItem('tasks_current_tab') || 'All';
+    let timeFilter = localStorage.getItem('tasks_time_filter') || 'week';
+    let currentPriority = 'medium';
+    let currentSort = localStorage.getItem('tasks_current_sort') || 'deadline';
+    let editingId = null;
+
+    // Elements
+    const taskListEl = document.getElementById('taskList');
+    const emptyStateEl = document.getElementById('emptyState');
+    const taskInput = document.getElementById('taskInput');
+    const taskDeadline = document.getElementById('taskDeadline');
+    const taskCategorySelect = document.getElementById('taskCategorySelect');
+    const categoryTabs = document.getElementById('categoryTabs');
+    const progressBar = document.getElementById('progressBar');
+    const progressPercent = document.getElementById('progressPercent');
+    const taskCountLabel = document.getElementById('taskCountLabel');
+
+    // Init
+    function init() {
+      renderCategories();
+      updateTimeFilterUI();
+      document.getElementById('sortMode').value = currentSort;
+      renderTasks();
+      updateProgress();
+      updateLabels();
+      loadCloud();
+      lucide.createIcons();
+    }
+
+    function updateLabels() {
+      const now = new Date();
+      const options = { weekday: 'long', month: 'long', day: 'numeric' };
+      document.getElementById('currentDateLabel').innerText = now.toLocaleDateString('en-US', options);
+      
+      const allTasks = [...tasks, ...getExternalTasks()];
+      const activeCount = allTasks.filter(t => !t.completed).length;
+      taskCountLabel.innerText = `${activeCount} Task${activeCount !== 1 ? 's' : ''} Active`;
+    }
+
+    // Persistence
+    async function save() {
+      localStorage.setItem('klasskit_tasks', JSON.stringify(tasks));
+      localStorage.setItem('klasskit_categories', JSON.stringify(categories));
+      localStorage.setItem('tasks_current_tab', currentTab);
+      localStorage.setItem('tasks_time_filter', timeFilter);
+      localStorage.setItem('tasks_current_sort', currentSort);
+      
+      renderTasks();
+      updateProgress();
+      updateLabels();
+      saveCloud();
+    }
+
+    async function saveCloud() {
+      if (window.Sync && Sync.isCloudMode()) {
+        Sync.fireCloudSave(async userId => {
+          await Promise.all([
+            Sync.cloudSaveTasks(userId, tasks),
+            Sync.cloudSaveTaskCategories(userId, categories),
+            Sync.cloudSaveSettings(userId, {
+              task: {
+                currentTab: currentTab,
+                timeFilter: timeFilter,
+                currentSort: currentSort,
+                theme: localStorage.getItem('theme_tasks')
+              }
+            })
+          ]);
+        });
+      }
+    }
+
+    async function loadCloud() {
+      if (window.Sync && Sync.isCloudMode()) {
+        const userId = await Sync.getCachedUserId();
+        if (userId) {
+          const [cloudTasks, cloudCats] = await Promise.all([
+            Sync.cloudLoadTasks(userId),
+            Sync.cloudLoadTaskCategories(userId)
+          ]);
+
+          if (cloudTasks) tasks = cloudTasks;
+          if (cloudCats) categories = cloudCats;
+          
+          renderCategories();
+          renderTasks();
+          updateProgress();
+        }
+      }
+    }
+
+    // Category Management
+    function renderCategories() {
+      // Inject to select dropdowns
+      const selects = [taskCategorySelect, document.getElementById('editTaskCategory')];
+      selects.forEach(sel => {
+        if (!sel) return;
+        sel.innerHTML = categories.map(cat => `<option value="${cat}">${cat}</option>`).join('');
+      });
+
+      // Inject to tabs
+      const tabs = ['All', ...categories];
+      categoryTabs.innerHTML = tabs.map(tab => `
+        <button onclick="setTab('${tab}')" class="category-tab shadow-neo-sm ${currentTab === tab ? 'active' : ''}">
+          ${tab}
+        </button>
+      `).join('');
+    }
+
+    function setTab(tab) {
+      currentTab = tab;
+      renderCategories();
+      save();
+    }
+
+    function promptAddCategory() {
+      const name = prompt("Enter new category name:");
+      if (name && !categories.includes(name)) {
+        categories.push(name);
+        save();
+        renderCategories();
+      }
+    }
+
+    // Task Actions
+    function setPriority(val) {
+      currentPriority = val;
+      document.querySelectorAll('.prio-btn').forEach(btn => {
+        btn.className = 'prio-btn';
+        if (btn.id === `prio-${val}`) {
+          btn.classList.add(`active-${val}`);
+        }
+      });
+    }
+
+    function addTask() {
+      const text = taskInput.value.trim();
+      if (!text) return;
+
+      const newTask = {
+        id: Date.now(),
+        text: text,
+        deadline: taskDeadline.value || null,
+        category: taskCategorySelect.value,
+        priority: currentPriority,
+        completed: false,
+        createdAt: new Date().toISOString()
+      };
+
+      tasks.unshift(newTask);
+      taskInput.value = '';
+      taskDeadline.value = '';
+      save();
+    }
+
+    function toggleTask(id, source = '', sourceId = '', index = -1) {
+      console.info(`[Tasks] Toggling task: ${id}`, { source, sourceId, index });
+      const internalTask = tasks.find(t => t.id == id);
+      if (internalTask) {
+        tasks = tasks.map(t => t.id == id ? { ...t, completed: !t.completed } : t);
+        save();
+        return;
+      }
+
+      // Handle external tasks directly from passed arguments
+      if (source === 'event') {
+        toggleEventChecklistItem(sourceId, parseInt(index));
+      } else if (source === 'class') {
+        toggleClassAdminTask(sourceId, id);
+      }
+    }
+
+    // External Task Syncing
+    function toggleEventChecklistItem(eventId, index) {
+      const events = JSON.parse(localStorage.getItem('schedule_events') || '[]');
+      const promoted = JSON.parse(localStorage.getItem('schedule_promoted_instances') || '[]');
+      
+      // Use == to handle string vs number ID mismatches
+      let target = promoted.find(e => e.id == eventId) || events.find(e => e.id == eventId);
+
+      // Handle promotion if it's a generated recurrence not yet promoted
+      if (!target && String(eventId).includes('_recur_')) {
+        const parts = String(eventId).split('_recur_');
+        const masterId = parts[0];
+        const dateStr = parts[1];
+        const master = events.find(e => e.id == masterId);
+        if (master) {
+          target = {
+            ...master,
+            id: eventId,
+            date: dateStr,
+            isRecurrence: true,
+            originalEventId: masterId,
+            checklist: (master.checklist || []).map(item => ({ ...item, done: false }))
+          };
+          promoted.push(target);
+        }
+      }
+
+      if (target && target.checklist && target.checklist[index]) {
+        target.checklist[index].done = !target.checklist[index].done;
+        
+        // Update storage
+        if (target.isRecurrence) {
+          const pIdx = promoted.findIndex(e => e.id == target.id);
+          if (pIdx !== -1) promoted[pIdx] = target;
+          else promoted.push(target);
+        } else {
+          const eIdx = events.findIndex(e => e.id == target.id);
+          if (eIdx !== -1) events[eIdx] = target;
+        }
+
+        localStorage.setItem('schedule_events', JSON.stringify(events));
+        localStorage.setItem('schedule_promoted_instances', JSON.stringify(promoted));
+
+        if (window.Sync) {
+          Sync.fireCloudSave(async userId => {
+            await Sync.cloudSaveScheduleEvents(userId, [...events, ...promoted]);
+          });
+        }
+        renderTasks();
+        updateProgress();
+      }
+    }
+
+    function toggleClassAdminTask(className, taskId) {
+      const adminData = JSON.parse(localStorage.getItem('schedule_class_admin') || '{}');
+      if (adminData[className]) {
+        adminData[className] = adminData[className].map(t => t.id === taskId ? { ...t, done: !t.done } : t);
+        localStorage.setItem('schedule_class_admin', JSON.stringify(adminData));
+
+        if (window.Sync) {
+          Sync.fireCloudSave(async userId => {
+            await Sync.cloudSaveClassAdmin(userId, adminData);
+          });
+        }
+        renderTasks();
+        updateProgress();
+      }
+    }
+
+    function updateTimeFilter(filter) {
+      timeFilter = filter;
+      updateTimeFilterUI();
+      save();
+    }
+
+    function updateTimeFilterUI() {
+      document.querySelectorAll('.time-filter-btn').forEach(btn => {
+        btn.classList.remove('bg-blue', 'text-white', 'shadow-neo-sm');
+        btn.classList.add('text-slate-400');
+      });
+      const active = document.getElementById(`tf-${timeFilter}`);
+      if (active) {
+        active.classList.remove('text-slate-400');
+        active.classList.add('bg-blue', 'text-white', 'shadow-neo-sm');
+      }
+    }
+
+    // External Task Syncing helpers
+    function getDayString(date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${d}`;
+    }
+
+    function getDateRangeStrings(filter) {
+      const now = new Date();
+      const start = getDayString(now);
+      const end = new Date(now);
+
+      if (filter === 'today') {
+        return { start, end: start };
+      } else if (filter === '3days') {
+        end.setDate(now.getDate() + 2);
+        return { start, end: getDayString(end) };
+      } else if (filter === 'week') {
+        const day = now.getDay();
+        const diff = now.getDate() - day + (day === 0 ? -6 : 1); // Monday
+        const mon = new Date(now);
+        mon.setDate(diff);
+        const sun = new Date(mon);
+        sun.setDate(mon.getDate() + 6);
+        return { start: getDayString(mon), end: getDayString(sun) };
+      }
+      return null; // All
+    }
+
+
+    function getExternalTasks() {
+      const externalTasks = [];
+      const redDays = JSON.parse(localStorage.getItem('schedule_red_days') || '[]');
+      const range = getDateRangeStrings(timeFilter);
+
+      // 1. Event Checklists
+      const events = JSON.parse(localStorage.getItem('schedule_events') || '[]');
+      const promoted = JSON.parse(localStorage.getItem('schedule_promoted_instances') || '[]');
+      
+      // Expand recurring events for this range
+      let allOccurrences = [];
+      events.forEach(evt => {
+        // Add master if it's within range
+        if (range) {
+          if (evt.date >= range.start && evt.date <= range.end && !redDays.includes(evt.date)) {
+            allOccurrences.push(evt);
+          }
+        } else {
+          // All time
+          allOccurrences.push(evt);
+        }
+
+        // Generate others
+        // Generate others
+        if (evt.recurrence && evt.recurrence !== 'none') {
+          const genStart = range ? new Date(range.start + 'T00:00:00') : new Date();
+          genStart.setHours(0,0,0,0); // Ensure we start at the very beginning of the day
+
+          const genEnd = range ? new Date(range.end + 'T23:59:59') : new Date();
+          if (!range) genEnd.setMonth(genEnd.getMonth() + 1);
+          genEnd.setHours(23,59,59,999);
+
+          const clones = Sync.generateRecurrences(evt, genStart, genEnd);
+          allOccurrences = [...allOccurrences, ...clones];
+        }
+      });
+
+      // Overwrite with promoted instances
+      allOccurrences = allOccurrences.map(occ => {
+        const p = promoted.find(item => item.id == occ.id);
+        return p || occ;
+      });
+
+      allOccurrences.forEach(evt => {
+        if (evt.typeId !== 'class' && evt.checklist && evt.checklist.length > 0) {
+          evt.checklist.forEach((item, idx) => {
+            externalTasks.push({
+              id: `evt-${evt.id}-${idx}`,
+              externalId: `evt-${evt.id}-${idx}`,
+              text: item.text,
+              completed: !!item.done,
+              category: 'Events',
+              subcategory: evt.name,
+              source: 'event',
+              sourceId: evt.id,
+              index: idx,
+              priority: 'medium',
+              deadline: evt.date || null,
+              createdAt: evt.createdAt || new Date().toISOString()
+            });
+          });
+        }
+      });
+
+      // 2. Class Admin Tasks
+      const adminData = JSON.parse(localStorage.getItem('schedule_class_admin') || '{}');
+      Object.entries(adminData).forEach(([className, tasks]) => {
+        tasks.forEach(t => {
+          externalTasks.push({
+            id: t.id,
+            externalId: t.id,
+            text: t.text,
+            completed: !!t.done,
+            category: 'Classes',
+            subcategory: className,
+            source: 'class',
+            sourceId: className,
+            priority: 'medium',
+            deadline: t.deadline || null,
+            createdAt: t.createdAt || new Date().toISOString()
+          });
+        });
+      });
+
+      return externalTasks;
+    }
+
+    function deleteTask(id) {
+      if (confirm("Delete this task?")) {
+        tasks = tasks.filter(t => t.id != id);
+        save();
+      }
+    }
+
+    function clearDone() {
+      tasks = tasks.filter(t => !t.completed);
+      save();
+    }
+
+    // Editing
+    function openEditModal(id) {
+      const task = tasks.find(t => t.id == id);
+      if (!task) return;
+      editingId = id;
+      document.getElementById('editTaskInput').value = task.text;
+      document.getElementById('editTaskDeadline').value = task.deadline || '';
+      document.getElementById('editTaskCategory').value = task.category;
+      document.getElementById('editModal').classList.remove('hidden');
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').classList.add('hidden');
+      editingId = null;
+    }
+
+    function saveTaskEdit() {
+      const text = document.getElementById('editTaskInput').value.trim();
+      if (!text) return;
+      
+      tasks = tasks.map(t => t.id === editingId ? {
+        ...t,
+        text: text,
+        deadline: document.getElementById('editTaskDeadline').value || null,
+        category: document.getElementById('editTaskCategory').value
+      } : t);
+      
+      closeEditModal();
+      save();
+    }
+
+    // Rendering & Sorting
+    function updateSort(mode) {
+      currentSort = mode;
+      save();
+    }
+
+    function renderTasks() {
+      taskListEl.innerHTML = '';
+      
+      const externalTasks = getExternalTasks();
+      const allTasks = [...tasks, ...externalTasks];
+      const range = getDateRangeStrings(timeFilter);
+
+      let filtered = allTasks;
+      if (currentTab !== 'All') {
+        filtered = allTasks.filter(t => t.category === currentTab);
+      }
+
+      // Time Range Filter
+      if (range) {
+        filtered = filtered.filter(t => {
+          if (!t.deadline) return false; // Hide tasks without deadline in timed views
+          return t.deadline >= range.start && t.deadline <= range.end;
+        });
+      }
+
+      // 1. Sort Logic
+      filtered.sort((a, b) => {
+        // First: Completion status (active first)
+        if (a.completed !== b.completed) {
+          return a.completed ? 1 : -1;
+        }
+
+        // Second: Sort by currentSort preference
+        if (currentSort === 'deadline') {
+          if (!a.deadline && !b.deadline) return new Date(b.createdAt) - new Date(a.createdAt);
+          if (!a.deadline) return 1;
+          if (!b.deadline) return -1;
+          return new Date(a.deadline) - new Date(b.deadline);
+        }
+        if (currentSort === 'priority') {
+          const map = { high: 3, medium: 2, low: 1 };
+          if (map[b.priority] !== map[a.priority]) return map[b.priority] - map[a.priority];
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        }
+        // Default: Newest
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      });
+
+      if (filtered.length === 0) {
+        emptyStateEl.classList.remove('hidden');
+      } else {
+        emptyStateEl.classList.add('hidden');
+      }
+
+      let hasCompletedSeparator = false;
+
+      filtered.forEach(task => {
+        // Add separator for completed tasks
+        if (task.completed && !hasCompletedSeparator) {
+          const separator = document.createElement('div');
+          separator.className = 'flex items-center gap-4 py-6 opacity-50';
+          separator.innerHTML = `
+            <div class="h-1 flex-1 bg-slate-200 dark:bg-slate-700 rounded-full"></div>
+            <span class="font-heading font-bold text-xs uppercase tracking-[0.2em] text-slate-400">Completed Tasks</span>
+            <div class="h-1 flex-1 bg-slate-200 dark:bg-slate-700 rounded-full"></div>
+          `;
+          taskListEl.appendChild(separator);
+          hasCompletedSeparator = true;
+        }
+
+        const card = document.createElement('div');
+        const isExternal = !!task.source;
+        card.className = `todo-card p-5 flex items-start gap-4 shadow-neo-sm transition-all hover:scale-[1.01] ${task.completed ? 'opacity-60 bg-slate-50/50' : ''}`;
+        if (isExternal) {
+          card.dataset.externalId = task.id;
+          card.dataset.source = task.source;
+          card.dataset.sourceId = task.sourceId;
+          card.dataset.index = task.index || '';
+        }
+
+        // Deadline Logic
+        let deadlineHtml = '';
+        if (task.deadline) {
+          const d = new Date(task.deadline);
+          const now = new Date();
+          now.setHours(0,0,0,0);
+          const isOverdue = d < now && !task.completed;
+          const isToday = getDayString(d) === getDayString(new Date());
+          
+          let colorClass = 'text-slate-400 bg-slate-100 dark:bg-slate-700';
+          if (isOverdue) colorClass = 'text-pink bg-pink/10 border-pink/20 animate-pulse';
+          else if (isToday) colorClass = 'text-orange bg-orange/10 border-orange/20';
+
+          deadlineHtml = `
+            <div class="deadline-badge flex items-center gap-1.5 px-2.5 py-1 rounded-lg border font-black text-[9px] uppercase ${colorClass}">
+              <i data-lucide="calendar" class="w-3 h-3"></i>
+              ${isOverdue ? 'Overdue: ' : (isToday ? 'Today: ' : '')} ${d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+            </div>
+          `;
+        }
+
+        const prioColors = {
+          high: 'bg-pink/10 text-pink border-pink/20',
+          medium: 'bg-orange/10 text-orange border-orange/20',
+          low: 'bg-blue/10 text-blue border-blue/20'
+        };
+
+        const subcategoryHtml = task.subcategory ? `
+          <span class="px-2.5 py-1 rounded-lg border border-blue/20 bg-blue/5 text-blue font-black text-[9px] uppercase tracking-wider flex items-center gap-1">
+            <i data-lucide="${task.source === 'event' ? 'calendar' : 'graduation-cap'}" class="w-3 h-3"></i>
+            ${task.subcategory}
+          </span>
+        ` : '';
+
+        card.innerHTML = `
+          <button onclick="toggleTask('${task.id}', '${task.source || ''}', '${task.sourceId || ''}', ${task.index !== undefined ? task.index : -1})" class="w-10 h-10 rounded-xl border-[var(--border-width-medium)] border-[var(--border-primary)] flex-shrink-0 flex items-center justify-center transition-all shadow-neo-sm relative z-20 ${task.completed ? 'bg-green border-green shadow-none' : 'bg-[var(--surface-card)] dark:bg-slate-700 hover:border-blue'}">
+            ${task.completed ? '<i data-lucide="check" class="w-6 h-6 text-white stroke-[3px]"></i>' : ''}
+          </button>
+          
+          <div class="flex-1 min-w-0">
+            <h4 class="font-bold text-base md:text-lg text-slate-800 dark:text-white leading-tight ${task.completed ? 'line-through text-slate-400' : ''}">${task.text}</h4>
+            <div class="flex flex-wrap items-center gap-2 mt-2">
+              <span class="px-2.5 py-1 rounded-lg border border-[var(--border-secondary)] dark:border-slate-600 bg-[var(--bg-tertiary)] dark:bg-slate-900 text-[var(--text-secondary)] dark:text-slate-400 font-black text-[9px] uppercase tracking-wider">${task.category}</span>
+              ${subcategoryHtml}
+              <span class="px-2.5 py-1 rounded-lg border font-black text-[9px] uppercase ${prioColors[task.priority]}">${task.priority}</span>
+              ${deadlineHtml}
+            </div>
+          </div>
+
+          <div class="flex items-center gap-1">
+            ${!isExternal ? `
+              <button onclick="openEditModal(${task.id})" class="p-2 text-slate-400 hover:text-orange transition-colors"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+              <button onclick="deleteTask(${task.id})" class="p-2 text-slate-400 hover:text-pink transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+            ` : `
+              <div class="px-3 py-1 rounded-full bg-[var(--bg-tertiary)] dark:bg-slate-700 text-[var(--text-tertiary)] font-black text-[8px] uppercase tracking-widest border border-[var(--border-secondary)] dark:border-slate-600">Synced</div>
+            `}
+          </div>
+        `;
+        
+        taskListEl.appendChild(card);
+      });
+      lucide.createIcons();
+    }
+
+    function updateProgress() {
+      const allTasks = [...tasks, ...getExternalTasks()];
+      if (allTasks.length === 0) {
+        progressBar.style.width = '0%';
+        progressPercent.innerText = '0%';
+        return;
+      }
+      const done = allTasks.filter(t => t.completed).length;
+      const percent = Math.round((done / allTasks.length) * 100);
+      progressBar.style.width = `${percent}%`;
+      progressPercent.innerText = `${percent}%`;
+    }
+
+    // Export/Import
+    function exportTasks() {
+      const data = { tasks, categories, version: '2.0', exportedAt: new Date().toISOString() };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `klasskit_tasks_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+    }
+
+    function importTasks(input) {
+      const file = input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (data.tasks) {
+            tasks = [...data.tasks, ...tasks].filter((t, i, arr) => arr.findIndex(x => x.id === t.id) === i);
+            if (data.categories) {
+              categories = [...new Set([...categories, ...data.categories])];
+            }
+            save();
+            renderCategories();
+          }
+        } catch (err) { alert("Invalid file format"); }
+      };
+      reader.readAsText(file);
+    }
+
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem("theme_tasks", isDark ? "dark" : "light");
+      
+      if (window.Sync && Sync.isCloudMode()) {
+        Sync.fireCloudSave(async userId => {
+          await Sync.cloudSaveSettings(userId, {
+            task: { theme: isDark ? 'dark' : 'light' }
+          });
+        });
+      }
+    }
+
+    // Start
+    init();
+    
+    // Global Event Listeners
+    taskInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addTask(); });
+  </script>
+</body>
+
+</html>
+>
