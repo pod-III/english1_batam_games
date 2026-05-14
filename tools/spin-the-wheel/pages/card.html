@@ -875,6 +875,7 @@
 
         function saveLibrary(library) {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(library));
+            saveProgress(STORAGE_KEY, library).catch(console.error);
         }
 
         function onContentChange() {
@@ -1408,10 +1409,96 @@
             setTimeout(() => { toast.classList.add("translate-y-[-20px]", "opacity-0"); setTimeout(() => toast.remove(), 300); }, 2500);
         }
 
+        // Migration
+        async function migrateLegacyData() {
+            const MIGRATED_KEY = 'cardpicker_migrated_v2';
+            if (localStorage.getItem(MIGRATED_KEY)) return;
+
+            const DB_NAME = "MysteryDeckDB_v3";
+            const STORE_NAME = "decks";
+
+            // Local Migration
+            try {
+                const request = indexedDB.open(DB_NAME);
+                request.onsuccess = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.close();
+                        checkCloudMigration();
+                        return;
+                    }
+
+                    const transaction = db.transaction(STORE_NAME, 'readonly');
+                    const store = transaction.objectStore(STORE_NAME);
+                    const getAll = store.getAll();
+
+                    getAll.onsuccess = () => {
+                        const legacyData = getAll.result;
+                        if (legacyData && legacyData.length > 0) {
+                            const library = getLibrary();
+                            legacyData.forEach(item => {
+                                if (!library.some(l => l.name === item.name)) {
+                                    library.push({
+                                        id: Date.now() + Math.random(),
+                                        name: item.name || 'Legacy Set',
+                                        cards: item.cards || [],
+                                        createdAt: item.updatedAt || Date.now(),
+                                        lastUsed: item.updatedAt || Date.now(),
+                                        usageCount: 1
+                                    });
+                                }
+                            });
+                            saveLibrary(library);
+                            renderLibrary();
+                        }
+                        db.close();
+                        checkCloudMigration();
+                    };
+                };
+                request.onerror = () => checkCloudMigration();
+            } catch (e) {
+                checkCloudMigration();
+            }
+
+            async function checkCloudMigration() {
+                try {
+                    const cloudData = await loadProgress('cardpicker_data');
+                    if (cloudData && Array.isArray(cloudData.decks)) {
+                        const library = getLibrary();
+                        cloudData.decks.forEach(item => {
+                            if (!library.some(l => l.name === item.name)) {
+                                library.push({
+                                    id: Date.now() + Math.random(),
+                                    name: item.name || 'Cloud Deck',
+                                    cards: item.cards || [],
+                                    createdAt: item.updatedAt || Date.now(),
+                                    lastUsed: item.updatedAt || Date.now(),
+                                    usageCount: 1
+                                });
+                            }
+                        });
+                        saveLibrary(library);
+                        renderLibrary();
+                    }
+                } catch (e) {}
+                localStorage.setItem(MIGRATED_KEY, 'true');
+            }
+        }
+
         // Init
         async function init() {
             await requireAuth();
             loadTheme();
+
+            // Initial Cloud Sync
+            if (getLibrary().length === 0) {
+                const cloudLibrary = await loadProgress(STORAGE_KEY);
+                if (cloudLibrary) {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudLibrary));
+                }
+            }
+
+            await migrateLegacyData();
             const savedActiveId = localStorage.getItem('cardpicker_activeId');
             if (savedActiveId && savedActiveId !== "null") loadSet(parseInt(savedActiveId));
             else {

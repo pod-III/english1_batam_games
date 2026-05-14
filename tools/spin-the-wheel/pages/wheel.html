@@ -967,6 +967,7 @@
 
         function saveLibrary(library) {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(library));
+            saveProgress(STORAGE_KEY, library).catch(console.error);
         }
 
         function onContentChange() {
@@ -1099,8 +1100,6 @@
             
             document.getElementById("duration-display").textContent = spinDuration + "s";
             document.getElementById("duration-slider").value = spinDuration;
-
-            for (let i = 0; i < 3; i++) drawWheel(i);
         }
 
         function updateActiveIndicator() {
@@ -1206,13 +1205,39 @@
                     else btn.classList.remove("active");
                 }
             }
-            const grid = document.getElementById("wheels-grid");
-            if (grid) grid.className = `wheels-grid count-${count}`;
+            const container = document.getElementById("wheels-container");
+            if (container) {
+                container.className = `wheels-grid count-${count}`;
+                renderWheels();
+            }
+        }
+
+        function renderWheels() {
+            const container = document.getElementById("wheels-container");
+            if (!container) return;
             
-            const w1 = document.getElementById("wheel-wrapper-1");
-            const w2 = document.getElementById("wheel-wrapper-2");
-            if (w1) w1.classList.toggle("hidden", count < 2);
-            if (w2) w2.classList.toggle("hidden", count < 3);
+            const count = appState.data.activeWheelCount;
+            container.innerHTML = "";
+
+            for (let i = 0; i < count; i++) {
+                const wheelDiv = document.createElement("div");
+                wheelDiv.className = "wheel-wrapper";
+                wheelDiv.innerHTML = `
+                    <div class="wheel-container w-full h-full">
+                        <div class="wheel-pointer"></div>
+                        <canvas id="wheel-canvas-${i}" class="wheel-canvas w-full h-full"></canvas>
+                        <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-10 h-10 md:w-12 md:h-12 bg-white dark:bg-slate-800 border-[1px] border-slate-300 dark:border-white/10 rounded-full shadow-neo flex items-center justify-center z-10">
+                            <span class="font-heading font-bold text-dark dark:text-white text-xs md:text-sm">${String.fromCharCode(65 + i)}</span>
+                        </div>
+                    </div>
+                    <div class="wheel-label">${appState.data.wheels[i].label || appState.data.wheels[i].name}</div>
+                `;
+                container.appendChild(wheelDiv);
+                
+                // Draw after it's in the DOM
+                requestAnimationFrame(() => drawWheel(i));
+            }
+            lucide.createIcons();
         }
 
         function updateConfigTabs() {
@@ -1521,10 +1546,79 @@
         }
         function clearHistory() { if (!confirm("Clear history?")) return; appState.data.history = []; appState.data.totalSpins = 0; onContentChange(); updateHistoryDisplay(); updateStats(); }
 
+        // Migration
+        async function migrateLegacyData() {
+            const MIGRATED_KEY = 'multispin_migrated_v2';
+            if (localStorage.getItem(MIGRATED_KEY)) return;
+
+            // Local Migration
+            try {
+                const raw = localStorage.getItem('multispin-data');
+                if (raw) {
+                    const data = JSON.parse(raw);
+                    if (data && data.wheels) {
+                        const library = getLibrary();
+                        const name = "Legacy Multi-Spin";
+                        if (!library.some(l => l.name === name)) {
+                            library.push({
+                                id: Date.now(),
+                                name: name,
+                                wheels: data.wheels,
+                                activeWheelCount: data.wheelCount || 2,
+                                history: [],
+                                totalSpins: 0,
+                                createdAt: Date.now(),
+                                lastUsed: Date.now(),
+                                usageCount: 1
+                            });
+                            saveLibrary(library);
+                            renderLibrary();
+                        }
+                    }
+                }
+            } catch (e) {}
+
+            // Cloud Migration
+            try {
+                const cloudData = await loadProgress('multispin_wheel_data');
+                if (cloudData && cloudData.wheels) {
+                    const library = getLibrary();
+                    const name = "Cloud Legacy Multi-Spin";
+                    if (!library.some(l => l.name === name)) {
+                        library.push({
+                            id: Date.now() + 1,
+                            name: name,
+                            wheels: cloudData.wheels,
+                            activeWheelCount: cloudData.wheelCount || 2,
+                            history: [],
+                            totalSpins: 0,
+                            createdAt: Date.now(),
+                            lastUsed: Date.now(),
+                            usageCount: 1
+                        });
+                        saveLibrary(library);
+                        renderLibrary();
+                    }
+                }
+            } catch (e) {}
+
+            localStorage.setItem(MIGRATED_KEY, 'true');
+        }
+
         // Init
         async function init() {
             await requireAuth();
             loadTheme();
+
+            // Initial Cloud Sync
+            if (getLibrary().length === 0) {
+                const cloudLibrary = await loadProgress(STORAGE_KEY);
+                if (cloudLibrary) {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudLibrary));
+                }
+            }
+
+            await migrateLegacyData();
             const savedActiveId = localStorage.getItem('multispin_activeId');
             if (savedActiveId && savedActiveId !== "null") loadSet(parseInt(savedActiveId));
             else {

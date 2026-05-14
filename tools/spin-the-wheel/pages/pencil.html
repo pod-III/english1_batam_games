@@ -837,6 +837,7 @@
 
         function saveLibrary(library) {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(library));
+            saveProgress(STORAGE_KEY, library).catch(console.error);
         }
 
         function onContentChange() {
@@ -1229,6 +1230,16 @@
         async function init() {
             await requireAuth();
             loadTheme();
+
+            // Initial Cloud Sync
+            if (getLibrary().length === 0) {
+                const cloudLibrary = await loadProgress(STORAGE_KEY);
+                if (cloudLibrary) {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudLibrary));
+                }
+            }
+
+            await migrateLegacyData();
 
             // Load saved spinner type
             const savedType = localStorage.getItem("class_spinner_type") || "pencil";
@@ -1644,6 +1655,86 @@
                 }
             }, 100);
         });
+
+        // Migration
+        async function migrateLegacyData() {
+            const MIGRATED_KEY = 'class_spinner_migrated_v2';
+            if (localStorage.getItem(MIGRATED_KEY)) return;
+
+            const DB_NAME = "ClassSpinnerDB";
+            const STORE_NAME = "classes";
+
+            // Local Migration
+            try {
+                const request = indexedDB.open(DB_NAME);
+                request.onsuccess = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.close();
+                        checkCloudMigration();
+                        return;
+                    }
+
+                    const transaction = db.transaction(STORE_NAME, 'readonly');
+                    const store = transaction.objectStore(STORE_NAME);
+                    const getAll = store.getAll();
+
+                    getAll.onsuccess = () => {
+                        const legacyData = getAll.result;
+                        if (legacyData && legacyData.length > 0) {
+                            const library = getLibrary();
+                            legacyData.forEach(item => {
+                                if (!library.some(l => l.name === item.name)) {
+                                    library.push({
+                                        id: Date.now() + Math.random(),
+                                        name: item.name || 'Legacy Class',
+                                        players: item.players || [],
+                                        history: [],
+                                        totalSpins: 0,
+                                        createdAt: item.updatedAt || Date.now(),
+                                        lastUsed: item.updatedAt || Date.now(),
+                                        usageCount: 1
+                                    });
+                                }
+                            });
+                            saveLibrary(library);
+                            renderLibrary();
+                        }
+                        db.close();
+                        checkCloudMigration();
+                    };
+                };
+                request.onerror = () => checkCloudMigration();
+            } catch (e) {
+                checkCloudMigration();
+            }
+
+            async function checkCloudMigration() {
+                try {
+                    const cloudData = await loadProgress('pencil_spinner_data');
+                    if (cloudData && Array.isArray(cloudData.classes)) {
+                        const library = getLibrary();
+                        cloudData.classes.forEach(item => {
+                            if (!library.some(l => l.name === item.name)) {
+                                library.push({
+                                    id: Date.now() + Math.random(),
+                                    name: item.name || 'Cloud Class',
+                                    players: item.players || [],
+                                    history: [],
+                                    totalSpins: 0,
+                                    createdAt: item.updatedAt || Date.now(),
+                                    lastUsed: item.updatedAt || Date.now(),
+                                    usageCount: 1
+                                });
+                            }
+                        });
+                        saveLibrary(library);
+                        renderLibrary();
+                    }
+                } catch (e) {}
+                localStorage.setItem(MIGRATED_KEY, 'true');
+            }
+        }
 
         // Initialization
         window.onload = init;
