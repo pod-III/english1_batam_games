@@ -6,6 +6,8 @@ const inputRows = document.getElementById("inputRows");
 const printStyle = document.getElementById("printOrientationStyle");
 
 let state = {
+    activeId: null,
+    sortMode: 'recent',
     orientation: "portrait",
     gridCols: 3,
     gridRows: 3,
@@ -111,16 +113,76 @@ async function dbGet(key) {
 }
 
 // Card Sets CRUD
-async function saveCardSetToDB(name, stateData) {
+async function saveCardSetToDB(name, stateData, existingId = null) {
     const db = await initDB();
     const tx = db.transaction(SETS_STORE, 'readwrite');
-    tx.objectStore(SETS_STORE).put({ name, stateData, createdAt: Date.now() });
-    return new Promise(r => { tx.oncomplete = r; });
+    const store = tx.objectStore(SETS_STORE);
+    
+    const set = { 
+        name, 
+        stateData, 
+        createdAt: Date.now(),
+        lastUsed: Date.now(),
+        usageCount: 1
+    };
+
+    if (existingId) {
+        // If updating, preserve createdAt and increment usage
+        return new Promise((resolve) => {
+            const req = store.get(existingId);
+            req.onsuccess = () => {
+                const old = req.result;
+                if (old) {
+                    set.id = existingId;
+                    set.createdAt = old.createdAt || Date.now();
+                    set.usageCount = (old.usageCount || 0) + 1;
+                }
+                store.put(set);
+                tx.oncomplete = () => resolve(set.id);
+            };
+        });
+    }
+
+    const req = store.add(set);
+    return new Promise(r => { 
+        req.onsuccess = (e) => r(e.target.result); 
+    });
 }
+
+async function updateLibraryItem(id, data) {
+    const db = await initDB();
+    const tx = db.transaction(SETS_STORE, 'readwrite');
+    const store = tx.objectStore(SETS_STORE);
+    
+    return new Promise((resolve) => {
+        const req = store.get(id);
+        req.onsuccess = () => {
+            const item = req.result;
+            if (item) {
+                const updated = { ...item, ...data, lastUsed: Date.now() };
+                store.put(updated);
+            }
+            resolve();
+        };
+    });
+}
+
 async function getAllCardSets() {
     try {
         const db = await initDB();
-        return new Promise((res) => { const r = db.transaction(SETS_STORE, 'readonly').objectStore(SETS_STORE).getAll(); r.onsuccess = () => res(r.result || []); r.onerror = () => res([]); });
+        return new Promise((res) => { 
+            const r = db.transaction(SETS_STORE, 'readonly').objectStore(SETS_STORE).getAll(); 
+            r.onsuccess = () => {
+                let sets = r.result || [];
+                // Backwards Compatibility
+                sets.forEach(set => {
+                    if (!set.lastUsed) set.lastUsed = set.createdAt || Date.now();
+                    if (!set.usageCount) set.usageCount = 0;
+                });
+                res(sets);
+            };
+            r.onerror = () => res([]); 
+        });
     } catch(e) { return []; }
 }
 async function deleteCardSet(id) {
@@ -139,17 +201,29 @@ async function deleteCardSet(id) {
 async function renderCardSets() {
     const list = document.getElementById('sets-list');
     if (!list) return;
-    const sets = await getAllCardSets();
+    let sets = await getAllCardSets();
     if (sets.length === 0) { list.innerHTML = '<p class="text-slate-400 text-[10px] italic">No saved sets yet.</p>'; return; }
+    
+    // Sort sets
+    if (state.sortMode === 'recent') sets.sort((a, b) => b.lastUsed - a.lastUsed);
+    else if (state.sortMode === 'alpha') sets.sort((a, b) => a.name.localeCompare(b.name));
+    else if (state.sortMode === 'popular') sets.sort((a, b) => b.usageCount - a.usageCount);
+
     list.innerHTML = '';
     sets.forEach(set => {
+        const isActive = state.activeId === set.id;
         const item = document.createElement('div');
-        item.className = 'flex items-center gap-2 p-2 bg-slate-50 dark:bg-slate-800 border-2 border-brand-dark/10 dark:border-slate-600 rounded-lg hover:border-brand-blue/40 transition-all';
+        item.className = `flex items-center gap-2 p-2 border-2 rounded-lg transition-all ${isActive ? 'bg-brand-blue/5 border-brand-blue/40 shadow-neo-sm' : 'bg-slate-50 dark:bg-slate-800 border-brand-dark/10 dark:border-slate-600 hover:border-brand-blue/40'}`;
+        
         const pageCount = set.stateData?.pages?.length || 0;
         const cardCount = set.stateData?.pages?.reduce((a, p) => a + p.length, 0) || 0;
+        
         item.innerHTML = `
-            <div class="flex-1 min-w-0">
-                <p class="text-xs font-bold text-brand-dark dark:text-white truncate">${set.name}</p>
+            <div class="flex-1 min-w-0 cursor-pointer" onclick="loadCardSetFromList(${set.id})">
+                <div class="flex items-center gap-1.5">
+                    <p class="text-xs font-bold text-brand-dark dark:text-white truncate">${set.name}</p>
+                    ${isActive ? '<span class="px-1 py-0.5 rounded bg-brand-blue text-white text-[7px] font-bold uppercase shrink-0">Active</span>' : ''}
+                </div>
                 <p class="text-[9px] text-slate-400 truncate">${pageCount} page(s), ${cardCount} card(s)</p>
             </div>
             <button class="set-load p-1.5 bg-brand-blue/10 text-brand-blue rounded-md border border-brand-blue/20 hover:bg-brand-blue hover:text-white transition-all" title="Load">
@@ -158,15 +232,40 @@ async function renderCardSets() {
             <button class="set-del p-1.5 bg-brand-pink/10 text-brand-pink rounded-md border border-brand-pink/20 hover:bg-brand-pink hover:text-white transition-all" title="Delete">
                 <i data-lucide="trash-2" class="w-3 h-3 pointer-events-none"></i>
             </button>`;
-        item.querySelector('.set-load').onclick = () => loadCardSet(set.stateData);
-        item.querySelector('.set-del').onclick = async () => { await deleteCardSet(set.id); renderCardSets(); };
+        
+        item.querySelector('.set-load').onclick = () => loadCardSetFromList(set.id);
+        item.querySelector('.set-del').onclick = async (e) => { 
+            e.stopPropagation();
+            const confirmed = await showConfirm("Delete Set", `Delete "${set.name}"?`);
+            if (confirmed) {
+                await deleteCardSet(set.id); 
+                if (state.activeId === set.id) closeActiveSet();
+                renderCardSets(); 
+            }
+        };
         list.appendChild(item);
     });
     lucide.createIcons();
 }
 
-function loadCardSet(stateData) {
-    state = { ...state, ...stateData };
+async function loadCardSetFromList(id) {
+    const db = await initDB();
+    const tx = db.transaction(SETS_STORE, 'readonly');
+    const store = tx.objectStore(SETS_STORE);
+    const req = store.get(id);
+    req.onsuccess = async () => {
+        const set = req.result;
+        if (set) {
+            // Update metadata
+            await updateLibraryItem(id, { usageCount: (set.usageCount || 0) + 1 });
+            loadCardSet(set.stateData, id, set.name);
+            showToast(`Loaded "${set.name}"`, "success");
+        }
+    };
+}
+
+function loadCardSet(stateData, id = null, name = "") {
+    state = { ...state, ...stateData, activeId: id };
     inputCols.value = state.gridCols || 3;
     inputRows.value = state.gridRows || 3;
     renderAllPages();
@@ -174,21 +273,62 @@ function loadCardSet(stateData) {
     setImageSize(state.imgHeight);
     setFontSize(state.fontSize);
     updateToggleUI();
+    updateActiveIndicator(name);
+    renderCardSets();
 }
 
 async function saveCurrentSet() {
     const nameInput = document.getElementById('set-name-input');
     const name = nameInput.value.trim();
-    if (!name) return;
+    if (!name) {
+        showToast("Please enter a set name", "warning");
+        return;
+    }
+    
     saveState(); // Harvest DOM into state
-    // Clone state without saving the full state reference
     const clone = JSON.parse(JSON.stringify(state));
-    await saveCardSetToDB(name, clone);
+    
+    const newId = await saveCardSetToDB(name, clone);
+    state.activeId = newId;
     nameInput.value = '';
+    
+    updateActiveIndicator(name);
     renderCardSets();
+    showToast(`Set "${name}" saved`, "success");
 
     // Sync Sets to Cloud
     await syncSetsToCloud();
+}
+
+function updateActiveIndicator(name) {
+    const indicator = document.getElementById('active-set-indicator');
+    const nameEl = document.getElementById('active-set-name');
+    const saveBtn = document.getElementById('save-btn');
+
+    if (state.activeId && name) {
+        indicator.classList.remove('hidden');
+        nameEl.textContent = name;
+        if (saveBtn) {
+            saveBtn.innerHTML = '<i data-lucide="copy" class="w-3 h-3"></i> SAVE AS';
+        }
+    } else {
+        indicator.classList.add('hidden');
+        if (saveBtn) {
+            saveBtn.innerHTML = '<i data-lucide="save" class="w-3 h-3"></i> SAVE';
+        }
+    }
+    lucide.createIcons();
+}
+
+function closeActiveSet() {
+    state.activeId = null;
+    updateActiveIndicator();
+    renderCardSets();
+}
+
+function changeSetsSort() {
+    state.sortMode = document.getElementById('sets-sort').value;
+    renderCardSets();
 }
 
 async function syncSetsToCloud() {
@@ -266,6 +406,15 @@ async function loadState() {
     } catch (e) {
         console.error("Cloud load failed:", e);
     }
+
+    // Restore Active Name if possible
+    if (state.activeId) {
+        const sets = await getAllCardSets();
+        const activeSet = sets.find(s => s.id === state.activeId);
+        if (activeSet) updateActiveIndicator(activeSet.name);
+        else state.activeId = null; // Clean up stale ID
+    }
+
     // Ensure at least one page exists
     if (!state.pages || state.pages.length === 0) {
         state.pages = [[]];
@@ -318,6 +467,11 @@ function saveState() {
     );
     // Also persist to IndexedDB
     dbPut('cardMakerState', state);
+
+    // Auto-save to Library if active
+    if (state.activeId) {
+        updateLibraryItem(state.activeId, { stateData: JSON.parse(JSON.stringify(state)) });
+    }
 
     // Sync to Cloud (Debounced)
     if (window.cloudSaveTimeout) clearTimeout(window.cloudSaveTimeout);
@@ -1015,6 +1169,8 @@ async function resetTool() {
     if (confirmed) {
         // Reset state to defaults
         state = {
+            activeId: null,
+            sortMode: state.sortMode || 'recent',
             orientation: "portrait",
             gridCols: 3,
             gridRows: 3,
