@@ -1465,7 +1465,7 @@ const MySpace = {
     
     // Load default app if none active
     if (!this.currentApp) {
-      this.loadApp('tasks', true);
+      this.loadApp('myspace-home', true);
     }
 
     if (!silent) AudioEngine.click();
