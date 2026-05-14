@@ -1413,7 +1413,8 @@ const ViewManager = {
       all: "Let's start teaching",
       tool: "Teaching Tools",
       game: "Classroom Games",
-      workshop: "Workshop Tools"
+      workshop: "Workshop Tools",
+      'under-construction': "Under Construction"
     };
     const title = titles[category] || "Activity Library";
 
@@ -1433,7 +1434,8 @@ const ViewManager = {
       all: "graduation-cap",
       tool: "wrench",
       game: "gamepad-2",
-      workshop: "hammer"
+      workshop: "hammer",
+      'under-construction': "construction"
     };
     const icon = icons[category] || "layout-grid";
 
