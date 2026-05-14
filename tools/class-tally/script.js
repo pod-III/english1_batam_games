@@ -87,7 +87,7 @@ const ClassTallyApp = (function () {
         timerSeconds: 0,
         isPicking: false,
         cardSize: 1,
-        isAutoFit: false,
+        isAutoFit: true,
         showRankings: false,
         editingStudentId: null,
         activeSetId: null,
@@ -409,7 +409,7 @@ const ClassTallyApp = (function () {
                     State.currentBad = o.bad || '⚠️'
                     State.pickedQueue = o.pickedQueue || []
                     State.cardSize = o.cardSize || 1
-                    State.isAutoFit = o.isAutoFit || false
+                    State.isAutoFit = o.isAutoFit !== undefined ? o.isAutoFit : true
                     State.activeSetId = o.activeSetId || null
                     State.showAbsent = o.showAbsent || false
                     State.viewMode = o.viewMode || 'grid'
@@ -1586,6 +1586,7 @@ const ClassTallyApp = (function () {
             UI.initEmojiPickers();
             Keyboard.init();
             UI.render();
+            UI.updateViewModeUI();
             UI.updateAutoFitUI();
             UI.renderClassSets();
 
