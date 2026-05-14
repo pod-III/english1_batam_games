@@ -42,13 +42,13 @@ const ClassTallyApp = (function () {
 
     async function saveClassSetToDB(name, data) {
         const sets = await getAllClassSets()
-        sets.push({ 
-            id: Date.now(), 
-            name, 
-            data, 
+        sets.push({
+            id: Date.now(),
+            name,
+            data,
             createdAt: Date.now(),
             lastUsed: Date.now(),
-            usageCount: 1 
+            usageCount: 1
         })
         await saveProgress('class_tally_sets', { sets })
     }
@@ -91,6 +91,7 @@ const ClassTallyApp = (function () {
         editingStudentId: null,
         activeSetId: null,
         showAbsent: false,
+        viewMode: 'grid', // grid, compact, list, counter
 
         // NEW STATE PROPERTY FOR NON-REPEATING PICKER
         pickedQueue: [],
@@ -377,10 +378,11 @@ const ClassTallyApp = (function () {
                 cardSize: State.cardSize,
                 isAutoFit: State.isAutoFit,
                 activeSetId: State.activeSetId,
-                showAbsent: State.showAbsent
+                showAbsent: State.showAbsent,
+                viewMode: State.viewMode
             };
             saveProgress('class_tally', dataToSave)
-            
+
             // Auto-save to the active set if one exists
             if (State.activeSetId) {
                 Student.autoSaveActiveSet();
@@ -408,6 +410,7 @@ const ClassTallyApp = (function () {
                     State.isAutoFit = o.isAutoFit || false
                     State.activeSetId = o.activeSetId || null
                     State.showAbsent = o.showAbsent || false
+                    State.viewMode = o.viewMode || 'grid'
                 } catch (e) {
                     console.error('Error loading saved state:', e)
                     State.students = []
@@ -547,29 +550,29 @@ const ClassTallyApp = (function () {
         },
 
         addBulk: () => {
-             const input = document.getElementById('bulk-import-input').value;
-             if (!input.trim()) return;
-             const names = input.split('\n').map(n => n.trim()).filter(n => n.length > 0);
-             if (names.length === 0) return;
+            const input = document.getElementById('bulk-import-input').value;
+            if (!input.trim()) return;
+            const names = input.split('\n').map(n => n.trim()).filter(n => n.length > 0);
+            if (names.length === 0) return;
 
-             names.forEach(name => {
-                 State.students.push({
-                     id: Date.now() + Math.floor(Math.random() * 10000),
-                     name: name,
-                     signatureData: null,
-                     avatar: State.AVATARS[Math.floor(Math.random() * State.AVATARS.length)], // Random avatar
-                     goodLogs: [], badLogs: [],
-                     cardColor: State.CARD_COLORS[Math.floor(Math.random() * State.CARD_COLORS.length)].hex, // Random color
-                     isAbsent: false
-                 });
-             });
-             
-             document.getElementById('bulk-import-input').value = '';
-             State.showRankings = false;
-             UI.hideManageClassesModal();
-             Persistence.save();
-             UI.render();
-             Audio.playGood();
+            names.forEach(name => {
+                State.students.push({
+                    id: Date.now() + Math.floor(Math.random() * 10000),
+                    name: name,
+                    signatureData: null,
+                    avatar: State.AVATARS[Math.floor(Math.random() * State.AVATARS.length)], // Random avatar
+                    goodLogs: [], badLogs: [],
+                    cardColor: State.CARD_COLORS[Math.floor(Math.random() * State.CARD_COLORS.length)].hex, // Random color
+                    isAbsent: false
+                });
+            });
+
+            document.getElementById('bulk-import-input').value = '';
+            State.showRankings = false;
+            UI.hideManageClassesModal();
+            Persistence.save();
+            UI.render();
+            Audio.playGood();
         },
 
         autoSaveActiveSet: async () => {
@@ -581,7 +584,7 @@ const ClassTallyApp = (function () {
             }));
             await updateClassSetInDB(State.activeSetId, clone);
         },
-        
+
         toggleAbsent: (id) => {
             const s = State.students.find(x => x.id === id);
             if (!s) return;
@@ -594,7 +597,7 @@ const ClassTallyApp = (function () {
         // MODIFIED: NON-REPEATING PICK RANDOM LOGIC
         pickRandom: () => {
             if (State.students.length === 0) return console.error("Class is empty. Add students first.");
-            
+
             // Filter available students (NOT absent)
             const activeStudents = State.students.filter(s => !s.isAbsent);
             if (activeStudents.length === 0) {
@@ -700,26 +703,26 @@ const ClassTallyApp = (function () {
         },
         sortByRanking: () => {
             if (State.students.length === 0) return;
-            
+
             UI.showConfirmationModal(
                 'Ready for Rankings? 🏆',
                 'Prepare the class! We\'re about to see who\'s leading the tally.',
                 'Let\'s Go!',
                 (confirmed) => {
                     if (!confirmed) return;
-                    
+
                     State.students.sort((a, b) => {
                         const aStars = a.goodLogs.length;
                         const bStars = b.goodLogs.length;
                         if (aStars !== bStars) return bStars - aStars; // Most to least
                         return a.name.localeCompare(b.name); // Alphabetical fallback
                     });
-                    
+
                     State.showRankings = true;
                     Persistence.save();
                     UI.render({ animate: true });
                     Audio.playMilestone();
-                    
+
                     // Celebrate the top student
                     if (State.students.length > 0) {
                         setTimeout(() => {
@@ -937,7 +940,7 @@ const ClassTallyApp = (function () {
             const activeBtn = document.getElementById(`tab-mgr-${v}`);
             activeBtn.classList.remove('text-slate-500', 'hover:text-slate-700', 'dark:text-slate-400', 'dark:hover:text-white');
             activeBtn.classList.add('bg-white', 'dark:bg-slate-800', 'shadow', 'shadow-slate-200/50', 'dark:shadow-none', 'text-brand-blue');
-            
+
             document.querySelectorAll('.tab-mgr-content').forEach(c => c.classList.add('hidden'));
             document.getElementById(`mgr-content-${v}`).classList.remove('hidden');
         },
@@ -962,7 +965,7 @@ const ClassTallyApp = (function () {
             State.pickedQueue = [];
             State.showRankings = false;
             State.activeSetId = set.id;
-            
+
             // Update usage stats
             const sets = await getAllClassSets();
             const idx = sets.findIndex(s => s.id === set.id);
@@ -1013,7 +1016,7 @@ const ClassTallyApp = (function () {
             if (!list) return;
 
             let sets = await getAllClassSets();
-            
+
             // Sorting logic
             if (sortVal === 'alpha') {
                 sets.sort((a, b) => a.name.localeCompare(b.name));
@@ -1024,27 +1027,27 @@ const ClassTallyApp = (function () {
                 sets.sort((a, b) => (b.lastUsed || b.createdAt || 0) - (a.lastUsed || a.createdAt || 0));
             }
 
-            if (sets.length === 0) { 
+            if (sets.length === 0) {
                 list.innerHTML = `
                     <div class="flex flex-col items-center justify-center py-8 text-slate-400 opacity-60">
                         <i data-lucide="folder-search" class="w-8 h-8 mb-2"></i>
                         <p class="text-xs italic font-bold">No saved classes yet.</p>
                     </div>
-                `; 
+                `;
                 lucide.createIcons();
-                return; 
+                return;
             }
 
             list.innerHTML = '';
             sets.forEach(set => {
                 const isActive = set.id === State.activeSetId;
                 const activeClass = isActive ? 'border-brand-orange ring-2 ring-brand-orange/10 bg-orange-50/30' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-700';
-                
+
                 const item = document.createElement('div');
                 item.className = `flex items-center gap-3 p-3 border rounded-2xl hover:border-brand-blue/40 transition-all group ${activeClass}`;
                 const count = set.data?.students?.length || 0;
                 const usage = set.usageCount || 0;
-                
+
                 item.innerHTML = `
                     <div class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-lg shrink-0 border border-black/5">
                         ${isActive ? '🔥' : '🏫'}
@@ -1068,9 +1071,9 @@ const ClassTallyApp = (function () {
                             <i data-lucide="trash-2" class="w-4 h-4 pointer-events-none"></i>
                         </button>
                     </div>`;
-                
+
                 item.querySelector('.set-load').onclick = () => UI.loadClassSet(set);
-                item.querySelector('.set-del').onclick = async (e) => { 
+                item.querySelector('.set-del').onclick = async (e) => {
                     e.stopPropagation();
                     UI.showConfirmationModal('Delete Class?', `Are you sure you want to delete "${set.name}"?`, 'Delete', async (y) => {
                         if (y) {
@@ -1094,8 +1097,8 @@ const ClassTallyApp = (function () {
             if (btn) {
                 btn.classList.toggle('text-brand-orange', State.showAbsent);
                 btn.classList.toggle('text-slate-400', !State.showAbsent);
-                btn.innerHTML = State.showAbsent 
-                    ? '<i data-lucide="eye-off" class="w-5 h-5"></i>' 
+                btn.innerHTML = State.showAbsent
+                    ? '<i data-lucide="eye-off" class="w-5 h-5"></i>'
                     : '<i data-lucide="eye" class="w-5 h-5"></i>';
             }
             Persistence.save();
@@ -1112,6 +1115,32 @@ const ClassTallyApp = (function () {
                     : '<i data-lucide="eye" class="w-5 h-5"></i>';
             }
             lucide.createIcons();
+        },
+        setViewMode: (m) => {
+            State.viewMode = m;
+            UI.updateViewModeUI();
+            Persistence.save();
+            UI.render();
+        },
+        updateViewModeUI: () => {
+            ['grid', 'list'].forEach(m => {
+                const btn = document.getElementById(`view-${m}`);
+                if (btn) {
+                    if (State.viewMode === m) {
+                        btn.classList.add('bg-brand-blue', 'text-white', 'border-brand-blue');
+                        btn.classList.remove('text-slate-400');
+                    } else {
+                        btn.classList.remove('bg-brand-blue', 'text-white', 'border-brand-blue');
+                        btn.classList.add('text-slate-400');
+                    }
+                }
+            });
+            
+            const container = document.getElementById('grid-container');
+            if (container) {
+                container.classList.remove('view-grid', 'view-list');
+                container.classList.add(`view-${State.viewMode}`);
+            }
         },
         celebrate: (id) => {
             const el = document.getElementById(`card-${id}`);
@@ -1226,7 +1255,7 @@ const ClassTallyApp = (function () {
         render: (options = {}) => {
             const animate = options.animate || false;
             const container = document.getElementById('grid-container');
-            
+
             // Filter students based on showAbsent setting
             const visibleStudents = State.students.filter(s => !s.isAbsent || State.showAbsent);
 
@@ -1241,32 +1270,44 @@ const ClassTallyApp = (function () {
                 const goodCount = s.goodLogs.length;
                 const badCount = s.badLogs.length;
 
-                // Add a class if the student has been picked in the current cycle
-                const pickedClass = State.pickedQueue.includes(s.id) ? 'opacity-70 border-b-4 border-slate-300' : '';
+                // Common classes/styles
+                const pickedClass = State.pickedQueue.includes(s.id) ? 'ring-4 ring-brand-blue/30 scale-[0.98]' : '';
                 const absentClass = s.isAbsent ? 'opacity-40 grayscale blur-[1px]' : '';
                 const animationClass = animate ? 'animate-pop-in' : '';
                 const animationStyle = animate ? `animation-delay: ${index * 0.05}s; animation-fill-mode: both;` : '';
-
+                
+                // RANK BADGE
                 const rankBadge = (State.showRankings && index < 3) ? `
-                    <div class="absolute -top-1 -left-1 z-30 w-12 h-12 flex items-center justify-center pointer-events-none drop-shadow-lg animate-pop-in" style="animation-delay: ${(index * 0.05) + 0.3}s; animation-fill-mode: both;">
-                        <div class="relative w-full h-full flex items-center justify-center">
-                            <svg class="absolute w-full h-full" viewBox="0 0 100 100">
-                                <defs>
-                                    <linearGradient id="grad-${index}" x1="0%" y1="0%" x2="100%" y2="100%">
-                                        ${index === 0 ? '<stop offset="0%" style="stop-color:#fbbf24"/><stop offset="100%" style="stop-color:#d97706"/>' : 
-                                          index === 1 ? '<stop offset="0%" style="stop-color:#94a3b8"/><stop offset="100%" style="stop-color:#475569"/>' : 
-                                          '<stop offset="0%" style="stop-color:#b45309"/><stop offset="100%" style="stop-color:#78350f"/>'}
-                                    </linearGradient>
-                                </defs>
-                                <path d="M50 5 L63 35 L95 35 L70 55 L80 85 L50 65 L20 85 L30 55 L5 35 L37 35 Z" fill="url(#grad-${index})" stroke="white" stroke-width="2" />
-                            </svg>
-                            <span class="relative z-10 text-[10px] font-black text-white mt-1">
-                                ${index + 1}${index === 0 ? 'st' : index === 1 ? 'nd' : 'rd'}
-                            </span>
-                        </div>
+                    <div class="absolute -top-2 -left-2 z-30 w-10 h-10 flex items-center justify-center pointer-events-none drop-shadow-lg animate-pop-in">
+                         <span class="text-2xl">${index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}</span>
                     </div>
                 ` : '';
 
+                if (State.viewMode === 'list') {
+                    return `
+                    <div id="card-${s.id}" class="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-700 rounded-2xl p-3 flex items-center gap-4 transition-all hover:border-brand-blue group ${pickedClass} ${absentClass} ${animationClass}" style="${animationStyle}">
+                        <div class="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-3xl shrink-0 border border-black/5" style="background-color: ${s.cardColor}20">
+                            ${s.avatar || '😀'}
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h3 class="text-xl font-black text-slate-800 dark:text-white truncate leading-none mb-1">${s.name}</h3>
+                            <div class="flex gap-2">
+                                <span class="text-xs font-bold text-brand-green uppercase flex items-center gap-1">${State.currentGood} <span class="good-count">${goodCount}</span></span>
+                                <span class="text-xs font-bold text-brand-pink uppercase flex items-center gap-1">${State.currentBad} <span class="bad-count">${badCount}</span></span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                             <button onclick="ClassTallyApp.Student.addPoint(${s.id}, 'good')" class="w-12 h-12 rounded-xl border-2 border-brand-green/20 text-brand-green hover:bg-brand-green hover:text-white transition-all flex items-center justify-center font-bold btn-chunky shadow-sm hover:shadow-brand-green/20 text-xl">${State.currentGood}</button>
+                             <button onclick="ClassTallyApp.Student.addPoint(${s.id}, 'bad')" class="w-12 h-12 rounded-xl border-2 border-brand-pink/20 text-brand-pink hover:bg-brand-pink hover:text-white transition-all flex items-center justify-center font-bold btn-chunky shadow-sm hover:shadow-brand-pink/20 text-xl">${State.currentBad}</button>
+                             <div class="h-8 w-[1px] bg-slate-100 dark:bg-slate-800 mx-1"></div>
+                             <button onclick="ClassTallyApp.Student.toggleAbsent(${s.id})" title="Toggle Attendance" class="p-2.5 text-slate-300 hover:text-brand-orange transition-colors"><i data-lucide="${s.isAbsent ? 'eye' : 'eye-off'}" class="w-5 h-5"></i></button>
+                             <button onclick="ClassTallyApp.Student.editStudent(${s.id})" title="Edit" class="p-2.5 text-slate-300 hover:text-brand-blue transition-colors"><i data-lucide="pencil" class="w-5 h-5"></i></button>
+                             <button onclick="ClassTallyApp.Student.remove(${s.id})" title="Delete" class="p-2.5 text-slate-300 hover:text-red-400 transition-colors"><i data-lucide="x" class="w-5 h-5"></i></button>
+                        </div>
+                    </div>`;
+                }
+
+                // Default: Grid (Normal) View
                 return `
                 <div id="card-${s.id}" class="app-panel rounded-[2rem] flex flex-row relative overflow-hidden bg-white hover:border-slate-200 group transition-all duration-300 ${pickedClass} ${absentClass} ${animationClass}" style="${animationStyle}">
                     ${rankBadge}
@@ -1339,6 +1380,19 @@ const ClassTallyApp = (function () {
                     </div>
                 </div>`;
             }).join('');
+            
+            // Auto-Fit logic
+            if (State.viewMode === 'grid') {
+                if (State.isAutoFit) {
+                    UI.calculateAutoFitScale();
+                } else {
+                    UI.setCardSize(1);
+                }
+            } else {
+                document.documentElement.style.removeProperty('--grid-cols');
+                UI.setCardSize(1);
+            }
+            
             lucide.createIcons();
         }
     };
