@@ -370,6 +370,60 @@
             margin-top: 12px;
         }
 
+        /* Import modal */
+        .import-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 200;
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(6px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+
+        .import-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .import-overlay.open .import-modal {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        .import-modal {
+            transform: scale(0.95);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            max-height: 92vh;
+        }
+
+        .import-textarea {
+            font-family: 'Nunito', monospace;
+            font-size: 13px;
+            line-height: 1.7;
+            tab-size: 2;
+        }
+
+        .import-textarea::placeholder {
+            color: #94a3b8;
+        }
+
+        .template-tag {
+            display: inline-block;
+            font-family: 'Fredoka', sans-serif;
+            font-weight: 700;
+            font-size: 11px;
+            padding: 1px 8px;
+            border-radius: 6px;
+            border: 2px solid;
+        }
+
         @media (max-height: 780px) {
             .setup-header {
                 display: none;
@@ -544,11 +598,18 @@
                     <div id="questions-editor" class="space-y-4 overflow-y-auto px-6 py-4 custom-scrollbar flex-1">
                     </div>
                     <div
-                        class="px-6 py-4 border-t-2 border-dark/10 dark:border-slate-700 flex justify-between items-center gap-4 shrink-0 bg-slate-50 dark:bg-slate-800/50">
-                        <button onclick="addQuestion()"
-                            class="btn-chunky bg-blue text-white px-5 py-2.5 rounded-xl shadow-hard font-heading text-base flex items-center gap-2">
-                            <i data-lucide="plus" class="w-4 h-4"></i> ADD QUESTION
-                        </button>
+                        class="px-6 py-4 border-t-2 border-dark/10 dark:border-slate-700 flex flex-wrap justify-between items-center gap-3 shrink-0 bg-slate-50 dark:bg-slate-800/50">
+                        <div class="flex items-center gap-2">
+                            <button onclick="addQuestion()"
+                                class="btn-chunky bg-blue text-white px-5 py-2.5 rounded-xl shadow-hard font-heading text-base flex items-center gap-2">
+                                <i data-lucide="plus" class="w-4 h-4"></i> ADD
+                            </button>
+                            <button onclick="openImportModal()"
+                                class="btn-chunky bg-orange text-white px-5 py-2.5 rounded-xl shadow-hard font-heading text-base flex items-center gap-2"
+                                title="Bulk import questions">
+                                <i data-lucide="file-up" class="w-4 h-4"></i> IMPORT
+                            </button>
+                        </div>
                         <button onclick="saveAndPlay()"
                             class="btn-chunky bg-green text-dark px-8 py-3 rounded-xl shadow-hard font-heading text-xl uppercase flex items-center gap-2">
                             <i data-lucide="swords" class="w-5 h-5"></i> START BATTLE!
@@ -680,6 +741,79 @@
             </div>
         </div>
     </main>
+
+    <!-- Import Modal -->
+    <div id="import-overlay" class="import-overlay" onclick="if(event.target===this)closeImportModal()">
+        <div class="import-modal glass-panel rounded-2xl shadow-hard-lg bg-white dark:bg-slate-900 w-full max-w-3xl flex flex-col overflow-hidden">
+            <div class="w-full h-1.5 bg-orange shrink-0"></div>
+            <div class="flex items-center gap-4 px-6 pt-5 pb-4 border-b-2 border-dark/10 dark:border-slate-700 shrink-0">
+                <div class="w-10 h-10 rounded-xl bg-orange flex items-center justify-center border-2 border-dark shadow-hard-sm shrink-0">
+                    <i data-lucide="file-up" class="w-5 h-5 text-white"></i>
+                </div>
+                <div class="flex-1">
+                    <h2 class="text-xl font-heading uppercase tracking-tight text-dark dark:text-white">BULK IMPORT</h2>
+                    <p class="text-[9px] font-black text-orange tracking-[0.25em] uppercase">Paste questions using the template below</p>
+                </div>
+                <button onclick="closeImportModal()" class="btn-chunky bg-chalk dark:bg-slate-800 w-10 h-10 rounded-xl shadow-hard-sm flex items-center justify-center text-dark dark:text-white" title="Close">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="flex flex-col lg:flex-row flex-1 overflow-hidden min-h-0">
+                <!-- Template Guide -->
+                <div class="lg:w-64 shrink-0 px-5 py-4 border-b-2 lg:border-b-0 lg:border-r-2 border-dark/10 dark:border-slate-700 overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-slate-800/40">
+                    <p class="text-[9px] font-black text-slate-400 uppercase tracking-[0.25em] mb-3">Template Format</p>
+                    <div class="space-y-1.5 text-xs">
+                        <div class="flex items-center gap-2"><span class="template-tag bg-blue/10 text-blue border-blue/30">Q:</span><span class="text-slate-500 dark:text-slate-400 font-semibold">Question text</span></div>
+                        <div class="flex items-center gap-2"><span class="template-tag bg-pink/10 text-pink border-pink/30">A:</span><span class="text-slate-500 dark:text-slate-400 font-semibold">Option A</span></div>
+                        <div class="flex items-center gap-2"><span class="template-tag bg-orange/10 text-orange border-orange/30">B:</span><span class="text-slate-500 dark:text-slate-400 font-semibold">Option B</span></div>
+                        <div class="flex items-center gap-2"><span class="template-tag bg-blue/10 text-blue border-blue/30">C:</span><span class="text-slate-500 dark:text-slate-400 font-semibold">Option C</span></div>
+                        <div class="flex items-center gap-2"><span class="template-tag bg-green/10 text-green border-green/30">D:</span><span class="text-slate-500 dark:text-slate-400 font-semibold">Option D</span></div>
+                        <div class="flex items-center gap-2"><span class="template-tag bg-green/10 text-green border-green/30">X:</span><span class="text-slate-500 dark:text-slate-400 font-semibold">A, B, C, or D</span></div>
+                        <div class="flex items-center gap-2"><span class="template-tag bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 border-slate-300 dark:border-slate-500">E:</span><span class="text-slate-500 dark:text-slate-400 font-semibold">Explanation <span class="opacity-50">(opt.)</span></span></div>
+                    </div>
+                    <div class="mt-4 bg-white dark:bg-slate-800 border-2 border-dark/10 dark:border-slate-600 rounded-xl p-3 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400 font-semibold">
+                        <p class="mb-1"><strong class="text-dark dark:text-white">Tip:</strong> Separate questions with a blank line.</p>
+                        <p><strong class="text-dark dark:text-white">X:</strong> marks the correct answer (A/B/C/D).</p>
+                    </div>
+                    <button onclick="copyTemplate()" class="btn-chunky mt-3 w-full bg-orange/10 hover:bg-orange text-orange hover:text-white py-2 rounded-xl shadow-hard-sm font-heading text-xs flex items-center justify-center gap-2 transition-colors">
+                        <i data-lucide="clipboard-copy" class="w-3.5 h-3.5"></i> COPY TEMPLATE
+                    </button>
+                </div>
+
+                <!-- Textarea Area -->
+                <div class="flex-1 flex flex-col min-h-0 p-5">
+                    <textarea id="import-textarea" class="import-textarea w-full flex-1 bg-chalk dark:bg-slate-800 border-2 border-dark/15 dark:border-slate-600 rounded-xl px-4 py-3 text-dark dark:text-white focus:outline-none focus:border-orange dark:focus:border-orange resize-none custom-scrollbar min-h-[200px]" placeholder="Q: What is the capital of France?
+A: London
+B: Paris
+C: Berlin
+D: Madrid
+X: B
+E: Paris has been France's capital since the 10th century.
+
+Q: What is 2 + 2?
+A: 3
+B: 4
+C: 5
+D: 6
+X: B" oninput="updateImportPreview()"></textarea>
+                    <div class="flex items-center justify-between mt-3 gap-3">
+                        <div id="import-preview-count" class="text-xs font-black text-slate-400 flex items-center gap-2">
+                            <i data-lucide="info" class="w-3.5 h-3.5"></i> <span>0 questions detected</span>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="closeImportModal()" class="btn-chunky bg-chalk dark:bg-slate-700 text-dark dark:text-white px-5 py-2.5 rounded-xl shadow-hard font-heading text-base">
+                                CANCEL
+                            </button>
+                            <button id="import-confirm-btn" onclick="confirmImport()" class="btn-chunky bg-green text-dark px-6 py-2.5 rounded-xl shadow-hard font-heading text-base flex items-center gap-2 disabled:opacity-40 disabled:grayscale" disabled>
+                                <i data-lucide="check-circle" class="w-4 h-4"></i> IMPORT
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <footer id="app-footer" class="shrink-0 pb-3 text-center">
         <p class="text-[9px] text-slate-400 dark:text-slate-600 font-black uppercase tracking-[0.2em]">
@@ -912,6 +1046,111 @@
 
         function saveAndPlay() { saveData(); toggleMode('play'); }
 
+        // ── Bulk Import ──
+        let parsedImportQuestions = [];
+
+        function openImportModal() {
+            document.getElementById('import-textarea').value = '';
+            parsedImportQuestions = [];
+            updateImportPreview();
+            document.getElementById('import-overlay').classList.add('open');
+            lucide.createIcons();
+            setTimeout(() => document.getElementById('import-textarea').focus(), 300);
+        }
+
+        function closeImportModal() {
+            document.getElementById('import-overlay').classList.remove('open');
+        }
+
+        function parseBulkImport(text) {
+            const questions = [];
+            const blocks = text.split(/\n\s*\n/); // split by blank lines
+
+            for (const block of blocks) {
+                const lines = block.split('\n').map(l => l.trim()).filter(l => l);
+                if (lines.length === 0) continue;
+
+                const q = { q: '', o: ['', '', '', ''], a: 0, e: '' };
+                const answerMap = { 'A': 0, 'B': 1, 'C': 2, 'D': 3 };
+                let hasQuestion = false;
+
+                for (const line of lines) {
+                    const match = line.match(/^([QABCDXE]):\s*(.*)$/i);
+                    if (!match) continue;
+                    const prefix = match[1].toUpperCase();
+                    const value = match[2].trim();
+
+                    switch (prefix) {
+                        case 'Q': q.q = value; hasQuestion = true; break;
+                        case 'A': q.o[0] = value; break;
+                        case 'B': q.o[1] = value; break;
+                        case 'C': q.o[2] = value; break;
+                        case 'D': q.o[3] = value; break;
+                        case 'X':
+                            const letter = value.toUpperCase().trim();
+                            if (answerMap[letter] !== undefined) q.a = answerMap[letter];
+                            break;
+                        case 'E': q.e = value; break;
+                    }
+                }
+
+                if (hasQuestion && q.q) questions.push(q);
+            }
+            return questions;
+        }
+
+        function updateImportPreview() {
+            const text = document.getElementById('import-textarea').value;
+            parsedImportQuestions = parseBulkImport(text);
+            const count = parsedImportQuestions.length;
+            const previewEl = document.getElementById('import-preview-count');
+            const confirmBtn = document.getElementById('import-confirm-btn');
+
+            const span = previewEl.querySelector('span');
+            if (count === 0) {
+                span.textContent = '0 questions detected';
+                span.className = '';
+                confirmBtn.disabled = true;
+            } else {
+                span.textContent = `${count} question${count !== 1 ? 's' : ''} detected ✓`;
+                span.className = 'text-green';
+                confirmBtn.disabled = false;
+            }
+            lucide.createIcons();
+        }
+
+        function confirmImport() {
+            if (parsedImportQuestions.length === 0) return;
+
+            const quiz = collections.find(c => c.id === currentCollectionId);
+            if (!quiz) return;
+
+            // Remove empty placeholder questions
+            const existing = quiz.questions.filter(q => q.q.trim() !== '');
+            quiz.questions = [...existing, ...parsedImportQuestions];
+            currentQuestions = quiz.questions;
+
+            saveData();
+            renderCollections();
+            renderEditor();
+            closeImportModal();
+            AudioEngine.playTone(700, 'sine', 0.15);
+            setTimeout(() => AudioEngine.playTone(900, 'sine', 0.15), 120);
+
+            // Scroll to bottom of editor
+            setTimeout(() => {
+                const editor = document.getElementById('questions-editor');
+                editor.scrollTop = editor.scrollHeight;
+            }, 100);
+        }
+
+        function copyTemplate() {
+            const template = `Q: Your question here?\nA: Option A\nB: Option B\nC: Option C\nD: Option D\nX: A\nE: Explanation why A is correct\n\nQ: Another question?\nA: Choice 1\nB: Choice 2\nC: Choice 3\nD: Choice 4\nX: B`;
+            navigator.clipboard.writeText(template).then(() => {
+                AudioEngine.playTone(600, 'sine', 0.1);
+            });
+        }
+
         function resetQuizState() {
             currentStep = 0; score = 0; isAnswering = false;
             document.getElementById('landing-screen').classList.remove('hidden');
@@ -1083,6 +1322,12 @@
         }
 
         window.addEventListener('keydown', (e) => {
+            // Close import modal on Escape
+            if (e.key === 'Escape' && document.getElementById('import-overlay').classList.contains('open')) {
+                closeImportModal(); return;
+            }
+            // Don't fire quiz hotkeys when import modal is open
+            if (document.getElementById('import-overlay').classList.contains('open')) return;
             if (isSetupMode) return;
             const quizScreen = document.getElementById('quiz-screen');
             if (quizScreen.classList.contains('hidden')) return;
