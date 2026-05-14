@@ -405,8 +405,9 @@ const UI = {
     else if (hour < 18) greeting = "Almost the weekend? 🍎";
     else greeting = "Good Evening! 🌙";
 
-    const greetingEl = document.getElementById("greeting-display");
-    if (greetingEl) greetingEl.textContent = greeting;
+    document.querySelectorAll(".greeting-display").forEach(el => {
+      el.textContent = greeting;
+    });
 
     const dateEl = document.getElementById("date-display");
     if (dateEl) {
@@ -636,18 +637,16 @@ const Hero = {
 
   updateStats() {
     const active = State.games.filter(g => g.active !== false && (!g.pro || State.isPro()));
-    const myspace = active.filter(g => g.category === 'myspace').length;
     const tools = active.filter(g => g.category === 'tool').length;
     const games = active.filter(g => g.category === 'game').length;
     const workshop = active.filter(g => g.category === 'workshop').length;
     const pinned = PinnedGames.get().length;
 
-    const myspaceEl = document.getElementById('stat-myspace');
     const toolsEl = document.getElementById('stat-tools');
     const gamesEl = document.getElementById('stat-games');
     const workshopEl = document.getElementById('stat-workshop');
     const pinnedEl = document.getElementById('stat-pinned');
-    if (myspaceEl) myspaceEl.textContent = myspace;
+
     if (toolsEl) toolsEl.textContent = tools;
     if (gamesEl) gamesEl.textContent = games;
     if (workshopEl) workshopEl.textContent = workshop;
@@ -1152,7 +1151,6 @@ const GameGrid = {
     }
 
     // Group by category
-    const myspace = gamesToRender.filter(g => g.category === 'myspace');
     const tools = gamesToRender.filter(g => g.category === 'tool');
     const gamesList = gamesToRender.filter(g => g.category === 'game');
     const workshop = gamesToRender.filter(g => g.category === 'workshop');
@@ -1160,9 +1158,6 @@ const GameGrid = {
 
     let html = '';
 
-    if (myspace.length > 0) {
-      html += this.renderCategorySection('myspace', 'user-round', 'var(--color-orange)', 'My Space', myspace);
-    }
     if (tools.length > 0) {
       html += this.renderCategorySection('tools', 'wrench', 'var(--color-blue)', 'Teaching Tools', tools);
     }
@@ -1309,7 +1304,6 @@ const ViewMode = {
   init() {
     this.current = Storage.get(CONFIG.storageKeys.viewMode, 'cards') || 'cards';
     this.updateToggleUI();
-    this.apply(); // Actually apply the CSS classes on load
   },
 
   set(mode) {
@@ -1322,153 +1316,369 @@ const ViewMode = {
   },
 
   apply() {
-    const gridContainer = document.getElementById('games-grid');
-    if (!gridContainer) return;
-    gridContainer.classList.remove('view-list', 'view-icons');
-    if (this.current === 'list') gridContainer.classList.add('view-list');
-    if (this.current === 'icons') gridContainer.classList.add('view-icons');
+    document.querySelectorAll('.games-grid').forEach(grid => {
+      grid.classList.remove('view-list', 'view-icons');
+      if (this.current === 'list') grid.classList.add('view-list');
+      if (this.current === 'icons') grid.classList.add('view-icons');
+    });
   },
 
   updateToggleUI() {
-    const container = document.getElementById('view-toggle');
-    if (!container) return;
-    container.querySelectorAll('.view-toggle-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.param === this.current);
+    document.querySelectorAll('.view-toggle-group').forEach(group => {
+      group.querySelectorAll('.view-toggle-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.param === this.current);
+      });
     });
   }
 };
 
-// --- LANDING PAGE ---
-const LandingPage = {
-  currentView: 'landing', // 'landing' or 'library'
+// --- VIEW MANAGER (formerly LandingPage & Filters) ---
+const ViewManager = {
+  currentView: 'landing', // 'landing', 'myspace', 'library-all', 'library-tool', 'library-game', 'library-workshop'
+  renderedViews: new Set(['landing', 'myspace']),
 
   init() {
     const saved = Storage.get(CONFIG.storageKeys.homeView);
-    if (saved === 'library') {
-      this.showLibrary(true);
+    if (saved) {
+      this.show(saved, true);
     } else {
-      this.showLanding(true);
-    }
-  },
-
-  showLanding(silent = false) {
-    const landingView = document.getElementById('landing-view');
-    const libraryView = document.getElementById('library-view');
-    const homeBtn = document.getElementById('nav-home-btn');
-    if (!landingView || !libraryView) return;
-
-    // Reset state to original
-    State.filters = { category: 'all', searchTerm: '', difficulty: 'all', tags: [] };
-    const searchInput = document.getElementById('search-input');
-    if (searchInput) searchInput.value = '';
-
-    this.currentView = 'landing';
-    landingView.style.display = '';
-    libraryView.style.display = 'none';
-
-    // Re-trigger entrance animation
-    landingView.style.animation = 'none';
-    landingView.offsetHeight; // force reflow
-    landingView.style.animation = '';
-
-    // Update sidebar active states
-    Filters.updateUI();
-
-    Storage.set(CONFIG.storageKeys.homeView, 'landing');
-    if (!silent) AudioEngine.click();
-    Utils.refreshIcons();
-  },
-
-  showLibrary(silent = false) {
-    const landingView = document.getElementById('landing-view');
-    const libraryView = document.getElementById('library-view');
-    const homeBtn = document.getElementById('nav-home-btn');
-    if (!landingView || !libraryView) return;
-
-    this.currentView = 'library';
-    landingView.style.display = 'none';
-    libraryView.style.display = '';
-
-    // Re-trigger entrance animation
-    libraryView.style.animation = 'none';
-    libraryView.offsetHeight; // force reflow
-    libraryView.style.animation = '';
-
-    // Update sidebar active states
-    if (homeBtn) homeBtn.classList.remove('active');
-    Filters.updateUI();
-
-    Storage.set(CONFIG.storageKeys.homeView, 'library');
-    if (!silent) AudioEngine.click();
-    Utils.refreshIcons();
-  }
-};
-
-// --- FILTERS ---
-const Filters = {
-  setCategory(category) {
-    AudioEngine.click();
-    State.filters.category = category;
-    this.updateUI();
-    GameGrid.render();
-
-    // Auto-switch to library view when a filter is selected
-    if (LandingPage.currentView !== 'library') {
-      LandingPage.showLibrary(true);
-    }
-  },
-
-  setSearch: Utils.debounce(function (term) {
-    State.filters.searchTerm = term.toLowerCase();
-    GameGrid.render();
-
-    // Auto-switch to library view when searching
-    if (term.trim() !== '' && LandingPage.currentView !== 'library') {
-      LandingPage.showLibrary(true);
-    }
-
-    // Toggle clear search button visibility
-    const clearBtn = document.getElementById('clear-search-btn');
-    if (clearBtn) {
-      if (term.trim() !== '') {
-        clearBtn.classList.remove('hidden');
+      // Default behavior
+      if (MySpace && MySpace.isPopulated && MySpace.isPopulated()) {
+        this.show('myspace', true);
       } else {
-        clearBtn.classList.add('hidden');
+        this.show('landing', true);
       }
     }
-  }, CONFIG.debounceDelay),
+  },
 
-  updateUI() {
+  show(viewId, silent = false) {
+    const prevView = this.currentView;
+    
+    // Hide all views first
+    document.querySelectorAll('.section-view').forEach(v => v.style.display = 'none');
+
+    this.currentView = viewId;
+    this.ensureRendered(viewId);
+
+    const target = document.getElementById(`${viewId}-view`);
+    if (target) {
+      target.style.display = '';
+      // Trigger entrance animation
+      target.classList.remove('animate-pop-in');
+      void target.offsetWidth;
+      target.classList.add('animate-pop-in');
+    }
+
+    // Special logic for specific views
+    if (viewId === 'myspace' && window.MySpace) {
+      window.MySpace.onShow?.();
+    } else if (viewId === 'landing') {
+      // Refresh Home Page Content
+      if (window.PinnedGames) PinnedGames.render();
+      if (window.RecentGames) RecentGames.render();
+      if (window.UI && UI.updateGreeting) UI.updateGreeting();
+    }
+
+    this.updateNavUI();
+    Storage.set(CONFIG.storageKeys.homeView, viewId);
+    
+    if (!silent) AudioEngine.click();
+    Utils.refreshIcons();
+
+    // Scroll to top if switching views
+    if (prevView !== viewId) {
+      const mainContent = document.querySelector('main');
+      if (mainContent) mainContent.scrollTop = 0;
+    }
+  },
+
+  ensureRendered(viewId) {
+    if (this.renderedViews.has(viewId)) return;
+    
+    const container = document.getElementById(`${viewId}-view`);
+    if (!container) return;
+
+    if (viewId.startsWith('library-')) {
+      const category = viewId.replace('library-', '');
+      this.renderLibraryTemplate(container, viewId, category);
+      // Initial render of games for this category
+      this.renderGrid(viewId, category);
+    }
+    
+    this.renderedViews.add(viewId);
+  },
+
+  renderLibraryTemplate(container, viewId, category) {
+    const titles = {
+      all: "Let's start teaching",
+      tool: "Teaching Tools",
+      game: "Classroom Games",
+      workshop: "Workshop Tools",
+      'under-construction': "Under Construction"
+    };
+    const title = titles[category] || "Activity Library";
+
+    const statsHtml = category === 'all' ? `
+      <div class="flex items-center gap-2 mt-2 flex-wrap opacity-80">
+        <span class="hero-stat"><i data-lucide="wrench" class="w-3.5 h-3.5"></i> <strong id="stat-tools">0</strong> Tools</span>
+        <span class="hero-stat-dot"></span>
+        <span class="hero-stat"><i data-lucide="gamepad-2" class="w-3.5 h-3.5"></i> <strong id="stat-games">0</strong> Games</span>
+        <span class="hero-stat-dot"></span>
+        <span class="hero-stat"><i data-lucide="hammer" class="w-3.5 h-3.5"></i> <strong id="stat-workshop">0</strong> Workshop</span>
+        <span class="hero-stat-dot"></span>
+        <span class="hero-stat"><i data-lucide="pin" class="w-3.5 h-3.5"></i> <strong id="stat-pinned">0</strong> Pinned</span>
+      </div>
+    ` : '';
+
+    const icons = {
+      all: "graduation-cap",
+      tool: "wrench",
+      game: "gamepad-2",
+      workshop: "hammer",
+      'under-construction': "construction"
+    };
+    const icon = icons[category] || "layout-grid";
+
+    container.innerHTML = `
+      <!-- Dashboard Title Widget -->
+      <div class="hero-banner rounded-[2rem] p-6 md:p-8 mb-6 border-[3px] border-dark dark:border-slate-600 shadow-hard dark:shadow-neon relative overflow-hidden flex flex-col justify-center min-h-[160px] mt-4">
+        <div class="hero-gradient-bg"></div>
+        <div class="hero-dot-overlay"></div>
+        
+        <!-- Floating geometric shapes -->
+        <div class="hero-shape hero-shape--circle" style="top: 10%; right: 15%;"></div>
+        <div class="hero-shape hero-shape--ring" style="bottom: 15%; right: 30%;"></div>
+        <div class="hero-shape hero-shape--square" style="top: 20%; right: 40%;"></div>
+        <div class="hero-shape hero-shape--dot" style="top: 60%; right: 10%;"></div>
+        <div class="hero-shape hero-shape--dot" style="top: 30%; right: 55%;"></div>
+
+        <div class="absolute right-4 bottom-[-10%] md:right-12 md:bottom-[-15%] opacity-10 dark:opacity-[0.08] pointer-events-none">
+          <i data-lucide="${icon}" class="w-40 h-40 md:w-56 md:h-56 text-slate-800 dark:text-white transform -rotate-12 scale-110"></i>
+        </div>
+        <div class="relative z-10 flex flex-col lg:flex-row lg:items-end lg:justify-between w-full gap-6">
+          <div class="flex flex-col items-start">
+            <div class="hero-meta-tags mb-3 flex gap-3 flex-wrap">
+              <span class="hero-pill clock-pill"><i data-lucide="calendar" class="w-3.5 h-3.5"></i> <span class="date-text">...</span></span>
+              <span class="hero-pill">Hello!</span>
+            </div>
+            <h2 class="greeting-display text-3xl md:text-5xl font-heading font-black mb-1 leading-tight tracking-tight text-slate-900 dark:text-white">
+              ${title}
+            </h2>
+            ${statsHtml}
+          </div>
+          <div class="flex flex-col items-start lg:items-end gap-3 mt-4 lg:mt-0">
+             <div class="hero-actions flex flex-wrap gap-3">
+                <button data-action="surpriseMe" class="btn-chunky bg-pink text-white border-3 border-dark px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-hard hover:translate-y-[-2px] active:translate-y-[2px] transition-all">
+                  <i data-lucide="shuffle" class="w-4 h-4"></i>
+                  <span class="font-heading font-bold text-xs uppercase tracking-tight">Surprise Me</span>
+                </button>
+                <button data-action="continueGame" class="btn-chunky continue-btn bg-blue text-white border-3 border-dark px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-hard hover:translate-y-[-2px] active:translate-y-[2px] transition-all hidden">
+                  <i data-lucide="play" class="w-4 h-4 fill-white"></i>
+                  <span class="font-heading font-bold text-xs uppercase tracking-tight whitespace-nowrap continue-label">Continue</span>
+                </button>
+             </div>
+             <!-- Tip Box -->
+             <div class="hero-tip-box inline-flex items-center gap-3 px-5 py-2.5 rounded-2xl bg-white/20 backdrop-blur-md border border-white/30">
+               <p id="daily-tip" class="font-bold text-sm text-slate-700 dark:text-white/95 flex items-center gap-3 m-0">
+                 <i data-lucide="sparkles" class="w-4 h-4 text-yellow-300"></i> Tip: Use shortcut '/' to quickly search the library!
+               </p>
+             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Grid Header -->
+      <div class="flex items-center justify-between mb-6">
+        <h3 class="text-2xl font-heading font-black text-dark dark:text-white uppercase tracking-tight">${category === 'all' ? 'Library' : category + 's'}</h3>
+        <div class="view-toggle-group">
+          <button data-action="setViewMode" data-param="cards" class="view-toggle-btn ${ViewMode.current === 'cards' ? 'active' : ''}"><i data-lucide="layout-grid" class="w-4 h-4"></i></button>
+          <button data-action="setViewMode" data-param="icons" class="view-toggle-btn ${ViewMode.current === 'icons' ? 'active' : ''}"><i data-lucide="grip" class="w-4 h-4"></i></button>
+          <button data-action="setViewMode" data-param="list" class="view-toggle-btn ${ViewMode.current === 'list' ? 'active' : ''}"><i data-lucide="list" class="w-4 h-4"></i></button>
+        </div>
+      </div>
+
+      <div id="grid-${viewId}" class="games-grid ${ViewMode.current === 'list' ? 'view-list' : ''} ${ViewMode.current === 'icons' ? 'view-icons' : ''}">
+        <!-- Items injected here -->
+      </div>
+    `;
+    
+    this.updateClock(container);
+    if (category === 'all') {
+      Hero.updateStats();
+      Hero.updateContinueBtn();
+    }
+  },
+
+  updateClock(container) {
+    const el = container.querySelector('.date-text');
+    if (!el) return;
+    const now = new Date();
+    el.textContent = now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  },
+
+  renderGrid(viewId, category) {
+    const grid = document.getElementById(`grid-${viewId}`);
+    if (!grid) return;
+
+    const searchTerm = State.filters.searchTerm;
+    let games = State.games;
+    
+    if (category !== 'all') {
+      games = games.filter(g => g.category === category);
+    }
+    
+    if (searchTerm) {
+      games = games.filter(g => 
+        g.title.toLowerCase().includes(searchTerm) || 
+        g.description.toLowerCase().includes(searchTerm) ||
+        g.tags?.some(t => t.toLowerCase().includes(searchTerm))
+      );
+    }
+
+    if (games.length === 0) {
+      grid.innerHTML = `
+        <div class="empty-state py-20 opacity-50 flex flex-col items-center">
+          <i data-lucide="search-x" class="w-16 h-16 mb-4"></i>
+          <p class="font-heading font-bold text-xl uppercase">No matches found</p>
+        </div>
+      `;
+    } else {
+      if (category === 'all') {
+        const tools = games.filter(g => g.category === 'tool');
+        const gamesList = games.filter(g => g.category === 'game');
+        const workshop = games.filter(g => g.category === 'workshop');
+        
+        let html = '';
+        if (tools.length > 0) html += GameGrid.renderCategorySection('tools', 'wrench', 'var(--color-blue)', 'Teaching Tools', tools);
+        if (workshop.length > 0) html += GameGrid.renderCategorySection('workshop', 'hammer', 'var(--color-pink)', 'Workshop Tools', workshop);
+        if (gamesList.length > 0) html += GameGrid.renderCategorySection('games', 'gamepad-2', 'var(--color-green)', 'Classroom Games', gamesList);
+        grid.innerHTML = html;
+      } else {
+        grid.innerHTML = `<div class="category-grid">${games.map(game => GameGrid.createCard(game)).join('')}</div>`;
+      }
+    }
+    
+    Utils.refreshIcons(grid);
+  },
+
+  renderAllGrids() {
+    this.renderedViews.forEach(viewId => {
+      if (viewId.startsWith('library-')) {
+        this.renderGrid(viewId, viewId.replace('library-', ''));
+      }
+    });
+  },
+
+  updateNavUI() {
     const homeBtn = document.getElementById('nav-home-btn');
-    const bnavHome = document.getElementById('bnav-home');
-    const isLanding = LandingPage.currentView === 'landing';
-
-    if (homeBtn) homeBtn.classList.toggle('active', isLanding);
-    if (bnavHome) bnavHome.classList.toggle('active', isLanding);
+    const myspaceBtn = document.getElementById('nav-myspace-btn');
+    
+    if (homeBtn) homeBtn.classList.toggle('active', this.currentView === 'landing');
+    if (myspaceBtn) myspaceBtn.classList.toggle('active', this.currentView === 'myspace');
 
     document.querySelectorAll('.filter-btn[data-category]').forEach(btn => {
-      const isActive = btn.dataset.category === State.filters.category && LandingPage.currentView === 'library';
+      const cat = btn.dataset.category;
+      const isActive = this.currentView === `library-${cat}`;
       btn.classList.toggle('active', isActive);
       btn.setAttribute('aria-pressed', String(isActive));
     });
-
-    // Update Bottom Nav items
-    const bnavItems = {
-      all: 'bnav-library',
-      myspace: 'bnav-myspace',
-      tool: 'bnav-tools',
-      workshop: 'bnav-workshop'
-    };
-
-    Object.keys(bnavItems).forEach(cat => {
-      const el = document.getElementById(bnavItems[cat]);
-      if (el) {
-        const isActive = State.filters.category === cat && LandingPage.currentView === 'library';
-        el.classList.toggle('active', isActive);
-      }
-    });
   }
 };
+
+// Compatibility shim for old calls
+const LandingPage = {
+  showLanding: () => ViewManager.show('landing'),
+  showLibrary: () => ViewManager.show('library-all'),
+  init: () => ViewManager.init()
+};
+
+const Filters = {
+  setCategory: (cat) => ViewManager.show(`library-${cat}`),
+  setSearch: Utils.debounce(function(term) {
+    State.filters.searchTerm = term.toLowerCase();
+    ViewManager.renderAllGrids();
+    if (ViewManager.currentView === 'landing') {
+      ViewManager.show('library-all', true);
+    }
+  }, CONFIG.debounceDelay),
+  updateUI: () => ViewManager.updateNavUI()
+};
+
+// --- MY SPACE ---
+const MySpace = {
+  currentApp: null,
+  
+  isPopulated() {
+    const keys = [
+      'klasskit_tasks',
+      'schedule_events',
+      'schedule_class_admin',
+      'schedule_class_units',
+      'admin_tracker_data'
+    ];
+    
+    for (const key of keys) {
+      const data = localStorage.getItem(key);
+      if (data) {
+        try {
+          const parsed = JSON.parse(data);
+          if (Array.isArray(parsed) && parsed.length > 0) return true;
+          if (typeof parsed === 'object' && Object.keys(parsed).length > 0) return true;
+        } catch (e) {
+          if (data && data.length > 10) return true; // Fallback for non-JSON or large strings
+        }
+      }
+    }
+    return false;
+  },
+
+  show(silent = false) {
+    ViewManager.show('myspace', silent);
+  },
+
+  onShow() {
+    // Load default app if none active
+    if (!this.currentApp) {
+      this.loadApp('myspace-home', true);
+    }
+
+    // Show Pro-only apps if user is Pro
+    if (State.isPro()) {
+      document.querySelectorAll('.pro-only-btn').forEach(btn => btn.classList.remove('hidden'));
+    }
+  },
+
+  loadApp(appId, silent = false) {
+    const iframe = document.getElementById('myspace-iframe');
+    const loader = document.getElementById('myspace-loader');
+    if (!iframe || !loader) return;
+
+    const game = State.getGameById(appId);
+    if (!game) return;
+
+    this.currentApp = appId;
+    
+    // Handle Pro check
+    if (game.pro && !State.isPro()) {
+      UI.showToast("This app is exclusive to PRO users", "warning");
+      return;
+    }
+
+    // Show loader
+    loader.classList.remove('opacity-0', 'pointer-events-none');
+    iframe.classList.add('opacity-0');
+
+    // Load iframe
+    iframe.onload = () => {
+      loader.classList.add('opacity-0', 'pointer-events-none');
+      iframe.classList.remove('opacity-0');
+    };
+    iframe.src = game.path;
+
+    if (!silent) AudioEngine.click();
+  }
+};
+window.MySpace = MySpace;
 
 // --- TAB MANAGER ---
 const TabManager = {
@@ -3477,6 +3687,7 @@ const App = {
       },
 
       toggleSidePanelMobile: () => TabManager.toggleSidePanelMobile(),
+      toggleRecentCollapse: () => RecentGames.toggleCollapse(),
       filterGames: (param) => Filters.setCategory(param),
       clearRecent: () => RecentGames.clear(),
       clearSearch: () => Search.clear(),
@@ -3640,13 +3851,6 @@ async function initAuthIndicator() {
   }
 }
 
-// --- EXPORTS & INITIALIZATION ---
-window.App = App;
-window.AudioEngine = AudioEngine;
-window.TabManager = TabManager;
-window.Timer = Timer;
-window.filterGames = (category) => Filters.setCategory(category);
-
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
     App.init();
@@ -3679,3 +3883,13 @@ const MobileUI = {
     }
   }
 };
+
+// --- EXPORTS ---
+window.App = App;
+window.AudioEngine = AudioEngine;
+window.TabManager = TabManager;
+window.Timer = Timer;
+window.LandingPage = LandingPage;
+window.MySpace = MySpace;
+window.MobileUI = MobileUI;
+window.filterGames = (category) => Filters.setCategory(category);
