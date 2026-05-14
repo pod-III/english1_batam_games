@@ -179,9 +179,59 @@ function getExcludedUserIds() {
     return []
 }
 
+// ── LOG ENTRY EXTRACTOR ──
+// user_progress is an upsert table (1 row per user+tool). The actual history of
+// individual interactions is stored as an array inside row.data. This function
+// extracts those entries so charts and logs reflect real activity timestamps
+// instead of the ever-shifting updated_at timestamp on the upsert row.
+function extractLogEntries(row) {
+    const entries = []
+    const fallbackTs = new Date(row.created_at || row.updated_at)
+    const data = row.data
+    let items = null
+
+    if (Array.isArray(data)) {
+        items = data
+    } else if (data && typeof data === 'object') {
+        // Find the most-populated array property — that's the log/history/items list
+        let best = null
+        for (const val of Object.values(data)) {
+            if (Array.isArray(val) && (!best || val.length > best.length)) {
+                best = val
+            }
+        }
+        items = best
+    }
+
+    if (items && items.length > 0) {
+        for (const item of items) {
+            if (!item || typeof item !== 'object') {
+                entries.push({ user_id: row.user_id, tool_key: row.tool_key, timestamp: fallbackTs })
+                continue
+            }
+            // Check common timestamp field names tools might use
+            const rawTs = item.created_at ?? item.createdAt ?? item.timestamp
+                ?? item.date ?? item.savedAt ?? item.updated_at ?? item.time
+            let ts = fallbackTs
+            if (rawTs !== undefined && rawTs !== null) {
+                const parsed = new Date(rawTs)
+                if (!isNaN(parsed.getTime())) ts = parsed
+            }
+            entries.push({ user_id: row.user_id, tool_key: row.tool_key, timestamp: ts })
+        }
+    }
+
+    // Fallback: no array found — treat the row itself as one entry anchored to created_at
+    if (entries.length === 0) {
+        entries.push({ user_id: row.user_id, tool_key: row.tool_key, timestamp: fallbackTs })
+    }
+
+    return entries
+}
+
 function updateStats() {
     const excludedIds = getExcludedUserIds()
-    
+
     // Data filtered for metrics (excluding test users)
     const metricsProgress = allProgress.filter(r => !excludedIds.includes(r.user_id))
     const metricsNotes = allNotes.filter(n => !excludedIds.includes(n.user_id))
@@ -201,8 +251,11 @@ function updateStats() {
     const proCount = Object.values(metricsProfiles).filter(p => p.role === 'pro').length
     const statPro = document.getElementById('statPro')
     if (statPro) statPro.textContent = proCount
+    // Count total individual log entries across all progress rows, not just unique (user,tool) pairs.
+    // user_progress is an upsert table so row count stays flat; the real activity count lives in data[].
+    const totalLogEntries = metricsProgress.reduce((sum, r) => sum + extractLogEntries(r).length, 0)
     const statRows = document.getElementById('statRows')
-    if (statRows) statRows.textContent = metricsProgress.length
+    if (statRows) statRows.textContent = totalLogEntries
     const statNotes = document.getElementById('statNotes')
     if (statNotes) statNotes.textContent = metricsNotes.length
     const statTools = document.getElementById('statTools')
@@ -234,6 +287,11 @@ function updateCharts(metricsProgress, metricsNotes, metricsProfiles, metricsSch
     // Filter out system keys like the Hub landing page
     const filteredProgress = metricsProgress.filter(r => r.tool_key !== 'klasskit_hub' && r.tool_key !== 'hub')
 
+    // Build a flat list of individual log entries extracted from each row's data payload.
+    // This is the stable source of truth — binning by these timestamps instead of the
+    // upsert row's updated_at prevents the charts from shifting every time a user saves.
+    const allLogEntries = filteredProgress.flatMap(r => extractLogEntries(r))
+
     // 1. Activity Line Chart
     const days = 14
 
@@ -256,31 +314,29 @@ function updateCharts(metricsProgress, metricsNotes, metricsProfiles, metricsSch
         activityLabels.push(d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }))
     }
 
-    // Activity chart bins by created_at so historical bars are STABLE.
-    // If we binned by updated_at, every subsequent save moves the record out of its
-    // original day's bucket, making old days silently lose counts on each refresh.
-    //
-    // DAU chart bins by updated_at to reflect when users were actually last engaged.
-    const activityByDate = {}  // created_at → total save count
-    const usersByDate = {}     // updated_at → Set<user_id>
+    // Activity chart and DAU chart: bin by each individual log entry's own timestamp.
+    // Previously binned by row.updated_at (DAU) which caused bars to shift every day as
+    // updated_at moved forward with each save. Log entry timestamps are immutable.
+    const activityByDate = {}
+    const usersByDate = {}
 
-    filteredProgress.forEach(r => {
-        const createdKey = getLocalDateKey(r.created_at || r.updated_at)
-        activityByDate[createdKey] = (activityByDate[createdKey] || 0) + 1
-
-        const updatedKey = getLocalDateKey(r.updated_at || r.created_at)
-        if (!usersByDate[updatedKey]) usersByDate[updatedKey] = new Set()
-        usersByDate[updatedKey].add(r.user_id)
+    allLogEntries.forEach(entry => {
+        const key = getLocalDateKey(entry.timestamp)
+        activityByDate[key] = (activityByDate[key] || 0) + 1
+        if (!usersByDate[key]) usersByDate[key] = new Set()
+        usersByDate[key].add(entry.user_id)
     })
 
-    // Fold notes into both charts — they are real user activity
+    // Fold notes into both charts — notes table has no data[] log, so use updated_at.
+    // Notes updated_at is a bigint (unix ms); treat it as creation date for now since
+    // notes table has no created_at column. This is an inherent schema limitation.
     metricsNotes.forEach(n => {
-        const createdKey = getLocalDateKey(n.created_at || n.updated_at)
-        activityByDate[createdKey] = (activityByDate[createdKey] || 0) + 1
-
-        const updatedKey = getLocalDateKey(n.updated_at || n.created_at)
-        if (!usersByDate[updatedKey]) usersByDate[updatedKey] = new Set()
-        usersByDate[updatedKey].add(n.user_id)
+        const ts = Number(n.updated_at) || 0
+        if (!ts) return
+        const key = getLocalDateKey(new Date(ts))
+        activityByDate[key] = (activityByDate[key] || 0) + 1
+        if (!usersByDate[key]) usersByDate[key] = new Set()
+        usersByDate[key].add(n.user_id)
     })
 
     const activityData = dateKeys.map(k => activityByDate[k] || 0)
@@ -316,7 +372,7 @@ function updateCharts(metricsProgress, metricsNotes, metricsProfiles, metricsSch
                 intersect: false,
                 mode: 'index',
             },
-            plugins: { 
+            plugins: {
                 legend: { display: false },
                 tooltip: {
                     backgroundColor: '#1e293b',
@@ -332,14 +388,14 @@ function updateCharts(metricsProgress, metricsNotes, metricsProfiles, metricsSch
                 }
             },
             scales: {
-                y: { 
-                    beginAtZero: true, 
-                    grid: { color: 'rgba(255,255,255,0.05)' }, 
-                    ticks: { color: '#64748b', font: { family: 'Nunito' } } 
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: { color: '#64748b', font: { family: 'Nunito' } }
                 },
-                x: { 
-                    grid: { display: false }, 
-                    ticks: { color: '#64748b', font: { family: 'Nunito' } } 
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#64748b', font: { family: 'Nunito' } }
                 }
             }
         }
@@ -362,7 +418,7 @@ function updateCharts(metricsProgress, metricsNotes, metricsProfiles, metricsSch
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { 
+            plugins: {
                 legend: { display: false },
                 tooltip: {
                     backgroundColor: '#1e293b',
@@ -378,27 +434,30 @@ function updateCharts(metricsProgress, metricsNotes, metricsProfiles, metricsSch
                 }
             },
             scales: {
-                y: { 
-                    beginAtZero: true, 
-                    grid: { color: 'rgba(255,255,255,0.05)' }, 
-                    ticks: { 
-                        color: '#64748b', 
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: {
+                        color: '#64748b',
                         font: { family: 'Nunito' },
                         stepSize: 1,
                         precision: 0
-                    } 
+                    }
                 },
-                x: { 
-                    grid: { display: false }, 
-                    ticks: { color: '#64748b', font: { family: 'Nunito' } } 
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#64748b', font: { family: 'Nunito' } }
                 }
             }
         }
     })
 
     // 2. Tool Counts & Category Mapping
+
     const toolCounts = {}
-    filteredProgress.forEach(r => toolCounts[r.tool_key] = (toolCounts[r.tool_key] || 0) + 1)
+    allLogEntries.forEach(entry => {
+        toolCounts[entry.tool_key] = (toolCounts[entry.tool_key] || 0) + 1
+    })
 
     const categories = {
         'My Space': { count: 0, color: '#FF8C42' },
@@ -450,15 +509,15 @@ function updateCharts(metricsProgress, metricsNotes, metricsProfiles, metricsSch
             maintainAspectRatio: false,
             cutout: '75%',
             plugins: {
-                legend: { 
-                    position: 'bottom', 
-                    labels: { 
-                        color: '#94a3b8', 
-                        font: { family: 'Nunito', weight: 'bold', size: 11 }, 
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: '#94a3b8',
+                        font: { family: 'Nunito', weight: 'bold', size: 11 },
                         padding: 15,
                         usePointStyle: true,
                         pointStyle: 'circle'
-                    } 
+                    }
                 },
                 tooltip: {
                     backgroundColor: '#1e293b',
@@ -478,7 +537,7 @@ function updateCharts(metricsProgress, metricsNotes, metricsProfiles, metricsSch
                 const { width, height, ctx } = chart;
                 ctx.restore();
                 const total = chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-                
+
                 ctx.font = '700 24px Fredoka';
                 ctx.textBaseline = 'middle';
                 ctx.fillStyle = '#fff';
@@ -519,7 +578,7 @@ function updateCharts(metricsProgress, metricsNotes, metricsProfiles, metricsSch
             indexAxis: 'y',
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { 
+            plugins: {
                 legend: { display: false },
                 tooltip: {
                     backgroundColor: '#1e293b',
@@ -531,17 +590,17 @@ function updateCharts(metricsProgress, metricsNotes, metricsProfiles, metricsSch
                 }
             },
             scales: {
-                x: { 
-                    beginAtZero: true, 
-                    grid: { color: 'rgba(255,255,255,0.05)' }, 
-                    ticks: { color: '#64748b', font: { family: 'Nunito' } } 
+                x: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: { color: '#64748b', font: { family: 'Nunito' } }
                 },
-                y: { 
-                    grid: { display: false }, 
-                    ticks: { 
-                        color: '#fff', 
-                        font: { family: 'Fredoka', weight: '700', size: 11 } 
-                    } 
+                y: {
+                    grid: { display: false },
+                    ticks: {
+                        color: '#fff',
+                        font: { family: 'Fredoka', weight: '700', size: 11 }
+                    }
                 }
             }
         }
@@ -550,14 +609,14 @@ function updateCharts(metricsProgress, metricsNotes, metricsProfiles, metricsSch
     // Breakdown List
     const breakdownEl = document.getElementById('toolBreakdown')
     if (breakdownEl) {
-        const total = filteredProgress.length || 1
+        const total = allLogEntries.length || 1
         const toolMap = window.toolCategoryMap || {}
-        
+
         breakdownEl.innerHTML = sortedTools.map(([key, count]) => {
             const percent = Math.round((count / total) * 100)
             let cat = toolMap[key] || 'Tools'
             const catColor = categories[cat]?.color || '#2979FF'
-            
+
             return `
                 <div class="group p-2 hover:bg-slate-700/30 rounded-xl transition-colors cursor-default">
                     <div class="flex items-center justify-between text-[10px] mb-1.5">
@@ -1232,7 +1291,7 @@ function viewUser(userId) {
     const userEvents = allScheduleEvents.filter(e => e.user_id === userId);
 
     const formatTs = (ts) => ts ? new Date(ts).toLocaleString() : '—';
-    
+
     const toolCounts = {};
     const toolOrder = [];
     userProgress.forEach(r => {
@@ -1240,7 +1299,7 @@ function viewUser(userId) {
             toolCounts[r.tool_key] = 0;
             toolOrder.push(r.tool_key);
         }
-        
+
         // Count instances within the data payload
         let count = 1;
         if (Array.isArray(r.data)) {
@@ -1256,7 +1315,7 @@ function viewUser(userId) {
         }
         toolCounts[r.tool_key] += count;
     });
-    
+
     let html = `
         <div class="space-y-6 text-slate-300">
             <div class="grid grid-cols-2 gap-4">
@@ -1392,19 +1451,32 @@ async function executeDelete() {
 function renderLogsTable() {
     const body = document.getElementById('logsTableBody')
     if (!body) return
-    const recent = allProgress.slice(0, 100) // Show last 100 actions
 
-    body.innerHTML = recent.map(row => {
-        const profile = allProfiles[row.user_id]
-        const name = profile?.display_name || row.user_id.slice(0, 8)
-        const date = new Date(row.updated_at).toLocaleTimeString()
+    // Extract individual log entries from every progress row's data payload and merge them
+    // into a single flat log sorted newest-first. This gives a true chronological audit
+    // trail instead of just showing the latest upsert timestamp per (user, tool) row.
+    const logEntries = allProgress
+        .flatMap(r => extractLogEntries(r))
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .slice(0, 200)
+
+    if (!logEntries.length) {
+        body.innerHTML = '<tr><td colspan="4" class="px-6 py-12 text-center text-slate-500 font-bold">No log entries found</td></tr>'
+        return
+    }
+
+    body.innerHTML = logEntries.map(entry => {
+        const profile = allProfiles[entry.user_id]
+        const name = profile?.display_name || entry.user_id.slice(0, 8)
+        const time = entry.timestamp.toLocaleTimeString()
+        const date = entry.timestamp.toLocaleDateString()
         const initial = name[0]?.toUpperCase() || '?'
 
         return `<tr class="group transition-all hover:bg-white/5 border-l-4 border-transparent hover:border-blue">
             <td class="px-6 py-4">
                 <div class="flex flex-col">
-                    <span class="text-white font-mono text-xs">${date}</span>
-                    <span class="text-[9px] text-slate-600 font-mono">${new Date(row.updated_at).toLocaleDateString()}</span>
+                    <span class="text-white font-mono text-xs">${time}</span>
+                    <span class="text-[9px] text-slate-600 font-mono">${date}</span>
                 </div>
             </td>
             <td class="px-6 py-4">
@@ -1412,18 +1484,18 @@ function renderLogsTable() {
                 <div class="w-8 h-8 rounded-lg bg-slate-800 border-2 border-slate-700 flex items-center justify-center text-[10px] font-black text-slate-400 group-hover:border-blue group-hover:text-blue transition-colors">${initial}</div>
                 <div class="flex flex-col">
                     <span class="text-white font-bold text-xs tracking-tight">${name}</span>
-                    <span class="text-[9px] text-slate-500 font-mono">UID: ${row.user_id.slice(0, 8)}</span>
+                    <span class="text-[9px] text-slate-500 font-mono">UID: ${entry.user_id.slice(0, 8)}</span>
                 </div>
               </div>
             </td>
             <td class="px-6 py-4">
               <div class="flex items-center gap-2">
                 <div class="w-2 h-2 rounded-full bg-blue shadow-[0_0_8px_rgba(30,167,253,0.5)]"></div>
-                <span class="text-slate-300 font-black text-[10px] uppercase tracking-widest">Update_Payload</span>
+                <span class="text-slate-300 font-black text-[10px] uppercase tracking-widest">Save_Log_Entry</span>
               </div>
             </td>
             <td class="px-6 py-4">
-              <span class="chip bg-slate-900 text-blue border-slate-800 group-hover:border-blue/30 transition-colors">${row.tool_key}</span>
+              <span class="chip bg-slate-900 text-blue border-slate-800 group-hover:border-blue/30 transition-colors">${entry.tool_key}</span>
             </td>
           </tr>`
     }).join('')
@@ -1726,10 +1798,10 @@ function renderCloudTable() {
     const globalStorageUsed = document.getElementById('globalStorageUsed')
     const globalStorageBar = document.getElementById('globalStorageBar')
     const globalStoragePercent = document.getElementById('globalStoragePercent')
-    
+
     if (globalStorageUsed) globalStorageUsed.textContent = `${globalUsedMB} MB / ${globalLimitMB} MB`
     if (globalStoragePercent) globalStoragePercent.textContent = `${globalPercent}%`
-    
+
     if (globalStorageBar) {
         globalStorageBar.style.width = `${globalPercent}%`
         const colorClass = globalPercent > 90 ? 'bg-pink' : (globalPercent > 70 ? 'bg-orange' : 'bg-blue')
@@ -1942,7 +2014,7 @@ function resetAnnForm() {
 function renderTasksTable() {
     const body = document.getElementById('tasksTableBody')
     if (!body) return
-    
+
     if (!allMySpaceTasks.length) {
         body.innerHTML = '<tr><td colspan="5" class="text-center py-12 text-slate-500 font-bold">No tasks found</td></tr>'
         return
@@ -1989,7 +2061,7 @@ function openTaskModal(id) {
 function renderMyClassTable() {
     const body = document.getElementById('myclassTableBody')
     if (!body) return
-    
+
     if (!allMyClass.length) {
         body.innerHTML = '<tr><td colspan="4" class="text-center py-12 text-slate-500 font-bold">No class records found</td></tr>'
         return
