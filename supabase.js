@@ -34,7 +34,7 @@ async function getUserProfile() {
     .from('profiles')
     .select('role, display_name')
     .eq('id', user.id)
-    .single();
+    .maybeSingle();
   
   if (error) {
     console.error('[Profile] Fetch error:', error);
@@ -83,7 +83,7 @@ async function requireAdmin() {
     .from('profiles')
     .select('role, display_name')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
   if (error) console.error('[AdminGuard] Profile lookup error:', error)
 
@@ -110,7 +110,7 @@ async function requirePro() {
     .from('profiles')
     .select('role')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
   if (profile?.role !== 'admin' && profile?.role !== 'pro') {
     console.warn('[ProGuard] Access Denied. User requires Pro tier.')
@@ -259,10 +259,9 @@ async function loadProgress(toolKey) {
       .select('data')
       .eq('tool_key', toolKey)
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
 
-    // Ignore PGRST116 (No rows found) - it just means no progress is saved yet
-    if (error && error.code !== 'PGRST116') {
+    if (error) {
       console.error('[Load] DB Error:', error)
     }
 
@@ -406,10 +405,10 @@ async function getUserStorageUsage() {
     .from('storage_quotas')
     .select('storage_usage, storage_limit')
     .eq('user_id', user.id)
-    .single();
+    .maybeSingle();
 
-  if (error) {
-    console.error('[Storage] Usage lookup error:', error);
+  if (error || !data) {
+    if (error) console.error('[Storage] Usage lookup error:', error);
     return { used: 0, limit: STORAGE_CONFIG.defaultLimit, percent: 0 };
   }
 

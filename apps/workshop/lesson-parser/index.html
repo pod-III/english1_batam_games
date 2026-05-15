@@ -2,6 +2,11 @@
 <html lang="en">
 
 <head>
+    <!-- Supabase Auth -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.2/dist/browser-image-compression.js"></script>
+    <script src="/supabase.js"></script>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Lesson Extractor — English 1</title>
@@ -38,7 +43,10 @@
                 </div>
                 <div>
                     <h1 class="text-2xl leading-none" id="doc-title">Lesson Extractor</h1>
-                    <p class="text-xs font-bold uppercase opacity-40 mt-1.5 tracking-wider">English 1 Teacher Notes</p>
+                    <div class="flex items-center gap-2 mt-1.5">
+                        <span id="current-set-name" class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Unsaved Session</span>
+                        <span id="save-status-indicator" class="w-1.5 h-1.5 rounded-full bg-orange-400"></span>
+                    </div>
                 </div>
             </div>
             <div class="flex items-center gap-3">
@@ -59,6 +67,18 @@
             <!-- Left Pane: Inputs (Metadata + Quick Paste) -->
             <aside class="flex flex-col gap-8 lg:sticky lg:top-28">
                 
+                <button onclick="toggleLibrary()" class="btn-chunky w-full py-3 bg-slate-900 dark:bg-slate-800 border-3 border-slate-900 dark:border-white/10 rounded-xl text-white font-heading font-bold text-lg shadow-hard flex items-center justify-center gap-2 hover:bg-slate-700 transition-colors">
+                    <i data-lucide="library" class="w-5 h-5 text-blue-400"></i> MY LIBRARY
+                </button>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="createNewSet()" class="btn-chunky w-full py-2 bg-white dark:bg-slate-800 border-3 border-slate-900 dark:border-white/10 rounded-xl text-slate-900 dark:text-white font-heading font-bold text-sm shadow-hard flex items-center justify-center gap-2 transition-colors">
+                        <i data-lucide="plus" class="w-4 h-4 text-green-500"></i> NEW
+                    </button>
+                    <button onclick="showSaveModal()" class="btn-chunky w-full py-2 bg-white dark:bg-slate-800 border-3 border-slate-900 dark:border-white/10 rounded-xl text-slate-900 dark:text-white font-heading font-bold text-sm shadow-hard flex items-center justify-center gap-2 transition-colors">
+                        <i data-lucide="save" class="w-4 h-4 text-blue-500"></i> SAVE AS
+                    </button>
+                </div>                
                 <div class="seg-track w-full">
                     <button class="seg-btn active" id="tab-paste" onclick="switchTab('paste')">✏️ Paste Text</button>
                     <button class="seg-btn" id="tab-overview" onclick="switchTab('overview')">📊 Overview View</button>
@@ -125,6 +145,66 @@
     </main>
 
     <div id="toast-container"></div>
+
+    <!-- Library Drawer -->
+    <aside id="library-drawer" class="fixed inset-y-0 left-0 w-80 bg-white dark:bg-slate-900 border-r-4 border-slate-900 dark:border-slate-700 shadow-2xl transform -translate-x-full transition-transform duration-300 flex flex-col z-[100]">
+        <div class="p-5 border-b-3 border-slate-900 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 flex justify-between items-center">
+            <h2 class="font-heading font-bold text-xl flex items-center gap-2">
+                <i data-lucide="library" class="w-5 h-5 text-blue-500"></i> Library
+            </h2>
+            <button onclick="toggleLibrary()" class="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+
+        <div class="p-4 border-b-2 border-slate-100 dark:border-slate-800/50">
+            <div class="relative">
+                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 opacity-40"></i>
+                <input type="text" id="library-search" oninput="renderLibrary()" placeholder="Search sets..." class="w-full pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:border-blue-500">
+            </div>
+        </div>
+
+        <div id="library-list" class="flex-grow overflow-y-auto p-4 space-y-3 custom-scrollbar bg-transparent">
+            <!-- Library items injected here -->
+        </div>
+    </aside>
+
+    <!-- Save Modal -->
+    <div id="save-modal" class="hidden fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-pop">
+        <div class="card max-w-sm w-full p-8 flex flex-col items-center bg-white dark:bg-slate-900 border-3 border-slate-900 dark:border-slate-700 shadow-hard">
+            <div class="w-16 h-16 rounded-2xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center border-3 border-blue-500 mb-6">
+                <i data-lucide="save" class="w-8 h-8 text-blue-500"></i>
+            </div>
+            <h3 class="text-2xl font-heading font-bold mb-2">Save Lesson</h3>
+            <p class="text-sm opacity-60 font-bold mb-6">Give your lesson set a name</p>
+            
+            <input type="text" id="set-name-input" class="w-full bg-slate-50 dark:bg-slate-800 border-3 border-slate-900 dark:border-slate-700 px-4 py-3 mb-8 text-center text-lg font-bold rounded-xl focus:outline-none focus:border-blue-500" placeholder="e.g. Unit 5 Vocabulary">
+
+            <div class="flex gap-4 w-full">
+                <button onclick="closeSaveModal()" class="flex-1 btn-chunky bg-white dark:bg-slate-800 border-3 border-slate-900 dark:border-slate-700 py-3 rounded-xl font-bold">
+                    Cancel
+                </button>
+                <button onclick="confirmSaveSet()" class="flex-1 btn-chunky bg-blue-500 text-white border-3 border-slate-900 py-3 rounded-xl font-bold shadow-hard-sm">
+                    Save
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div id="confirm-modal" class="hidden fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-pop">
+        <div class="card max-w-sm w-full p-8 flex flex-col items-center text-center bg-white dark:bg-slate-900 border-3 border-slate-900 dark:border-slate-700 shadow-hard">
+            <div id="confirm-icon-bg" class="w-16 h-16 rounded-full flex items-center justify-center mb-4 bg-slate-100 dark:bg-slate-800 border-3 border-slate-900">
+                <i id="confirm-icon" data-lucide="alert-triangle" class="w-8 h-8"></i>
+            </div>
+            <h3 id="confirm-title" class="text-2xl font-heading font-bold mb-2">Are you sure?</h3>
+            <p id="confirm-desc" class="text-sm opacity-60 font-bold mb-6">This action cannot be undone.</p>
+            <div class="flex gap-3 w-full">
+                <button id="confirm-cancel" class="flex-1 btn-chunky bg-white dark:bg-slate-800 border-3 border-slate-900 dark:border-slate-700 py-2 rounded-xl font-bold">Cancel</button>
+                <button id="confirm-do" class="flex-1 btn-chunky bg-pink-500 text-white border-3 border-slate-900 py-2 rounded-xl font-bold shadow-hard-sm">Confirm</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Main Logic -->
     <script src="script.js"></script>
