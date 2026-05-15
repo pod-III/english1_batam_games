@@ -134,14 +134,14 @@ function switchTab(tab) {
     if (activeBtn) activeBtn.classList.add('active');
 
     const overviewView = document.getElementById('view-overview');
-    const modulesContainer = document.getElementById('modules-container');
+    const modulesView = document.getElementById('view-modules');
 
     if (tab === 'overview') {
         if (overviewView) overviewView.classList.remove('hidden');
-        if (modulesContainer) modulesContainer.classList.add('hidden');
+        if (modulesView) modulesView.classList.add('hidden');
     } else {
         if (overviewView) overviewView.classList.add('hidden');
-        if (modulesContainer) modulesContainer.classList.remove('hidden');
+        if (modulesView) modulesView.classList.remove('hidden');
     }
 }
 
@@ -403,6 +403,7 @@ function pagesHTML(pages) {
 }
 
 function renderModules(modules) {
+    renderModuleNav(modules);
     const container = document.getElementById('modules-container');
     if (!container) return;
     container.innerHTML = '';
@@ -589,4 +590,53 @@ function copyCard(id) {
     navigator.clipboard?.writeText(out).then(() => {
         showToast('📋 Copied to clipboard!');
     });
+}
+function scrollToModule(index) {
+    const el = document.getElementById(`mod-${index}`);
+    if (el) {
+        // Switch to modules tab if not already there
+        switchTab('paste'); 
+        
+        const offset = 120; // accounting for sticky header
+        const bodyRect = document.body.getBoundingClientRect().top;
+        const elementRect = el.getBoundingClientRect().top;
+        const elementPosition = elementRect - bodyRect;
+        const offsetPosition = elementPosition - offset;
+
+        window.scrollTo({
+            top: offsetPosition,
+            behavior: 'smooth'
+        });
+    }
+}
+
+function renderModuleNav(modules) {
+    const nav = document.getElementById('module-nav');
+    if (!nav) return;
+    
+    if (!modules || !modules.length) {
+        nav.className = 'hidden';
+        return;
+    }
+
+    nav.className = 'sticky top-20 z-30 pb-4 pt-2 -mt-2 bg-[#f8fafc] dark:bg-[#020617]';
+    nav.innerHTML = `
+        <div class="card p-3 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md flex flex-wrap gap-3 items-center border-blue-500 shadow-sm">
+            <div class="flex items-center gap-2 mr-2">
+                <i data-lucide="map" class="w-4 h-4 text-blue-500"></i>
+                <span class="text-xs font-bold uppercase tracking-widest opacity-60">Quick Nav</span>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                ${modules.map((_, i) => `
+                    <button onclick="scrollToModule(${i})" 
+                        class="btn-chunky w-10 h-10 flex items-center justify-center text-sm font-bold transition-transform hover:scale-110 active:scale-95"
+                        style="background:${ACCENTS[i % ACCENTS.length]}; color:${TXT_ON[i % TXT_ON.length]};"
+                        title="Jump to Module ${i + 1}">
+                        ${i + 1}
+                    </button>
+                `).join('')}
+            </div>
+        </div>
+    `;
+    lucide.createIcons();
 }
