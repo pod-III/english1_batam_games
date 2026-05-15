@@ -1739,6 +1739,33 @@ const MySpace = {
     iframe.src = game.path;
 
     if (!silent) AudioEngine.click();
+  },
+
+  toggleFullscreen() {
+    const iframe = document.getElementById('myspace-iframe');
+    if (!iframe) return;
+
+    AudioEngine.click();
+
+    if (!document.fullscreenElement) {
+      if (iframe.requestFullscreen) {
+        iframe.requestFullscreen().catch(() => {
+          document.body.classList.add('myspace-fullscreen');
+        });
+      } else {
+        document.body.classList.add('myspace-fullscreen');
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+      document.body.classList.remove('myspace-fullscreen');
+    }
+
+    // Trigger resize so iframe contents adapt
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 100);
   }
 };
 window.MySpace = MySpace;
@@ -3712,10 +3739,40 @@ const App = {
           GameModal.toggleInfo();
           return;
         }
+        
+        // Exit My Space Fullscreen
+        if (document.body.classList.contains('myspace-fullscreen')) {
+          MySpace.toggleFullscreen();
+          return;
+        }
+
         const modal = document.getElementById('game-modal');
         if (modal && !modal.classList.contains('hidden') && modal.style.display !== 'none') {
           TabManager.returnToHome();
         }
+      }
+
+      // My Space Fullscreen Shortcut
+      if ((e.key === 'f' || e.key === 'F') && 
+          ViewManager.currentView === 'myspace' && 
+          document.activeElement.tagName !== 'INPUT' && 
+          document.activeElement.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        MySpace.toggleFullscreen();
+      }
+    });
+
+    // Handle Native Fullscreen Changes (Esc key, etc)
+    document.addEventListener('fullscreenchange', () => {
+      const isFs = !!document.fullscreenElement;
+      const icon = document.getElementById('myspace-fs-icon');
+      if (icon) {
+        icon.setAttribute('data-lucide', isFs ? 'minimize-2' : 'maximize');
+        Utils.refreshIcons(icon.parentElement);
+      }
+      
+      if (!isFs) {
+        document.body.classList.remove('myspace-fullscreen');
       }
     });
   },
