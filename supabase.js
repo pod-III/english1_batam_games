@@ -276,6 +276,41 @@ async function loadProgress(toolKey) {
   return local ? JSON.parse(local) : null
 }
 
+async function checkUserActivity() {
+  const user = await getUser();
+  if (!user || user.is_sandbox) {
+    return { hasActivity: false, hasMySpace: false };
+  }
+
+  const { data, error } = await db
+    .from('user_progress')
+    .select('tool_key')
+    .eq('user_id', user.id);
+
+  if (error) {
+    console.error('[Activity] Error checking database:', error);
+    return { hasActivity: false, hasMySpace: false };
+  }
+
+  if (!data || data.length === 0) {
+    return { hasActivity: false, hasMySpace: false };
+  }
+
+  const mySpaceKeys = [
+    'klasskit_tasks',
+    'schedule_events',
+    'schedule_class_admin',
+    'schedule_class_units',
+    'admin_tracker_data',
+    'my-class'
+  ];
+
+  const hasMySpace = data.some(row => mySpaceKeys.includes(row.tool_key));
+  const hasActivity = data.length > 0;
+
+  return { hasActivity, hasMySpace };
+}
+
 async function updateDisplayName(displayName) {
   if (isSandbox()) return { success: true };
   const user = await getUser()

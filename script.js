@@ -1337,16 +1337,36 @@ const ViewManager = {
   currentView: 'landing', // 'landing', 'myspace', 'library-all', 'library-tool', 'library-game', 'library-workshop'
   renderedViews: new Set(['landing', 'myspace']),
 
-  init() {
+  init(activity = null) {
     const saved = Storage.get(CONFIG.storageKeys.homeView);
     if (saved) {
       this.show(saved, true);
+      return;
+    }
+
+    // Default Smart Landing logic
+    if (activity) {
+      if (activity.hasMySpace) {
+        this.show('myspace', true);
+      } else if (activity.hasActivity) {
+        this.show('library-all', true);
+      } else {
+        this.show('landing', true);
+      }
     } else {
-      // Default behavior
+      // Fallback to local check if no database activity data available
       if (MySpace && MySpace.isPopulated && MySpace.isPopulated()) {
         this.show('myspace', true);
       } else {
-        this.show('landing', true);
+        // Check local storage for any game activity
+        const hasRecent = (Storage.get(CONFIG.storageKeys.recent) || []).length > 0;
+        const hasPinned = (Storage.get(CONFIG.storageKeys.pinned) || []).length > 0;
+        
+        if (hasRecent || hasPinned) {
+          this.show('library-all', true);
+        } else {
+          this.show('landing', true);
+        }
       }
     }
   },
@@ -1632,7 +1652,7 @@ const ViewManager = {
 const LandingPage = {
   showLanding: () => ViewManager.show('landing'),
   showLibrary: () => ViewManager.show('library-all'),
-  init: () => ViewManager.init()
+  init: (activity) => ViewManager.init(activity)
 };
 
 const Filters = {
@@ -3639,7 +3659,8 @@ const App = {
       Hero.init();
       Footer.render();
       Search.setup();
-      LandingPage.init();
+      const activity = await (typeof checkUserActivity === 'function' ? checkUserActivity() : Promise.resolve(null));
+      LandingPage.init(activity);
       ViewMode.init();
 
       document.body.addEventListener('click', () => AudioEngine.init(), { once: true });
