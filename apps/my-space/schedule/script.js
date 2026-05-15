@@ -2082,6 +2082,7 @@ window._syncRerender = function () {
 
 // Start
 document.addEventListener('DOMContentLoaded', async () => {
+  await requirePro();
   // 1. Render immediately from localStorage
   init();
 

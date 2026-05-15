@@ -38,7 +38,8 @@ const StorageUtil = {
 /**
  * Initializes the dashboard, loads data, and triggers initial rendering.
  */
-function init() {
+async function init() {
+  await requireAuth();
   checkPro();
   loadData();
   renderAll();

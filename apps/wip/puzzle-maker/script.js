@@ -801,7 +801,8 @@ function openPrintModal() {
   printModal.classList.add("active");
 }
 
-window.onload = () => {
+window.onload = async () => {
+  await requireAuth();
   setAppMode('play');
   loadState();
   lucide.createIcons();

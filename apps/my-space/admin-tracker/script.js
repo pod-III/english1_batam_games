@@ -1191,6 +1191,7 @@ function closeDrawer() {
 
 
 document.addEventListener('DOMContentLoaded', async () => {
+  await requirePro();
   // 1. Render immediately from localStorage
   renderClassGrid();
   updateFilterLabel(currentFilter);

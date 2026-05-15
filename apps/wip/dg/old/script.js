@@ -13,6 +13,7 @@ let DB = {};
 
 // -- NEW: Fetch Data & Build Menu --
 async function initGame() {
+    await requireAuth();
     try {
         const response = await fetch('./cases.json');
         if (!response.ok) throw new Error("Failed to load cases");
