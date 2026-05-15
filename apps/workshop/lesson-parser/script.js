@@ -25,17 +25,8 @@ window.addEventListener("load", async () => {
 });
 
 async function initializeData() {
-  // 1. Load Session (Scratchpad) from Cloud
-  try {
-    const sessionData = await loadProgress("lesson-parser-session");
-    if (sessionData) {
-      appState.activeId = sessionData.activeId;
-      appState.current = sessionData.data;
-    }
-  } catch (e) {
-    console.warn("Cloud session load failed", e);
-  }
-
+  // 1. Load Session & Library from Cloud
+  let cloudLoaded = false;
   try {
     const user = await (typeof getUser === "function" ? getUser() : null);
     if (user && typeof db !== "undefined") {
@@ -45,22 +36,31 @@ async function initializeData() {
         .eq("user_id", user.id);
 
       if (!error && data) {
-        // Map rows to application state format
-        const cloudLibrary = data.map((row) => ({
+        cloudLoaded = true;
+        const sessionRow = data.find((row) => row.local_id === 0);
+        const libraryRows = data.filter((row) => row.local_id !== 0);
+
+        if (sessionRow) {
+          appState.activeId = sessionRow.usage_count || null;
+          appState.current.title = sessionRow.name || "";
+          appState.current.aims = sessionRow.unit_aims || "";
+          appState.current.modules = sessionRow.modules || [];
+          // Note: rawText is loaded from localStorage in the next step
+        }
+
+        const cloudLibrary = libraryRows.map((row) => ({
           id: row.local_id,
           name: row.name,
           unitAims: row.unit_aims,
           modules: row.modules,
-          rawText: "", // Do not load raw text for library items
+          rawText: "",
           lastUsed: new Date(row.last_used).getTime(),
           createdAt: new Date(row.created_at).getTime(),
           usageCount: row.usage_count,
         }));
 
-        // Merge with existing library state
         appState.library = cloudLibrary;
 
-        // Sync to local IndexedDB to ensure offline availability
         if (dataBase) {
           const tx = dataBase.transaction("library", "readwrite");
           const store = tx.objectStore("library");
@@ -69,19 +69,24 @@ async function initializeData() {
       }
     }
   } catch (e) {
-    console.warn("Cloud library load failed", e);
+    console.warn("Cloud data load failed", e);
   }
 
-  // Fallback to local persistence for scratchpad if no cloud session or cloud failed
-  if (!appState.current.rawText) {
-    const local = localStorage.getItem("lp_session");
-    if (local) {
-      try {
-        const session = JSON.parse(local);
-        appState.current = session.data;
+  // 2. Fallback / Merge with local persistence
+  const local = localStorage.getItem("lp_session");
+  if (local) {
+    try {
+      const session = JSON.parse(local);
+      // Always restore rawText from local since it's never synced
+      if (session.data && session.data.rawText) {
+        appState.current.rawText = session.data.rawText;
+      }
+      // Only use other local fields if cloud load failed
+      if (!cloudLoaded) {
+        appState.current = { ...appState.current, ...session.data };
         appState.activeId = session.activeId;
-      } catch (e) { }
-    }
+      }
+    } catch (e) { }
   }
 
   // Populate UI
@@ -199,25 +204,19 @@ let cloudSyncTimeout;
 function syncToCloud() {
   clearTimeout(cloudSyncTimeout);
   cloudSyncTimeout = setTimeout(async () => {
-    if (typeof saveProgress === "function") {
-      // 1. Sync Session (Active Scratchpad)
-      await saveProgress("lesson-parser-session", {
-        activeId: appState.activeId,
-        data: appState.current,
-      });
+    // 1. Fetch latest from IndexedDB to ensure memory cache is fresh before cloud sync
+    if (!dataBase) return;
+    const tx = dataBase.transaction("library", "readonly");
+    const store = tx.objectStore("library");
+    const req = store.getAll();
 
-      // 2. Fetch latest from IndexedDB to ensure memory cache is fresh before cloud sync
-      if (!dataBase) return;
-      const tx = dataBase.transaction("library", "readonly");
-      const store = tx.objectStore("library");
-      const req = store.getAll();
-
-      req.onsuccess = async () => {
+    req.onsuccess = async () => {
         appState.library = req.result;
 
-        // 3. Sync Library to Dedicated Table
+        // 2. Sync Everything to Dedicated Table
         const user = await (typeof getUser === "function" ? getUser() : null);
         if (user && typeof db !== "undefined") {
+          // A. Map Library items
           const rows = appState.library.map((set) => ({
             user_id: user.id,
             local_id: set.id,
@@ -228,14 +227,24 @@ function syncToCloud() {
             usage_count: set.usageCount || 1,
           }));
 
+          // B. Add Session row (local_id: 0)
+          rows.push({
+            user_id: user.id,
+            local_id: 0,
+            name: appState.current.title || "Session",
+            unit_aims: appState.current.aims || "",
+            modules: appState.current.modules || [],
+            last_used: new Date().toISOString(),
+            usage_count: appState.activeId || 0,
+          });
+
           if (rows.length > 0) {
             const { error } = await db
               .from("workshop_lessonparser")
               .upsert(rows, { onConflict: "user_id,local_id" });
-            if (error) console.error("[Sync] Library sync error:", error);
+            if (error) console.error("[Sync] Cloud sync error:", error);
           }
         }
-        console.log("Cloud Sync Complete");
 
         // Visual feedback: pulse the status indicator
         const indicator = document.getElementById("save-status-indicator");
@@ -243,8 +252,7 @@ function syncToCloud() {
           indicator.classList.add("animate-pulse");
           setTimeout(() => indicator.classList.remove("animate-pulse"), 1000);
         }
-      };
-    }
+    };
   }, 2000);
 }
 
@@ -916,7 +924,10 @@ async function renderLibrary() {
   const req = store.getAll();
 
   req.onsuccess = () => {
-    const sets = req.result.sort((a, b) => b.lastUsed - a.lastUsed);
+    const rawSets = req.result;
+    const sets = rawSets
+      .filter((s) => s.id !== 0)
+      .sort((a, b) => b.lastUsed - a.lastUsed);
     appState.library = sets; // Update cache
 
     list.innerHTML = "";
@@ -1054,11 +1065,12 @@ async function deleteSet(e, id) {
     try {
       const user = await (typeof getUser === "function" ? getUser() : null);
       if (user && typeof db !== "undefined") {
-        await db
+        const { error } = await db
           .from("workshop_lessonparser")
           .delete()
           .eq("user_id", user.id)
           .eq("local_id", id);
+        if (!error) console.log("[Cloud] Deleted set", id);
       }
     } catch (e) {
       console.warn("Cloud deletion failed", e);
