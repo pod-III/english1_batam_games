@@ -1,6 +1,6 @@
 let quill;
 let db;
-let debugLines = [];
+
 
 // ── Initialization ────────────────────────────────────────────────────────────
 window.addEventListener('load', async () => {
@@ -54,22 +54,7 @@ if (localStorage.getItem('theme') === 'dark') {
     document.documentElement.classList.add('dark');
 }
 
-// ── Debug ─────────────────────────────────────────────────────────────────────
-const log = (...a) => {
-    const msg = a.map(x => typeof x === 'object' ? JSON.stringify(x, null, 2) : String(x)).join(' ');
-    debugLines.push(msg);
-    const p = document.getElementById('debug-panel');
-    if (p && !p.classList.contains('hidden')) {
-        p.textContent = debugLines.join('\n');
-    }
-};
 
-function toggleDebug() {
-    const p = document.getElementById('debug-panel');
-    if (!p) return;
-    p.classList.toggle('hidden');
-    if (!p.classList.contains('hidden')) p.textContent = debugLines.join('\n') || '(no log yet)';
-}
 
 // ── IndexedDB ─────────────────────────────────────────────────────────────────
 const DB_NAME = 'LessonExtractorDB_v2';
@@ -114,7 +99,7 @@ async function clearData() {
         document.getElementById('unit-title-input').value = '';
         document.getElementById('unit-aims-input').value = '';
         quill.setContents([]);
-        debugLines = [];
+
         renderModules([]);
         renderOverview([]);
         showToast('🗑️ Saved data cleared');
@@ -191,9 +176,9 @@ async function processPastedText() {
 
     const container = document.getElementById('modules-container');
     if (container) container.innerHTML = ''; 
-    debugLines = [];
+
     
-    log('── EXTRACTION START ──');
+
 
     let title = document.getElementById('unit-title-input').value || 'Lesson Extractor';
     const tm = fullText.match(/(Book\s+\d+,\s+Unit\s+\d+)/i);
