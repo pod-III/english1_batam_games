@@ -1374,9 +1374,12 @@ const ViewManager = {
       window.MySpace.onShow?.();
     } else if (viewId === 'landing') {
       // Refresh Home Page Content
-      if (window.PinnedGames) PinnedGames.render();
-      if (window.RecentGames) RecentGames.render();
       if (window.UI && UI.updateGreeting) UI.updateGreeting();
+    } else if (viewId === 'library-all') {
+      requestAnimationFrame(() => {
+        if (typeof PinnedGames !== 'undefined') PinnedGames.render();
+        if (typeof RecentGames !== 'undefined') RecentGames.render();
+      });
     }
 
     this.updateNavUI();
@@ -1487,6 +1490,43 @@ const ViewManager = {
         </div>
       </div>
 
+      ${category === 'all' ? `
+      <!-- Pinned Activities -->
+      <section id="pinned-section" class="mb-10 hidden">
+        <div class="flex items-center justify-between mb-4 px-2">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-pink text-white rounded-xl border-2 border-dark flex items-center justify-center shadow-hard-sm">
+              <i data-lucide="pin" class="w-5 h-5"></i>
+            </div>
+            <h3 class="text-2xl font-heading font-black text-dark dark:text-white uppercase tracking-tight">Pinned Activities</h3>
+            <span id="pinned-count-badge" class="section-header-badge">0</span>
+          </div>
+        </div>
+        <div id="pinned-list" class="flex gap-4 overflow-x-auto pb-4 custom-scrollbar mask-gradient">
+          <!-- Pinned items injected here -->
+        </div>
+      </section>
+
+      <!-- Recent Activities -->
+      <section id="recent-section" class="mb-10 hidden">
+        <div class="flex items-center justify-between mb-4 px-2">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-orange text-white rounded-xl border-2 border-dark flex items-center justify-center shadow-hard-sm">
+              <i data-lucide="history" class="w-5 h-5"></i>
+            </div>
+            <h3 class="text-2xl font-heading font-black text-dark dark:text-white uppercase tracking-tight">Recent</h3>
+            <button id="recent-toggle-btn" data-action="toggleRecentCollapse" class="p-1 text-slate-400 hover:text-dark dark:hover:text-white transition-colors">
+              <i data-lucide="chevron-up" class="w-5 h-5"></i>
+            </button>
+          </div>
+          <button data-action="clearRecent" class="text-xs font-black text-slate-400 hover:text-red-500 uppercase tracking-widest transition-colors">Clear All</button>
+        </div>
+        <div id="recent-list" class="flex gap-4 overflow-x-auto pb-4 custom-scrollbar mask-gradient">
+          <!-- Recent items injected here -->
+        </div>
+      </section>
+      ` : ''}
+
       <!-- Grid Header -->
       <div class="flex items-center justify-between mb-6">
         <h3 class="text-2xl font-heading font-black text-dark dark:text-white uppercase tracking-tight">${category === 'all' ? 'Library' : category + 's'}</h3>
@@ -1506,6 +1546,9 @@ const ViewManager = {
     if (category === 'all') {
       Hero.updateStats();
       Hero.updateContinueBtn();
+      // Ensure pinned and recent are rendered after template injection
+      if (typeof PinnedGames !== 'undefined') PinnedGames.render();
+      if (typeof RecentGames !== 'undefined') RecentGames.render();
     }
   },
 
