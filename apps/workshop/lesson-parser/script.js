@@ -501,13 +501,21 @@ function renderOverview(modules) {
     const aims = document.getElementById('unit-aims-input').value || 'No unit aims defined.';
 
     function getUnique(items) {
-        const seen = new Set();
-        return items.filter(item => {
-            const normalized = item.toLowerCase().replace(/[.,!?;:]/g, '').trim();
-            if (seen.has(normalized)) return false;
-            seen.add(normalized);
-            return true;
+        const categoryMap = new Map();
+        items.forEach(item => {
+            // Detect the "category" by taking the part before the first colon
+            const category = item.split(':')[0].toLowerCase().trim();
+            const existing = categoryMap.get(category);
+            
+            // Prioritize keeping the version with a colon (detailed) 
+            // or the longest version if both/neither have colons.
+            if (!existing || 
+                (item.includes(':') && !existing.includes(':')) || 
+                (item.includes(':') === existing.includes(':') && item.length > existing.length)) {
+                categoryMap.set(category, item);
+            }
         });
+        return Array.from(categoryMap.values());
     }
 
     const rawLang = [];
