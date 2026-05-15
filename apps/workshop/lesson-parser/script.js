@@ -203,6 +203,11 @@ async function processPastedText() {
         document.getElementById('doc-title').innerText = title;
     }
 
+    const am = fullText.match(/(?:the\s+)?students\s+will\s+be\s+able\s+to\s*[.]{2,3}\s*\n?([\s\S]+?)(?=\n\s*(?:Tip:|Vocabulary:|Unit Quiz:|Reading:|Listening:|Grammar:|$))/i);
+    if (am && !document.getElementById('unit-aims-input').value) {
+        document.getElementById('unit-aims-input').value = am[1].trim();
+    }
+
     const modules = parseExtractedText(fullText, boldText);
     const aims = document.getElementById('unit-aims-input').value;
     await saveToDB(title, aims, modules);
