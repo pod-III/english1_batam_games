@@ -27,6 +27,8 @@ window.addEventListener("load", async () => {
 async function initializeData() {
   // 1. Load Session & Library from Cloud
   let cloudLoaded = false;
+  let cloudTime = 0;
+  let cloudActiveId = null;
   try {
     const user = await (typeof getUser === "function" ? getUser() : null);
     if (user && typeof db !== "undefined") {
@@ -41,11 +43,13 @@ async function initializeData() {
         const libraryRows = data.filter((row) => row.local_id !== 0);
 
         if (sessionRow) {
-          appState.activeId = sessionRow.usage_count || null;
+          cloudTime = new Date(sessionRow.last_used).getTime();
+          cloudActiveId = sessionRow.usage_count || null;
+          // Note: rawText is loaded from localStorage in the next step
+          // We'll compare timestamps with local data later
           appState.current.title = sessionRow.name || "";
           appState.current.aims = sessionRow.unit_aims || "";
           appState.current.modules = sessionRow.modules || [];
-          // Note: rawText is loaded from localStorage in the next step
         }
 
         const cloudLibrary = libraryRows.map((row) => ({
@@ -77,14 +81,20 @@ async function initializeData() {
   if (local) {
     try {
       const session = JSON.parse(local);
+      const localTime = session.lastSaved || 0;
+      
       // Always restore rawText from local since it's never synced
       if (session.data && session.data.rawText) {
         appState.current.rawText = session.data.rawText;
       }
-      // Only use other local fields if cloud load failed
-      if (!cloudLoaded) {
+      
+      // Compare timestamps: use local data if it's newer than cloud
+      if (!cloudLoaded || cloudTime < localTime) {
         appState.current = { ...appState.current, ...session.data };
         appState.activeId = session.activeId;
+      } else if (cloudLoaded) {
+        // Cloud is newer, use cloud activeId
+        appState.activeId = cloudActiveId;
       }
     } catch (e) { }
   }
@@ -184,11 +194,20 @@ function updateSessionPersistence() {
   };
 
   // Save to local storage for quick persistence (Rule #7)
+  // Note: rawText is intentionally omitted from localStorage to prevent quota issues
+  const snapshot = {
+    title: appState.current.title,
+    aims: appState.current.aims,
+    modules: appState.current.modules || [],
+    // rawText intentionally omitted - only kept in memory
+  };
+  
   localStorage.setItem(
     "lp_session",
     JSON.stringify({
       activeId: appState.activeId,
-      data: appState.current,
+      lastSaved: Date.now(),
+      data: snapshot,
     }),
   );
 
@@ -235,20 +254,31 @@ function syncToCloud() {
             unit_aims: appState.current.aims || "",
             modules: appState.current.modules || [],
             last_used: new Date().toISOString(),
-            usage_count: appState.activeId || 0,
+            usage_count: appState.activeId || 0, // TODO: migrate to active_set_id column
           });
 
           if (rows.length > 0) {
             const { error } = await db
               .from("workshop_lessonparser")
               .upsert(rows, { onConflict: "user_id,local_id" });
-            if (error) console.error("[Sync] Cloud sync error:", error);
+            if (error) {
+              console.error("[Sync] Cloud sync error:", error);
+              
+              // Surface error in UI: turn indicator red and show toast
+              const indicator = document.getElementById("save-status-indicator");
+              if (indicator) {
+                indicator.className = "w-1.5 h-1.5 rounded-full bg-red-500";
+                showToast("❌ Sync failed - check connection");
+              }
+              return;
+            }
           }
         }
 
-        // Visual feedback: pulse the status indicator
+        // Visual feedback: pulse the status indicator green on success
         const indicator = document.getElementById("save-status-indicator");
         if (indicator) {
+          indicator.className = "w-1.5 h-1.5 rounded-full bg-green-500";
           indicator.classList.add("animate-pulse");
           setTimeout(() => indicator.classList.remove("animate-pulse"), 1000);
         }
@@ -272,6 +302,12 @@ async function autoSaveToLibrary() {
       // set.rawText = appState.current.rawText; // Removed per requirement
       set.lastUsed = Date.now();
       store.put(set);
+      
+      // Keep memory cache in sync with IndexedDB
+      const idx = appState.library.findIndex(s => s.id === appState.activeId);
+      if (idx !== -1) {
+        appState.library[idx] = { ...set };
+      }
     }
   };
 }
@@ -1044,6 +1080,9 @@ async function loadSet(id) {
       updateUIFromState();
       toggleLibrary();
       showToast(`📂 Loaded: ${set.name}`);
+      
+      // Sync usage metrics to cloud
+      syncToCloud();
     }
   };
 }
