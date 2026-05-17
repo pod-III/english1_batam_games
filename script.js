@@ -690,6 +690,7 @@ const Hero = {
     this.updateContinueBtn();
     Announcements.init();
     StorageManager.init();
+    HistoryManager.init();
   }
 };
 
@@ -1062,6 +1063,226 @@ const RecentGames = {
         </button>
       `;
     }).join('');
+    Utils.refreshIcons(container);
+  }
+};
+
+// --- HISTORY MANAGER ---
+const HistoryManager = {
+  historyMap: new Map(), // gameId -> timestamp string
+  searchTerm: '',
+
+  async init() {
+    this.loadLocalHistory();
+    await this.syncWithCloud();
+  },
+
+  loadLocalHistory() {
+    const local = Storage.get('kk_tab_history', {});
+    this.historyMap = new Map(Object.entries(local));
+  },
+
+  saveLocalHistory() {
+    Storage.set('kk_tab_history', Object.fromEntries(this.historyMap));
+  },
+
+  async syncWithCloud() {
+    if (typeof isSandbox === 'function' && isSandbox()) return;
+    const user = await (typeof getUser === 'function' ? getUser() : null);
+    if (!user) return;
+
+    try {
+      const { data, error } = await db
+        .from('user_progress')
+        .select('tool_key, updated_at')
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.warn('[HistoryManager] Cloud sync error:', error);
+        return;
+      }
+
+      if (data) {
+        let changed = false;
+        data.forEach(row => {
+          const game = State.getGameById(row.tool_key);
+          if (game) { // Only track valid games/tools
+            const existingTime = this.historyMap.get(row.tool_key);
+            const cloudTime = row.updated_at;
+            if (!existingTime || new Date(cloudTime) > new Date(existingTime)) {
+              this.historyMap.set(row.tool_key, cloudTime);
+              changed = true;
+            }
+          }
+        });
+
+        if (changed) {
+          this.saveLocalHistory();
+        }
+      }
+    } catch (e) {
+      console.warn('[HistoryManager] Sync failed:', e);
+    }
+  },
+
+  async trackTabOpen(gameId) {
+    const game = State.getGameById(gameId);
+    if (!game) return;
+
+    const now = new Date().toISOString();
+    this.historyMap.set(gameId, now);
+    this.saveLocalHistory();
+
+    if (typeof isSandbox === 'function' && isSandbox()) return;
+    const user = await (typeof getUser === 'function' ? getUser() : null);
+    if (!user) return;
+
+    try {
+      // First try updating existing row
+      const { data, error } = await db.from('user_progress')
+        .update({ updated_at: now })
+        .eq('user_id', user.id)
+        .eq('tool_key', gameId)
+        .select();
+
+      if (!error && (!data || data.length === 0)) {
+        // If no row existed, insert a clean empty data row
+        await db.from('user_progress').insert({
+          user_id: user.id,
+          tool_key: gameId,
+          data: {},
+          updated_at: now
+        });
+      }
+    } catch (e) {
+      console.warn('[HistoryManager] Cloud track failed:', e);
+    }
+  },
+
+  openUI() {
+    AudioEngine.click();
+    this.searchTerm = '';
+    const searchInput = document.getElementById('history-search');
+    if (searchInput) searchInput.value = '';
+    this.syncWithCloud().then(() => this.render());
+    this.togglePanel(true);
+  },
+
+  togglePanel(show) {
+    const panel = document.getElementById('history-panel');
+    if (!panel) return;
+
+    if (show === undefined) {
+      show = panel.classList.contains('translate-x-full');
+    }
+
+    if (show) {
+      panel.classList.remove('translate-x-full');
+      this.render();
+    } else {
+      panel.classList.add('translate-x-full');
+    }
+  },
+
+  async clearHistory() {
+    if (!confirm('Are you sure you want to clear your tab history?')) return;
+    AudioEngine.click();
+
+    this.historyMap.clear();
+    this.saveLocalHistory();
+
+    if (typeof isSandbox !== 'function' || !isSandbox()) {
+      const user = await (typeof getUser === 'function' ? getUser() : null);
+      if (user) {
+        try {
+          await db.from('user_progress')
+            .update({ updated_at: new Date(0).toISOString() })
+            .eq('user_id', user.id);
+        } catch (e) {
+          console.warn('[HistoryManager] Cloud clear failed:', e);
+        }
+      }
+    }
+
+    this.render();
+    UI.showToast('Tab history cleared', 'success');
+  },
+
+  formatTimeAgo(dateStr) {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffSec = Math.floor(diffMs / 1000);
+    const diffMin = Math.floor(diffSec / 60);
+    const diffHour = Math.floor(diffMin / 60);
+    const diffDay = Math.floor(diffHour / 24);
+
+    if (diffSec < 60) return 'Just now';
+    if (diffMin < 60) return `${diffMin}m ago`;
+    if (diffHour < 24) return `${diffHour}h ago`;
+    if (diffDay === 1) return 'Yesterday';
+    if (diffDay < 7) return `${diffDay}d ago`;
+    return date.toLocaleDateString();
+  },
+
+  render() {
+    const container = document.getElementById('panel-history-list');
+    const searchInput = document.getElementById('history-search');
+    if (!container) return;
+
+    this.searchTerm = (searchInput?.value || '').toLowerCase().trim();
+
+    // Convert map to array and filter/sort
+    const historyItems = [];
+    this.historyMap.forEach((timeStr, gameId) => {
+      if (new Date(timeStr).getFullYear() <= 1970) return;
+
+      const game = State.getGameById(gameId);
+      if (game) {
+        historyItems.push({ game, timeStr, timeMs: new Date(timeStr).getTime() });
+      }
+    });
+
+    historyItems.sort((a, b) => b.timeMs - a.timeMs);
+
+    const filtered = historyItems.filter(({ game }) => {
+      if (!this.searchTerm) return true;
+      return game.title.toLowerCase().includes(this.searchTerm) ||
+             game.category.toLowerCase().includes(this.searchTerm) ||
+             (game.description || '').toLowerCase().includes(this.searchTerm);
+    });
+
+    if (filtered.length === 0) {
+      container.innerHTML = `
+        <div class="text-center py-12 text-slate-400 font-bold">
+          <i data-lucide="history" class="w-12 h-12 mx-auto mb-3 opacity-30"></i>
+          <p>${this.searchTerm ? 'No matching history found' : 'No tab history yet'}</p>
+        </div>
+      `;
+      Utils.refreshIcons(container);
+      return;
+    }
+
+    container.innerHTML = filtered.map(({ game, timeStr }) => `
+      <div class="card p-3 flex items-center justify-between gap-3 bg-white dark:bg-slate-800 border-2 border-dark dark:border-slate-700 rounded-xl shadow-hard-sm hover:translate-y-[-2px] transition-all group cursor-pointer"
+           onclick="HistoryManager.togglePanel(false); GameModal.open('${game.id}')">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-10 h-10 rounded-xl ${Utils.getColorClass(game.color)} flex items-center justify-center text-white border-2 border-dark dark:border-slate-600 shadow-sm shrink-0 group-hover:scale-110 transition-transform">
+            <i data-lucide="${game.icon}" class="w-5 h-5"></i>
+          </div>
+          <div class="min-w-0 text-left">
+            <h4 class="font-heading font-bold text-sm text-dark dark:text-white truncate group-hover:text-blue transition-colors">${game.title}</h4>
+            <p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">${game.category}</p>
+          </div>
+        </div>
+        <div class="shrink-0 text-right">
+          <span class="badge bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-none text-[10px] font-bold py-1 px-2">
+            ${this.formatTimeAgo(timeStr)}
+          </span>
+        </div>
+      </div>
+    `).join('');
+
     Utils.refreshIcons(container);
   }
 };
@@ -2769,7 +2990,10 @@ const TabManager = {
     });
 
     const game = State.getGameById(tab.gameId);
-    if (game) State.activeGame = game;
+    if (game) {
+      State.activeGame = game;
+      HistoryManager.trackTabOpen(game.id);
+    }
 
     if (window.location.hash !== `#${tab.gameId}`) {
       history.pushState(null, null, `#${tab.gameId}`);
@@ -3477,6 +3701,7 @@ const GameModal = {
     }
 
     RecentGames.add(gameId);
+    HistoryManager.trackTabOpen(gameId);
 
     if (element) {
       UI.animateModalOpen(element, 'game-modal');
@@ -4009,6 +4234,7 @@ const MobileUI = {
 window.App = App;
 window.AudioEngine = AudioEngine;
 window.TabManager = TabManager;
+window.HistoryManager = HistoryManager;
 window.Timer = Timer;
 window.LandingPage = LandingPage;
 window.MySpace = MySpace;
