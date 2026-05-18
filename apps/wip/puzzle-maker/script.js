@@ -58,9 +58,7 @@ function toggleDarkMode() {
   const isDark = html.classList.contains("dark");
 
   const icon = document.getElementById("darkModeIcon");
-  if (icon) {
-      icon.innerHTML = lucide.icons[isDark ? "sun" : "moon"].toSvg();
-  }
+  if (icon) setIcon(icon, isDark ? "sun" : "moon");
 
   if (isDark) localStorage.setItem('theme_puzzle-maker', "dark");
   else localStorage.setItem('theme_puzzle-maker', "light");
@@ -81,9 +79,7 @@ if (
   document.documentElement.classList.add("dark");
   document.addEventListener("DOMContentLoaded", () => {
     const icon = document.getElementById("darkModeIcon");
-    if (icon) {
-        icon.innerHTML = lucide.icons["sun"].toSvg();
-    }
+    if (icon) setIcon(icon, "sun");
   });
 }
 
@@ -91,14 +87,26 @@ function getCurrentRound() {
   return state.rounds[state.activeRound];
 }
 
+// Safely swap a lucide icon on any element without relying on the
+// deprecated lucide.icons[name].toSvg() API (removed in newer builds).
+// Sets the data-lucide attribute and re-runs createIcons so the element
+// is replaced with a fresh <svg> that inherits all existing attributes
+// (including id and class) — meaning getElementById still works afterward.
+function setIcon(el, iconName, strokeWidth) {
+  if (!el) return;
+  el.setAttribute("data-lucide", iconName);
+  if (strokeWidth) el.setAttribute("stroke-width", String(strokeWidth));
+  lucide.createIcons();
+}
+
 function toggleSidebar() {
   sidebar.classList.toggle("hidden-panel");
   const icon = document.getElementById("fsIcon");
   if (sidebar.classList.contains("hidden-panel")) {
-    icon.innerHTML = lucide.icons["minimize-2"].toSvg();
+    setIcon(icon, "minimize-2");
     setTimeout(resize, 310);
   } else {
-    icon.innerHTML = lucide.icons["maximize-2"].toSvg();
+    setIcon(icon, "maximize-2");
     setTimeout(resize, 310);
   }
 }
@@ -757,10 +765,10 @@ function updateStyleUI(r) {
   const icon = document.getElementById("styleIcon");
   if (r.puzzleStyle === "jigsaw") {
     btn.classList.add("active");
-    icon.innerHTML = lucide.icons["puzzle"].toSvg({ strokeWidth: 3 });
+    setIcon(icon, "puzzle", 3);
   } else {
     btn.classList.remove("active");
-    icon.innerHTML = lucide.icons["grid"].toSvg({ strokeWidth: 2 });
+    setIcon(icon, "grid", 2);
   }
 }
 
@@ -769,10 +777,10 @@ function updateHintUI(r) {
   const icon = document.getElementById("hintIcon");
   if (r.showHints) {
     btn.classList.add("active");
-    icon.innerHTML = lucide.icons["check-circle-2"].toSvg({ strokeWidth: 3 });
+    setIcon(icon, "check-circle-2", 3);
   } else {
     btn.classList.remove("active");
-    icon.innerHTML = lucide.icons["circle"].toSvg({ strokeWidth: 2 });
+    setIcon(icon, "circle", 2);
   }
 }
 
