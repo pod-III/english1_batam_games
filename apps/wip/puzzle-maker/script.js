@@ -1,1078 +1,799 @@
-// --- CACHED DOM ELEMENTS ---
-const canvas = document.getElementById("puzzleCanvas");
-const ctx = canvas.getContext("2d");
-const printModal = document.getElementById("printModal");
-const gameContainer = document.getElementById("game-container");
-const placeholder = document.getElementById("placeholder");
-const timerDisplay = document.getElementById("timerDisplay");
-const movesDisplay = document.getElementById("movesDisplay");
-const thumb = document.getElementById("thumb-preview");
-const stats = document.getElementById("liveStats");
-const toast = document.getElementById("toast");
-const roundsList = document.getElementById("roundsList");
-const sidebar = document.getElementById("sidebar");
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Puzzle Maker Pro - KlassKit</title>
+    <link rel="icon" type="image/x-icon" href="../../../media/icon.ico" />
+    <link rel="icon" type="image/webp" href="../../../media/icon.webp" />
+  <script>if(localStorage.getItem("theme_puzzle-maker")==="dark"||(!localStorage.getItem("theme_puzzle-maker")&&window.matchMedia("(prefers-color-scheme:dark)").matches)){document.documentElement.classList.add("dark")}</script>
 
-const displayCols = document.getElementById("displayCols");
-const displayRows = document.getElementById("displayRows");
-const finalTimeDisplay = document.getElementById("finalTime");
-const finalMovesDisplay = document.getElementById("finalMoves");
-const liveNextBtn = document.getElementById("liveNextBtn");
-const modalNextBtn = document.getElementById("modalNextBtn");
+        <!-- External Libraries -->
+        <script src="https://unpkg.com/lucide@1.16.0"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.4"></script>
+        <script src="/supabase.js"></script>
+        <script src="https://cdn.tailwindcss.com"></script>
 
-const state = {
-  rounds: [],
-  activeRound: 0,
-  tabSize: 0.18,
-  printReference: false,
-  timer: null,
-  start: 0,
-  selectedIdx: -1,
-  appMode: 'play', // 'play' or 'print'
-  worksheetTitle: '',
-  worksheetDesc: ''
-};
+        <!-- Fonts -->
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap"
+            rel="stylesheet"
+        />
 
-// --- INDEXED DB SETUP ---
-const DB_NAME = "KlassKitPuzzleDB";
-const STORE_NAME = "gameState";
-const DB_VERSION = 1;
+        <script>
+            tailwind.config = {
+                darkMode: "class",
+                theme: {
+                    extend: {
+                        colors: {
+                            pink: "#FF6B95",
+                            orange: "#FF8C42",
+                            green: "#00E676",
+                            blue: "#2979FF",
+                            dark: "#1e293b",
+                            chalk: "#f8fafc",
+                        },
+                        fontFamily: {
+                            heading: ["Fredoka", "sans-serif"],
+                            body: ["Nunito", "sans-serif"],
+                        },
+                    },
+                },
+            };
+        </script>
 
-function initDB() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onerror = (e) => reject("DB error: " + e.target.error);
-    request.onsuccess = (e) => resolve(e.target.result);
-    request.onupgradeneeded = (e) => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME);
-      }
-    };
-  });
-}
-
-// --- DARK MODE TOGGLE ---
-function toggleDarkMode() {
-  const html = document.documentElement;
-  html.classList.toggle("dark");
-  const isDark = html.classList.contains("dark");
-
-  const icon = document.getElementById("darkModeIcon");
-  if (icon) {
-      icon.innerHTML = lucide.icons[isDark ? "sun" : "moon"].toSvg();
-  }
-
-  if (isDark) localStorage.setItem('theme_puzzle-maker', "dark");
-  else localStorage.setItem('theme_puzzle-maker', "light");
-
-  const r = getCurrentRound();
-  if (r) {
-      preRenderTiles(r);
-      draw();
-  }
-}
-
-// Load theme on startup
-if (
-  localStorage.getItem('theme_puzzle-maker') === "dark" ||
-  (!("theme_puzzle-maker" in localStorage) &&
-    window.matchMedia("(prefers-color-scheme: dark)").matches)
-) {
-  document.documentElement.classList.add("dark");
-  document.addEventListener("DOMContentLoaded", () => {
-    const icon = document.getElementById("darkModeIcon");
-    if (icon) {
-        icon.innerHTML = lucide.icons["sun"].toSvg();
-    }
-  });
-}
-
-function getCurrentRound() {
-  return state.rounds[state.activeRound];
-}
-
-function toggleSidebar() {
-  sidebar.classList.toggle("hidden-panel");
-  const icon = document.getElementById("fsIcon");
-  if (sidebar.classList.contains("hidden-panel")) {
-    icon.innerHTML = lucide.icons["minimize-2"].toSvg();
-    setTimeout(resize, 310);
-  } else {
-    icon.innerHTML = lucide.icons["maximize-2"].toSvg();
-    setTimeout(resize, 310);
-  }
-}
-
-function giveUp() {
-  const r = getCurrentRound();
-  if (!r || !r.isActive) return;
-
-  r.isActive = false;
-  clearInterval(state.timer);
-  r.tiles.forEach((t) => {
-    t.curC = t.c;
-    t.curR = t.r;
-  });
-
-  preRenderTiles(r);
-  draw();
-  saveState();
-
-  toast.innerHTML =
-    '<i data-lucide="flag" class="w-4 h-4 text-pink"></i> <span>Puzzle Skipped</span>';
-  showToast();
-  updateNextBtnVisibility();
-}
-
-function nextRound() {
-  if (state.activeRound < state.rounds.length - 1) {
-    closeModal("winnerModal");
-    switchToRound(state.activeRound + 1);
-  }
-}
-
-function updateNextBtnVisibility() {
-  const hasNext = state.activeRound < state.rounds.length - 1;
-  if (hasNext) {
-    liveNextBtn.classList.remove("hidden");
-    modalNextBtn.style.display = "flex";
-  } else {
-    liveNextBtn.classList.add("hidden");
-    modalNextBtn.style.display = "none";
-  }
-}
-
-function renameRound(e, idx) {
-  e.stopPropagation();
-  const r = state.rounds[idx];
-  const newName = prompt(
-    "Enter a name for this puzzle:",
-    r.name || `Page ${idx + 1}`,
-  );
-  if (newName) {
-    r.name = newName;
-    renderRoundsList();
-    saveState();
-  }
-}
-
-// --- PERSISTENCE (IndexedDB) ---
-async function saveState() {
-  try {
-    const data = {
-      activeRound: state.activeRound,
-      rounds: state.rounds.map((r) => ({
-        name: r.name,
-        imgData: r.imgData,
-        cols: r.cols,
-        rows: r.rows,
-        puzzleStyle: r.puzzleStyle,
-        showHints: r.showHints,
-        moves: r.moves,
-        isActive: r.isActive,
-        secondsElapsed: r.secondsElapsed,
-        edges: r.edges,
-        // Only save tile data, not the pre-rendered canvas objects
-        tiles: r.tiles.map((t) => ({
-          c: t.c,
-          r: t.r,
-          curC: t.curC,
-          curR: t.curR,
-          id: t.id,
-        })),
-      })),
-    };
-
-    const db = await initDB();
-    const tx = db.transaction(STORE_NAME, "readwrite");
-    tx.objectStore(STORE_NAME).put(data, "currentState");
-  } catch (e) {
-    console.error("Failed to save state to IndexedDB:", e);
-  }
-}
-
-function showToast() {
-  toast.classList.add("active");
-  setTimeout(() => toast.classList.remove("active"), 2000);
-  lucide.createIcons();
-}
-
-async function loadState() {
-  try {
-    const db = await initDB();
-    const tx = db.transaction(STORE_NAME, "readonly");
-    const request = tx.objectStore(STORE_NAME).get("currentState");
-
-    request.onsuccess = () => {
-      const data = request.result;
-      if (!data) return;
-
-      state.activeRound = data.activeRound || 0;
-
-      if (data.rounds && data.rounds.length > 0) {
-        let loadedCount = 0;
-        data.rounds.forEach((r, idx) => {
-          const img = new Image();
-          img.onload = () => {
-            state.rounds[idx].imgObj = img;
-            loadedCount++;
-            if (loadedCount === data.rounds.length) {
-              renderRoundsList();
-              switchToRound(state.activeRound);
+        <style type="text/tailwindcss">
+            /* ============================================
+           BASE STYLES
+           ============================================ */
+            :root {
+                --color-pink: #ff6b95;
+                --color-orange: #ff8c42;
+                --color-green: #00e676;
+                --color-blue: #2979ff;
+                --color-dark: #1e293b;
+                --color-chalk: #f8fafc;
+                --bg-primary: #f8fafc;
+                --bg-secondary: #ffffff;
+                --text-primary: #1e293b;
+                --border-primary: #1e293b;
+                --border-width-medium: 4px;
+                --border-width-thick: 6px;
+                --grid-color: #e2e8f0;
+                --grid-size: 24px;
+                --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+                --transition-bounce: 0.3s
+                    cubic-bezier(0.175, 0.885, 0.32, 1.275);
             }
-          };
-          img.src = r.imgData;
-          state.rounds.push({
-            ...r,
-            name: r.name || `Page ${idx + 1}`,
-            timer: null,
-          });
-        });
-      }
-    };
-  } catch (e) {
-    console.error("Error loading state from IndexedDB:", e);
-  }
-}
 
-async function clearStorage() {
-  if (
-    !confirm(
-      "Are you sure you want to delete all puzzle pages? This cannot be undone.",
-    )
-  )
-    return;
-  try {
-    const db = await initDB();
-    const tx = db.transaction(STORE_NAME, "readwrite");
-    tx.objectStore(STORE_NAME).delete("currentState");
-    tx.oncomplete = () => location.reload();
-  } catch (e) {
-    console.error("Error clearing IndexedDB", e);
-    location.reload();
-  }
-}
+            body {
+                font-family: "Nunito", sans-serif;
+                background-color: var(--bg-primary);
+                background-image:
+                    linear-gradient(var(--grid-color) 1px, transparent 1px),
+                    linear-gradient(
+                        90deg,
+                        var(--grid-color) 1px,
+                        transparent 1px
+                    );
+                background-size: var(--grid-size) var(--grid-size);
+                color: var(--text-primary);
+                overflow: hidden;
+            }
 
-// --- ROUND MANAGEMENT ---
-function handleImageUpload(e) {
-  const file = e.target.files[0];
-  if (!file) return;
+            /* --- Chunky Buttons --- */
+            .btn-chunky {
+                position: relative;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                font-family: "Fredoka", sans-serif;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                border: var(--border-width-medium) solid var(--border-primary);
+                box-shadow: 0 4px 0 var(--border-primary);
+                cursor: pointer;
+                user-select: none;
+                transition: all var(--transition-fast);
+                transform: translateY(0);
+                @apply rounded-xl px-4 py-3;
+            }
 
-  const reader = new FileReader();
-  reader.onload = (event) => {
-    const tempImg = new Image();
-    tempImg.onload = () => {
-      const targetRatio = 4 / 3;
-      const imgRatio = tempImg.width / tempImg.height;
+            .btn-chunky:hover:not(:disabled) {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 0 var(--border-primary);
+            }
 
-      let cropW,
-        cropH,
-        cropX = 0,
-        cropY = 0;
+            .btn-chunky:active:not(:disabled) {
+                transform: translateY(4px);
+                box-shadow: 0 0 0 var(--border-primary);
+            }
 
-      if (imgRatio > targetRatio) {
-        cropH = tempImg.height;
-        cropW = cropH * targetRatio;
-        cropX = (tempImg.width - cropW) / 2;
-      } else {
-        cropW = tempImg.width;
-        cropH = cropW / targetRatio;
-        cropY = (tempImg.height - cropH) / 2;
-      }
+            .btn-chunky:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+                box-shadow: 0 2px 0 var(--border-primary);
+                background-color: #e2e8f0;
+                color: #94a3b8;
+            }
 
-      const maxDim = 1024;
-      let finalW = cropW;
-      let finalH = cropH;
+            /* --- Round/Page List Items --- */
+            .round-item {
+                @apply flex items-center gap-3 p-2 rounded-xl border-2 border-transparent cursor-pointer transition-all hover:bg-slate-50;
+            }
+            .round-item.active {
+                @apply border-blue bg-blue/5;
+            }
+            .round-item img {
+                @apply w-12 h-12 rounded-lg object-cover border-2 border-slate-200;
+            }
+            .round-item.active img {
+                @apply border-blue;
+            }
 
-      if (finalW > maxDim) {
-        const scale = maxDim / finalW;
-        finalW *= scale;
-        finalH *= scale;
-      }
+            .sidebar {
+                width: 380px;
+                background: var(--bg-secondary);
+                border-right: var(--border-width-thick) solid
+                    var(--border-primary);
+                padding: 1.5rem;
+                height: 100vh;
+                z-index: 50;
+                display: flex;
+                flex-direction: column;
+                box-shadow: 4px 0 0 rgba(30, 41, 59, 0.05);
+                transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }
 
-      const tempCanvas = document.createElement("canvas");
-      tempCanvas.width = finalW;
-      tempCanvas.height = finalH;
-      const tempCtx = tempCanvas.getContext("2d");
+            .sidebar.hidden-panel {
+                margin-left: -380px;
+            }
 
-      tempCtx.drawImage(
-        tempImg,
-        cropX,
-        cropY,
-        cropW,
-        cropH,
-        0,
-        0,
-        finalW,
-        finalH,
-      );
+            .main-area {
+                flex: 1;
+                height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 40px;
+                overflow: auto;
+                position: relative;
+            }
 
-      const compressedDataUrl = tempCanvas.toDataURL("image/jpeg", 0.7);
+            /* Fullscreen Toggle Button */
+            #fullscreenToggle {
+                @apply absolute top-6 left-6 z-40 bg-white border-4 border-dark rounded-xl p-2 cursor-pointer transition-transform hover:scale-105 active:scale-95 text-dark;
+                box-shadow: 4px 4px 0 var(--border-primary);
+            }
 
-      const finalImg = new Image();
-      finalImg.onload = () => {
-        addNewRound(finalImg, compressedDataUrl);
-        e.target.value = "";
-      };
-      finalImg.src = compressedDataUrl;
-    };
-    tempImg.src = event.target.result;
-  };
-  reader.readAsDataURL(file);
-}
+            #game-container {
+                position: relative;
+                box-shadow: 12px 12px 0px rgba(30, 41, 59, 0.1);
+                border: var(--border-width-thick) solid var(--border-primary);
+                border-radius: 28px;
+                background: #fff;
+                display: none;
+                overflow: hidden;
+                transition: transform var(--transition-bounce);
+            }
 
-function addNewRound(imgObj, imgData) {
-  const newRound = {
-    name: `Page ${state.rounds.length + 1}`,
-    imgObj: imgObj,
-    imgData: imgData,
-    cols: 3,
-    rows: 3,
-    tiles: [],
-    edges: { h: [], v: [] },
-    puzzleStyle: "jigsaw",
-    showHints: false,
-    moves: 0,
-    isActive: false,
-    secondsElapsed: 0,
-    timer: null,
-  };
+            canvas {
+                display: block;
+                cursor: pointer;
+            }
 
-  generateTilesForRound(newRound);
-  state.rounds.push(newRound);
-  state.activeRound = state.rounds.length - 1;
+            .input-label {
+                @apply text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2;
+            }
 
-  renderRoundsList();
-  switchToRound(state.activeRound);
-  saveState();
+            .toggle-btn {
+                @apply flex items-center justify-between p-4 rounded-xl border-4 border-dark bg-white transition-all cursor-pointer;
+                box-shadow: 4px 4px 0 var(--border-primary);
+            }
+            .toggle-btn:hover {
+                @apply bg-slate-50;
+            }
+            .toggle-btn:active {
+                transform: translate(2px, 2px);
+                box-shadow: 0px 0px 0 var(--border-primary);
+            }
+            .toggle-btn.active {
+                @apply bg-blue text-white border-blue;
+                box-shadow: 4px 4px 0 var(--color-dark);
+            }
+            .toggle-btn .toggle-icon {
+                @apply transition-transform duration-300;
+            }
+            .toggle-btn.active .toggle-icon {
+                @apply scale-110;
+            }
 
-  toast.innerHTML =
-    '<i data-lucide="check" class="w-4 h-4 text-green"></i> <span>Page Added</span>';
-  showToast();
-}
+            @keyframes pop-in {
+                0% {
+                    opacity: 0;
+                    transform: scale(0.9) translateY(10px);
+                }
+                100% {
+                    opacity: 1;
+                    transform: scale(1) translateY(0);
+                }
+            }
 
-function deleteRound(e, idx) {
-  e.stopPropagation();
-  if (confirm("Remove this page?")) {
-    state.rounds.splice(idx, 1);
-    if (state.rounds.length === 0) {
-      clearStorage();
-    } else {
-      state.activeRound = Math.max(0, state.activeRound - 1);
-      renderRoundsList();
-      switchToRound(state.activeRound);
-      saveState();
-    }
-  }
-}
+            .modal-overlay {
+                @apply fixed inset-0 flex items-center justify-center z-[100] opacity-0 pointer-events-none transition-opacity duration-300;
+                background: rgba(30, 41, 59, 0.6);
+                backdrop-filter: blur(8px);
+            }
+            .modal-overlay.active {
+                @apply opacity-100 pointer-events-auto;
+            }
 
-function renderRoundsList() {
-  roundsList.innerHTML = "";
-  state.rounds.forEach((r, idx) => {
-    const div = document.createElement("div");
-    div.className = `round-item ${idx === state.activeRound ? "active" : ""}`;
-    div.onclick = () => switchToRound(idx);
+            .modal-content {
+                @apply bg-white p-10 rounded-[32px] border-4 border-dark w-[90%] max-w-[440px] text-center;
+                box-shadow: 12px 12px 0px rgba(0, 0, 0, 0.2);
+            }
 
-    div.innerHTML = `
-            <div class="relative w-12 h-12 flex-shrink-0">
-                <img src="${r.imgData}" alt="Round ${idx + 1}">
-                <div class="absolute -top-1 -right-1 bg-blue text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">${idx + 1}</div>
-            </div>
-            <div class="flex-1 min-w-0">
-                <h4 class="font-bold text-dark dark:text-white text-xs truncate">${r.name}</h4>
-                <p class="text-[10px] text-slate-400 font-bold">${r.cols}x${r.rows}</p>
-            </div>
-            <div class="flex flex-col gap-1">
-                <button onclick="renameRound(event, ${idx})" class="p-1 text-slate-300 hover:text-blue transition-colors" title="Rename">
-                    <i data-lucide="pencil" class="w-3 h-3"></i>
+            .modal-overlay.active .modal-content {
+                animation: pop-in 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)
+                    forwards;
+            }
+
+            #thumb-preview {
+                @apply absolute top-6 right-6 w-32 border-4 border-dark rounded-xl z-10 hidden bg-white p-1;
+                box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.1);
+            }
+
+            #toast {
+                @apply fixed top-6 left-1/2 -translate-x-1/2 bg-dark text-white px-6 py-3 rounded-full shadow-xl transform -translate-y-24 transition-transform duration-300 z-[200] flex items-center gap-3 font-bold;
+            }
+            #toast.active {
+                @apply translate-y-0;
+            }
+
+            /* --- PRINT STYLES --- */
+            #print-area {
+                display: none;
+            }
+
+            @media print {
+                @page {
+                    size: A4;
+                    margin: 0;
+                }
+                body,
+                html {
+                    margin: 0;
+                    padding: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: white;
+                    overflow: visible;
+                }
+
+                .sidebar,
+                .main-area,
+                .modal-overlay,
+                #thumb-preview,
+                #liveStats,
+                #toast,
+                #fullscreenToggle {
+                    display: none !important;
+                }
+
+                #print-area {
+                    display: block !important;
+                    width: 100%;
+                    height: 100%;
+                }
+
+                .print-page {
+                    width: 210mm;
+                    height: 297mm;
+                    page-break-after: always;
+                    position: relative;
+                    padding: 0;
+                    margin: 0;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    box-sizing: border-box;
+                    overflow: hidden;
+                }
+
+                .print-page::after {
+                    content: attr(data-page-num);
+                    position: absolute;
+                    bottom: 10mm;
+                    right: 10mm;
+                    font-size: 10pt;
+                    color: #999;
+                    font-family: sans-serif;
+                }
+
+                .print-page:last-child {
+                    page-break-after: auto;
+                }
+
+                .print-full-img {
+                    width: 100%;
+                    height: 100%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 0;
+                    margin: 0;
+                }
+
+                .print-full-img img {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: contain;
+                    border: none;
+                }
+
+                .print-page-ref {
+                    padding: 10mm;
+                    justify-content: flex-start;
+                }
+
+                .print-header {
+                    width: 100%;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: flex-end;
+                    border-bottom: 3px solid #000;
+                    padding-bottom: 20px;
+                    margin-bottom: 40px;
+                }
+            }
+        
+            .a4-preview {
+                width: 210mm;
+                min-height: 297mm;
+                background: white;
+                box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+                padding: 15mm;
+                position: relative;
+                flex-shrink: 0;
+            }
+            @media (max-width: 1024px) {
+                .a4-preview {
+                    transform: scale(0.8);
+                    transform-origin: top center;
+                    margin-bottom: -60mm; /* adjust for scaled height */
+                }
+            }
+            @media (max-width: 768px) {
+                .a4-preview {
+                    transform: scale(0.5);
+                    transform-origin: top center;
+                    margin-bottom: -150mm;
+                }
+            }
+</style>
+        <link rel="stylesheet" href="../../../css/base.css" />
+    <link rel="stylesheet" href="../../../css/components.css" />
+  
+</head>
+    <body class="flex min-h-screen overflow-hidden">
+        <!-- Toast -->
+        <div id="toast">
+            <i data-lucide="save" class="w-4 h-4 text-green"></i>
+            <span>Game Saved</span>
+        </div>
+
+        <!-- Modal: Win -->
+        <div id="winnerModal" class="modal-overlay">
+            <div class="modal-content">
+                <div
+                    class="w-24 h-24 bg-green/10 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-green animate-bounce"
+                >
+                    <i data-lucide="trophy" class="text-green w-12 h-12"></i>
+                </div>
+                <h3 class="font-heading text-4xl mb-2 text-dark">AMAZING!</h3>
+                <p class="text-slate-500 mb-8 font-body text-lg">
+                    You finished this page!
+                </p>
+
+                <div class="flex gap-4 mb-8">
+                    <div
+                        class="flex-1 bg-slate-50 p-4 rounded-2xl border-2 border-dark"
+                    >
+                        <span
+                            class="block text-[10px] font-black text-slate-400 uppercase"
+                            >Time</span
+                        >
+                        <span
+                            id="finalTime"
+                            class="text-2xl font-heading text-dark"
+                            >00:00</span
+                        >
+                    </div>
+                    <div
+                        class="flex-1 bg-slate-50 p-4 rounded-2xl border-2 border-dark"
+                    >
+                        <span
+                            class="block text-[10px] font-black text-slate-400 uppercase"
+                            >Moves</span
+                        >
+                        <span
+                            id="finalMoves"
+                            class="text-2xl font-heading text-dark"
+                            >0</span
+                        >
+                    </div>
+                </div>
+
+                <div class="flex gap-4">
+                    <button
+                        onclick="nextRound()"
+                        id="modalNextBtn"
+                        class="flex-1 btn-chunky bg-blue text-white"
+                        style="display: none"
+                    >
+                        NEXT ROUND
+                        <i data-lucide="arrow-right" class="w-4 h-4 ml-2"></i>
+                    </button>
+                    <button
+                        onclick="scramblePuzzle()"
+                        class="flex-1 btn-chunky bg-orange text-white"
+                    >
+                        <i data-lucide="rotate-ccw" class="w-4 h-4 mr-2"></i>
+                        REPLAY
+                    </button>
+                </div>
+                <button
+                    onclick="closeModal('winnerModal')"
+                    class="mt-4 text-xs font-bold text-slate-400 hover:text-dark uppercase"
+                >
+                    Close & Stay Here
                 </button>
-                <button onclick="deleteRound(event, ${idx})" class="p-1 text-slate-300 hover:text-pink transition-colors" title="Delete">
-                    <i data-lucide="trash-2" class="w-3 h-3"></i>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <aside class="sidebar no-print" id="sidebar">
+            <header class="mb-6">
+                <div class="inline-flex items-center gap-4">
+                    <div
+                        class="w-14 h-14 bg-pink border-4 border-dark rounded-2xl flex items-center justify-center text-white"
+                        style="box-shadow: 4px 4px 0 var(--color-dark)"
+                    >
+                        <i data-lucide="puzzle" class="w-7 h-7"></i>
+                    </div>
+                    <div class="text-left">
+                        <h1
+                            class="text-2xl font-heading font-bold text-dark leading-none mb-1"
+                        >
+                            Puzzle<span class="text-blue">Maker</span>
+                        </h1>
+                        <p
+                            class="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]"
+                        >
+                            KlassKit Hub
+                        </p>
+                    </div>
+                </div>
+            </header>
+
+            <div class="flex-1 space-y-6 overflow-y-auto pr-2 custom-scrollbar">
+                <!-- Step 1: Manage Pages (New) -->
+                <section>
+                    <div class="flex items-center justify-between mb-3">
+                        <label class="input-label mb-0"
+                            ><i data-lucide="layers" class="w-3 h-3"></i> 1.
+                            Pages / Rounds</label
+                        >
+                        <button
+                            onclick="
+                                document.getElementById('fileInput').click()
+                            "
+                            class="text-[10px] font-black text-blue uppercase bg-blue/10 px-2 py-1 rounded hover:bg-blue/20 transition-colors"
+                        >
+                            + Add Page
+                        </button>
+                    </div>
+
+                    <div id="roundsList" class="space-y-2 mb-2">
+                        <!-- Rounds injected here -->
+                    </div>
+
+                    <div class="relative group mt-2" id="uploadBtnContainer">
+                        <button
+                            onclick="
+                                document.getElementById('fileInput').click()
+                            "
+                            class="w-full btn-chunky bg-slate-100 text-slate-400 border-slate-300 h-12 text-sm shadow-none hover:bg-white hover:text-blue hover:border-blue"
+                        >
+                            <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
+                            <span>Add New Image</span>
+                        </button>
+                    </div>
+                    <input
+                        type="file"
+                        id="fileInput"
+                        class="hidden"
+                        accept="image/*"
+                        onchange="handleImageUpload(event)"
+                    />
+                </section>
+
+                <!-- Step 2: Grid -->
+                <section class="space-y-4">
+                    <label class="input-label"
+                        ><i data-lucide="grid" class="w-3 h-3"></i> 2. Grid
+                        Size</label
+                    >
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-2">
+                            <span
+                                class="text-[10px] font-bold text-slate-500 uppercase ml-1"
+                                >Cols</span
+                            >
+                            <div
+                                class="flex items-center border-2 border-dark rounded-xl bg-white overflow-hidden shadow-[2px_2px_0px_#1e293b]"
+                            >
+                                <button
+                                    onclick="adjustGrid('cols', -1)"
+                                    class="w-10 h-10 hover:bg-slate-100 font-bold border-r-2 border-slate-100 transition-colors"
+                                >
+                                    -
+                                </button>
+                                <span
+                                    id="displayCols"
+                                    class="flex-1 text-center font-heading font-bold text-lg text-dark"
+                                    >3</span
+                                >
+                                <button
+                                    onclick="adjustGrid('cols', 1)"
+                                    class="w-10 h-10 hover:bg-slate-100 font-bold border-l-2 border-slate-100 transition-colors"
+                                >
+                                    +
+                                </button>
+                            </div>
+                        </div>
+                        <div class="space-y-2">
+                            <span
+                                class="text-[10px] font-bold text-slate-500 uppercase ml-1"
+                                >Rows</span
+                            >
+                            <div
+                                class="flex items-center border-2 border-dark rounded-xl bg-white overflow-hidden shadow-[2px_2px_0px_#1e293b]"
+                            >
+                                <button
+                                    onclick="adjustGrid('rows', -1)"
+                                    class="w-10 h-10 hover:bg-slate-100 font-bold border-r-2 border-slate-100 transition-colors"
+                                >
+                                    -
+                                </button>
+                                <span
+                                    id="displayRows"
+                                    class="number-display flex-1 text-center font-heading font-bold text-lg text-dark"
+                                    >3</span
+                                >
+                                <button
+                                    onclick="adjustGrid('rows', 1)"
+                                    class="w-10 h-10 hover:bg-slate-100 font-bold border-l-2 border-slate-100 transition-colors"
+                                >
+                                    +
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button
+                            onclick="setPreset(2)"
+                            class="text-[10px] font-black border-2 border-dark rounded-lg py-2 bg-white shadow-[2px_2px_0_#1e293b] text-dark hover:bg-slate-50"
+                        >
+                            EASY
+                        </button>
+                        <button
+                            onclick="setPreset(4)"
+                            class="text-[10px] font-black border-2 border-dark rounded-lg py-2 bg-white shadow-[2px_2px_0_#1e293b] text-dark hover:bg-slate-50"
+                        >
+                            MID
+                        </button>
+                        <button
+                            onclick="setPreset(6)"
+                            class="text-[10px] font-black border-2 border-dark rounded-lg py-2 bg-white shadow-[2px_2px_0_#1e293b] text-dark hover:bg-slate-50"
+                        >
+                            HARD
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Step 3: Options -->
+                <section class="space-y-4">
+                    <label class="input-label"
+                        ><i data-lucide="sliders" class="w-3 h-3"></i> 3. Style
+                        Options</label
+                    >
+                    <div
+                        onclick="togglePuzzleStyle()"
+                        class="toggle-btn"
+                        id="styleToggleBtn"
+                    >
+                        <span
+                            class="text-xs font-black uppercase tracking-wider"
+                            >Jigsaw Edges</span
+                        >
+                        <i
+                            data-lucide="puzzle"
+                            class="w-6 h-6 toggle-icon"
+                            id="styleIcon"
+                        ></i>
+                    </div>
+                    <div
+                        onclick="toggleHints()"
+                        class="toggle-btn"
+                        id="hintToggleBtn"
+                    >
+                        <span
+                            class="text-xs font-black uppercase tracking-wider"
+                            >Number Hints</span
+                        >
+                        <i
+                            data-lucide="circle-dot"
+                            class="w-6 h-6 toggle-icon"
+                            id="hintIcon"
+                        ></i>
+                    </div>
+                </section>
+
+                <!-- Step 4: Print Setup (New) -->
+                <section class="space-y-4" id="printSetupSection" style="display: none;">
+                    <label class="input-label"><i data-lucide="type" class="w-3 h-3"></i> 4. Worksheet Details</label>
+                    <div class="space-y-3">
+                        <div>
+                            <input type="text" id="wsTitleInput" placeholder="Worksheet Title" oninput="updateWorksheetPreview()" class="w-full border-2 border-dark rounded-xl p-3 text-sm font-bold font-heading shadow-[2px_2px_0_#1e293b]" />
+                        </div>
+                        <div>
+                            <input type="text" id="wsDescInput" placeholder="Instructions (Optional)" oninput="updateWorksheetPreview()" class="w-full border-2 border-slate-300 rounded-xl p-3 text-sm font-bold shadow-sm" />
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Step 5: Play or Print Action -->
+<!-- Step 5: Play or Print Action -->
+                <section class="space-y-3 pt-6 border-t-2 border-slate-100" id="playActions">
+                    <button onclick="scramblePuzzle()" id="btnScramble" class="w-full btn-chunky bg-orange text-white h-12" disabled>
+                        <i data-lucide="shuffle" class="w-4 h-4 mr-2"></i> SCRAMBLE & PLAY
+                    </button>
+                    <button onclick="toggleSolve()" id="btnSolve" class="w-full btn-chunky bg-white text-dark h-12" disabled>
+                        <i data-lucide="eye" class="w-4 h-4 mr-2"></i> REVEAL HINT
+                    </button>
+                </section>
+                
+                <section class="space-y-3 pt-6 border-t-2 border-slate-100 hidden" id="printActions">
+                    <button onclick="executeWorksheetPrint()" id="btnPrintWorksheet" class="w-full btn-chunky bg-green text-dark h-12" disabled>
+                        <i data-lucide="printer" class="w-4 h-4 mr-2"></i> PRINT WORKSHEET
+                    </button>
+                </section>
+
+            </div>
+
+            <button
+                onclick="clearStorage()"
+                class="mt-8 py-3 text-[11px] font-black text-slate-300 hover:text-pink uppercase flex items-center justify-center gap-2 border-t-2 border-dashed border-slate-200 w-full"
+            >
+                <i data-lucide="trash-2" class="w-3 h-3"></i> RESET APP
+            </button>
+        </aside>
+
+        <!-- Main Area -->
+        <main class="main-area !flex-col !justify-start !pt-8 !items-center flex-1 w-full bg-slate-50 relative custom-scrollbar">
+            <!-- Mode Switcher -->
+            <div id="modeSwitcher" class="bg-white p-2 rounded-2xl border-4 border-dark flex gap-2 mb-4 shrink-0 no-print z-40 transition-all duration-300" style="box-shadow: 4px 4px 0 var(--color-dark)">
+                <button onclick="setAppMode('play')" id="modePlayBtn" class="px-6 py-3 rounded-xl font-heading font-bold text-sm tracking-wider uppercase transition-colors bg-blue text-white">
+                    <i data-lucide="monitor" class="w-4 h-4 inline-block mr-2 -mt-1"></i>Play Online
+                </button>
+                <button onclick="setAppMode('print')" id="modePrintBtn" class="px-6 py-3 rounded-xl font-heading font-bold text-sm tracking-wider uppercase transition-colors text-slate-500 hover:bg-slate-100">
+                    <i data-lucide="printer" class="w-4 h-4 inline-block mr-2 -mt-1"></i>Worksheet
                 </button>
             </div>
-        `;
-    roundsList.appendChild(div);
-  });
-  lucide.createIcons();
-  const printPageCount = document.getElementById("printPageCount");
-  if (printPageCount) printPageCount.textContent = state.rounds.length;
-}
-
-function switchToRound(idx) {
-  clearInterval(state.timer);
-  state.activeRound = idx;
-  const r = getCurrentRound();
-
-  renderRoundsList();
-
-  if (!r) {
-    placeholder.style.display = "block";
-    gameContainer.style.display = "none";
-    return;
-  }
-
-  placeholder.style.display = "none";
-  gameContainer.style.display = "block";
-  ["btnScramble", "btnSolve", "btnPrint"].forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) el.disabled = false;
-  });
-
-  displayCols.textContent = r.cols;
-  displayRows.textContent = r.rows;
-  updateStyleUI(r);
-  updateHintUI(r);
-  movesDisplay.textContent = r.moves;
-  timerDisplay.textContent = formatTime(r.secondsElapsed);
-  thumb.src = r.imgData;
-  thumb.style.display = "none";
-
-  if (r.isActive) {
-    stats.classList.remove("hidden");
-    state.start = Date.now() - r.secondsElapsed * 1000;
-    state.timer = setInterval(updTimer, 1000);
-  } else {
-    stats.classList.add("hidden");
-  }
-
-  updateNextBtnVisibility();
-  resize();
-}
-
-// --- GAME LOGIC & PRE-RENDERING ---
-function generateTilesForRound(round) {
-  round.tiles = [];
-  round.edges.h = [];
-  round.edges.v = [];
-
-  for (let r = 0; r < round.rows; r++) {
-    const row = [];
-    for (let c = 0; c < round.cols - 1; c++)
-      row.push(Math.random() < 0.5 ? 1 : -1);
-    round.edges.h.push(row);
-  }
-  for (let r = 0; r < round.rows - 1; r++) {
-    const row = [];
-    for (let c = 0; c < round.cols; c++) row.push(Math.random() < 0.5 ? 1 : -1);
-    round.edges.v.push(row);
-  }
-
-  for (let r = 0; r < round.rows; r++) {
-    for (let c = 0; c < round.cols; c++) {
-      round.tiles.push({ c, r, curC: c, curR: r, id: r * round.cols + c + 1 });
-    }
-  }
-}
-
-function drawTileShape(ctx, c, r, w, h, x, y, round) {
-  const ts = Math.min(w, h) * state.tabSize;
-  ctx.beginPath();
-  ctx.moveTo(x, y);
-
-  if (r === 0 || round.puzzleStyle === "grid") ctx.lineTo(x + w, y);
-  else drawEdge(ctx, x, y, x + w, y, round.edges.v[r - 1][c], ts);
-
-  if (c === round.cols - 1 || round.puzzleStyle === "grid")
-    ctx.lineTo(x + w, y + h);
-  else drawEdge(ctx, x + w, y, x + w, y + h, round.edges.h[r][c], ts);
-
-  if (r === round.rows - 1 || round.puzzleStyle === "grid")
-    ctx.lineTo(x, y + h);
-  else drawEdge(ctx, x + w, y + h, x, y + h, -round.edges.v[r][c], ts);
-
-  if (c === 0 || round.puzzleStyle === "grid") ctx.lineTo(x, y);
-  else drawEdge(ctx, x, y + h, x, y, -round.edges.h[r][c - 1], ts);
-
-  ctx.closePath();
-}
-
-function drawEdge(ctx, x1, y1, x2, y2, side, ts) {
-  const dx = x2 - x1,
-    dy = y2 - y1;
-  const nx = -dy / Math.sqrt(dx * dx + dy * dy),
-    ny = dx / Math.sqrt(dx * dx + dy * dy);
-  const p1x = x1 + dx * 0.35,
-    p1y = y1 + dy * 0.35;
-  const p2x = x1 + dx * 0.35 + nx * ts * side,
-    p2y = y1 + dy * 0.35 + ny * ts * side;
-  const p3x = x1 + dx * 0.65 + nx * ts * side,
-    p3y = y1 + dy * 0.65 + ny * ts * side;
-  const p4x = x1 + dx * 0.65,
-    p4y = y1 + dy * 0.65;
-  ctx.lineTo(p1x, p1y);
-  ctx.bezierCurveTo(p2x, p2y, p3x, p3y, p4x, p4y);
-  ctx.lineTo(x2, y2);
-}
-
-function preRenderTiles(r) {
-  if (!r || !r.imgObj || canvas.width === 0) return;
-
-  const tw = canvas.width / r.cols;
-  const th = canvas.height / r.rows;
-  const iw = r.imgObj.width / r.cols;
-  const ih = r.imgObj.height / r.rows;
-  const bleed = Math.min(tw, th) * state.tabSize;
-
-  const isDarkMode = document.documentElement.classList.contains("dark");
-  const defaultStroke = isDarkMode
-    ? "rgba(148, 163, 184, 0.4)"
-    : "rgba(30, 41, 59, 0.3)";
-  const activeStroke = "rgba(255,255,255,0.8)";
-
-  r.tiles.forEach((t) => {
-    const tCanvas = document.createElement("canvas");
-    tCanvas.width = tw + bleed * 2;
-    tCanvas.height = th + bleed * 2;
-    const tCtx = tCanvas.getContext("2d");
-
-    tCtx.translate(bleed - t.c * tw, bleed - t.r * th);
-
-    tCtx.save();
-    drawTileShape(tCtx, t.c, t.r, tw, th, t.c * tw, t.r * th, r);
-    tCtx.clip();
-
-    tCtx.drawImage(
-      r.imgObj,
-      t.c * iw - iw * state.tabSize,
-      t.r * ih - ih * state.tabSize,
-      iw + iw * state.tabSize * 2,
-      ih + ih * state.tabSize * 2,
-      t.c * tw - bleed,
-      t.r * th - bleed,
-      tw + bleed * 2,
-      th + bleed * 2,
-    );
-    tCtx.restore();
-
-    tCtx.save();
-    drawTileShape(tCtx, t.c, t.r, tw, th, t.c * tw, t.r * th, r);
-    tCtx.lineWidth = 4;
-    tCtx.strokeStyle = r.isActive ? activeStroke : defaultStroke;
-    tCtx.stroke();
-    tCtx.restore();
-
-    t.canvas = tCanvas;
-  });
-}
-
-function draw() {
-  const r = getCurrentRound();
-  if (!r || !r.imgObj) return;
-
-  const tw = canvas.width / r.cols;
-  const th = canvas.height / r.rows;
-  const bleed = Math.min(tw, th) * state.tabSize;
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const isDarkMode = document.documentElement.classList.contains("dark");
-
-  r.tiles.forEach((t, i) => {
-    const dx = t.curC * tw;
-    const dy = t.curR * th;
-
-    if (t.canvas) {
-      ctx.drawImage(t.canvas, dx - bleed, dy - bleed);
-    }
-
-    if (i === state.selectedIdx) {
-      ctx.save();
-      drawTileShape(ctx, t.curC, t.curR, tw, th, dx, dy, r);
-      ctx.strokeStyle = "#2979FF";
-      ctx.lineWidth = 6;
-      ctx.stroke();
-      ctx.fillStyle = "rgba(41, 121, 255, 0.2)";
-      ctx.fill();
-      ctx.restore();
-    }
-
-    if (r.showHints) {
-      ctx.fillStyle = r.isActive
-        ? "rgba(255,255,255,0.95)"
-        : isDarkMode
-          ? "rgba(255,255,255,0.6)"
-          : "rgba(30,41,59,0.5)";
-      ctx.font = `bold ${Math.min(tw, th) * 0.35}px Fredoka`;
-      ctx.textAlign = "center";
-      ctx.fillText(t.id, dx + tw / 2, dy + th / 2 + 10);
-    }
-  });
-}
-
-canvas.addEventListener("click", (e) => {
-  const r = getCurrentRound();
-  if (!r || !r.isActive) return;
-
-  const rect = canvas.getBoundingClientRect();
-  const sx = canvas.width / rect.width;
-  const sy = canvas.height / rect.height;
-
-  let x = (e.clientX - rect.left) * sx;
-  let y = (e.clientY - rect.top) * sy;
-  x = Math.max(0, Math.min(x, canvas.width - 0.1));
-  y = Math.max(0, Math.min(y, canvas.height - 0.1));
-
-  const c = Math.floor(x / (canvas.width / r.cols));
-  const row = Math.floor(y / (canvas.height / r.rows));
-
-  const idx = r.tiles.findIndex((t) => t.curC === c && t.curR === row);
-  if (idx === -1) return;
-
-  if (state.selectedIdx === -1) state.selectedIdx = idx;
-  else if (state.selectedIdx === idx) state.selectedIdx = -1;
-  else {
-    const t1 = r.tiles[state.selectedIdx],
-      t2 = r.tiles[idx];
-    [t1.curC, t2.curC] = [t2.curC, t1.curC];
-    [t1.curR, t2.curR] = [t2.curR, t1.curR];
-    state.selectedIdx = -1;
-    r.moves++;
-    movesDisplay.textContent = r.moves;
-    checkWin();
-    saveState();
-  }
-  draw();
-});
-
-function checkWin() {
-  const r = getCurrentRound();
-  if (r.tiles.every((t) => t.c === t.curC && t.r === t.curR)) {
-    r.isActive = false;
-    clearInterval(state.timer);
-    finalTimeDisplay.textContent = timerDisplay.textContent;
-    finalMovesDisplay.textContent = r.moves;
-
-    setTimeout(
-      () => document.getElementById("winnerModal").classList.add("active"),
-      400,
-    );
-    updateNextBtnVisibility();
-
-    preRenderTiles(r);
-    draw();
-    saveState();
-  }
-}
-
-function scramblePuzzle() {
-  const r = getCurrentRound();
-  if (!r) return;
-
-  const pos = [];
-  for (let row = 0; row < r.rows; row++)
-    for (let c = 0; c < r.cols; c++) pos.push({ c, row });
-  pos.sort(() => Math.random() - 0.5);
-  r.tiles.forEach((t, i) => {
-    t.curC = pos[i].c;
-    t.curR = pos[i].row;
-  });
-
-  r.isActive = true;
-  state.selectedIdx = -1;
-  r.moves = 0;
-  movesDisplay.textContent = "0";
-  stats.classList.remove("hidden");
-  liveNextBtn.classList.add("hidden");
-
-  clearInterval(state.timer);
-  r.secondsElapsed = 0;
-  state.start = Date.now();
-  state.timer = setInterval(updTimer, 1000);
-
-  preRenderTiles(r);
-  draw();
-  saveState();
-}
-
-function toggleSolve() {
-  if (!getCurrentRound()) return;
-  const isShown = thumb.style.display === "block";
-  thumb.style.display = isShown ? "none" : "block";
-}
-
-function updTimer() {
-  const r = getCurrentRound();
-  if (!r || !r.isActive) return;
-
-  r.secondsElapsed = Math.floor((Date.now() - state.start) / 1000);
-  timerDisplay.textContent = formatTime(r.secondsElapsed);
-  if (r.secondsElapsed % 5 === 0) saveState();
-}
-
-function formatTime(sec) {
-  return `${Math.floor(sec / 60)
-    .toString()
-    .padStart(2, "0")}:${(sec % 60).toString().padStart(2, "0")}`;
-}
-
-function adjustGrid(k, v) {
-  const r = getCurrentRound();
-  if (!r || r.isActive) return;
-  r[k] = Math.max(2, Math.min(10, r[k] + v));
-  if (k === "cols") displayCols.textContent = r[k];
-  else displayRows.textContent = r[k];
-
-  renderRoundsList();
-  generateTilesForRound(r);
-  preRenderTiles(r);
-  draw();
-  saveState();
-}
-
-function setPreset(n) {
-  const r = getCurrentRound();
-  if (!r || r.isActive) return;
-  r.cols = n;
-  r.rows = n;
-  displayCols.textContent = n;
-  displayRows.textContent = n;
-
-  renderRoundsList();
-  generateTilesForRound(r);
-  preRenderTiles(r);
-  draw();
-  saveState();
-}
-
-function togglePuzzleStyle() {
-  const r = getCurrentRound();
-  if (!r) return;
-  r.puzzleStyle = r.puzzleStyle === "jigsaw" ? "grid" : "jigsaw";
-  updateStyleUI(r);
-  preRenderTiles(r);
-  draw();
-  saveState();
-}
-
-function toggleHints() {
-  const r = getCurrentRound();
-  if (!r) return;
-  r.showHints = !r.showHints;
-  updateHintUI(r);
-  draw();
-  saveState();
-}
-
-function updateStyleUI(r) {
-  const btn = document.getElementById("styleToggleBtn");
-  const icon = document.getElementById("styleIcon");
-  if (r.puzzleStyle === "jigsaw") {
-    btn.classList.add("active");
-    icon.innerHTML = lucide.icons["puzzle"].toSvg({ strokeWidth: 3 });
-  } else {
-    btn.classList.remove("active");
-    icon.innerHTML = lucide.icons["grid"].toSvg({ strokeWidth: 2 });
-  }
-}
-
-function updateHintUI(r) {
-  const btn = document.getElementById("hintToggleBtn");
-  const icon = document.getElementById("hintIcon");
-  if (r.showHints) {
-    btn.classList.add("active");
-    icon.innerHTML = lucide.icons["check-circle-2"].toSvg({ strokeWidth: 3 });
-  } else {
-    btn.classList.remove("active");
-    icon.innerHTML = lucide.icons["circle"].toSvg({ strokeWidth: 2 });
-  }
-}
-
-function resize() {
-  const r = getCurrentRound();
-  if (!r || !r.imgObj) return;
-
-  const isFullscreen = sidebar.classList.contains("hidden-panel");
-  const mw = window.innerWidth - (isFullscreen ? 80 : 440);
-  const mh = window.innerHeight - 180;
-
-  const ratio = Math.min(mw / r.imgObj.width, mh / r.imgObj.height);
-  canvas.width = r.imgObj.width * ratio;
-  canvas.height = r.imgObj.height * ratio;
-
-  gameContainer.style.width = canvas.width + "px";
-  gameContainer.style.height = canvas.height + "px";
-
-  preRenderTiles(r);
-  draw();
-}
-
-window.onresize = resize;
-function closeModal(id) {
-  document.getElementById(id).classList.remove("active");
-}
-function openPrintModal() {
-  printModal.classList.add("active");
-}
-
-window.onload = async () => {
-  if (typeof requireAuth === "function") await requireAuth();
-  setAppMode('play');
-  loadState();
-  lucide.createIcons();
-};
-
-
-function setAppMode(mode) {
-  state.appMode = mode;
-  
-  const playBtn = document.getElementById('modePlayBtn');
-  const printBtn = document.getElementById('modePrintBtn');
-  
-  const gameContainer = document.getElementById('game-container');
-  const printPreview = document.getElementById('printPreviewContainer');
-  
-  const playActions = document.getElementById('playActions');
-  const printActions = document.getElementById('printActions');
-  const printSetup = document.getElementById('printSetupSection');
-  const printModalBtn = document.getElementById('btnPrint'); // Old modal btn
-  const styleToggleBtn = document.getElementById('styleToggleBtn');
-  const hintToggleBtn = document.getElementById('hintToggleBtn');
-
-  if (mode === 'play') {
-    // Style buttons
-    playBtn.className = "px-6 py-3 rounded-xl font-heading font-bold text-sm tracking-wider uppercase transition-colors bg-blue text-white";
-    printBtn.className = "px-6 py-3 rounded-xl font-heading font-bold text-sm tracking-wider uppercase transition-colors text-slate-500 hover:bg-slate-100";
-    
-    // Containers
-    printPreview.classList.add('hidden');
-    gameContainer.classList.remove('hidden');
-    document.getElementById('liveStats').classList.remove('no-print'); // Re-enable stats visually if active
-    if (!getCurrentRound() || !getCurrentRound().isActive) {
-      document.getElementById('liveStats').classList.add('hidden');
-    } else {
-      document.getElementById('liveStats').classList.remove('hidden');
-    }
-    
-    // Sidebar
-    playActions.classList.remove('hidden');
-    printActions.classList.add('hidden');
-    printSetup.style.display = 'none';
-    if(printModalBtn) printModalBtn.parentElement.classList.remove('hidden');
-    
-    // Puzzle styling buttons available in both, but let's make sure they are enabled
-    styleToggleBtn.style.opacity = '1';
-    hintToggleBtn.style.opacity = '1';
-    styleToggleBtn.style.pointerEvents = 'auto';
-    hintToggleBtn.style.pointerEvents = 'auto';
-
-    resize();
-  } else {
-    // Style buttons
-    printBtn.className = "px-6 py-3 rounded-xl font-heading font-bold text-sm tracking-wider uppercase transition-colors bg-blue text-white";
-    playBtn.className = "px-6 py-3 rounded-xl font-heading font-bold text-sm tracking-wider uppercase transition-colors text-slate-500 hover:bg-slate-100";
-    
-    // Containers
-    gameContainer.classList.add('hidden');
-    printPreview.classList.remove('hidden');
-    printPreview.classList.add('flex');
-    document.getElementById('liveStats').classList.add('hidden');
-    
-    // Sidebar
-    playActions.classList.add('hidden');
-    printActions.classList.remove('hidden');
-    printSetup.style.display = 'block';
-    if(printModalBtn) printModalBtn.parentElement.classList.add('hidden');
-    
-    // Update preview
-    updateWorksheetPreview();
-  }
-}
-
-function extractTileAsImage(r, t, tw, th, iw, ih, bleed) {
-  const pCanvas = document.createElement("canvas");
-  pCanvas.width = tw + bleed * 2;
-  pCanvas.height = th + bleed * 2;
-  const pCtx = pCanvas.getContext("2d");
-
-  const sx = t.c * iw;
-  const sy = t.r * ih;
-  const dx = bleed; // inside the isolated canvas
-  const dy = bleed;
-
-  pCtx.save();
-  // Draw puzzle shape Path starting from (dx, dy)
-  drawTileShape(pCtx, t.c, t.r, tw, th, dx, dy, r);
-  pCtx.clip();
-  pCtx.drawImage(
-    r.imgObj,
-    sx - iw * state.tabSize,
-    sy - ih * state.tabSize,
-    iw + iw * state.tabSize * 2,
-    ih + ih * state.tabSize * 2,
-    0,
-    0,
-    tw + bleed * 2,
-    th + bleed * 2
-  );
-  pCtx.restore();
-
-  // Draw outline
-  pCtx.save();
-  drawTileShape(pCtx, t.c, t.r, tw, th, dx, dy, r);
-  pCtx.lineWidth = Math.max(2, (Math.min(tw,th)*0.015));
-  pCtx.strokeStyle = "rgba(0,0,0,0.8)";
-  pCtx.stroke();
-  pCtx.restore();
-
-  return pCanvas.toDataURL("image/png"); // Important: PNG for transparency
-}
-
-function extractEmptyShape(r, t, tw, th, bleed) {
-  const pCanvas = document.createElement("canvas");
-  pCanvas.width = tw + bleed * 2;
-  pCanvas.height = th + bleed * 2;
-  const pCtx = pCanvas.getContext("2d");
-
-  const dx = bleed;
-  const dy = bleed;
-
-  pCtx.save();
-  drawTileShape(pCtx, t.c, t.r, tw, th, dx, dy, r);
-  pCtx.lineWidth = Math.max(1, (Math.min(tw,th)*0.01));
-  pCtx.strokeStyle = "rgba(100,116,139,0.3)"; // Faint slate outline
-  
-  if (r.puzzleStyle === "jigsaw") {
-    pCtx.setLineDash([5, 5]); // Dashed line for pasteboard
-  }
-  pCtx.stroke();
-  pCtx.restore();
-
-  if (r.showHints) {
-    pCtx.fillStyle = "rgba(148, 163, 184, 0.4)"; // muted hint
-    pCtx.font = `bold ${Math.min(tw, th) * 0.3}px Fredoka`;
-    pCtx.textAlign = "center";
-    pCtx.textBaseline = "middle";
-    pCtx.fillText(t.id, dx + tw/2, dy + th/2);
-  }
-
-  return pCanvas.toDataURL("image/png");
-}
-
-function generatePrintPages(r, isPreview = false) {
-    const title = document.getElementById('wsTitleInput').value.trim() || r.name;
-    const desc = document.getElementById('wsDescInput').value.trim() || "Cut out the pieces and glue them onto the empty grid to complete the puzzle.";
-    
-    // Header standard html
-    const headerHtml = `
-        <div class="w-full flex justify-between items-end border-b-[3px] border-dark pb-4 mb-8 shrink-0">
-            <div>
-                <h1 class="text-3xl font-heading font-black text-dark tracking-tight">${title}</h1>
-                <p class="text-xs font-bold uppercase tracking-widest text-slate-500 mt-2">${desc}</p>
-            </div>
-            <div class="flex flex-col gap-3 text-right shrink-0 ml-8">
-                <div class="flex items-end gap-2 text-sm font-bold text-dark whitespace-nowrap">
-                    <span>Name:</span><div class="border-b-2 border-dark w-48 shrink-0 inline-block"></div>
+            
+            <div id="mainContentContainer" class="relative w-full flex-1 flex flex-col items-center justify-center min-h-0">
+
+            <!-- Fullscreen Toggle Button -->
+            <button id="fullscreenToggle" onclick="toggleSidebar()">
+                <i data-lucide="maximize-2" id="fsIcon" class="w-6 h-6"></i>
+            </button>
+
+            <div
+                id="placeholder"
+                class="text-center p-16 bg-white border-4 border-dark rounded-[48px] max-w-sm"
+                style="box-shadow: 16px 16px 0 rgba(30, 41, 59, 0.1)"
+            >
+                <div
+                    class="w-24 h-24 bg-orange/10 border-4 border-orange rounded-3xl flex items-center justify-center mx-auto mb-8 -rotate-6"
+                    style="box-shadow: 4px 4px 0 var(--color-orange)"
+                >
+                    <i data-lucide="image" class="text-orange w-12 h-12"></i>
                 </div>
-                <div class="flex items-end gap-2 text-sm font-bold text-dark whitespace-nowrap">
-                    <span>Date:</span><div class="border-b-2 border-dark w-48 shrink-0 inline-block"></div>
+                <h2 class="font-heading text-3xl font-bold text-dark mb-4">
+                    Start Here
+                </h2>
+                <p class="text-slate-500 font-body mb-10 text-lg">
+                    Add your first puzzle page using the sidebar button!
+                </p>
+                <button
+                    onclick="document.getElementById('fileInput').click()"
+                    class="btn-chunky bg-blue text-white mx-auto text-lg px-8"
+                >
+                    SELECT IMAGE
+                </button>
+            </div>
+
+            <!-- Hint Overlay -->
+            <img id="thumb-preview" src="" alt="Hint" />
+
+            <!-- Print Preview Area (Hidden by default) -->
+            <div id="printPreviewContainer" class="hidden w-full h-full pb-12 overflow-y-auto custom-scrollbar flex-col items-center gap-8 no-print pt-4">
+                <!-- Javascript will inject the A4 page preview here -->
+                <div id="worksheetPreviewPages" class="w-full flex flex-col items-center gap-8"></div>
+            </div>
+            <div id="game-container" class="shrink-0 max-h-full">
+                <canvas id="puzzleCanvas"></canvas>
+            </div>
+
+            <div
+                id="liveStats"
+                class="hidden fixed bottom-10 left-1/2 -translate-x-1/2 flex items-stretch gap-3 no-print z-40"
+            >
+                <!-- Give Up Button -->
+                <button
+                    onclick="giveUp()"
+                    class="bg-white border-4 border-dark px-4 rounded-2xl flex items-center justify-center shadow-[4px_4px_0_rgba(0,0,0,0.2)] hover:bg-pink hover:text-white hover:border-pink transition-colors group"
+                    title="Give Up"
+                >
+                    <i
+                        data-lucide="flag"
+                        class="w-6 h-6 text-pink group-hover:text-white"
+                    ></i>
+                </button>
+
+                <!-- Stats -->
+                <div
+                    class="bg-white border-4 border-dark px-6 py-3 rounded-2xl flex items-center gap-3 shadow-[6px_6px_0_rgba(0,0,0,0.2)]"
+                >
+                    <i data-lucide="timer" class="text-blue w-6 h-6"></i>
+                    <span
+                        id="timerDisplay"
+                        class="font-heading font-bold text-2xl text-dark"
+                        >00:00</span
+                    >
                 </div>
-            </div>
-        </div>
-    `;
-
-    // 1. Generate pieces
-    const tw = r.imgObj.width / r.cols;
-    const th = r.imgObj.height / r.rows;
-    const iw = r.imgObj.width / r.cols;
-    const ih = r.imgObj.height / r.rows;
-    // For print, we want to scale to a standard resolution to fit the page and not be huge
-    const printScale = Math.min(800 / r.imgObj.width, 800 / r.imgObj.height); 
-    const pTw = tw * printScale;
-    const pTh = th * printScale;
-    const pIw = iw * printScale;
-    const pIh = ih * printScale;
-    const pBleed = Math.min(pTw, pTh) * state.tabSize;
-
-    // Scramble tiles for page 1
-    const scrambledTiles = [...r.tiles].sort(() => Math.random() - 0.5);
-    
-    const piecesPageHtml = `
-        <div class="a4-preview ${!isPreview ? 'print-page' : ''} flex flex-col">
-            ${headerHtml}
-            <div class="flex-1 w-full flex flex-wrap justify-center items-center gap-6 p-4">
-                ${scrambledTiles.map(t => {
-                    const src = extractTileAsImage(r, t, pTw, pTh, pIw, pIh, pBleed);
-                    return `<img src="${src}" class="max-w-[150px] max-h-[150px] object-contain drop-shadow-sm filter contrast-105" />`;
-                }).join('')}
-            </div>
-        </div>
-    `;
-
-    // 2. Pasteboard
-    const pastePageHtml = `
-        <div class="a4-preview ${!isPreview ? 'print-page' : ''} flex flex-col">
-            ${headerHtml}
-            <div class="flex-1 w-full flex justify-center items-center p-4">
-                <div class="relative" style="width: ${r.imgObj.width * printScale}px; height: ${r.imgObj.height * printScale}px; border: 4px solid #1e293b;">
-                    ${r.tiles.map(t => {
-                        const src = extractEmptyShape(r, t, pTw, pTh, pBleed);
-                        // The shape includes bleed, meaning its total size is larger.
-                        // We must offset it by -bleed to place the core tile matching the logical grid coordinates.
-                        const left = (t.c * pTw) - pBleed;
-                        const top = (t.r * pTh) - pBleed;
-                        return `<img src="${src}" class="absolute pointer-events-none" style="left: ${left}px; top: ${top}px; width: ${pTw + 2*pBleed}px; height: ${pTh + 2*pBleed}px;" />`;
-                    }).join('')}
+                <div
+                    class="bg-white border-4 border-dark px-6 py-3 rounded-2xl flex items-center gap-3 shadow-[6px_6px_0_rgba(0,0,0,0.2)]"
+                >
+                    <i
+                        data-lucide="mouse-pointer-2"
+                        class="text-orange w-6 h-6"
+                    ></i>
+                    <span
+                        id="movesDisplay"
+                        class="font-heading font-bold text-2xl text-dark"
+                        >0</span
+                    >
                 </div>
+
+                <!-- Next Button (Hidden unless next exists) -->
+                <button
+                    id="liveNextBtn"
+                    onclick="nextRound()"
+                    class="bg-blue border-4 border-blue px-4 rounded-2xl flex items-center justify-center shadow-[4px_4px_0_rgba(0,0,0,0.2)] text-white hover:-translate-y-1 transition-transform hidden"
+                >
+                    <i data-lucide="arrow-right" class="w-6 h-6"></i>
+                </button>
             </div>
-        </div>
-    `;
+                    </div>
+        </main>
 
-    // 3. Answer Key
-    const answerPageHtml = `
-        <div class="a4-preview ${!isPreview ? 'print-page' : ''} flex flex-col">
-            ${headerHtml}
-            <div class="flex-1 w-full flex flex-col justify-center items-center">
-                 <h2 class="text-2xl font-bold font-heading text-slate-300 mb-8 uppercase tracking-widest">Answer Key</h2>
-                 <img src="${r.imgData}" class="max-w-[70%] max-h-[60%] border-4 border-dark object-contain shadow-neo" />
-            </div>
-        </div>
-    `;
-
-    return piecesPageHtml + pastePageHtml + answerPageHtml;
-}
-
-function updateWorksheetPreview() {
-  const r = getCurrentRound();
-  const previewContainer = document.getElementById('worksheetPreviewPages');
-  if (!r || !r.imgObj) {
-      previewContainer.innerHTML = '<div class="p-8 text-center text-slate-400 font-bold">Please select or upload a page first.</div>';
-      return;
-  }
-  
-  if (state.appMode !== 'print') return;
-  
-  // Save input values to state
-  state.worksheetTitle = document.getElementById('wsTitleInput').value;
-  state.worksheetDesc = document.getElementById('wsDescInput').value;
-
-  previewContainer.innerHTML = generatePrintPages(r, true);
-  lucide.createIcons();
-}
-
-function executeWorksheetPrint() {
-  const r = getCurrentRound();
-  if(!r) return;
-
-  const printArea = document.getElementById("print-area");
-  printArea.innerHTML = generatePrintPages(r, false);
-  
-  setTimeout(() => {
-    window.print();
-  }, 500);
-}
-
-// Hook it into switch to round
-const originalSwitchToRound = switchToRound;
-switchToRound = function(idx) {
-    originalSwitchToRound(idx);
-    
-    // restore title/desc inputs if they were cleared
-    document.getElementById('wsTitleInput').value = state.worksheetTitle || '';
-    document.getElementById('wsDescInput').value = state.worksheetDesc || '';
-    
-    // Enable print setup section button
-    document.getElementById('btnPrintWorksheet').disabled = (idx === -1);
-    
-    if (state.appMode === 'print') {
-        updateWorksheetPreview();
-    }
-}
+        <div id="print-area"></div>
+        <script src="./script.js"></script>
+    </body>
+</html>
