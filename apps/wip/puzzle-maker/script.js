@@ -394,7 +394,8 @@ function renderRoundsList() {
     roundsList.appendChild(div);
   });
   lucide.createIcons();
-  document.getElementById("printPageCount").textContent = state.rounds.length;
+  const printPageCount = document.getElementById("printPageCount");
+  if (printPageCount) printPageCount.textContent = state.rounds.length;
 }
 
 function switchToRound(idx) {
@@ -412,9 +413,10 @@ function switchToRound(idx) {
 
   placeholder.style.display = "none";
   gameContainer.style.display = "block";
-  ["btnScramble", "btnSolve", "btnPrint"].forEach(
-    (id) => (document.getElementById(id).disabled = false),
-  );
+  ["btnScramble", "btnSolve", "btnPrint"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = false;
+  });
 
   displayCols.textContent = r.cols;
   displayRows.textContent = r.rows;
@@ -802,7 +804,7 @@ function openPrintModal() {
 }
 
 window.onload = async () => {
-  await requireAuth();
+  if (typeof requireAuth === "function") await requireAuth();
   setAppMode('play');
   loadState();
   lucide.createIcons();
@@ -1074,4 +1076,3 @@ switchToRound = function(idx) {
         updateWorksheetPreview();
     }
 }
-
