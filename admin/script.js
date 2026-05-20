@@ -342,6 +342,15 @@ function updateCharts(metricsProgress, metricsNotes, metricsProfiles, metricsSch
     const activityData = dateKeys.map(k => activityByDate[k] || 0)
     const dauData = dateKeys.map(k => usersByDate[k]?.size || 0)
 
+    // Create gradients for cards
+    const blueGradient = ctxActivity.createLinearGradient(0, 0, 0, ctxActivity.canvas.clientHeight || 250)
+    blueGradient.addColorStop(0, 'rgba(30, 167, 253, 0.35)')
+    blueGradient.addColorStop(1, 'rgba(30, 167, 253, 0.0)')
+
+    const greenGradient = ctxActiveUsers.createLinearGradient(0, 0, 0, ctxActiveUsers.canvas.clientHeight || 250)
+    greenGradient.addColorStop(0, 'rgba(0, 208, 99, 0.8)')
+    greenGradient.addColorStop(1, 'rgba(0, 208, 99, 0.2)')
+
     if (charts.activity) charts.activity.destroy()
     charts.activity = new Chart(ctxActivity, {
         type: 'line',
@@ -350,18 +359,18 @@ function updateCharts(metricsProgress, metricsNotes, metricsProfiles, metricsSch
             datasets: [{
                 label: 'Interactions',
                 data: activityData,
-                borderColor: '#2979FF',
-                backgroundColor: 'rgba(41, 121, 255, 0.1)',
+                borderColor: '#1ea7fd',
+                backgroundColor: blueGradient,
                 fill: true,
-                tension: 0.4,
-                borderWidth: 3,
-                pointRadius: 4,
-                pointBackgroundColor: '#2979FF',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-                pointHoverRadius: 6,
-                pointHoverBackgroundColor: '#2979FF',
-                pointHoverBorderColor: '#fff',
+                tension: 0.35,
+                borderWidth: 4,
+                pointRadius: 5,
+                pointBackgroundColor: '#020617',
+                pointBorderColor: '#1ea7fd',
+                pointBorderWidth: 3,
+                pointHoverRadius: 8,
+                pointHoverBackgroundColor: '#1ea7fd',
+                pointHoverBorderColor: '#020617',
                 pointHoverBorderWidth: 3
             }]
         },
@@ -375,12 +384,15 @@ function updateCharts(metricsProgress, metricsNotes, metricsProfiles, metricsSch
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: '#1e293b',
-                    titleFont: { family: 'Fredoka', size: 14 },
-                    bodyFont: { family: 'Nunito', size: 12 },
-                    borderColor: '#475569',
+                    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+                    borderColor: 'rgba(30, 167, 253, 0.4)',
                     borderWidth: 2,
+                    titleFont: { family: 'Fredoka', size: 14, weight: '700' },
+                    bodyFont: { family: 'Nunito', size: 12, weight: '700' },
+                    titleColor: '#fff',
+                    bodyColor: '#cbd5e1',
                     padding: 12,
+                    cornerRadius: 12,
                     displayColors: false,
                     callbacks: {
                         label: (context) => ` ${context.parsed.y} Interactions`
@@ -390,12 +402,12 @@ function updateCharts(metricsProgress, metricsNotes, metricsProfiles, metricsSch
             scales: {
                 y: {
                     beginAtZero: true,
-                    grid: { color: 'rgba(255,255,255,0.05)' },
-                    ticks: { color: '#64748b', font: { family: 'Nunito' } }
+                    grid: { color: 'rgba(255,255,255,0.06)', borderDash: [5, 5] },
+                    ticks: { color: '#94a3b8', font: { family: 'Nunito', weight: '700' } }
                 },
                 x: {
                     grid: { display: false },
-                    ticks: { color: '#64748b', font: { family: 'Nunito' } }
+                    ticks: { color: '#94a3b8', font: { family: 'Nunito', weight: '700' } }
                 }
             }
         }
@@ -409,10 +421,10 @@ function updateCharts(metricsProgress, metricsNotes, metricsProfiles, metricsSch
             datasets: [{
                 label: 'Active Users',
                 data: dauData,
-                backgroundColor: '#00E676',
-                borderColor: '#1e293b',
-                borderWidth: 1,
-                borderRadius: 4,
+                backgroundColor: greenGradient,
+                borderColor: '#020617',
+                borderWidth: 2,
+                borderRadius: 6,
             }]
         },
         options: {
@@ -421,12 +433,15 @@ function updateCharts(metricsProgress, metricsNotes, metricsProfiles, metricsSch
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: '#1e293b',
-                    titleFont: { family: 'Fredoka', size: 14 },
-                    bodyFont: { family: 'Nunito', size: 12 },
-                    borderColor: '#475569',
+                    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+                    borderColor: 'rgba(0, 208, 99, 0.4)',
                     borderWidth: 2,
+                    titleFont: { family: 'Fredoka', size: 14, weight: '700' },
+                    bodyFont: { family: 'Nunito', size: 12, weight: '700' },
+                    titleColor: '#fff',
+                    bodyColor: '#cbd5e1',
                     padding: 12,
+                    cornerRadius: 12,
                     displayColors: false,
                     callbacks: {
                         label: (context) => ` ${context.parsed.y} Unique Users`
@@ -436,17 +451,17 @@ function updateCharts(metricsProgress, metricsNotes, metricsProfiles, metricsSch
             scales: {
                 y: {
                     beginAtZero: true,
-                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    grid: { color: 'rgba(255,255,255,0.06)', borderDash: [5, 5] },
                     ticks: {
-                        color: '#64748b',
-                        font: { family: 'Nunito' },
+                        color: '#94a3b8',
+                        font: { family: 'Nunito', weight: '700' },
                         stepSize: 1,
                         precision: 0
                     }
                 },
                 x: {
                     grid: { display: false },
-                    ticks: { color: '#64748b', font: { family: 'Nunito' } }
+                    ticks: { color: '#94a3b8', font: { family: 'Nunito', weight: '700' } }
                 }
             }
         }
@@ -460,10 +475,10 @@ function updateCharts(metricsProgress, metricsNotes, metricsProfiles, metricsSch
     })
 
     const categories = {
-        'My Space': { count: 0, color: '#FF8C42' },
-        'Tools': { count: 0, color: '#2979FF' },
-        'Workshop': { count: 0, color: '#FF6B95' },
-        'Games': { count: 0, color: '#00E676' }
+        'My Space': { count: 0, color: '#ff7e33' },
+        'Tools': { count: 0, color: '#1ea7fd' },
+        'Workshop': { count: 0, color: '#ff4785' },
+        'Games': { count: 0, color: '#00d063' }
     }
 
     // 1. Add direct data from specialized tables (My Space)
@@ -499,15 +514,15 @@ function updateCharts(metricsProgress, metricsNotes, metricsProfiles, metricsSch
             datasets: [{
                 data: Object.values(categories).map(c => c.count),
                 backgroundColor: Object.values(categories).map(c => c.color),
-                borderWidth: 2,
-                borderColor: '#1e293b',
+                borderWidth: 3,
+                borderColor: '#0f172a',
                 hoverOffset: 15
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            cutout: '75%',
+            cutout: '78%',
             plugins: {
                 legend: {
                     position: 'bottom',
@@ -520,12 +535,15 @@ function updateCharts(metricsProgress, metricsNotes, metricsProfiles, metricsSch
                     }
                 },
                 tooltip: {
-                    backgroundColor: '#1e293b',
-                    titleFont: { family: 'Fredoka', size: 14 },
-                    bodyFont: { family: 'Nunito', size: 12 },
+                    backgroundColor: 'rgba(15, 23, 42, 0.85)',
                     borderColor: '#475569',
                     borderWidth: 2,
+                    titleFont: { family: 'Fredoka', size: 14, weight: '700' },
+                    bodyFont: { family: 'Nunito', size: 12, weight: '700' },
+                    titleColor: '#fff',
+                    bodyColor: '#cbd5e1',
                     padding: 12,
+                    cornerRadius: 12,
                     displayColors: true,
                     boxPadding: 6
                 }
@@ -538,19 +556,19 @@ function updateCharts(metricsProgress, metricsNotes, metricsProfiles, metricsSch
                 ctx.restore();
                 const total = chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
 
-                ctx.font = '700 24px Fredoka';
+                ctx.font = '700 28px Fredoka';
                 ctx.textBaseline = 'middle';
                 ctx.fillStyle = '#fff';
                 const text = total.toLocaleString();
                 const textX = Math.round((width - ctx.measureText(text).width) / 2);
-                const textY = height / 2 - 10;
+                const textY = height / 2 - 12;
                 ctx.fillText(text, textX, textY);
 
-                ctx.font = '800 10px Nunito';
-                ctx.fillStyle = '#64748b';
+                ctx.font = '800 11px Nunito';
+                ctx.fillStyle = '#94a3b8';
                 const subText = 'TOTAL ACTIONS';
                 const subTextX = Math.round((width - ctx.measureText(subText).width) / 2);
-                const subTextY = height / 2 + 15;
+                const subTextY = height / 2 + 18;
                 ctx.fillText(subText, subTextX, subTextY);
                 ctx.save();
             }
@@ -559,6 +577,12 @@ function updateCharts(metricsProgress, metricsNotes, metricsProfiles, metricsSch
 
     // 3. Top Tools Bar Chart
     const sortedTools = Object.entries(toolCounts).sort((a, b) => b[1] - a[1]).slice(0, 10)
+    
+    // Create gradient for tools chart
+    const orangeGradient = ctxTools.createLinearGradient(0, 0, ctxTools.canvas.clientWidth || 300, 0)
+    orangeGradient.addColorStop(0, 'rgba(255, 126, 51, 0.8)')
+    orangeGradient.addColorStop(1, 'rgba(255, 126, 51, 0.2)')
+
     if (charts.tools) charts.tools.destroy()
     charts.tools = new Chart(ctxTools, {
         type: 'bar',
@@ -567,9 +591,9 @@ function updateCharts(metricsProgress, metricsNotes, metricsProfiles, metricsSch
             datasets: [{
                 label: 'Saves',
                 data: sortedTools.map(t => t[1]),
-                backgroundColor: '#FF8C42',
-                borderColor: '#1e293b',
-                borderWidth: 1,
+                backgroundColor: orangeGradient,
+                borderColor: '#020617',
+                borderWidth: 2,
                 borderRadius: 6,
                 barThickness: 16
             }]
@@ -581,19 +605,22 @@ function updateCharts(metricsProgress, metricsNotes, metricsProfiles, metricsSch
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: '#1e293b',
-                    titleFont: { family: 'Fredoka', size: 14 },
-                    bodyFont: { family: 'Nunito', size: 12 },
-                    borderColor: '#475569',
+                    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+                    borderColor: 'rgba(255, 126, 51, 0.4)',
                     borderWidth: 2,
-                    padding: 10,
+                    titleFont: { family: 'Fredoka', size: 14, weight: '700' },
+                    bodyFont: { family: 'Nunito', size: 12, weight: '700' },
+                    titleColor: '#fff',
+                    bodyColor: '#cbd5e1',
+                    padding: 12,
+                    cornerRadius: 12,
                 }
             },
             scales: {
                 x: {
                     beginAtZero: true,
-                    grid: { color: 'rgba(255,255,255,0.05)' },
-                    ticks: { color: '#64748b', font: { family: 'Nunito' } }
+                    grid: { color: 'rgba(255,255,255,0.06)', borderDash: [5, 5] },
+                    ticks: { color: '#94a3b8', font: { family: 'Nunito', weight: '700' } }
                 },
                 y: {
                     grid: { display: false },
